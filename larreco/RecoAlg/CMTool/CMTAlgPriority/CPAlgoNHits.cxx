@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGONHITS_CXX
-#define RECOTOOL_CPALGONHITS_CXX
-
 #include "CPAlgoNHits.h"
 
 namespace cmtool {
@@ -20,6 +17,5 @@ namespace cmtool {
 
     return ( nhit < _min_hits ? -1 : (float)nhit );
   }
-  
+
 }
-#endif

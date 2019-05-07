@@ -2,7 +2,7 @@
  *  @file   PmaVtxCandidate.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Vertex finding helper for the Projection Matching Algorithm
  *
  *          Candidate for 3D vertex. Used to test intersections and join tracks in vertices.

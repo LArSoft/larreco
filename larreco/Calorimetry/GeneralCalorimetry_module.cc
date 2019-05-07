@@ -3,7 +3,7 @@
 // GeneralCalorimetry module based on Calorimetry module
 // but does not assume anything about which view is collection vs induction
 //
-//  This algorithm is designed to perform the calorimetric reconstruction 
+//  This algorithm is designed to perform the calorimetric reconstruction
 //  of the 3D reconstructed tracks
 //
 // brebel@fnal.gov
@@ -12,7 +12,6 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 }
-#include <vector>
 #include <string>
 #include <algorithm>
 
@@ -29,7 +28,7 @@ extern "C" {
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindMany.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
@@ -37,35 +36,35 @@ extern "C" {
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 ///calorimetry
 namespace calo {
-   
+
     class GeneralCalorimetry : public art::EDProducer {
-    
+
     public:
-    
-      explicit GeneralCalorimetry(fhicl::ParameterSet const& pset); 
-    
+
+      explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
+
       void reconfigure(fhicl::ParameterSet const& pset);
       void produce(art::Event& evt);
 
     private:
-        
+
       std::string    fTrackModuleLabel; ///< module creating the track objects and assns to hits
       double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service
       geo::View_t    fCollectionView;   ///< view of the collection plane
       unsigned int   fCollectionPlane;  ///< plane of the collection plane
-      art::ServiceHandle<geo::Geometry> fGeo;
+      art::ServiceHandle<geo::Geometry const> fGeo;
 
       CalorimetryAlg caloAlg;
 
 
     }; // class GeneralCalorimetry
-  
+
 }
 
 //-------------------------------------------------
@@ -79,7 +78,7 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
   fADCToElectrons = 1./dp->ElectronsToADC();
 
   // determine the view of the collection plane
-  // just look at one cryostat, the first TPC and loop over those 
+  // just look at one cryostat, the first TPC and loop over those
   // planes
   geo::TPCID FirstTPC(0, 0);
   for(unsigned int p = 0; p < fGeo->Nplanes(FirstTPC); ++p){
@@ -105,7 +104,7 @@ void calo::GeneralCalorimetry::reconfigure(fhicl::ParameterSet const& pset)
 
 //------------------------------------------------------------------------------------//
 void calo::GeneralCalorimetry::produce(art::Event& evt)
-{ 
+{
   /*************************************************************/
   /*                          WARNING                          */
   /*************************************************************/
@@ -121,7 +120,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
   evt.getByLabel(fTrackModuleLabel, trackHandle);
   std::vector< art::Ptr<recob::Track> > tracks;
   art::fill_ptr_vector(tracks, trackHandle);
-  
+
   auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   //create anab::Calorimetry objects and make association with recob::Track
@@ -140,11 +139,11 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
       viewPitch = lar::util::TrackPitchInView(*trk, fCollectionView);
     }
     catch( cet::exception &e){
-      mf::LogWarning("GeneralCalorimetry") << "caught exception " 
-					   << e 
+      mf::LogWarning("GeneralCalorimetry") << "caught exception "
+					   << e
 					   << "\n pitch now set to 0";
     }
-    
+
     // loop over the track trajectory to get the kinetic energy,
     // residual range and the dQdx
     float kineticEnergy = 0.;
@@ -158,9 +157,9 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
     if( trk->NumberTrajectoryPoints() != trk->NumberdQdx(fCollectionView) )
       throw cet::exception("GeneralCalorimetry") << "inconsistent number of track trajectory "
 						 << " and dQdx points\n";
-      
+
     if (trk->NumberTrajectoryPoints()>2){
-      for(size_t p = 1; p < trk->NumberTrajectoryPoints()-1; ++p){	
+      for(size_t p = 1; p < trk->NumberTrajectoryPoints()-1; ++p){
 	if (!trk->DQdxAtPoint(p, fCollectionView)) continue;
 	vresRange.push_back(trk->Length(p));
 	vdQdx.push_back(trk->DQdxAtPoint(p, fCollectionView));
@@ -171,7 +170,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 	kineticEnergy += vdEdx.back(); // \todo should this be converted from electrons to energy?
 	std::cout<<vresRange.back()<<" "<<vdQdx.back()<<" "<<vdEdx.back()<<std::endl;
       }
-      
+
       geo::PlaneID planeID(0,0,fCollectionPlane);
       calorimetrycol->push_back(anab::Calorimetry(kineticEnergy,
 						  vdEdx,
@@ -181,11 +180,11 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 						  trk->Length(),
 						  viewPitch,
 						  planeID));
-      
+
       util::CreateAssn(*this, evt, *calorimetrycol, trk, *assn);
-      
+
     }
-  }// end of loop over all tracks 
+  }// end of loop over all tracks
 
   if (calorimetrycol->size()){
     evt.put(std::move(calorimetrycol));
@@ -200,5 +199,5 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 namespace calo{
 
   DEFINE_ART_MODULE(GeneralCalorimetry)
-  
-} // end namespace 
+
+} // end namespace

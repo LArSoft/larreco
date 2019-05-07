@@ -1,11 +1,11 @@
 /**
  *  @file   IHit3DBuilder.h
- * 
+ *
  *  @brief  This provides an art tool interface definition for tools which construct 3D hits used in 3D clustering
  *          and outputs a new hit collection based on those 3D hits
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef IHit3DBuilder_h
 #define IHit3DBuilder_h
@@ -36,7 +36,7 @@ public:
      *  @brief  Virtual Destructor
      */
     virtual ~IHit3DBuilder() noexcept = default;
-    
+
     /**
      *  @brief The space point building should output the hit collection
      *         for those hits which combine to form space points - a nice noise filter!
@@ -49,7 +49,7 @@ public:
      *  @param ParameterSet  The input set of parameters for configuration
      */
     virtual void configure(const fhicl::ParameterSet&) = 0;
-    
+
     /**
      *  @brief Defines a structure mapping art representation to internal
      */
@@ -71,13 +71,13 @@ public:
                      BUILDNEWHITS     = 2,
                      NUMTIMEVALUES
     };
-    
+
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
     virtual float getTimeToExecute(TimeValues index) const = 0;
-    
+
 };
-    
+
 } // namespace lar_cluster3d
 #endif

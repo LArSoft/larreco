@@ -21,7 +21,7 @@
 
 
 namespace {
-  
+
   /**
    * @brief Returns the hits associated with the specified cluster.
    * @param cluster the cluster to retrieve the associated hits of
@@ -36,7 +36,7 @@ namespace {
   {
     //
     // Reminder: the cluster-hit association is a list of links:
-    //     
+    //
     //     cluster #0  <--> hit #7
     //     cluster #0  <--> hit #8
     //     cluster #0  <--> hit #10
@@ -46,30 +46,30 @@ namespace {
     //     cluster #2  <--> hit #11
     //     cluster #2  <--> hit #12
     //     ...
-    //     
+    //
     // associated_groups() presents this associations grouped by cluster:
-    //     
+    //
     //     cluster #0  <--> hits { #7, #8, #10 }
     //     cluster #1  <--> hits { #4, #5, #9 }
     //     cluster #2  <--> hits { #11, #12 }
     //     ...
-    //     
+    //
     // This function loops through this latter list, looking for the cluster
     // number that is stored in the `cluster` argument.
     //
     size_t iAssociatedCluster = 0;
     for (auto hits: util::associated_groups(hitsPerCluster)) {
-      
+
       // if the iAssociatedCluster is the index we are looking for, we are done:
       if (iAssociatedCluster == cluster.key()) return hits;
-      
+
       ++iAssociatedCluster; // else, try the next one!
-      
+
     } // for all clusters
     throw std::runtime_error
       ("No hit associated with cluster " + std::to_string(cluster.key()) + " found!");
   } // calo::LinearEnergyAlg::hitsAssociatedWith()
-  
+
 } // local namespace
 
 
@@ -104,11 +104,11 @@ calo::LinearEnergyAlg::LinearEnergyAlg(Config const& config)
     throw std::runtime_error
       ( "Unsupported recombination mode: '" + recombParams.Model() + "'" );
   }
-  
+
   if (!fUseArea) {
     throw std::runtime_error("Energy correction based on hit peak amplitude not implemented yet.");
   }
-  
+
 }
 
 
@@ -125,21 +125,21 @@ double calo::LinearEnergyAlg::CalculateHitEnergy(recob::Hit const& hit) const
 
   double const t = detc->TPCTick2TrigTime( hit.PeakTime() );
   double const LifetimeCorr = std::exp( t / fElectronLifetime );
-  
+
   // hit charge (ADC) -> Coulomb -> Number of electrons -> eV
   // TODO: implement the non-UseArea option
   double dE = hit.Integral() * kWion * fDeconNorm;
-  
+
   // dE * lifetime correction
   dE *= LifetimeCorr;
-  
+
   // dE / recombination factor
   double const dEdx = 2.3;
   double const RecombCorr = RecombinationCorrection( dEdx ) * kWion / dEdx;
   dE /= RecombCorr;
-  
+
   return dE;
-  
+
 } // calo::LinearEnergyAlg::CalculateHitEnergy()
 
 
@@ -149,7 +149,7 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   art::Assns<recob::Cluster, recob::Hit> const& hitsPerCluster
   ) const
 {  // input clusters and hits, shower direction?
-  
+
   if (clusters.empty()) return {}; // no clusters!!
 
   // prepare the energies vector with one entry per plane
@@ -160,14 +160,14 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   geo::TPCID refTPC = clusters[0]->Plane();
   clusterEnergies.resize
     (geom->TPC(refTPC).Nplanes(), std::numeric_limits<double>::lowest());
-  
+
   if ( clusters.size() > clusterEnergies.size() ) {
     mf::LogError("LinearEnergyAlg") << clusters.size() << " clusters for "
       << clusterEnergies.size() << " wire planes!";
   }
 
   for (art::Ptr<recob::Cluster> const& cluster: clusters) {
-    
+
     auto const plane = cluster->Plane();
     if (plane != refTPC) {
       throw std::runtime_error(
@@ -176,12 +176,12 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
         + " but is found on plane " + std::string(plane)
         );
     }
-    
+
     // hitsAssociatedWith() searches for the right association links
     // to the cluster we are processing
     double const E = CalculateClusterEnergy
       (*cluster, hitsAssociatedWith(cluster, hitsPerCluster));
-    
+
     auto const planeNo = plane.Plane;
     if (clusterEnergies[planeNo] >= 0.) {
       mf::LogWarning("LinearEnergyAlg")
@@ -190,11 +190,11 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
         << ", the previous " << clusterEnergies[planeNo] << " GeV)";
     }
     clusterEnergies[planeNo] = E;
-    
+
   } // for all clusters
-  
+
   return clusterEnergies;
-  
+
 } // calo::LinearEnergyAlg::CalculateEnergy()
 
 double calo::LinearEnergyAlg::RecombinationCorrection( double dEdx ) const {

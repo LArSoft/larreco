@@ -19,7 +19,7 @@
 namespace reco_tool
 {
     template <class T> using Waveform = std::vector<T>;
-    
+
     //< Enumerate some histograms that can be defined in methods below
     enum HistogramType : int
     {
@@ -33,19 +33,19 @@ namespace reco_tool
         DOPENCLOSING,
         LASTELEMENT
     };
-    
+
     using HistogramMap = std::map<int, TProfile*>;
-    
+
     class IWaveformTool
     {
     public:
         virtual ~IWaveformTool() noexcept = default;
-        
+
         virtual void configure(const fhicl::ParameterSet& pset)  = 0;
-        
+
         using PeakTuple    = std::tuple<size_t,size_t,size_t>;   //< first bin, peak bin, last bin
         using PeakTupleVec = std::vector<PeakTuple>;             //< The collection of candidate peaks
-        
+
         virtual void triangleSmooth(const std::vector<float>&,  std::vector<float>&,  size_t = 0)                           const = 0;
         virtual void triangleSmooth(const std::vector<double>&, std::vector<double>&, size_t = 0)                           const = 0;
         virtual void medianSmooth(  const std::vector<float>&,  std::vector<float>&,  size_t = 3)                           const = 0;
@@ -58,7 +58,7 @@ namespace reco_tool
         virtual void findPeaks(std::vector<double>::iterator, std::vector<double>::iterator, PeakTupleVec&, double, size_t) const = 0;
         virtual void getFFTPower(const std::vector<float>& inputVec, std::vector<float>& outputPowerVec)                    const = 0;
         virtual void getFFTPower(const std::vector<double>& inputVec, std::vector<double>& outputPowerVec)                  const = 0;
-        
+
         virtual void getErosionDilationAverageDifference(const Waveform<short>&,                //< Input waveform
                                                          int,                                   //< Structuring element
                                                          HistogramMap&,                         //< Map of histograms to fill
@@ -80,7 +80,7 @@ namespace reco_tool
                                                          Waveform<double>&,
                                                          Waveform<double>&,
                                                          Waveform<double>&)         const = 0;
-        
+
         virtual void getOpeningAndClosing(const Waveform<short>&,                                //< Input erosions vector
                                           const Waveform<short>&,                                //< Input dilation vector
                                           int,                                                   //< Structuring element

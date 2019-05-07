@@ -21,11 +21,11 @@ namespace trkf{
     public:
 
     LinFitAlg();
-    
+
     virtual ~LinFitAlg();
-    
-    void LinFit(std::vector<float>& x, std::vector<float>& y, 
-      std::vector<float>& ey2, float& Intercept, float& Slope, 
+
+    void LinFit(std::vector<float>& x, std::vector<float>& y,
+      std::vector<float>& ey2, float& Intercept, float& Slope,
       float& InterceptError, float& SlopeError, float& ChiDOF);
 
   }; // class LinFitAlg

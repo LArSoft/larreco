@@ -8,11 +8,8 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 
-#ifndef TRKF_TRACKCHEATER_H
-#define TRKF_TRACKCHEATER_H
 #include <string>
 
-#include <vector>
 
 // ROOT includes
 #include "TVector3.h"
@@ -36,8 +33,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -52,7 +49,7 @@ namespace trkf {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
-    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects	   
+    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
     std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc
 
   };
@@ -83,9 +80,9 @@ namespace trkf{
   //--------------------------------------------------------------------
   void TrackCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<geo::Geometry>            geo;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     // grab the clusters that have been reconstructed
     art::Handle< std::vector<recob::Cluster> > clustercol;
@@ -97,7 +94,7 @@ namespace trkf{
     // so no need for a art::PtrVector here
     std::vector< art::Ptr<recob::Cluster> > clusters;
     art::fill_ptr_vector(clusters, clustercol);
-    
+
     // loop over the clusters and figure out which particle contributed to each one
     std::vector< art::Ptr<recob::Cluster> >::iterator itr = clusters.begin();
 
@@ -109,7 +106,7 @@ namespace trkf{
 
       std::pair<size_t, art::Ptr<recob::Cluster> > idxPtr(c, clusters[c]);
 
-      // in the ClusterCheater module we set the cluster ID to be 
+      // in the ClusterCheater module we set the cluster ID to be
       // the eve particle track ID*1000 + plane*100 + tpc*10 + cryostat number.  The
       // floor function on the cluster ID / 1000 will give us
       // the eve track ID
@@ -133,7 +130,7 @@ namespace trkf{
 
       simb::MCParticle *part = pi_serv->ParticleList()[clusterMapItr.first];
 
-      // is this prong electro-magnetic in nature or 
+      // is this prong electro-magnetic in nature or
       // hadronic/muonic?  EM --> shower, everything else is a track
       if( abs(part->PdgCode()) != 11  &&
 	  abs(part->PdgCode()) != 22  &&
@@ -146,7 +143,7 @@ namespace trkf{
 	// size_t nviews = geo->Nviews();
 	// std::vector< std::vector<double> > dQdx(nviews);
 
-	mf::LogInfo("TrackCheater") << "G4 id " << clusterMapItr.first 
+	mf::LogInfo("TrackCheater") << "G4 id " << clusterMapItr.first
 				    << " is a track with pdg code "
 				    << part->PdgCode();
 
@@ -190,8 +187,8 @@ namespace trkf{
 	  }
 
 	  // dx is always positive
-	  dx = std::sqrt(std::pow(xyz1[0] - xyz[0], 2) + 
-			 std::pow(xyz1[1] - xyz[1], 2) + 
+	  dx = std::sqrt(std::pow(xyz1[0] - xyz[0], 2) +
+			 std::pow(xyz1[1] - xyz[1], 2) +
 			 std::pow(xyz1[2] - xyz[2], 2));
 
 	  // figure out momentum
@@ -205,7 +202,7 @@ namespace trkf{
 	      drmin = dr;
 	    }
 	  }
-	  
+
 	  // direction is always from the previous point along track to
 	  // the next point, that is why sign is there
 	  moms.push_back(TVector3(mom*sign*(xyz1[0] - xyz[0])/dx,
@@ -235,9 +232,9 @@ namespace trkf{
 	  recob::SpacePoint sp(&xyz[0], xyzerr, chisqr, clusterMapItr.first*10000 + t);
 	  spcol->push_back(sp);
 	}
-	
+
 	size_t spEnd = spcol->size();
-	
+
 	// add a track to the collection.  Make the track
 	// ID be the same as the track ID for the eve particle
 	trackcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(points),
@@ -258,7 +255,7 @@ namespace trkf{
 	// associate the track to the space points
 	util::CreateAssn(*this, evt, *trackcol, *spcol, *tspassn, spStart, spEnd);
 
-	mf::LogInfo("TrackCheater") << "adding track: \n" 
+	mf::LogInfo("TrackCheater") << "adding track: \n"
 				     << trackcol->back()
 				     << "\nto collection.";
 
@@ -283,5 +280,3 @@ namespace trkf{
   DEFINE_ART_MODULE(TrackCheater)
 
 }
-
-#endif

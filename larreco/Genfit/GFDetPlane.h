@@ -21,7 +21,7 @@
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 
 
@@ -43,23 +43,23 @@
 /** @brief Detector plane genfit geometry class
  *
  * A detector plane is the principle object to define coordinate systems for
- * track fitting in genfit. Since a particle trajectory is a 
+ * track fitting in genfit. Since a particle trajectory is a
  * one-dimensional object (regardless of any specific parameterization)
  * positions with repect to the track are always meassured in a plane.
  *
- * Which plane is choosen depends on the type of detector. Fixed plane 
+ * Which plane is choosen depends on the type of detector. Fixed plane
  * detectors have their detector plane defined by their mechanical setup. While
- * wire chambers or time projection chambers might want to define a detector 
+ * wire chambers or time projection chambers might want to define a detector
  * plane more flexibly.
  *
- * This class parameterizes a plane in terms of an origin vector o 
+ * This class parameterizes a plane in terms of an origin vector o
  * and two plane-spanning directions u and v.
  */
 namespace genf {
 
   class GFDetPlane : public TObject {
   public:
-    
+
     // Constructors/Destructors ---------
     GFDetPlane(genf::GFAbsFinitePlane* finite=NULL);
     GFDetPlane(const TVector3& o,
@@ -80,7 +80,7 @@ namespace genf {
     // Modifiers -----------------------
     void set(const TVector3& o,
 	     const TVector3& u,
-	     const TVector3& v); 
+	     const TVector3& v);
 
     void setO(const TVector3& o);
     void setO(double,double,double);
@@ -109,7 +109,7 @@ namespace genf {
     TVector3 toLab(const TVector2& x) const;
     // get vector from point to plane (normal)
     TVector3 dist(const TVector3& point) const;
-  
+
     //! gives u,v coordinates of the intersection point of a straight line with plane
     TVector2 straightLineToPlane(const TVector3& point,const TVector3& dir) const;
 
@@ -144,7 +144,7 @@ namespace genf {
     bool inActive(const TVector2& v) const{
       return inActive(v.X(),v.Y());
     }
-  
+
     //private:
 
     // Private Data Members ------------
@@ -159,7 +159,7 @@ namespace genf {
     // Private Methods -----------------
 
     void sane(); // ensures orthnormal coordinates
-    
+
   private:
     virtual void Print(Option_t*) const
       { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
@@ -171,7 +171,7 @@ namespace genf {
 
   bool operator==(const genf::GFDetPlane&, const genf::GFDetPlane&);
   bool operator!=(const genf::GFDetPlane&, const genf::GFDetPlane&);
-  
+
 } // namespace genf
 
 #endif

@@ -38,14 +38,14 @@ namespace trkf {
 
     // Variables for minuit.
     static VertexFitMinuitStruct fVtxFitMinStr;
-    
+
     static void fcnVtxPos(Int_t &, Double_t *, Double_t &fval, double *par, Int_t flag);
 
     private:
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
-    
+
   }; // class VertexFitAlg
 
 } // namespace trkf

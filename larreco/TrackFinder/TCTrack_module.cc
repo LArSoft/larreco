@@ -2,7 +2,7 @@
  * @file   TCTrack_module.cc
  * @brief  Create seeds, spacepoints and tracks from 3D matched clusters produced by TrajCluster_module
  * @author Bruce Baller (baller@fnal.gov)
- * 
+ *
 *
  */
 
@@ -35,13 +35,13 @@
 namespace trkf {
 
   class TCTrack: public art::EDProducer {
-    
+
   public:
     explicit TCTrack(fhicl::ParameterSet const & pset);
-    
+
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    
+
   private:
 
     SpacePointAlg fSptalg;
@@ -49,36 +49,36 @@ namespace trkf {
     std::string            fPFPModuleLabel;
 //    std::string            fHitModuleLabel;
 
-    
+
   }; // class TCTrack
-  
+
   //----------------------------------------------------------------------------
   void TCTrack::reconfigure(fhicl::ParameterSet const & pset)
   {
 //    fHitModuleLabel         = pset.get< std::string >("HitModuleLabel");
     fPFPModuleLabel     = pset.get< std::string >("PFPModuleLabel");
-    
+
     fSptalg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
 
   }
-    
+
   //----------------------------------------------------------------------------
   TCTrack::TCTrack(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
     , fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
   {
-    
+
     reconfigure(pset);
-    
+
     produces<std::vector<recob::SpacePoint> >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
-    
+
   } // TCTrack::TCTrack()
-  
+
   //----------------------------------------------------------------------------
   void TCTrack::produce(art::Event & evt)
   {
-    
+
     // all data products are assumed to be produced by the same module that produced the PFParticles -> TrajCluster_module
     art::InputTag DataInputTag(fPFPModuleLabel);
     art::ValidHandle<std::vector<recob::PFParticle>> pfpHandle = evt.getValidHandle<std::vector<recob::PFParticle>>(DataInputTag);
@@ -87,10 +87,10 @@ namespace trkf {
 
     art::FindManyP<recob::Cluster> pfp_cls(pfpHandle, evt, fPFPModuleLabel);
     art::FindManyP<recob::Hit> cls_hit(clsHandle, evt, fPFPModuleLabel);
-    
+
     std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit> > sphitassn(new art::Assns<recob::SpacePoint, recob::Hit>);
     std::unique_ptr<std::vector<recob::SpacePoint> > spts(new std::vector<recob::SpacePoint>);
-    
+
     art::PtrVector<recob::Hit> hits;
     for(unsigned short ipfp = 0; ipfp < pfpHandle->size(); ++ipfp) {
       // Get the clusters associated with this PFParticle - there should be one in each plane
@@ -129,12 +129,12 @@ namespace trkf {
         util::CreateAssn(*this, evt, *spts, hits, *sphitassn, ispt);
       } // ispt
     } // ipfp
-    
+
     evt.put(std::move(spts));
     evt.put(std::move(sphitassn));
-      
+
   } // TCTrack::produce()
-    
+
   DEFINE_ART_MODULE(TCTrack)
 
 } // namespace trkf

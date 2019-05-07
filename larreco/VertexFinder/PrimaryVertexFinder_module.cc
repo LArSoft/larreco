@@ -1,23 +1,21 @@
 ////////////////////////////////////////////////////////////////////////
 //
 // PrimaryVertexFinder class
-//  
+//
 ////////////////////////////////////////////////////////////////////////
-#ifndef PrimaryVertexFinder_H
-#define PrimaryVertexFinder_H
 
 #include <iostream>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindMany.h"
@@ -25,14 +23,12 @@
 
 #include <iomanip>
 #include <ios>
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
 #include <vector>
 #include <string>
 
-#include "TMath.h"
 #include <TVector3.h>
 #include "TH1.h"
 #include "TH2.h"
@@ -57,21 +53,21 @@ class TVector3;
 
 ///vertex reconstruction
 namespace vertex {
-   
+
  class PrimaryVertexFinder :  public art::EDProducer {
-    
+
   public:
-    
-    explicit PrimaryVertexFinder(fhicl::ParameterSet const& pset); 
+
+    explicit PrimaryVertexFinder(fhicl::ParameterSet const& pset);
     void beginJob();
     void reconfigure(fhicl::ParameterSet const& p);
 
-    
+
     void produce(art::Event& evt);
 
   private:
 
-  
+
     std::string fTrackModuleLabel;
     double      fVertexWindow;
     double      StartPointSeperation(recob::SpacePoint sp1, recob::SpacePoint sp2);
@@ -90,7 +86,7 @@ namespace vertex {
     TH1F*       fLength_5thTrack;
 
   };
-    
+
 }
 
 //------------------------------------------------------------------------------
@@ -100,20 +96,20 @@ bool sort_pred2(const std::pair<art::Ptr<recob::Track>,double>& left, const std:
 }
 
 namespace vertex{
-  
+
   //-----------------------------------------------------------------------------
   PrimaryVertexFinder::PrimaryVertexFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
-  {  
-    this->reconfigure(pset);    
+  {
+    this->reconfigure(pset);
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Vertex, recob::Hit> >();
     produces< art::Assns<recob::Vertex, recob::Track> >();
     produces< art::Assns<recob::Vertex, recob::Shower> >();
   }
-  
+
   //---------------------------------------------------------------------------
-  void PrimaryVertexFinder::reconfigure(fhicl::ParameterSet const& p) 
+  void PrimaryVertexFinder::reconfigure(fhicl::ParameterSet const& p)
   {
     fTrackModuleLabel  = p.get< std::string >("TrackModuleLabel");
     fVertexWindow      = p.get<double     >  ("VertexWindow");
@@ -122,8 +118,8 @@ namespace vertex{
   //-------------------------------------------------------------------------
   void PrimaryVertexFinder::beginJob(){
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
-    
+    art::ServiceHandle<art::TFileService const> tfs;
+
     //    fNoVertices= tfs->make<TH2F>("fNoVertices", ";Event No; No of vertices", 100,0, 100, 30, 0, 30);
      fNoTracks= tfs->make<TH2F>("fNoTracks", ";Event No; No of Tracks", 10,0, 10, 10, 0, 10);
      fLength_1stTrack = tfs->make<TH1F>("fLength_Track1", "Muon Track Length", 100,0,100);
@@ -142,23 +138,23 @@ namespace vertex{
     //   std::cout << "run    : " << evt.Header().Run() << std::endl;
     //   std::cout << "subrun : " << evt.Header().Subrun() << std::endl;
     //std::cout << "event  : " << evt.Header().Event() << std::endl;
-    
+
     mf::LogInfo("PrimaryVertexFinder") << "event  : " << evt.id().event();
-    
-    
-    art::ServiceHandle<geo::Geometry> geom;
-    
+
+
+    art::ServiceHandle<geo::Geometry const> geom;
+
     //mf::LogInfo("PrimaryVertexFinder") << "I am in Primary vertex finder " << std::endl;
-        
+
     art::Handle< std::vector<recob::Track> > trackListHandle;
     evt.getByLabel(fTrackModuleLabel,trackListHandle);
-    
+
     //Point to a collection of vertices to output.
     std::unique_ptr< std::vector<recob::Vertex> > vcol(new std::vector<recob::Vertex>);
     std::unique_ptr< art::Assns<recob::Vertex, recob::Hit> > vhassn(new art::Assns<recob::Vertex, recob::Hit>);
     std::unique_ptr< art::Assns<recob::Vertex, recob::Track> > vtassn(new art::Assns<recob::Vertex, recob::Track>);
     std::unique_ptr< art::Assns<recob::Vertex, recob::Shower> > vsassn(new art::Assns<recob::Vertex, recob::Shower>);
-    
+
 
     std::vector<recob::Track> const& trkIn = *trackListHandle;
 
@@ -169,7 +165,7 @@ namespace vertex{
 
     std::vector <TVector3> startvec;
     TVector3 startXYZ;
-    
+
     std::vector <TVector3> endvec;
     TVector3 endXYZ;
 
@@ -177,10 +173,10 @@ namespace vertex{
     TVector3 dircosXYZ;
 
     std::vector< std::pair<art::Ptr<recob::Track>, double> > trackpair;
-    
+
     art::FindMany<recob::SpacePoint> TrackSpacePoints
       (trackListHandle, evt, fTrackModuleLabel);
-    
+
     for(unsigned int i = 0; i<trkIn.size(); ++i){
       recob::Track::Point_t start, end;
       std::tie(start, end) = trkIn[i].Extent();
@@ -192,20 +188,20 @@ namespace vertex{
       //mf::LogInfo("PrimaryVertexFinder") << "Track length calculated = " << length << std::endl;
       trackpair.push_back(std::pair<art::Ptr<recob::Track>,double>({ trackListHandle, i },length));
     }
-    
+
     for(size_t i = 0; i<trackpair.size(); ++i){
-      mf::LogInfo("PrimaryVertexFinder") << "track id is  = " << (trackpair[i].first)->ID() 
+      mf::LogInfo("PrimaryVertexFinder") << "track id is  = " << (trackpair[i].first)->ID()
 					 << " track length = " << (trackpair[i].second);
     }
-    
+
     std::sort(trackpair.rbegin(), trackpair.rend(), sort_pred2);
-    
+
     mf::LogInfo("PrimaryVertexFinder") << "AFTER SORTING ";
     for(size_t i = 0; i < trackpair.size(); ++i){
-      mf::LogInfo("PrimaryVertexFinder") << "track id is  = " << (trackpair[i].first)->ID() 
+      mf::LogInfo("PrimaryVertexFinder") << "track id is  = " << (trackpair[i].first)->ID()
 					 << " track length = " << (trackpair[i].second);
     }
-    
+
     if(trackpair.size()>0)
     fLength_1stTrack->Fill(trackpair[0].second);
 
@@ -232,20 +228,20 @@ namespace vertex{
       startXYZ  = trackpair[j].first->Vertex<TVector3>();
       endXYZ    = trackpair[j].first->End<TVector3>();
       dircosXYZ = trackpair[j].first->VertexDirection<TVector3>();
- 
+
       startvec.push_back(startXYZ);
       endvec.push_back(endXYZ);
       dircosvec.push_back(dircosXYZ);
-      
-      mf::LogInfo("PrimaryVertexFinder") << "PrimaryVertexFinder got "<< spacepoints.size() 
+
+      mf::LogInfo("PrimaryVertexFinder") << "PrimaryVertexFinder got "<< spacepoints.size()
 					 <<" 3D spacepoint(s) from Track3Dreco.cxx";
-            
+
       // save the first SpacePoint of each Track... from now the SpacePoint ID represents the Track ID!!
       startpoints_vec.emplace_back(
         spacepoints[0]->XYZ(), spacepoints[0]->ErrXYZ(),
         spacepoints[0]->Chisq(), startpoints_vec.size()
         );
-    
+
     }// loop over tracks
 
     for(size_t i = 0; i < startvec.size();  ++i){ //trackpair.size()
@@ -262,13 +258,13 @@ namespace vertex{
 
     for (unsigned int i=0; i<trackpair.size(); ++i){
       for (unsigned int j=i+1; j<trackpair.size(); ++j){
-	mf::LogInfo("PrimaryVertexFinder") << "distance between " << i << " and " << j 
-					   << " = " 
+	mf::LogInfo("PrimaryVertexFinder") << "distance between " << i << " and " << j
+					   << " = "
 					   << StartPointSeperation(startpoints_vec[i], startpoints_vec[j]);
 	double GAMMA = gammavalue(startvec[i], startvec[j], dircosvec[i], dircosvec[j]);
 	double ALPHA = alphavalue(GAMMA, startvec[i], startvec[j], dircosvec[i], dircosvec[j]);
 	double MINDIST = MinDist(ALPHA, GAMMA, startvec[i], startvec[j], dircosvec[i], dircosvec[j]);
-	mf::LogInfo("PrimaryVertexFinder") << "alpha = " << ALPHA << " gamma = " 
+	mf::LogInfo("PrimaryVertexFinder") << "alpha = " << ALPHA << " gamma = "
 					   << GAMMA << " MINIMUM DISTANCE = " << MINDIST;
 
 	TVector3 TRACK1POINT = PointOnExtendedTrack(ALPHA, startvec[i], dircosvec[i]);
@@ -309,7 +305,7 @@ namespace vertex{
       }
     }
 
-    
+
     //now add the unmatched track IDs to the collection
     for(size_t i = 0; i < trackpair.size(); ++i){
       if(!IsInVertexCollection(i, vertex_collection_int)){
@@ -317,7 +313,7 @@ namespace vertex{
 	std::vector<int> temp;
 	std::vector <TVector3> temp1;
 	temp.push_back(i);
-	temp1.push_back(startvec[i]);	
+	temp1.push_back(startvec[i]);
 	vertex_collection_int.push_back(temp);
 	vertexcand_vec.push_back(temp1);
 	//}
@@ -329,12 +325,12 @@ namespace vertex{
 
     // find the hits of all the tracks
     art::FindManyP<recob::Hit> TrackHits(trackListHandle, evt, fTrackModuleLabel);
-    
+
     // find the hits of all the showers
   //  art::FindManyP<recob::Hit> ShowerHits(showerListHandle, evt, fShowerModuleLabel);
     ///\todo replace with the real query when this module is updated to look for showers too
     art::FindManyP<recob::Hit> ShowerHits(std::vector<art::Ptr<recob::Shower>>(), evt, fTrackModuleLabel);
-    
+
     for(size_t i = 0; i < vertex_collection_int.size(); ++i){
       double x = 0.;
       double y = 0.;
@@ -348,7 +344,7 @@ namespace vertex{
       }
       mf::LogInfo("PrimaryVertexFinder") << "------------";
 
-      
+
       for(std::vector<TVector3>::iterator itr = vertexcand_vec[i].begin(); itr < vertexcand_vec[i].end(); ++itr){
 	//calculate sum of x, y and z of a vertex
 	x += (*itr).X();
@@ -360,12 +356,12 @@ namespace vertex{
       double avgx = x/elemsize;
       double avgy = y/elemsize;
       double avgz = z/elemsize;
-      
+
       Double_t vtxcoord[3];
       vtxcoord[0] = avgx;
       vtxcoord[1] = avgy;
-      vtxcoord[2] = avgz;    
-      
+      vtxcoord[2] = avgz;
+
       recob::Vertex the3Dvertex(vtxcoord, vcol->size());
       vcol->push_back(the3Dvertex);
 
@@ -391,7 +387,7 @@ namespace vertex{
         vShowerIndices.clear();
       } // if showers
 
-      
+
     }// end loop over vertex_collection_ind
 
     MF_LOG_VERBATIM("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
@@ -402,7 +398,7 @@ namespace vertex{
     evt.put(std::move(vtassn));
     evt.put(std::move(vhassn));
     evt.put(std::move(vsassn));
-    
+
   } // end of produce
 } // end of vertex namespace
 
@@ -419,7 +415,7 @@ double vertex::PrimaryVertexFinder::StartPointSeperation(recob::SpacePoint sp1, 
 bool vertex::PrimaryVertexFinder::IsInVertexCollection(int a, std::vector<std::vector<int> > vertex_collection)
 {
   int flag = 0;
-  
+
   for(unsigned int i = 0; i < vertex_collection.size() ; i++){
     for(std::vector<int>::iterator itr = vertex_collection[i].begin(); itr < vertex_collection[i].end(); ++itr){
       if (a == *itr){
@@ -430,7 +426,7 @@ bool vertex::PrimaryVertexFinder::IsInVertexCollection(int a, std::vector<std::v
   }
   if(flag==1)
     return true;
-  return false; 
+  return false;
 }
 // //------------------------------------------------------------------------------
 int vertex::PrimaryVertexFinder::IndexInVertexCollection(int a, int b, std::vector<std::vector<int> > vertex_collection)
@@ -439,7 +435,7 @@ int vertex::PrimaryVertexFinder::IndexInVertexCollection(int a, int b, std::vect
   for(unsigned int i = 0; i < vertex_collection.size() ; i++){
     for(std::vector<int>::iterator itr = vertex_collection[i].begin(); itr < vertex_collection[i].end(); ++itr){
       if (a == *itr || b == *itr)
-	index = i; 
+	index = i;
     }
   }
   return index;
@@ -454,10 +450,10 @@ bool vertex::PrimaryVertexFinder::IsInNewVertex(int a, std::vector<int> newverte
       break;
     }
   }
-  
+
   if(flag==1)
     return true;
-  return false; 
+  return false;
 }
 // //------------------------------------------------------------------------------
 double vertex::PrimaryVertexFinder::gammavalue(TVector3 startpoint1, TVector3 startpoint2, TVector3 dircos1, TVector3 dircos2)
@@ -494,5 +490,3 @@ namespace vertex{
   DEFINE_ART_MODULE(PrimaryVertexFinder)
 
 } // end of vertex namespace
-
-#endif // PrimaryVertexFinder_H

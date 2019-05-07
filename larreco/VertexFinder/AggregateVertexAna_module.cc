@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef VERTEX_AGGREGATEVERTEXANA_H
-#define VERTEX_AGGREGATEVERTEXANA_H
 
 extern "C" {
 #include <sys/types.h>
@@ -18,16 +16,15 @@ extern "C" {
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
-#include <vector>
 #include <string>
 
 #include "lardataobj/RecoBase/Track.h"
@@ -50,7 +47,7 @@ namespace vertex {
     ~AggregateVertexAna();
 
     void analyze (const art::Event& evt);
-    void beginJob(); 
+    void beginJob();
 
   private:
 
@@ -98,7 +95,7 @@ namespace vertex{
   //-----------------------------------------------
   void AggregateVertexAna::beginJob()
   {
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
     HnVtxes   = tfs->make<TH1F>("Num Vertices","Num Vertices",8,-0.5,7.5);
     HVtxSep   = tfs->make<TH1F>("Vertices spacing","Vertices spacing",20,0.001,5.0);
@@ -109,7 +106,7 @@ namespace vertex{
   }
 
   //-----------------------------------------------
-  void AggregateVertexAna::analyze(const art::Event& evt) 
+  void AggregateVertexAna::analyze(const art::Event& evt)
   {
     art::Handle< std::vector<recob::Hit> > hitListHandle;
     evt.getByLabel(fHitModuleLabel,hitListHandle);
@@ -139,32 +136,32 @@ namespace vertex{
       fVertexlist.push_back(vertex); // class member
     }
 
-    HnVtxes->Fill(feplist.size(),1);  
+    HnVtxes->Fill(feplist.size(),1);
 
     art::FindManyP<recob::Track> fmt(vertexListHandle, evt, fVertexModuleLabel);
     art::FindManyP<recob::Hit>   fmh(vertexListHandle, evt, fVertexModuleLabel);
 
-    for(size_t v1 = 0; v1 < fVertexlist.size(); ++v1)  {            
-      
+    for(size_t v1 = 0; v1 < fVertexlist.size(); ++v1)  {
+
       std::vector< art::Ptr<recob::Track> > tvlist = fmt.at(v1);
-      
+
       HnTrksVtx->Fill(tvlist.size(),1);
-      
+
       if(tvlist.size() < 1) continue;
-      
+
       std::vector< art::Ptr<recob::Hit> > hitvlist = fmh.at(v1);
-      
-      // Hits no longer has XYZ() method. To get 3d hit position info I'm going to have to 
+
+      // Hits no longer has XYZ() method. To get 3d hit position info I'm going to have to
       // loop on all the SpacePoints and loop on all Hits from there till it matches
-      // one from this vertex. This affects the two Fill() efforts below. EC, 19-Nov-2010.      
+      // one from this vertex. This affects the two Fill() efforts below. EC, 19-Nov-2010.
       art::PtrVector<recob::Hit>::const_iterator hitv = hitvlist.begin();
-      
-      for(size_t v2 = v1+1; v2 < fVertexlist.size(); ++v2){            
-	
+
+      for(size_t v2 = v1+1; v2 < fVertexlist.size(); ++v2){
+
 	std::vector< art::Ptr<recob::Hit> > hitvlist2 = fmh.at(v2);
-	
+
 	std::vector< art::Ptr<recob::Hit> >::const_iterator hitv2 = hitvlist2.begin();
-	
+
 	// These two whiles should be each precisely one iteration long.
 	while( hitv != hitvlist.end() ){
 	  while( hitv2 != hitvlist2.end() ){
@@ -175,7 +172,7 @@ namespace vertex{
 	  }
 	  hitv++;
 	}// end loop over hitv entries
-	
+
       }// end loop over v2
     }// end loop over v1
 
@@ -188,4 +185,3 @@ namespace vertex{
   DEFINE_ART_MODULE(AggregateVertexAna)
 
 }
-#endif // AGGREGATEVTXANA_H

@@ -38,14 +38,14 @@ namespace calib
 
     IPhotonCalibrator() {};
     virtual ~IPhotonCalibrator() = default;
-        
+
     virtual double PE(double adcs, int opchannel) const = 0;
     virtual bool   UseArea() const = 0;
-        
+
     /// Need a 3D position because result depends on position along length of
     /// bar. This is going to be pretty imprecise even so.
     // virtual double GeV(double PE, int opchannel, TVector3 pos) = 0;
-        
+
     /// Convenience
     double PE(const recob::OpHit& oh) const
     {
@@ -61,7 +61,7 @@ namespace calib
     //{
     //  return GeV(oh.PE(), oh.OpChannel(), pos);
     //}
-    
+
     //double GeV(const OpFlash& of, TVector3 pos)
     //{
     //  // This function would be in the .cxx in practice
@@ -72,7 +72,7 @@ namespace calib
     //  return ret;
     //}
 
-    
+
   };
 
 }

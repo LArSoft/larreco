@@ -31,7 +31,7 @@ namespace trkf {
    * @version 1.0
    */
   class TrajectoryMCSFitter {
-    // 
+    //
   public:
     //
     struct Config {
@@ -75,7 +75,7 @@ namespace trkf {
       fhicl::Atom<double> pMax {
         Name("pMax"),
 	Comment("Maximum momentum value in likelihood scan."),
-	7.50  
+	7.50
       };
       fhicl::Atom<double> pStep {
         Name("pStep"),

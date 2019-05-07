@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOMERGEALL_CXX
-#define RECOTOOL_CBALGOMERGEALL_CXX
-
 #include "CBAlgoMergeAll.h"
 
 namespace cmtool {
@@ -20,7 +17,5 @@ namespace cmtool {
     if(cluster1.GetNHits() && cluster2.GetNHits()) return true;
     else return false;
   }
-  
-}
 
-#endif
+}

@@ -1,13 +1,13 @@
-////////////////////////////////////////////////////////////////////////                                         
-// Class:       TCShower                                                                                         
-// File:        TCShowerAlg.h                                                                               
-//                                                                                                               
-// Contact: roryfitz@umich.edu                                                                                   
-//                                                                                                               
-// module produces showers by selecting tracks surround by many                                                  
-// showerLike trajectories as defined by trajcluster with negative                                               
-// cluster IDs                                                                                                   
-////////////////////////////////////////////////////////////////////////   
+////////////////////////////////////////////////////////////////////////
+// Class:       TCShower
+// File:        TCShowerAlg.h
+//
+// Contact: roryfitz@umich.edu
+//
+// module produces showers by selecting tracks surround by many
+// showerLike trajectories as defined by trajcluster with negative
+// cluster IDs
+////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
@@ -15,7 +15,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -64,8 +64,8 @@ namespace shower {
     TCShowerAlg(fhicl::ParameterSet const& pset);
 
     int makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<recob::Track> trkpfp_fm, art::FindManyP<anab::Calorimetry> fmcal);
-    
-  private: 
+
+  private:
 
     calo::CalorimetryAlg fCalorimetryAlg;
     pma::ProjectionMatchingAlg fProjectionMatchingAlg;
@@ -77,5 +77,5 @@ namespace shower {
     bool addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits);
 
   }; // class TCShowerAlg
-  
+
 } // namespace shower

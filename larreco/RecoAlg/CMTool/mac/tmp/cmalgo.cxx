@@ -1,6 +1,3 @@
-#ifndef CMALGO_CLASS_NAME_CXX
-#define CMALGO_CLASS_NAME_CXX
-
 #include "CMAlgo_Class_Name.h"
 
 namespace cluster {
@@ -46,7 +43,7 @@ namespace cluster {
   {
 
   }
-  
+
   //----------------------------------------------------------------
   bool CMAlgo_Class_Name::Bool(const ClusterParamsAlg &cluster1,
 			       const ClusterParamsAlg &cluster2)
@@ -61,6 +58,5 @@ namespace cluster {
   {
 
   }
-    
+
 }
-#endif

@@ -8,9 +8,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef PointIdTrainingData_Module
-#define PointIdTrainingData_Module
-
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -23,14 +20,13 @@
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
 
 // C++ Includes
-#include <vector>
 #include <string>
 #include <cmath>
 #include <fstream>
@@ -43,7 +39,7 @@ namespace nnet	 {
   class PointIdTrainingData : public art::EDAnalyzer
   {
   public:
- 
+
  	struct Config {
 		using Name = fhicl::Name;
 		using Comment = fhicl::Comment;
@@ -111,7 +107,7 @@ namespace nnet	 {
 	fSelectedPlane(config().SelectedView()),
 	fCrop(config().Crop())
   {
-    fGeometry = &*(art::ServiceHandle<geo::Geometry>());
+    fGeometry = &*(art::ServiceHandle<geo::Geometry const>());
 
 	const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
 	if (fSelectedTPC.empty())
@@ -128,9 +124,9 @@ namespace nnet	 {
   }
 
   //-----------------------------------------------------------------------
-  void PointIdTrainingData::analyze(const art::Event& event) 
+  void PointIdTrainingData::analyze(const art::Event& event)
   {
-    fEvent  = event.id().event(); 
+    fEvent  = event.id().event();
     fRun    = event.run();
     fSubRun = event.subRun();
 
@@ -170,7 +166,7 @@ namespace nnet	 {
 	        std::ostringstream ss1;
 	        ss1 << "raw_" << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedPlane[v]; // TH2's name
 
-            art::ServiceHandle<art::TFileService> tfs;
+            art::ServiceHandle<art::TFileService const> tfs;
             TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
             TH2F* depHist = 0;
             TH2I* pdgHist = 0;
@@ -242,6 +238,3 @@ namespace nnet	 {
   DEFINE_ART_MODULE(PointIdTrainingData)
 
 }
-
-#endif // PointIdTrainingData_Module
-

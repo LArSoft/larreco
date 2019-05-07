@@ -2,9 +2,6 @@
 // Chao Zhang (chao@bnl.gov) 5/13/2014
 // Added optical info --- Brooke Russell (brussell@yale.edu) 1/31/2017
 
-#ifndef CELLTREE_MODULE
-#define CELLTREE_MODULE
-
 // LArSoft includes
 #include "lardata/Utilities/GeometryUtilities.h"
 
@@ -37,7 +34,7 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "canvas/Persistency/Common/FindMany.h"
@@ -49,7 +46,6 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TDirectory.h"
-#include "TMath.h"
 #include "TString.h"
 #include "TClonesArray.h"
 #include "TH1F.h"
@@ -62,9 +58,7 @@
 
 // C++ Includes
 #include <map>
-#include <vector>
 #include <fstream>
-#include <iostream>
 #include <cstdio>
 
 #define MAX_TRACKS 30000
@@ -132,9 +126,9 @@ private:
   bool fSaveMC;
   bool fSaveTrigger;
   bool fSaveJSON;
-  art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
+  art::ServiceHandle<geo::Geometry const> fGeometry;       // pointer to Geometry service
 
-  // art::ServiceHandle<geo::Geometry> fGeom;
+  // art::ServiceHandle<geo::Geometry const> fGeom;
   // // auto const* larp = lar::providerFrom<detinfo::LArPropertiesService>();
 
   TFile *fOutFile;
@@ -688,7 +682,7 @@ void CellTree::processMC( const art::Event& event )
     art::Handle< std::vector<sim::SimChannel> > simChannelHandle;
     event.getByLabel("largeant", simChannelHandle);
 
-    // art::ServiceHandle<cheat::BackTracker> bt;
+    // art::ServiceHandle<cheat::BackTracker const> bt;
     art::FindOneP<simb::MCTruth> fo(particleHandle, event, "largeant");
 
     int i=0; // track index in saved MCParticles;
@@ -1141,6 +1135,3 @@ void CellTree::InitProcessMap()
 //-----------------------------------------------------------------------
 DEFINE_ART_MODULE(CellTree)
 } // namespace microboone
-
-
-#endif

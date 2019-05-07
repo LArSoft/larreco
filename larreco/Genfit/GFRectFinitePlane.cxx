@@ -35,7 +35,7 @@ genf::GFRectFinitePlane::GFRectFinitePlane()
 
 
 genf::GFRectFinitePlane::~GFRectFinitePlane(){
-  
+
 }
 
 bool genf::GFRectFinitePlane::inActive(const double& u,const double& v) const{

@@ -115,9 +115,9 @@ std::vector< std::vector<float> > nnet::TfModelInterface::Run(std::vector< std::
     tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ samples, rows, cols, 1 }));
     auto input_map = _x.tensor<float, 4>();
     for (long long int s = 0; s < samples; ++s) {
-        const auto & sample = inps[s]; 
+        const auto & sample = inps[s];
         for (long long int r = 0; r < rows; ++r) {
-            const auto & row = sample[r]; 
+            const auto & row = sample[r];
             for (long long int c = 0; c < cols; ++c) {
                 input_map(s, r, c, 0) = row[c];
             }
@@ -135,7 +135,7 @@ std::vector<float> nnet::TfModelInterface::Run(std::vector< std::vector<float> >
     tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ 1, rows, cols, 1 }));
     auto input_map = _x.tensor<float, 4>();
     for (long long int r = 0; r < rows; ++r) {
-        const auto & row = inp2d[r]; 
+        const auto & row = inp2d[r];
         for (long long int c = 0; c < cols; ++c) {
             input_map(0, r, c, 0) = row[c];
         }
@@ -447,7 +447,7 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 			    throw cet::exception("nnet::TrainingDataAlg") << "drift direction is not X." << std::endl;
 			}
 			vtx[0] = tvec.X() + dx;
-				
+
 	    	wd.Wire = fGeometry->NearestWire(vtx, plane, tpc, cryo);
 	    	wd.Drift = fDetProp->ConvertXToTicks(vtx[0], plane, tpc, cryo);
 	    	wd.TPC = tpc; wd.Cryo = cryo;
@@ -565,7 +565,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		int pdg = abs(particle.PdgCode());
 		int flagsStart = nnet::TrainingDataAlg::kNone;
 		int flagsEnd = nnet::TrainingDataAlg::kNone;
-	
+
 		switch (pdg)
 		{
 			case 22:   // gamma
@@ -638,7 +638,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 								//	<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
 								//	<< ", vis.daughters: " << nVisible << std::endl;
 								flagsStart = nnet::TrainingDataAlg::kHadr;
-							} 
+							}
 						}
 						// else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
 					}
@@ -699,17 +699,17 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 
 			default: continue;
 		}
-		
+
 		if (particle.Process() == "primary")
 		{
 			flagsStart |= nnet::TrainingDataAlg::kNuPri;
 		}
-		
-		
+
+
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
 			auto wd = getProjection(particle.Position(), plane);
-			
+
 			if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo))
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
@@ -773,18 +773,18 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
 
   // Loop over wires (sorry about hard coded value) to fill in 1) pdg and 2) charge depo
   for (size_t widx = 0; widx < 240; ++widx) {
-    
+
     std::vector< float > labels_deposit(fNDrifts, 0);  // full-drift-length buffers
     std::vector< int > labels_pdg(fNDrifts, 0);
 
     // First, the charge depo
     for(size_t subwidx = 0; subwidx < Wirelist.size(); ++subwidx) {
-      if(widx+240 == Wirelist[subwidx]->Channel()) {	
+      if(widx+240 == Wirelist[subwidx]->Channel()) {
 	labels_deposit = Wirelist[subwidx]->Signal();
 	break;
       }
     }
-   
+
     // Second, the pdg code
     // This code finds the angle of the track and records
     //  events based on its angle to try to get an isometric sample
@@ -803,7 +803,7 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
 
       // Make sure there is a track association
       if(ass_trk_hits.at(iHit).size() == 0) { continue; }
-      
+
       // Not sure about this
       // Cutting on length to not just get a bunch of shower stubs
       // Might add a lot of bias though
@@ -818,12 +818,12 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
 	if(Hitlist[jHit]->View() != 1) { continue; }
 
 	if(ass_trk_hits.at(jHit).size() == 0) { continue; }
-	if(ass_trk_hits.at(jHit)[0]->ID() != 
+	if(ass_trk_hits.at(jHit)[0]->ID() !=
 	   ass_trk_hits.at(iHit)[0]->ID()) { continue; }
 
 	double dist = sqrt((Hitlist[iHit]->Channel()-Hitlist[jHit]->Channel()) *
 			   (Hitlist[iHit]->Channel()-Hitlist[jHit]->Channel()) +
-			   (Hitlist[iHit]->PeakTime()-Hitlist[jHit]->PeakTime()) * 
+			   (Hitlist[iHit]->PeakTime()-Hitlist[jHit]->PeakTime()) *
 			   (Hitlist[iHit]->PeakTime()-Hitlist[jHit]->PeakTime()));
 
 	if(far_dist < dist){
@@ -841,12 +841,12 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
 	if(Hitlist[jHit]->View() != 1) { continue; }
 
 	if(ass_trk_hits.at(jHit).size() == 0) { continue; }
-	if(ass_trk_hits.at(jHit)[0]->ID() != 
+	if(ass_trk_hits.at(jHit)[0]->ID() !=
 	   ass_trk_hits.at(iHit)[0]->ID()) { continue; }
 
 	double dist = sqrt((Hitlist[far_index]->Channel()-Hitlist[jHit]->Channel()) *
 			   (Hitlist[far_index]->Channel()-Hitlist[jHit]->Channel()) +
-			   (Hitlist[far_index]->PeakTime()-Hitlist[jHit]->PeakTime()) * 
+			   (Hitlist[far_index]->PeakTime()-Hitlist[jHit]->PeakTime()) *
 			   (Hitlist[far_index]->PeakTime()-Hitlist[jHit]->PeakTime()));
 
 	if(other_dist < dist){
@@ -858,7 +858,7 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
       // We have the end points now
       double del_wire = double(Hitlist[other_end]->Channel() - Hitlist[far_index]->Channel());
       double del_time = double(Hitlist[other_end]->PeakTime() - Hitlist[far_index]->PeakTime());
-      double hypo = sqrt(del_wire * del_wire + del_time * del_time);      
+      double hypo = sqrt(del_wire * del_wire + del_time * del_time);
 
       if(hypo == 0) { continue; } // Should never happen, but doing it anyway
 
@@ -873,7 +873,7 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
       // So we should get a total of 5000 * 100 = 50,000 if we use the whole set
       if(fEventsPerBin[binner] > 5000) { continue; }
       fEventsPerBin[binner]++;
-      
+
       // If survives everything, saves the pdg
       labels_pdg[Hitlist[iHit]->PeakTime()] = 211; // Same as pion for now
 
@@ -911,7 +911,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
         return true;
     }
 
-	art::ServiceHandle<sim::LArG4Parameters> larParameters;
+	art::ServiceHandle<sim::LArG4Parameters const> larParameters;
 	double electronsToGeV = 1. / larParameters->GeVToElectrons();
 
 	auto particleHandle = event.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
@@ -942,7 +942,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		std::map< int, std::map< int, double > > timeToTrackToCharge;
 		for (auto const & channel : *simChannelHandle)
 		{
-			if (channel.Channel() != wireChannelNumber) continue;		
+			if (channel.Channel() != wireChannelNumber) continue;
 
 			auto const & timeSlices = channel.TDCIDEMap();
 			for (auto const & timeSlice : timeSlices)
@@ -957,7 +957,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					if (tid < 0) // negative tid means it is EM activity, and -tid is the mother
 					{
 					    pdg = 11; tid = -tid;
-					    
+
 						auto search = particleMap.find(tid);
 					    if (search == particleMap.end())
 					    {
@@ -981,7 +981,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					   }
 					   auto const & particle = *((*search).second);
 					   pdg = abs(particle.PdgCode());
-					   
+
 					   if (particle.Process() == "primary")
 					   {
 					   		if (pdg == 11)
@@ -1025,11 +1025,11 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 			int max_pdg = 0;
 			for (auto const & tc : ttc.second) {
 
-				if( tc.second > max_deposit ) 
+				if( tc.second > max_deposit )
 				{
 					max_deposit = tc.second;
 					max_pdg = trackToPDG[tc.first];
-				}			
+				}
 			}
 
 			if (ttc.first < labels_size)
@@ -1110,13 +1110,13 @@ bool nnet::TrainingDataAlg::findCrop(float max_e_cut, unsigned int & w0, unsigne
 
         if (w1 > fWireDriftEdep.size() - margin) w1 = fWireDriftEdep.size();
         else w1 += margin;
-        
+
         if (d0 < margin) d0 = 0;
         else d0 -= margin;
-        
+
         if (d1 > fWireDriftEdep.front().size() - margin) d1 = fWireDriftEdep.front().size();
         else d1 += margin;
-        
+
         return true;
     }
     else return false;

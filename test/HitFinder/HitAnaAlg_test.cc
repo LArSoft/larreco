@@ -7,12 +7,12 @@ namespace hit{
 
   class HitAnaAlgTest{
 
-  public: 
+  public:
     HitAnaAlgTest() : alg() {}
 
     WireROIInfo GetWireDataStruct() { return alg.wireData; }
     std::vector<std::string> GetHitModuleLabels() { return alg.HitModuleLabels; }
-    std::vector<HitAnaAlg::HitAssocPair> GetHitProcessingQueue() 
+    std::vector<HitAnaAlg::HitAssocPair> GetHitProcessingQueue()
     { return alg.HitProcessingQueue; }
 
     void LoadHitAssocPair(std::vector<recob::Hit> const& HitVector,
@@ -22,7 +22,7 @@ namespace hit{
 
     void InitWireData(unsigned int e, unsigned int r)
     { alg.InitWireData(e,r); }
-    
+
     void ClearWireDataHitInfo() { alg.ClearWireDataHitInfo(); }
 
     void AddHitModuleLabel(std::string str) { alg.HitModuleLabels.push_back(str); }
@@ -44,7 +44,7 @@ BOOST_FIXTURE_TEST_SUITE(HitAnaAlg_test, HitAnaAlgFixture)
 
 BOOST_AUTO_TEST_CASE(checkConstructor)
 {
-  
+
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 0 );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 0U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 0U );
@@ -92,8 +92,8 @@ BOOST_AUTO_TEST_CASE(LoadHitAssocPair_MultipleHitModules)
   myHitAnaAlgTest.LoadHitAssocPair(HitVector2,AssocVector2,HitModuleLabel2);
 
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 2U );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[0].compare(HitModuleLabel1) , 0 ); 
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[1].compare(HitModuleLabel2) , 0 ); 
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[0].compare(HitModuleLabel1) , 0 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[1].compare(HitModuleLabel2) , 0 );
 
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 2U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[0].second.size() , nWires );
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(InitWireData_OneModule)
   std::string HitModuleLabel = "hit";
 
   myHitAnaAlgTest.LoadHitAssocPair(HitVector,AssocVector,HitModuleLabel);
-  
+
   unsigned int event = 50;
   unsigned int run =200;
 
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(ClearWireDataHitInfo_OneModule)
   std::string HitModuleLabel = "hit";
 
   myHitAnaAlgTest.LoadHitAssocPair(HitVector,AssocVector,HitModuleLabel);
-  
+
   unsigned int event = 50;
   unsigned int run =200;
 

@@ -1,10 +1,10 @@
 /**
  *  @file   ClusterParamsBuilder.h
- * 
+ *
  *  @brief  Interface definitions for selecting and building clusters after having run a clustering algorithm
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef IClusterParamsBuilder_h
 #define IClusterParamsBuilder_h
@@ -31,7 +31,7 @@ public:
     virtual ~IClusterParametersBuilder() noexcept = default;
 
     virtual void configure(const fhicl::ParameterSet&) = 0;
-    
+
     /**
      *  @brief Given the results of running DBScan, format the clusters so that they can be
      *         easily transferred back to the larsoft world
@@ -43,7 +43,7 @@ public:
      *                                The last two parameters are passed through to the IClusterParamsBuilder method
      */
     virtual void BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const = 0;
-    
+
     /**
      *  @brief Fill the cluster parameters (expose to outside world for case of splitting/merging clusters)
      *
@@ -52,12 +52,12 @@ public:
      *  @param double              minimum fraction of unique hits
      *  @param double              maximum fraction of "lost" hits
      */
-    
+
     virtual void FillClusterParams(reco::ClusterParameters&,
                                    reco::Hit2DToClusterMap&,
                                    double minUniqueFrac = 0.,
                                    double maxLostFrac=1.) const = 0;
 };
-    
+
 } // namespace lar_cluster3d
 #endif

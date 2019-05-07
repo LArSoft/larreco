@@ -15,8 +15,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -44,7 +44,7 @@ namespace cluster
 {
 
   class ClusterMergeHelper {
-    
+
   public:
 
     /// Default constructor with fhicl parameters
@@ -76,14 +76,14 @@ namespace cluster
 		      art::Event      &ev,
 		      std::vector<recob::Cluster>           &out_clusters,
 		      art::Assns<recob::Cluster,recob::Hit> &assns) const;
-      
+
   protected:
 
     /// Internal method to transfer input cluster information in the right format to CMergeManager
     void SetClusters(const std::vector<std::vector<util::PxHit> > &clusters)
-    { 
+    {
       fMgr.Reset();
-      fMgr.SetClusters(clusters); 
+      fMgr.SetClusters(clusters);
     }
 
   protected:
@@ -91,7 +91,7 @@ namespace cluster
     /// CMergeManager instance
     ::cmtool::CMergeManager fMgr;
 
-    /// GeometryUtilities 
+    /// GeometryUtilities
     ::util::GeometryUtilities fGeoU;
 
     /// Input clusters in terms of a vector of art::Ptr<recob::Hit> collection
@@ -101,6 +101,6 @@ namespace cluster
     std::vector<std::vector<art::Ptr<recob::Hit> > > fOutputClusters;
 
   }; // class ClusterMergeHelper
-  
+
 } //namespace cluster
 #endif

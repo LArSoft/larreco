@@ -11,7 +11,7 @@ genf::GeaneMCApplication::GeaneMCApplication()
 
 void genf::GeaneMCApplication::ConstructGeometry(){
   gGeoManager->CloseGeometry();
-  gMC->SetRootGeometry();  
+  gMC->SetRootGeometry();
 }
 
 void genf::GeaneMCApplication::InitMC(){

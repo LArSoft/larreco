@@ -23,18 +23,18 @@ namespace trkf{
   LinFitAlg::~LinFitAlg() { }
 
 
-  void LinFitAlg::LinFit(std::vector<float>& x, std::vector<float>& y, 
-    std::vector<float>& ey2, float& Intercept, float& Slope, 
-    float& InterceptError, float& SlopeError, float& ChiDOF) 
+  void LinFitAlg::LinFit(std::vector<float>& x, std::vector<float>& y,
+    std::vector<float>& ey2, float& Intercept, float& Slope,
+    float& InterceptError, float& SlopeError, float& ChiDOF)
   {
     // fit a line ala Bevington linfit.F. The number of points fit is defined by
-    // the size of the y vector. 
+    // the size of the y vector.
 
     ChiDOF = 999.;
 
     if(y.size() < 2) return;
     if(x.size() < y.size() || ey2.size() < y.size()) return;
-    
+
     double sum = 0.;
     double sumx = 0.;
     double sumy = 0.;
@@ -81,5 +81,5 @@ namespace trkf{
     }
     ChiDOF = sum / ndof;
   } // LinFit
-  
+
 } // namespace trkf

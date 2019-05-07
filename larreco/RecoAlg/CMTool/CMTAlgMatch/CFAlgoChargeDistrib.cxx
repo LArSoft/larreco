@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOCHARGEDISTRIB_CXX
-#define RECOTOOL_CFALGOCHARGEDISTRIB_CXX
-
 #include "CFAlgoChargeDistrib.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -41,7 +38,7 @@ namespace cmtool {
       return -1;
 
     if (_verbose) { std::cout << "Number of clusters taken into account: " << clusters.size() << std::endl; }
-    
+
     //MicroBooNE Nomenclature:
     //Planes: U == 0; V == 1; Y == 2.
 
@@ -51,7 +48,7 @@ namespace cmtool {
     for (size_t c=0; c < clusters.size(); c++)
       Hits.push_back( clusters.at(c)->GetHitVector() );
 
-    // return parameter is the product of 
+    // return parameter is the product of
     // "convolutions" of each pair of clusters
     // return conv(a,b)*conv(b,c)*conv(c,a)
     // in the case of 3 planes with clusters
@@ -72,7 +69,7 @@ namespace cmtool {
     }
 
     if (_verbose) { std::cout << "Tot Overlap is: " << totOverlap << std::endl << std::endl; }
-    
+
     return totOverlap;
 
   }
@@ -91,7 +88,7 @@ namespace cmtool {
     ::util::GeometryUtilities geou;
     const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
     int NumTimeSamples = detp->NumberTimeSamples() * geou.TimeToCm();
-    
+
     double Tmin = NumTimeSamples;
     double Tmax = 0;
 
@@ -101,7 +98,7 @@ namespace cmtool {
     std::vector<float> QprofB(100,0.);
     float QB = 0;
     float QA = 0;
-    
+
     //First find min and max times
     for(auto const& hitA : hA) {
       if(hitA.t > Tmax) Tmax = hitA.t;
@@ -149,10 +146,9 @@ namespace cmtool {
       else { conv += QprofB.at(b); }
     }
     if (_verbose) { std::cout << "Convolution is: " << conv << std::endl; }
-    
+
     return conv;
   }
 
-    
+
 }
-#endif

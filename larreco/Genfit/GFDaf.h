@@ -34,7 +34,7 @@
 /** @brief Determinstic Annealing Filter (DAF) implementation
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  * The DAF is an iterative Kalman filter with annealing. It is capable of fitting tracks which are
  * contaminated with noise hits. The alogrithm is taken from the references
  * R. Fruehwirth & A. Strandlie, Computer Physics Communications 120 (199) 197-214
@@ -60,8 +60,8 @@ public:
 
   ~GFDaf();
 
-  
-  
+
+
   /** @brief Performs DAF fit on all track representations in a GFTrack.
    *
    */
@@ -72,7 +72,7 @@ public:
    */
   void setBlowUpFactor(double f){fBlowUpFactor=f;}
 
-  /** @brief Set the probabilty cut for the weight calculation for the hits. Currently 
+  /** @brief Set the probabilty cut for the weight calculation for the hits. Currently
    * supported are the values 0.01 0.005, and 0.001. The corresponding chi2 cuts for
    * different hits dimensionalities are hardcoded in the implementation because I did
    * not yet figure out how to calculate them. Please feel very welcome to change the
@@ -90,7 +90,7 @@ private:
 
   /** @brief Calculate Kalman Gain
    */
-  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov, 
+  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
                             const TMatrixT<Double_t>& HitCov,
                             const TMatrixT<Double_t>& H,
                             const double& p);
@@ -102,7 +102,7 @@ private:
   void blowUpCovs(GFTrack* trk);
 
   /** @brief invert a matrix. First argument is matrix to be inverted, second is return by ref.
-   */  
+   */
   void invertMatrix(const TMatrixT<Double_t>&,TMatrixT<Double_t>&);
 
   double fBlowUpFactor;

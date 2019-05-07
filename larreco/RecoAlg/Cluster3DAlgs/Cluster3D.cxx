@@ -38,7 +38,7 @@ ClusterHit2D::ClusterHit2D(unsigned           statusBits,
                            m_timeTicks(timeTicks),
                            m_wireID(wireID),
                            m_hit(hit) {}
-    
+
 ClusterHit2D::ClusterHit2D(const ClusterHit2D& toCopy)
 {
     m_statusBits    = toCopy.m_statusBits;
@@ -53,10 +53,10 @@ ClusterHit2D::ClusterHit2D(const ClusterHit2D& toCopy)
 std::ostream& operator<< (std::ostream& o, const ClusterHit2D& c)
 {
     o << c.getHit();
-    
+
     return o;
 }
-    
+
 bool operator < (const ClusterHit2D & a, const ClusterHit2D & b)
 {
     return a.getHit() < b.getHit();
@@ -82,7 +82,7 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
     m_wireIDVector.resize(3, geo::WireID());
     m_hitVector.resize(3, NULL);
 }
-    
+
 ClusterHit3D::ClusterHit3D(size_t                          id,
                            unsigned int                    statusBits,
                            const Eigen::Vector3f&          position,
@@ -114,7 +114,7 @@ ClusterHit3D::ClusterHit3D(size_t                          id,
     m_hitVector.resize(3,NULL);
     std::copy(hitVec.begin(),hitVec.end(),m_hitVector.begin());
 }
-    
+
 ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
 {
     m_id              = toCopy.m_id;
@@ -132,7 +132,7 @@ ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
     m_hitDelTSigVec   = toCopy.m_hitDelTSigVec;
     m_wireIDVector    = toCopy.m_wireIDVector;
 }
-    
+
 void ClusterHit3D::initialize(size_t                          id,
                               unsigned int                    statusBits,
                               const Eigen::Vector3f&          position,
@@ -162,7 +162,7 @@ void ClusterHit3D::initialize(size_t                          id,
     m_hitVector       = hitVec;
     m_hitDelTSigVec   = hitDelTSigVec;
     m_wireIDVector    = wireIDs;
-    
+
     return;
 }
 
@@ -170,14 +170,14 @@ void ClusterHit3D::setWireID(const geo::WireID& wid) const
 {
     m_wireIDVector[wid.Plane] = wid;
 }
-    
+
 std::ostream& operator<< (std::ostream& o, const ClusterHit3D& c)
 {
     o << "ClusterHit3D has " << c.getHits().size() << " hits associated";
-    
+
     return o;
 }
-    
+
   //bool operator < (const ClusterHit3D & a, const ClusterHit3D & b)
   //{
   //    if (a.m_position[2] != b.m_position[2]) return a.m_position[2] < b.m_position[2];
@@ -191,8 +191,8 @@ PrincipalComponents::PrincipalComponents() :
        m_eigenVectors(EigenVectors::Zero()),
        m_avePosition(Eigen::Vector3f::Zero()),
        m_aveHitDoca(9999.)
-{}    
-    
+{}
+
 PrincipalComponents::PrincipalComponents(bool ok, int nHits, const EigenValues& eigenValues, const EigenVectors& eigenVecs, const Eigen::Vector3f& avePos, const float aveHitDoca) :
            m_svdOK(ok),
            m_numHitsUsed(nHits),
@@ -201,14 +201,14 @@ PrincipalComponents::PrincipalComponents(bool ok, int nHits, const EigenValues& 
            m_avePosition(avePos),
            m_aveHitDoca(aveHitDoca)
 {}
-    
+
 void PrincipalComponents::flipAxis(size_t axisDir)
 {
     m_eigenVectors.row(axisDir) = -m_eigenVectors.row(axisDir);
-    
+
     return;
 }
-    
+
 std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
 {
     if (a.m_svdOK)
@@ -225,15 +225,15 @@ std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
     }
     else
         o << " Principal Components Axis is not valid" << std::endl;
-    
+
     return o;
 }
-    
+
 bool operator < (const PrincipalComponents& a, const PrincipalComponents& b)
 {
     if (a.m_svdOK && b.m_svdOK)
         return a.m_eigenValues(0) > b.m_eigenValues(0);
-    
+
     return false; //They are equal
 }
 
@@ -258,7 +258,7 @@ Cluster3D::Cluster3D(unsigned                   statusBits,
         m_endPosition{endPosition[0],endPosition[1],endPosition[2]},
         m_clusterIdx(idx)
        {}
-    
+
 //----------------------------------------------------------------------
 //  Addition operator.
 //
@@ -352,7 +352,7 @@ bool operator < (const Cluster3D & a, const Cluster3D & b)
 
     return false; //They are equal
 }
-    
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterHit)
@@ -362,7 +362,7 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
      *         (a candidate for a better way to do this)
      */
     const recob::Hit* hit = clusterHit->getHit();
-    
+
     // Need to keep track of stuff so we can form cluster
     if (clusterHit->WireID().Wire < m_startWire)
     {
@@ -370,20 +370,20 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
         m_startTime      = hit->PeakTimeMinusRMS();
         m_sigmaStartTime = hit->SigmaPeakTime();
     }
-    
+
     if (clusterHit->WireID().Wire > m_endWire)
     {
         m_endWire      = clusterHit->WireID().Wire;
         m_endTime      = hit->PeakTimePlusRMS();
         m_sigmaEndTime = hit->SigmaPeakTime();
     }
-    
+
     m_totalCharge += hit->Integral();
     m_plane        = clusterHit->WireID().planeID();
     m_view         = hit->View();
-    
+
     m_hitVector.push_back(clusterHit);
-    
+
     return;
 }
 

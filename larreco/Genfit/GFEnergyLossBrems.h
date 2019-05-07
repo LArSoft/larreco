@@ -20,7 +20,7 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFENERGYLOSSBREMS_H
 #define GFENERGYLOSSBREMS_H
 
@@ -28,30 +28,30 @@
 
 #include"GFAbsEnergyLoss.h"
 
-  
+
 /** @brief Energy loss for electrons/positrons due to bremsstrahlung, energy loss straggeling
- * 
+ *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  
- *  
- *  
- *  
+ *
+ *
+ *
+ *
+ *
  */
 namespace genf {
 
-class GFEnergyLossBrems : public GFAbsEnergyLoss{  
+class GFEnergyLossBrems : public GFAbsEnergyLoss{
  public:
   //! Returns energy loss, optional calculation of energy loss straggeling
   /** Can be called with any pdg, but only calculates energy loss and straggeling for electrons and positrons (otherwise returns 0).
-    * Uses a gaussian approximation (Bethe-Heitler formula with Migdal corrections). 
+    * Uses a gaussian approximation (Bethe-Heitler formula with Migdal corrections).
     * For positrons the energy loss is weighed with a correction factor.
   */
   double energyLoss(const double& step,
                     const double& mom,
-                    const int&    pdg,              
+                    const int&    pdg,
                     const double& matDensity,
                     const double& matZ,
                     const double& matA,
@@ -66,7 +66,7 @@ class GFEnergyLossBrems : public GFAbsEnergyLoss{
 
   // public:
   //ClassDef(GFEnergyLossBrems,1);
-  
+
 };
 }
 

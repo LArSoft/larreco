@@ -2,7 +2,7 @@
  * \file CMAlgoBase.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CMAlgoBase
  *
  * @author kazuhiro
@@ -27,12 +27,12 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CMAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CMAlgoBase(){ _fout = 0; _verbose = false; }
-    
+
     /// Default destructor
     virtual ~CMAlgoBase(){}
 
@@ -50,9 +50,9 @@ namespace cmtool {
      */
     virtual void EventEnd()
     {return;}
- 
+
     /**
-       Optional function: called at the beggining of each iteration over all pairs of clusters. 
+       Optional function: called at the beggining of each iteration over all pairs of clusters.
        This provides all clusters' information in case the algorithm need them. Note this
        is called per iteration which may be more than once per event.
      */
@@ -67,8 +67,8 @@ namespace cmtool {
 
     /**
        Optional function: called after Bool() function is called for all possible cluster
-       pairs by CMergeManager/CMatchManager IFF run with verbosity level kPerIteration. 
-       Maybe useful for debugging.       
+       pairs by CMergeManager/CMatchManager IFF run with verbosity level kPerIteration.
+       Maybe useful for debugging.
      */
     virtual void Report()
     {return;}
@@ -91,5 +91,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

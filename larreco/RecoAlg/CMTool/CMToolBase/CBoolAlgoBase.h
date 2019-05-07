@@ -2,7 +2,7 @@
  * \file CBoolAlgoBase.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for algorithm classes for CMergeManager
  *
  * @author kazuhiro
@@ -25,12 +25,12 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CBoolAlgoBase : public CMAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBoolAlgoBase(){}
-    
+
     /// Default destructor
     virtual ~CBoolAlgoBase(){}
 
@@ -49,5 +49,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

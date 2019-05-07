@@ -20,10 +20,10 @@ namespace reco_tool
     {
     public:
         virtual ~ICandidateHitFinder() noexcept = default;
-        
+
         // Define standard art tool interface
         virtual void configure(const fhicl::ParameterSet& pset) = 0;
-        
+
         // Define a structure to contain hits
         using HitCandidate_t = struct HitCandidate
         {
@@ -37,19 +37,19 @@ namespace reco_tool
             float  hitSigma;
             float  hitHeight;
         };
-        
+
         using HitCandidateVec      = std::vector<HitCandidate_t>;
         using MergeHitCandidateVec = std::vector<HitCandidateVec>;
-        
+
         using Waveform = std::vector<float>;
-        
+
         // Search for candidate hits on the input waveform
         virtual void findHitCandidates(const Waveform&,                     // Waveform to analyze
                                        size_t,                              // waveform start tick
                                        size_t,                              // channel #
                                        size_t,                              // Event count (for histograms)
                                        HitCandidateVec&) const = 0;         // output candidate hits
-        
+
         virtual void MergeHitCandidates(const Waveform&,
                                         const HitCandidateVec&,
                                         MergeHitCandidateVec&) const = 0;

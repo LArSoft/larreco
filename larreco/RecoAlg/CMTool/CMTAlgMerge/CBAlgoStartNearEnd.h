@@ -2,7 +2,7 @@
  * \file CBAlgoStartNearEnd.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoStartNearEnd
  *
  * @author david caratelli
@@ -24,15 +24,15 @@ namespace cmtool {
      and require angle compatibility
   */
   class CBAlgoStartNearEnd : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoStartNearEnd();
-    
+
     /// Default destructor
     virtual ~CBAlgoStartNearEnd(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -63,5 +63,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

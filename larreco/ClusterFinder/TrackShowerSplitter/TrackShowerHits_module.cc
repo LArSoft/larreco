@@ -52,7 +52,7 @@ private:
 	cryo_tpc_view_hitmap fHitMap;
 	bool sortHits(const art::Event& evt);
 
-	art::ServiceHandle<geo::Geometry> fGeom;
+	art::ServiceHandle<geo::Geometry const> fGeom;
 
 	bool fHugeShowers, fShowersBySeg2D;
 

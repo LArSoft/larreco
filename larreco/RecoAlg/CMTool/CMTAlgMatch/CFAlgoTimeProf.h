@@ -2,7 +2,7 @@
  * \file CFAlgoTimeProf.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CFAlgoTimeProf
  *
  * @author ryan
@@ -23,25 +23,25 @@ namespace cmtool {
      doxygen documentation!
   */
   class CFAlgoTimeProf : public CFloatAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFAlgoTimeProf();
-    
+
     /// Default destructor
     virtual ~CFAlgoTimeProf();
 
     //
-    // Author should be aware of 3 functions at least: Float, Report, 
-    // and Reset. More possibly-useful functions can be found in the later 
+    // Author should be aware of 3 functions at least: Float, Report,
+    // and Reset. More possibly-useful functions can be found in the later
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
 
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset();
 
@@ -54,7 +54,7 @@ namespace cmtool {
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     //virtual void EventEnd();
- 
+
     /**
        Optional function: called at the beggining of each iterative loop.
        This provides all clusters' information in case the algorithm need them. Note this
@@ -68,8 +68,8 @@ namespace cmtool {
     //virtual void IterationEnd();
 
    private:
-	
-    float TProfCompare(std::vector<util::PxHit> hita ,std::vector<util::PxHit> hitb);	
+
+    float TProfCompare(std::vector<util::PxHit> hita ,std::vector<util::PxHit> hitb);
 
 
     /*
@@ -77,10 +77,10 @@ namespace cmtool {
     TH1D* siginta(Form("sigint_a"),Form("sigint_a"),nts,0,nts);
     TH1D* sigb(Form("sig_b"),Form("sig_b"),nts,0,nts);
     TH1D* sigintb(Form("sigint_b"),Form("sigint_b"),nts,0,nts);
-    */	
+    */
 
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

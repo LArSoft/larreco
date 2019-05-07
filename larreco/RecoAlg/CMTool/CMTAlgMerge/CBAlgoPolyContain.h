@@ -2,7 +2,7 @@
  * \file CBAlgoPolyContain.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoPolyContain
  *
  * @author David Caratelli
@@ -24,15 +24,15 @@ namespace cmtool {
      Merge Polygons if one is completely inside the other
   */
   class CBAlgoPolyContain : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoPolyContain();
-    
+
     /// Default destructor
     virtual ~CBAlgoPolyContain(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -47,5 +47,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

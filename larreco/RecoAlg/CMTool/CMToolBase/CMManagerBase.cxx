@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CMMANAGERBASE_CXX
-#define RECOTOOL_CMMANAGERBASE_CXX
-
 #include "CMManagerBase.h"
 
 namespace cmtool {
@@ -42,7 +39,7 @@ namespace cmtool {
     tmp_alg.SetVerbose(false);
 
     for(auto const &c : clusters) {
-      
+
       _in_clusters.push_back(tmp_alg);
       (*_in_clusters.rbegin()).Initialize();
 
@@ -64,7 +61,7 @@ namespace cmtool {
 	c.TimeReport(std::cout);
 
     }
-    
+
   }
 
   void CMManagerBase::SetClusters(const std::vector<cluster::ClusterParamsAlg> &clusters)
@@ -82,7 +79,7 @@ namespace cmtool {
 
   void CMManagerBase::Process()
   {
-    
+
     if(!(_in_clusters.size()))
 
       return;
@@ -110,7 +107,7 @@ namespace cmtool {
 				 << std::endl;
 
       localWatch.Start();
-      
+
       keep_going = IterationProcess();
 
       if(_time_report) std::cout << Form("  CMManagerBase Time Report: IterationProcess = %g [s]",
@@ -129,7 +126,7 @@ namespace cmtool {
 	if(_debug_mode <= kPerIteration)
 
 	  std::cout << "\033[93m  Iterative approach = OFF ... exiting from iteration loop. \033[00m" << std::endl;
-	
+
 	break;
       }
     }
@@ -141,7 +138,7 @@ namespace cmtool {
     if(_time_report) std::cout << Form("  CMManagerBase Time Report: EventEnd = %g [s]",
 				       localWatch.RealTime())
 			       << std::endl;
-    
+
   }
 
   void CMManagerBase::ComputePriority(const std::vector<cluster::ClusterParamsAlg> &clusters) {
@@ -154,7 +151,7 @@ namespace cmtool {
 
     if(!clusters.size()) return;
 
-    // Priority is computed cluster-by-cluster. In case of two clusters having the same priority 
+    // Priority is computed cluster-by-cluster. In case of two clusters having the same priority
     // value the one with lower cluster index gets the priority. Also, clusters with priority < 0
     // are not logged (assumed not to be used)
 
@@ -163,15 +160,15 @@ namespace cmtool {
       size_t c_index = clusters.size() - i - 1;
 
       float priority = clusters.at(c_index).GetNHits();
-      
+
       if(_priority_algo) {
-	
+
 	priority = _priority_algo->Priority(clusters.at(c_index));
 
       }
-	
+
       if(priority>0) {
-	
+
 	_priority.insert(std::make_pair(priority,c_index));
 
 	if( _planes.find(clusters.at(c_index).Plane()) == _planes.end() )
@@ -179,9 +176,9 @@ namespace cmtool {
 	  _planes.insert(clusters.at(c_index).Plane());
 
       }
-      
+
     }
-    
+
     if(_time_report) std::cout << Form("  CMManagerBase Time Report: ComputePriority = %g [s]",
 				       localWatch.RealTime())
 			       << std::endl;
@@ -190,5 +187,3 @@ namespace cmtool {
 
 
 }
-
-#endif

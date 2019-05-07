@@ -15,7 +15,7 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -61,10 +61,10 @@ public:
   { fMCShowerProducer = name; }
   void SetSimChannelProducer(const std::string name)
   { fSimChannelProducer = name; }
-  
+
   /// Set maximum energy for MCShowers to be considered
   void SetMaxEnergyCut(const double energy) { _mc_energy_max = energy; }
-  
+
   /// Set minimum energy for MCShowers to be considered
   void SetMinEnergyCut(const double energy) { _mc_energy_min = energy; }
 
@@ -82,18 +82,18 @@ public:
     }
     return h;
   }
-  
+
 private:
 
   /// Shower back tracking algorithm
   ::btutil::MCMatchAlg fBTAlg;
-  
+
   /// Minimum MC shower energy cut
   double _mc_energy_min;
-  
+
   /// Maximum MC shower energy cut
   double _mc_energy_max;
-  
+
   /// Shower Producer's Name
   std::string fShowerProducer;
 
@@ -102,37 +102,37 @@ private:
 
   /// SimChannel Producer's Name
   std::string fSimChannelProducer;
-  
+
   /// Matching correctness
   TH1D *hMatchCorrectness;
-  
+
   TH1D *hVtxDX; ///< X difference (reco-MC) in cm
   TH1D *hVtxDY; ///< Y difference (reco-MC) in cm
   TH1D *hVtxDZ; ///< Z difference (reco-MC) in cm
   TH1D *hVtxDR; ///< 3D vtx distance between reco to MC in cm
-  
+
   TH1D *hDCosX; ///< Direction unit vector X component difference
   TH1D *hDCosY; ///< Direction unit vector Y component difference
   TH1D *hDCosZ; ///< Direction unit vector Z component difference
   TH1D *h3DAngleDiff; ///< Opening angle between reco & MC 3D direction
-  
+
   TH2D *hEnergyCorr; ///< Energy correlation reco (x) vs. MC (y)
-  
+
   TH1D *hEnergyAssym; ///< Energy assym. parameter: (reco E - MC E) / (reco E + MC E) * 2
   TH1D *hEnergyDiff;  ///< Energy difference: reco E - MC E
-  
+
   TH1D *hMatchedClusterEff; ///< Matched 3D shower's cluster efficiency (combined across planes)
   TH1D *hMatchedClusterPur; ///< Matched 3D shower's cluster purity (combined across planes)
-  
+
   /// dEdx per particle per PDG code
   std::map<int,TH1D*> mDEDX;
-  
+
   /// Best plane id
   TH1D *hBestPlane;
-  
+
   /// For convenience: struct to define a set of parameters per shower to be stored in TTree
   struct TreeParams_t {
-    
+
     double reco_x, reco_y, reco_z;
     double reco_dcosx, reco_dcosy, reco_dcosz;
     double reco_energy;
@@ -141,28 +141,28 @@ private:
     double reco_dedx_V;
     double reco_dedx_Y;
     int    best_plane_id;
-    
+
     double mc_x, mc_y, mc_z;
     double mc_dcosx, mc_dcosy, mc_dcosz;
     double mc_energy;
     int    mc_pdgid;
-    
+
     double mc_reco_anglediff;
     double mc_reco_dist;
-    
+
     double mc_containment;
     double match_correctness;
     double cluster_eff;
     double cluster_pur;
-    
+
   } fTreeParams;
-  
+
   /// Analysis TTree
   TTree *fTree;
-  
+
   /// Function to prepare TTree
   void InitializeAnaTree();
-  
+
   // Declare member data here.
 
 };
@@ -183,27 +183,27 @@ ShowerQuality::ShowerQuality(fhicl::ParameterSet const & p)
   SetMaxEnergyCut(p.get<double>("MCShowerEnergyMax"));
 
   hMatchCorrectness = nullptr;
-  
+
   hVtxDX = nullptr;
   hVtxDY = nullptr;
   hVtxDZ = nullptr;
   hVtxDR = nullptr;
-  
+
   hDCosX = nullptr;
   hDCosY = nullptr;
   hDCosZ = nullptr;
   h3DAngleDiff = nullptr;
-  
+
   hEnergyCorr  = nullptr;
   hEnergyAssym = nullptr;
   hEnergyDiff  = nullptr;
 
   hMatchedClusterPur = nullptr;
   hMatchedClusterEff = nullptr;
-  
+
   mDEDX.clear();
   hBestPlane = nullptr;
-  
+
   fTree = nullptr;
 }
 
@@ -219,8 +219,8 @@ void ShowerQuality::beginJob()
     throw ::showerreco::ShowerRecoException(msg.c_str());
   }
 
-  art::ServiceHandle<geo::Geometry> geo;
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<geo::Geometry const> geo;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   if(fTree) delete fTree;
   fTree = tfs->make<TTree>("fShowerQualityTree","");
@@ -233,7 +233,7 @@ void ShowerQuality::beginJob()
   hMatchCorrectness = tfs->make<TH1D>("hMatchCorrectness",
 				      "Shower 2D Cluster Matching Correctness; Correctness; Showers",
 				      101,-0.005,1.005);
-  
+
   //
   // 3D Vtx (start point) MC/Reco comparison histogram initialization
   //
@@ -241,23 +241,23 @@ void ShowerQuality::beginJob()
   if(hVtxDY) delete hVtxDY;
   if(hVtxDZ) delete hVtxDZ;
   if(hVtxDR) delete hVtxDR;
-  
+
   hVtxDX = tfs->make<TH1D>("hVtxDX",
 			   "Reco - MC Start X [cm] Displacement; #DeltaX [cm]; Showers",
 			   200,-100,100);
-  
+
   hVtxDY = tfs->make<TH1D>("hVtxDY",
 			   "Reco - MC Start Y [cm] Displacement; #DeltaY [cm]; Showers",
 			   200,-100,100);
-  
+
   hVtxDZ = tfs->make<TH1D>("hVtxDZ",
 			   "Reco - MC Start Z [cm] Displacement; #DeltaZ [cm]; Showers",
 			   200,-100,100);
-  
+
   hVtxDR = tfs->make<TH1D>("hVtxDR",
 			   "Reco - MC Start 3D Vtx Displacement; #DeltaR [cm]; Showers",
 			   200,-100,100);
-  
+
   //
   // 3D Angular MC/Reco comparison histogram initialization
   //
@@ -265,56 +265,56 @@ void ShowerQuality::beginJob()
   if(hDCosY) delete hDCosY;
   if(hDCosZ) delete hDCosZ;
   if(h3DAngleDiff) delete h3DAngleDiff;
-  
+
   hDCosX = tfs->make<TH1D>("hDCosX",
 			   "Direction Unit Vector Reco - MC #DeltaX; #DeltaCosX; Showers",
 			   100,-2,2);
-  
+
   hDCosY = tfs->make<TH1D>("hDCosY",
 			   "Direction Unit Vector Reco - MC #DeltaY; #DeltaCosY; Showers",
 			   100,-2,2);
-  
+
   hDCosZ = tfs->make<TH1D>("hDCosZ",
 			   "Direction Unit Vector Reco - MC #DeltaZ; #DeltaCosZ; Showers",
 			   100,-2,2);
-  
+
   h3DAngleDiff = tfs->make<TH1D>("h3DAngleDiff",
 				 "3D Opening Angle Between Reco & MC; Opening Angle [degrees]; Showers",
 				 181,-0.5,180.5);
-  
+
   //
   // Energy MC/Reco comparison histogram initialization
   //
   if(hEnergyCorr)  delete hEnergyCorr;
   if(hEnergyAssym) delete hEnergyAssym;
   if(hEnergyDiff)  delete hEnergyDiff;
-  
+
   hEnergyCorr = tfs->make<TH2D>("hEnergyCorr",
 				"Reco (x) vs. MC (y) Energy Comparison; Reco Energy [MeV]; MC Energy [MeV]",
 				200,0,1000,200,0,1000);
-  
+
   hEnergyAssym = tfs->make<TH1D>("hEnergyAssym",
 				 "MC - Reco Energy Fractional Difference; Assymetry; Showers",
 				 201,-1.005,1.005);
-    
+
   hEnergyDiff = tfs->make<TH1D>("hEnergyDiff",
 				"MC - Reco Energy Difference; Energy Difference [MeV]; Showers",
 				200,0,1000);
-  
+
   //
   // Shower cluster purity & efficiency histograms initialization
   //
   if(hMatchedClusterEff) delete hMatchedClusterEff;
   if(hMatchedClusterPur) delete hMatchedClusterPur;
-  
+
   hMatchedClusterEff = tfs->make<TH1D>("hMatchedClusterEff_PlaneCombo",
 				       "Matched Shower Cluster's Charge Efficiency; Efficiency; Clusters",
 				       101,-0.005,1.005);
-  
+
   hMatchedClusterPur = tfs->make<TH1D>("hMatchedClusterPur_PlaneCombo",
 				       "Matched Shower Cluster's Charge Purity; Purity; Clusters",
 				       101,-0.005,1.005);
-    
+
 
   //
   // Best plane ID histogram initialization
@@ -322,9 +322,9 @@ void ShowerQuality::beginJob()
   hBestPlane = tfs->make<TH1D>("hBestPlane",
 			       "Best Plane (for energy & dE/dx estimate); Plane ID; Showers",
 			       geo->Nplanes(),-0.5,geo->Nplanes()-0.5);
-  
+
   InitializeAnaTree();
-  
+
 }
 
 
@@ -332,7 +332,7 @@ void ShowerQuality::beginJob()
 void ShowerQuality::analyze(art::Event const & e)
 {
   //auto geo = larutil::Geometry::GetME();
-  
+
   // Retrieve mcshower data product
   auto mcsHandle = GetDataOrDie< std::vector<sim::MCShower  > > (e,fMCShowerProducer);
   auto resHandle = GetDataOrDie< std::vector<recob::Shower  > > (e,fShowerProducer);
@@ -355,7 +355,7 @@ void ShowerQuality::analyze(art::Event const & e)
   const std::vector<recob::Cluster>& ev_cluster (*clsHandle);
 
   // Make clusters in terms of hit vector to feed into BT algorithm
-  art::FindManyP<recob::Hit> hit_m(clsHandle, e, clsHandle.provenance()->moduleLabel());  
+  art::FindManyP<recob::Hit> hit_m(clsHandle, e, clsHandle.provenance()->moduleLabel());
   std::vector<std::vector<art::Ptr<recob::Hit> > > ev_cluster_hit;
   ev_cluster_hit.reserve(clsHandle->size());
   std::map<art::Ptr<recob::Cluster>,size_t> cluster_ptr_map;
@@ -403,51 +403,51 @@ void ShowerQuality::analyze(art::Event const & e)
   std::vector<std::vector<double> > shower_mcq_vv(ev_shower.size(),std::vector<double>(mc_index_v.size(),0));
 
   for(size_t shower_index=0; shower_index < ass_cluster_v.size(); ++shower_index) {
-    
+
     auto const& ass_cluster = ass_cluster_v[shower_index];
-    
+
     std::vector< ::btutil::WireRange_t> w_v;
-    
+
     for(auto const& cluster_index : ass_cluster) {
-      
+
       auto const& ass_hit = ev_cluster_hit[cluster_index];
-      
+
       w_v.reserve(ass_hit.size()+w_v.size());
-      
+
       for(auto const& hit_ptr : ass_hit) {
-	
+
 	w_v.push_back( ::btutil::WireRange_t( hit_ptr->Channel(),
 					      hit_ptr->StartTick(),
-					      hit_ptr->EndTick() ) 
+					      hit_ptr->EndTick() )
 		       );
       }
     }
-    
+
     auto mcq_v = fBTAlg.BTAlg().MCQ(w_v);
-    
+
     auto& shower_mcq_v = shower_mcq_vv[shower_index];
-    
+
     for(size_t mcs_index = 0; mcs_index < (mcq_v.size()-1); ++mcs_index) {
-      
+
       shower_mcq_v[mcs_index] = mcq_v[mcs_index];
-      
-    }      
+
+    }
   }
-  
+
   // Loop over MCShower and inspect corresponding shower quality
   for(size_t mcs_index = 0; mcs_index < mc_index_v.size(); ++mcs_index) {
-    
+
     auto const& mc_shower = ev_mcs[mc_index_v[mcs_index]];
-    
+
     // Search for the best representative shower
     size_t best_shower_index = shower_mcq_vv.size();
     double max_mcq=0;
     for(size_t shower_index = 0; shower_index < shower_mcq_vv.size(); ++shower_index) {
-      
+
       if( shower_mcq_vv[shower_index][mcs_index] > max_mcq)
 	best_shower_index = shower_index;
     }
-    
+
     if(best_shower_index == shower_mcq_vv.size()) {
       std::string msg;
       std::cerr << "\033[93m[ERROR]\033[00m <<ShowerQuality::analyze>> "
@@ -458,11 +458,11 @@ void ShowerQuality::analyze(art::Event const & e)
     }
 
     auto const& reco_shower = ev_shower[best_shower_index];
-    
+
     auto res = fBTAlg.ShowerCorrectness(ass_cluster_v[best_shower_index]);
-    
+
     fTreeParams.match_correctness = res.second;
-    
+
     if(fTreeParams.match_correctness < 0) {
       std::cerr << "\033[93m[ERROR]\033[00m <<ShowerQuality::analyze>> "
 		<< "Failed to find a corresponding MCShower for shower " << best_shower_index
@@ -474,28 +474,28 @@ void ShowerQuality::analyze(art::Event const & e)
     fTreeParams.mc_x = mc_shower.DetProfile().X();
     fTreeParams.mc_y = mc_shower.DetProfile().Y();
     fTreeParams.mc_z = mc_shower.DetProfile().Z();
-    
+
     fTreeParams.mc_energy = mc_shower.DetProfile().E();
     fTreeParams.mc_pdgid  = mc_shower.PdgCode();
     fTreeParams.mc_containment = mc_shower.DetProfile().E() / mc_shower.Start().E();
-    
+
     //fTreeParams.mc_dcosx = mc_shower.DetProfile().Px() / fTreeParams.mc_energy;
     //fTreeParams.mc_dcosy = mc_shower.DetProfile().Py() / fTreeParams.mc_energy;
     //fTreeParams.mc_dcosz = mc_shower.DetProfile().Pz() / fTreeParams.mc_energy;
     fTreeParams.mc_dcosx = mc_shower.Start().Px() / mc_shower.Start().E();
     fTreeParams.mc_dcosy = mc_shower.Start().Py() / mc_shower.Start().E();
     fTreeParams.mc_dcosz = mc_shower.Start().Pz() / mc_shower.Start().E();
-    
+
     // Reco vtx
     fTreeParams.reco_x = reco_shower.ShowerStart()[0];
     fTreeParams.reco_y = reco_shower.ShowerStart()[1];
     fTreeParams.reco_z = reco_shower.ShowerStart()[2];
-    
+
     // Reco angle
     fTreeParams.reco_dcosx = reco_shower.Direction()[0];
     fTreeParams.reco_dcosy = reco_shower.Direction()[1];
     fTreeParams.reco_dcosz = reco_shower.Direction()[2];
-    
+
     // Reco - MC angle diff
     fTreeParams.mc_reco_anglediff = acos( fTreeParams.reco_dcosx * fTreeParams.mc_dcosx +
 					  fTreeParams.reco_dcosy * fTreeParams.mc_dcosy +
@@ -504,7 +504,7 @@ void ShowerQuality::analyze(art::Event const & e)
     fTreeParams.mc_reco_dist = sqrt( pow(fTreeParams.reco_x - fTreeParams.mc_x,2) +
 				     pow(fTreeParams.reco_y - fTreeParams.mc_y,2) +
 				     pow(fTreeParams.reco_z - fTreeParams.mc_z,2) );
-    
+
     // Reco cluster efficiency & purity
     fTreeParams.cluster_eff = 1.;
     fTreeParams.cluster_pur = 1.;
@@ -514,13 +514,13 @@ void ShowerQuality::analyze(art::Event const & e)
       fTreeParams.cluster_eff *= ep.first;
       fTreeParams.cluster_pur *= ep.second;
     }
-    
+
     // Reco energy & dedx info
     fTreeParams.best_plane_id = reco_shower.best_plane();
-    
+
     /*
       int best_plane_index = -1;
-      
+
       for(size_t i=0; i < ass_cluster_v[best_shower_index].size(); ++i) {
 
 	size_t cluster_index = ass_cluster_v[best_shower_index][i];
@@ -530,7 +530,7 @@ void ShowerQuality::analyze(art::Event const & e)
 	  break;
 	}
       }
-      
+
       if(best_plane_index < 0) {
       throw ::showerreco::ShowerRecoException(Form("Failed to identify the best plane for shower %zu",
       best_shower_index)
@@ -543,55 +543,55 @@ void ShowerQuality::analyze(art::Event const & e)
     //fTreeParams.reco_dedx_V   = reco_shower.dEdx().at(1);
     //fTreeParams.reco_dedx_Y   = reco_shower.dEdx().at(2);
     fTreeParams.reco_dedx     = reco_shower.dEdx().at(reco_shower.best_plane());
-    
+
     //
     // Fill histograms
     //
     hMatchCorrectness->Fill(fTreeParams.match_correctness);
-    
+
     hVtxDX->Fill(fTreeParams.reco_x - fTreeParams.mc_x);
     hVtxDY->Fill(fTreeParams.reco_y - fTreeParams.mc_y);
     hVtxDZ->Fill(fTreeParams.reco_z - fTreeParams.mc_z);
     hVtxDR->Fill(fTreeParams.mc_reco_dist);
-    
+
     // Angular info
     hDCosX->Fill(fTreeParams.reco_dcosx - fTreeParams.mc_dcosx);
     hDCosY->Fill(fTreeParams.reco_dcosy - fTreeParams.mc_dcosy);
     hDCosZ->Fill(fTreeParams.reco_dcosz - fTreeParams.mc_dcosz);
     h3DAngleDiff->Fill( fTreeParams.mc_reco_anglediff );
-    
+
     hEnergyCorr->Fill  ( fTreeParams.reco_energy, fTreeParams.mc_energy );
-    
-    hEnergyAssym->Fill ( (fTreeParams.reco_energy - fTreeParams.mc_energy) / 
+
+    hEnergyAssym->Fill ( (fTreeParams.reco_energy - fTreeParams.mc_energy) /
 			 (fTreeParams.reco_energy + fTreeParams.mc_energy) * 2. );
-    
+
     hEnergyDiff->Fill  ( fTreeParams.mc_energy - fTreeParams.reco_energy );
-    
-    if(mDEDX.find(fTreeParams.mc_pdgid) == mDEDX.end()) 
-      
+
+    if(mDEDX.find(fTreeParams.mc_pdgid) == mDEDX.end())
+
       mDEDX.insert(std::make_pair(fTreeParams.mc_pdgid,
 				  new TH1D(Form("hdEdx_PDG_%d",fTreeParams.mc_pdgid),
 					   Form("Reco dE/dx for PDG = %d; dE/dx [MeV/cm]; Showers",fTreeParams.mc_pdgid),
 					   100,0,50)
 				  )
 		   );
-    
+
     hMatchedClusterEff->Fill(fTreeParams.cluster_eff);
     hMatchedClusterPur->Fill(fTreeParams.cluster_pur);
-    
+
     mDEDX[fTreeParams.mc_pdgid]->Fill(fTreeParams.reco_dedx);
-    
+
     hBestPlane->Fill(fTreeParams.best_plane_id);
-    
+
     // Fill Tree
     fTree->Fill();
-    
+
   }
 }
 
 void ShowerQuality::InitializeAnaTree()
 {
-  
+
   fTree->Branch("reco_x",&fTreeParams.reco_x,"reco_x/D");
   fTree->Branch("reco_y",&fTreeParams.reco_y,"reco_y/D");
   fTree->Branch("reco_z",&fTreeParams.reco_z,"reco_z/D");
@@ -599,9 +599,9 @@ void ShowerQuality::InitializeAnaTree()
   fTree->Branch("reco_dcosy",&fTreeParams.reco_dcosy,"reco_dcosy/D");
   fTree->Branch("reco_dcosz",&fTreeParams.reco_dcosz,"reco_dcosz/D");
   fTree->Branch("reco_energy",&fTreeParams.reco_energy,"reco_energy/D");
-  
+
   fTree->Branch("best_plane_id",&fTreeParams.best_plane_id,"best_plane_id/i");
-  
+
   fTree->Branch("mc_x",&fTreeParams.mc_x,"mc_x/D");
   fTree->Branch("mc_y",&fTreeParams.mc_y,"mc_y/D");
   fTree->Branch("mc_z",&fTreeParams.mc_z,"mc_z/D");
@@ -609,22 +609,22 @@ void ShowerQuality::InitializeAnaTree()
   fTree->Branch("mc_dcosy",&fTreeParams.mc_dcosy,"mc_dcosy/D");
   fTree->Branch("mc_dcosz",&fTreeParams.mc_dcosz,"mc_dcosz/D");
   fTree->Branch("mc_energy",&fTreeParams.mc_energy,"mc_energy/D");
-  
+
   fTree->Branch("reco_dedx",&fTreeParams.reco_dedx,"reco_dedx_/D");
   fTree->Branch("reco_dedx_U",&fTreeParams.reco_dedx_U,"reco_dedx_U/D");
   fTree->Branch("reco_dedx_V",&fTreeParams.reco_dedx_V,"reco_dedx_V/D");
   fTree->Branch("reco_dedx_Y",&fTreeParams.reco_dedx_Y,"reco_dedx_Y/D");
   fTree->Branch("mc_pdgid",&fTreeParams.mc_pdgid,"mc_pdgid/i");
-  
+
   fTree->Branch("mc_reco_anglediff",&fTreeParams.mc_reco_anglediff,"mc_reco_anglediff/D");
   fTree->Branch("mc_reco_dist",&fTreeParams.mc_reco_dist,"mc_reco_dist/D");
-  
+
   fTree->Branch("mc_containment",&fTreeParams.mc_containment,"mc_containment/D");
-  
+
   fTree->Branch("match_correctness",&fTreeParams.match_correctness,"match_correctness/D");
   fTree->Branch("cluster_eff",&fTreeParams.cluster_eff,"cluster_eff/D");
   fTree->Branch("cluster_pur",&fTreeParams.cluster_pur,"cluster_pur/D");
-  
+
 }
 
 DEFINE_ART_MODULE(ShowerQuality)

@@ -21,12 +21,12 @@ namespace trkf {
    * @date    2017
    * @version 1.0
    */
-  
+
   // use reference_wrapper instead of pointers: we do not want ownership of the tracks
   typedef std::vector<std::reference_wrapper<const recob::Track> > TrackRefVec;
 
   class VertexWrapper {
-    
+
   public:
 
     VertexWrapper() { vtx_ = recob::Vertex(); }

@@ -4,7 +4,7 @@
  * @date   January 21, 2015
  * @author petrillo@fnal.gov
  * @see    Cluster.h ClusterCreator.h
- * 
+ *
  * ****************************************************************************/
 
 // declaration header
@@ -22,7 +22,7 @@
 
 /// Cluster reconstruction namespace
 namespace cluster {
-  
+
   //****************************************************************************
   //***  ClusterCreator
   //----------------------------------------------------------------------
@@ -57,8 +57,8 @@ namespace cluster {
       sentry
       ))
   {} // ClusterCreator::ClusterCreator()
-  
-  
+
+
   //----------------------------------------------------------------------
   recob::Cluster ClusterCreator::CreateCluster(
     ClusterParamsAlgBase& algo,
@@ -103,7 +103,7 @@ namespace cluster {
       sentry
       );
   } // ClusterCreator::CreateCluster()
-  
-  
+
+
   //----------------------------------------------------------------------
 } // namespace cluster

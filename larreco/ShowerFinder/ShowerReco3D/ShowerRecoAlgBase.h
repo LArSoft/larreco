@@ -2,7 +2,7 @@
  * \file ShowerRecoAlgBase.h
  *
  * \ingroup ShowerReco3D
- * 
+ *
  * \brief Class def header for a class ShowerRecoAlgBase
  *
  * @author kazuhiro
@@ -32,19 +32,19 @@ namespace showerreco {
     std::vector< ::util::PxHit> hit_vector;
 
   };
-  
+
   /**
      \class ShowerRecoAlgBase
      User defined class ShowerRecoAlgBase ... these comments are used to generate
      doxygen documentation!
   */
   class ShowerRecoAlgBase{
-    
+
   public:
-    
+
     /// Default constructor
     ShowerRecoAlgBase();
-    
+
     /// Default destructor
     virtual ~ShowerRecoAlgBase(){}
 
@@ -71,9 +71,9 @@ namespace showerreco {
 
     /// Function to reconstruct one shower
     virtual ::recob::Shower RecoOneShower(const std::vector<showerreco::ShowerCluster_t>& clusters) = 0;
-    
+
   protected:
-    
+
     /// Verbosity flag
     bool fVerbosity;
 
@@ -86,5 +86,5 @@ namespace showerreco {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

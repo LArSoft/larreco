@@ -34,7 +34,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMath.h"
@@ -63,13 +63,13 @@ namespace trkf {
    class Propagator;
    class Track3DKalmanHitAlg {
    public:
-      
+
       /// Constructor.
       explicit Track3DKalmanHitAlg(const fhicl::ParameterSet& pset);
-      
+
       /// Reconfigure method.
       void reconfigure(const fhicl::ParameterSet& pset);
-      
+
       // Private member functions that do not use art::event or Assns
       // but use art::PtrVector and art::Ptr.
       std::vector<trkf::KalmanOutput> makeTracks(KalmanInputs &kalman_inputs);
@@ -112,14 +112,14 @@ namespace trkf {
                                    Hits& hits,
                                    Hits& seederhits) const;
       std::unique_ptr<KHitContainer> fillHitContainer(const Hits &hits) const;
-      
+
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
-      
+
       void fitnupdateMomentum(KGTrack& trg1,
                               KGTrack& trg2);
-      
+
    private:
-      
+
       // Fcl parameters.
       bool fDoDedx;                       ///< Global dE/dx enable flag.
       bool fSelfSeed;                     ///< Self seed flag.
@@ -131,18 +131,18 @@ namespace trkf {
       double fMaxSeedChiDF;               ///< Maximum seed track chisquare/dof.
       double fMinSeedSlope;               ///< Minimum seed slope (dx/dz).
       double fInitialMomentum;            ///< Initial (or constant) momentum.
-      
+
       // Algorithm objects.
-      
+
       KalmanFilterAlg fKFAlg;             ///< Kalman filter algorithm.
       SeedFinderAlgorithm fSeedFinderAlg; ///< Seed finder.
-      
+
       /// Propagator.
       std::unique_ptr<const Propagator> fProp;
-      
+
       // Statistics.
       int fNumTrack;    ///< Number of tracks produced.
-      
+
    };
 }
 

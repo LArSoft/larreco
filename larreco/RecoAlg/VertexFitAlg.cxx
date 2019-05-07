@@ -29,11 +29,11 @@ namespace trkf{
   void VertexFitAlg::fcnVtxPos(Int_t &, Double_t *, Double_t &fval, double *par, Int_t flag)
   {
     // Minuit function for fitting the vertex position and vertex track directions
-    
+
     fval = 0;
     double vWire = 0, DirX, DirY, DirZ, DirU, dX, dU, arg;
     unsigned short ipl, lastpl, indx;
-    
+
     for(unsigned short itk = 0; itk < fVtxFitMinStr.HitX.size(); ++itk) {
       lastpl = 4;
       // index of the track Y direction vector. Z direction is the next one
@@ -74,16 +74,16 @@ namespace trkf{
         fval += arg * arg;
       } // iht
     } //itk
-    
+
     fval /= fVtxFitMinStr.DoF;
-    
+
     // save the final chisq/dof in the struct on the last call
     if(flag == 3) fVtxFitMinStr.ChiDoF = fval;
-    
+
   } // fcnVtxPos
 
   /////////////////////////////////////////
-  
+
   void VertexFitAlg::VertexFit(std::vector<std::vector<geo::WireID>> const& hitWID,
                                std::vector<std::vector<double>> const& hitX,
                                std::vector<std::vector<double>> const& hitXErr,
@@ -97,27 +97,27 @@ namespace trkf{
 
     // assume failure
     ChiDOF = 9999;
-    
+
     // need at least hits for two tracks
     if(hitX.size() < 2) return;
     if(hitX.size() != hitWID.size()) return;
     if(hitX.size() != hitXErr.size()) return;
     if(hitX.size() != TrkDir.size()) return;
-    
+
     // number of variables = 3 for the vertex position + 2 * number of track directions
     const unsigned int ntrks = hitX.size();
     const unsigned int npars = 3 + 2 * ntrks;
     unsigned int npts = 0, itk;
     for(itk = 0; itk < ntrks; ++itk) npts += hitX[itk].size();
-    
+
     if(npts < ntrks) return;
-    
+
     // Get the cryostat and tpc from the first hit
     unsigned int cstat, tpc, nplanes, ipl, iht;
     cstat = hitWID[0][0].Cryostat;
     tpc = hitWID[0][0].TPC;
     nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
-    
+
     fVtxFitMinStr.Cstat = cstat;
     fVtxFitMinStr.TPC = tpc;
     fVtxFitMinStr.NPlanes = nplanes;
@@ -146,26 +146,26 @@ namespace trkf{
       }
     } // itk
     fVtxFitMinStr.Dir = TrkDir;
-    
+
     fVtxFitMinStr.DoF = npts - npars;
-      
+
     // define the starting parameters
     std::vector<double> par(npars);
     std::vector<double> stp(npars);
     std::vector<double> parerr(npars);
-    
+
     TMinuit *gMin = new TMinuit(npars);
     gMin->SetFCN(VertexFitAlg::fcnVtxPos);
     int errFlag = 0;
     double arglist[10];
-    
+
     // print level (-1 = none, 1 = yes)
     arglist[0] = -1;
     //
     // ***** remember to delete gMin before returning on an error
     //
     gMin->mnexcm("SET PRINT", arglist, 1, errFlag);
-    
+
     // the vertex position
     unsigned short ipar;
     for(ipar = 0; ipar < 3; ++ipar) {
@@ -199,17 +199,17 @@ namespace trkf{
     // set strategy 0 for faster Minuit fitting
     arglist[0] = 0.;
     gMin->mnexcm("SET STRATEGY", arglist, 1, errFlag);
-    
+
     // execute Minuit command: Migrad, max calls, tolerance
     arglist[0] = 500; // max calls
     arglist[1] = 1.; // tolerance on fval in fcn
     gMin->mnexcm("MIGRAD", arglist, 2, errFlag);
-    
+
     // call fcn to get final fit values
     arglist[0] = 3;
     gMin->mnexcm("CALL", arglist, 1, errFlag);
     ChiDOF = fVtxFitMinStr.ChiDoF;
-    
+
     // get the parameters
     for(unsigned short ip = 0; ip < par.size(); ++ip) {
       gMin->GetParameter(ip, par[ip], parerr[ip]);
@@ -238,7 +238,7 @@ namespace trkf{
         TrkDirErr[itk](2) = parerr[ipar + 1];
       }
     } // itk
-    
+
     delete gMin;
 
   } // VertexFit()

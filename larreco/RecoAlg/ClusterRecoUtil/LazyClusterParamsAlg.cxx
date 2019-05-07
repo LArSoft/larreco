@@ -4,11 +4,10 @@
  * @author petrillo@fnal.gov
  * @date   January 22, 2015
  * @see    LazyClusterParamsAlg.h
- * 
+ *
  * ****************************************************************************/
 
 // C/C++ standard library
-#include <vector>
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h" // util::DegreesToRadians()
@@ -18,7 +17,7 @@
 
 //==============================================================================
 //===  cluster::LazyClusterParamsAlg
-//===  
+//===
 
 //------------------------------------------------------------------------------
 cluster::LazyClusterParamsAlg::Measure_t
@@ -111,7 +110,7 @@ size_t cluster::LazyClusterParamsAlg::NHits() {
 float cluster::LazyClusterParamsAlg::MultipleHitDensity() {
   return params.N_Wires? params.multi_hit_wires / params.N_Wires: 0.;
 } // LazyClusterParamsAlg::MultipleHitDensity()
-    
+
 
 //------------------------------------------------------------------------------
 float cluster::LazyClusterParamsAlg::Width() {

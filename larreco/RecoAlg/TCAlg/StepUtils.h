@@ -34,7 +34,7 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 
 namespace tca {
-  
+
   // Main stepping/crawling routine
   void StepAway(TCSlice& slc, Trajectory& tj);
   void SetStrategy(TCSlice& slc, Trajectory& tj);

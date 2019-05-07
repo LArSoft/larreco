@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPOLYSHORTESTDIST_CXX
-#define RECOTOOL_CBALGOPOLYSHORTESTDIST_CXX
-
 #include "CBAlgoPolyShortestDist.h"
 
 namespace cmtool {
@@ -50,7 +47,7 @@ namespace cmtool {
   //{
   //
   //}
-  
+
   //----------------------------------------------------------------
   bool CBAlgoPolyShortestDist::Bool(const ::cluster::ClusterParamsAlg &cluster1,
 			       const ::cluster::ClusterParamsAlg &cluster2)
@@ -86,7 +83,7 @@ namespace cmtool {
 	float pt2w = cluster2.GetParams().PolyObject.Point(j).first;
 	float pt2t = cluster2.GetParams().PolyObject.Point(j).second;
 	double distsqrd = pow(pt2w-pt1w,2)+pow(pt2t-pt1t,2);
-	
+
 	if(distsqrd < tmp_min_dist) tmp_min_dist = distsqrd;
 
 	if(_debug){
@@ -108,6 +105,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }
-#endif

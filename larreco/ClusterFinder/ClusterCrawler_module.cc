@@ -3,7 +3,7 @@
 // Module Type: producer
 // File:        ClusterCrawler_module.cc
 //
-// Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
+// Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod
 // from cetpkgsupport v1_02_00.
 ////////////////////////////////////////////////////////////////////////
 
@@ -17,7 +17,6 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 
-#include <vector>
 #include <algorithm> // std::max()
 #include <functional> // std::mem_fn()
 #include <memory> // std::move
@@ -77,15 +76,15 @@ namespace cluster {
       "\nClusterCrawler module has been deprecated and will be removed."
       "\nIt is now replaced by HitFinder and LineCluster modules."
       ;
-    
+
     this->reconfigure(pset);
-    
+
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
     recob::HitCollectionAssociator::declare_products(*this);
-    
-    produces< std::vector<recob::Cluster> >();  
+
+    produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
@@ -96,7 +95,7 @@ namespace cluster {
     fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
     fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
   }
-  
+
   void ClusterCrawler::produce(art::Event & evt)
   {
     // fetch the wires needed by CCHitFinder
@@ -107,18 +106,18 @@ namespace cluster {
 
     // find hits in all planes
     fCCHFAlg.RunCCHitFinder(*wireVecHandle);
-    
+
     // extract the result of the algorithm (it's moved)
     std::vector<recob::Hit> FirstHits = fCCHFAlg.YieldHits();
 
     // look for clusters in all planes
     fCCAlg.RunCrawler(FirstHits);
-    
+
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
       (new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
-    
-    art::ServiceHandle<geo::Geometry> geo;
-    
+
+    art::ServiceHandle<geo::Geometry const> geo;
+
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
@@ -126,14 +125,14 @@ namespace cluster {
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
 
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> >
       hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>
       cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
 
-    
+
     std::vector<ClusterCrawlerAlg::ClusterStore> const& tcl = fCCAlg.GetClusters();
-    
+
     std::vector<short> const& inClus = fCCAlg.GetinClus();
 
     // Consistency check
@@ -161,7 +160,7 @@ namespace cluster {
     // make 3D vertices
     std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices
       = fCCAlg.GetVertices();
-    
+
     double xyz[3] = {0, 0, 0};
     unsigned int vtxID = 0, end;
     for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
@@ -177,7 +176,7 @@ namespace cluster {
     } // 3D vertices
     // convert Vertex vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(sv3col)));
-    
+
     // make the clusters and associations
     float sumChg, sumADC;
     unsigned int clsID = 0, nclhits;
@@ -200,7 +199,7 @@ namespace cluster {
       } // itt
       // get the wire, plane from a hit
       unsigned int iht = clstr.tclhits[0];
-      
+
       geo::View_t view = FinalHits->at(iht).View();
       sccol.emplace_back(
                          (float)clstr.BeginWir,  // Start wire
@@ -279,12 +278,12 @@ namespace cluster {
         } // 3D vertices
       } // clstr.BeginVtx >= 0
     } // icl
-    
+
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
     shcol.use_hits(std::move(FinalHits));
-    
+
     // clean up
     fCCAlg.ClearResults();
 
@@ -302,5 +301,5 @@ namespace cluster {
 namespace cluster{
 
   DEFINE_ART_MODULE(ClusterCrawler)
-  
-} 
+
+}

@@ -1,14 +1,13 @@
 // Christopher Backhouse - bckhouse@fnal.gov
 
 #include <string>
-#include <vector>
 
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 
@@ -109,7 +108,7 @@ TrueSpacePoints(art::Handle<std::vector<recob::Hit>> hits) const
 
   const double err[6] = {0,};
 
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   for(unsigned int i = 0; i < hits->size(); ++i){
     try{
       const std::vector<double> xyz = bt_serv->HitToXYZ(art::Ptr<recob::Hit>(hits, i));

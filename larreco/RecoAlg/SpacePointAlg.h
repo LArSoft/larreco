@@ -4,9 +4,9 @@
 ///
 /// \brief  Algorithm for generating space points from hits.
 ///
-/// \author H. Greenlee 
+/// \author H. Greenlee
 ///
-/// This class calculates space points (recob::SpacePoint) from an 
+/// This class calculates space points (recob::SpacePoint) from an
 /// unsorted collection of hits (recob::Hit).  The resulting space
 /// points will contain one hit from from two or three views.
 ///
@@ -30,7 +30,7 @@
 ///
 /// S = sin(theta_vw)*u + sin(theta_wu)*v + sin(theta_uv)*w
 ///
-/// where wire coordinates (u,v,w) are measured in cm with respect to a 
+/// where wire coordinates (u,v,w) are measured in cm with respect to a
 /// common origin.
 ///
 /// The time offsets are subtracted from times embedded in hits before
@@ -40,16 +40,16 @@
 /// If enabled, filtering eliminates multiple space points with similar
 /// times on the same wire of the most popluated plane.
 ///
-/// If enabled, merging combines multiple space points with similar 
+/// If enabled, merging combines multiple space points with similar
 /// times on the same wire of the most populated plane (potentially
 /// producing space points with more hits than the number of planes).
 ///
 /// There should eventually be a better way to specify time offsets.
-/// 
+///
 /// @bug This algorithm makes specific assumptions about geometry and views,
 ///      and it is *not portable*.
-/// 
-/// 
+///
+///
 ////////////////////////////////////////////////////////////////////////
 
 #ifndef SPACEPOINTALG_H
@@ -133,11 +133,11 @@ namespace trkf {
     void makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
 			 std::vector<recob::SpacePoint>& spts) const;
 
-    // Fill a vector of space points compatible with mc truth information 
+    // Fill a vector of space points compatible with mc truth information
     void makeMCTruthSpacePoints(const art::PtrVector<recob::Hit>& hits,
 				std::vector<recob::SpacePoint>& spts) const;
 
-    // Get hits associated with a particular space point, based on most recent 
+    // Get hits associated with a particular space point, based on most recent
     // invocation of any make*SpacePoints method.
     const art::PtrVector<recob::Hit>& getAssociatedHits(const recob::SpacePoint& spt) const;
 

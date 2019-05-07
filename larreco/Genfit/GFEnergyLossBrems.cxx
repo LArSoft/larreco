@@ -28,7 +28,7 @@ genf::GFEnergyLossBrems::~GFEnergyLossBrems(){
 
 double genf::GFEnergyLossBrems::energyLoss(const double& step,
                                      const double& mom,
-                                     const int&    pdg,              
+                                     const int&    pdg,
                                      const double& matDensity,
                                      const double& matZ,
                                      const double& matA,
@@ -48,15 +48,15 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
     #if defined(BETHE) // no MIGDAL corrections
       static const double C[101]={ 0.0, 0.834459E-02, 0.443979E-02,-0.101420E-02, 0.963240E-04,-0.409769E-05, 0.642589E-07, 0.464473E-02,-0.290378E-02, 0.547457E-03,-0.426949E-04, 0.137760E-05,-0.131050E-07,-0.547866E-02, 0.156218E-02,-0.167352E-03, 0.101026E-04,-0.427518E-06, 0.949555E-08,-0.406862E-02, 0.208317E-02,-0.374766E-03, 0.317610E-04,-0.130533E-05, 0.211051E-07, 0.158941E-02,-0.385362E-03, 0.315564E-04,-0.734968E-06,-0.230387E-07, 0.971174E-09, 0.467219E-03,-0.154047E-03, 0.202400E-04,-0.132438E-05, 0.431474E-07,-0.559750E-09,-0.220958E-02, 0.100698E-02,-0.596464E-04,-0.124653E-04, 0.142999E-05,-0.394378E-07, 0.477447E-03,-0.184952E-03,-0.152614E-04, 0.848418E-05,-0.736136E-06, 0.190192E-07,-0.552930E-04, 0.209858E-04, 0.290001E-05,-0.133254E-05, 0.116971E-06,-0.309716E-08, 0.212117E-05,-0.103884E-05,-0.110912E-06, 0.655143E-07,-0.613013E-08, 0.169207E-09, 0.301125E-04,-0.461920E-04, 0.871485E-05,-0.622331E-06, 0.151800E-07,-0.478023E-04, 0.247530E-04,-0.381763E-05, 0.232819E-06,-0.494487E-08,-0.336230E-04, 0.223822E-04,-0.384583E-05, 0.252867E-06,-0.572599E-08, 0.105335E-04,-0.567074E-06,-0.216564E-06, 0.237268E-07,-0.658131E-09, 0.282025E-05,-0.671965E-06, 0.565858E-07,-0.193843E-08, 0.211839E-10, 0.157544E-04,-0.304104E-05,-0.624410E-06, 0.120124E-06,-0.457445E-08,-0.188222E-05,-0.407118E-06, 0.375106E-06,-0.466881E-07, 0.158312E-08, 0.945037E-07, 0.564718E-07,-0.319231E-07, 0.371926E-08,-0.123111E-09};
       static const double xi=2.10, beta=1.00, vl=0.001;
-    #endif                                        
-                                           
+    #endif
+
     double BCUT=10000.; // energy up to which soft bremsstrahlung energy loss is calculated
-      
+
     static const double me = getParticleMass(11); // electron mass (GeV)  0.000519...
 
     double charge, mass;
     getParticleParameters(pdg, charge, mass);
-    
+
     double THIGH=100., CHIGH=50.;
 
     double dedxBrems=0.;
@@ -64,9 +64,9 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
     if(BCUT>0.){
 
       double T, kc;
-      
+
       if(BCUT>=mom) BCUT=mom; // confine BCUT to mom
-      
+
       // T=mom,  confined to THIGH
       // kc=BCUT, confined to CHIGH ??
       if(mom>=THIGH) {
@@ -81,7 +81,7 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
 
       double E=T+me; // total electron energy
       if(BCUT>T) kc=T;
-      
+
       double X=log(T/me);
       double Y=log(kc/(E*vl));
 
@@ -122,7 +122,7 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
         }
         YY=YY*Y;
       }
-       
+
       for (unsigned int I=3; I<=5; ++I) {
         XX=1.;
         for (unsigned int J=1; J<=5; ++J) {
@@ -134,18 +134,18 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
         YY=YY*Y;
       }
 
-      S=S+matZ*SS; 
-      
+      S=S+matZ*SS;
+
       if(S>0.){
         double CORR=1.;
         #if !defined(CERNLIB_BETHE)
-          CORR=1./(1.+0.805485E-10*matDensity*matZ*E*E/(matA*kc*kc)); // MIGDAL correction factor  
+          CORR=1./(1.+0.805485E-10*matDensity*matZ*E*E/(matA*kc*kc)); // MIGDAL correction factor
         #endif
 
         double FAC=matZ*(matZ+xi)*E*E * pow((kc*CORR/T),beta) / (E+me);
         if(FAC<=0.) return 0.;
         dedxBrems=FAC*S;
-        
+
         double RAT;
 
         if(mom>THIGH) {
@@ -189,7 +189,7 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
         }
 
         double E0;
-        
+
         if(ETA<0.0001) factor=1.E-10;
         else if (ETA>0.9999) factor=1.;
         else {
@@ -201,21 +201,21 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
     }
 
     double DE = step * factor*dedxBrems; //always positive
-    double momLoss = sqrt(mom*mom+2.*sqrt(mom*mom+mass*mass)*DE+DE*DE) - mom; //always positive                                           
+    double momLoss = sqrt(mom*mom+2.*sqrt(mom*mom+mass*mass)*DE+DE*DE) - mom; //always positive
 
-    
+
     if (doNoise) {
       if (!noise)
         throw GFException("genf::GFEnergyLossBrems::energyLoss(): no noise matrix!", __LINE__, __FILE__).setFatal();
-      
+
       double LX  = 1.442695*step/radiationLength;
       double S2B = mom*mom * ( 1./pow(3.,LX) - 1./pow(4.,LX) );
       double DEDXB  = pow(fabs(S2B),0.5);
       DEDXB = 1.2E9*DEDXB; //eV
       double sigma2E = DEDXB*DEDXB; //eV^2
       sigma2E*=1.E-18; // eV -> GeV
-      
-      (*noise)[6][6] += (mom*mom+mass*mass)/pow(mom,6.)*sigma2E; 
+
+      (*noise)[6][6] += (mom*mom+mass*mass)/pow(mom,6.)*sigma2E;
     }
 
     return momLoss;

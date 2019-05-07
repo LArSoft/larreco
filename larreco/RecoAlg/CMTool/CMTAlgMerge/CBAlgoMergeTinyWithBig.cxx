@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOMERGETINYWITHBIG_CXX
-#define RECOTOOL_CBALGOMERGETINYWITHBIG_CXX
-
 #include "CBAlgoMergeTinyWithBig.h"
 
 namespace cmtool {
@@ -35,8 +32,8 @@ namespace cmtool {
       std::cout<<"MergeTinyWithBig. One cluster has "
 	       <<cluster1.GetNHits()<<" hits, the other has "
 	       <<cluster2.GetNHits()<<" hits."<<std::endl;
-	
-    
+
+
     bool is_1_small = false;
     bool is_2_small = false;
     bool is_1_big = false;
@@ -56,7 +53,7 @@ namespace cmtool {
     if(cluster2.GetNHits() > _min_hits_big &&
        cluster2.GetNHits() < _max_hits_big)
       is_2_big = true;
-    
+
     if(_debug)
       std::cout<<"is_1_small, is_1_big, is_2_small, is_2_big are: "
 	       <<is_1_small<<", "<<is_1_big<<", "
@@ -97,7 +94,7 @@ namespace cmtool {
 	float pt2w = cluster2.GetParams().PolyObject.Point(j).first;
 	float pt2t = cluster2.GetParams().PolyObject.Point(j).second;
 	double distsqrd = pow(pt2w-pt1w,2)+pow(pt2t-pt1t,2);
-	
+
 	if(_debug){
 	  std::cout<<"two polygon points dist2 is "<<distsqrd<<std::endl;
 	}
@@ -117,6 +114,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }
-#endif

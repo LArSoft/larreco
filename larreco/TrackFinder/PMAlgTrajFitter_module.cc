@@ -117,7 +117,7 @@ private:
   static const std::string kNodesName;        // pma nodes
 
   // *********************** geometry **************************
-  art::ServiceHandle< geo::Geometry > fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
 };
 // -------------------------------------------------------------
 const std::string PMAlgTrajFitter::kKinksName = "kink";
@@ -313,7 +313,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 		auto const* trkGetter = evt.productGetter(tid);
 
 		auto vsel = pmalgFitter.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
-		auto ksel = pmalgFitter.getKinks(); // pairs of kink position - associated track idx 
+		auto ksel = pmalgFitter.getKinks(); // pairs of kink position - associated track idx
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
 		if (fPmaFitterConfig.RunVertexing()) // save vertices and vtx-trk assns

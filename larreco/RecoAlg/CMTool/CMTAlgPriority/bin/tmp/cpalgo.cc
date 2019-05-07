@@ -1,6 +1,3 @@
-#ifndef CPALGO_CLASS_NAME_CXX
-#define CPALGO_CLASS_NAME_CXX
-
 #include "CPAlgo_Class_Name.hh"
 
 namespace cmtool {
@@ -26,13 +23,12 @@ namespace cmtool {
     if(cluster.GetNHits()) return 1.;
     else return -1.;
   }
-  
+
   //------------------------------
   void CPAlgo_Class_Name::Report()
   //------------------------------
   {
 
   }
-    
+
 }
-#endif

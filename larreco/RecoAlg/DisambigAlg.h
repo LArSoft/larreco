@@ -36,14 +36,14 @@ namespace apa{
 
 
 
-  //--------------------------------------------------------------- 
+  //---------------------------------------------------------------
   class DisambigAlg {
   public:
-    
-    
+
+
     DisambigAlg(fhicl::ParameterSet const& pset);
     virtual ~DisambigAlg();
-    
+
     void               reconfigure(fhicl::ParameterSet const& p);
 
     void               RunDisambig( art::Handle< std::vector<recob::Hit> > GausHits );
@@ -71,14 +71,14 @@ namespace apa{
 
     // other classes we will use
     apa::APAGeometryAlg                           fAPAGeo;
-    art::ServiceHandle<geo::Geometry>             geom;
+    art::ServiceHandle<geo::Geometry const>             geom;
     const detinfo::DetectorProperties*           detprop;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;                     ///< For *TEMPORARY* monitering of potential problems
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization
-    std::map< raw::ChannelID_t, std::vector< art::Ptr< recob::Hit > > > fChannelToHits; 
-    std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToUVHits, fAPAToZHits; 
-    std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToHits; 
+    std::map< raw::ChannelID_t, std::vector< art::Ptr< recob::Hit > > > fChannelToHits;
+    std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToUVHits, fAPAToZHits;
+    std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToHits;
                                                                    ///\ todo: Channel/APA to hits can be done in a unified way
     std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToEndPHits;
     std::map< unsigned int, std::vector< std::pair<art::Ptr<recob::Hit>, geo::WireID> > >  fAPAToDHits;
@@ -91,8 +91,8 @@ namespace apa{
                                     ///< If a hit is disambiguated, map its chan and peak time to the chosen wireID
     std::map< unsigned int, std::map<std::pair<double,double>, bool> >   fHasBeenDisambiged;
                                     ///< Convenient way to keep track of disambiguation so far
-    void          MakeDisambigHit( art::Ptr<recob::Hit> hit, 
-				   geo::WireID, 
+    void          MakeDisambigHit( art::Ptr<recob::Hit> hit,
+				   geo::WireID,
 				    unsigned int apa);
                                     ///< Makes a disambiguated hit while keeping track of what has already been disambiguated
 
@@ -112,8 +112,8 @@ namespace apa{
     bool         fUseEndP;
     bool         fCompareViews;
     unsigned int fNChanJumps;       ///< Number of channels the crawl can jump over
-    double       fCloseHitsRadius;  ///< Distance (cm) away from a hit to look when checking if it's an endpoint 
-    double       fMaxEndPDegRange;  ///< Within the close hits radius, how spread can the majority 
+    double       fCloseHitsRadius;  ///< Distance (cm) away from a hit to look when checking if it's an endpoint
+    double       fMaxEndPDegRange;  ///< Within the close hits radius, how spread can the majority
                                     ///< of the activity be around a possible endpoint
 
   }; // class DisambigAlg

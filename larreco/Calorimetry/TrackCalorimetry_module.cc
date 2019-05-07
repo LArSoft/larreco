@@ -8,7 +8,7 @@
 //
 // Description: Algorithm that produces a calorimetry object given a track
 // Input:       recob::Track, Assn<recob::Spacepoint,recob::Track>, Assn<recob::Hit,recob::Track>
-// Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>) 
+// Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>)
 //
 // Generated at Tue Oct 21 15:54:15 2014 by Wesley Ketchum using artmod
 // from cetpkgsupport v1_07_01.
@@ -90,24 +90,24 @@ void calo::TrackCalorimetry::produce(art::Event & e)
   art::Handle< std::vector<recob::Track> > trackHandle;
   e.getByLabel(fTrackModuleLabel,trackHandle);
   std::vector<recob::Track> const& trackVector(*trackHandle);
-  
+
   //Get Hits from event.
   art::Handle< std::vector<recob::Hit> > hitHandle;
   e.getByLabel(fHitModuleLabel, hitHandle);
   std::vector<recob::Hit> const& hitVector(*hitHandle);
-  
+
   //Get track<-->hit associations
   art::Handle< art::Assns<recob::Track,recob::Hit> > assnTrackHitHandle;
   e.getByLabel(fTrackModuleLabel,assnTrackHitHandle);
-  std::vector< std::vector<size_t> > 
+  std::vector< std::vector<size_t> >
     hit_indices_per_track = util::GetAssociatedVectorManyI(assnTrackHitHandle,
 							   trackHandle);
 
   //Make the container for the calo product to put onto the event.
   std::unique_ptr< std::vector<anab::Calorimetry> > caloPtr(new std::vector<anab::Calorimetry>);
   std::vector<anab::Calorimetry> & caloVector(*caloPtr);
-  
-  //Make a container for the track<-->calo associations. 
+
+  //Make a container for the track<-->calo associations.
   //One entry per track, with entry equal to index in calorimetry collection of associated object.
   std::vector<size_t> assnTrackCaloVector;
   std::unique_ptr< art::Assns<recob::Track,anab::Calorimetry> > assnTrackCaloPtr(new art::Assns<recob::Track,anab::Calorimetry>);
@@ -123,7 +123,7 @@ void calo::TrackCalorimetry::produce(art::Event & e)
   for(size_t calo_iter=0; calo_iter<assnTrackCaloVector.size(); calo_iter++){
     if(assnTrackCaloVector[calo_iter]==std::numeric_limits<size_t>::max()) continue;
     art::Ptr<recob::Track> trk_ptr(trackHandle,assnTrackCaloVector[calo_iter]);
-    util::CreateAssn(*this, e, caloVector, trk_ptr, *assnTrackCaloPtr, calo_iter); 
+    util::CreateAssn(*this, e, caloVector, trk_ptr, *assnTrackCaloPtr, calo_iter);
   }
 
   e.put(std::move(caloPtr));

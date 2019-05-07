@@ -61,7 +61,7 @@ private:
 		  std::unique_ptr<art::Assns<recob::Track, recob::Hit>> &trkhassn,
 		  std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>> &trksassn,
 		  std::unique_ptr<std::vector<recob::Hit>> &hit_coll,
-		  std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,		  
+		  std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,
 		  std::vector<int> &index,
 		  TTree *tree);
 
@@ -71,7 +71,7 @@ private:
 		  std::unique_ptr<art::Assns<recob::Shower, recob::Hit>> &shwhassn,
 		  std::unique_ptr<art::Assns<recob::Shower, recob::SpacePoint>> &shwsassn,
 		  std::unique_ptr<std::vector<recob::Hit>> &hit_coll,
-		  std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,		  
+		  std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,
 		  std::vector<int> &index,
 		  TTree *tree);
 
@@ -102,7 +102,7 @@ wc::MergeWireCell::MergeWireCell(fhicl::ParameterSet const & p) :
 
 void wc::MergeWireCell::produce(art::Event & evt){
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   int run = evt.run();
   int subrun = evt.subRun();
@@ -124,12 +124,12 @@ void wc::MergeWireCell::produce(art::Event & evt){
   DIR *pDIR;
   struct dirent *entry;
   if( (pDIR=opendir(path.c_str())) != NULL ){
-     
+
     while((entry = readdir(pDIR)) != NULL){
 
       if( strcmp(entry->d_name, ".")==0 || strcmp(entry->d_name, "..")==00) continue;
 
-      std::string filename(entry->d_name);    
+      std::string filename(entry->d_name);
       if((int)filename.find(".root")==-1)
       continue;
 
@@ -182,20 +182,20 @@ void wc::MergeWireCell::produce(art::Event & evt){
       TC->SetBranchAddress("w_charge_err", &w_charge_err);
       TC->SetBranchAddress("cryostat_no", &cryostat_no);
       TC->SetBranchAddress("mcell_id",&mcell_id);
-        
+
         TC->GetDirectory()->Print();
-        
+
 //      TC->SetBranchAddress("cell.tpc_no", &tpc_no);
-        
+
         TObjArray* leafList = TC->GetListOfLeaves();
-        
+
         for(int idx = 0; idx < leafList->GetEntries(); idx++)
         {
             leafList->At(idx)->Print();
         }
-        
+
         TObject* candObj = leafList->FindObject("tpc_no");
-        
+
         std::cout << "candObj: " << candObj << std::endl;
 
         TLeaf* candLeaf = (TLeaf*)candObj;
@@ -206,9 +206,9 @@ void wc::MergeWireCell::produce(art::Event & evt){
 
       for (int i = 0; i<TC->GetEntries(); ++i){
 	TC->GetEntry(i);
-    
+
     tpc_no = candLeaf->GetTypedValue<Int_t>(i) - 1;
-          
+
 	vcell_id.push_back(mcell_id);
 	double xyz[3] = {xx,yy,zz};
 	double err[3] = {0,0,0};
@@ -301,9 +301,9 @@ void wc::MergeWireCell::produce(art::Event & evt){
     closedir(pDIR);
 
   }
-    
+
     std::cout << "space point size: " << spt_coll->size() << ", hit coll size: " << hit_coll->size() << std::endl;
-    
+
   evt.put(std::move(spt_coll));
   evt.put(std::move(hit_coll));
   evt.put(std::move(shassn));
@@ -320,7 +320,7 @@ void wc::MergeWireCell::MakeTracks(art::Event &evt,
 				   std::unique_ptr<art::Assns<recob::Track, recob::Hit>> &trkhassn,
 				   std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>> &trksassn,
 				   std::unique_ptr<std::vector<recob::Hit>> &hit_coll,
-				   std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,		  
+				   std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,
 				   std::vector<int> &index,
 				   TTree *tree){
   Int_t           npoints;
@@ -342,7 +342,7 @@ void wc::MergeWireCell::MakeTracks(art::Event &evt,
   tree->SetBranchAddress("phi", phi);
 
   Long64_t nentries = tree->GetEntriesFast();
-  
+
   for (Long64_t i=0; i<nentries; ++i) {
     tree->GetEntry(i);
     std::vector<recob::tracking::Point_t> xyz;
@@ -361,21 +361,21 @@ void wc::MergeWireCell::MakeTracks(art::Event &evt,
 	}
       }
     }
-    trk_coll->push_back(recob::Track(recob::TrackTrajectory(std::move(xyz), std::move(dircos), recob::Track::Flags_t(xyz.size()), false), 
+    trk_coll->push_back(recob::Track(recob::TrackTrajectory(std::move(xyz), std::move(dircos), recob::Track::Flags_t(xyz.size()), false),
 				     0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), trackid));
     // make associations between the track and space points
     util::CreateAssn(*this, evt, *trk_coll, *spt_coll, *trksassn, spts);
     // make associations between the track and hits
     util::CreateAssn(*this, evt, *trk_coll, *hit_coll, *trkhassn, hits);
   }
-}    
+}
 
 void wc::MergeWireCell::MakeShowers(art::Event &evt,
 				   std::unique_ptr<std::vector<recob::Shower>> &shw_coll,
 				   std::unique_ptr<art::Assns<recob::Shower, recob::Hit>> &shwhassn,
 				   std::unique_ptr<art::Assns<recob::Shower, recob::SpacePoint>> &shwsassn,
 				   std::unique_ptr<std::vector<recob::Hit>> &hit_coll,
-				   std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,		  
+				   std::unique_ptr<std::vector<recob::SpacePoint>> &spt_coll,
 				   std::vector<int> &index,
 				   TTree *tree){
   Int_t           npoints;
@@ -387,10 +387,10 @@ void wc::MergeWireCell::MakeShowers(art::Event &evt,
   tree->SetBranchAddress("msc_id", msc_id);
 
   Long64_t nentries = tree->GetEntriesFast();
-  
+
   for (Long64_t i=0; i<nentries; ++i) {
     tree->GetEntry(i);
-    TVector3 v1(0,0,0); 
+    TVector3 v1(0,0,0);
     std::vector< double > tmp(2, util::kBogusD);
     int bestplane = -1;
     std::vector<size_t> hits;
@@ -411,6 +411,6 @@ void wc::MergeWireCell::MakeShowers(art::Event &evt,
     // make associations between the track and hits
     util::CreateAssn(*this, evt, *shw_coll, *hit_coll, *shwhassn, hits);
   }
-}    
+}
 
 DEFINE_ART_MODULE(wc::MergeWireCell)

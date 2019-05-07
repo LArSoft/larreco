@@ -22,7 +22,7 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0), fNCachedDrifts(0),
 	fDownscaleMode(img::DataProviderAlg::kMax), fDriftWindow(10),
 	fCalorimetryAlg(config.CalorimetryAlg()),
-	fGeometry( &*(art::ServiceHandle<geo::Geometry>()) ),
+	fGeometry( &*(art::ServiceHandle<geo::Geometry const>()) ),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
 	fAdcSumOverThr(0), fAdcSumThr(10), // set fixed threshold of 10 ADC counts for counting the sum
 	fAdcAreaOverThr(0),
@@ -278,7 +278,7 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 
 	resizeView(nwires, ndrifts);
 
-    auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+    auto const & channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
     bool allWrong = true;
     for (auto const & wire : wires)
@@ -319,7 +319,7 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 	        << cryo << " tpc:" << tpc << " plane:" << plane;
 	    return false;
 	}
-	
+
     applyBlur();
     addWhiteNoise();
     addCoherentNoise();

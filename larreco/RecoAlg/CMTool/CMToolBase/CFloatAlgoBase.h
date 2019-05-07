@@ -2,7 +2,7 @@
  * \file CFloatAlgoBase.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CFloatAlgoBase
  *
  * @author kazuhiro
@@ -25,12 +25,12 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CFloatAlgoBase : public CMAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFloatAlgoBase(){}
-    
+
     /// Default destructor
     virtual ~CFloatAlgoBase(){}
 
@@ -39,7 +39,7 @@ namespace cmtool {
        merged or not.
     */
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters)
-    { 
+    {
       if(clusters.size()) return 1;
       else return -1;
     }
@@ -49,5 +49,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

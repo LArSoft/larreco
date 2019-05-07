@@ -2,7 +2,7 @@
  *  @file   PmaTrack3D.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
@@ -16,7 +16,6 @@
 #include "larcore/Geometry/Geometry.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TMath.h"
 
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
@@ -105,7 +104,7 @@ bool pma::Track3D::Initialize(float initEndSegW)
 	}
 	// single tpc, many tpc's are ok, but need to be handled from ProjectionMatchingAlg::buildMultiTPCTrack()
 	int tpc = tpcs.front();
-	
+
 	if (InitFromRefPoints(tpc, cryo)) mf::LogVerbatim("pma::Track3D") << "Track initialized with 3D reference points.";
 	else
 	{
@@ -126,7 +125,7 @@ void pma::Track3D::ClearNodes(void)
 bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 {
 	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	float wtmp = fEndSegWeight;
 	fEndSegWeight = initEndSegW;
@@ -298,7 +297,7 @@ bool pma::Track3D::InitFromRefPoints(int tpc, int cryo)
 
 void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	const auto& tpcGeo = geom->TPC(tpc, cryo);
 
@@ -911,7 +910,7 @@ double pma::Track3D::HitDxByView(size_t index, unsigned int view,
 			{
 				nexthit = fHits[i];
 				dx += sqrt(pma::Dist2(hit->Point3D(), nexthit->Point3D()));
-				
+
 				if (nexthit->View2D() == view) hitFound = true;
 				else hitFound = false;
 
@@ -1303,7 +1302,7 @@ bool pma::Track3D::AddNode(void)
 			}
 			i++;
 		}
-		
+
 		i0 = i; i++;
 		while ((i < maxSeg->NHits()) && !((maxSeg->Hit(i).View2D() == midViewIdx) && maxSeg->Hit(i).IsEnabled()))
 		{
@@ -1328,7 +1327,7 @@ bool pma::Track3D::AddNode(void)
 		//mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
 		//	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
 		fNodes.insert(fNodes.begin() + vIndex, p);
-		
+
 		maxSeg->AddNext(fNodes[vIndex]);
 
 		seg = new pma::Segment3D(this, fNodes[vIndex], fNodes[vIndex + 1]);
@@ -2303,7 +2302,7 @@ void pma::Track3D::ApplyDriftShiftInTree(double dx, bool skipFirst)
   double newdx = fNodes.front()->GetDriftShift();
 
   // Now convert this newdx into T0 and store in fT0
-  SetT0FromDx(newdx); 
+  SetT0FromDx(newdx);
 }
 
 void pma::Track3D::SetT0FromDx(double dx){
@@ -2313,7 +2312,7 @@ void pma::Track3D::SetT0FromDx(double dx){
   auto const* detclock = lar::providerFrom<detinfo::DetectorClocksService>();
   auto const* geom = lar::providerFrom<geo::Geometry>();
   const geo::TPCGeo &tpcGeo = geom->TPC(fNodes.front()->TPC(), fNodes.front()->Cryo());
-  
+
   // GetXTicksCoefficient has a sign that we don't care about. We need to decide
   // the sign for ourselves based on the drift direction of the TPC
   double correctedSign = 0;
@@ -2343,8 +2342,8 @@ void pma::Track3D::SetT0FromDx(double dx){
   // Reconstructed times are relative to the trigger (t=0), so this is our T0
 	fT0 = dxInTime;
 
-  mf::LogDebug("pma::Track3D") << dx << ", " << dxInTicks << ", " << correctedSign 
-                                 << ", " << fT0 << ", " << tpcGeo.DetectDriftDirection() << " :: " 
+  mf::LogDebug("pma::Track3D") << dx << ", " << dxInTicks << ", " << correctedSign
+                                 << ", " << fT0 << ", " << tpcGeo.DetectDriftDirection() << " :: "
                                  << detclock->TriggerTime() << ", " << detclock->TriggerOffsetTPC() << std::endl;
 
   // Leigh test
@@ -2659,7 +2658,7 @@ bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3
 	{
 		p3d = seg->GetUnconstrainedProj3D(p2d, view);
 		dist2 = min_d2;
-		
+
 		pma::Node3D* prev = static_cast< pma::Node3D* >(seg->Prev());
 		return prev->SameTPC(p3d); // 3D can be beyond the segment endpoints => in other TPC
 	}

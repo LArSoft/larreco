@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOFAKE_CXX
-#define RECOTOOL_CBALGOFAKE_CXX
-
 #include "CBAlgoFake.h"
 
 namespace cmtool {
@@ -29,5 +26,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

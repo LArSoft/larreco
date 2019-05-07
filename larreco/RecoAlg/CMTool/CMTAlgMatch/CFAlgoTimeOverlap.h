@@ -2,7 +2,7 @@
  * \file CFAlgoTimeOverlap.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CFAlgoTimeOverlap
  *
  * @author ariana hackenburg
@@ -23,38 +23,38 @@ namespace cmtool {
      doxygen documentation!
   */
   class CFAlgoTimeOverlap : public CFloatAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFAlgoTimeOverlap();
-    
+
     /// Default destructor
     virtual ~CFAlgoTimeOverlap(){};
 
     /**This algorithm calculates the difference between start and end times for merged clusters,
-		and compares across planes to form matches. 
+		and compares across planes to form matches.
     */
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
-    
-    void SetStartTimeCut(float start_time) { _start_time_cut = start_time ; } 
-    
-    void SetRatioCut(float ratio) { _time_ratio_cut = ratio ; } 
 
- 
+    void SetStartTimeCut(float start_time) { _start_time_cut = start_time ; }
+
+    void SetRatioCut(float ratio) { _time_ratio_cut = ratio ; }
+
+
     //Order the theta, phi, hits per plane to make cuts convenient
     /*
-    virtual void SetMaxMiddleMin(const double first, const double second, const double third, 
+    virtual void SetMaxMiddleMin(const double first, const double second, const double third,
 				 double &most, double &middle, double &least) ;
     */
     void SetDebug(bool debug) { _debug = debug ; }
-    
+
     void SetVerbose(bool verbose) { _verbose = verbose ; }
 
     void RequireThreePlanes(bool doit) { _require_3planes = doit; }
 
     virtual void Report();
-    
+
     virtual void Reset();
 
   protected:
@@ -66,5 +66,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

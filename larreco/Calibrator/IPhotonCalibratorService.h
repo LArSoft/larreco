@@ -20,13 +20,13 @@
 
 namespace calib {
   class IPhotonCalibratorService {
-    
+
   public:
     using provider_type = calib::IPhotonCalibrator;
 
   public:
     virtual ~IPhotonCalibratorService() = default;
-    
+
     virtual provider_type const* provider() const = 0;
 
   }; // class IPhotonCalibratorService

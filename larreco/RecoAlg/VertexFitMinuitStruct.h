@@ -9,7 +9,7 @@
 #ifndef VertexFitMinuitStruct_h
 
 struct VertexFitMinuitStruct {
-  
+
   unsigned short TPC;
   unsigned short Cstat;
   unsigned short NPlanes;
@@ -20,7 +20,7 @@ struct VertexFitMinuitStruct {
   std::array<double, 3> OrthZ;
   std::array<double, 3> FirstWire;             // the FirstWireProj in WireCoordinate
   TVector3 VtxPos;           // Vertex position (detector units)
-  
+
   std::vector<std::vector<double>> HitX; // hit X
   //   track      X
   std::vector< std::vector<double>> HitXErr; // hit X errors
@@ -31,7 +31,7 @@ struct VertexFitMinuitStruct {
   std::vector<TVector3> DirErr;
   double DoF;
   float ChiDoF;                             // fit Chisq/DOF
-  
+
 };
 
 #define VertexFitMinuitStruct_h

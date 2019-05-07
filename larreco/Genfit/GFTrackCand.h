@@ -65,11 +65,11 @@ namespace genf {
      * this parameter means at the moment.
      * @param dip Dip angle from prefit. There is no stringent definition what
      * this parameter means at the moment.
-     * @param inv Dummy paramter. Has been used to mark inverted tracks 
+     * @param inv Dummy paramter. Has been used to mark inverted tracks
      * in the past.
      * @param detIDs collection of detector IDs. Each detector ID needs
      * a corresponding GFRecoHitProducer. See RecoHitFactory for details.
-     * @param hitIDs collection of hit indices. 
+     * @param hitIDs collection of hit indices.
      */
     GFTrackCand(double curv, double dip, double inv, std::vector<unsigned int> detIDs, std::vector<unsigned int> hitIDs);
     /* @brief same as previous ctor, but with ordering parameters */
@@ -79,19 +79,19 @@ namespace genf {
     friend bool operator== (const GFTrackCand& lhs, const GFTrackCand& rhs);
 
     // Accessors -----------------------
-    /** @brief Get detector ID and cluster index (hitId) for hit number i 
+    /** @brief Get detector ID and cluster index (hitId) for hit number i
      */
-    void getHit(unsigned int i, 
+    void getHit(unsigned int i,
 		unsigned int& detId,
 		unsigned int& hitId) const {
       if (i >= getNHits())
         throw GFException("genf::GFTrackCand::getHit(int, int, int): hit index out of range", __LINE__, __FILE__).setFatal();
       detId=fDetId.at(i);hitId=fHitId.at(i);
     }
-    /** @brief Get detector ID and cluster index (hitId) for 
-     * hit number i with ordering parameter rho 
+    /** @brief Get detector ID and cluster index (hitId) for
+     * hit number i with ordering parameter rho
      */
-    void getHit(unsigned int i, 
+    void getHit(unsigned int i,
 		unsigned int& detId,
 		unsigned int& hitId,
 		double &rho) const {
@@ -100,10 +100,10 @@ namespace genf {
       detId=fDetId.at(i);hitId=fHitId.at(i);
       rho=fRho.at(i);
     }
-    /** @brief Get detector ID and cluster index (hitId) for 
+    /** @brief Get detector ID and cluster index (hitId) for
      * hit number i with plane id
      */
-    void getHitWithPlane(unsigned int i, 
+    void getHitWithPlane(unsigned int i,
 			 unsigned int& detId,
 			 unsigned int& hitId,
 			 unsigned int& planeId) const {

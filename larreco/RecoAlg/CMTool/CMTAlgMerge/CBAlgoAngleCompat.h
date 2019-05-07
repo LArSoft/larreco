@@ -2,7 +2,7 @@
  * \file CBAlgoAngleCompat.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoAngleCompat
  *
  * @author davidkaleko
@@ -24,15 +24,15 @@ namespace cmtool {
      doxygen documentation!
   */
   class CBAlgoAngleCompat : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoAngleCompat();
-    
+
     /// Default destructor
     virtual ~CBAlgoAngleCompat(){};
-        
+
     /// Overloaded (from CBoolAlgoBase) Bool function
     virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
 		      const ::cluster::ClusterParamsAlg &cluster2);
@@ -61,7 +61,7 @@ namespace cmtool {
     ///bool to allow "backwards" clusters (swapped start/end points)
     ///to still match in angle, even though they are 180 degrees apart
     ///only valid for _use_opening_angle==false
-    bool _allow_180_ambig; 
+    bool _allow_180_ambig;
 
     /// hard shower-axis angle cutoff (only valid for _use_opening_angle==false)
     double _max_allowed_2D_angle_diff; //in degrees
@@ -77,9 +77,9 @@ namespace cmtool {
 
 
   };
-  
+
 } // end namespace cmtool
 
 #endif
-  /** @} */ // end of doxygen group 
-  
+  /** @} */ // end of doxygen group
+

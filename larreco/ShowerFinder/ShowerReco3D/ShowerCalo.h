@@ -2,7 +2,7 @@
  * \file ShowerCalo.h
  *
  * \ingroup ShowerReco3D
- * 
+ *
  * \brief Class def header for a class ShowerCalo
  *
  * @author kazuhiro
@@ -25,11 +25,11 @@ namespace showerreco {
   enum RecoType_t {
     kDEFAULT
   };
-    
+
     // Define constants to be used by ShowerCalo
   static const double DEFAULT_ECorr = 1.81;//1.75133;
   static const double DEFAULT_ECorrError = 0.173707;
-    
+
   }
 }
 
@@ -41,17 +41,17 @@ namespace showerreco {
      doxygen documentation!
   */
   class ShowerCalo {
-    
+
   public:
-    
+
     /// Default constructor
     ShowerCalo(){};
-    
+
     /// Default destructor
     virtual ~ShowerCalo(){};
 
-    std::pair<double,double> ShowerEnergy(double energy, 
-					  ::showerreco::energy::RecoType_t type=energy::kDEFAULT, 
+    std::pair<double,double> ShowerEnergy(double energy,
+					  ::showerreco::energy::RecoType_t type=energy::kDEFAULT,
 					  bool mc=true);
 
   };
@@ -59,5 +59,5 @@ namespace showerreco {
 
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

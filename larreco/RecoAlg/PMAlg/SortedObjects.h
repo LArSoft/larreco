@@ -2,7 +2,7 @@
  *  @file   SortedObjects.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Base classes for chains and branched chains of nodes and segments.
@@ -27,10 +27,10 @@ class pma::SortedObjectBase
 public:
 	SortedObjectBase(void) : next(0), prev(0) {}
 	SortedObjectBase(pma::SortedObjectBase* prevElement, pma::SortedObjectBase* nextElement);
-	
+
 	/// Note: copy constructor does not preserve connections.
 	SortedObjectBase(const pma::SortedObjectBase& src) : next(0), prev(0) {}
-	
+
 	virtual ~SortedObjectBase(void) { Disconnect(); }
 
 	virtual void Disconnect(void);

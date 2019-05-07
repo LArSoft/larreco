@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSTARTTRACK_CXX
-#define RECOTOOL_CBALGOSTARTTRACK_CXX
-
 #include "CBAlgoStartTrack.h"
 
 namespace cmtool {
@@ -9,7 +6,7 @@ namespace cmtool {
   CBAlgoStartTrack::CBAlgoStartTrack() : CBoolAlgoBase()
   //-------------------------------------------------------
   {
-    
+
     SetMinHits(10);
     SetMinWidth(1.00000);
     SetMinOpeningAngle(0.15000);
@@ -52,17 +49,17 @@ namespace cmtool {
   //{
   //
   //}
-  
+
   //----------------------------------------------------------------
   bool CBAlgoStartTrack::Bool(const ::cluster::ClusterParamsAlg &cluster1,
 			       const ::cluster::ClusterParamsAlg &cluster2)
   //----------------------------------------------------------------
   {
-    
+
     if(cluster1.GetHitVector().size() < _min_hits ||
        cluster2.GetHitVector().size() < _min_hits )
       return false;
-    
+
     bool FirstTrackSecondBlob = false;
     bool SecondTrackFirstBlob = false;
 
@@ -92,14 +89,14 @@ namespace cmtool {
 	std::cout<<"eigenvalue_principal = "<<cluster2.GetParams().eigenvalue_principal<<std::endl;
 
       }
-		 
+
 
     }
 
     //if cluster1 looks like a track and cluster2 looks like a blob
     if (FirstTrackSecondBlob)
       {
-	std::pair<float,float> trackEndPoint = 
+	std::pair<float,float> trackEndPoint =
 	  std::pair<float,float>( cluster1.GetParams().end_point.w, cluster1.GetParams().end_point.t );
 
 	//if the tracklike cluster's endpoint is inside polygon of blob
@@ -112,7 +109,7 @@ namespace cmtool {
     //if cluster2 looks like a track and cluster1 looks like a blob
     else if (SecondTrackFirstBlob)
       {
-	std::pair<float,float> trackEndPoint = 
+	std::pair<float,float> trackEndPoint =
 	  std::pair<float,float>( cluster2.GetParams().end_point.w, cluster2.GetParams().end_point.t );
 
 	//if the tracklike cluster's endpoint is inside polygon of blob
@@ -124,16 +121,16 @@ namespace cmtool {
 
     else
       return false;
-       
-    //the reason for not just using (one track one blob) and 
-    //polyoverlap for this is that 
+
+    //the reason for not just using (one track one blob) and
+    //polyoverlap for this is that
     //this was merging BNB events where the track is clearly in a different
     //direction than the blob
-    
+
     //this will fail when the tracklike cluster is reconstructed backwards
     //(looks like it's a track going into a blob, rather than exiting)
-  
-    
+
+
   }
 
   //------------------------------
@@ -142,20 +139,20 @@ namespace cmtool {
   {
 
   }
-    
+
 
   bool CBAlgoStartTrack::IsStartTrack(const ::cluster::ClusterParamsAlg &cluster)
   {
-    if(cluster.GetParams().eigenvalue_principal > _min_EP) 
+    if(cluster.GetParams().eigenvalue_principal > _min_EP)
       return true;
     else
       return false;
-     
+
   }
 
   bool CBAlgoStartTrack::IsOverlappingBlob(const ::cluster::ClusterParamsAlg &cluster)
   {
-    if(cluster.GetParams().width > _min_width && 
+    if(cluster.GetParams().width > _min_width &&
        cluster.GetParams().opening_angle > _min_opening_angle &&
        cluster.GetParams().eigenvalue_principal < _min_EP)
       return true;
@@ -163,4 +160,3 @@ namespace cmtool {
       return false;
   }
 }
-#endif

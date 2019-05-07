@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGOIGNORETRACKS_CXX
-#define RECOTOOL_CPALGOIGNORETRACKS_CXX
-
 #include "CPAlgoIgnoreTracks.h"
 
 namespace cmtool {
@@ -30,21 +27,21 @@ namespace cmtool {
   {
     //return -1 for tracks, otherwise return nhits
     auto nhit = cluster.GetNHits();
-    
+
     //NOTE! default return value for non-track clusters is nhits
     //but if you want to sort by a different way, use a separate
     //CPAlgo in an array with this one, and use the kLastAlgo option
     //to sort by that algo and still remove tracks!
     return ( IsTrack(cluster) ? -1 : (float)nhit );
   }
-  
+
   //------------------------------
   void CPAlgoIgnoreTracks::Report()
   //------------------------------
   {
 
   }
-    
+
 
   bool CPAlgoIgnoreTracks::IsTrack(const ::cluster::ClusterParamsAlg &cluster)
   {
@@ -60,4 +57,3 @@ namespace cmtool {
     return isTrack;
   }
 }
-#endif

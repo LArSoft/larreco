@@ -2,7 +2,7 @@
  *  @file   SortedObjects.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Base classes for chains and branched chains of nodes and segments.
@@ -13,7 +13,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include <iostream>
 
 //***********************  SortedObjectBase  ***********************
 pma::SortedObjectBase::SortedObjectBase(pma::SortedObjectBase* prevElement, pma::SortedObjectBase* nextElement) :

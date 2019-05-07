@@ -1,6 +1,3 @@
-#ifndef CMERGEHELPER_CXX
-#define CMERGEHELPER_CXX
-
 #include "CMergeHelper.h"
 
 namespace cmtool {
@@ -16,27 +13,27 @@ namespace cmtool {
     for(auto& mgr : _mgr_v) mgr.SetAnaFile(fout);
   }
 
-  void CMergeHelper::Process(const std::vector<std::vector< ::util::PxHit> >& clusters) 
+  void CMergeHelper::Process(const std::vector<std::vector< ::util::PxHit> >& clusters)
   {
     _bk = ::cmtool::CMergeBookKeeper(clusters.size());
 
     for(size_t i=0; i<_mgr_v.size(); ++i) {
-      
+
       auto& mgr = _mgr_v[i];
-      
+
       mgr.Reset();
-      
+
       if(!i) mgr.SetClusters(clusters);
       else mgr.SetClusters( _mgr_v[i-1].GetClusters() );
-      
+
       mgr.Process();
-      
+
       auto const& new_bk = mgr.GetBookKeeper();
-      
+
       if(!i) _bk = new_bk;
       else if(new_bk.GetResult().size() < new_bk.size())
 	_bk.Combine(new_bk);
-      
+
     }
   }
 
@@ -46,5 +43,3 @@ namespace cmtool {
     return _mgr_v.back().GetClusters();
   }
 }
-
-#endif

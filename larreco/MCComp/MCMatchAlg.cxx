@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_MCMATCHALG_CXX
-#define RECOTOOL_MCMATCHALG_CXX
-
 #include "MCMatchAlg.h"
 
 namespace btutil {
@@ -14,7 +11,7 @@ namespace btutil {
 			    const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v)
   {
     fBTAlgo.Reset(g4_trackid_v,simch_v);
-    
+
     return BuildMap(cluster_v);
   }
 
@@ -33,7 +30,7 @@ namespace btutil {
     size_t num_mcobj = fBTAlgo.NumParts();
     size_t num_cluster = cluster_v.size();
     //auto geo = ::larutil::Geometry::GetME();
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     //
     // Perform back-tracking
@@ -41,7 +38,7 @@ namespace btutil {
     // (1) Load cluster/hit data product
     // (2) Loop over all clusters and find charge fraction to each MC object
     // (3) For each MC object, find a cluster per plane with the highest charge
-    
+
     // Loop over clusters & get charge fraction per MC object
     _summed_mcq.clear();
     _cluster_mcq_v.clear();
@@ -60,7 +57,7 @@ namespace btutil {
       wr_v.reserve(hit_v.size());
 
       for(auto const& h : hit_v) {
-	
+
 	WireRange_t wr;
 	wr.ch    = h->Channel();
 	wr.start = h->StartTick();
@@ -77,7 +74,7 @@ namespace btutil {
 
       for(size_t i=0; i<mcq_v.size(); ++i)
 
-	_summed_mcq[i][plane] += mcq_v[i]; 
+	_summed_mcq[i][plane] += mcq_v[i];
 
       _cluster_mcq_v.push_back(mcq_v);
 
@@ -98,14 +95,14 @@ namespace btutil {
 	//if((_cluster_mcq_v[cluster_index].back()) < 0) continue;
 
 	auto plane = _cluster_plane_id.at(cluster_index);
-	
+
 	double q = _cluster_mcq_v[cluster_index][mc_index];
-	
+
 	if( bmatch_mcq[mc_index][plane] < q ) {
 
 	  bmatch_mcq[mc_index][plane] = q;
 	  _bmatch_id[mc_index][plane] = cluster_index;
-	  
+
 	}
       }
     }
@@ -115,12 +112,12 @@ namespace btutil {
 
   double MCMatchAlg::ClusterCorrectness(const size_t cluster_index,
 					const size_t mc_index) const
-  {    
+  {
 
-    if(!_bmatch_id.size()) 
+    if(!_bmatch_id.size())
       throw MCBTException("Preparation not done yet!");
 
-    if( cluster_index >= _cluster_mcq_v.size()) 
+    if( cluster_index >= _cluster_mcq_v.size())
       throw MCBTException(Form("Input cluster index (%zu) out of range (%zu)!",
 			       cluster_index,
 			       _cluster_mcq_v.size())
@@ -145,10 +142,10 @@ namespace btutil {
   std::pair<size_t,double> MCMatchAlg::ShowerCorrectness(const std::vector<unsigned int> cluster_indices) const
   {
 
-    if(!_bmatch_id.size()) 
+    if(!_bmatch_id.size())
       throw MCBTException("Preparation not done yet!");
 
-    if( cluster_indices.size() > _cluster_mcq_v.size()) 
+    if( cluster_indices.size() > _cluster_mcq_v.size())
       throw MCBTException(Form("Input cluster indices length (%zu) > # of registered clusters (%zu)!",
 			       cluster_indices.size(),
 			       _cluster_mcq_v.size())
@@ -158,30 +155,30 @@ namespace btutil {
 
     // Compute efficiency per MC
     std::vector<double> match_eff(_bmatch_id.size(),1);
-    
+
     for(auto const& cluster_index : cluster_indices) {
 
       for(size_t mc_index=0; mc_index < _bmatch_id.size(); ++mc_index) {
 
 	double correctness = ClusterCorrectness(cluster_index, mc_index);
-	
+
 	if(correctness>=0)
 	  match_eff.at(mc_index) *= correctness;
-	
+
       }
     }
 
     std::pair<size_t,double> result(0,-1);
-    
+
     // Find the best qratio
     for(size_t mc_index=0; mc_index < match_eff.size(); ++mc_index) {
-      
+
       if(match_eff.at(mc_index) < result.second) continue;
 
       result.second = match_eff.at(mc_index);
-      
-      result.first  = mc_index; 
-      
+
+      result.first  = mc_index;
+
     }
     return result;
   }
@@ -189,10 +186,10 @@ namespace btutil {
   std::pair<double,double>  MCMatchAlg::ClusterEP(const size_t cluster_index,
 						  const size_t mc_index) const
   {
-    if(!_bmatch_id.size()) 
+    if(!_bmatch_id.size())
       throw MCBTException("Preparation not done yet!");
 
-    if( cluster_index >= _cluster_mcq_v.size()) 
+    if( cluster_index >= _cluster_mcq_v.size())
       throw MCBTException(Form("Input cluster index (%zu) out of range (%zu)!",
 			       cluster_index,
 			       _cluster_mcq_v.size())
@@ -223,7 +220,7 @@ namespace btutil {
 
   const std::vector<int>& MCMatchAlg::BestClusters(const size_t mc_index) const
   {
-    if(!_bmatch_id.size()) 
+    if(!_bmatch_id.size())
       throw MCBTException("Preparation not done yet!");
 
     if( mc_index >= _bmatch_id.size() )
@@ -257,4 +254,3 @@ namespace btutil {
   }
 
 }
-#endif

@@ -1,10 +1,7 @@
-#ifndef RECOTOOL_SHOWERRECOALGBASE_CXX
-#define RECOTOOL_SHOWERRECOALGBASE_CXX
-
 #include "ShowerRecoAlgBase.h"
 
 namespace showerreco {
-  
+
   ShowerRecoAlgBase::ShowerRecoAlgBase() : fInputClusters()
   {
     fVerbosity = false;
@@ -57,5 +54,3 @@ namespace showerreco {
 
 
 }
-
-#endif

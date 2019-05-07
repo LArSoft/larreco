@@ -15,8 +15,8 @@
 #include <iomanip>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
@@ -24,8 +24,8 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
@@ -49,36 +49,36 @@
 #include "TF1.h"
 
 namespace trkf {
-   
+
   class SpacePts : public art::EDProducer {
-    
+
   public:
-    
+
     explicit SpacePts(fhicl::ParameterSet const& pset);
     ~SpacePts();
-    
+
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt); 
+    void produce(art::Event& evt);
     void beginJob();
     void endJob();
 
   private:
-        
-    int             ftmatch; // tolerance for time matching (in time samples) 
+
+    int             ftmatch; // tolerance for time matching (in time samples)
     double          fPreSamplings; // in ticks
     double fvertexclusterWindow;
     std::string     fClusterModuleLabel;// label for input cluster collection
     std::string     fEndPoint2DModuleLabel;//label for input EndPoint2D collection
-  protected: 
-    
-  
+  protected:
+
+
   }; // class SpacePts
 
 
-  struct SortByWire 
+  struct SortByWire
   {
-    bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const 
+    bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
     { return h1->Channel() < h2->Channel() ;
     }
   };
@@ -91,7 +91,7 @@ SpacePts::SpacePts(fhicl::ParameterSet const& pset)
   : EDProducer{pset}
 {
   this->reconfigure(pset);
-  
+
   produces< std::vector<recob::Track>                   >();
   produces< std::vector<recob::SpacePoint>              >();
   produces< art::Assns<recob::Track, recob::SpacePoint> >();
@@ -105,7 +105,7 @@ SpacePts::~SpacePts()
 {
 }
 
-void SpacePts::reconfigure(fhicl::ParameterSet const& pset) 
+void SpacePts::reconfigure(fhicl::ParameterSet const& pset)
 {
   fPreSamplings           = pset.get< double >("TicksOffset");
   ftmatch                 = pset.get< int    >("TMatch");
@@ -125,18 +125,18 @@ void SpacePts::endJob()
 
 //------------------------------------------------------------------------------------//
 void SpacePts::produce(art::Event& evt)
-{ 
+{
 
-  
+
   // get services
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  
+
   //////////////////////////////////////////////////////
   // Make a std::unique_ptr<> for the thing you want to put into the event
   // because that handles the memory management for you
   //////////////////////////////////////////////////////
-  std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);	   
+  std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);
   std::unique_ptr<std::vector<recob::SpacePoint> > 	      spcol(new std::vector<recob::SpacePoint>);
   std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint> > tspassn(new art::Assns<recob::Track, recob::SpacePoint>);
   std::unique_ptr<art::Assns<recob::Track, recob::Cluster> >    tcassn(new art::Assns<recob::Track, recob::Cluster>);
@@ -144,7 +144,7 @@ void SpacePts::produce(art::Event& evt)
   std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit> >   shassn(new art::Assns<recob::SpacePoint, recob::Hit>);
   // define TPC parameters
   TString tpcName = geom->GetLArTPCVolumeName();
-  
+
   //TPC dimensions
   double YC =  (geom->DetHalfHeight())*2.; // TPC height in cm
   double Angle = geom->Plane(1).Wire(0).ThetaZ(false)-TMath::Pi()/2.; // wire angle with respect to the vertical direction
@@ -152,36 +152,36 @@ void SpacePts::produce(art::Event& evt)
   double timetick = 0.198;    //time sample in us
   double presamplings = fPreSamplings; // 60.;
   const double wireShift=50.; // half the number of wires from the Induction(Collection) plane intersecting with a wire from the Collection(Induction) plane.
-  double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
+  double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm
   double wire_pitch = geom->WirePitch();    //wire pitch in cm
   double Efield_drift = 0.5;  // Electric Field in the drift region in kV/cm
   double Efield_SI = 0.7;     // Electric Field between Shield and Induction planes in kV/cm
   double Efield_IC = 0.9;     // Electric Field between Induction and Collection planes in kV/cm
   double Temperature = 90.;  // LAr Temperature in K
-  
+
   double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
   double driftvelocity_SI = detprop->DriftVelocity(Efield_SI,Temperature);    //drift velocity between shield and induction (cm/us)
   double driftvelocity_IC = detprop->DriftVelocity(Efield_IC,Temperature);    //drift velocity between induction and collection (cm/us)
-  double timepitch = driftvelocity*timetick;                         //time sample (cm) 
+  double timepitch = driftvelocity*timetick;                         //time sample (cm)
   double tSI = plane_pitch/driftvelocity_SI/timetick;                   //drift time between Shield and Collection planes (time samples)
   double tIC = plane_pitch/driftvelocity_IC/timetick;                //drift time between Induction and Collection planes (time samples)
-  
-  
+
+
   // get input Cluster object(s).
   art::Handle< std::vector<recob::Cluster> > clusterListHandle;
   evt.getByLabel(fClusterModuleLabel,clusterListHandle);
-  
+
   // get input EndPoint2D object(s).
   art::Handle< std::vector<recob::EndPoint2D> > endpointListHandle;
-  evt.getByLabel(fEndPoint2DModuleLabel,endpointListHandle); 
-  
+  evt.getByLabel(fEndPoint2DModuleLabel,endpointListHandle);
+
   art::PtrVector<recob::EndPoint2D> endpointlist;
   if(evt.getByLabel(fEndPoint2DModuleLabel,endpointListHandle))
     for (unsigned int i = 0; i < endpointListHandle->size(); ++i){
       art::Ptr<recob::EndPoint2D> endpointHolder(endpointListHandle,i);
       endpointlist.push_back(endpointHolder);
     }
-   
+
   // Declare some vectors..
   // Induction
   std::vector<double> Iwirefirsts;       // in cm
@@ -191,7 +191,7 @@ void SpacePts::produce(art::Event& evt)
   std::vector<double> Itimefirsts_line;  // in cm
   std::vector<double> Itimelasts_line;   // in cm
   std::vector < std::vector< art::Ptr<recob::Hit> > > IclusHitlists;
-  std::vector<unsigned int> Icluster_count; 
+  std::vector<unsigned int> Icluster_count;
 
   // Collection
   std::vector<double> Cwirefirsts;       // in cm
@@ -201,21 +201,21 @@ void SpacePts::produce(art::Event& evt)
   std::vector<double> Ctimefirsts_line;  // in cm
   std::vector<double> Ctimelasts_line;   // in cm
   std::vector< std::vector< art::Ptr<recob::Hit> > > CclusHitlists;
-  std::vector<unsigned int> Ccluster_count; 
+  std::vector<unsigned int> Ccluster_count;
 
   art::FindManyP<recob::Hit> fm(clusterListHandle, evt, fClusterModuleLabel);
 
   for(unsigned int ii = 0; ii < clusterListHandle->size(); ++ii){
 
     art::Ptr<recob::Cluster> cl(clusterListHandle, ii);
-      
-    // Figure out which View the cluster belongs to 
+
+    // Figure out which View the cluster belongs to
     //only consider merged-lines that are associated with the vertex.
-    //this helps get rid of through-going muon background -spitz                  
+    //this helps get rid of through-going muon background -spitz
     int vtx2d_w = -99999;
     double vtx2d_t = -99999;
     bool found2dvtx = false;
-      
+
     for (unsigned int j = 0; j<endpointlist.size();j++){
       if (endpointlist[j]->View() == cl->View()){
 	vtx2d_w = endpointlist[j]->WireID().Wire;  //for update to EndPoint2D ... WK 4/22/13
@@ -230,53 +230,53 @@ void SpacePts::produce(art::Event& evt)
       double dtdw = std::tan(cl->StartAngle());
       double t_vtx = t+dtdw*(vtx2d_w-w);
       double dis = std::abs(vtx2d_t-t_vtx);
-      if (dis>fvertexclusterWindow)	  continue;	
+      if (dis>fvertexclusterWindow)	  continue;
     }
     //else continue; //what to do if a 2D vertex is not found? perhaps vertex finder was not even run.
-    
+
     // Some variables for the hit
     float time;            //hit time at maximum
-            
+
     std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(ii);
     std::sort(hitlist.begin(), hitlist.end(), trkf::SortByWire());
-      
+
     TGraph *the2Dtrack = new TGraph(hitlist.size());
-      
+
     std::vector<double> wires;
     std::vector<double> times;
-     
-      
+
+
     int np=0;
     //loop over cluster hits
     for(std::vector< art::Ptr<recob::Hit> >::const_iterator theHit = hitlist.begin(); theHit != hitlist.end();  theHit++){
       //recover the Hit
       //      recob::Hit* theHit = (recob::Hit*)(*hitIter);
       time = (*theHit)->PeakTime() ;
-	
+
       time -= presamplings;
-	
-		
-      if(geom->SignalType((*theHit)->Channel()) == geo::kCollection) 
+
+
+      if(geom->SignalType((*theHit)->Channel()) == geo::kCollection)
 	time -= tIC;   // Collection
       //transform hit wire and time into cm
-      double wire_cm = 0.; 
+      double wire_cm = 0.;
       if(geom->SignalType((*theHit)->Channel()) == geo::kInduction)
-	wire_cm = (double)(((*theHit)->WireID().Wire+3.95) * wire_pitch);          
+	wire_cm = (double)(((*theHit)->WireID().Wire+3.95) * wire_pitch);
       else
 	wire_cm = (double)(((*theHit)->WireID().Wire+1.84) * wire_pitch);
-	
+
       //double time_cm = (double)(time * timepitch);
       double time_cm;
       if(time>tSI) time_cm = (double)( (time-tSI)*timepitch + tSI*driftvelocity_SI*timetick);
       else time_cm = time*driftvelocity_SI*timetick;
-	
+
       wires.push_back(wire_cm);
       times.push_back(time_cm);
-	
+
       the2Dtrack->SetPoint(np,wire_cm,time_cm);
       np++;
     }//end of loop over cluster hits
-      
+
     // fit the 2Dtrack and get some info to store
     try{
       the2Dtrack->Fit("pol1","Q");
@@ -285,21 +285,21 @@ void SpacePts::produce(art::Event& evt)
       std::cout<<"The 2D track fit failed"<<std::endl;
       continue;
     }
-      
+
     TF1 *pol1=(TF1*) the2Dtrack->GetFunction("pol1");
     double par[2];
     pol1->GetParameters(par);
     double intercept = par[0];
     double slope = par[1];
-      
-  
+
+
     double w0 = wires.front();      // first hit wire (cm)
     double w1 = wires.back();        // last hit wire (cm)
     double t0 = times.front();      // first hit time (cm)
     double t1 = times.back();        // last hit time (cm)
-    double t0_line = intercept + (w0)*slope;// time coordinate at wire w0 on the fit line (cm)  
+    double t0_line = intercept + (w0)*slope;// time coordinate at wire w0 on the fit line (cm)
     double t1_line = intercept + (w1)*slope;// time coordinate at wire w1 on the fit line (cm)
-    
+
 
 
     // actually store the 2Dtrack info
@@ -308,9 +308,9 @@ void SpacePts::produce(art::Event& evt)
       Iwirefirsts.push_back(w0);
       Iwirelasts.push_back(w1);
       Itimefirsts.push_back(t0);
-      Itimelasts.push_back(t1); 
+      Itimelasts.push_back(t1);
       Itimefirsts_line.push_back(t0_line);
-      Itimelasts_line.push_back(t1_line);    
+      Itimelasts_line.push_back(t1_line);
       IclusHitlists.push_back(hitlist);
       Icluster_count.push_back(ii);
       break;
@@ -323,13 +323,13 @@ void SpacePts::produce(art::Event& evt)
       Ctimelasts_line.push_back(t1_line);
       CclusHitlists.push_back(hitlist);
       Ccluster_count.push_back(ii);
-      break;   
+      break;
     case geo::kMysteryType:
       break;
     }
     delete pol1;
   }// end of loop over all input clusters
-  
+
    /////////////////////////////////////////////////////
    /////// 2D Track Matching and 3D Track Reconstruction
    /////////////////////////////////////////////////////
@@ -356,13 +356,13 @@ void SpacePts::produce(art::Event& evt)
       double It1_line = Itimelasts_line[inductionIter];
       std::vector< art::Ptr<recob::Hit> > hitsItrk = IclusHitlists[inductionIter];
 
-      double indLength = TMath::Sqrt( TMath::Power(It1_line - It0_line,2) + TMath::Power(Iw1 - Iw0,2)); 
+      double indLength = TMath::Sqrt( TMath::Power(It1_line - It0_line,2) + TMath::Power(Iw1 - Iw0,2));
 
       bool forward_match = ((std::abs(Ct0_line-It0_line)<ftmatch*timepitch) && (std::abs(Ct1_line-It1_line)<ftmatch*timepitch));
       bool backward_match = ((std::abs(Ct0_line-It1_line)<ftmatch*timepitch) && (std::abs(Ct1_line-It0_line)<ftmatch*timepitch));
-	 
 
-      if(forward_match || backward_match ){ 	
+
+      if(forward_match || backward_match ){
 
 	// Reconstruct the 3D track
 	TVector3 XYZ0, XYZ1;  // track endpoints
@@ -376,7 +376,7 @@ void SpacePts::produce(art::Event& evt)
 	}
 
 	//compute track direction in Local co-ordinate system
-	//WARNING:  There is an ambiguity introduced here for the case of backwards-going tracks.  
+	//WARNING:  There is an ambiguity introduced here for the case of backwards-going tracks.
 	//If available, vertex info. could sort this out.
 	TVector3 startpointVec,endpointVec;
 	TVector2 collVtx, indVtx;
@@ -405,7 +405,7 @@ void SpacePts::produce(art::Event& evt)
 
 	//compute track (normalized) cosine directions in the TPC co-ordinate system
 	TVector3 DirCos = endpointVec - startpointVec;
-            
+
 	//SetMag casues a crash if the magnitude of the vector is zero
 	try
 	  {
@@ -421,14 +421,14 @@ void SpacePts::produce(art::Event& evt)
 	clustersPerTrack.push_back(cl1);
 	clustersPerTrack.push_back(cl2);
 
- 
+
 	/////////////////////////////
 	// Match hits
 	////////////////////////////
 
 	//create collection of spacepoints that will be used when creating the Track object
 	std::vector<recob::SpacePoint> spacepoints;
-	
+
 
 	std::vector< art::Ptr<recob::Hit> > minhits = hitsCtrk.size() <= hitsItrk.size() ? hitsCtrk : hitsItrk;
 	std::vector< art::Ptr<recob::Hit> > maxhits = hitsItrk.size() < hitsCtrk.size() ? hitsCtrk : hitsItrk;
@@ -447,13 +447,13 @@ void SpacePts::produce(art::Event& evt)
 	  geo::WireID hit1WireID = minhits[imin]->WireID();
 	  auto const hitSigType = minhits[imin]->SignalType();
 	  double w1=0;
-               
+
 	  //the 3.95 and 1.84 below are the ArgoNeuT TPC offsets for the induction and collection plane, respectively and are in units of wire pitch.
 	  if(hitSigType == geo::kInduction)
-	    w1 = (double)((hit1WireID.Wire+3.95) * wire_pitch);          
+	    w1 = (double)((hit1WireID.Wire+3.95) * wire_pitch);
 	  else
 	    w1 = (double)((hit1WireID.Wire+1.84) * wire_pitch);
-               
+
 	  double temptime1 = minhits[imin]->PeakTime()-presamplings;
 	  if(hitSigType == geo::kCollection) temptime1 -= tIC;
 	  double t1;// = plane1==1?(double)((minhits[imin]->PeakTime()-presamplings-tIC)*timepitch):(double)((minhits[imin]->PeakTime()-presamplings)*timepitch); //in cm
@@ -465,15 +465,15 @@ void SpacePts::produce(art::Event& evt)
 	  (hitSigType == geo::kCollection) ? minVtx2D.Set(collVtx.X(),collVtx.Y()): minVtx2D.Set(indVtx.X(),indVtx.Y());
 	  TVector2 maxVtx2D;
 	  (hitSigType == geo::kCollection) ? maxVtx2D.Set(indVtx.X(),indVtx.Y()): maxVtx2D.Set(collVtx.X(),collVtx.Y());
-               
-	  double ratio = (collLength>indLength) ? collLength/indLength : indLength/collLength;	  
+
+	  double ratio = (collLength>indLength) ? collLength/indLength : indLength/collLength;
 
 	  //compute the distance of the hit (imin) from the relative track origin
 	  double minDistance = ratio*TMath::Sqrt(TMath::Power(t1-minVtx2D.X(),2) + TMath::Power(w1-minVtx2D.Y(),2));
-	  
-	  
+
+
 	  //core matching algorithm
-	  double difference = 9999999.;	  
+	  double difference = 9999999.;
 
 	  for(unsigned int imax = 0; imax < maxhits.size(); imax++){ //loop over hits of the other view
 	    if(!maxhitsMatch[imax]){
@@ -482,19 +482,19 @@ void SpacePts::produce(art::Event& evt)
 	      auto const hit2SigType = maxhits[imax]->SignalType();
 	      double w2=0.;
 	      if(hit2SigType == geo::kInduction)
-		w2 = (double)((hit2WireID.Wire+3.95) * wire_pitch);          
+		w2 = (double)((hit2WireID.Wire+3.95) * wire_pitch);
 	      else
 		w2 = (double)((hit2WireID.Wire+1.84) * wire_pitch);
-                     
+
 	      double temptime2 = maxhits[imax]->PeakTime()-presamplings;
 	      if(hit2SigType == geo::kCollection) temptime2 -= tIC;
 	      double t2;
 	      if(temptime2>tSI) t2 = (double)( (temptime2-tSI)*timepitch + tSI*driftvelocity_SI*timetick);
 	      else t2 = temptime2*driftvelocity_SI*timetick;
-                   
+
 	      bool timematch = (std::abs(t1-t2)<ftmatch*timepitch);
 	      bool wirematch = (std::abs(w1-w2)<wireShift*wire_pitch);
-	      
+
 	      double maxDistance = TMath::Sqrt(TMath::Power(t2-maxVtx2D.X(),2)+TMath::Power(w2-maxVtx2D.Y(),2));
 	      if (wirematch && timematch && std::abs(maxDistance-minDistance)<difference) {
 		difference = std::abs(maxDistance-minDistance);
@@ -503,39 +503,39 @@ void SpacePts::produce(art::Event& evt)
 	    }
 	  }
 	  maxhitsMatch[imaximum]=true;
-	  
+
 	  art::PtrVector<recob::Hit> sp_hits;
 	  if(difference!= 9999999.){
 	    sp_hits.push_back(minhits[imin]);
 	    sp_hits.push_back(maxhits[imaximum]);
 	  }
-	  
+
 	  // Get the time-wire co-ordinates of the matched hit
 	  geo::WireID hit2WireID = maxhits[imaximum]->WireID();
 	  auto const hit2SigType = maxhits[imaximum]->SignalType();
-				
-	  //double w1_match = (double)((wire+1)*wire_pitch);  
+
+	  //double w1_match = (double)((wire+1)*wire_pitch);
 	  double w1_match=0.;
 	  if(hit2SigType == geo::kInduction)
-	    w1_match = (double)((hit2WireID.Wire+3.95) * wire_pitch);          
+	    w1_match = (double)((hit2WireID.Wire+3.95) * wire_pitch);
 	  else
 	    w1_match = (double)((hit2WireID.Wire+1.84) * wire_pitch);
-               
+
 	  double temptime3 = maxhits[imaximum]->PeakTime()-presamplings;
 	  if(hit2SigType == geo::kCollection) temptime3 -= tIC;
 	  double t1_match;
 	  if(temptime3>tSI) t1_match = (double)( (temptime3-tSI)*timepitch + tSI*driftvelocity_SI*timetick);
 	  else t1_match = temptime3*driftvelocity_SI*timetick;
-             
-	  // create the 3D hit, compute its co-ordinates and add it to the 3D hits list	  
+
+	  // create the 3D hit, compute its co-ordinates and add it to the 3D hits list
 	  double Ct = hitSigType==geo::kCollection?t1:t1_match;
 	  double Cw = hit2SigType==geo::kCollection?w1:w1_match;
 	  double Iw = hit2SigType==geo::kCollection?w1_match:w1;
 
-	  const TVector3 hit3d(Ct,(Cw-Iw)/(2.*TMath::Sin(Angle)),(Cw+Iw)/(2.*TMath::Cos(Angle))-YC/2.*TMath::Tan(Angle)); 
-               
-               
-	  Double_t hitcoord[3];       
+	  const TVector3 hit3d(Ct,(Cw-Iw)/(2.*TMath::Sin(Angle)),(Cw+Iw)/(2.*TMath::Cos(Angle))-YC/2.*TMath::Tan(Angle));
+
+
+	  Double_t hitcoord[3];
 	  hitcoord[0] = hit3d.X();
 	  hitcoord[1] = hit3d.Y();
 	  hitcoord[2] = hit3d.Z();
@@ -546,15 +546,15 @@ void SpacePts::produce(art::Event& evt)
 	    {
 	    //channelsintersect provides a slightly more accurate set of y and z coordinates. use channelsintersect in case the wires in question do cross.
 	    hitcoord[1] = yy;
-	    hitcoord[2] = zz;               
-	    mf::LogInfo("SpacePts: ") << "SpacePoint adding xyz ..." << hitcoord[0] <<","<< hitcoord[1] <<","<< hitcoord[2];	       
+	    hitcoord[2] = zz;
+	    mf::LogInfo("SpacePts: ") << "SpacePoint adding xyz ..." << hitcoord[0] <<","<< hitcoord[1] <<","<< hitcoord[2];
 	    // 	           std::cout<<"wire 1: "<<(Iw/wire_pitch)-3.95<<" "<<(Cw/wire_pitch)-1.84<<std::endl;
 	    //                std::cout<<"Intersect: "<<yy<<" "<<zz<<std::endl;
 	    }
 	    else
 	    continue;
 	  */
-                   
+
 	  double err[6] = {util::kBogusD};
 	  recob::SpacePoint mysp(hitcoord, err, util::kBogusD, spStart + spacepoints.size());//3d point at end of track
 	  // Don't add a spacepoint right on top of the last one.
@@ -564,18 +564,18 @@ void SpacePts::produce(art::Event& evt)
 	    TVector3 magLast(spacepoints.back().XYZ()[0],
 			     spacepoints.back().XYZ()[1],
 			     spacepoints.back().XYZ()[2]);
-	    if (!(magNew.Mag()>=magLast.Mag()+eps || 
+	    if (!(magNew.Mag()>=magLast.Mag()+eps ||
 		  magNew.Mag()<=magLast.Mag()-eps) )
 	      continue;
 	  }
 	  spacepoints.push_back(mysp);
-	  spcol->push_back(mysp);	
+	  spcol->push_back(mysp);
 	  util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
 
 	}//loop over min-hits
 
 	size_t spEnd = spcol->size();
-      
+
 	// Add the 3D track to the vector of the reconstructed tracks
 	if(spacepoints.size()>0){
 
@@ -584,8 +584,8 @@ void SpacePts::produce(art::Event& evt)
 	  for(size_t s = 0; s < spacepoints.size(); ++s){
 	    xyz[s] = TVector3(spacepoints[s].XYZ());
 	  }
-		
-	  ///\todo really should fill the direction cosines with unique values 
+
+	  ///\todo really should fill the direction cosines with unique values
 	  std::vector<TVector3> dircos(spacepoints.size(), DirCos);
 
 	  tcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
@@ -608,13 +608,13 @@ void SpacePts::produce(art::Event& evt)
       } //close match 2D tracks
 
     }//close loop over Induction view 2D tracks
-    
+
   }//close loop over Collection xxview 2D tracks
 
   mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
   mf::LogVerbatim("Summary") << "SpacePts Summary:";
   for(unsigned int i = 0; i<tcol->size(); ++i) mf::LogVerbatim("Summary") << tcol->at(i) ;
- 
+
   evt.put(std::move(tcol));
   evt.put(std::move(spcol));
   evt.put(std::move(tspassn));
@@ -626,5 +626,5 @@ void SpacePts::produce(art::Event& evt)
 
 
   DEFINE_ART_MODULE(SpacePts)
-  
-} // end namespace 
+
+} // end namespace

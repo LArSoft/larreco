@@ -2,7 +2,7 @@
  * \file CBAlgoAngleIncompat.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoAngleIncompat
  *
  * @author davidkaleko_NAME
@@ -24,12 +24,12 @@ namespace cmtool {
      doxygen documentation!
   */
   class CBAlgoAngleIncompat : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoAngleIncompat();
-    
+
     /// Default destructor
     virtual ~CBAlgoAngleIncompat(){};
 
@@ -53,7 +53,7 @@ namespace cmtool {
     void SetDebug(bool on) { _debug = on; }
 
   protected:
-   
+
     bool _debug;
     bool _allow_180_ambig;
     double _max_allowed_2D_angle_diff;
@@ -63,5 +63,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

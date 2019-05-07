@@ -2,7 +2,7 @@
  * \file CPAlgoQSum.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CPAlgoQSum
  *
  * @author kazuhiro
@@ -20,20 +20,20 @@ namespace cmtool {
   /**
      \class CPAlgoQSum
      Simple algorithm to determine priority based on charge sum
-     If charge sum < set cut value by a user, returns -1.     
+     If charge sum < set cut value by a user, returns -1.
   */
   class CPAlgoQSum : public CPriorityAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CPAlgoQSum();
-    
+
     /// Default destructor
     virtual ~CPAlgoQSum(){};
 
     /**
-       Core function: given the CPAN input, return a float which indicates 
+       Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
     virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
@@ -48,5 +48,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

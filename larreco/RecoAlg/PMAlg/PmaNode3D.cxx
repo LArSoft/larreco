@@ -2,7 +2,7 @@
  *  @file   PmaNode3D.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          3D track node. See PmaTrack3D.h file for details.
@@ -23,7 +23,7 @@ bool pma::Node3D::fGradFixed[3] = { false, false, false };
 double pma::Node3D::fMargin = 3.0;
 
 pma::Node3D::Node3D(void) :
-    fTpcGeo(art::ServiceHandle<geo::Geometry>()->TPC(0, 0)),
+    fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(0, 0)),
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
@@ -39,7 +39,7 @@ pma::Node3D::Node3D(void) :
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx, double xshift) :
-    fTpcGeo( art::ServiceHandle<geo::Geometry>()->TPC(tpc, cryo) ),
+    fTpcGeo( art::ServiceHandle<geo::Geometry const>()->TPC(tpc, cryo) ),
     fDriftOffset(xshift),
 	fIsVertex(vtx)
 {
@@ -464,7 +464,7 @@ double pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
 		else if (next)
 		{
 			seg = static_cast< pma::Segment3D* >(next);
-			
+
 			SortedObjectBase* nextVtx = seg->Next(0);
 			nSeg += nextVtx->NextCount() + 1;
 		}
@@ -525,7 +525,7 @@ double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
 }
 
 double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
-{	
+{
 	double l1 = 0.0, l2 = 0.0, minLength2 = 0.0;
 	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
 
@@ -637,9 +637,9 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 			if (g3 < g2) return (g0 - g3) / g3;   // exit with the node at the border
 			else { SetPoint3D(tmp); return 0.0; } // exit with restored original position
 		}
-		
+
 		g3 = GetObjFunction(penalty, weight);
-		
+
 		if (g3 < zero_tol) return 0.0;
 
 		if (++steps > 1000) { SetPoint3D(tmp); return 0.0; }
@@ -728,7 +728,7 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 			}
 			else { SetPoint3D(tmp); return 0.0; }
 		}
-		
+
 		g = GetObjFunction(penalty, weight);
 		if (g < zero_tol) return 0.0;
 		steps++;
@@ -785,7 +785,7 @@ void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 			seg = static_cast< pma::Segment3D* >(Next(i));
 			if (seg->Parent() != trk) to_check.push_back(seg->Parent());
 		}
-			
+
 		unsigned int p = 0;
 		while (p < fAssignedPoints.size())
 		{

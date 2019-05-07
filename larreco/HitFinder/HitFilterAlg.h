@@ -2,7 +2,7 @@
 // Class:       HitFilterAlg
 // Purpose:     Provide configurable hit filtering functions for identifying
 //              noise and other undesireable hits
-//              
+//
 // Original code by Tracy Usher, converted to a larsoft algorithm by Brandon Eberly
 ////////////////////////////////////////////////////////////////////////
 

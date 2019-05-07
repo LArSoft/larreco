@@ -8,7 +8,7 @@
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
@@ -22,7 +22,6 @@
 #include "larcorealg/Geometry/WireGeo.h"
 
 // std includes
-#include <string>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -31,7 +30,7 @@
 // implementation follows
 
 namespace reco3d {
-    
+
 class HitsICARUS : virtual public IHitReader
 {
 public:
@@ -41,14 +40,14 @@ public:
      *  @param  pset
      */
     explicit HitsICARUS(const fhicl::ParameterSet&);
-    
+
     /**
      *  @brief  Destructor
      */
     ~HitsICARUS();
-    
+
     void configure(fhicl::ParameterSet const &pset) override;
-    
+
     /**
      *  @brief Scan an input collection of clusters and modify those according
      *         to the specific implementing algorithm
@@ -77,7 +76,7 @@ HitsICARUS::~HitsICARUS()
 void HitsICARUS::configure(fhicl::ParameterSet const &pset)
 {
     //    m_enableMonitoring   = pset.get<bool>  ("EnableMonitoring",  true  );
-    
+
     return;
 }
 
@@ -95,14 +94,14 @@ bool HitsICARUS::readHits(const std::vector<art::Ptr<recob::Hit>>& inputHits,   
             << ". Skipping." << std::endl;
             continue;
         }
-        
+
         if      (hit->WireID().Plane == 0) firstIndHits.push_back(hit);
         else if (hit->WireID().Plane == 1) secondIndHits.push_back(hit);
         else                               collectionHits.push_back(hit);
     } // end for hit
-    
+
     mf::LogDebug("Hits_ICARUS") << ">>>>> Reading hits done" << std::endl;
-    
+
     return false;
 }
 

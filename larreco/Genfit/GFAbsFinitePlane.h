@@ -18,7 +18,7 @@
 */
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 
 
@@ -53,7 +53,7 @@ public:
   //! Deep copy ctor for polymorphic class.
   virtual GFAbsFinitePlane* clone() const = 0;
   virtual ~GFAbsFinitePlane();
-  
+
     private:
   virtual void Print(Option_t*) const
     { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }

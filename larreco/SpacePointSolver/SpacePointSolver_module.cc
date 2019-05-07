@@ -4,7 +4,6 @@
 
 // C/C++ standard libraries
 #include <string>
-#include <vector>
 #include <iostream>
 
 // framework libraries
@@ -13,7 +12,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/Ptr.h"
@@ -147,15 +146,15 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset) :
     produces<art::Assns<recob::SpacePoint, recob::Hit>>();
     recob::ChargedSpacePointCollectionCreator::produces(*this, "noreg");
   }
-    
+
   fHitReader = art::make_tool<reco3d::IHitReader>(pset.get<fhicl::ParameterSet>("HitReaderTool"));
 }
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::beginJob()
 {
-  detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-  geom = art::ServiceHandle<geo::Geometry>()->provider();
+  detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+  geom = art::ServiceHandle<geo::Geometry const>()->provider();
 }
 
 // ---------------------------------------------------------------------------
@@ -465,14 +464,14 @@ void SpacePointSolver::produce(art::Event& evt)
     return;
   }
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
   bool is2view = fHitReader->readHits(hitlist, xhits, uhits, vhits);
 
   std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
   if(fAllowBadInductionHit || fAllowBadCollectionHit){
-    for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider().BadChannels()){
+    for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels()){
       if(geom->SignalType(cid) == geo::kCollection){
         if(fAllowBadCollectionHit && geom->View(cid) == geo::kZ){
           xbadchans.push_back(cid);

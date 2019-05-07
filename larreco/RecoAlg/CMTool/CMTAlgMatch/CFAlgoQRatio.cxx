@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOQRATIO_CXX
-#define RECOTOOL_CFALGOQRATIO_CXX
-
 #include "CFAlgoQRatio.h"
 
 namespace cmtool {
@@ -10,7 +7,7 @@ namespace cmtool {
   //-------------------------------------------------------
   {
     _qratio_cut = 0.1 ;// Preliminary cuts
-	
+
   }
 
   //-----------------------------
@@ -30,19 +27,19 @@ namespace cmtool {
     // You may take out this block if you want to allow matching using clusters from only 2 planes.
     if(clusters.size()==2) return -1;
     // Code-block by Kazu ends
-    
+
     double q_max = -1;
     float ratio = 1;
 
     // Search for max charge & return if any cluster has negative charge
 	for(auto const& c : clusters) {
 
-	  //Ignore all clusters with less than 40 hits 
+	  //Ignore all clusters with less than 40 hits
 
     		if(c->GetParams().sum_charge < 0) {
-				if(_verbose) 
-					  std::cout 
-					<< "\033[00m Found a cluster with negative charge!\033[00m ... aborting " 
+				if(_verbose)
+					  std::cout
+					<< "\033[00m Found a cluster with negative charge!\033[00m ... aborting "
 					<< __FUNCTION__ <<std::endl;
 				  	  return -1;
     	 		 }
@@ -56,14 +53,14 @@ namespace cmtool {
     // Compute ratio
     for(auto const& c : clusters){
 	        ratio *= c->GetParams().sum_charge / q_max;
-	
+
 			if(_verbose){
 				std::cout<<"Sum Charge: "<<c->GetParams().sum_charge ;
 				std::cout<<"Q max : "<<q_max<<std::endl ;
-				std::cout<<"Ratio is: "<<ratio<<std::endl;	
+				std::cout<<"Ratio is: "<<ratio<<std::endl;
 			  }
 	}
-	
+
    		  if(_verbose) {
       	  	if( ratio > _qratio_cut ) std::cout << " ... pass!" << std::endl;
      	  	else std::cout << " ... below cut value: " << _qratio_cut << std::endl;
@@ -71,7 +68,7 @@ namespace cmtool {
 
    	return ( ratio > _qratio_cut ? ratio : -1 );
  }
-  
+
 
   //------------------------------
   void CFAlgoQRatio::Report()
@@ -79,6 +76,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }
-#endif

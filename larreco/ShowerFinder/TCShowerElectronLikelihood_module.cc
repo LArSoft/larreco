@@ -12,8 +12,8 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -57,15 +57,15 @@ namespace shower {
     void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
     void analyze(const art::Event& evt);
-   
+
     void getShowerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
     void findEnergyBin();
     void getLongLikelihood();
     void getTranLikelihood();
- 
+
   protected:
 
-  private: 
+  private:
     void resetProfiles();
 
     std::string fTemplateFile;
@@ -172,7 +172,7 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
   fTemplateFile           = pset.get< std::string >("TemplateFile");
   cet::search_path sp("FW_SEARCH_PATH");
   if( !sp.find_file(fTemplateFile, fROOTfile) )
-    throw cet::exception("TCShowerElectronLikelihood") << "cannot find the root template file: \n" 
+    throw cet::exception("TCShowerElectronLikelihood") << "cannot find the root template file: \n"
 						       << fTemplateFile
 						       << "\n bail ungracefully.\n";
 
@@ -209,7 +209,7 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
 
 void shower::TCShowerElectronLikelihood::beginJob() {
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
   //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
   energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
@@ -298,7 +298,7 @@ void shower::TCShowerElectronLikelihood::resetProfiles() {
   tranProfile_3->Reset();
   tranProfile_4->Reset();
   tranProfile_5->Reset();
-  
+
   energyGuess = -9999;
   energyChi2 = -9999;
   maxt = -9999;
@@ -320,7 +320,7 @@ void shower::TCShowerElectronLikelihood::resetProfiles() {
 void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
@@ -352,7 +352,7 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<
     double ldist = std::abs((ytwoorth-yvtx)*xhit - (xtwoorth-xvtx)*yhit + xtwoorth*yvtx - ytwoorth*xvtx)/std::sqrt( pow((ytwoorth-yvtx), 2) + pow((xtwoorth-xvtx), 2) );
     double tdist = ((ytwo-yvtx)*xhit - (xtwo-xvtx)*yhit + xtwo*yvtx - ytwo*xvtx)/std::sqrt( pow((ytwo-yvtx), 2) + pow((xtwo-xvtx), 2) );
 
-    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one 
+    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one
     ldist *= to3D;
     tdist *= to3D;
     double t = ldist/X0;
@@ -495,7 +495,7 @@ void shower::TCShowerElectronLikelihood::getLongLikelihood() {
       double prob = (double)binentries/totentries * 100;
       if (binentries > 0) longLikelihood += log(prob);
     }
-  } // loop through 
+  } // loop through
 
   longLikelihood /= nbins;
 
@@ -524,7 +524,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
   int nbins = 0;
 
   for (int i = 0; i < TBINS; ++i) {
-    qval = tranProfile_1->GetBinContent(i+1); 
+    qval = tranProfile_1->GetBinContent(i+1);
     qbin = tranTemplate_1->GetZaxis()->FindBin(qval);
     binentries = tranTemplate_1->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_1->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
@@ -534,7 +534,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
       if (binentries > 0) tranLikelihood_1 += log(prob);
     }
 
-    qval = tranProfile_2->GetBinContent(i+1); 
+    qval = tranProfile_2->GetBinContent(i+1);
     qbin = tranTemplate_2->GetZaxis()->FindBin(qval);
     binentries = tranTemplate_2->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_2->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
@@ -544,7 +544,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
       if (binentries > 0) tranLikelihood_2 += log(prob);
     }
 
-    qval = tranProfile_3->GetBinContent(i+1); 
+    qval = tranProfile_3->GetBinContent(i+1);
     qbin = tranTemplate_3->GetZaxis()->FindBin(qval);
     binentries = tranTemplate_3->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_3->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
@@ -554,7 +554,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
       if (binentries > 0) tranLikelihood_3 += log(prob);
     }
 
-    qval = tranProfile_4->GetBinContent(i+1); 
+    qval = tranProfile_4->GetBinContent(i+1);
     qbin = tranTemplate_4->GetZaxis()->FindBin(qval);
     binentries = tranTemplate_4->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_4->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
@@ -564,7 +564,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
       if (binentries > 0) tranLikelihood_4 += log(prob);
     }
 
-    qval = tranProfile_5->GetBinContent(i+1); 
+    qval = tranProfile_5->GetBinContent(i+1);
     qbin = tranTemplate_5->GetZaxis()->FindBin(qval);
     binentries = tranTemplate_5->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_5->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
@@ -574,7 +574,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
       if (binentries > 0) tranLikelihood_5 += log(prob);
     }
 
-  } // loop through 
+  } // loop through
 
   /*
   std::cout << tranLikelihood_1 << std::endl;

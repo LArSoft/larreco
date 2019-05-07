@@ -5,12 +5,12 @@
 //
 // Generated at Fri Jun  8 14:55:04 2018 by Rory Fitzpatrick using cetskelgen
 // from cetlib version v3_03_01.
-// 
+//
 // Contact: roryfitz@umich.edu
-// 
-// module produces showers by selecting tracks surround by many 
+//
+// module produces showers by selecting tracks surround by many
 // showerLike trajectories as defined by trajcluster with negative
-// cluster IDs 
+// cluster IDs
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
@@ -19,7 +19,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -84,7 +84,7 @@ private:
 
 // -----------------------------------------------------
 
-shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
+shower::TCShower::TCShower(fhicl::ParameterSet const & pset) :
   EDProducer{pset},
   fTCAlg(pset.get< fhicl::ParameterSet >("TCAlg") ),
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
@@ -139,7 +139,7 @@ void shower::TCShower::produce(art::Event & evt) {
     if (foundShower) {
       showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
       showers->back().set_id(showers->size()-1);
-    
+
       util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
 
     }
@@ -183,7 +183,7 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
   std::vector<art::Ptr<recob::Cluster> > clusterlist;
   std::vector<art::Ptr<recob::Vertex> > vertexlist;
   std::vector<art::Ptr<recob::EndPoint2D> > vx2list;
-  
+
   // get all hits with hit-slice association
   hitlist = hitslice_fm.at(thisslice.key());
 
@@ -193,14 +193,14 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
   std::vector<art::Ptr<recob::PFParticle> > pfplist = pfpslice_fm.at(thisslice.key());
 
   for (size_t i = 0; i < pfplist.size(); ++i) {
-    //    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());    
-    std::vector<art::Ptr<recob::Vertex> > thisvtxlist = vtxpfp_fm.at(pfplist[i].key());    
+    //    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());
+    std::vector<art::Ptr<recob::Vertex> > thisvtxlist = vtxpfp_fm.at(pfplist[i].key());
     // get all verticies with slice-pfparticle, pfparticle-vertex
      for (size_t j = 0; j < thisvtxlist.size(); ++j) {
       vertexlist.push_back(thisvtxlist[j]);
     } // loop through tracks
    } // loop through pfparticles
- 
+
 
   // get associations
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
@@ -241,7 +241,7 @@ int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
   art::Handle< std::vector<recob::Track> > trackListHandle;
   evt.getByLabel(fTrackModuleLabel,trackListHandle);
 
-  // get associations                                                                                                      
+  // get associations
   art::FindManyP<recob::Cluster> clspfp_fm(pfpListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::Vertex> vtxpfp_fm(pfpListHandle, evt, fVertexModuleLabel);
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
@@ -259,7 +259,7 @@ int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
 
 // -----------------------------------------------------
 void shower::TCShower::beginJob() {
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 }
 
 // -----------------------------------------------------

@@ -21,47 +21,47 @@ class PeakFitterGaussElimination : IPeakFitter
 {
 public:
     explicit PeakFitterGaussElimination(const fhicl::ParameterSet& pset);
-    
+
     ~PeakFitterGaussElimination();
-    
+
     void configure(const fhicl::ParameterSet& pset) override;
-    
+
     void findPeakParameters(const std::vector<float>&,
                             const ICandidateHitFinder::HitCandidateVec&,
                             PeakParamsVec&,
                             double&,
                             int&) const override;
-    
+
 private:
     // Member variables from the fhicl file
     float fStepSize;     ///< Step size used by gaussian elim alg
     float fMax;          ///< Max
-    
+
     std::unique_ptr<util::GaussianEliminationAlg> fGEAlg;
 };
-    
+
 //----------------------------------------------------------------------
 // Constructor.
 PeakFitterGaussElimination::PeakFitterGaussElimination(const fhicl::ParameterSet& pset)
 {
     configure(pset);
 }
-    
+
 PeakFitterGaussElimination::~PeakFitterGaussElimination()
 {
 }
-    
+
 void PeakFitterGaussElimination::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
     fStepSize = pset.get<float>("StepSize", 0.1);
     fMax      = pset.get<float>("Max",      0.5);
-    
+
 //    fGEAlg    = std::make_unique<util::GaussianEliminationAlg>(fStepSize, fMax);
-    
+
     return;
 }
-    
+
 // --------------------------------------------------------------------------------------------
 void PeakFitterGaussElimination::findPeakParameters(const std::vector<float>&                   roiSignalVec,
                                                     const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
@@ -76,26 +76,26 @@ void PeakFitterGaussElimination::findPeakParameters(const std::vector<float>&   
     //           the first tick of the input waveform (ie 0)
     //
     if (hitCandidateVec.empty()) return;
-    
+
     std::vector<float> meanVec;
     std::vector<float> sigmaVec;
     std::vector<float> heightVec;
-    
+
     for(const auto& hitCandidate : hitCandidateVec)
     {
         float  candMean   = hitCandidate.hitCenter;
         float  candSigma  = hitCandidate.hitSigma;
         size_t bin        = std::floor(candMean);
-        
+
         bin = std::min(bin, roiSignalVec.size() - 1);
-        
+
         float  candHeight = roiSignalVec[bin] - (candMean-(float)bin)*(roiSignalVec[bin]-roiSignalVec[bin+1]);
-        
+
         meanVec.push_back(candMean);
         sigmaVec.push_back(candSigma);
         heightVec.push_back(candHeight);
     }
-    
+
     return;
 }
 

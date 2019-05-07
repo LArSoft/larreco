@@ -15,14 +15,13 @@
 //
 
 #include <map>
-#include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <cmath>
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
-#include "art/Framework/Services/Optional/TFileService.h" 
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
@@ -32,7 +31,7 @@
 #include "lardataobj/RecoBase/Seed.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "lardataobj/MCBase/MCTrack.h"
- 
+
 #include "TH2F.h"
 #include "TFile.h"
 #include "TMatrixD.h"
@@ -47,7 +46,7 @@ namespace {
   {
     // Get geometry.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     double d1 = pos.X();                             // Distance to right side (wires).
     double d2 = 2.*geom->DetHalfWidth() - pos.X();   // Distance to left side (cathode).
@@ -106,7 +105,7 @@ namespace {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
@@ -414,7 +413,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -427,7 +426,7 @@ namespace trkf {
     fHx = dir.make<TH1F>("x", "X Position", 100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHy = dir.make<TH1F>("y", "Y Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHz = dir.make<TH1F>("z", "Z Position", 100, 0., geom->DetLength());
-    fHdist = dir.make<TH1F>("dist", "Position Distance to Boundary", 
+    fHdist = dir.make<TH1F>("dist", "Position Distance to Boundary",
 			    100, -10., geom->DetHalfWidth());
     fHtheta = dir.make<TH1F>("theta", "Theta", 100, 0., 3.142);
     fHphi = dir.make<TH1F>("phi", "Phi", 100, -3.142, 3.142);
@@ -521,7 +520,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -531,7 +530,7 @@ namespace trkf {
 
     // Book histograms.
 
-    fHduvcosth = dir.make<TH2F>("duvcosth", "Delta(uv) vs. Colinearity", 
+    fHduvcosth = dir.make<TH2F>("duvcosth", "Delta(uv) vs. Colinearity",
 				100, 0.95, 1., 100, 0., 1.);
     fHcosth = dir.make<TH1F>("colin", "Colinearity", 100, 0.95, 1.);
     fHmcu = dir.make<TH1F>("mcu", "MC Truth U", 100, -5., 5.);
@@ -658,7 +657,7 @@ namespace trkf {
 
     // Report.
 
-    mf::LogInfo("SeedAna") 
+    mf::LogInfo("SeedAna")
       << "SeedAna configured with the following parameters:\n"
       << "  SeedModuleLabel = " << fSeedModuleLabel << "\n"
       << "  MCTrackModuleLabel = " << fMCTrackModuleLabel << "\n"
@@ -700,7 +699,7 @@ namespace trkf {
     evt.getByLabel(fSeedModuleLabel, seedh);
 
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    
+
     // Seed->mc track matching map.
 
     std::map<const recob::Seed*, int> seedmap;
@@ -768,20 +767,20 @@ namespace trkf {
 		*pdump << "\nOffset"
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
-		       << std::fixed << std::setprecision(2) 
+		       << "  "
+		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcdx
-		       << "\nStart " 
+		       << "\nStart "
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
-		       << std::fixed << std::setprecision(2) 
+		       << "  "
+		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcstart[0]
 		       << std::setw(10) << mcstart[1]
 		       << std::setw(10) << mcstart[2];
 		if(pstart > 0.) {
 		  *pdump << "  "
-			 << std::fixed << std::setprecision(3) 
+			 << std::fixed << std::setprecision(3)
 			 << std::setw(10) << mcstartmom[0]/pstart
 			 << std::setw(10) << mcstartmom[1]/pstart
 			 << std::setw(10) << mcstartmom[2]/pstart;
@@ -789,17 +788,17 @@ namespace trkf {
 		else
 		  *pdump << std::setw(32) << " ";
 		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
-		*pdump << "\nEnd   " 
+		*pdump << "\nEnd   "
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
+		       << "  "
 		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcend[0]
 		       << std::setw(10) << mcend[1]
 		       << std::setw(10) << mcend[2];
 		if(pend > 0.01) {
-		  *pdump << "  " 
-			 << std::fixed << std::setprecision(3) 
+		  *pdump << "  "
+			 << std::fixed << std::setprecision(3)
 			 << std::setw(10) << mcendmom[0]/pend
 			 << std::setw(10) << mcendmom[1]/pend
 			 << std::setw(10) << mcendmom[2]/pend;
@@ -1027,12 +1026,12 @@ namespace trkf {
 	  int mcid = seedmap[&seed];
 	  *pdump << std::setw(15) << mcid
 		 << "  "
-		 << std::fixed << std::setprecision(2) 
+		 << std::fixed << std::setprecision(2)
 		 << std::setw(10) << pos[0]
 		 << std::setw(10) << pos[1]
 		 << std::setw(10) << pos[2]
 		 << "  "
-		 << std::fixed << std::setprecision(3) 
+		 << std::fixed << std::setprecision(3)
 		 << std::setw(10) << dir[0]
 		 << std::setw(10) << dir[1]
 		 << std::setw(10) << dir[2]
@@ -1064,7 +1063,7 @@ namespace trkf {
   {
     // Print summary.
 
-    mf::LogInfo("SeedAna") 
+    mf::LogInfo("SeedAna")
       << "SeedAna statistics:\n"
       << "  Number of events = " << fNumEvent;
 

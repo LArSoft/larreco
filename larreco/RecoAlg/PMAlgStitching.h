@@ -50,11 +50,11 @@ public:
   void StitchTracksCPA(pma::TrkCandidateColl &tracks);
   void StitchTracksAPA(pma::TrkCandidateColl &tracks);
 
-private: 
+private:
   // Main function of the algorithm
   void StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA);
- 
-  double GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift); 
+
+  double GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift);
   double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2);
 
   void GetTPCXOffsets();

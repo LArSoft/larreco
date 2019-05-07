@@ -2,7 +2,7 @@
  * \file CBAlgoArray.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoArray
  *
  * @author kazuhiro
@@ -24,19 +24,19 @@ namespace cmtool {
      doxygen documentation!
   */
   class CBAlgoArray : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoArray();
-    
+
     /// Default destructor
     virtual ~CBAlgoArray(){};
 
     /// A simple method to add a one merging step
     void AddAlgo(CBoolAlgoBase* algo,
 		 bool ask_and = true)
-    { 
+    {
       if(ask_and) _last_and_algo_index = _algo_array.size();
       _algo_array.push_back(algo);
       _ask_and.push_back(ask_and);
@@ -78,7 +78,7 @@ namespace cmtool {
     /// Function to set verbosity
     virtual void SetVerbose(bool doit=true)
     { for(auto &algo : _algo_array) algo->SetVerbose(doit); }
-    
+
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
 
@@ -88,7 +88,7 @@ namespace cmtool {
        A list of algorithms to be run over. Algorithms are executed in consecutive order
        in this vector, which is the order of calling AddMergeAlgo function. For each
        algorithm, the Merge() function return bool is taken as either AND or OR condition
-       with the result of previous algorithm (or simply with "true" for the 1st algo). 
+       with the result of previous algorithm (or simply with "true" for the 1st algo).
        Whether using AND or OR is a user configuration stored in _ask_and attribute
      */
     std::vector<CBoolAlgoBase*> _algo_array;
@@ -101,9 +101,9 @@ namespace cmtool {
 
     /// Index of last AND condition algorithm to speed execution
     size_t _last_and_algo_index;
-    
+
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

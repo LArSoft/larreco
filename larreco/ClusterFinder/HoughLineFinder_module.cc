@@ -19,7 +19,6 @@
 //  Vision and Applications 3, 87 (1990)
 ////////////////////////////////////////////////////////////////////////
 
-#include <vector>
 #include <string>
 #include <iomanip>
 

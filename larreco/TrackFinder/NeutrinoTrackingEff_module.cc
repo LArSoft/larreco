@@ -1,7 +1,7 @@
 //
 //**Tracking Efficiency module***
 //The basic idea is to loop over the hits from a given track and call BackTracker
-//then look at std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackID(hit); 
+//then look at std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackID(hit);
 //then associete the hits to a G4 track ID (particle) that generate those hits(electrons)
 //It was developed for CC neutrio interactions, it also can handle proton decay events p->k+nu_bar
 //And protons, pion and muons from particle cannon by using the option isNeutrinoInt = false;
@@ -9,9 +9,6 @@
 //
 // A. Higuera
 // ahiguera@central.uh.edu
-
-#ifndef NeutrinoTrackingEff_Module
-#define NeutrinoTrackingEff_Module
 
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -32,7 +29,7 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/PtrVector.h"
@@ -41,14 +38,12 @@
 
 // ROOT includes
 #include "TFile.h"
-#include "TTree.h"
 #include "TDirectory.h"
 #include "TH1.h"
 #include "TEfficiency.h"
 #include "TGraphAsymmErrors.h"
 
 // C/C++ standard libraries
-#include <vector>
 
 #define MAX_TRACKS 1000
 using namespace std;
@@ -86,7 +81,7 @@ private:
     double      fMaxNeutrinoE;
     double      fMaxLeptonP;
     bool    	fisNeutrinoInt;
- 
+
     int    MC_isCC;
     int    MC_incoming_PDG;
     double MC_incoming_P[4];
@@ -106,7 +101,7 @@ private:
     double MC_leading_PionMinusP;
     double MC_kaonP;
     double MC_michelP;
- 
+
     TH1D *h_Ev_den;
     TH1D *h_Ev_num;
     TH1D *h_Pmu_den;
@@ -115,19 +110,19 @@ private:
     TH1D *h_theta_num;
     TH1D *h_Pproton_den;
     TH1D *h_Pproton_num;
-    TH1D *h_Ppion_plus_den; 
-    TH1D *h_Ppion_plus_num; 
-    TH1D *h_Ppion_minus_den; 
-    TH1D *h_Ppion_minus_num; 
+    TH1D *h_Ppion_plus_den;
+    TH1D *h_Ppion_plus_num;
+    TH1D *h_Ppion_minus_den;
+    TH1D *h_Ppion_minus_num;
 
-    TH1D *h_Efrac_lepton;     
-    TH1D *h_Ecomplet_lepton;     
-    TH1D *h_Efrac_proton;     
-    TH1D *h_Ecomplet_proton;     
-    TH1D *h_Efrac_pion_plus;     
-    TH1D *h_Ecomplet_pion_plus;     
-    TH1D *h_Efrac_pion_minus;     
-    TH1D *h_Ecomplet_pion_minus;     
+    TH1D *h_Efrac_lepton;
+    TH1D *h_Ecomplet_lepton;
+    TH1D *h_Efrac_proton;
+    TH1D *h_Ecomplet_proton;
+    TH1D *h_Efrac_pion_plus;
+    TH1D *h_Ecomplet_pion_plus;
+    TH1D *h_Efrac_pion_minus;
+    TH1D *h_Ecomplet_pion_minus;
     TH1D *h_trackRes_lepton;
     TH1D *h_trackRes_proton;
     TH1D *h_trackRes_pion_plus;
@@ -157,12 +152,12 @@ private:
 
     //nucleon decay histograms
     TH1D *h_Pkaon_den;
-    TH1D *h_Pkaon_num; 
+    TH1D *h_Pkaon_num;
     TH1D *h_Pmichel_e_den;
     TH1D *h_Pmichel_e_num;
     TH1D *h_Efrac_kaon;
     TH1D *h_Ecomplet_kaon;
-    TH1D *h_trackRes_kaon; 
+    TH1D *h_trackRes_kaon;
     TH1D *h_Efrac_michel;
     TH1D *h_Ecomplet_michel;
     TH1D *h_trackRes_michel;
@@ -191,7 +186,7 @@ private:
     detinfo::DetectorClocks const *ts = lar::providerFrom<detinfo::DetectorClocksService>();
     double XDriftVelocity = detprop->DriftVelocity()*1e-3; //cm/ns
     double WindowSize     = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
  }; // class NeutrinoTrackingEff
 
@@ -264,12 +259,12 @@ void NeutrinoTrackingEff::beginJob(){
 	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
 	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
   double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
   double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
-  
+
   for (int i = 0; i<21; ++i) E_bins[i] *= fMaxNeutrinoE/25.;
   for (int i = 0; i<18; ++i) Pbins[i] *= fMaxLeptonP/3.0;
 
@@ -348,8 +343,8 @@ void NeutrinoTrackingEff::beginJob(){
   h_Pmichel_e_num = tfs->make<TH1D>("h_Pmichel_e_num","Michel Electron; Michele e Momentum (GeV); Tracking Efficiency", 17, Pbins);
   h_Pkaon_den->Sumw2();
   h_Pkaon_num->Sumw2();
-  h_Pmichel_e_den->Sumw2(); 
-  h_Pmichel_e_num->Sumw2(); 
+  h_Pmichel_e_den->Sumw2();
+  h_Pmichel_e_num->Sumw2();
   h_Efrac_kaon = tfs->make<TH1D>("h_Efrac_kaon","Efrac Kaon; Track Purity;",60,0,1.2);
   h_Ecomplet_kaon = tfs->make<TH1D>("h_Ecomplet_kaon","Ecomplet Kaon; Track Completeness;",60,0,1.2);
   h_trackRes_kaon = tfs->make<TH1D>("h_trackRes_kaon","Kaon Residual; Truth length - Reco length (cm);",200,-100,100);
@@ -375,7 +370,7 @@ void NeutrinoTrackingEff::beginJob(){
 }
 //========================================================================
 void NeutrinoTrackingEff::endJob(){
-     
+
   doEfficiencies();
 
 }
@@ -393,24 +388,24 @@ void NeutrinoTrackingEff::analyze( const art::Event& event ){
 //========================================================================
 void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 
-    //!save neutrino's interaction info 
+    //!save neutrino's interaction info
     art::Handle<std::vector<simb::MCTruth>> MCtruthHandle;
     event.getByLabel(fMCTruthModuleLabel, MCtruthHandle);
     std::vector<art::Ptr<simb::MCTruth>> MCtruthlist;
     art::fill_ptr_vector(MCtruthlist, MCtruthHandle);
-    art::Ptr<simb::MCTruth> MCtruth; 
-    
+    art::Ptr<simb::MCTruth> MCtruth;
+
    //For now assume that there is only one neutrino interaction...
     MCtruth = MCtruthlist[0];
     if( MCtruth->NeutrinoSet() ){
       simb::MCNeutrino nu = MCtruth->GetNeutrino();
       if( nu.CCNC() == 0 ) MC_isCC = 1;
-      else if ( nu.CCNC() == 1 ) MC_isCC = 0; 
+      else if ( nu.CCNC() == 1 ) MC_isCC = 0;
       simb::MCParticle neutrino = nu.Nu();
       MC_incoming_PDG = nu.Nu().PdgCode();
-      const TLorentzVector& nu_momentum = nu.Nu().Momentum(0); 
-      nu_momentum.GetXYZT(MC_incoming_P); 
-      const TLorentzVector& vertex =neutrino.Position(0); 
+      const TLorentzVector& nu_momentum = nu.Nu().Momentum(0);
+      nu_momentum.GetXYZT(MC_incoming_P);
+      const TLorentzVector& vertex =neutrino.Position(0);
       vertex.GetXYZT(MC_vertex);
     }
 
@@ -418,16 +413,16 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 
     double tmp_leadingPionPlusE = 0.0;
     double tmp_leadingPionMinusE = 0.0;
-    double tmp_leadingProtonE  = 0.0; 
-  
-    simb::MCParticle *MClepton = NULL; 
+    double tmp_leadingProtonE  = 0.0;
+
+    simb::MCParticle *MClepton = NULL;
     simb::MCParticle *MCproton = NULL;
     simb::MCParticle *MCpion_plus = NULL;
     simb::MCParticle *MCpion_minus = NULL;
     simb::MCParticle *MCkaon = NULL;
     simb::MCParticle *MCmichel = NULL;
- 
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
     int i=0; // particle index
@@ -446,71 +441,71 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          if( particle->PdgCode() == 2212 ){
            if(particle->Momentum().E() > tmp_leadingProtonE){
              tmp_leadingProtonE = particle->Momentum().E();
-             MC_leading_protonID = particle->TrackId();          
+             MC_leading_protonID = particle->TrackId();
              MC_leading_ProtonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCproton = particle;
-           } 
+           }
          }
          else if( particle->PdgCode() == 211 ){
            if(particle->Momentum().E() > tmp_leadingPionPlusE){
              tmp_leadingPionPlusE = particle->Momentum().E();
-             MC_leading_PionPlusID = particle->TrackId();          
+             MC_leading_PionPlusID = particle->TrackId();
              MC_leading_PionPlusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCpion_plus = particle;
-           } 
+           }
          }
          else if( particle->PdgCode() == -211 ){
            if(particle->Momentum().E() > tmp_leadingPionMinusE){
              tmp_leadingPionMinusE = particle->Momentum().E();
-             MC_leading_PionMinusID = particle->TrackId();          
+             MC_leading_PionMinusID = particle->TrackId();
              MC_leading_PionMinusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCpion_minus = particle;
-           } 
+           }
          }
          i++; //paticle index
        }
-       
+
        //=======================================================================================
-       //add Nucleon decay stuff and particle cannon 
+       //add Nucleon decay stuff and particle cannon
        //=======================================================================================
        if(!fisNeutrinoInt ){
          if( particle->Mother() == 0 ){
-           const TLorentzVector& positionStart = particle->Position(0); 
-           positionStart.GetXYZT(MC_vertex); 
+           const TLorentzVector& positionStart = particle->Position(0);
+           positionStart.GetXYZT(MC_vertex);
          }
          if( particle->PdgCode() == 321 ){   //save primary Kaon
-           MC_kaonID = particle->TrackId();    
+           MC_kaonID = particle->TrackId();
            MC_kaonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
            MCkaon = particle;
-         }   
+         }
          else if( particle->PdgCode() == fLeptonPDGcode ){  // Particle cannon muon
            MC_leptonID = particle->TrackId();
-           MC_leptonP =  sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2)); 
+           MC_leptonP =  sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
            MClepton = particle;
          }
          else if( particle->PdgCode() == 2212 ){
            if(particle->Momentum().E() > tmp_leadingProtonE){
              tmp_leadingProtonE = particle->Momentum().E();
-             MC_leading_protonID = particle->TrackId();          
+             MC_leading_protonID = particle->TrackId();
              MC_leading_ProtonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCproton = particle;
-           } 
+           }
          }
          else if( particle->PdgCode() == 211 ){
            if(particle->Momentum().E() > tmp_leadingPionPlusE){
              tmp_leadingPionPlusE = particle->Momentum().E();
-             MC_leading_PionPlusID = particle->TrackId();          
+             MC_leading_PionPlusID = particle->TrackId();
              MC_leading_PionPlusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCpion_plus = particle;
-           } 
+           }
          }
          else if( particle->PdgCode() == -211 ){
            if(particle->Momentum().E() > tmp_leadingPionMinusE){
              tmp_leadingPionMinusE = particle->Momentum().E();
-             MC_leading_PionMinusID = particle->TrackId();          
+             MC_leading_PionMinusID = particle->TrackId();
              MC_leading_PionMinusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
              MCpion_minus = particle;
-           } 
+           }
          }
          else if( particle->Process() =="Decay" && particle->PdgCode() == -11){  // michel electron from muon decay
            MC_michelID = particle->TrackId();
@@ -518,28 +513,28 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
            MCmichel = particle;
          }
          else if( TMath::Abs(particle->PdgCode() == 321) ){   //save primary Kaon
-           MC_kaonID = particle->TrackId();    
+           MC_kaonID = particle->TrackId();
            MC_kaonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
            MCkaon = particle;
-         }   
+         }
        }
-    } 
+    }
     //===================================================================
-    //Saving denominator histograms  
+    //Saving denominator histograms
     //===================================================================
     isFiducial =insideFV( MC_vertex );
     if( !isFiducial ) return;
     double Pv  = sqrt(pow(MC_incoming_P[0],2)+pow(MC_incoming_P[1],2)+pow(MC_incoming_P[2],2));
     double theta_mu = acos((MC_incoming_P[0]*MC_lepton_startMomentum[0] + MC_incoming_P[1]*MC_lepton_startMomentum[1] +MC_incoming_P[2]*MC_lepton_startMomentum[2])/(Pv*MC_leptonP) );
     theta_mu *= (180.0/3.14159);
-    double truth_lengthLepton = truthLength(MClepton); 
+    double truth_lengthLepton = truthLength(MClepton);
     double proton_length = truthLength(MCproton);
     double pion_plus_length = truthLength(MCpion_plus);
     double pion_minus_length = truthLength(MCpion_minus);
     double kaonLength = truthLength(MCkaon);
     double michelLength = truthLength(MCmichel);
 
-    //save CC events within the fiducial volume with the favorite neutrino flavor 
+    //save CC events within the fiducial volume with the favorite neutrino flavor
     if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
        if( MClepton ){
          h_Ev_den->Fill(MC_incoming_P[3]);
@@ -563,8 +558,8 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          h_Pkaon_den->Fill(MC_kaonP);
          h_kaon_length->Fill(kaonLength);
        }
-    } 
-  
+    }
+
     //save events for Nucleon decay and particle cannon
     if(!fisNeutrinoInt ){
       if( MClepton ){
@@ -592,24 +587,24 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 	 h_michel_length->Fill(michelLength);
        }
     }
- 
+
     //========================================================================
-    // Reco stuff, once we have selected a MC Particle let's find out if there is a track associated 
+    // Reco stuff, once we have selected a MC Particle let's find out if there is a track associated
     //========================================================================
     art::Handle<std::vector<recob::Track>> trackListHandle;
     if(! event.getByLabel(fTrackModuleLabel, trackListHandle)) return;
     std::vector<art::Ptr<recob::Track> > tracklist;
     art::fill_ptr_vector(tracklist, trackListHandle);
     int n_recoTrack = tracklist.size();
-   
+
     art::FindManyP<recob::Hit> track_hits(trackListHandle, event, fTrackModuleLabel);
     if( n_recoTrack == 0 ){
       MF_LOG_DEBUG("NeutrinoTrackingEff")<<"There are no reco tracks... bye";
-      return; 
+      return;
     }
     MF_LOG_DEBUG("NeutrinoTrackingEff")<<"Found this many reco tracks "<<n_recoTrack;
-   
- 
+
+
     double Efrac_lepton =0.0;
     double Ecomplet_lepton =0.0;
     double Efrac_proton =0.0;
@@ -628,21 +623,21 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     double trackLength_pion_minus =0.0;
     double trackLength_kaon =0.0;
     double trackLength_michel =0.0;
-    const simb::MCParticle *MClepton_reco = NULL; 
+    const simb::MCParticle *MClepton_reco = NULL;
     const simb::MCParticle *MCproton_reco = NULL;
     const simb::MCParticle *MCpion_plus_reco = NULL;
     const simb::MCParticle *MCpion_minus_reco = NULL;
     const simb::MCParticle *MCkaon_reco = NULL;
     const simb::MCParticle *MCmichel_reco = NULL;
 
-    std::vector<art::Ptr<recob::Hit>> tmp_all_trackHits = track_hits.at(0);  
+    std::vector<art::Ptr<recob::Hit>> tmp_all_trackHits = track_hits.at(0);
     std::vector<art::Ptr<recob::Hit>> all_hits;
     art::Handle<std::vector<recob::Hit>> hithandle;
     if(event.get(tmp_all_trackHits[0].id(), hithandle))  art::fill_ptr_vector(all_hits, hithandle);
- 
+
     for(int i=0; i<n_recoTrack; i++) {
        art::Ptr<recob::Track> track = tracklist[i];
-       std::vector<art::Ptr<recob::Hit>> all_trackHits = track_hits.at(i);  
+       std::vector<art::Ptr<recob::Hit>> all_trackHits = track_hits.at(i);
        double tmpEfrac = 0;
        double tmpEcomplet =0;
        const simb::MCParticle *particle;
@@ -650,17 +645,17 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        if (!particle) continue;
        //std::cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<std::endl;
        if(  (particle->PdgCode() == fLeptonPDGcode) && (particle->TrackId() == MC_leptonID) ){
-         //save the best track ... based on completeness if there is more than one track 
-         //if( tmpEfrac > Efrac_lepton ){ ///this was base on purity 
+         //save the best track ... based on completeness if there is more than one track
+         //if( tmpEfrac > Efrac_lepton ){ ///this was base on purity
          if( tmpEcomplet > Ecomplet_lepton ){
            Ecomplet_lepton = tmpEcomplet;
            Efrac_lepton = tmpEfrac;
-           trackLength_lepton = track->Length(); 
+           trackLength_lepton = track->Length();
            MClepton_reco = particle;
          }
        }
        else if( (particle->PdgCode() == 2212) && (particle->TrackId() == MC_leading_protonID) ){
-         //save the best track ... based on completeness if there is more than one track 
+         //save the best track ... based on completeness if there is more than one track
          if( tmpEcomplet > Ecomplet_proton ){
            Ecomplet_proton = tmpEcomplet;
            Efrac_proton = tmpEfrac;
@@ -669,7 +664,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          }
        }
        else if( (particle->PdgCode() == 211) && (particle->TrackId() == MC_leading_PionPlusID) ){
-         //save the best track ... based on completeness if there is more than one track 
+         //save the best track ... based on completeness if there is more than one track
          if( tmpEcomplet > Ecomplet_pionplus ){
            Ecomplet_pionplus = tmpEcomplet;
            Efrac_pionplus = tmpEfrac;
@@ -678,7 +673,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          }
        }
        else if( (particle->PdgCode() == -211) && (particle->TrackId() == MC_leading_PionMinusID) ){
-         //save the best track ... based on completeness if there is more than one track 
+         //save the best track ... based on completeness if there is more than one track
          if( tmpEcomplet > Ecomplet_pionminus ){
            Ecomplet_pionminus = tmpEcomplet;
            Efrac_pionminus = tmpEfrac;
@@ -688,7 +683,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        }
        //kaon from nucleon decay
        else if( (TMath::Abs(particle->PdgCode()) == 321) && (particle->TrackId() == MC_kaonID) ){
-         //save the best track ... based on completeness if there is more than one track 
+         //save the best track ... based on completeness if there is more than one track
          if( tmpEcomplet > Ecomplet_kaon ){
            Ecomplet_kaon = tmpEcomplet;
            Efrac_kaon = tmpEfrac;
@@ -698,45 +693,45 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        }
        //michel from nucleon decay
        else if( (particle->PdgCode() == -11) && (particle->TrackId() == MC_michelID) ){
-         //save the best track ... based on completeness if there is more than one track 
+         //save the best track ... based on completeness if there is more than one track
          if( tmpEcomplet > Ecomplet_michel ){
            Ecomplet_michel = tmpEcomplet;
            Efrac_michel = tmpEfrac;
            trackLength_michel = track->Length();
            MCmichel_reco = particle;
          }
-       } 
+       }
 
     }
 
     double Reco_LengthRes =  truth_lengthLepton-trackLength_lepton;
-    double Reco_LengthResProton = proton_length-trackLength_proton; 
-    double Reco_LengthResPionPlus = pion_plus_length-trackLength_pion_plus; 
+    double Reco_LengthResProton = proton_length-trackLength_proton;
+    double Reco_LengthResPionPlus = pion_plus_length-trackLength_pion_plus;
     double Reco_LengthResPionMinus = pion_minus_length-trackLength_pion_minus;
 
     if( MClepton_reco && MClepton  ){
-      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){ 
+      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
         h_Pmu_num->Fill(MC_leptonP);
         h_Ev_num->Fill(MC_incoming_P[3]);
         h_theta_num->Fill(theta_mu);
         h_Efrac_lepton->Fill(Efrac_lepton);
         h_Ecomplet_lepton->Fill(Ecomplet_lepton);
-        h_trackRes_lepton->Fill(Reco_LengthRes);  
+        h_trackRes_lepton->Fill(Reco_LengthRes);
         h_muonwtrk_length->Fill(truth_lengthLepton);
       }
     }
     if( MCproton_reco && MCproton ){
       if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
-        h_Pproton_num->Fill(MC_leading_ProtonP);     
+        h_Pproton_num->Fill(MC_leading_ProtonP);
         h_Efrac_proton->Fill(Efrac_proton);
         h_Ecomplet_proton->Fill(Ecomplet_proton);
-        h_trackRes_proton->Fill(Reco_LengthResProton);       
+        h_trackRes_proton->Fill(Reco_LengthResProton);
 	h_protonwtrk_length->Fill(proton_length);
       }
     }
     if( MCpion_plus_reco && MCpion_plus ){
       if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
-        h_Ppion_plus_num->Fill(MC_leading_PionPlusP);     
+        h_Ppion_plus_num->Fill(MC_leading_PionPlusP);
         h_Efrac_pion_plus->Fill(Efrac_pionplus);
         h_Ecomplet_pion_plus->Fill(Ecomplet_pionplus);
         h_trackRes_pion_plus->Fill(Reco_LengthResPionPlus);
@@ -745,7 +740,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     }
     if( MCpion_minus_reco && MCpion_minus  ){
       if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ) {
-        h_Ppion_minus_num->Fill(MC_leading_PionMinusP);     
+        h_Ppion_minus_num->Fill(MC_leading_PionMinusP);
         h_Efrac_pion_minus->Fill(Efrac_pionminus);
         h_Ecomplet_pion_minus->Fill(Ecomplet_pionminus);
         h_trackRes_pion_minus->Fill(Reco_LengthResPionMinus);
@@ -761,7 +756,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 	h_kaonwtrk_length->Fill(kaonLength);
       }
     }
-    //Non neutrino events 
+    //Non neutrino events
     //=========================================================
     if(!fisNeutrinoInt ){
       if( MClepton_reco && MClepton  ){
@@ -779,21 +774,21 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 	h_kaonwtrk_length->Fill(kaonLength);
       }
       if( MCproton_reco && MCproton ){
-        h_Pproton_num->Fill(MC_leading_ProtonP);     
+        h_Pproton_num->Fill(MC_leading_ProtonP);
         h_Efrac_proton->Fill(Efrac_proton);
         h_Ecomplet_proton->Fill(Ecomplet_proton);
-        h_trackRes_proton->Fill(Reco_LengthResProton);       
+        h_trackRes_proton->Fill(Reco_LengthResProton);
 	h_protonwtrk_length->Fill(proton_length);
       }
       if( MCpion_plus_reco && MCpion_plus ){
-        h_Ppion_plus_num->Fill(MC_leading_PionPlusP);     
+        h_Ppion_plus_num->Fill(MC_leading_PionPlusP);
         h_Efrac_pion_plus->Fill(Efrac_pionplus);
         h_Ecomplet_pion_plus->Fill(Ecomplet_pionplus);
         h_trackRes_pion_plus->Fill(Reco_LengthResPionPlus);
 	h_pionpwtrk_length->Fill(pion_plus_length);
       }
       if( MCpion_minus_reco && MCpion_minus  ){
-        h_Ppion_minus_num->Fill(MC_leading_PionMinusP);     
+        h_Ppion_minus_num->Fill(MC_leading_PionMinusP);
         h_Efrac_pion_minus->Fill(Efrac_pionminus);
         h_Ecomplet_pion_minus->Fill(Ecomplet_pionminus);
         h_trackRes_pion_minus->Fill(Reco_LengthResPionMinus);
@@ -808,29 +803,29 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
       }
 
     }
-    
+
 }
 //========================================================================
 void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
 
     //std::cout<<"truthMatcher..."<<std::endl;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < track_hits.size(); ++j){
        art::Ptr<recob::Hit> hit = track_hits[j];
        std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
        for(size_t k = 0; k < TrackIDs.size(); k++){
           trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;
-       }            
+       }
     }
     double E_em =0.0;
     double max_E = -999.0;
     double total_E = 0.0;
     int TrackID = -999;
     double partial_E =0.0; // amount of energy deposited by the particle that deposited more energy... tomato potato... blabla
-    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition 
-    //!since we are looking for muons/pions/protons this should be enough 
+    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition
+    //!since we are looking for muons/pions/protons this should be enough
     if( !trkID_E.size() ) {
       MCparticle = 0;
       return; //Ghost track???
@@ -843,12 +838,12 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hi
          TrackID = ii->first;
          if( TrackID < 0 ) E_em += ii->second;
        }
-    } 
+    }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
 
-    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of 
+    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of
     //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
-    //we don't want to track gammas or any other EM activity 
+    //we don't want to track gammas or any other EM activity
     if( TrackID < 0 ) return;
 
     //Efrac = (partial_E+E_em)/total_E;
@@ -862,7 +857,7 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hi
        for(size_t l = 0; l < TrackIDs.size(); ++l){
           if(TrackIDs[l].trackID==TrackID) totenergy += TrackIDs[l].energy;
        }
-    } 
+    }
     Ecomplet = partial_E/totenergy;
 }
 //========================================================================
@@ -888,20 +883,20 @@ double NeutrinoTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
         geo::TPCGeo      const& tpc  = cryo.TPC(tpcid.TPC);
         double XPlanePosition      = tpc.PlaneLocation(0)[0];
         double DriftTimeCorrection = fabs( tmpPosition[0] - XPlanePosition ) / XDriftVelocity;
-        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection; 
+        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection;
         if( TimeAtPlane < detprop->TriggerOffset() || TimeAtPlane > detprop->TriggerOffset() + WindowSize ) continue;
         LastHit = MCHit;
         if( !BeenInVolume ) {
 	  BeenInVolume = true;
           FirstHit = MCHit;
 	}
-      }		
+      }
    }
    for (int Hit = FirstHit+1; Hit <= LastHit; ++Hit ) TPCLength += TPCLengthHits[Hit];
    return TPCLength;
 }
 //========================================================================
-bool NeutrinoTrackingEff::insideFV( double vertex[4]){ 
+bool NeutrinoTrackingEff::insideFV( double vertex[4]){
 
      double x = vertex[0];
      double y = vertex[1];
@@ -917,7 +912,7 @@ bool NeutrinoTrackingEff::insideFV( double vertex[4]){
 //========================================================================
 void NeutrinoTrackingEff::doEfficiencies(){
 
-   art::ServiceHandle<art::TFileService> tfs;
+   art::ServiceHandle<art::TFileService const> tfs;
 
    if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
      h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
@@ -925,7 +920,7 @@ void NeutrinoTrackingEff::doEfficiencies(){
      grEff_Ev->Write("grEff_Ev");
      h_Eff_Ev->Write("h_Eff_Ev");
    }
-   if(TEfficiency::CheckConsistency(*h_Pmu_num,*h_Pmu_den)){ 
+   if(TEfficiency::CheckConsistency(*h_Pmu_num,*h_Pmu_den)){
      h_Eff_Pmu = tfs->make<TEfficiency>(*h_Pmu_num,*h_Pmu_den);
      TGraphAsymmErrors *grEff_Pmu = h_Eff_Pmu->CreateGraph();
      grEff_Pmu->Write("grEff_Pmu");
@@ -1008,6 +1003,4 @@ void NeutrinoTrackingEff::doEfficiencies(){
 //========================================================================
 DEFINE_ART_MODULE(NeutrinoTrackingEff)
 
-} 
-
-#endif // NeutrinoTrackingEff_Module
+}

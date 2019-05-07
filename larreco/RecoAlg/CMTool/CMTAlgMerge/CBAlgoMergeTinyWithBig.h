@@ -2,7 +2,7 @@
  * \file CBAlgoMergeTinyWithBig.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoMergeTinyWithBig
  *
  * @author davidkaleko
@@ -22,19 +22,19 @@ namespace cmtool {
      \class CBAlgoMergeTinyWithBig
      User implementation for CBoolAlgoBase class
      doxygen documentation!
-     
+
      This algo looks for tiny clusters and looks to merge them with
      big clusters. It uses code from PolyShortestDist and says if
      the small cluster is close(ish) to the big one, merge it.
-     
+
   */
   class CBAlgoMergeTinyWithBig : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoMergeTinyWithBig();
-    
+
     /// Default destructor
     virtual ~CBAlgoMergeTinyWithBig(){};
 
@@ -56,10 +56,10 @@ namespace cmtool {
        CMergeManager is run with verbosity level kPerMerging. Maybe useful for debugging.
     */
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
-    
+
 
 
     /**
@@ -71,9 +71,9 @@ namespace cmtool {
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     //virtual void EventEnd();
- 
+
     /**
-       Optional function: called at the beggining of each iteration over all pairs of clusters. 
+       Optional function: called at the beggining of each iteration over all pairs of clusters.
        This provides all clusters' information in case the algorithm need them. Note this
        is called per iteration which may be more than once per event.
      */
@@ -108,5 +108,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

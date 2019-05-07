@@ -33,11 +33,11 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // geo::kZ
 
 
-trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset) 
+trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset)
 {
   ftNo = 0;
   ftListHandle.clear();
-  this->reconfigure(pset); 
+  this->reconfigure(pset);
 }
 
 //----------------------------------------------------------
@@ -46,8 +46,8 @@ trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset)
 void trkf::StitchAlg::reconfigure(fhicl::ParameterSet const& pset)
 {
 
-  fCosAngTol           = pset.get< double >("CosAngTolerance", 0.95); 
-  fSepTol              = pset.get< double >("SpptSepTolerance", 10.0); //cm 
+  fCosAngTol           = pset.get< double >("CosAngTolerance", 0.95);
+  fSepTol              = pset.get< double >("SpptSepTolerance", 10.0); //cm
 }
 
 
@@ -61,7 +61,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
   EvtArg.getByLabel(trackModuleLabelArg,ftListHandle);
 
     // An element of fh and ft for each outer track. Keep the cos and sep parameters of the match and a string that indicates whether it's the second track's head or tail that gives the match, along with ii, jj, the indices of the outer and inner tracks.
-    ft.clear(); 
+    ft.clear();
     fh.clear();
 
     int ntrack = ftListHandle->size();
@@ -76,7 +76,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
     // For each outer track, make a vector of 1 candidate track. Doesn't need to be a vector except for desire to have a 2-iteration history.
       std::vector< std::tuple< std::string, int, int, double, double> > headvv;
       std::vector< std::tuple< std::string, int, int, double, double> > tailvv;
-      
+
       // For head/tail keep a vector of candidate (cos,sep)
       std::vector< std::vector<std::pair< double, double>> > matchhead;
       std::vector< std::vector<std::pair< double, double>> > matchtail;
@@ -110,7 +110,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
             if (c21) { sHT2 = "H"; } else if (c22) { sHT2 = "T"; }
 
 	    if (head && tail) // split the tie by distance
-	      { 
+	      {
 		head = false; tail = false;
 		if ( ((start1-end2).Mag() < (start2-end1).Mag()) || ((start1-end2).Mag() < (start2-end2).Mag()) || ((start1-start2).Mag() < (start2-end1).Mag()) || ((start1-start2).Mag() < (start2-end2).Mag()) )
 		  { head = true; tail = false; }
@@ -118,7 +118,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 		  { head = false; tail = true; }
 	      }
 
-	    if (head) 
+	    if (head)
 	      {
 		// 2-deep vector, for head and tail of 2nd track
 		std::vector< std::pair <double,double> > headv;
@@ -142,15 +142,15 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 			headvv.push_back (tupTmp);
 		      }
 		  }
-		else 
+		else
 		    matchhead.pop_back();
 
-		  
+
 
 		//	        std::cout << "TrackStitcher: satisfied head. " << std::endl;
 	      } // head
-		 
-	    else if (tail) // else if to prevent same stitching candidate being 
+
+	    else if (tail) // else if to prevent same stitching candidate being
 		               // allowed at both head and tail
 	      {
 		// 2-deep vector, for head and tail of 2nd track
@@ -174,7 +174,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 			tailvv.push_back(tupTmp);
 		      }
 		  }
-		else 
+		else
 		  matchtail.pop_back();
 
 		//		std::cout << "TrackStitcher: satisfied tail. " << std::endl;
@@ -184,7 +184,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 	    std::cout << "abs(end1Dir.Dot(start2Dir)) " << std::abs(end1Dir.Dot(start2Dir)) << ", start2-end1.Mag(): " << (start2-end1).Mag() << std::endl;
 	    std::cout << "abs(start1Dir.Dot(start2Dir)) " << std::abs(start1Dir.Dot(start2Dir)) << ", start1-start2.Mag(): " << (start1-start2).Mag() << std::endl;
 	    std::cout << "abs(end1Dir.Dot(end2Dir)) " << std::abs(end1Dir.Dot(end2Dir)) << ", end1-end2.Mag(): " << (end1-end2).Mag() << std::endl;
-	    std::cout << "sHT2 " << sHT2 << std::endl;	    
+	    std::cout << "sHT2 " << sHT2 << std::endl;
 	    */
 	  } // end c11||c12||c21||c22
 
@@ -200,7 +200,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 		if (std::get<2>(fh.at(kk)) == otrk && !sotrkht.compare(std::get<0>(fh.at(kk)) ) )
 		  {
 		    // check matching sep and pick the best one. Either erase this
-		    // headvv (and it'll get null settings later below) or null out 
+		    // headvv (and it'll get null settings later below) or null out
 		    // the parameters in fh.
 		    if (std::get<4>(headvv.back()) < std::get<4>(fh.at(kk)) && std::get<4>(headvv.back())!=0.0)
 		      {
@@ -242,8 +242,8 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 
 
       } // jj
-      
-      
+
+
       auto tupTmp2 = std::make_tuple(std::string("NA"),ii,-12,0.0,0.0);
       // We always have our best 1-element tailvv and headvv for trk o at this point
       if (!headvv.size()) headvv.push_back(tupTmp2);
@@ -251,7 +251,7 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
       //      std::cout << "StitchAlg::FindHeadsAndTails: headvv, tailvv .get<0> is " << std::get<0>(headvv.back()) << ", " << std::get<0>(tailvv.back()) << std::endl;
       fh.push_back(headvv.back());
       ft.push_back(tailvv.back());
-    
+
     } // ii
 
     //    std::cout << "fh.size, ft.size are " << fh.size() << ", " << ft.size() << std::endl;
@@ -259,9 +259,9 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 }
 
 void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track>>::iterator itvvArg, const std::vector <recob::Track>::iterator itvArg)
-{    
-    // take the vector of tracks, walk through each track's vectors of xyz, dxdydz, etc 
-    // and concatenate them into longer vectors. Use those to instantiate one new 
+{
+    // take the vector of tracks, walk through each track's vectors of xyz, dxdydz, etc
+    // and concatenate them into longer vectors. Use those to instantiate one new
     // Stitched-together track.
     std::vector<recob::tracking::Point_t> xyz;
     std::vector<recob::tracking::Vector_t> dxdydz;
@@ -283,7 +283,7 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
       {
 
 	cnt++;
-	//	std::cout << "Stitching track cnt is: " << cnt << std::endl; 
+	//	std::cout << "Stitching track cnt is: " << cnt << std::endl;
 	for (size_t pt = 0; pt!=(*it).get()->NumberTrajectoryPoints(); pt++)
 	  {
 	    size_t ptHere(pt);
@@ -296,14 +296,14 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 	    if ( (*itvfHT).size() &&
 		 (
 		  // was fHT.back()
-		  (cnt==1 && !(*itvfHT).at(cnt-1).compare(0,1,"H")) ||   
+		  (cnt==1 && !(*itvfHT).at(cnt-1).compare(0,1,"H")) ||
 		   (cnt>1  && !(*itvfHT).at(cnt-2).compare(1,1,"T"))
-		  )  
+		  )
 		 )
 	      ptHere = (*it).get()->NumberTrajectoryPoints() - pt - 1;
 
-	    try 
-	      { 
+	    try
+	      {
 		xyz.push_back((*it).get()->LocationAtPoint(ptHere));
 		//		std::cout << "Stitching track number " << cnt << " with TrajPt at ptHere " << ptHere << " at x,y,z: " << xyz.back().X() << ", " << xyz.back().Y() << ", " << xyz.back().Z() << std::endl;
 		dxdydz.push_back( (hasMomentum ? (*it).get()->MomentumVectorAtPoint(ptHere) : (*it).get()->DirectionAtPoint(ptHere)) );
@@ -317,13 +317,13 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 	      }
 	  }
       }
-   
+
     /// TODO: sort according to spacepoint distance separation.
-    /// As is, we're not sure we're not forming a stitched track with a (some) 
+    /// As is, we're not sure we're not forming a stitched track with a (some)
     /// jump(s) and a reversal(s) of direction in it.
 
     //const recob::Track t(xyz,dxdydz,cov,dQdx,mom,ftNo++);
-    const recob::Track t(recob::TrackTrajectory(std::move(xyz), std::move(dxdydz),  std::move(flgs), hasMomentum), 
+    const recob::Track t(recob::TrackTrajectory(std::move(xyz), std::move(dxdydz),  std::move(flgs), hasMomentum),
 			 0, -1., 0, cov.front(), cov.back(), ftNo++);
     //const art::Ptr<recob::Track> t(xyz,dxdydz,cov,dQdx,mom,ftNo++);
     fTrackVec.insert(itvArg,t);
@@ -334,8 +334,8 @@ void trkf::StitchAlg::WalkStitch()
 {
 
     art::PtrVector<recob::Track> compTrack;
-    std::vector <std::string> trackStatus (fh.size(),"NotDone"); // H or T 
-    std::vector <std::string> HT2 ; // H or T 
+    std::vector <std::string> trackStatus (fh.size(),"NotDone"); // H or T
+    std::vector <std::string> HT2 ; // H or T
 
 
     for (unsigned int ii=0; ii<fh.size(); ++ii) // same as t.size()
@@ -348,7 +348,7 @@ void trkf::StitchAlg::WalkStitch()
 	// Should there not be an HT.push_back here??
 
 	// start with track 1: see if head goes anywhere, walk with it. Add to compTrack.
-	// Go until the other tuple's other vtx string says "NA." Then change status string 
+	// Go until the other tuple's other vtx string says "NA." Then change status string
 	// of vtxsJoined to "Done" for that track.
 	bool chain(true);
 	int walk(ii);
@@ -356,8 +356,8 @@ void trkf::StitchAlg::WalkStitch()
 	std::string st("NA");
 	while (chain)
 	  {
-	    int hInd = -12; 
-	    int tInd = -12; 
+	    int hInd = -12;
+	    int tInd = -12;
 	    if (walk!=(int)ii)
 	      {
 		sh = std::get<0>(fh.at(walk));
@@ -386,13 +386,13 @@ void trkf::StitchAlg::WalkStitch()
 	      }
 	    if (hInd!=-12) walk = hInd;
 	    if (tInd!=-12) walk = tInd;
-	    if (!sh.compare("NA") && !st.compare("NA")) 
+	    if (!sh.compare("NA") && !st.compare("NA"))
 		chain = false;
 
 	    trackStatus.at(walk) = "Done";
 	  } // while
 
-	// It is possible that our first (ii'th) track had a head _and_ a tail match. Thus, we must 
+	// It is possible that our first (ii'th) track had a head _and_ a tail match. Thus, we must
 	// see if tail goes anywhere. walk with it. Insert, don't push_back, to compTrack.
 	chain = true;
         walk = ii;
@@ -400,8 +400,8 @@ void trkf::StitchAlg::WalkStitch()
 	st = std::get<0>(ft.at(walk));
 	while (chain)
 	  {
-	    int hInd = -12; 
-	    int tInd = -12; 
+	    int hInd = -12;
+	    int tInd = -12;
 	    if (walk!=(int)ii)
 	      {
 		sh = std::get<0>(fh.at(walk));
@@ -430,7 +430,7 @@ void trkf::StitchAlg::WalkStitch()
 	      }
 	    if (hInd!=-12) walk = hInd;
 	    if (tInd!=-12) walk = tInd;
-	    if (!sh.compare("NA") && !st.compare("NA")) 
+	    if (!sh.compare("NA") && !st.compare("NA"))
 		chain = false;
 
 	    trackStatus.at(walk) = "Done";
@@ -438,9 +438,9 @@ void trkf::StitchAlg::WalkStitch()
 
 
 	// inside FirstStitch() push_back onto the vec<vec> of components and the vec of stitched composite.
-	if (compTrack.size()) 
+	if (compTrack.size())
 	  {
-	    // protect against stitching a component twice, as when somehow the same track has been matched to a 
+	    // protect against stitching a component twice, as when somehow the same track has been matched to a
 	    // head and a tail of another track. remove the repeat appearances of that track.
 	    for (auto iit = compTrack.begin(); iit!=compTrack.end();++iit)
 	      {
@@ -448,8 +448,8 @@ void trkf::StitchAlg::WalkStitch()
 		for (auto jit = iit+1; jit!=compTrack.end();++jit)
 		  {
 		    //		    std::cout<< " cjit is ." << cjit << std::endl;
-		    if (*iit==*jit) 
-		      { 
+		    if (*iit==*jit)
+		      {
 			//			std::cout<< " About to do cjit erase." << std::endl;
 			compTrack.erase(jit); //std::cout<< "Survived the compTrack jit erase." << std::endl;
 			HT2.erase(HT2.begin()+cjit); //std::cout<< "Survived the HT2 cjit erase." << std::endl;
@@ -463,38 +463,38 @@ void trkf::StitchAlg::WalkStitch()
 	    //	    std::cout << "WalkStitch:: calling FirstStitch(). fTrackComposite.size(), fHT.size() " << fTrackComposite.size()<< ", " << fHT.size()  << std::endl;
 	    //std::cout << "WalkStitch:: calling FirstStitch(). fTrackComposite.back().size(), fHT.back().size() " << fTrackComposite.back().size()<< ", " << fHT.back().size()  << std::endl;
 	    /*
-	    for (unsigned int ll=0; ll<fHT.back().size() ; ++ll) 
-	      { 
-		std::cout << fHT.back().at(ll); std::cout << ", "; 
+	    for (unsigned int ll=0; ll<fHT.back().size() ; ++ll)
+	      {
+		std::cout << fHT.back().at(ll); std::cout << ", ";
 	      }
 		   std::cout << "." << std::endl;
 	    */
 	    // want the last vector of fTrackComposite, and will want to insert on fTrackVec, hence
 	    // -1 and not -1, respectively.
-	    FirstStitch(fTrackComposite.end()-1, fTrackVec.end()); 
+	    FirstStitch(fTrackComposite.end()-1, fTrackVec.end());
 	  }
 	compTrack.clear();
 	HT2.clear();
-	
-	    
+
+
       } // end ii loop on head/tail vector of tuples.
-	
+
 }
 
     // This method will join separate composite tracks in which one common component is joined by its head in one
     // and by its tail in another. This can happen if the common component has a higher track index than either of
     // the the two it is separately stitched to. e.g., ____(1) -------(4) ___________(3).
-    // 
+    //
 bool  trkf::StitchAlg::CommonComponentStitch()
 {
   // "os" for outer scope.
   int osciit(-12), oscjit(-12);
   std::vector < art::PtrVector<recob::Track> >::iterator osiComposite, osjComposite;
   art::PtrVector < recob::Track >::iterator osiAgg, osjAgg;
-      
+
 
   bool match(false);
-  int ciit(0); 
+  int ciit(0);
   for (auto iit = fTrackComposite.begin(); iit!=fTrackComposite.end()&&!match; ++iit)
     {
       ciit++;
@@ -508,9 +508,9 @@ bool  trkf::StitchAlg::CommonComponentStitch()
 		{
 		  if (*iiit == *jjit) // 2 components from 2 different composites are the same
 		    {
-		      // head is attached to one trk and tail to another. 
+		      // head is attached to one trk and tail to another.
 		      //		      std::cout << "StitchAlg::CommonComponentStitch: We have two aggregate tracks that have a common component and need to be further stitched. " << std::endl;
-		      
+
 		      match = true;
 		      osiComposite = iit;
 		      osjComposite = jit;
@@ -518,19 +518,19 @@ bool  trkf::StitchAlg::CommonComponentStitch()
 		      oscjit = cjit;
 		      osiAgg = iiit;
 		      osjAgg = jjit; // yes, unneeded, but we keep it for notational clarity
-		      
+
 		    }
 		}
-	      
+
 	    }
 	}
     }
   if (!match) return match;
-      
+
   // Proceed to stitch 'em all together, dropping the one redundant component. Then
   // erase the first occurence of the composite and the matching aggregate trk.
 
-	  
+
   //  std::cout << "StitchAlg::CommonComponentStitch: pre erase: " << osiComposite->size() << std::endl;
   (*osiComposite).erase(osiAgg);                // erase redundant component track
                                                 // do not erase this fHT element, however
@@ -547,12 +547,12 @@ bool  trkf::StitchAlg::CommonComponentStitch()
   size_t itdiff(osiComposite->end()-osiComposite->begin());
   if (osjAgg == osjComposite->begin())
     {
-      
+
       //      std::cout << "StitchAlg::begin insert starting: " << std::endl;
       // std::cout << "StitchAlg::CommonComponentStitch: itdiff: " << itdiff << std::endl;
       //std::cout << "StitchAlg::CommonComponentStitch: osiComposite.end-begin: " <<  osiComposite->end()-osiComposite->begin()<< std::endl;
       //std::cout << "StitchAlg::CommonComponentStitch: osjComposite.end-begin: " <<  osjComposite->end()-osjComposite->begin()<< std::endl;
-      (*osjComposite).insert(osjComposite->begin(),osiComposite->begin(),osiComposite->begin()+itdiff); 
+      (*osjComposite).insert(osjComposite->begin(),osiComposite->begin(),osiComposite->begin()+itdiff);
       //std::cout << "StitchAlg::CommonComponentStitch: siit.end-begin: " <<  siit->end()-siit->begin()<< std::endl;
       //std::cout << "StitchAlg::CommonComponentStitch: sjit.end-begin: " <<  sjit->end()-sjit->begin()<< std::endl;
       (*sjit).insert(sjit->begin(),siit->begin(),siit->begin()+itdiff);
@@ -561,26 +561,26 @@ bool  trkf::StitchAlg::CommonComponentStitch()
   else if (osjAgg == (osjComposite->end()-1))
     {
       //      std::cout << "StitchAlg::end insert starting: " << std::endl;
-      (*osjComposite).insert(osjComposite->end(),osiComposite->begin(),osiComposite->begin()+itdiff); 
+      (*osjComposite).insert(osjComposite->end(),osiComposite->begin(),osiComposite->begin()+itdiff);
       (*sjit).insert(sjit->end(),siit->begin(),siit->begin()+itdiff);
       //      std::cout << "StitchAlg::end insert done: " << std::endl;
     }
 
-  //  std::cout << "StitchAlg:: 1: " << std::endl;  
+  //  std::cout << "StitchAlg:: 1: " << std::endl;
   fTrackVec.erase(fTrackVec.begin()+oscjit-1);   // erase old Stitched Track, which we'll recreate now...
 
-  //  std::cout << "StitchAlg:: 2: " << std::endl;  
+  //  std::cout << "StitchAlg:: 2: " << std::endl;
   FirstStitch(osjComposite,fTrackVec.begin()+oscjit-1); // Create new Stitched Track
   //  fTrackComposite.insert(fTrackComposite.begin()+oscjit-1-1,*osjComposite);           // erase old composite Track
-  //  std::cout << "StitchAlg:: 3: " << std::endl;  
+  //  std::cout << "StitchAlg:: 3: " << std::endl;
   fTrackVec.erase(fTrackVec.begin()+osciit-1);   // erase old Stitched Track
-  //  std::cout << "StitchAlg:: 6: " << std::endl;  
+  //  std::cout << "StitchAlg:: 6: " << std::endl;
   fTrackComposite.erase(osiComposite);           // erase old composite Track
-  //  std::cout << "StitchAlg:: 4: " << std::endl;  
+  //  std::cout << "StitchAlg:: 4: " << std::endl;
   fHT.erase(fHT.begin()+osciit-1);               // erase old vec of vtx links
-  //  std::cout << "StitchAlg:: 5: " << std::endl;  
-  
+  //  std::cout << "StitchAlg:: 5: " << std::endl;
+
   return match;
-  
+
 }   // end of bool CommonComponentStitch()
 

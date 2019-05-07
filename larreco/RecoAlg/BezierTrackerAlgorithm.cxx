@@ -6,7 +6,6 @@
 // Ben Jones, MIT
 //
 
-#include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larreco/RecoAlg/BezierTrackerAlgorithm.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -21,7 +20,7 @@
 
 
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "TVector3.h"
 
@@ -32,7 +31,7 @@ namespace trkf {
 
   BezierTrackerAlgorithm::BezierTrackerAlgorithm(const fhicl::ParameterSet& pset)
   {
-    
+
     reconfigure(pset);
   }
 
@@ -47,15 +46,15 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
   {
-    
+
     CalculateGeometricalElements();
-    
+
     fTrackJoinAngle    = pset.get<double>("TrackJoinAngle");
     fDirectJoinDistance= pset.get<double>("DirectJoinDistance");
-    
+
     fVertexImpactThreshold = pset.get<double>("VertexImpactThreshold");
     fVertexExtrapDistance = pset.get<double>("VertexExtrapDistance");
-    
+
     fOccupancyThresh = pset.get<double>("OccupancyThresh");
     fTrackResolution = pset.get<double>("TrackResolution");
     fOverlapCut      = pset.get<double>("OverlapCut");
@@ -63,30 +62,30 @@ namespace trkf {
 
 
     fTheSeedFinder = new SeedFinderAlgorithm(pset.get<fhicl::ParameterSet>("SeedFinder"));
-    
+
   }
 
 
   //-----------------------------------------------
   std::vector<trkf::BezierTrack> BezierTrackerAlgorithm::MakeTracks(std::vector< std::vector<art::PtrVector<recob::Hit> > >& SortedHits, std::vector<art::PtrVector<recob::Hit> >& HitAssocs, std::vector<std::vector<std::pair<int,int> > >& ClustersUsed)
   {
-    
+
     std::vector<trkf::BezierTrack> ReturnVector;
 
     size_t UEntries = SortedHits[0].size();
     size_t VEntries = SortedHits[1].size();
     size_t WEntries = SortedHits[2].size();
 
-    // Get seeds from the hit collection    
+    // Get seeds from the hit collection
 
     std::vector< std::vector< std::vector<int> > > OrgHitsU(UEntries);
     std::vector< std::vector< std::vector<int> > > OrgHitsV(VEntries);
     std::vector< std::vector< std::vector<int> > > OrgHitsW(WEntries);
 
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     size_t NChannels = geo->Nchannels();
-    
+
     std::vector<double> MinUTime(UEntries,10000);
     std::vector<double> MaxUTime(UEntries,0);
     std::vector<double> MinVTime(VEntries,10000);
@@ -100,7 +99,7 @@ namespace trkf {
     std::vector<int> MaxVWire(VEntries,0);
     std::vector<int> MinWWire(WEntries,10000);
     std::vector<int> MaxWWire(WEntries,0);
-    
+
 
     for(size_t nU=0; nU!=UEntries; ++nU)
       {
@@ -114,12 +113,12 @@ namespace trkf {
 	    int    Wire = SortedHits[0][nU][iH]->WireID().Wire;
 	    if(Wire<MinUWire[nU]) MinUWire[nU]=Wire;
 	    if(Wire>MaxUWire[nU]) MaxUWire[nU]=Wire;
-	  
+
 	  }
 	MaxUTime[nU] -= fPlaneTimeOffsets[0];
 	MinUTime[nU] -= fPlaneTimeOffsets[0];
       }
-    
+
     for(size_t nV=0; nV!=VEntries; ++nV)
       {
 	OrgHitsV[nV].resize(NChannels);
@@ -134,7 +133,7 @@ namespace trkf {
 	    if(Wire>MaxVWire[nV]) MaxVWire[nV]=Wire;
 	  }
 	MaxVTime[nV] -= fPlaneTimeOffsets[1];
-	MinVTime[nV] -= fPlaneTimeOffsets[1];    
+	MinVTime[nV] -= fPlaneTimeOffsets[1];
       }
 
    for(size_t nW=0; nW!=WEntries; ++nW)
@@ -153,16 +152,16 @@ namespace trkf {
        MaxWTime[nW] -= fPlaneTimeOffsets[2];
        MinWTime[nW] -= fPlaneTimeOffsets[2];
      }
-   
+
     for(size_t nU =0; nU != UEntries; ++nU)
       for(size_t nV =0; nV != VEntries; ++nV)
 	for(size_t nW =0; nW != WEntries; ++nW)
-	  
+
 	  {
 	    // First check if there is some chance of overlap. If not, move on.
 
-	    // check time region	    
-	    
+	    // check time region
+
 	    if(MaxUTime[nU] < MinWTime[nW] ) continue;
 	    if(MaxUTime[nU] < MinVTime[nV] ) continue;
 	    if(MaxVTime[nV] < MinUTime[nU] ) continue;
@@ -183,11 +182,11 @@ namespace trkf {
 	    geo->IntersectionPoint(MinUWire[nU],MinVWire[nV],0,1,0,0,y,z);
 	    double MinUVOnW = ( z - fWireZeroOffset[2] ) / fPitches[2];
 	    if(MinUVOnW > MaxWWire[nW]) continue;
-	  
-	    
-	    
+
+
+
 	    art::PtrVector<recob::Hit> HitsFlat;
-	    
+
 	    double EffMinTime =  MinTime + fPlaneTimeOffsets[0];
 	    double EffMaxTime =  MaxTime + fPlaneTimeOffsets[0];
 
@@ -203,7 +202,7 @@ namespace trkf {
 	      if((SortedHits[1][nV][i]->PeakTimePlusRMS(+1.)>EffMinTime)
 	      	 &&(SortedHits[1][nV][i]->PeakTimePlusRMS(-1.)<EffMaxTime))
 		HitsFlat.push_back(SortedHits[1][nV][i]);
-	    
+
 	    EffMinTime =  MinTime + fPlaneTimeOffsets[2];
 	    EffMaxTime =  MaxTime + fPlaneTimeOffsets[2];
 
@@ -211,13 +210,13 @@ namespace trkf {
 	      if((SortedHits[2][nW][i]->PeakTimePlusRMS(+1.)>EffMinTime)
 	      	 &&(SortedHits[2][nW][i]->PeakTimePlusRMS(-1.)<EffMaxTime))
 		HitsFlat.push_back(SortedHits[2][nW][i]);
-		 
+
 	    std::vector<art::PtrVector<recob::Hit> > HitsPerSeed;
-	    
-	    std::vector<recob::Seed> SeedsThisCombo = 
+
+	    std::vector<recob::Seed> SeedsThisCombo =
 	      GetSeedFinderAlgorithm()->GetSeedsFromUnSortedHits(HitsFlat, HitsPerSeed);
-	    
-	  	   
+
+
 	    if(SeedsThisCombo.size()>0)
 	      {
 
@@ -226,16 +225,16 @@ namespace trkf {
 		HitStruct[0] = & SortedHits[0].at(nU);
 		HitStruct[1] = & SortedHits[1].at(nV);
 		HitStruct[2] = & SortedHits[2].at(nW);
-		
+
 		std::vector<std::vector< std::vector<int> >* > OrgHits(3);
 		OrgHits[0] = & OrgHitsU[nU];
 		OrgHits[1] = & OrgHitsV[nV];
 		OrgHits[2] = & OrgHitsW[nW];
 
-		
+
 
 		std::vector<std::vector<std::vector<int > > > HitsPerTrack;
-	
+
 		std::vector<std::vector<recob::Seed> > SeedsForTracks = OrganizeSeedsIntoTracks(SeedsThisCombo, HitStruct, HitsPerSeed, OrgHits, HitsPerTrack);
 		for(size_t iTrack=0; iTrack!=SeedsForTracks.size(); ++iTrack)
 		  {
@@ -245,50 +244,50 @@ namespace trkf {
 		    ClustersThisTrack.push_back(std::pair<int,int>(2,nW));
 
 		    ClustersUsed.push_back(ClustersThisTrack);
-		    
+
 		    ReturnVector.push_back(trkf::BezierTrack(SeedsForTracks.at(iTrack)));
 		    // Fill up the hit vector
 		    art::PtrVector<recob::Hit> HitsForThisTrack;
-		    
+
 		    for(size_t iH=0; iH!=HitsPerTrack.at(iTrack)[0].size(); ++iH)
 		      HitsForThisTrack.push_back(SortedHits[geo::kU][nU][HitsPerTrack.at(iTrack)[0].at(iH)]);
-		    
+
 		    for(size_t iH=0; iH!=HitsPerTrack.at(iTrack)[1].size(); ++iH)
 		      HitsForThisTrack.push_back(SortedHits[geo::kV][nV][HitsPerTrack.at(iTrack)[1].at(iH)]);
-		    
+
 		    for(size_t iH=0; iH!=HitsPerTrack.at(iTrack)[2].size(); ++iH)
 		      HitsForThisTrack.push_back(SortedHits[geo::kW][nW][HitsPerTrack.at(iTrack)[2].at(iH)]);
-		    
+
 		    HitAssocs.push_back(HitsForThisTrack);
-		    
+
 		  }
-				
+
 	      }
-	    
+
 	  }
-    
+
     return ReturnVector;
   }
 
 
   //------------------------------------------------
-  
+
   void BezierTrackerAlgorithm::FilterOverlapTracks(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
-    
+
     std::map<int, bool> ToErase;
 
     std::vector<double> Lengths;
     std::vector<TVector3> End1Points, End2Points;
 
-   
+
     for(size_t i=0; i!=BTracks.size(); ++i)
       {
 	End1Points.push_back(BTracks.at(i).GetTrackPointV(0));
 	End2Points.push_back(BTracks.at(i).GetTrackPointV(1));
 	Lengths.push_back(BTracks.at(i).GetLength());
       }
-    
+
     for(size_t t1=0; t1!=BTracks.size(); ++t1)
       for(size_t t2=0; t2!=BTracks.size(); ++t2)
 	{
@@ -320,7 +319,7 @@ namespace trkf {
 		}
 	    }
 	}
-    
+
     // Remove the tracks we marked for deletion
      for(int i=BTracks.size()-1; i >= 0; --i)
       {
@@ -336,10 +335,10 @@ namespace trkf {
 
 
   //------------------------------------------------
-  
+
   void BezierTrackerAlgorithm::MakeOverlapJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
-    
+
     std::vector<double> Lengths;
     std::vector<TVector3> End1Directions, End1Points, End2Directions, End2Points;
     for(size_t i=0; i!=BTracks.size(); ++i)
@@ -350,13 +349,13 @@ namespace trkf {
 	End1Directions.push_back(BTracks.at(i).GetTrackDirectionV(0).Unit());
 	End2Directions.push_back(BTracks.at(i).GetTrackDirectionV(1).Unit());
       }
-    
+
     int LoopStatus=1;
     while(LoopStatus!=0)
       {
 	LoopStatus=0;
 	for(size_t t1=0; t1!=BTracks.size(); ++t1)
-	  {	  
+	  {
 	    for(size_t t2=0; t2!=BTracks.size(); ++t2)
 	      {
 		if(t1!=t2)
@@ -365,7 +364,7 @@ namespace trkf {
 		    double s21,d21;
 		    BTracks.at(t1).GetClosestApproach(End1Points.at(t2),s12,d12);
 		    BTracks.at(t2).GetClosestApproach(End2Points.at(t1),s21,d21);
-		  		   		    
+
 		    if((s12>0.0001)&&(s12<0.999)
 		       &&(s21>0.0001)&&(s21<0.999)
 		       &&(d12<fTrackResolution)
@@ -376,16 +375,16 @@ namespace trkf {
 			trkf::BezierTrack Part2 = BTracks.at(t2).GetPartialTrack(s12,1);
 			BTracks.at(t1) = JoinTracks(Part1, Part2);
 			BTracks.erase(BTracks.begin()+t2);
-			
+
 			// Add the pointervectors into 1 and remove 2
 			AddPtrVectors(HitVecs.at(t1), HitVecs.at(t2));
 			ClustersUsed.at(t1).insert(ClustersUsed.at(t1).begin(),
 						   ClustersUsed.at(t2).begin(),
 						   ClustersUsed.at(t2).end());
-		       
+
 			HitVecs.erase(HitVecs.begin()+t2);
 			ClustersUsed.erase(ClustersUsed.begin()+t2);
-			
+
 			LoopStatus=3;
 		      }
 		  }
@@ -393,19 +392,19 @@ namespace trkf {
 	      }
 	    if(LoopStatus==3) break;
 	  }
-      }	  
+      }
   }
 
 
   //--------------------------------------------
   void BezierTrackerAlgorithm::SortTracksByLength(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
-    
+
     std::vector<double> Lengths;
     std::vector<int>    SortedOrder;
     std::vector<bool>   Counted(BTracks.size());
-    
-    for(size_t i=0; i!=BTracks.size(); ++i) 
+
+    for(size_t i=0; i!=BTracks.size(); ++i)
       {
 	Lengths.push_back(BTracks.at(i).GetLength());
 	if(BTracks.at(i).GetTrackDirectionV(0.0).Dot(fZDir)<0.0) BTracks.at(i)=BTracks.at(i).Reverse();
@@ -425,7 +424,7 @@ namespace trkf {
       Counted[Longest]=true;
       SortedOrder.push_back(Longest);
     }
-    
+
     std::vector<trkf::BezierTrack> BTracksNew;
     std::vector<art::PtrVector<recob::Hit> >  HitVecsNew;
     std::vector<std::vector<std::pair<int, int> > > ClustersUsedNew;
@@ -435,7 +434,7 @@ namespace trkf {
 	HitVecsNew.push_back(HitVecs.at(SortedOrder.at(i)));
 	ClustersUsedNew.push_back(ClustersUsed.at(SortedOrder.at(i)));
       }
-    
+
     BTracks=BTracksNew;
     HitVecs=HitVecsNew;
     ClustersUsed=ClustersUsedNew;
@@ -447,13 +446,13 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::MakeDirectJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
-    
+
     int LoopStatus=1;
 
     // 0 : Quit loop
     // 1 : Keep looping
     // 2 : Deleted a seed : start again from the beginning
-    
+
     while(LoopStatus>0)
       {
 	LoopStatus = 0;
@@ -462,7 +461,7 @@ namespace trkf {
 	    for(size_t t2=0; t2!=BTracks.size(); ++t2)
 	      {
 		if(t1==t2) continue;
-		
+
 		TVector3 End1Dir_i = BTracks.at(t1).GetTrackDirectionV(1.0).Unit();
 		TVector3 End0Dir_j = BTracks.at(t2).GetTrackDirectionV(0.0).Unit();
 
@@ -470,13 +469,13 @@ namespace trkf {
 		TVector3 End0Point_j = BTracks.at(t2).GetTrackPointV(0.0);
 		TVector3 End1Point_i = BTracks.at(t1).GetTrackPointV(1.0);
 		TVector3 End1Point_j = BTracks.at(t2).GetTrackPointV(1.0);
-		    
 
-		
+
+
 		double JoinAngle   = End1Dir_i.Angle(End0Dir_j);
 		double JoinSign    = (End0Point_j-End1Point_i).Dot(End1Dir_i);
 		double Colinearity = ((End0Point_j-End1Point_i) - End1Dir_i*((End0Point_j-End1Point_i).Dot(End1Dir_i))).Mag();
-		
+
 
 		if((JoinAngle<fTrackJoinAngle)&&(JoinSign>0)&&(Colinearity<fTrackResolution))
 		  {
@@ -484,23 +483,23 @@ namespace trkf {
 		    double EndSep01 = (End0Point_i-End1Point_j).Mag();
 		    double EndSep11 = (End1Point_i-End1Point_j).Mag();
 		    double EndSep00 = (End0Point_i-End0Point_j).Mag();
-		    
+
 
 		    if( (EndSep10   < fDirectJoinDistance)
 			&&(EndSep10 < EndSep11)
 			&&(EndSep10 < EndSep00)
 			&&(EndSep10 < EndSep01) )
 		      {
-			
+
 			BTracks.at(t1) = JoinTracks(BTracks.at(t1), BTracks.at(t2));
 			BTracks.erase(BTracks.begin()+t2);
-			
+
 			// Add the pointervectors into 1 and remove 2
 			AddPtrVectors(HitVecs.at(t1), HitVecs.at(t2));
 			ClustersUsed.at(t1).insert(ClustersUsed.at(t1).begin(),
 						   ClustersUsed.at(t2).begin(),
 						   ClustersUsed.at(t2).end());
-		
+
 			HitVecs.erase(HitVecs.begin()+t2);
 			ClustersUsed.erase(ClustersUsed.begin()+t2);
 			LoopStatus=3;
@@ -512,7 +511,7 @@ namespace trkf {
 	  }
       }
   }
-  
+
 
   //-----------------------------------
 
@@ -521,9 +520,9 @@ namespace trkf {
 
     std::vector<recob::Seed> SeedCol1 = BT1.GetSeedVector();
     std::vector<recob::Seed> SeedCol2 = BT2.GetSeedVector();
-        
+
     SeedCol1.insert(SeedCol1.end(),SeedCol2.begin(),SeedCol2.end());
-   
+
     return trkf::BezierTrack(SeedCol1);
   }
 
@@ -536,8 +535,8 @@ namespace trkf {
       {
 	Receiver.push_back(ToAdd.at(i));
       }
-  } 
-  
+  }
+
 
 
   //-----------------------------------------------------
@@ -548,9 +547,9 @@ namespace trkf {
 
     std::vector<std::vector<uint32_t> > MaxSeedChanPerView(3);
     std::vector<std::vector<uint32_t> > MinSeedChanPerView(3);
-    
+
     // This vector will keep track of which hits we are still allowed
-    //  to use.  Key : 
+    //  to use.  Key :
     //   0 - hit available
     //   1 - hit taken by an extrapolated bezier curve
     //   2 - hit taken by a seed on the track
@@ -561,15 +560,15 @@ namespace trkf {
 
     // This map keeps track of the indices of the hits (in the AllHits vector)
     //  which go with each seed, in each view
-    //   SeedToHitMap[per_view][per_seed][1_to_n_with_this_seed] = index 
+    //   SeedToHitMap[per_view][per_seed][1_to_n_with_this_seed] = index
 
     std::vector<std::vector<std::vector<int> > >  SeedToHitMap(3);
-    
+
     // Fill Seed <--> Hit lookups
     for(size_t iSeed=0; iSeed!=AllSeeds.size(); ++iSeed)
-      {	
+      {
 	// first make sure we have at least one hit in each view.
-	
+
 	bool CompleteSet = false;
 	std::vector<bool> AtLeastOneHitThisView(3,false);
 	for(size_t iHit=0; iHit!=WhichHitsPerSeed.at(iSeed).size(); ++iHit)
@@ -586,7 +585,7 @@ namespace trkf {
 	  }
 	if(!CompleteSet)
 	  {
-	    // If we don't have at least one hit in each view from this 
+	    // If we don't have at least one hit in each view from this
 	    //  seed, we're not going to be able to use it.
 	    //  ditch it (and its corresponding hits) from the game.
 	    AllSeeds.erase(AllSeeds.begin() + iSeed);
@@ -596,8 +595,8 @@ namespace trkf {
 	  }
 	else
 	  {
-	    // if we didn't throw out that seed, push back a new entry in 
-	    //  the seed <-> hit map vector, and 	 	    
+	    // if we didn't throw out that seed, push back a new entry in
+	    //  the seed <-> hit map vector, and
 	    // Find the min and max channels for each seed
 	    for(size_t n=0; n!=3; ++n)
 	      {
@@ -609,38 +608,38 @@ namespace trkf {
 	      {
 		uint32_t Channel = WhichHitsPerSeed.at(iSeed).at(iHit)->Channel();
 		geo::View_t View = WhichHitsPerSeed.at(iSeed).at(iHit)->View();
-		
+
 		int ViewID=0;
-		if(View==geo::kU)      ViewID=0; 
-		else if(View==geo::kV) ViewID=1; 
-		else if(View==geo::kW) ViewID=2;	    
-		
+		if(View==geo::kU)      ViewID=0;
+		else if(View==geo::kV) ViewID=1;
+		else if(View==geo::kW) ViewID=2;
+
 		double      eta     = 0.01;
-		
+
 		for(size_t iH=0; iH!=OrgHits[ViewID]->at(Channel).size();++iH)
 		  {
 		    double PeakTime1 = AllHits[ViewID]->at(OrgHits[ViewID]->at(Channel).at(iH))->PeakTime();
 		    double PeakTime2 = WhichHitsPerSeed.at(iSeed).at(iHit)->PeakTime();
-		    
+
 		    if( fabs(PeakTime1-PeakTime2)<eta)
-		      
+
 		      SeedToHitMap[ViewID][iSeed].push_back(OrgHits[ViewID]->at(Channel).at(iH));
 		  }
-		
-	    
+
+
 		if(Channel>MaxSeedChanPerView[ViewID][iSeed]) MaxSeedChanPerView[ViewID][iSeed] = Channel;
 		if(Channel<MinSeedChanPerView[ViewID][iSeed]) MinSeedChanPerView[ViewID][iSeed] = Channel;
-		
+
 	      }
 	  }
       }
-    
+
     // Now we've set up the book keeping, we get into the real
     //  work of track finding.
 
     // This will store our proposed track vectors
     std::vector<std::vector<recob::Seed > > OrganizedByTrack;
-     
+
     TVector3 AverageDir;
 
     std::vector<TVector3> VSeedDirs;
@@ -648,8 +647,8 @@ namespace trkf {
     std::vector<std::vector<int> >       SeedSDirs;
     std::vector<std::vector<uint32_t> >  SeedHighSChans;
     std::vector<std::vector<uint32_t> >  SeedLowSChans;
-    
-      
+
+
 
     for(size_t i=0; i!=AllSeeds.size(); ++i)
       {
@@ -661,7 +660,7 @@ namespace trkf {
 	VSeedDirs.push_back(VSeedDir);
 	TVector3 VSeedPos = TVector3(SeedPos[0],SeedPos[1],SeedPos[2]);
 	VSeedPoss.push_back(VSeedPos);
-	
+
 	// This is a two directional degeneracy
 	//  This is one way to resolve it (maybe not the best)
 
@@ -669,16 +668,16 @@ namespace trkf {
 	  AverageDir -= VSeedDir;
 	else
 	  AverageDir += VSeedDir;
-	
+
 	// Work out which direction the seed points out in each plane
 	std::vector<double> TimeDir, WireDir;
-	
+
 	GetSeedDirProjected(AllSeeds.at(i), WireDir, TimeDir);
-	
+
 	SeedSDirs.push_back(std::vector<int>(3));
 	SeedHighSChans.push_back(std::vector<uint32_t>(3));
 	SeedLowSChans.push_back(std::vector<uint32_t>(3));
-	
+
 
 	for(size_t n=0; n!=3; ++n)
 	  {
@@ -696,39 +695,39 @@ namespace trkf {
 	      }
 	  }
       }
-    
+
     AverageDir *= (1.0/AverageDir.Mag());
-       
+
     std::vector<double> AngleToAve;
     std::vector<double> ProjAlongAve;
-    
+
     for(size_t i=0; i!=AllSeeds.size(); ++i)
       {
 	ProjAlongAve.push_back(VSeedPoss.at(i).Dot(AverageDir));
 	AngleToAve.push_back(VSeedDirs.at(i).Dot(AverageDir)/VSeedDirs.at(i).Mag());
       }
 
-    
+
     // For now we'll only look for 1 long track per cluster combo.
     //  There is room for improvement here if we need it.
-    
+
     std::vector<size_t> TrackParts;
     std::vector<size_t> DoesNotFit;
     std::vector<size_t> AlreadyUsed;
     std::vector<size_t> ThrownByHits;
     std::map<int, bool> SeedNotAvailable;
-  
+
     // This loop keeps running whilst there are still tracks to make
     while((AlreadyUsed.size()+ThrownByHits.size())<AllSeeds.size())
       {
-	       
+
 	// This loop keeps running whilst there are still seeds
 	//  to check for this track
 
-	
+
 	while((ThrownByHits.size()+TrackParts.size()+DoesNotFit.size()+AlreadyUsed.size())<AllSeeds.size())
 	  {
-	    
+
 	    // First find the lowest track proj remaining
 	    int LowestLeft=-1;
 	    for(size_t i=0; i!=AllSeeds.size(); ++i)
@@ -737,26 +736,26 @@ namespace trkf {
 		  {
 		    if(LowestLeft < 0) LowestLeft = i;
 		    if(ProjAlongAve.at(i)<ProjAlongAve.at(LowestLeft))
-		      LowestLeft = i;		
+		      LowestLeft = i;
 		  }
 	      }
-	
+
 	    std::vector<std::vector<int> > InterpHits(3);
-	    
-	    if(TrackParts.size()==0) 
+
+	    if(TrackParts.size()==0)
 	      {
 		// If there are no seeds on the track, accept this seed
 		//  as the first one to start running with.
 		TrackParts.push_back(LowestLeft);
 		SeedNotAvailable[LowestLeft]=true;
-	
+
 		// Mark the hits that go with this seed as taken
 		for(size_t View=0; View!=3; ++View)
 		  for(size_t iH=0; iH!=SeedToHitMap[View][LowestLeft].size();++iH)
 		    HitStatus[View][SeedToHitMap[View][LowestLeft][iH]] = 2;
-		
+
 	      }
-	    else if(TrackParts.size()>0) 
+	    else if(TrackParts.size()>0)
 	      {
 		int a = TrackParts.at(TrackParts.size()-1);
 		int b = LowestLeft;
@@ -766,9 +765,9 @@ namespace trkf {
 		int PointingSign_ab    = AllSeeds.at(a).GetPointingSign(AllSeeds.at(b));
 		int PointingSign_ba    = AllSeeds.at(b).GetPointingSign(AllSeeds.at(a));
 		int PointingSign_ac    = 0;
-	
+
 		if(TrackParts.size()>1) PointingSign_ac = AllSeeds.at(a).GetPointingSign(AllSeeds.at(TrackParts.size()-2));
-		
+
 		bool SeedFits=false;
 
 		// Check seed join conditions (no hits yet)
@@ -783,39 +782,39 @@ namespace trkf {
 		  {
 		    ProjDiscOK = fabs(ProjDisc - 3.142) < fTrackJoinAngle;
 		  }
-		
+
 		if(JoinAngleOK && PointingSignOK && ProjDiscOK)
 		  {
 		    std::vector<uint32_t> EndChan_a(3), EndChan_b(3), LowChan(3), HighChan(3);
 		    std::vector<std::vector<int> > HitsUnderConsideration(3);
-  
+
 		    for(size_t n=0; n!=3; ++n)
 		      {
 			if(PointingSign_ab > 0)
-			  EndChan_a[n] = SeedHighSChans[a][n];   
+			  EndChan_a[n] = SeedHighSChans[a][n];
 			else
 			  EndChan_a[n] = SeedLowSChans[a][n];
-			
+
 			if(PointingSign_ba > 0)
-			  EndChan_b[n] = SeedHighSChans[b][n];   
+			  EndChan_b[n] = SeedHighSChans[b][n];
 			else
 			  EndChan_b[n] = SeedLowSChans[b][n];
-			
+
 			LowChan[n]  = std::min(EndChan_a[n], EndChan_b[n]) ;
 			HighChan[n] = std::max(EndChan_a[n], EndChan_b[n]) ;
 		      }
-		    
+
 		    std::vector<std::vector<int> > TheseHits(3);
-		    
-		    
+
+
 		    SeedFits = EvaluateOccupancy(AllSeeds.at(a), AllSeeds.at(b), fTrackResolution, AllHits, OrgHits, LowChan, HighChan, HitStatus, TheseHits);
-		    
-		    if(SeedFits) 
+
+		    if(SeedFits)
 		      {
 			// This seed is good! Store it on the track
 			TrackParts.push_back(LowestLeft);
 			SeedNotAvailable[LowestLeft]=true;
-			
+
 			// Remove the hits that went with this seed from consideration
 			for(size_t View=0; View!=3; ++View)
 			  for(size_t iH=0; iH!=SeedToHitMap[View][LowestLeft].size();++iH)
@@ -858,7 +857,7 @@ namespace trkf {
 					    break;
 					  }
 				      }
-				  
+
 				  }// End view loop (seed tossing)
 			      } // End checking seed availability (seed tossing)
 			  } // End seed loop (seed tossing)
@@ -877,11 +876,11 @@ namespace trkf {
 	  {
 	    mf::LogVerbatim("BezierTrackerAlgorithm")<<" Prototrack runs through seeds: " ;
 	    std::vector<recob::Seed> TheTrackSeeds;
-	    
+
 	    TVector3 AveTrackDir =
 	      VSeedPoss.at(TrackParts.at(TrackParts.size()-1))
 	      - VSeedPoss.at(TrackParts.at(0));
-	    
+
 	    for(size_t i=0; i!=TrackParts.size(); ++i)
 	      {
 		mf::LogVerbatim("BezierTrackerAlgorithm")<<"  " << TrackParts.at(i)<<", ";
@@ -891,8 +890,8 @@ namespace trkf {
 		  TheTrackSeeds.push_back(AllSeeds.at(TrackParts.at(i)).Reverse());
 		AlreadyUsed.push_back(TrackParts.at(i));
 	      }
-	    OrganizedByTrack.push_back(TheTrackSeeds);  
-	    
+	    OrganizedByTrack.push_back(TheTrackSeeds);
+
 	    HitsWithTracks.push_back(std::vector<std::vector<int> >(3));
 	    for(size_t n=0; n!=3; ++n)
 	      for(size_t iH=0; iH!=HitStatus[n].size(); ++iH)
@@ -910,7 +909,7 @@ namespace trkf {
 	SeedNotAvailable.clear();
 
 	// Anything which is either part of a track,
-	//  or which has had its hits used, is not fair game.		
+	//  or which has had its hits used, is not fair game.
 	for(size_t j=0; j!=AlreadyUsed.size(); ++j)
 	  {
 	    SeedNotAvailable[AlreadyUsed[j]]=true;
@@ -949,17 +948,17 @@ namespace trkf {
 		  }
 	      }// End view loop (seed tossing)
 	  } // Loop over DoesNotFit
-      
-	
+
+
 	for(size_t i=0; i!=ThrownByHits.size(); ++i)
 	  SeedNotAvailable[ThrownByHits[i]]=true;
-	
+
 	// Ready to go around again
 
-	TrackParts.clear();	
+	TrackParts.clear();
 	DoesNotFit.clear();
       }
-    
+
     return OrganizedByTrack;
   }
 
@@ -969,37 +968,37 @@ namespace trkf {
   bool BezierTrackerAlgorithm::EvaluateOccupancy(recob::Seed& Seed1, recob::Seed& Seed2, double dThresh,  std::vector<art::PtrVector<recob::Hit>*>& AllHits,  std::vector<std::vector< std::vector<int> >* >& OrgHits, std::vector<uint32_t>& LowChan, std::vector<uint32_t>& HighChan, std::vector<std::vector<int> >& HitStatus, std::vector<std::vector<int> >& TheseHits)
   {
     const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
-      
+
     int NSteps = 2 * Seed1.GetDistance(Seed2) / dThresh;
     if(NSteps<2) NSteps=2;
     BezierCurveHelper bhlp(NSteps);
-  
+
     std::vector<TVector3> Pts = bhlp.GetBezierPoints(Seed2, Seed1, NSteps);
-  
+
 
     for(size_t n=0; n!=3; ++n)
       {
 	if((HighChan[n]-LowChan[n])<=2) continue;
-	
+
 	size_t EmptyChanLimit = int((1.-fOccupancyThresh)*(HighChan[n]-LowChan[n]-2));
 	size_t NEmptyChannels=0;
 
 	for(uint32_t iChan = LowChan[n]+1; iChan < (HighChan[n]-1); ++iChan)
 	      {
 		bool GotThisChannel=false;
-	
+
 		for(size_t iH = 0; iH!=OrgHits[n]->at(iChan).size(); ++iH)
 		  {
 		    if(HitStatus[n][OrgHits[n]->at(iChan).at(iH)]==0)
 		      {
 			art::Ptr<recob::Hit> ThisHit = AllHits[n]->at(OrgHits[n]->at(iChan)[iH]);
-		
+
 			TVector3 WirePoint1 = ( fPitchDir[n]*(fWireZeroOffset[n] + fPitches[n] * ThisHit->WireID().Wire) )+ fXDir * det->ConvertTicksToX(ThisHit->PeakTime(), n, 0, 0);
-		
+
 			for(size_t ipt=0; ipt!=Pts.size(); ++ipt)
 			  {
 			    float d = ((WirePoint1-Pts.at(ipt))-fWireDir[n]*((WirePoint1-Pts.at(ipt)).Dot(fWireDir[n]))).Mag();
-			    if(d < dThresh) 
+			    if(d < dThresh)
 			      {
 				TheseHits[n].push_back(OrgHits[n]->at(iChan).at(iH));
 				GotThisChannel=true;
@@ -1009,30 +1008,30 @@ namespace trkf {
 		      }
 		  }
 		if(!GotThisChannel) NEmptyChannels++;
-		if(NEmptyChannels > EmptyChanLimit) return false; 
+		if(NEmptyChannels > EmptyChanLimit) return false;
 	      }
       }
      return true;
-    
+
   }
-  
+
 
   //-------------------------------------------------
 
-  void BezierTrackerAlgorithm::GetSeedDirProjected(recob::Seed const& TheSeed, std::vector<double>& WireCoord, std::vector<double>& TimeCoord) 
+  void BezierTrackerAlgorithm::GetSeedDirProjected(recob::Seed const& TheSeed, std::vector<double>& WireCoord, std::vector<double>& TimeCoord)
   {
     const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    
+
     WireCoord.clear();
     WireCoord.resize(3);
     TimeCoord.clear();
     TimeCoord.resize(3);
-    
+
     double dir[3], err[3];
-    
+
     TheSeed.GetDirection(dir,err);
     TVector3 DirVec(dir[0],dir[1],dir[2]);
-    
+
     for(size_t n=0; n!=3; ++n)
       {
 	WireCoord[n] = DirVec.Dot(fPitchDir[n]) / fPitches[n];
@@ -1049,7 +1048,7 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::CalculateGeometricalElements()
   {
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 
@@ -1062,7 +1061,7 @@ namespace trkf {
     fPlaneTimeOffsets.resize(3);
     for(size_t n=0; n!=3; ++n)
       fPlaneTimeOffsets.at(n) = det->GetXTicksOffset(n,0,0);
-    
+
     // Setup basis vectors
     fXDir = TVector3(1,0,0);
     fYDir = TVector3(0,1,0);
@@ -1093,7 +1092,7 @@ namespace trkf {
           xyzEnd1[1]*fPitchDir[n][1] +
           xyzEnd1[2]*fPitchDir[n][2];
 
-      } 
+      }
 
 
   }
@@ -1102,7 +1101,7 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::MakeVertexJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<recob::Vertex>& Vertices, std::vector<std::vector<int> >& Mapping)
   {
-    
+
     std::vector<TVector3> TrackEnd1s;
     std::vector<TVector3> TrackEnd2s;
     std::vector<TVector3> TrackDir1s;
@@ -1114,14 +1113,14 @@ namespace trkf {
 	TrackEnd1s.push_back( BTracks.at(i).GetTrackPointV(0));
 	TrackEnd2s.push_back( BTracks.at(i).GetTrackPointV(1));
 	TrackDir1s.push_back( BTracks.at(i).GetTrackDirectionV(0));
-	TrackDir2s.push_back( BTracks.at(i).GetTrackDirectionV(1));	
+	TrackDir2s.push_back( BTracks.at(i).GetTrackDirectionV(1));
       }
- 
-    std::vector<std::map<int,int> >     TracksMeetAtPoints;    
+
+    std::vector<std::map<int,int> >     TracksMeetAtPoints;
     std::vector<std::vector<TVector3> >  MeetPoints;
-     
+
     // The connection[i][j] gives impact parameters for track ends
-    //  The sign tells us which end of track j 
+    //  The sign tells us which end of track j
     for(size_t i=0; i!=BTracks.size(); ++i)
       {
 	for(size_t j=0; j!=BTracks.size(); ++j)
@@ -1140,7 +1139,7 @@ namespace trkf {
 		    bool ThisTrackAlreadyMet =false;
 		    TVector3 ExtrapPoint1 = TrackEnd1s[i] + TrackDir1s[j].Unit()*disti;
 		    TVector3 ExtrapPoint2 = TrackEnd1s[j] + TrackDir1s[j].Unit()*distj;
-		    
+
 		    for(size_t pt=0; pt!=TracksMeetAtPoints.size(); ++pt)
 		      {
 			if(TracksMeetAtPoints.at(pt)[i]==-1)
@@ -1149,7 +1148,7 @@ namespace trkf {
 			    MeetPoints.at(pt).push_back(ExtrapPoint1);
 			    MeetPoints.at(pt).push_back(ExtrapPoint2);
 			    ThisTrackAlreadyMet=true;
-			    
+
 			  }
 			else if(TracksMeetAtPoints.at(pt)[j]==-1)
 			  {
@@ -1182,7 +1181,7 @@ namespace trkf {
 		    bool ThisTrackAlreadyMet =false;
 		    TVector3 ExtrapPoint1 = TrackEnd1s[i] + TrackDir2s[j].Unit()*disti;
 		    TVector3 ExtrapPoint2 = TrackEnd2s[j] + TrackDir2s[j].Unit()*distj;
-		    
+
 		    for(size_t pt=0; pt!=TracksMeetAtPoints.size(); ++pt)
 		      {
 			if(TracksMeetAtPoints.at(pt)[i]==1)
@@ -1191,7 +1190,7 @@ namespace trkf {
 			    MeetPoints.at(pt).push_back(ExtrapPoint1);
 			    MeetPoints.at(pt).push_back(ExtrapPoint2);
 			    ThisTrackAlreadyMet=true;
-			    
+
 			  }
 			else if(TracksMeetAtPoints.at(pt)[j]==1)
 			  {
@@ -1211,10 +1210,10 @@ namespace trkf {
 			MeetPoints.at(pt).push_back(ExtrapPoint1);
 			MeetPoints.at(pt).push_back(ExtrapPoint2);
 		      }
-		    
-		    
+
+
 		  }
-		
+
 		GetImpact(TrackEnd1s[i],TrackDir1s[i],TrackEnd2s[j],TrackDir2s[j], impact, disti, distj);
 		if((impact < fVertexImpactThreshold)
 		   && (fabs(disti) < fVertexExtrapDistance )
@@ -1225,7 +1224,7 @@ namespace trkf {
 		    bool ThisTrackAlreadyMet =false;
 		    TVector3 ExtrapPoint1 = TrackEnd1s[i] + TrackDir2s[j].Unit()*disti;
 		    TVector3 ExtrapPoint2 = TrackEnd2s[j] + TrackDir2s[j].Unit()*distj;
-		    
+
 		    for(size_t pt=0; pt!=TracksMeetAtPoints.size(); ++pt)
 		      {
 			if(TracksMeetAtPoints.at(pt)[i]==-1)
@@ -1234,7 +1233,7 @@ namespace trkf {
 			    MeetPoints.at(pt).push_back(ExtrapPoint1);
 			    MeetPoints.at(pt).push_back(ExtrapPoint2);
 			    ThisTrackAlreadyMet=true;
-			    
+
 			  }
 			else if(TracksMeetAtPoints.at(pt)[j]==1)
 			  {
@@ -1254,10 +1253,10 @@ namespace trkf {
 			MeetPoints.at(pt).push_back(ExtrapPoint1);
 			MeetPoints.at(pt).push_back(ExtrapPoint2);
 		      }
-	  
-				    
+
+
 		  }
-		
+
 	      }
 	  }
       }
@@ -1271,9 +1270,9 @@ namespace trkf {
 	for(size_t i=0; i!=MeetPoints.at(pt).size(); ++i)
 	  {
 	    FinalMeetPt += MeetPoints.at(pt).at(i);
-	  } 
+	  }
 	FinalMeetPt *= (1./float(MeetPoints.at(pt).size()));
-	
+
 	for(size_t i=0; i!=BTracks.size(); ++i)
 	  {
 	    if(TracksMeetAtPoints.at(pt)[i]==1)
@@ -1283,13 +1282,13 @@ namespace trkf {
 		double NewPos[3];
 		double NewDir[3];
 		double Err[3];
-		
+
 		for(size_t n=0; n!=3; ++n)
 		  {
 		    NewPos[n]=FinalMeetPt[n]-NewDirection[n];
 		    NewDir[n]=NewDirection[n];
 		  }
-		
+
 		recob::Seed NewSeed(NewPos, NewDir, Err, Err);
 		std::vector<recob::Seed> SeedCol = BTracks.at(i).GetSeedVector();
 		SeedCol.at(SeedCol.size()-1) = NewSeed;
@@ -1302,20 +1301,20 @@ namespace trkf {
 		double NewPos[3];
 		double NewDir[3];
 		double Err[3];
-		
+
 		for(size_t n=0; n!=3; ++n)
 		  {
 		    NewPos[n]=FinalMeetPt[n] + NewDirection[n];
 		    NewDir[n]=NewDirection[n];
 		  }
-		
+
 		recob::Seed NewSeed(NewPos, NewDir, Err, Err);
 		std::vector<recob::Seed> SeedCol = BTracks.at(i).GetSeedVector();
 		SeedCol.at(0) = NewSeed;
 		BTracks.at(i) = trkf::BezierTrack(SeedCol);
 	      }
 
-	    
+
 	  }
 	Mapping.push_back(TracksThisVertex);
 	double VtxPoint[3];
@@ -1323,7 +1322,7 @@ namespace trkf {
 	  VtxPoint[n]=FinalMeetPt[n];
 	Vertices.push_back(recob::Vertex(VtxPoint, pt));
       }
-    
+
   }
 
 
@@ -1334,16 +1333,16 @@ namespace trkf {
     double lambda1 = ((t2pt-t1pt).Cross(t2dir)).Dot(t1dir.Cross(t2dir)) / (t1dir.Cross(t2dir)).Mag2();
     double lambda2 = ((t1pt-t2pt).Cross(t1dir)).Dot(t2dir.Cross(t1dir)) / (t2dir.Cross(t1dir)).Mag2();
     TVector3 c = t1pt + t1dir*lambda1 - t2pt - t2dir*lambda2;
-    
+
     ImpactParam = c.Mag();
     Dist1 = lambda1 * t1dir.Mag();
     Dist2 = lambda2 * t2dir.Mag();
   }
 
-  
+
   //-------------------------------------------
-  bool BTrack_SeedCountComparator(std::vector<recob::Seed> const& s1, std::vector<recob::Seed> const& s2) 
+  bool BTrack_SeedCountComparator(std::vector<recob::Seed> const& s1, std::vector<recob::Seed> const& s2)
   {
-    return s1.size()>s2.size();    
+    return s1.size()>s2.size();
   }
 }

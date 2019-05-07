@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGOPOLYAREA_CXX
-#define RECOTOOL_CPALGOPOLYAREA_CXX
-
 #include "CPAlgoPolyArea.h"
 
 namespace cmtool {
@@ -21,6 +18,5 @@ namespace cmtool {
 
     return ( area < _area_cut ? -1 : area);
   }
-  
+
 }
-#endif

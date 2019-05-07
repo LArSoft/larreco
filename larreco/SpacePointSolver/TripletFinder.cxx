@@ -13,8 +13,8 @@ namespace reco3d
                                const std::vector<raw::ChannelID_t>& vbad,
                                double distThresh, double distThreshDrift,
                                double xhitOffset)
-    : geom(art::ServiceHandle<geo::Geometry>()->provider()),
-      detprop(art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider()),
+    : geom(art::ServiceHandle<geo::Geometry const>()->provider()),
+      detprop(art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider()),
       fDistThresh(distThresh),
       fDistThreshDrift(distThreshDrift),
       fXHitOffset(xhitOffset)
@@ -68,7 +68,7 @@ namespace reco3d
   {
   public:
     IntersectionCache(geo::TPCID tpc)
-      : geom(art::ServiceHandle<geo::Geometry>()->provider()),
+      : geom(art::ServiceHandle<geo::Geometry const>()->provider()),
         fTPC(tpc)
     {
     }

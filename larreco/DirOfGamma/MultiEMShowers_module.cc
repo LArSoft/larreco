@@ -14,8 +14,8 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardata/Utilities/AssociationUtil.h"
@@ -78,8 +78,8 @@ class ems::MCinfo
 	bool insideFidVol(const TLorentzVector& pvtx) const;
 	double fMinx; double fMaxx;
 	double fMiny; double fMaxy;
-	double fMinz; double fMaxz;	
-	
+	double fMinz; double fMaxz;
+
 	double fFidVolCut;
 
 	int fNgammas;
@@ -89,7 +89,7 @@ class ems::MCinfo
 	bool fInside1;
 	double fGammamom2;
 	bool fInside2;
-	
+
 	double fCosine;
 
 	bool fCompton;
@@ -109,10 +109,10 @@ fFidVolCut(2.0)
 	Findtpcborders(evt);
 }
 
-void ems::MCinfo::Findtpcborders(const art::Event& evt) 
+void ems::MCinfo::Findtpcborders(const art::Event& evt)
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	
+	art::ServiceHandle<geo::Geometry const> geom;
+
 	fMinx = geom->IterateTPCs().begin()->MinX();
 	fMiny = geom->IterateTPCs().begin()->MinY();
 	fMinz = geom->IterateTPCs().begin()->MinZ();
@@ -123,7 +123,7 @@ void ems::MCinfo::Findtpcborders(const art::Event& evt)
 	for (const geo::TPCGeo& tpcg: geom->IterateTPCs())
 	{
 		if (tpcg.MinX() < fMinx) fMinx = tpcg.MinX();
-		if (tpcg.MaxX() > fMaxx) fMaxx = tpcg.MaxX(); 
+		if (tpcg.MaxX() > fMaxx) fMaxx = tpcg.MaxX();
 		if (tpcg.MinY() < fMiny) fMiny = tpcg.MinY();
 		if (tpcg.MaxY() > fMaxy) fMaxy = tpcg.MaxY();
 		if (tpcg.MinZ() < fMinz) fMinz = tpcg.MinZ();
@@ -133,17 +133,17 @@ void ems::MCinfo::Findtpcborders(const art::Event& evt)
 
 void ems::MCinfo::Info(const art::Event& evt)
 {
-	fMompi0 = 0.0; fPi0pos.SetXYZ(0,0,0); 
+	fMompi0 = 0.0; fPi0pos.SetXYZ(0,0,0);
 	fNgammas = 0;
 	fCosine = 0.0;
 	fInside1 = false; fInside2 = false;
 	fCompton = false;
 
 	fGammamom1 = 0.0; fGammamom2 = 0.0;
-	fConvgamma1.SetXYZ(0,0,0); fConvgamma2.SetXYZ(0,0,0); 
+	fConvgamma1.SetXYZ(0,0,0); fConvgamma2.SetXYZ(0,0,0);
 	fDirgamma1.SetXYZ(0,0,0); fDirgamma2.SetXYZ(0,0,0);
 
-	art::ServiceHandle< cheat::ParticleInventoryService > pi_serv;
+	art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 	const sim::ParticleList& plist = pi_serv->ParticleList();
 	for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar != plist.end(); ++ipar)
 	{
@@ -154,23 +154,23 @@ void ems::MCinfo::Info(const art::Event& evt)
 		TLorentzVector posvec = particle->Position();
 		TVector3 pose(posvec.X(), posvec.Y(), posvec.Z());
 		fPrimary = pose;
-		
+
 
 		if (particle->PdgCode() == 111)
 		{
 			fMompi0 = particle->P();
-			
+
 			TLorentzVector posvec3 = particle->Position();
 			TVector3 pospi0(posvec3.X(), posvec3.Y(), posvec3.Z());
 			fPi0pos =  pospi0;
-	
+
 			if (particle->NumberDaughters() != 2) continue;
 
 			const simb::MCParticle* daughter1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0));
 			if (daughter1->PdgCode() != 22) continue;
 
 			const simb::MCParticle* daughter2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1));
-			if (daughter2->PdgCode() != 22) continue; 
+			if (daughter2->PdgCode() != 22) continue;
 
 			fNgammas = particle->NumberDaughters();
 			TLorentzVector mom1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0))->Momentum();
@@ -187,11 +187,11 @@ void ems::MCinfo::Info(const art::Event& evt)
 
 			TLorentzVector pos1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0))->EndPosition();
 			TLorentzVector pos2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1))->EndPosition();
-				
-			if (insideFidVol(pos1)) fInside1 = true; 
+
+			if (insideFidVol(pos1)) fInside1 = true;
 			if (insideFidVol(pos2)) fInside2 = true;
-				
-			
+
+
 			fConvgamma1.SetXYZ(pos1.X(), pos1.Y(), pos1.Z());
 			fConvgamma2.SetXYZ(pos2.X(), pos2.Y(), pos2.Z());
 
@@ -199,8 +199,8 @@ void ems::MCinfo::Info(const art::Event& evt)
 			fDirgamma1 = vecnorm1;
 			TVector3 vecnorm2 = mom2vec3.Unit();
 			fDirgamma2 = vecnorm2;
-		
-			fCosine = fDirgamma1 * fDirgamma2;	
+
+			fCosine = fDirgamma1 * fDirgamma2;
 		}
 		else
 		{
@@ -215,7 +215,7 @@ bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) const
 	bool inside = false;
 	//x
 	double dista = fabs(fMinx - pvtx.X());
-	double distb = fabs(pvtx.X() - fMaxx); 
+	double distb = fabs(pvtx.X() - fMaxx);
 	if ((pvtx.X() > fMinx) && (pvtx.X() < fMaxx) &&
 		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
 	//y
@@ -231,7 +231,7 @@ bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) const
 	if (inside && (pvtx.Z() > fMinz) && (pvtx.Z() < fMaxz) &&
 		(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
 	else inside = false;
-		
+
 	return inside;
 }
 
@@ -246,15 +246,15 @@ public:
 
 	void beginJob() override;
 	void endJob() override;
-  
+
   void analyze(art::Event const & e) override;
 
 	void reconfigure(fhicl::ParameterSet const& p);
 
 private:
 	bool convCluster(art::Event const & evt);
-	double getMinDist(std::vector< art::Ptr<recob::Hit> > const & v, 
-								TVector3 const & convmc, 
+	double getMinDist(std::vector< art::Ptr<recob::Hit> > const & v,
+								TVector3 const & convmc,
 								size_t view, size_t tpc, size_t cryo);
 	int fConvGood;
 	int fConvWrong;
@@ -262,11 +262,11 @@ private:
 	int fGammasInside;
 
 	// ROOT
-	TTree* fEvTree; 
+	TTree* fEvTree;
 	int fEvNumber;
 	int fNGroups;
 
-	// mc 
+	// mc
 	double fPi0mom;
 	double fGmom1;
 	double fGmom2;
@@ -274,7 +274,7 @@ private:
 	int fNgammas;
 	int fEvFidVol;
 	int fEvComp;
-	int fEvGMomCut;	
+	int fEvGMomCut;
 	int fEvInput;
 	TVector3 fGdir1;
 	TVector3 fGdir2;
@@ -286,8 +286,8 @@ private:
 	int fEv2Good;
 	int fCountph;
 	int fCountreco;
-	
-	TTree* fShTree; 	
+
+	TTree* fShTree;
 	TTree* fRecoTree;
 	double fStartX; double fStartY; double fStartZ;
 	double fDedxZ; double fDedxV; double fDedxU;
@@ -308,7 +308,7 @@ private:
 
 ems::MultiEMShowers::MultiEMShowers(fhicl::ParameterSet const & p)
   :
-  EDAnalyzer(p)  
+  EDAnalyzer(p)
 {
 	fConvGood = 0;
 	fConvWrong = 0;
@@ -330,13 +330,13 @@ void ems::MultiEMShowers::reconfigure(fhicl::ParameterSet const& p)
   fTrk3DModuleLabel = p.get< art::InputTag >("Trk3DModuleLabel");
   fVtxModuleLabel = p.get< art::InputTag >("VtxModuleLabel");
   fShsModuleLabel = p.get< art::InputTag >("ShsModuleLabel");
-  
+
   return;
 }
 
 void ems::MultiEMShowers::beginJob()
 {
-	art::ServiceHandle<art::TFileService> tfs;
+	art::ServiceHandle<art::TFileService const> tfs;
 
 	fEvTree = tfs->make<TTree>("MultiShowers", "showers3d");
 	fEvTree->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
@@ -369,7 +369,7 @@ void ems::MultiEMShowers::beginJob()
 	fRecoTree->Branch("fGdirmcreco2good", &fGdirmcreco2good, "fGdirmcreco2good/D");
 
 	fShTree = tfs->make<TTree>("Shower", "conv point");
-	
+
 	fShTree->Branch("fStartX", &fStartX, "fStartX/D");
 	fShTree->Branch("fStartY", &fStartY, "fStartY/D");
 	fShTree->Branch("fStartZ", &fStartZ, "fStartZ/D");
@@ -389,17 +389,17 @@ void ems::MultiEMShowers::endJob()
   log << "******************** fEv2Groups = " << fEv2Groups << "\n";
   log << "******************** fEv2Good =   " << fEv2Good << "\n";
   if (fEvInput)
-    log << "******************** reco %  =    " << double(fEvReco)/double(fEvInput) << "\n"; 
+    log << "******************** reco %  =    " << double(fEvReco)/double(fEvInput) << "\n";
 }
 
 void ems::MultiEMShowers::analyze(art::Event const & e)
 {
 	fEvNumber = e.id().event();
-	fNGroups = 0; 
+	fNGroups = 0;
 	fStartX = 0.0; fStartY = 0.0; fStartZ = 0.0;
 	fPi0mom = 0.0; fNgammas = 0;
 	fDistConvrecomc1 = 0.0; fDistConvrecomc2 = 0.0;
-	fMCrecovtx = -400.0;	
+	fMCrecovtx = -400.0;
 	fMCrecovtxgood = -400.0;
 	fRecth = -400.0;
 	fRecthgood = -400.0;
@@ -426,13 +426,13 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 
 	double cosinemc = mc.GetCosine();
 	fMcth = 180.0F * (std::acos(cosinemc)) / TMath::Pi();
-	TVector3 convp[2]; 
+	TVector3 convp[2];
 	convp[0] = mc.GetPosgamma1();
 	convp[1] = mc.GetPosgamma2();
 	const double maxdist = 2.0; //cm
 
 	// check whether two photons are inside fid vol
-	if (mc.IsInside1() && mc.IsInside2()) 
+	if (mc.IsInside1() && mc.IsInside2())
 	{
 		fGammasInside = 1;
 		fEvFidVol++;
@@ -458,43 +458,43 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 		art::FindManyP< recob::Vertex > vtxFromTrk(trkListHandle, e, fVtxModuleLabel);
 		art::FindManyP< recob::Hit > hitFromClu(cluListHandle, e, fCluModuleLabel);
 
-		fNGroups = shsListHandle->size();	
+		fNGroups = shsListHandle->size();
 
 		fCountph = 0;
 		if (fNgammas == 2) // pi0
 		{
-			int idph = -1; 
+			int idph = -1;
 			for (size_t s = 0; s < shsListHandle->size(); ++s)
 			{
 				const recob::Shower& sh = (*shsListHandle)[s];
-				double mindist = maxdist; bool found = false; 
-			
+				double mindist = maxdist; bool found = false;
+
 				for (int i = 0; i < fNgammas; ++i)
 				{
 					double dist = sqrt(pma::Dist2(sh.ShowerStart(), convp[i]));
-					if ((dist < mindist) && (idph != i)) 
+					if ((dist < mindist) && (idph != i))
 					{ mindist =  dist; idph = i; found = true; }
 				}
 				if (found) { fConvGood++; fCountph++; }
 				else { fConvWrong++; }
 			}
 			if (fCountph == 2) fConvBothGood++;
-		
+
 			// plot a few variables if there are 2 showers
 			if (fCountph == 2)
-				for (size_t s = 0; s < shsListHandle->size(); ++s)	
+				for (size_t s = 0; s < shsListHandle->size(); ++s)
 				{
 					const recob::Shower& sh = (*shsListHandle)[s];
-					TVector3 pos = sh.ShowerStart(); 
+					TVector3 pos = sh.ShowerStart();
 					fStartX = pos.X(); fStartY = pos.Y(); fStartZ = pos.Z();
 					std::vector<double> const& vecdedx = sh.dEdx();
-					
+
 					if (vecdedx.size() == 3)
 					{
 						fDedxZ = vecdedx[0]; fDedxV = vecdedx[1]; fDedxU = vecdedx[2];
 					}
-					
-					fShTree->Fill();	
+
+					fShTree->Fill();
 				}
 		}
 		else  // other than pi0
@@ -502,12 +502,12 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 			for (size_t s = 0; s < shsListHandle->size(); ++s)
 			{
 				const recob::Shower& sh = (*shsListHandle)[s];
-				double mindist = maxdist; 
-			
+				double mindist = maxdist;
+
 				double dist = sqrt(pma::Dist2(sh.ShowerStart(), fPrimary));
-				if (dist < mindist) 
-				{ 
-					TVector3 pos = sh.ShowerStart(); 
+				if (dist < mindist)
+				{
+					TVector3 pos = sh.ShowerStart();
 					fStartX = pos.X(); fStartY = pos.Y(); fStartZ = pos.Z();
 					std::vector<double> vecdedx = sh.dEdx();
 					if (vecdedx.size() == 3)
@@ -515,18 +515,18 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 						fDedxZ = vecdedx[0]; fDedxV = vecdedx[1]; fDedxU = vecdedx[2];
 					}
 				}
-					
-				fShTree->Fill();	
+
+				fShTree->Fill();
 			}
 		}
 		// compute the crossing point
 
 		//cut from mc and clusters
-	
+
 		if (mc.IsInside1() && mc.IsInside2() && (fGmom1 > 0.1) && (fGmom2 > 0.1) && (!mc.IsCompton()) && convCluster(e))
 		{
 			fCountreco = 1;
-			if (fNGroups == 2) fEv2Groups++;	
+			if (fNGroups == 2) fEv2Groups++;
 			if ((fNGroups == 2) && (fCountph == 2)) fEv2Good++;
 			// cut from reco
 			//if (countph == 2)
@@ -569,7 +569,7 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 
 					fMCrecoTh = fRecth - fMcth;
 
-					if (fCountph == 2) fMCrecoThgood = fMCrecoTh;					
+					if (fCountph == 2) fMCrecoThgood = fMCrecoTh;
 
 					fEvReco++;
 					fRecoTree->Fill();
@@ -580,20 +580,20 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 		}
 	}
 
-	fEvTree->Fill();		
+	fEvTree->Fill();
 }
 
 // true if there are clusters corresponding to mc conversion points
 bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 {
 	ems::MCinfo mc(evt);
-	TVector3 convp[2]; 
+	TVector3 convp[2];
 	convp[0] = mc.GetPosgamma1();
 	convp[1] = mc.GetPosgamma2();
 
 	double vtx[3] = {convp[0].X(), convp[0].Y(), convp[0].Z()};
 
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
 	size_t cryoid = geom->FindCryostatAtPosition(vtx);
 
@@ -622,7 +622,7 @@ bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 					double mindist = maxdist; int clid = 0;
 					for (size_t c = 0; c < cluListHandle->size(); ++c)
 					{
-					
+
 						bool exist = false;
 						for (auto const & ids : used)
 							for (auto i : ids.second)
@@ -632,40 +632,40 @@ bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 						std::vector< art::Ptr<recob::Hit> > hits = fbc.at(c);
 						if (hits.size() < 20) continue;
 						if (hits[0]->WireID().Plane != view) continue;
-				
+
 						double dist = getMinDist(hits, convp[conv], view, idtpc.TPC, cryoid);
 						if (dist < mindist)
 						{
 							mindist = dist;
 							clid = c;
-						}					
+						}
 					}
-					if (mindist < maxdist) used[conv].push_back(clid);			
+					if (mindist < maxdist) used[conv].push_back(clid);
 				}
 				conv++;
 			}
 		}
 	}
 	bool result = false;
-	
-	if (used.size() > 1)	 
+
+	if (used.size() > 1)
 		for (auto const & ids : used)
 		{
 			if (ids.second.size() > 1) result = true;
 			else {result = false; break;}
 		}
-	
+
 	return result;
 }
 
-double ems::MultiEMShowers::getMinDist(std::vector< art::Ptr<recob::Hit> > const & v, 
-								TVector3 const & convmc, 
+double ems::MultiEMShowers::getMinDist(std::vector< art::Ptr<recob::Hit> > const & v,
+								TVector3 const & convmc,
 								size_t view, size_t tpc, size_t cryo)
 {
 	double mindist = 9999;
 	// MC vertex projected to view
 	TVector2 proj = pma::GetProjectionToPlane(convmc, view, tpc, cryo);
-	
+
 	// loop over hits to find the closest to MC 2d vtx
 	for (size_t h = 0; h < v.size(); ++h)
 	{
@@ -673,15 +673,15 @@ double ems::MultiEMShowers::getMinDist(std::vector< art::Ptr<recob::Hit> > const
 			(v[h]->WireID().TPC == tpc))
 		{
 			TVector2 hpoint = pma::WireDriftToCm(v[h]->WireID().Wire, v[h]->PeakTime(), view, tpc, cryo);
-			
+
 			double dist = pma::Dist2(proj, hpoint);
-			if (dist < mindist) 
+			if (dist < mindist)
 			{
 				mindist = dist;
 			}
 		}
 	}
-	
+
 	return mindist;
 }
 

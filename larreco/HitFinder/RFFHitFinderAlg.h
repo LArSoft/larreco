@@ -5,9 +5,9 @@
  * Title:   RFFHitFinderAlg Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
- * Class that runs the RFF HitFinder. Implements an RFFHitFitter, and takes 
- * the result and stores it in recob::Hit objects. 
+ * Description:
+ * Class that runs the RFF HitFinder. Implements an RFFHitFitter, and takes
+ * the result and stores it in recob::Hit objects.
  *
  * Input:  recob::Wire
  * Output: recob::Hit
@@ -52,9 +52,9 @@ namespace hit{
 		    raw::TDCtick_t const&, raw::TDCtick_t const&,
 		    geo::SigType_t const&, geo::WireID const&);
 
-    
+
     RFFHitFitter fFitter;
-    
+
   };
 
 }

@@ -41,7 +41,7 @@ namespace tca {
   void MakePFPTjs(TCSlice& slc);
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
   bool Define(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void FixOrder(TCSlice& slc, PFPStruct& pfp, bool prt);
+//  void FixOrder(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
   void CountBadPoints(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt);
@@ -91,7 +91,6 @@ namespace tca {
   bool SectionStartEnd(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& startPt, unsigned short& endPt);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
-  
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGSPTUTILS_H

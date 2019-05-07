@@ -2,7 +2,7 @@
  *  @file   TssHit2D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Hit pos in cm and original recob hit ptr.
  */
 

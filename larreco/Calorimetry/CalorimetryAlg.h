@@ -18,8 +18,8 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include <vector>
 
-namespace recob { 
-  class Hit; 
+namespace recob {
+  class Hit;
 }
 
 
@@ -64,44 +64,44 @@ namespace calo{
 	{}
 
     CalorimetryAlg(const Config& config);
-    
+
     ~CalorimetryAlg();
-      
+
     void   reconfigure(const Config& config);
     void   reconfigure(const fhicl::ParameterSet& pset)
       { reconfigure(fhicl::Table<Config>(pset, {})()); }
-    
+
     double dEdx_AMP(art::Ptr< recob::Hit >  hit, double pitch, double T0=0) const;
     double dEdx_AMP(recob::Hit const&  hit, double pitch, double T0=0) const;
     double dEdx_AMP(double dQ, double time, double pitch, unsigned int plane, double T0=0) const;
     double dEdx_AMP(double dQdx,double time, unsigned int plane, double T0=0) const;
-    
+
     double dEdx_AREA(art::Ptr< recob::Hit >  hit, double pitch, double T0=0) const;
     double dEdx_AREA(recob::Hit const&  hit, double pitch, double T0=0) const;
     double dEdx_AREA(double dQ,double time, double pitch, unsigned int plane, double T0=0) const;
     double dEdx_AREA(double dQdx,double time, unsigned int plane, double T0=0) const;
-      
+
     double ElectronsFromADCPeak(double adc, unsigned short plane) const
     { return adc / fCalAmpConstants[plane]; }
-      
+
     double ElectronsFromADCArea(double area, unsigned short plane) const
     { return area / fCalAreaConstants[plane]; }
-    
+
     double LifetimeCorrection(double time, double T0=0) const;
-    
+
   private:
 
-    art::ServiceHandle<geo::Geometry> geom; 
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop;
 
     double dEdx_from_dQdx_e(double dQdx_e,double time, double T0=0) const;
-   
+
     std::vector< double > fCalAmpConstants;
     std::vector< double > fCalAreaConstants;
     bool fUseModBox;
     int  fLifeTimeForm;
     bool fDoLifeTimeCorrection;
-    
+
     }; // class CalorimetryAlg
 } //namespace calo
 #endif // UTIL_CALORIMETRYALG_H

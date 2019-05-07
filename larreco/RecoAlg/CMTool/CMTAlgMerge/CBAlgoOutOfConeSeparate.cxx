@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOOUTOFCONESEPARATE_CXX
-#define RECOTOOL_CBALGOOUTOFCONESEPARATE_CXX
-
 #include "CBAlgoOutOfConeSeparate.h"
 
 namespace cmtool {
@@ -34,13 +31,13 @@ namespace cmtool {
 
     double len1 = cluster1.GetParams().length;
     double len2 = cluster2.GetParams().length;
-    
+
     size_t hits1 = cluster1.GetHitVector().size();
     size_t hits2 = cluster2.GetHitVector().size();
 
     double startseparation = (w_start2-w_start1)*(w_start2-w_start1) + (t_start2-t_start1)*(t_start2-t_start1);
     //convert sepration to be instead of just angle -> angle/distance^n (n=1 for now)
-    SetMaxAngleFar(_MaxAngle*(_FallOff/startseparation)); //distance^2 of 400 cm^2 taken as "standard" 
+    SetMaxAngleFar(_MaxAngle*(_FallOff/startseparation)); //distance^2 of 400 cm^2 taken as "standard"
     if ( _MaxAngleFar > 90. )
       _MaxAngleFar = 90.;
 
@@ -48,7 +45,7 @@ namespace cmtool {
     if ( (hits1 < _minHits) or (hits2 < _minHits)
 	 or (angle1 < -360) or (angle2 < -360) )
       return false;
-    
+
     if (_debug){
       std::cout << "Cluster 1:" << std::endl;
       std::cout << "\tStart: ( " << w_start1 << ", " << t_start1 << " )" << std::endl;
@@ -120,5 +117,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

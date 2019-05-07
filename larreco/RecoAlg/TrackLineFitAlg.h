@@ -32,16 +32,16 @@ namespace trkf {
     public:
 
     TrackLineFitAlg();
-    
+
     virtual ~TrackLineFitAlg();
-    
+
     void TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
                     double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF);
-    
+
     private:
 
-    art::ServiceHandle<geo::Geometry> geom;
-    
+    art::ServiceHandle<geo::Geometry const> geom;
+
   }; // class TrackLineFitAlg
 
 } // namespace trkf

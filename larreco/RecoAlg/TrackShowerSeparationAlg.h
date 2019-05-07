@@ -17,9 +17,9 @@
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
 // larsoft
@@ -308,8 +308,8 @@ class shower::TrackShowerSeparationAlg {
  /*  // Configurable parameters */
  /*  double fAngleCut, fDistanceCut, fVertexProximityCut, fTrackProximityCut, fAvTrackHitDistance; */
 
- /*  art::ServiceHandle<cheat::BackTracker> backtracker; */
- /*  art::ServiceHandle<art::TFileService> tfs; */
+ /*  art::ServiceHandle<cheat::BackTracker const> backtracker; */
+ /*  art::ServiceHandle<art::TFileService const> tfs; */
 
  /*  TTree* ftree; */
  /*  double Distance, Angle, Length, AvDistance; */

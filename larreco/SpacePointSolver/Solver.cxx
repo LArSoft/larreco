@@ -320,7 +320,7 @@ void Iterate(const std::vector<CollectionWireHit*>& cwires,
   if (!cwires.empty()){
     do{
       Iterate(cwires[cwireIdx], alpha);
-      
+
       const unsigned int prime = 1299827;
       cwireIdx = (cwireIdx+prime)%cwires.size();
     } while(cwireIdx != 0);

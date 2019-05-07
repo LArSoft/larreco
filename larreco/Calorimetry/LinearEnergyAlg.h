@@ -34,13 +34,13 @@
 #include <type_traits> // std::is_same, std::decay_t
 
 namespace calo {
-  
+
   /**
    * @brief Calibrates the energy of the clusters.
-   * 
+   *
    * Configuration
    * --------------
-   * 
+   *
    * Example of configuration:
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    * EnergyAlgo: {
@@ -52,7 +52,7 @@ namespace calo {
    *   }
    * }
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   * 
+   *
    * Parameters:
    * * *UseArea* (flag, _mandatory): whether to use hit integral
    *     (`recob::Hit::Integral()`) instead of hit peak amplitude for charge
@@ -74,40 +74,40 @@ namespace calo {
    *             parameters:
    *             * *factor* (real, _mandatory_): the recombination factor,
    *                 uniformly applied to all hits
-   * 
+   *
    */
   class LinearEnergyAlg {
 
     public:
-    
+
     struct ModelName {
       static const std::string ModBox;
       static const std::string Birks;
       static const std::string Constant;
     };
-    
+
     enum RecombinationModel_t {
       kModBox,
       kBirks,
       kConstant,
       nRecombinationModel
     };
-    
-    
+
+
     /// Configuration of parameters of the box model.
     struct RecombinationConfig {
-      
+
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
-      
+
       bool modelIsBirks() const
         { return Model() == ModelName::Birks; }
       bool modelIsModBox() const
         { return Model() == ModelName::ModBox; }
       bool modelIsConstant() const
         { return Model() == ModelName::Constant; }
-      
-      
+
+
       fhicl::Atom<std::string> Model {
         Name("Model"),
         Comment(std::string("Which recombination model to use: "
@@ -116,7 +116,7 @@ namespace calo {
           + ModelName::Constant + ".").c_str()
           )
         };
-      
+
       fhicl::Atom<double> A {
         Name("A"),
         Comment("Parameter \"A\" of box model."),
@@ -130,7 +130,7 @@ namespace calo {
         fhicl::use_if(this, &RecombinationConfig::modelIsModBox),
         util::kModBoxB
         };
-      
+
       fhicl::Atom<double> A3t {
         Name("A3t"),
         Comment("Recombination parameter \"A\" of Birks model."),
@@ -144,16 +144,16 @@ namespace calo {
         fhicl::use_if(this, &RecombinationConfig::modelIsBirks),
         util::kRecombk
         };
-      
+
       fhicl::Atom<double> factor {
         Name("factor"),
         Comment("Constant recombination factor for \"constant\" model."),
         fhicl::use_if(this, &RecombinationConfig::modelIsConstant)
         };
-      
+
     }; // RecombinationConfig
-    
-    
+
+
     /// Algorithm configuration
     struct Config {
 
@@ -169,10 +169,10 @@ namespace calo {
         Name("Recombination"),
         Comment("Parameters of the recombination model")
         };
-      
+
     }; // Config
-    
-    
+
+
     /// @{
     /// @name Construction and configuration
 
@@ -183,8 +183,8 @@ namespace calo {
      * For the configuration, see `LinearEnergyAlg` documentation.
      */
     LinearEnergyAlg(Config const& config);
-    
-    
+
+
     /**
      * @brief Constructor with configuration validation
      * @param pset FHiCL configuration parameter set
@@ -213,18 +213,18 @@ namespace calo {
      */
     void setup( detinfo::DetectorProperties const& detproperty, detinfo::DetectorClocks const& detclock, geo::GeometryCore const& geometry )
       { detp = &detproperty; detc = &detclock; geom = &geometry; initialize(); }
-    
+
     /**
      * @brief Prints the current algorithm configuration.
-     * @tparam Stream type of output stream 
+     * @tparam Stream type of output stream
      * @param out output stream where to write the information
      * @param indent indentation for all lines
      * @param firstIndent special indentation for the first line
-     * 
+     *
      * The configuration parameters are printed in human-readable form.
      * The output starts at the current line of the stream, and it terminates
      * with a new line.
-     * 
+     *
      * This method does not require the algorithm to have been set up (via
      * `Setup()`), since it just prints user configuration as given at
      * construction time.
@@ -232,14 +232,14 @@ namespace calo {
     template <typename Stream>
     void DumpConfiguration
       (Stream&& out, std::string indent, std::string firstIndent) const;
-    
+
     /**
      * @brief Prints the current algorithm configuration.
-     * @tparam Stream type of output stream 
+     * @tparam Stream type of output stream
      * @param out output stream where to write the information
      * @param indent (default: none) indentation for all lines (including the
      *               first one)
-     * 
+     *
      * The configuration parameters are printed in human-readable form.
      * The output starts at the current line of the stream, and it terminates
      * with a new line.
@@ -249,10 +249,10 @@ namespace calo {
       { DumpConfiguration(std::forward<Stream>(out), indent, indent); }
 
     /// @}
-    
+
     /// @{
     /// @name Operations
-    
+
     /**
      * @brief Calculates the energy of a single cluster.
      * @tparam BeginHitIter type of iterator to the first associated hit
@@ -262,17 +262,17 @@ namespace calo {
      * @param beginHit iterator to the first hit associated to the cluster
      * @param endHit iterator to past-the-last hit associated to the cluster
      * @return the calibrated energy of the specified cluster [GeV]
-     * 
+     *
      * @todo Describe the algorithm
-     * 
+     *
      * The `hits` are stored as (constant) pointers.
-     * 
+     *
      */
     template <typename BeginHitIter, typename EndHitIter>
     double CalculateClusterEnergy
       (recob::Cluster const& cluster, BeginHitIter beginHit, EndHitIter endHit)
       const;
-    
+
     /**
      * @brief Calculates the energy of a single cluster.
      * @tparam Hits a range of hits associated with the cluster
@@ -280,10 +280,10 @@ namespace calo {
      * @param hits pointers to all hits associated to the cluster
      * @return the calibrated energy of the specified cluster [GeV]
      * @see CalculateClusterEnergy(recob::Cluster const&. BeginHitIter, EndHitIter)
-     * 
+     *
      * The `hits` are stored as (constant) pointers into a "range", that is any
      * object (e.g. a STL vector) supporting `begin()` and `end()` iterators.
-     * 
+     *
      */
     template <typename Hits>
     double CalculateClusterEnergy
@@ -292,15 +292,15 @@ namespace calo {
         using std::begin; using std::end;
         return CalculateClusterEnergy(cluster, begin(hits), end(hits));
       }
-    
-    
+
+
     /**
      * @brief Calculates the energy of the shower
      * @param clusters list of clusters we want the energy of
      * @param hitsPerCluster associations of all clusters to all hits
      * @return a vector with one energy per input cluster [GeV]
      * @see CalculateClusterEnergy()
-     * 
+     *
      * A vector is returned with a entry per plane in the TPC of the clusters.
      * The energy has a very negative value
      * (`std::numeric_limits<double>::lowest()`) for the planes with no cluster.
@@ -310,25 +310,25 @@ namespace calo {
       std::vector<art::Ptr<recob::Cluster>> const& clusters,
       art::Assns<recob::Cluster, recob::Hit> const& hitsPerCluster
       ) const;
-    
+
     /// @}
-    
+
   private:
-    
+
     struct ModBoxParameters {
       double A = util::kModBoxA;
       double B = util::kModBoxB;
     };
-    
+
     struct BirksParameters {
       double A = util::kRecombA;
       double k = util::kRecombk;
     };
-    
+
     struct ConstantRecombParameters {
       double factor = 1.0; // no sensible default value here
     };
-    
+
     /// Pointer to the geometry to be used
     geo::GeometryCore const* geom = nullptr;
 
@@ -340,14 +340,14 @@ namespace calo {
 
     bool   fUseArea;
     int    fRecombModel;
-    
+
     /// Parameters for recombination box model; filled only when this model is selected.
     ModBoxParameters recombModBoxParams;
     /// Parameters for recombination Birks model; filled only when this model is selected.
     BirksParameters recombBirksParams;
     /// Parameters for constant recombination factor; filled only when this model is selected.
     ConstantRecombParameters recombConstParams;
-    
+
     // TODO
     // double fRecombA;
     // double fRecombk;
@@ -362,14 +362,14 @@ namespace calo {
     static constexpr double kRecombFactor   = 0.62;     ///< constant correction used in the current MicroBooNE shower reconstruction
 
     void initialize();
-    
+
     /**
      * @brief Returns the corrected energy from the hit.
      * @param hit the hit to be corrected
      * @return the corrected hit energy [GeV]
-     * 
+     *
      * @todo document the algorithm here
-     * 
+     *
      */
     double CalculateHitEnergy(recob::Hit const& hit) const;
 
@@ -397,17 +397,17 @@ double calo::LinearEnergyAlg::CalculateClusterEnergy
     std::is_same<std::decay_t<decltype(**beginHit)>, recob::Hit>::value,
     "The hits must be stored as recob::Hit pointers!" // any pointer will do
     );
-  
+
   double E = 0.0; // total cluster energy
-  
+
   for (auto hitIter = beginHit; hitIter != endHit; ++hitIter) {
-    
+
     E += CalculateHitEnergy(**hitIter);
-    
+
   } // for
-    
+
   return E;
-  
+
 } // calo::LinearEnergyAlg::CalculateEnergy()
 
 
@@ -416,7 +416,7 @@ template <typename Stream>
 void calo::LinearEnergyAlg::DumpConfiguration
   (Stream&& out, std::string indent, std::string firstIndent) const
 {
-  
+
   out << firstIndent << "LinearEnergyAlg configuration:"
     << "\n" << indent << "  use hit " << (fUseArea? "area": "peak amplitude")
       << " for charge estimation"
@@ -440,7 +440,7 @@ void calo::LinearEnergyAlg::DumpConfiguration
       out << "invalid (" << ((int) fRecombModel) << ")!!!";
   } // switch
   out << "\n";
-  
+
 } // calo::LinearEnergyAlg::DumpConfiguration()
 
 

@@ -23,11 +23,11 @@
 #include <cmath>
 #include <memory>
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
@@ -56,7 +56,7 @@ namespace {
   {
     // Get geometry.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     double d1 = pos.X();                             // Distance to right side (wires).
     double d2 = 2.*geom->DetHalfWidth() - pos.X();   // Distance to left side (cathode).
@@ -84,7 +84,7 @@ namespace {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
@@ -146,11 +146,11 @@ namespace {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     //    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
-    
+
     // Get fiducial volume boundary.
 
     double xmin = 0.;
@@ -248,7 +248,7 @@ public:
 
  ~flattener(){}
 
- void Convert(const std::vector<std::vector<unsigned int> >& input) 
+ void Convert(const std::vector<std::vector<unsigned int> >& input)
   {
    clear();
    size_t length=0;
@@ -309,8 +309,8 @@ namespace trkf {
       TH1F* fHHitTrkId;     // TrkId
       TH1F* fModeFrac;       // mode fraction
       TH1F* fNTrkIdTrks;    // # of stitched tracks in which unique TrkId appears
-      TH2F* fNTrkIdTrks2;   
-      TH2F* fNTrkIdTrks3;   
+      TH2F* fNTrkIdTrks2;
+      TH2F* fNTrkIdTrks3;
     };
 
     // Struct for mc particles and mc-matched tracks.
@@ -449,7 +449,7 @@ namespace trkf {
     double fMatchLength;       // Minimum length fraction.
     bool fIgnoreSign;          // Ignore sign of mc particle if true.
     bool fStitchedAnalysis;    // if true, do the whole drill-down from stitched track to assd hits
-    
+
     std::string fOrigin;
     bool fCheckOrigin;
     simb::Origin_t fOriginValue;
@@ -510,7 +510,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -554,7 +554,7 @@ namespace trkf {
     fNTrkIdTrks3 = dir.make<TH2F>("hntrkids3", "MC Track vs Reco Track, wtd by nhits on Collection Plane", 10, -0.5, 9.5, 10, -0.5, 9.5);
     fNTrkIdTrks3->GetXaxis()->SetTitle("Sorted-by-Descending-CPlane-Hits outer Track Number");
     fNTrkIdTrks3->GetYaxis()->SetTitle("Sorted-by-Descending-True-Length G4Track");
- 
+
   }
 
   // MCHists methods.
@@ -651,7 +651,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -661,7 +661,7 @@ namespace trkf {
 
     // Book histograms.
 
-    fHduvcosth = dir.make<TH2F>("duvcosth", "Delta(uv) vs. Colinearity", 
+    fHduvcosth = dir.make<TH2F>("duvcosth", "Delta(uv) vs. Colinearity",
 				100, 0.95, 1., 100, 0., 1.);
     fHcosth = dir.make<TH1F>("colin", "Colinearity", 100, 0.95, 1.);
     fHmcu = dir.make<TH1F>("mcu", "MC Truth U", 100, -5., 5.);
@@ -793,7 +793,7 @@ namespace trkf {
     , fPrintLevel(pset.get<int>("PrintLevel",0))
     , fNumEvent(0)
   {
-    
+
     // Decide whether to check MCTrack origin
     fCheckOrigin = false;
     fOriginValue = simb::kUnknown;
@@ -810,10 +810,10 @@ namespace trkf {
       fCheckOrigin = true;
       fOriginValue = simb::kSingleParticle;
     }
-      
+
     // Report.
 
-    mf::LogInfo("TrackAna") 
+    mf::LogInfo("TrackAna")
       << "TrackAna configured with the following parameters:\n"
       << "  TrackModuleLabel = " << fTrackModuleLabel << "\n"
       << "  MCTrackModuleLabel = " << fMCTrackModuleLabel << "\n"
@@ -841,9 +841,9 @@ namespace trkf {
   //
   {
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    art::ServiceHandle<geo::Geometry const> geom;
 
 
     ++fNumEvent;
@@ -900,7 +900,7 @@ namespace trkf {
 
 	  // check MC track origin?
 	  if(fCheckOrigin && mctrk.Origin() != fOriginValue) continue;
-    
+
 	  // Apply minimum energy cut.
 
 	  if(mctrk.Start().E() >= mctrk.Start().Momentum().Mag() + 1000.*fMinMCKE) {
@@ -935,20 +935,20 @@ namespace trkf {
 		*pdump << "\nOffset"
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
-		       << std::fixed << std::setprecision(2) 
+		       << "  "
+		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcdx
-		       << "\nStart " 
+		       << "\nStart "
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
-		       << std::fixed << std::setprecision(2) 
+		       << "  "
+		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcstart[0]
 		       << std::setw(10) << mcstart[1]
 		       << std::setw(10) << mcstart[2];
 		if(pstart > 0.) {
 		  *pdump << "  "
-			 << std::fixed << std::setprecision(3) 
+			 << std::fixed << std::setprecision(3)
 			 << std::setw(10) << mcstartmom[0]/pstart
 			 << std::setw(10) << mcstartmom[1]/pstart
 			 << std::setw(10) << mcstartmom[2]/pstart;
@@ -956,24 +956,24 @@ namespace trkf {
 		else
 		  *pdump << std::setw(32) << " ";
 		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
-		*pdump << "\nEnd   " 
+		*pdump << "\nEnd   "
 		       << std::setw(3) << mctrk.TrackID()
 		       << std::setw(6) << mctrk.PdgCode()
-		       << "  " 
+		       << "  "
 		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcend[0]
 		       << std::setw(10) << mcend[1]
 		       << std::setw(10) << mcend[2];
 		if(pend > 0.01) {
-		  *pdump << "  " 
-			 << std::fixed << std::setprecision(3) 
+		  *pdump << "  "
+			 << std::fixed << std::setprecision(3)
 			 << std::setw(10) << mcendmom[0]/pend
 			 << std::setw(10) << mcendmom[1]/pend
 			 << std::setw(10) << mcendmom[2]/pend;
 		}
 		else
 		  *pdump << std::setw(32)<< " ";
-		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend 
+		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend
 		       << "\nLength: " << plen << "\n";
 	      }
 
@@ -1014,7 +1014,7 @@ namespace trkf {
       }
     } //mc
 
-	
+
     // Get tracks and spacepoints and hits
     art::Handle< std::vector<recob::Track> > trackh;
     art::Handle< std::vector< art::PtrVector < recob::Track > > > trackvh;
@@ -1042,9 +1042,9 @@ namespace trkf {
     // is particular to analyzing Stitched Tracks.
     // *******************************************************************//
 
-    if (trackvh.isValid() && fStitchedAnalysis) 
+    if (trackvh.isValid() && fStitchedAnalysis)
       {
-	mf::LogDebug("TrackAna") 
+	mf::LogDebug("TrackAna")
 	  << "TrackAna read "  << trackvh->size()
 	  << "  vectors of Stitched PtrVectorsof tracks.";
 	anaStitch(evt);
@@ -1059,7 +1059,7 @@ namespace trkf {
       }
 
       // Loop over tracks.
-      
+
       int ntrack = trackh->size();
       for(int i = 0; i < ntrack; ++i) {
 	art::Ptr<recob::Track> ptrack(trackh, i);
@@ -1078,7 +1078,7 @@ namespace trkf {
   double trackdx = 0;
 
 	// Fill histograms involving reco tracks only.
-	
+
 	int ntraj = track.NumberTrajectoryPoints();
 	if(ntraj > 0) {
 	  TVector3 pos = track.Vertex<TVector3>();
@@ -1086,17 +1086,17 @@ namespace trkf {
 	  TVector3 end = track.End<TVector3>();
 	  pos[0] += trackdx;
 	  end[0] += trackdx;
-	  
+
 	  double dpos = bdist(pos);
 	  double dend = bdist(end);
 	  double tlen = length(track);
 	  double theta_xz = std::atan2(dir.X(), dir.Z());
 	  double theta_yz = std::atan2(dir.Y(), dir.Z());
-	  
+
 	  if(fRecoHistMap.count(0) == 0)
 	    fRecoHistMap[0] = RecoHists("Reco");
 	  const RecoHists& rhists = fRecoHistMap[0];
-	  
+
 	  rhists.fHstartx->Fill(pos.X());
 	  rhists.fHstarty->Fill(pos.Y());
 	  rhists.fHstartz->Fill(pos.Z());
@@ -1109,7 +1109,7 @@ namespace trkf {
 	  rhists.fHphi->Fill(dir.Phi());
 	  rhists.fHtheta_xz->Fill(theta_xz);
 	  rhists.fHtheta_yz->Fill(theta_yz);
-	  
+
 	  double mom = 0.;
 	  if(track.HasMomentum())
 	    mom = track.VertexMomentum();
@@ -1122,7 +1122,7 @@ namespace trkf {
 
 	  int mcid = -1;
 
-	  // Loop over direction.  
+	  // Loop over direction.
 
 	  for(int swap=0; swap<2; ++swap) {
 
@@ -1152,7 +1152,7 @@ namespace trkf {
 	      end = track.Vertex<TVector3>();
 	      pos[0] += trackdx;
 	      end[0] += trackdx;
-	  
+
 	      dpos = bdist(pos);
 	      dend = bdist(end);
 	      theta_xz = std::atan2(dir.X(), dir.Z());
@@ -1160,11 +1160,11 @@ namespace trkf {
 
 	      if(track.HasMomentum()) mom = track.EndMomentum();
 	    }
-	  
+
 	    // Get covariance matrix.
 
 	    const auto& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
-	    
+
 	    // Loop over track-like mc particles.
 
       for(unsigned int imc = 0; imc < selected_mctracks.size(); ++imc) {
@@ -1193,7 +1193,7 @@ namespace trkf {
 	      // Get the displacement of this mc particle in the global coordinate system.
 
 	      TVector3 mcpos = mcstart - pos;
-	    
+
 	      // Rotate the momentum and position to the
 	      // track-local coordinate system.
 
@@ -1201,11 +1201,11 @@ namespace trkf {
 	      TVector3 mcposl = rot * mcpos;
 
 	      double colinearity = mcmoml.Z() / mcmoml.Mag();
-	    
+
 	      double u = mcposl.X();
 	      double v = mcposl.Y();
 	      double w = mcposl.Z();
-	    
+
 	      double pu = mcmoml.X();
 	      double pv = mcmoml.Y();
 	      double pw = mcmoml.Z();
@@ -1218,7 +1218,7 @@ namespace trkf {
 	      double uv0 = std::sqrt(u0*u0 + v0*v0);
 
 	      mchists.fHduvcosth->Fill(colinearity, uv0);
-        
+
 	      if(std::abs(uv0) < fMatchDisp) {
 
 		// Fill slope matching histograms.
@@ -1238,7 +1238,7 @@ namespace trkf {
 		mchists.fHmcw->Fill(w);
 		mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
 		mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
-	      
+
 		if(std::abs(uv0) < fMatchDisp) {
 
 		  // Fill matching histograms.
@@ -1281,7 +1281,7 @@ namespace trkf {
 
 		    std::set<int> tkidset;
 		    tkidset.insert(mcid);
-		    double hiteff = 
+		    double hiteff =
 		      bt_serv->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
 		    double hitpurity = bt_serv->HitCollectionPurity(tkidset, trackhits);
 		    mchists.fHHitEff->Fill(hiteff);
@@ -1305,10 +1305,10 @@ namespace trkf {
 		    mchists.fHgkel->Fill(mcke);
 		    mchists.fHglen->Fill(plen);
 		    mchists.fHglens->Fill(plen);
-        
+
         // set the match flag
         selected_mctracks[imc].second = i;
-        
+
         if(fPrintLevel > 0) {
           const simb::MCParticle* ptkl = pi_serv->TrackIdToParticle_P(mcid);
           float KE = ptkl->E() - ptkl->Mass();
@@ -1357,19 +1357,19 @@ namespace trkf {
 		   << std::setw(3) << track.ID()
 		   << std::setw(6) << mcid
 		   << "  "
-		   << std::fixed << std::setprecision(2) 
+		   << std::fixed << std::setprecision(2)
 		   << std::setw(10) << trackdx
-		   << "\nStart " 
+		   << "\nStart "
 		   << std::setw(3) << track.ID()
 		   << std::setw(6) << mcid
 		   << "  "
-		   << std::fixed << std::setprecision(2) 
+		   << std::fixed << std::setprecision(2)
 		   << std::setw(10) << pos[0]
 		   << std::setw(10) << pos[1]
 		   << std::setw(10) << pos[2];
 	    if(pstart > 0.) {
 	      *pdump << "  "
-		     << std::fixed << std::setprecision(3) 
+		     << std::fixed << std::setprecision(3)
 		     << std::setw(10) << dir[0]
 		     << std::setw(10) << dir[1]
 		     << std::setw(10) << dir[2];
@@ -1377,7 +1377,7 @@ namespace trkf {
 	    else
 	      *pdump << std::setw(32) << " ";
 	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
-	    *pdump << "\nEnd   " 
+	    *pdump << "\nEnd   "
 		   << std::setw(3) << track.ID()
 		   << std::setw(6) << mcid
 		   << "  "
@@ -1386,13 +1386,13 @@ namespace trkf {
 		   << std::setw(10) << end[1]
 		   << std::setw(10) << end[2];
 	    if(pend > 0.01) {
-	      *pdump << "  " 
-		     << std::fixed << std::setprecision(3) 
+	      *pdump << "  "
+		     << std::fixed << std::setprecision(3)
 		     << std::setw(10) << enddir[0]
 		     << std::setw(10) << enddir[1]
 		     << std::setw(10) << enddir[2];
 	    }
-	    else 
+	    else
 	      *pdump << std::setw(32)<< " ";
 	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend
 		   << "\nLength: " << tlen << "\n";
@@ -1444,9 +1444,9 @@ namespace trkf {
   void TrackAna::anaStitch(const art::Event& evt)
   {
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
@@ -1460,28 +1460,28 @@ namespace trkf {
     evt.getByLabel(fSpacepointModuleLabel, sppth);
     evt.getByLabel(fStitchModuleLabel,trackvh);
     int ntv(trackvh->size());
-    
+
     std::vector < art::PtrVector<recob::Track> >::const_iterator cti = trackvh->begin();
     /// art::FindManyP<recob::Hit> fh(sppth, evt, fHitSpptAssocModuleLabel);
-    
+
     if(trackh.isValid()) {
       art::FindManyP<recob::SpacePoint> fswhole(trackh, evt, fTrkSpptAssocModuleLabel);
       int nsppts_assnwhole = fswhole.size();
       std::cout << "TrackAna: Number of clumps of Spacepoints from Assn for all Tracks: " << nsppts_assnwhole << std::endl;
     }
-    
+
     if(fRecoHistMap.count(0) == 0)
       {
 	fRecoHistMap[0] = RecoHists("Reco");
 	std::cout << "\n" << "\t\t  TrkAna: Fresh fRecoHistMap[0] ******* \n" << std::endl;
       }
     const RecoHists& rhistsStitched = fRecoHistMap[0];
-    
-    std::vector < std::vector <unsigned int> >  NtrkIdsAll; 
+
+    std::vector < std::vector <unsigned int> >  NtrkIdsAll;
     std::vector < double > ntvsorted;
     hitmap.clear();
     KEmap.clear();
-    
+
     // Look at the components of the stitched tracks. Grab their sppts/hits from Assns.
     for (int o = 0; o < ntv; ++o) // o for outer
       {
@@ -1505,8 +1505,8 @@ namespace trkf {
 	  try {
 	    // Got Spacepoints from this Track; now get Hits from those Spacepoints.
 	    //	    int nsppts = ptrack->NumberTrajectoryPoints();
-	    
-	    int nsppts_assn = fs.at(i).size();  
+
+	    int nsppts_assn = fs.at(i).size();
 	    //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
 	    //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
 
@@ -1516,9 +1516,9 @@ namespace trkf {
 	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
 
 	    // Importantly, loop on all sppts, though they don't all contribute to the track.
-	    // As opposed to looping on the trajectory pts, which is a lower number. 
-	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1, 
-	    // cuz I don't want merely the sparse set of sppts as follows from the uncontained 
+	    // As opposed to looping on the trajectory pts, which is a lower number.
+	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1,
+	    // cuz I don't want merely the sparse set of sppts as follows from the uncontained
 	    // MS-measurement in 2nd pass.
 	    std::vector <unsigned int> vecNtrkIds;
 	    for(int is = 0; is < nsppts_assn; ++is) {
@@ -1541,11 +1541,11 @@ namespace trkf {
 
 		      if (justOne) { vecNtrkIds.push_back(trackID); justOne=false; }
 		      // Add hit to PtrVector corresponding to this track id.
-		      rhistsStitched.fHHitTrkId->Fill(trackID); 
+		      rhistsStitched.fHHitTrkId->Fill(trackID);
 		      const simb::MCParticle* part = pi_serv->TrackIdToParticle_P(trackID);
 		      if (!part) break;
 
-		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
+		      rhistsStitched.fHHitPdg->Fill(part->PdgCode());
 		      // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
 
 		      TVector3 mcstart;
@@ -1568,28 +1568,28 @@ namespace trkf {
 
 	    if (mc)
 	      {
-		NtrkId_Hit.push_back(vecNtrkIds);	
+		NtrkId_Hit.push_back(vecNtrkIds);
 		// Find the trkID mode for this i^th track
 		unsigned int ii(1);
 		int max(-12), n(1), ind(0);
 		std::sort(vecNtrkIds.begin(),vecNtrkIds.end());
 		std::vector<unsigned int> strkIds(vecNtrkIds);
 		while ( ii < vecNtrkIds.size() )
-		  { 
-		    if (strkIds.at(ii) != strkIds.at(ii-1)) 
+		  {
+		    if (strkIds.at(ii) != strkIds.at(ii-1))
 		      {
 			n=1;
 		      }
 		    else
 		      {
-			n++; 
+			n++;
 		      }
 		    if (n>max) { max = n; ind = ii;}
 		    ii++;
 		  }
 		// std::cout  << "\t\t  TrkAna: TrkId  ind for this track is ******* " << ind  <<std::endl;
 		unsigned int mode(sim::NoParticleId);
-		if (strkIds.begin()!=strkIds.end()) 
+		if (strkIds.begin()!=strkIds.end())
 		  mode = strkIds.at(ind);
 		vecMode.push_back(mode);
 
@@ -1600,7 +1600,7 @@ namespace trkf {
 		  rhistsStitched.fModeFrac->Fill(-1.0);
 		} // mc
 
-	  } // end try 
+	  } // end try
 	  catch (cet::exception& x)  {
 	    assns = false;
 	  }
@@ -1611,7 +1611,7 @@ namespace trkf {
 	if (mc)
 	  {
 	    // one vector per o trk, for all modes of stitched i trks
-	    NtrkIdsAll.push_back(vecMode); 
+	    NtrkIdsAll.push_back(vecMode);
 
 	    std::unique(NtrkIdsAll.back().begin(),NtrkIdsAll.back().end());
 	    double sum(0.0);
@@ -1624,17 +1624,17 @@ namespace trkf {
 
 	  }
 
-	//	
+	//
       } // o
 
     int vtmp(0);
 	// get KEmap indices by most energetic first, least last.
-	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it)
 	  {
 	    //	    int tval = it->second; // grab trkIDs in order, since they're sorted by KE
 	    //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
 	    //	    const simb::MCParticle* part = bt_serv->TrackIDToParticle(tval);
-	    
+
 	    //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
 
 	    vtmp++;
@@ -1645,7 +1645,7 @@ namespace trkf {
       {
 	int v(0);
 	// get KEmap indices by longest trajectory first, least last.
-	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it)
 	  {
 	    int val = it->second; // grab trkIDs in order, since they're sorted by KE
 	    //	    const simb::MCParticle* part = pi_serv->TrackIDToParticle(val);
@@ -1653,7 +1653,7 @@ namespace trkf {
 	    rhistsStitched.fNTrkIdTrks3->Fill(o,v,hitmap[val][o].size());
 	    v++;
 	  }
-	
+
       }
 
     // In how many o tracks did each trkId appear? Histo it. Would like it to be precisely 1.
@@ -1665,7 +1665,7 @@ namespace trkf {
       {
 	if (val != (unsigned int)sim::NoParticleId)
 	  {
-	    const simb::MCParticle* part = pi_serv->TrackIdToParticle_P( val ); 
+	    const simb::MCParticle* part = pi_serv->TrackIdToParticle_P( val );
 	    double T(part->E() - 0.001*part->Mass());
 	    rhistsStitched.fNTrkIdTrks->Fill(std::count(v.begin(),v.end(),val));
 	    rhistsStitched.fNTrkIdTrks2->Fill(std::count(v.begin(),v.end(),val),T);
@@ -1675,7 +1675,7 @@ namespace trkf {
 	    rhistsStitched.fNTrkIdTrks2->Fill(-1.0,0.0);
 	  }
       }
- 
+
   }
 
   void TrackAna::endJob()
@@ -1685,7 +1685,7 @@ namespace trkf {
   {
     // Print summary.
 
-    mf::LogInfo("TrackAna") 
+    mf::LogInfo("TrackAna")
       << "TrackAna statistics:\n"
       << "  Number of events = " << fNumEvent;
 

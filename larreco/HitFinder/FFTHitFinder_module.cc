@@ -1,5 +1,3 @@
-#ifndef FFTHITFINDER_H
-#define FFTHITFINDER_H
 ////////////////////////////////////////////////////////////////////////
 //
 // FFTHitFinder class
@@ -12,14 +10,13 @@
 
 // C/C++ standard library
 #include <string>
-#include <vector>
 #include <utility> // std::move
 #include <algorithm> // std::accumulate
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
@@ -35,7 +32,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
-// ROOT Includes 
+// ROOT Includes
 #include "TH1D.h"
 #include "TDecompSVD.h"
 #include "TMath.h"
@@ -44,34 +41,34 @@
 namespace hit{
 
   class FFTHitFinder : public art::EDProducer {
-    
+
   public:
-    
-    explicit FFTHitFinder(fhicl::ParameterSet const& pset); 
+
+    explicit FFTHitFinder(fhicl::ParameterSet const& pset);
 
   private:
     void produce(art::Event& evt) override;
     void reconfigure(fhicl::ParameterSet const& p);
-        
+
     std::string     fCalDataModuleLabel;
-    double          fMinSigInd;     ///<Induction signal height threshold 
-    double          fMinSigCol;     ///<Collection signal height threshold 
+    double          fMinSigInd;     ///<Induction signal height threshold
+    double          fMinSigCol;     ///<Collection signal height threshold
     double          fIndWidth;      ///<Initial width for induction fit
     double          fColWidth;      ///<Initial width for collection fit
     double          fIndMinWidth;   ///<Minimum induction hit width
     double          fColMinWidth;   ///<Minimum collection hit width
     int             fMaxMultiHit;   ///<maximum hits for multi fit
-    int             fAreaMethod;    ///<Type of area calculation  
-    std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height 
-  
-  }; // class FFTHitFinder  
-  
+    int             fAreaMethod;    ///<Type of area calculation
+    std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height
+
+  }; // class FFTHitFinder
+
   //-------------------------------------------------
   FFTHitFinder::FFTHitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
     this->reconfigure(pset);
-    
+
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
@@ -84,38 +81,38 @@ namespace hit{
   {
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
     fMinSigInd          = p.get< double       >("MinSigInd");
-    fMinSigCol          = p.get< double       >("MinSigCol"); 
-    fIndWidth           = p.get< double       >("IndWidth");  
+    fMinSigCol          = p.get< double       >("MinSigCol");
+    fIndWidth           = p.get< double       >("IndWidth");
     fColWidth           = p.get< double       >("ColWidth");
     fIndMinWidth        = p.get< double       >("IndMinWidth");
-    fColMinWidth        = p.get< double       >("ColMinWidth"); 	  	
+    fColMinWidth        = p.get< double       >("ColMinWidth");
     fMaxMultiHit        = p.get< int          >("MaxMultiHit");
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-  }  
+  }
 
-  //  This algorithm uses the fact that deconvolved signals are very smooth 
-  //  and looks for hits as areas between local minima that have signal above 
+  //  This algorithm uses the fact that deconvolved signals are very smooth
+  //  and looks for hits as areas between local minima that have signal above
   //  threshold.
   //-------------------------------------------------
   void FFTHitFinder::produce(art::Event& evt)
-  { 
-    
+  {
+
     // this object contains the hit collection
     // and its associations to wires and raw digits:
     recob::HitCollectionCreator hcol(*this, evt);
-  
+
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
-    art::ServiceHandle<geo::Geometry> geom;
-   
+    art::ServiceHandle<geo::Geometry const> geom;
+
     // also get the raw digits associated with wires
     art::FindOneP<raw::RawDigit> WireToRawDigits
       (wireVecHandle, evt, fCalDataModuleLabel);
-    
+
     std::vector<int> startTimes;             // stores time of 1st local minimum
-    std::vector<int> maxTimes;    	     // stores time of local maximum    
+    std::vector<int> maxTimes;    	     // stores time of local maximum
     std::vector<int> endTimes;    	     // stores time of 2nd local minimum
     int time               = 0;              // current time bin
     int minTimeHolder      = 0;              // current start time
@@ -156,7 +153,7 @@ namespace hit{
 	minWidth  = fColMinWidth;
       }
       // loop over signal
-      for(timeIter = signal.begin(); timeIter+2 < signal.end(); timeIter++){    
+      for(timeIter = signal.begin(); timeIter+2 < signal.end(); timeIter++){
 	//test if timeIter+1 is a local minimum
 	if(*timeIter > *(timeIter+1) && *(timeIter+1) < *(timeIter+2)){
 	  //only add points if already found a local max above threshold.
@@ -164,31 +161,31 @@ namespace hit{
 	    endTimes.push_back(time+1);
 	    maxFound = false;
 	    //keep these in case new hit starts right away
-	    minTimeHolder = time+2; 
+	    minTimeHolder = time+2;
 	  }
-	  else minTimeHolder = time+1; 
+	  else minTimeHolder = time+1;
 	}
-	//if not a minimum, test if we are at a local maximum 
+	//if not a minimum, test if we are at a local maximum
 	//if so, and the max value is above threshold, add it and proceed.
-	else if(*timeIter < *(timeIter+1) && 
-		*(timeIter+1) > *(timeIter+2) && 
-		*(timeIter+1) > threshold){ 
+	else if(*timeIter < *(timeIter+1) &&
+		*(timeIter+1) > *(timeIter+2) &&
+		*(timeIter+1) > threshold){
 	  maxFound = true;
 	  maxTimes.push_back(time+1);
-	  startTimes.push_back(minTimeHolder);          
+	  startTimes.push_back(minTimeHolder);
 	}
 	time++;
       }//end loop over signal vec
 
-      
+
       //if no inflection found before end, but peak found add end point
-      while(maxTimes.size()>endTimes.size()) 
-	endTimes.push_back(signal.size()-1); 
+      while(maxTimes.size()>endTimes.size())
+	endTimes.push_back(signal.size()-1);
       if(startTimes.size() == 0) continue;
-      
+
       //All code below does the fitting, adding of hits
-      //to the hit vector and when all wires are complete 
-      //saving them 
+      //to the hit vector and when all wires are complete
+      //saving them
       double totSig(0); // stores the total hit signal
       double startT(0); // stores the start time
       double endT(0);   // stores the end time
@@ -199,14 +196,14 @@ namespace hit{
       double amplitudeErr(0), positionErr(0), widthErr(0);  //fit errors
       double goodnessOfFit(0), chargeErr(0);  //Chi2/NDF and error on charge
       double minPeakHeight(0);  //lowest peak height in multi-hit fit
-     
+
       //stores gaussian paramters first index is the hit number
       //the second refers to height, position, and width respectively
       std::vector<double>  hitSig;
 
-      //add found hits to hit vector      
+      //add found hits to hit vector
       while(hitIndex < (signed)startTimes.size()) {
-	
+
 	startT = endT = 0;
 	numHits = 1;
         minPeakHeight = signal[maxTimes[hitIndex]];
@@ -217,11 +214,11 @@ namespace hit{
         //3 the height of the dip between the two is greater than threshold/2
         //4 and there is no gap between them
         while(numHits < fMaxMultiHit &&
-	      numHits+hitIndex < (signed)endTimes.size() && 
-	      signal[endTimes[hitIndex+numHits-1]] >threshold/2.0 &&  
+	      numHits+hitIndex < (signed)endTimes.size() &&
+	      signal[endTimes[hitIndex+numHits-1]] >threshold/2.0 &&
 	      startTimes[hitIndex+numHits] - endTimes[hitIndex+numHits-1] < 2){
 
-	  if(signal[maxTimes[hitIndex+numHits]] < minPeakHeight) 
+	  if(signal[maxTimes[hitIndex+numHits]] < minPeakHeight)
 	    minPeakHeight = signal[maxTimes[hitIndex+numHits]];
 
 	  ++numHits;
@@ -242,7 +239,7 @@ namespace hit{
 	  hitSignal.Fill(i,signal[i]);
 
         //build the TFormula
-        eqn = "gaus(0)";	
+        eqn = "gaus(0)";
 
 	for(int i = 3; i < numHits*3; i+=3) {
 	  eqn.append("+gaus(");
@@ -256,17 +253,17 @@ namespace hit{
 
 	if(numHits > 1) {
 	  TArrayD data(numHits*numHits);
-	  TVectorD amps(numHits); 
+	  TVectorD amps(numHits);
 	  for(int i = 0; i < numHits; ++i) {
 	    amps[i] = signal[maxTimes[hitIndex+i]];
-	    for(int j = 0; j < numHits;j++) 
+	    for(int j = 0; j < numHits;j++)
 	      data[i+numHits*j] = TMath::Gaus(maxTimes[hitIndex+j],
 					      maxTimes[hitIndex+i],
 					      fitWidth);
 	  }//end loop over hits
-	  
+
           //This section uses a linear approximation in order to get an
-	  //initial value of the individual hit amplitudes 
+	  //initial value of the individual hit amplitudes
 	  try{
 	    TMatrixD h(numHits,numHits);
 	    h.Use(numHits,numHits,data.GetArray());
@@ -278,7 +275,7 @@ namespace hit{
 	    hitIndex += numHits;
 	    continue;
 	  }
-      
+
 	  for(int i = 0; i < numHits; ++i) {
 	    //if the approximation makes a peak vanish
             //set initial height as average of threshold and
@@ -304,8 +301,8 @@ namespace hit{
         hitSignal.Fit(&gSum,"QNRW","", startT, endT);
 	for(int hitNumber = 0; hitNumber < numHits; ++hitNumber) {
           totSig = 0;
-	  if(gSum.GetParameter(3*hitNumber)   > threshold/2.0 && 
-	     gSum.GetParameter(3*hitNumber+2) > minWidth) { 
+	  if(gSum.GetParameter(3*hitNumber)   > threshold/2.0 &&
+	     gSum.GetParameter(3*hitNumber+2) > minWidth) {
 	    amplitude     = gSum.GetParameter(3*hitNumber);
 	    position      = gSum.GetParameter(3*hitNumber+1);
 	    width         = gSum.GetParameter(3*hitNumber+2);
@@ -316,17 +313,17 @@ namespace hit{
        int DoF = gSum.GetNDF();
 
 	    //estimate error from area of Gaussian
-            chargeErr = std::sqrt(TMath::Pi())*(amplitudeErr*width+widthErr*amplitude);   
+            chargeErr = std::sqrt(TMath::Pi())*(amplitudeErr*width+widthErr*amplitude);
 
 	    hitSig.resize(size);
 
 	    for(int sigPos = 0; sigPos < size; ++sigPos){
 	      hitSig[sigPos] = amplitude*TMath::Gaus(sigPos+startT,position, width);
-	      totSig += hitSig[(int)sigPos];              
-	    }              	    
+	      totSig += hitSig[(int)sigPos];
+	    }
 
-            if(fAreaMethod) 
-              totSig = std::sqrt(2*TMath::Pi())*amplitude*width/fAreaNorms[(size_t)sigType];              
+            if(fAreaMethod)
+              totSig = std::sqrt(2*TMath::Pi())*amplitude*width/fAreaNorms[(size_t)sigType];
 
 	    // get the WireID for this hit
 	    std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
@@ -355,28 +352,25 @@ namespace hit{
 	      goodnessOfFit,  // goodness_of_fit
 	      DoF             // dof
 	      );
-	    
+
 	    // get the object associated with the original hit
 	    art::Ptr<raw::RawDigit> rawdigits = WireToRawDigits.at(wireIter);
-	    
+
 	    hcol.emplace_back(hit.move(), wire, rawdigits);
 	  }//end if over threshold
 	}//end loop over hits
-	hitIndex += numHits;	
+	hitIndex += numHits;
       } // end while on hitIndex<(signed)startTimes.size()
 
     } // while on Wires
-    
+
     // put the hit collection and associations into the event
     hcol.put_into(evt);
 
-  } // End of produce()  
-  
+  } // End of produce()
 
-  
+
+
   DEFINE_ART_MODULE(FFTHitFinder)
 
 } // end of hit namespace
-
-
-#endif // FFTHITFINDER_H

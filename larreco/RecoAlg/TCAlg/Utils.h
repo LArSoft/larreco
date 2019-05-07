@@ -236,7 +236,7 @@ namespace tca {
     // set1 = {11 12 17 18} and set2 = {6 12 18}
     // There is no requirement that the elements be sorted, unlike std::set_intersection
     std::vector<T> shared;
-    
+
     if(set1.empty()) return shared;
     if(set2.empty()) return shared;
     for(auto element1 : set1) {
@@ -248,7 +248,7 @@ namespace tca {
     } // element1
     return shared;
   } // SetIntersection
-  
+
   ////////////////////////////////////////////////
   template <typename T>
   std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2)

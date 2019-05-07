@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPOLYOVERLAP_CXX
-#define RECOTOOL_CBALGOPOLYOVERLAP_CXX
-
 #include "CBAlgoPolyOverlap.h"
 
 namespace cmtool {
@@ -18,10 +15,10 @@ namespace cmtool {
   void CBAlgoPolyOverlap::reconfigure(){
 
     //not sure what needs to be reset/reconfigured for this algo
-    
+
   }//end reconfigure function
 
-  
+
   bool CBAlgoPolyOverlap::Bool(const ::cluster::ClusterParamsAlg &cluster1,
 			       const ::cluster::ClusterParamsAlg &cluster2)
   {
@@ -62,5 +59,3 @@ namespace cmtool {
 
 
 }
-
-#endif

@@ -8,7 +8,7 @@
 //
 // Hough transform algorithm
 // ============================================================================
-// 
+//
 // This implementation is a pattern recognition algorithm trying to detect
 // straight lines in a image.
 // In our application, the image is a hitmap on a wire plane, represented by
@@ -35,7 +35,7 @@
 // (half a period) and the distance potentially covers the whole real axis
 // (but actually it will be never larger than the distance of the selected
 // point from the origin).
-// 
+//
 // The implementation of the algorithm is based on a "accumulator", the set
 // of counters of how many hits are passed by a given line (represented by
 // its tow parameters). The accumulator is a two-dimensional container of
@@ -54,7 +54,7 @@
 // can always find at least one straight line throw any two points.
 // This translates in having very often the counts at a given angle clustered
 // around some distances.
-// 
+//
 // We need to discretize the angles and the distances. Tests show that for a
 // "natural" plane size of 9600 (TDC counts) x ~3000 (wires), we need to use
 // O(10000) angles and to oversample the distance, that typically goes in the
@@ -65,7 +65,7 @@
 // means 1/5 = 0.2.
 // Note that the algorithm is usually applied to subsets of that plane rather
 // than on the full plane, making the typical distance range somehow smaller.
-// 
+//
 // The fastest data structure for the accumulator is a two-dimensional array.
 // The proper size of this array would be some gigabyte, that makes this
 // approach unfeasible. Since the dimension of angles has a very clear number
@@ -78,10 +78,10 @@
 // Therefore, for a given line (a, r), we can find how many hits pass though
 // it by finding the associative container of the angle a from a vector,
 // and in there looking for an entry with d as key: accum[a][d].
-// 
+//
 // Optimization
 // ----------------------------------------------------------------------------
-// 
+//
 // Given the constraints and data structure described above, it turns out that
 // a lot of time is spent creating new counters. On each hit, and each angle,
 // one or more elements of the associative containers must be created.
@@ -133,10 +133,10 @@
 #include "TMath.h"
 #include "CLHEP/Random/RandomEngine.h"
 
-#include "fhiclcpp/ParameterSet.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
+#include "fhiclcpp/ParameterSet.h"
+#include "canvas/Persistency/Common/Ptr.h"
 
-#include "canvas/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/PtrVector.h"
 //--- BEGIN issue #19494 -------------------------------------------------------
 // BulkAllocator.h is currently broken; see issue #19494.
 // When the issue is solved, this may or may not be restored, depending on the
@@ -150,9 +150,9 @@
 
 namespace art { class Event; }
 
-namespace recob { 
+namespace recob {
   class Hit;
-  class Cluster; 
+  class Cluster;
 }
 
     struct houghCorner
@@ -231,15 +231,15 @@ namespace recob {
       std::vector<art::Ptr<recob::Hit>> hits;
       protoTrack(){
       }
-      
-      void Init(unsigned int num=999999, 
+
+      void Init(unsigned int num=999999,
 	  unsigned int pnum=999999,
-          float slope=999999, 
+          float slope=999999,
           float intercept=999999,
           float totalQTemp=-999999,
-          float Min0=999999, 
-          float Min1=999999, 
-          float Max0=-999999, 
+          float Min0=999999,
+          float Min1=999999,
+          float Max0=-999999,
           float Max1=-999999,
           int    iMinWireTemp=999999,
           int    iMaxWireTemp=-999999,
@@ -270,8 +270,8 @@ namespace recob {
 
 
 namespace cluster {
-   
-   
+
+
   /**
    * @brief CountersMap with access optimized for Hough Transform algorithm
    * @param KEY the type of the key of the counters map
@@ -301,7 +301,7 @@ namespace cluster {
       = HoughTransformCounters<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>;
     /// Base class
     using Base_t = lar::CountersMap<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>;
-    
+
     // import useful types
     using BaseMap_t = typename Base_t::BaseMap_t;
     using Allocator_t = typename Base_t::Allocator_t;
@@ -309,17 +309,17 @@ namespace cluster {
     using SubCounter_t = typename Base_t::SubCounter_t;
     using CounterBlock_t = typename Base_t::CounterBlock_t;
     using const_iterator = typename Base_t::const_iterator;
-    
+
     /// Pair identifying a counter and its current value
     using PairValue_t = std::pair<const_iterator, SubCounter_t>;
 
     /// Default constructor (empty map)
     HoughTransformCounters(): Base_t() {}
-    
+
     /// Constructor, specifies an allocator
     HoughTransformCounters(Allocator_t alloc): Base_t(alloc) {}
-    
-    
+
+
     /**
      * @brief Sets the specified counter to a count value
      * @param key key of the counter to be set
@@ -328,22 +328,22 @@ namespace cluster {
      */
     SubCounter_t set(Key_t key, SubCounter_t value)
       { return Base_t::set(key, value); }
-    
+
     /**
      * @brief Increments by 1 the specified counter
      * @param key key of the counter to be increased
      * @return new value of the counter
      */
     SubCounter_t increment(Key_t key) { return Base_t::increment(key); }
-    
+
     /**
      * @brief Decrements by 1 the specified counter
      * @param key key of the counter to be decreased
      * @return new value of the counter
      */
     SubCounter_t decrement(Key_t key) { return Base_t::decrement(key); }
-    
-    
+
+
     /**
      * @brief Sets the specified range of counters to a count value
      * @param key_begin key of the first counter to be set
@@ -354,7 +354,7 @@ namespace cluster {
      */
     SubCounter_t set(Key_t key_begin, Key_t key_end, SubCounter_t value)
       { return unchecked_set_range(key_begin, key_end, value); }
-    
+
     /**
      * @brief Increments by 1 the specified range of counters
      * @param key_begin key of the first counter to be increased
@@ -362,8 +362,8 @@ namespace cluster {
      * @see decrement(), increment_and_get_max()
      */
     void increment(Key_t key_begin, Key_t key_end);
-    
-    
+
+
     /**
      * @brief Increments by 1 the specified counters and returns the maximum
      * @param key_begin key of the first counter to be increased
@@ -378,7 +378,7 @@ namespace cluster {
      * value in the range after the increase, the first member is the constant
      * iterator pointing to the first (lowest key) counter with that (get its
      * key with const_iterator::key() method).
-     * 
+     *
      * If no maximum is found, the maximum in the return value is equal to
      * current_max, while the iterator points to the end of the map (end()).
      * Note that if all the counters are at the minimum possible value, no
@@ -386,8 +386,8 @@ namespace cluster {
      */
     PairValue_t increment_and_get_max(Key_t key_begin, Key_t key_end)
       { return unchecked_add_range_max(key_begin, key_end, +1); }
-    
-    
+
+
     /**
      * @brief Increments by 1 the specified counters and returns the maximum
      * @param key_begin key of the first counter to be increased
@@ -405,8 +405,8 @@ namespace cluster {
     PairValue_t increment_and_get_max
       (Key_t key_begin, Key_t key_end, SubCounter_t current_max)
       { return unchecked_add_range_max(key_begin, key_end, +1, current_max); }
-    
-    
+
+
     /**
      * @brief Decrements by 1 the specified range of counters
      * @param key_begin key of the first counter to be increased
@@ -414,8 +414,8 @@ namespace cluster {
      * @see increment()
      */
     void decrement(Key_t key_begin, Key_t key_end);
-    
-    
+
+
     /**
      * @brief Returns the largest counter
      * @param current_max only counters larger than this will be considered
@@ -428,14 +428,14 @@ namespace cluster {
      * value, the first member is the constant iterator pointing to the first
      * (lowest key) counter with that (get its key with const_iterator::key()
      * method).
-     * 
+     *
      * This method does not update the maximum if it's not (strictly) larger
      * than current_max. If no such a maximum is found, the maximum in the
      * return value is equal to current_max, while the iterator points to the
      * end of the map (end()).
      */
     PairValue_t get_max(SubCounter_t current_max) const;
-    
+
     /**
      * @brief Increments by 1 the specified counters and returns the maximum
      * @param current_max only counters larger than this will be considered
@@ -449,15 +449,15 @@ namespace cluster {
      * the map (end()).
      */
     PairValue_t get_max() const;
-    
-    
+
+
       protected:
-    
+
     using CounterKey_t = typename Base_t::CounterKey_t;
-    
-    
+
+
       private:
-    
+
     SubCounter_t unchecked_set_range(
       Key_t key_begin, Key_t key_end, SubCounter_t value,
       typename BaseMap_t::iterator start
@@ -473,26 +473,26 @@ namespace cluster {
       Key_t key_begin, Key_t key_end, SubCounter_t delta,
       SubCounter_t min_max = std::numeric_limits<SubCounter_t>::min()
       );
-    
+
   }; // class HoughTransformCounters
-  
-  
+
+
 #define FC_DEVELOP 0
-  
+
   class HoughTransform {
   public:
-    
+
     HoughTransform();
     ~HoughTransform();
-     
+
     void Init
       (unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
     std::array<int,3> AddPointReturnMax(int x, int y);
     bool SubtractPoint(int x, int y);
     int  GetCell(int row, int col) const;
     void SetCell(int row, int col, int value) { m_accum[row].set(col, value); }
-    void GetAccumSize(int &numRows, int &numCols) 
-    { 
+    void GetAccumSize(int &numRows, int &numCols)
+    {
       numRows = m_accum.size();
       numCols  = (int) m_rowLength;
     }
@@ -503,10 +503,10 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
   private:
-    
+
     /// rho -> # hits (for convenience)
     typedef HoughTransformCounters<int, signed char, 64> BaseMap_t;
-    
+
     //--- BEGIN issue #19494 ---------------------------------------------------
     // BulkAllocator.h is currently broken; see issue #19494 and comment above.
 #if 0
@@ -521,11 +521,11 @@ namespace cluster {
     typedef HoughTransformCounters<int, signed char, 64> DistancesMap_t;
 #endif // 0?
     //--- END issue #19494 -----------------------------------------------------
-    
+
     /// Type of the Hough transform (angle, distance) map with custom allocator
     typedef std::vector<DistancesMap_t> HoughImage_t;
-    
-    
+
+
     unsigned int m_dx;
     unsigned int m_dy;
     unsigned int m_rowLength;
@@ -538,39 +538,39 @@ namespace cluster {
     int m_numAccumulated;
     std::vector<double> m_cosTable;
     std::vector<double> m_sinTable;
-    
+
     std::array<int,3> DoAddPointReturnMax(int x, int y, bool bSubtract = false);
 
 
-  }; // class HoughTransform  
+  }; // class HoughTransform
 
 
 
 
 
   class HoughBaseAlg {
-    
+
   public:
-    
+
     /// Data structure collecting charge information to be filled in cluster
     struct ChargeInfo_t {
       float integral         = 0.0F;
       float integral_stddev  = 0.0F;
       float summedADC        = 0.0F;
       float summedADC_stddev = 0.0F;
-      
+
       ChargeInfo_t(float in, float in_stdev, float sum, float sum_stdev):
         integral(in), integral_stddev(in_stdev),
         summedADC(sum), summedADC_stddev(sum_stdev)
         {}
     }; // ChargeInfo_t
-    
-    
-    HoughBaseAlg(fhicl::ParameterSet const& pset); 
+
+
+    HoughBaseAlg(fhicl::ParameterSet const& pset);
     virtual ~HoughBaseAlg();
 
     size_t FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
-			 std::vector<recob::Cluster>                    & ccol,  
+			 std::vector<recob::Cluster>                    & ccol,
 			 std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
                          CLHEP::HepRandomEngine& engine,
 			 art::Event                                const& evt,
@@ -582,15 +582,15 @@ namespace cluster {
                      unsigned int clusterId, // The id of the cluster we are examining
                      unsigned int *nClusters,
                      std::vector<protoTrack> *protoTracks);
-    
-    
+
+
     // interface to look for lines only on a set of hits,without slope and totalQ arrays
     size_t FastTransform(
       std::vector<art::Ptr<recob::Hit>> const& clusIn,
       std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
       CLHEP::HepRandomEngine& engine
       );
-    
+
     // interface to look for lines only on a set of hits
     size_t FastTransform(
       std::vector<art::Ptr<recob::Hit>> const& clusIn,
@@ -599,7 +599,7 @@ namespace cluster {
       std::vector<double>                    & slope,
       std::vector<ChargeInfo_t>              & totalQ
       );
-    
+
 
     size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits);
 
@@ -608,20 +608,20 @@ namespace cluster {
 		     double                                   & intercept);
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
-         
+
   protected:
 
     void HLSSaveBMPFile(char const*, unsigned char*, int, int);
 
   private:
 
-    int    fMaxLines;                      ///< Max number of lines that can be found 
-    int    fMinHits;                       ///< Min number of hits in the accumulator to consider 
+    int    fMaxLines;                      ///< Max number of lines that can be found
+    int    fMinHits;                       ///< Min number of hits in the accumulator to consider
                                            ///< (number of hits required to be considered a line).
     int    fSaveAccumulator;               ///< Save bitmap image of accumulator for debugging?
-    int    fNumAngleCells;                 ///< Number of angle cells in the accumulator 
-                                           ///< (a measure of the angular resolution of the line finder). 
-                                           ///< If this number is too large than the number of votes 
+    int    fNumAngleCells;                 ///< Number of angle cells in the accumulator
+                                           ///< (a measure of the angular resolution of the line finder).
+                                           ///< If this number is too large than the number of votes
                                            ///< that fall into the "correct" bin will be small and consistent with noise.
     float  fMaxDistance;                   ///< Max distance that a hit can be from a line to be considered part of that line
     float  fMaxSlope;                      ///< Max slope a line can have
@@ -639,8 +639,8 @@ namespace cluster {
 
     friend class HoughTransformClus;
   };
-  
-  
+
+
 }// namespace
 
 #endif // HOUGHBASEALG_H

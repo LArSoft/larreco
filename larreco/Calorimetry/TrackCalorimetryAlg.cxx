@@ -4,7 +4,7 @@
  *
  * Description: Algorithm that produces a calorimetry object given a track
  * Input:       recob::Track, Assn<recob::Spacepoint,recob::Track>, Assn<recob::Hit,recob::Track>
- * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>) 
+ * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>)
 */
 
 #include "TrackCalorimetryAlg.h"
@@ -34,7 +34,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(std::vector<recob::Track> con
   auto const& geom = *(providers.get<geo::GeometryCore>());
 //  auto const& larp = *(providers.get<detinfo::LArProperties>());
   auto const& detprop = *(providers.get<detinfo::DetectorProperties>());
-  
+
   //loop over the track list
   for(size_t i_track=0; i_track<trackVector.size(); i_track++){
 
@@ -45,7 +45,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(std::vector<recob::Track> con
     std::vector< std::vector<size_t> > hit_indices_per_plane(geom.Nplanes());
     for(auto const& i_hit : hit_indices_per_track[i_track])
       hit_indices_per_plane[hitVector[i_hit].WireID().Plane].push_back(i_hit);
-    
+
     //loop over the planes
     for(size_t i_plane=0; i_plane<geom.Nplanes(); i_plane++){
 
@@ -60,7 +60,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(std::vector<recob::Track> con
 	traj_points_in_plane[i_trjpt] = std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt),i_plane),
 						       tick);
       }
-      
+
       HitPropertiesMultiset_t HitPropertiesMultiset;
       //now loop through hits
       for(auto const& i_hit : hit_indices_per_plane[i_plane])
@@ -108,7 +108,7 @@ std::vector<float> calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(rec
 
   float cumulative_path_length=0;
   const float total_path_length = track.Length();
-  for(size_t i_trj=1; i_trj<track.NumberTrajectoryPoints(); i_trj++){    
+  for(size_t i_trj=1; i_trj<track.NumberTrajectoryPoints(); i_trj++){
     cumulative_path_length+=(track.LocationAtPoint(i_trj)-track.LocationAtPoint(i_trj-1)).R();
     trk_path_length_frac_vec[i_trj]=cumulative_path_length/total_path_length;
   }
@@ -140,10 +140,10 @@ void calo::TrackCalorimetryAlg::AnalyzeHit(recob::Hit const& hit,
 bool calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& hpm){
 
   if(hpm.size() <= fNHitsToDetermineStart) return false;
-  
+
   float charge_start=0,charge_end=0;
   unsigned int counter=0;
-  for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin(); 
+  for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin();
       it_hpm!=hpm.end();
       it_hpm++)
     {
@@ -153,7 +153,7 @@ bool calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& h
     }
 
   counter=0;
-  for(HitPropertiesMultiset_t::reverse_iterator it_hpm=hpm.rbegin(); 
+  for(HitPropertiesMultiset_t::reverse_iterator it_hpm=hpm.rbegin();
       it_hpm!=hpm.rend();
       it_hpm++)
     {
@@ -185,7 +185,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
   float kinetic_energy=0,track_length=track.Length();
   if(IsInvertedTrack(hpm)){
 
-    for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin(); 
+    for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin();
 	it_hpm!=hpm.end();
 	it_hpm++)
       {
@@ -196,11 +196,11 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 	XYZVector.push_back((*it_hpm).xyz);
 	kinetic_energy += dEdxVector.back()*pitchVector.back();
       }
-        
+
   }
   else{
 
-    for(HitPropertiesMultiset_t::reverse_iterator it_hpm=hpm.rbegin(); 
+    for(HitPropertiesMultiset_t::reverse_iterator it_hpm=hpm.rbegin();
 	it_hpm!=hpm.rend();
 	it_hpm++)
       {

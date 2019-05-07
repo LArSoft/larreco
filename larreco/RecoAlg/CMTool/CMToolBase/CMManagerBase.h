@@ -2,7 +2,7 @@
  * \file CMManagerBase.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CMManagerBase
  *
  * @author kazuhiro
@@ -41,12 +41,12 @@ namespace cmtool {
       /// Normal
       kNone
     };
-    
+
   public:
-    
+
     /// Default constructor
     CMManagerBase();
-    
+
     /// Default destructor
     virtual ~CMManagerBase(){}
 
@@ -73,7 +73,7 @@ namespace cmtool {
     void SetClusters(const std::vector<cluster::ClusterParamsAlg> &clusters);
 
     /// A getter for input clusters
-    const std::vector<cluster::ClusterParamsAlg>&  GetInputClusters() const 
+    const std::vector<cluster::ClusterParamsAlg>&  GetInputClusters() const
     { return _in_clusters; }
 
     /// A setter for minimum # of hits ... passed onto ClusterParamsAlg
@@ -109,7 +109,7 @@ namespace cmtool {
 
     /// Timing verbosity flag
     bool _time_report;
-    
+
     /// Minimum number of hits: the limit set for ClusterParamsAlg
     unsigned int _min_nhits;
 
@@ -125,7 +125,7 @@ namespace cmtool {
     /// Output analysis plot TFile
     TFile* _fout;
 
-    /// Priority record 
+    /// Priority record
     std::multimap<float,size_t> _priority;
 
     /// Iteration loop switch
@@ -138,5 +138,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

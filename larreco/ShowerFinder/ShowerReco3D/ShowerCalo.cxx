@@ -1,11 +1,8 @@
-#ifndef RECOTOOL_SHOWERCALO_CXX
-#define RECOTOOL_SHOWERCALO_CXX
-
 #include "ShowerCalo.h"
 
 namespace showerreco {
 
-  std::pair<double,double> ShowerCalo::ShowerEnergy(double energy, 
+  std::pair<double,double> ShowerCalo::ShowerEnergy(double energy,
 						    ::showerreco::energy::RecoType_t type,
 						    bool mc)
   {
@@ -26,9 +23,8 @@ namespace showerreco {
 
       throw ShowerRecoException(Form("RecoType_t: %d not supported!",type));
     }
-    
+
     return std::make_pair(result,result_err);
   }
 
 }
-#endif

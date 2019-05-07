@@ -1,10 +1,10 @@
 /**
  *  @file   EventUtilities.h
- * 
+ *
  *  @brief  Provides some basic functions operating in IEvent class objects
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef EventUtilities_voronoi2d_h
 #define EventUtilities_voronoi2d_h
@@ -14,14 +14,13 @@
 
 // std includes
 #include <vector>
-#include <list>
 #include <algorithm>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace voronoi2d
 {
 using RootsPair = std::pair<double,double>;
-    
+
 /**
  *  @brief Internal class definitions to facilitate construction of diagram
  */
@@ -36,6 +35,6 @@ public:
     bool   newSiteToLeft(const IEvent*, const IEvent*, const IEvent*)           const;
 private:
 };
-    
+
 } // namespace lar_cluster3d
 #endif

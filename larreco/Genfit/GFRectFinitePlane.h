@@ -19,7 +19,7 @@
 
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 
 
@@ -57,7 +57,7 @@ public:
   }
  private:
   double fUmin,fUmax,fVmin,fVmax;
-  
+
   virtual void Print(Option_t*) const
     { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
   // public:

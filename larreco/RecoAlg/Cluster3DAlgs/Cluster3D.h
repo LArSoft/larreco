@@ -3,7 +3,7 @@
  *  @brief Definition of utility objects for use in the 3D clustering for LArSoft
  *
  *         The objects defined in this module are intended for internal use by the
- *         3D clustering (see Cluster3D_module.cc in larreco/ClusterFinder). 
+ *         3D clustering (see Cluster3D_module.cc in larreco/ClusterFinder).
  *         These objects mostly contain volatile information and are not suitable
  *         for storage in the art event store
  *
@@ -30,16 +30,16 @@
 #include <Eigen/Dense>
 
 namespace reco {
-    
+
 // First define a container object to augment the sparse 2D hit information
 class ClusterHit2D
 {
 public:
-    
+
     ClusterHit2D();   // Default constructor
-    
+
 private:
-    
+
     mutable unsigned  m_statusBits;   ///< Volatile status information of this 3D hit
     mutable float     m_docaToAxis;   ///< DOCA of hit at POCA to associated cluster axis
     mutable float     m_arcLenToPoca; ///< arc length to POCA along cluster axis
@@ -47,9 +47,9 @@ private:
     float             m_timeTicks;    ///< The time (in ticks) for this hit
     geo::WireID       m_wireID;       ///< Keep track this particular hit's wireID
     const recob::Hit* m_hit;          ///< Hit we are augmenting
-    
+
 public:
-    
+
     enum StatusBits { SHAREDINPAIR    = 0x00080000,
                       SHAREDINTRIPLET = 0x00040000,
                       USEDINPAIR      = 0x00008000,
@@ -58,7 +58,7 @@ public:
                       USEDINCLUSTER   = 0x00000100,
                       USED            = 0x00000001
                     };
-    
+
     ClusterHit2D(unsigned           statusBits,
                  float              doca,
                  float              poca,
@@ -66,7 +66,7 @@ public:
                  float              timeTicks,
                  const geo::WireID& wireID,
                  const recob::Hit*  recobHit);
-    
+
     ClusterHit2D(const ClusterHit2D&);
 
     unsigned           getStatusBits()   const {return m_statusBits;}
@@ -76,17 +76,17 @@ public:
     float              getTimeTicks()    const {return m_timeTicks;}
     const geo::WireID& WireID()          const {return m_wireID;}
     const recob::Hit*  getHit()          const {return m_hit;}
-    
+
     void setStatusBit(unsigned bits)    const {m_statusBits   |= bits;}
     void clearStatusBits(unsigned bits) const {m_statusBits   &= ~bits;}
     void setDocaToAxis(float doca)      const {m_docaToAxis    = doca;}
     void setArcLenToPoca(float poca)    const {m_arcLenToPoca  = poca;}
-    
+
     void setHit(const recob::Hit* hit)        {m_hit = hit;}
-    
+
     friend std::ostream& operator << (std::ostream& o, const ClusterHit2D& c);
     friend bool          operator <  (const ClusterHit2D & a, const ClusterHit2D & b);
-    
+
 };
 
 using ClusterHit2DVec = std::vector<const reco::ClusterHit2D*>;
@@ -95,7 +95,7 @@ using ClusterHit2DVec = std::vector<const reco::ClusterHit2D*>;
 class ClusterHit3D
 {
 public:
-    
+
     enum StatusBits { REJECTEDHIT     = 0x80000000,           ///< Hit has been rejected for any reason
                       SKELETONHIT     = 0x10000000,           ///< Hit is a "skeleton" hit
                       EDGEHIT         = 0x20000000,           ///< Hit is an "edge" hit
@@ -115,8 +115,8 @@ public:
                       HITINVIEW1      = 0x00000002,           ///< Hit contains 2D hit from view 1 (v plane)
                       HITINVIEW2      = 0x00000004            ///< Hit contains 2D hit from view 2 (w plane)
                     };
-        
-    
+
+
     ClusterHit3D();   // Default constructor
 
     ClusterHit3D(size_t                          id,
@@ -133,7 +133,7 @@ public:
                  const ClusterHit2DVec&          hitVec,
                  const std::vector<float>&       hitDelTSigVec,
                  const std::vector<geo::WireID>& wireIDVec);
-    
+
     ClusterHit3D(const ClusterHit3D&);
 
     void initialize(size_t                          id,
@@ -168,7 +168,7 @@ public:
     const ClusterHit2DVec&              getHits()            const {return m_hitVector;}
     const std::vector<float>            getHitDelTSigVec()   const {return m_hitDelTSigVec;}
     const std::vector<geo::WireID>&     getWireIDs()         const {return m_wireIDVector;}
-    
+
     ClusterHit2DVec&                    getHits()                  {return m_hitVector;}
 
     bool bitsAreSet(const unsigned int& bitsToCheck)         const {return m_statusBits & bitsToCheck;}
@@ -179,7 +179,7 @@ public:
     void setDocaToAxis(double doca)        const {m_docaToAxis    = doca;}
     void setArclenToPoca(double poca)      const {m_arclenToPoca  = poca;}
     void setWireID(const geo::WireID& wid) const;
-    
+
     void setPosition(const Eigen::Vector3f& pos) const {m_position = pos;}
 
     const bool operator<(const reco::ClusterHit3D& other) const
@@ -192,12 +192,12 @@ public:
     {
         return m_id == other.m_id;
     }
-    
+
     friend std::ostream& operator << (std::ostream& o, const ClusterHit3D& c);
     //friend bool          operator <  (const ClusterHit3D & a, const ClusterHit3D & b);
-    
+
 private:
-    
+
     mutable size_t                   m_id;                 ///< "id" of this hit (useful for indexing)
     mutable unsigned int             m_statusBits;         ///< Volatile status information of this 3D hit
     mutable Eigen::Vector3f          m_position;           ///< position of this hit combination in world coordinates
@@ -213,7 +213,7 @@ private:
     mutable std::vector<float>       m_hitDelTSigVec;      ///< Delta t of hit to matching pair / sig
     mutable std::vector<geo::WireID> m_wireIDVector;       ///< Wire ID's for the planes making up hit
 };
-    
+
 // We also need to define a container for the output of the PCA Analysis
 class PrincipalComponents
 {
@@ -221,35 +221,35 @@ public:
 
     using EigenValues  = Eigen::Vector3f;
     using EigenVectors = Eigen::Matrix3f;
-    
+
     PrincipalComponents();
-    
+
 private:
-    
+
     bool            m_svdOK;              ///< SVD Decomposition was successful
     int             m_numHitsUsed;        ///< Number of hits in the decomposition
     EigenValues     m_eigenValues;        ///< Eigen values from SVD decomposition
     EigenVectors    m_eigenVectors;       ///< The three principle axes
     Eigen::Vector3f m_avePosition;        ///< Average position of hits fed to PCA
     mutable double  m_aveHitDoca;         ///< Average doca of hits used in PCA
-    
+
 public:
-    
+
     PrincipalComponents(bool ok, int nHits, const EigenValues& eigenValues, const EigenVectors& eigenVecs, const Eigen::Vector3f& avePos, const float aveHitDoca = 9999.);
-    
+
     bool                   getSvdOK()                 const {return m_svdOK;}
     int                    getNumHitsUsed()           const {return m_numHitsUsed;}
     const EigenValues&     getEigenValues()           const {return m_eigenValues;}
     const EigenVectors&    getEigenVectors()          const {return m_eigenVectors;}
     const Eigen::Vector3f& getAvePosition()           const {return m_avePosition;}
     const float            getAveHitDoca()            const {return m_aveHitDoca;}
-    
+
     void                   flipAxis(size_t axis);
     void                   setAveHitDoca(double doca) const {m_aveHitDoca = doca;}
-    
+
     friend std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a);
     friend bool operator < (const PrincipalComponents& a, const PrincipalComponents& b);
-    
+
 };
 
 class Cluster3D
@@ -266,7 +266,7 @@ private:
     float               m_startPosition[3]; ///< "start" position for cluster (world coordinates)
     float               m_endPosition[3];   ///< "end" position for cluster
     int                 m_clusterIdx;       ///< ID for this cluster
-    
+
 public:
     Cluster3D(unsigned                   statusBits,
               const PrincipalComponents& pcaResults,
@@ -274,17 +274,17 @@ public:
               const float*               startPosition,
               const float*               endPosition,
               int                        idx);
-    
+
     unsigned                   getStatusBits()    const {return m_statusBits;}
     const PrincipalComponents& getPcaResults()    const {return m_pcaResults;}
     float                      getTotalCharge()   const {return m_totalCharge;}
     const float*               getStartPosition() const {return m_startPosition;}
     const float*               getEndPosition()   const {return m_endPosition;}
     int                        getClusterIdx()    const {return m_clusterIdx;}
-    
+
     void setStatusBit(unsigned bits)    const {m_statusBits |= bits;}
     void clearStatusBits(unsigned bits) const {m_statusBits &= ~bits;}
-    
+
     Cluster3D            operator +  (Cluster3D);
     friend std::ostream& operator << (std::ostream& o, const Cluster3D& c);
     friend bool          operator <  (const Cluster3D & a, const Cluster3D & b);
@@ -308,9 +308,9 @@ public:
     {
         m_hitVector.clear();
     }
-    
+
     void UpdateParameters(const reco::ClusterHit2D* hit);
-    
+
     float           m_startTime;
     float           m_sigmaStartTime;
     float           m_endTime;
@@ -322,8 +322,8 @@ public:
     geo::View_t     m_view;
     ClusterHit2DVec m_hitVector;
 };
-    
-    
+
+
 /**
  *  @brief export some data structure definitions
  */
@@ -344,12 +344,12 @@ using Hit3DToEdgeMap           = std::unordered_map<const reco::ClusterHit3D*, r
 using Hit2DToHit3DListMap      = std::unordered_map<const reco::ClusterHit2D*, reco::HitPairListPtr>;
 //using VertexPoint              = Eigen::Vector3f;
 //using VertexPointList          = std::list<Eigen::Vector3f>;
-    
+
 using ProjectedPoint           = std::tuple<float, float, const reco::ClusterHit3D*>;          ///< Projected coordinates and pointer to hit
 using ProjectedPointList       = std::list<ProjectedPoint>;
 using ConvexHullKinkTuple      = std::tuple<ProjectedPoint, Eigen::Vector2f, Eigen::Vector2f>; ///< Point plus edges that point to it
 using ConvexHullKinkTupleList  = std::list<ConvexHullKinkTuple>;
-    
+
 /**
  *  @brief Define a container for working with the convex hull
  */
@@ -365,7 +365,7 @@ public:
         fConvexHullExtremePoints.clear(),
         fConvexHullKinkPoints.clear();
     }
-    
+
     void clear()
     {
         fProjectedPointList.clear(),
@@ -375,15 +375,15 @@ public:
         fConvexHullExtremePoints.clear(),
         fConvexHullKinkPoints.clear();
     }
-    
+
     reco::ProjectedPointList&      getProjectedPointList()      {return fProjectedPointList;}
     reco::ProjectedPointList&      getConvexHullPointList()     {return fConvexHullPointList;}
     reco::Hit3DToEdgeMap&          getConvexHullEdgeMap()       {return fConvexHullEdgeMap;}
     reco::EdgeList&                getConvexHullEdgeList()      {return fConvexHullEdgeList;}
     reco::ProjectedPointList&      getConvexHullExtremePoints() {return fConvexHullExtremePoints;}
     reco::ConvexHullKinkTupleList& getConvexHullKinkPoints()    {return fConvexHullKinkPoints;}
-    
-    
+
+
 private:
     reco::ProjectedPointList      fProjectedPointList;      ///< The input set of points projected onto plane encompassed by the hull
     reco::ProjectedPointList      fConvexHullPointList;     ///< The points on the convex hull
@@ -398,7 +398,7 @@ private:
  */
 class ClusterParameters;
 using ClusterParametersList = std::list<ClusterParameters>;
-    
+
 class ClusterParameters
 {
 public:
@@ -416,7 +416,7 @@ public:
         fHalfEdgeList.clear();
         fClusterParameters.clear();
     }
-    
+
     ClusterParameters(reco::HitPairClusterMap::iterator& mapItr) : fHitPairListPtr(mapItr->second)
     {
         fClusterParams.clear();
@@ -429,7 +429,7 @@ public:
         fVertexList.clear();
         fHalfEdgeList.clear();
     }
-    
+
     ClusterParameters(reco::HitPairListPtr& hitList) : fHitPairListPtr(hitList)
     {
         fClusterParams.clear();
@@ -442,22 +442,22 @@ public:
         fVertexList.clear();
         fHalfEdgeList.clear();
     }
-    
+
     ClusterParametersList& daughterList() {return fClusterParameters;}
-    
+
     void UpdateParameters(const reco::ClusterHit2D* hit)
     {
         fClusterParams[hit->WireID().Plane].UpdateParameters(hit);
     }
-    
+
     void addHit3D(const reco::ClusterHit3D* hit3D)
     {
         fHitPairListPtr.emplace_back(hit3D);
-        
+
         for(const auto& hit2D : hit3D->getHits())
             if (hit2D) fHit2DToHit3DListMap[hit2D].emplace_back(hit3D);
     }
-    
+
     void fillHit2DToHit3DListMap()
     {
         for(const auto& hit3D : fHitPairListPtr)
@@ -466,7 +466,7 @@ public:
                 if (hit2D) fHit2DToHit3DListMap[hit2D].emplace_back(hit3D);
         }
     }
-    
+
     reco::PlaneToClusterParamsMap& getClusterParams()       {return fClusterParams;}
     reco::Hit2DToHit3DListMap&     getHit2DToHit3DListMap() {return fHit2DToHit3DListMap;}
     reco::HitPairListPtr&          getHitPairListPtr()      {return fHitPairListPtr;}
@@ -505,7 +505,7 @@ using ClusterToHitPairSetPair = std::pair<reco::ClusterParameters*,HitPairSetPtr
 using ClusterToHitPairSetMap  = std::unordered_map<reco::ClusterParameters*,HitPairSetPtr>;
 using Hit2DToHit3DSetMap      = std::unordered_map<const reco::ClusterHit2D*,HitPairSetPtr>;
 using Hit2DToClusterMap       = std::unordered_map<const reco::ClusterHit2D*,ClusterToHitPairSetMap>;
-    
+
 }
 
 #endif //RECO_CLUSTER3D_H

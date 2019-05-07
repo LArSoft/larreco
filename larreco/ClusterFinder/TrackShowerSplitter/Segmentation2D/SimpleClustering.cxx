@@ -2,7 +2,7 @@
  *  @file   SimpleClustering.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Collect hits "touching" each other (next wire or consecutive ticks).
  */
 
@@ -99,7 +99,7 @@ const TVector2 tss::Cluster2D::min(void) const
 
 const TVector2 tss::Cluster2D::max(void) const
 {
-	
+
 	TVector2 maximum = fHits[0]->Point2D();
 
 	for (size_t i = 1; i < size(); ++i)
@@ -201,7 +201,7 @@ bool tss::SimpleClustering::hitsTouching(const tss::Cluster2D & c1, const tss::H
 {
 	for (size_t i = 0; i < c1.size(); i++)
 	{
-		if (hitsTouching(c1[i], h2)) return true;	
+		if (hitsTouching(c1[i], h2)) return true;
 	}
 	return false;
 }

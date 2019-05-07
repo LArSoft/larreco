@@ -2,7 +2,7 @@
  * \file CBAlgoStartInPoly.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoStartInPoly
  *
  * @author David Caratelli
@@ -24,15 +24,15 @@ namespace cmtool {
      If start point of one cluster inside other's polygon -> merge
   */
   class CBAlgoStartInPoly : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoStartInPoly();
-    
+
     /// Default destructor
     virtual ~CBAlgoStartInPoly(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -59,5 +59,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

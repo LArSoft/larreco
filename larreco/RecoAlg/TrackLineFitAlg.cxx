@@ -13,7 +13,6 @@ extern "C" {
 #include <sys/stat.h>
 }
 #include <stdint.h>
-#include <iostream>
 #include <iomanip>
 
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
@@ -32,7 +31,7 @@ namespace trkf{
   {
     // Linear fit using X as the independent variable. Hits to be fitted
     // are passed in the hits vector in a pair form (X, WireID). The
-    // fitted track position at XOrigin is returned in the Pos vector. 
+    // fitted track position at XOrigin is returned in the Pos vector.
     // The direction cosines are returned in the Dir vector.
     //
     // SVD fit adapted from $ROOTSYS/tutorials/matrix/solveLinear.C
@@ -42,14 +41,14 @@ namespace trkf{
 
     // assume failure
     ChiDOF = -1;
-    
+
     if(hitX.size() < 4) return;
     if(hitX.size() != hitWID.size()) return;
     if(hitX.size() != hitXErr.size()) return;
-    
+
     const unsigned int nvars = 4;
     unsigned int npts = hitX.size();
-  
+
     TMatrixD A(npts, nvars);
     // vector holding the Wire number
     TVectorD w(npts);
@@ -83,19 +82,19 @@ namespace trkf{
       // need at least two points in a plane
       if(ninpl[ipl] == 2) ++nok;
     }
-    
+
     // need at least 2 planes with at least two points
     if(nok < 2) return;
-    
+
     TDecompSVD svd(A);
     bool ok;
     TVectorD tVec = svd.Solve(w, ok);
 
     ChiDOF = 0;
-    
+
     // not enough points to calculate Chisq
     if(hitX.size() == 4) return;
-    
+
     double ypr, zpr, diff;
     for(iht = 0; iht < hitX.size(); ++iht) {
       cstat = hitWID[iht].Cryostat;
@@ -121,12 +120,12 @@ namespace trkf{
     werr2 *= werr2;
     ChiDOF /= werr2;
     ChiDOF /= (double)(npts - 4);
-    
+
     double norm = sqrt(1 + tVec[2] * tVec[2] + tVec[3] * tVec[3]);
     Dir[0] = 1 / norm;
     Dir[1] = tVec[2] / norm;
     Dir[2] = tVec[3] / norm;
-    
+
     Pos[0] = XOrigin;
     Pos[1] = tVec[0];
     Pos[2] = tVec[1];
@@ -140,7 +139,7 @@ namespace trkf{
     // A conservative fake for Pos[0]
     PosCov(0, 0) = PosCov(1,1);
 */
-    
+
   } // TrkLineFit()
 
 } // namespace trkf

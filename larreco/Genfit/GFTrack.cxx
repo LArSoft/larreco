@@ -21,13 +21,13 @@
 #include "larreco/Genfit/GFTrack.h"
 #include "TVirtualGeoTrack.h"
 
-genf::GFTrack::GFTrack(GFAbsTrackRep* defaultRep) 
+genf::GFTrack::GFTrack(GFAbsTrackRep* defaultRep)
   : fTrackReps(NULL),fPDG(2112), fCardinal_rep(0), fNextHitToFit(0)
 {
   addTrackRep(defaultRep);
 }
 
-genf::GFTrack::GFTrack() 
+genf::GFTrack::GFTrack()
   : fTrackReps(NULL), fCardinal_rep(0), fNextHitToFit(0)
 {
   //trackReps = new TObjArray(defNumTrackReps);
@@ -135,7 +135,7 @@ genf::GFTrack::mergeHits(GFTrack* trk){
 }
 
 
-void 
+void
 genf::GFTrack::setCandidate(const GFTrackCand& cand, bool doreset)
 {
   fCand=cand;
@@ -147,7 +147,7 @@ genf::GFTrack::setCandidate(const GFTrackCand& cand, bool doreset)
   }
 }
 
-void 
+void
 genf::GFTrack::fillGeoTrack(TVirtualGeoTrack* geotrk,unsigned int repid) const
 {
   GFAbsTrackRep* rep=getTrackRep(repid);
@@ -164,7 +164,7 @@ genf::GFTrack::fillGeoTrack(TVirtualGeoTrack* geotrk,unsigned int repid) const
 }
 
 
-void 
+void
 genf::GFTrack::getResiduals(unsigned int detId, // which detector?
 		    unsigned int dim,   // which projection?
 		    unsigned int repid,   // which trackrep ?
@@ -183,7 +183,7 @@ genf::GFTrack::getResiduals(unsigned int detId, // which detector?
       int repDim=rep->getDim();
       TMatrixT<Double_t> state(repDim,1);
       GFDetPlane pl=hit->getDetPlane(rep);
-      
+
       rep->extrapolate(pl,state);
       //rep->setState(state);
       //rep->setReferencePlane(pl);
@@ -192,7 +192,7 @@ genf::GFTrack::getResiduals(unsigned int detId, // which detector?
       //std::cout<<res<<std::endl;
 
       result.push_back(res);
-    } 
+    }
   }
 }
 
@@ -200,7 +200,7 @@ genf::GFTrack::getResiduals(unsigned int detId, // which detector?
 void genf::GFTrack::printBookkeeping(std::ostream& out /* = std::cout */) const {
   out << "GFTrack::printBookkeeping()" << std::endl;
   for(unsigned int i=0;i<getNumReps();++i){
-    out << "trackRep " << i << ":" << std::endl;    
+    out << "trackRep " << i << ":" << std::endl;
     fBookkeeping.at(i)->Print(out);
   }
 
@@ -212,7 +212,7 @@ void genf::GFTrack::Print(std::ostream& out /* = std::cout */) const {
     fBookkeeping.at(i)->Print(out);
   }
   out << "GFTrack has " << getNumHits() << " detector hits." << std::endl;
-  
+
 }
 
 

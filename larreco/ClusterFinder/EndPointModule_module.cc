@@ -4,33 +4,28 @@
 //
 // joshua.spitz@yale.edu
 //
-//  This algorithm is designed to find (weak) vertices from hits after deconvolution and hit finding. 
-//  A weak vertex is a vertex that has been found using a dedicated vertex finding algorithm only. A 
-//  strong vertex is a vertex that has been found using a dedicated vertex finding algorithm and matched 
+//  This algorithm is designed to find (weak) vertices from hits after deconvolution and hit finding.
+//  A weak vertex is a vertex that has been found using a dedicated vertex finding algorithm only. A
+//  strong vertex is a vertex that has been found using a dedicated vertex finding algorithm and matched
 //  to a crossing of two or more HoughLineFinder lines. The VertexMatch module finds strong vertices.
 ////////////////////////////////////////////////////////////////////////
 /// The algorithm is based on:
-///C. Harris and M. Stephens (1988). "A combined corner and edge detector". Proceedings of the 4th Alvey 
+///C. Harris and M. Stephens (1988). "A combined corner and edge detector". Proceedings of the 4th Alvey
 ///Vision Conference. pp. 147-151.
-///B. Morgan (2010). "Interest Point Detection for Reconstruction in High Granularity Tracking Detectors". 
+///B. Morgan (2010). "Interest Point Detection for Reconstruction in High Granularity Tracking Detectors".
 ///arXiv:1006.3012v1 [physics.ins-det]
 //Thanks to B. Morgan of U. of Warwick for comments and suggestions
 
 
 
-#include <iostream>
 extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 }
 
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
-#include "TMath.h"
-#include "TMath.h"
-#include <vector>
 #include <string>
 
 // Framework includes
@@ -42,8 +37,8 @@ extern "C" {
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -53,36 +48,28 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/EndPointAlg.h"
 
-//#ifndef EndPointModule_H
-//#define EndPointModule_H
-
-
-
 /// 2D end point reconstruction
 namespace cluster {
 
-  ///module to find 2D end points 
+  ///module to find 2D end points
  class EndPointModule :  public art::EDProducer {
-    
+
   public:
-    
-    explicit EndPointModule(fhicl::ParameterSet const& pset); 
+
+    explicit EndPointModule(fhicl::ParameterSet const& pset);
 
     void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
-    
+
   private:
 
     std::string fDBScanModuleLabel;
 
     EndPointAlg fEPAlg;            ///< object that contains the end point finding algorithm
-   
+
   };
-    
+
 }
-
-//#endif // EndPointModule_H
-
 
 
 namespace cluster {
@@ -97,23 +84,23 @@ namespace cluster {
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
   }
-  
+
   //-----------------------------------------------------------------------------
   void EndPointModule::reconfigure(fhicl::ParameterSet const& p)
   {
-    fDBScanModuleLabel = p.get<std::string>("DBScanModuleLabel");  
+    fDBScanModuleLabel = p.get<std::string>("DBScanModuleLabel");
     fEPAlg.reconfigure(p.get< fhicl::ParameterSet >("EndPointAlg"));
   }
-  
+
   //-----------------------------------------------------------------------------
-  
+
   void EndPointModule::produce(art::Event& evt)
   {
-  
+
     art::Handle< std::vector<recob::Cluster> > clusterListHandle;
     evt.getByLabel(fDBScanModuleLabel,clusterListHandle);
     //Point to a collection of vertices to output.
-    
+
     //.......................................
     art::PtrVector<recob::Cluster> clusIn;
     for(unsigned int ii = 0; ii < clusterListHandle->size(); ++ii)
@@ -121,26 +108,26 @@ namespace cluster {
         art::Ptr<recob::Cluster> cluster(clusterListHandle, ii);
         clusIn.push_back(cluster);
       }
-   
-    // make a std::vector<recob::Cluster> for the output of the 
+
+    // make a std::vector<recob::Cluster> for the output of the
     // Hough Transform
     std::vector<recob::EndPoint2D> vtxOut;
     std::vector< art::PtrVector<recob::Hit> > vtxHitsOut;
     size_t numvtx = fEPAlg.EndPoint(clusIn, vtxOut, vtxHitsOut, evt, fDBScanModuleLabel);
-  
+
     MF_LOG_DEBUG("Vertex") << "found " << numvtx << "vertices with VertexService";
-  
+
     //Point to a collection of vertices to output.
     std::unique_ptr<std::vector<recob::EndPoint2D> > vtxcol(new std::vector<recob::EndPoint2D>(vtxOut));
     std::unique_ptr< art::Assns<recob::EndPoint2D, recob::Hit> > assn(new art::Assns<recob::EndPoint2D, recob::Hit>);
-  
+
     for(size_t v = 0; v < vtxcol->size(); ++v)
       util::CreateAssn(*this, evt, *(vtxcol.get()), vtxHitsOut[v], *(assn.get()), v);
-    
-    evt.put(std::move(vtxcol));   
+
+    evt.put(std::move(vtxcol));
     evt.put(std::move(assn));
   }
-  
+
 
 } // end namespace
 
@@ -153,5 +140,5 @@ namespace cluster {
 namespace cluster{
 
   DEFINE_ART_MODULE(EndPointModule)
-  
-} 
+
+}

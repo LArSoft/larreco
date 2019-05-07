@@ -2,7 +2,7 @@
  *  @file   Utilities.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Some geometrical functions and sorting helpers.
@@ -279,7 +279,7 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 
 TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
     return TVector2(geom->TPC(tpc, cryo).Plane(plane).PlaneCoordinate(p), p.X());
 }
@@ -295,7 +295,7 @@ TVector2 pma::GetVectorProjectionToPlane(const TVector3& v, unsigned int plane, 
 
 TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	return TVector2(
@@ -306,7 +306,7 @@ TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int plane, 
 
 TVector2 pma::CmToWireDrift(float xw, float yd, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	return TVector2(

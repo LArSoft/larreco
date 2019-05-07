@@ -1,10 +1,10 @@
 /**
  *  @file   BeachLine.h
- * 
+ *
  *  @brief  Represents the beachline implemented as a self balancing binary search tree
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef BeachLine_h
 #define BeachLine_h
@@ -47,7 +47,7 @@ public:
         m_halfEdge(NULL),
         m_face(NULL)
     {}
-    
+
     BSTNode(IEvent* event) :
         m_depth(0),
         m_event(event),
@@ -62,7 +62,7 @@ public:
     {
         if (m_event) m_event->setBSTNode(this);
     }
-    
+
     BSTNode(IEvent*, BSTNode*, BSTNode*, BSTNode*);
 
     /**
@@ -81,10 +81,10 @@ public:
     BSTNode*          getPredecessor() const {return m_predecessor;}
     BSTNode*          getSuccessor()   const {return m_successor;}
     BSTNode*          getAssociated()  const {return m_associated;}
-    
+
     dcel2d::HalfEdge* getHalfEdge()    const {return m_halfEdge;}
     dcel2d::Face*     getFace()        const {return m_face;}
-    
+
     /**
      *  @brief Allow setting of the points
      */
@@ -94,13 +94,13 @@ public:
     void setPredecessor(BSTNode* node)         {m_predecessor = node;}
     void setSuccessor(BSTNode* node)           {m_successor   = node;}
     void setAssociated(BSTNode* node)          {m_associated  = node;}
-    
+
     void setHalfEdge(dcel2d::HalfEdge* half)   {m_halfEdge    = half;}
     void setFace(dcel2d::Face* face)           {m_face        = face;}
-    
+
     void setDepth(int depth)                   {m_depth       = depth;}
     void setDepth();
-    
+
     /**
      *  @brief Provide override definition for ordering
      */
@@ -118,19 +118,19 @@ private:
     dcel2d::HalfEdge* m_halfEdge;     // If a breakpoint then we associate halfedges
     dcel2d::Face*     m_face;         // If a leaf then we associated faces
 };
-    
+
 using BSTNodeList = std::list<BSTNode>;
 
 /**
  * @brief This defines the actual beach line. The idea is to implement this as a
  *        self balancing binary search tree.
  */
-    
+
 class BeachLine
 {
 public:
     BeachLine() : m_root(NULL) {m_nodeVec.clear();}
-    
+
     bool           isEmpty()                         const {return m_root == NULL;}
     void           setEmpty()                              {m_root = NULL;}
     const BSTNode* getTopNode()                      const {return m_root;}
@@ -141,25 +141,25 @@ public:
     int            countNodes()                      const;
     int            countLeaves()                     const;
     int            traverseBeach()                   const;
-    
+
 private:
     BSTNode* insertNewLeaf(IEvent*, BSTNode*);
-    
+
     BSTNode* findBestLeaf(const IEvent*, BSTNode*) const;
-    
+
     void countNodes(const BSTNode*, int&) const;
     void countLeaves(const BSTNode*, int&) const;
-    
+
     int traverseBeachLeft(BSTNode*) const;
     int traverseBeachRight(BSTNode*) const;
-    
+
     void checkBeachLine(double) const;
-    
+
     /**
      *  @brief This recovers the depth of longest branch in the tree below input node
      */
     int getTreeDepth(const BSTNode*) const;
-    
+
     /**
      *  @brief Tree balancing functions
      */
@@ -169,9 +169,9 @@ private:
 
     BSTNode*       m_root;      // the root of all evil, er, the top node
     BSTNodeList    m_nodeVec;   // Use this to keep track of the nodes
-    
+
     EventUtilities m_utilities;
 };
-    
+
 } // namespace lar_cluster3d
 #endif

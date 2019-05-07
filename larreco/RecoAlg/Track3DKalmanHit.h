@@ -16,7 +16,7 @@
 
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 
 
 #include "lardataobj/RecoBase/Hit.h"
@@ -32,15 +32,15 @@ namespace trkf {
       art::PtrVector<recob::Hit> hits;
       art::PtrVector<recob::Seed> seeds;
       std::vector<art::PtrVector<recob::Hit>> seedhits;
-      
+
       KalmanInput() {};
       explicit KalmanInput(art::PtrVector<recob::Hit>&& h): hits(std::move(h)){};
-      
+
    };
    struct KalmanOutput {
       std::deque<trkf::KGTrack> tracks;
    };
-   
+
    typedef typename std::vector<KalmanInput> KalmanInputs;
    typedef typename art::PtrVector<recob::Hit> Hits;
 }

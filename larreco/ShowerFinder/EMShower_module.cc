@@ -19,8 +19,8 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -50,7 +50,6 @@
 #include "TStyle.h"
 #include "TGraph2D.h"
 #include "TF2.h"
-#include "TTree.h"
 
 namespace shower {
   class EMShower;
@@ -75,7 +74,7 @@ private:
   bool fUseCNNtoIDEMHit;
   double fMinTrackLikeScore;
 
-  art::ServiceHandle<geo::Geometry> fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   int fShower;
@@ -221,7 +220,7 @@ void shower::EMShower::produce(art::Event& evt) {
             pfphits.insert(pfphits.end(), ClusterHits.begin(), ClusterHits.end());
           }
           if (pfphits.size()){//find hits
-            auto vout = hitResults->getOutput(pfphits); 
+            auto vout = hitResults->getOutput(pfphits);
             double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
             if (trk_or_em > 0){
               trk_like = vout[trkLikeIdx] / trk_or_em;
@@ -425,7 +424,7 @@ void shower::EMShower::produce(art::Event& evt) {
         }
 
 	int iok = 0;
-        
+
 	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, bestvtx, iok);
 	//shower.set_id(showerNum);
 	if (iok==0) {

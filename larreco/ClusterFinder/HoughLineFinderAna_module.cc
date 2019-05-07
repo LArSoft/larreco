@@ -5,13 +5,11 @@
 // joshua.spitz@yale.edu
 //
 //  This algorithm is designed to find lines (Houghclusters) from clusters found by DBSCAN after deconvolution and hit finding.
-//  The algorithm is based on: 
+//  The algorithm is based on:
 //  Queisser, A. "Computing the Hough Transform", C/C++ Users Journal 21, 12 (Dec. 2003).
-//  Niblack, W. and Petkovic, D. On Improving the Accuracy of the Hough Transform", Machine Vision and Applications 3, 87 (1990)  
+//  Niblack, W. and Petkovic, D. On Improving the Accuracy of the Hough Transform", Machine Vision and Applications 3, 87 (1990)
 ////////////////////////////////////////////////////////////////////////
 
-#include "TMath.h"
-#include <vector>
 #include <string>
 
 
@@ -30,14 +28,13 @@ extern "C" {
 #include "TDatabasePDG.h"
 #include "TSystem.h"
 
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
 #include <iostream>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
@@ -47,8 +44,8 @@ extern "C" {
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
@@ -66,23 +63,23 @@ extern "C" {
 class TH1F;
 class TTree;
 namespace cluster {
-   
+
   class HoughLineFinderAna : public art::EDAnalyzer {
-    
+
   public:
-    
-    explicit HoughLineFinderAna(fhicl::ParameterSet const& pset); 
+
+    explicit HoughLineFinderAna(fhicl::ParameterSet const& pset);
     ~HoughLineFinderAna();
-         
+
     void analyze(const art::Event&);
     void beginJob();
-     
+
   private:
 
     std::string fHoughModuleLabel;
     std::string fDigitModuleLabel;
     std::string fHitsModuleLabel;
-    std::string fDBScanModuleLabel;       
+    std::string fDBScanModuleLabel;
     TTree* ftree;
     int fm_run;          // Run number
     unsigned long int fm_run_timestamp;          // Run number
@@ -101,10 +98,10 @@ namespace cluster {
     float *fm_drifttimeZ;
     float *fm_widthZ;
     float *fm_upadcZ;
-      
+
   };
-  
-  
+
+
 } // end namespace cluster
 
 //#endif // HoughLineFinderAna_H
@@ -112,25 +109,25 @@ namespace cluster {
 
 namespace cluster {
 
-  HoughLineFinderAna::HoughLineFinderAna(fhicl::ParameterSet const& pset) 
-    : EDAnalyzer(pset) 
+  HoughLineFinderAna::HoughLineFinderAna(fhicl::ParameterSet const& pset)
+    : EDAnalyzer(pset)
     , fHoughModuleLabel (pset.get< std::string >("HoughModuleLabel"))
     , fDigitModuleLabel (pset.get< std::string >("DigitModuleLabel"))
     , fHitsModuleLabel  (pset.get< std::string >("HitsModuleLabel"))
     , fDBScanModuleLabel(pset.get< std::string >("DBScanModuleLabel"))
-    , fm_run(0) 
-    , fm_event(0) 
+    , fm_run(0)
+    , fm_event(0)
     , fm_plane(0)
     , fm_dbsize(0)
-    , fm_clusterid(0) 
-    , fm_wirespan(0) 
-    , fm_sizeClusterZ(10000) 
+    , fm_clusterid(0)
+    , fm_wirespan(0)
+    , fm_sizeClusterZ(10000)
     , fm_sizeHitZ(10000)
-    , fm_clusterslope(0) 
+    , fm_clusterslope(0)
     , fm_clusterintercept(0)
   {
   }
-  
+
   //-------------------------------------------------
   HoughLineFinderAna::~HoughLineFinderAna()
   {
@@ -141,14 +138,14 @@ namespace cluster {
     delete fm_upadcZ;
     delete fm_wireZ;
   }
-  
+
   //-------------------------------------------------
   void HoughLineFinderAna::beginJob()
   {
-  
-  
+
+
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     ftree= tfs->make<TTree>("HoughTree","HoughTree");
     fm_hitidZ = new int[fm_sizeHitZ];
     fm_mipZ = new float[fm_sizeHitZ];
@@ -173,35 +170,35 @@ namespace cluster {
     ftree->Branch("drifttimeZ",fm_drifttimeZ,"drifttitmeZ[numberHits]/F");
     ftree->Branch("widthZ",fm_widthZ,"widthZ[numberHits]/F");
   }
-  
-  
+
+
   void HoughLineFinderAna::analyze(const art::Event& evt)
   {
-  
+
     art::Handle< std::vector<recob::Cluster> > hlfListHandle;
     evt.getByLabel(fHoughModuleLabel,hlfListHandle);
     art::Handle< std::vector<recob::Hit> > hitListHandle;
     evt.getByLabel(fHitsModuleLabel,hitListHandle);
     art::Handle< std::vector<recob::Cluster> > dbscanListHandle;
     evt.getByLabel(fDBScanModuleLabel,dbscanListHandle);
-    
+
     art::FindManyP<recob::Hit> fmh(dbscanListHandle, evt, fDBScanModuleLabel);
     art::FindManyP<recob::Hit> fmhhl(hlfListHandle, evt, fHoughModuleLabel);
-  
-    art::PtrVector<recob::Cluster> clusters;  
+
+    art::PtrVector<recob::Cluster> clusters;
     art::PtrVector<recob::Cluster> dbclusters;
     //   art::PtrVector<recob::Hit> hits;// unused, as yet. EC, 5-Oct-2010.
-      
+
     for (size_t ii = 0; ii <  hlfListHandle->size(); ++ii){
       art::Ptr<recob::Cluster> cluster(hlfListHandle,ii);
       clusters.push_back(cluster);
     }
-    
+
     for (size_t ii = 0; ii <  dbscanListHandle->size(); ++ii){
       art::Ptr<recob::Cluster> dbcluster(dbscanListHandle,ii);
       dbclusters.push_back(dbcluster);
     }
-    
+
     MF_LOG_VERBATIM("HoughLineFinderAna") << "run    : " << evt.id().run();
     //std::cout << "subrun : " << evt.subRun() << std::endl;
     MF_LOG_VERBATIM("HoughLineFinderAna") << "event  : " << evt.id().event();
@@ -212,22 +209,22 @@ namespace cluster {
     unsigned int lastwire=0;
     fm_sizeClusterZ=0;
     fm_sizeHitZ=0;
-    fm_dbsize=0;  
-    art::ServiceHandle<geo::Geometry> geo;
+    fm_dbsize=0;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     for(auto view : geo->Views()){
 
       fm_dbsize       = 0;
       fm_sizeClusterZ = clusters.size();
-      
+
       for(size_t j = 0; j < dbclusters.size(); ++j) {
 	if(dbclusters[j]->View() == view){
 	  std::vector< art::Ptr<recob::Hit> > _dbhits = fmh.at(j);
 	  fm_dbsize += _dbhits.size();
 	  if(_dbhits.size() > 0) fm_plane   = _dbhits.at(0)->WireID().Plane;
-	} 
+	}
       }
-      
+
       for(size_t j = 0; j < clusters.size(); ++j) {
 	if(clusters[j]->View() == view){
 	  fm_clusterid=clusters[j]->ID();
@@ -240,31 +237,31 @@ namespace cluster {
 	    lastwire  = _hits[_hits.size()-1]->WireID().Wire;
 	    fm_wirespan = lastwire-firstwire;
 	    fm_sizeHitZ = _hits.size();
-  	    
-	    for(unsigned int i = 0; i < _hits.size(); ++i){	     
-	      
-	      fm_hitidZ[i]     = i;         
+
+	    for(unsigned int i = 0; i < _hits.size(); ++i){
+
+	      fm_hitidZ[i]     = i;
 	      fm_wireZ[i]      = _hits[i]->WireID().Wire;
 	      fm_mipZ[i]       = (double)_hits[i]->Integral();
 	      fm_drifttimeZ[i] = (double)_hits[i]->PeakTime();
 	      fm_widthZ[i]     = (double) (2. * _hits[i]->RMS());
 	      fm_upadcZ[i]     = (double)_hits[i]->Integral();
-	    } 
-	    
-	    ftree->Fill();  
+	    }
+
+	    ftree->Fill();
 	  }
 	}//end if in the correct view
       }// end loop over clusters
     }// end loop over views
-  
+
   }
-  
+
 }// end namespace
 
 
 namespace cluster{
 
   DEFINE_ART_MODULE(HoughLineFinderAna)
-  
+
 } // end namespace caldata
 

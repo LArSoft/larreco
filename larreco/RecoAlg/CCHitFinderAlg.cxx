@@ -20,12 +20,11 @@
 #include <iomanip>
 #include <sstream>
 #include <array>
-#include <vector>
 #include <utility> // std::pair<>, std::make_pair()
 #include <algorithm> // std::sort(), std::copy()
 
 // framework libraries
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
@@ -39,14 +38,13 @@
 
 // ROOT Includes
 #include "TGraph.h"
-#include "TMath.h"
 #include "TF1.h"
 
 
 namespace hit {
-  
+
   constexpr unsigned int CCHitFinderAlg::MaxGaussians; // definition
-  
+
 //------------------------------------------------------------------------------
   CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset):
     FitCache(new
@@ -64,7 +62,7 @@ namespace hit {
   {
     if(pset.has_key("MinSigInd")) throw art::Exception(art::errors::Configuration)
       << "CCHitFinderAlg: Using no-longer-valid fcl input: MinSigInd, MinSigCol, etc";
-    
+
     fMinPeak            = pset.get<std::vector<float>>("MinPeak");
     fMinRMS             = pset.get<std::vector<float>>("MinRMS");
     fMaxBumps           = pset.get<unsigned short>("MaxBumps");
@@ -81,12 +79,12 @@ namespace hit {
     fVTickRange         = pset.get< std::vector< short >>("VTickRange");
     fWWireRange         = pset.get< std::vector< short >>("WWireRange");
     fWTickRange         = pset.get< std::vector< short >>("WTickRange");
-    
+
     if(fMinPeak.size() != fMinRMS.size()) {
       mf::LogError("CCTF")<<"MinPeak size != MinRMS size";
       return;
     }
-    
+
     if (fMaxBumps > MaxGaussians) {
       // MF_LOG_WARNING will point the user to this line of code.
       // Any value of MaxGaussians can be used.
@@ -100,10 +98,10 @@ namespace hit {
         << " value and recompile.";
       fMaxBumps = MaxGaussians;
     } // if too many gaussians
-    
+
     FinalFitStats.Reset(MaxGaussians);
     TriedFitStats.Reset(MaxGaussians);
-    
+
     // sanity check for StudyHits mode
     if(fStudyHits) {
       if(fUWireRange.size() != 2 || fUTickRange.size() != 2 ||
@@ -123,15 +121,15 @@ namespace hit {
     wireID(wid),
     sigType(geom.SignalType(w->Channel()))
     {}
-  
+
 //------------------------------------------------------------------------------
   void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires) {
-  
+
     allhits.clear();
 
     unsigned short maxticks = 1000;
     float *ticks = new float[maxticks];
-    // define the ticks array used for fitting 
+    // define the ticks array used for fitting
     for(unsigned short ii = 0; ii < maxticks; ++ii) {
       ticks[ii] = ii;
     }
@@ -143,7 +141,7 @@ namespace hit {
 
 //    prt = false;
     lariov::ChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
@@ -173,7 +171,7 @@ namespace hit {
       }
       theWireNum = wids[0].Wire;
       HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
-      
+
       // minimum number of time samples
       unsigned short minSamples = 2 * fMinRMS[thePlane];
 
@@ -183,7 +181,7 @@ namespace hit {
       // edit this line to debug hit fitting on a particular plane/wire
 //      prt = (thePlane == 1 && theWireNum == 839);
       std::vector<float> signal(theWire.Signal());
-      
+
       unsigned short nabove = 0;
       unsigned short tstart = 0;
       unsigned short maxtime = signal.size() - 2;
@@ -240,7 +238,7 @@ namespace hit {
             // only used in StudyHits mode
             first = true;
             while(nHitsFit <= nMaxFit) {
-      
+
               FitNG(nHitsFit, npt, ticks, signl);
               if(fStudyHits && first && SelRAT) {
                 first = false;
@@ -286,12 +284,12 @@ namespace hit {
     float& chidof
   ) {
     // parameters: amplitude, mean, sigma
-    
+
     lar::util::GaussianFit<double> fitter; // probably "double" is overdoing
-    
+
     // apply a time shift so that the center of the time interval is 0
     const float time_shift = (ticks[npt - 1] + ticks[0]) / 2.F;
-    
+
     // fill the input data, no uncertainty
     for (size_t i = 0; i < npt; ++i) {
       if (signl[i] <= 0) {
@@ -302,60 +300,60 @@ namespace hit {
       // we could freely add a Poisson uncertainty (as third parameter)
       fitter.add(ticks[i] - time_shift, signl[i]);
     } // for
-    
+
     // we might have found that we don't want the fast fit after all...
     if (!fitter.FillResults(params, paramerrors)) {
       // something went wrong...
       MF_LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
       return false;
     }
-    
+
     // note that this is not the full chi^2, but it is the chi^2 of the
     // parabolic fit underlying the Gaussian one
     const double chi2 = fitter.ChiSquare();
     chidof = chi2 / fitter.NDF();
-    
+
     // remove the time shift
     params[1] += time_shift; // mean
-    
+
     // GP: inflate the uncertainties on the fit parameters according to chi2/NDF
     // (not sure if this is in any way justified)
     if (chidof > 1.)
       for (double& par: paramerrors) par *= std::sqrt(chidof);
-    
+
     return true;
   } // FastGaussianFit()
-  
-  
+
+
 /////////////////////////////////////////
-  void CCHitFinderAlg::FitNG(unsigned short nGaus, unsigned short npt, 
+  void CCHitFinderAlg::FitNG(unsigned short nGaus, unsigned short npt,
     float *ticks, float *signl)
   {
     // Fit the signal to n Gaussians
 
     dof = npt - 3 * nGaus;
-    
+
     chidof = 9999.;
 
     if(dof < 3) return;
     if(bumps.size() == 0) return;
-    
+
     // load the fit into a temp vector
     std::vector<double> partmp;
     std::vector<double> partmperr;
-    
+
     //
     // if it is possible, we try first with the quick single Gaussian fit
     //
     TriedFitStats.AddMultiGaus(nGaus);
-    
+
     bool bNeedROOTfit = (nGaus > 1) || !fUseFastFit;
     if (!bNeedROOTfit) {
       // so, we need only one puny Gaussian;
       std::array<double, 3> params, paramerrors;
-      
+
       TriedFitStats.AddFast();
-      
+
       if (FastGaussianFit(npt, ticks, signl, params, paramerrors, chidof)) {
         // success? copy the results in the proper structures
         partmp.resize(3);
@@ -364,18 +362,18 @@ namespace hit {
         std::copy(paramerrors.begin(), paramerrors.end(), partmperr.begin());
       }
       else bNeedROOTfit = true; // if we fail, let's schedule ROOT to back us up
-      
+
       if (!bNeedROOTfit) FinalFitStats.AddFast();
-      
+
     } // if we don't need ROOT to fit
-    
+
     if (bNeedROOTfit) {
       // we may land here either because the simple Gaussian fit did not work
       // (either failed, or we chose not to trust it)
       // or because the fit is multi-Gaussian
-      
+
       // define the fit string to pass to TF1
-      
+
       std::stringstream numConv;
       std::string eqn = "gaus";
       if(nGaus > 1) eqn = "gaus(0)";
@@ -386,8 +384,8 @@ namespace hit {
         eqn.append(numConv.str());
         eqn.append(")");
       }
-      
-      std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
+
+      auto Gn = std::make_unique<TF1>("gn",eqn.c_str());
       /*
       TF1* Gn = FitCache->Get(nGaus);
       */
@@ -412,7 +410,7 @@ namespace hit {
       <<" "<<(int)bumptime<<" "<<(int)fMinRMS[thePlane];
   */
       } // ii bumps
-  
+
       // search for other bumps that may be hidden by the already found ones
       for(unsigned short ii = bumps.size(); ii < nGaus; ++ii) {
         // bump height must exceed fMinPeak
@@ -439,23 +437,23 @@ namespace hit {
           Gn->SetParameter(index + 2, (double)fMinRMS[thePlane]);
           Gn->SetParLimits(index + 2, 1., 5*(double)fMinRMS[thePlane]);
         } // imbig > 0
-      } // ii 
-      
+      } // ii
+
       // W = set weights to 1, N = no drawing or storing, Q = quiet
       // B = bounded parameters
       fitn->Fit(&*Gn,"WNQB");
-      
+
       for(unsigned short ipar = 0; ipar < 3 * nGaus; ++ipar) {
         partmp.push_back(Gn->GetParameter(ipar));
         partmperr.push_back(Gn->GetParError(ipar));
       }
       chidof = Gn->GetChisquare() / ( dof * chinorm);
-      
+
       delete fitn;
     //  delete Gn;
-      
+
     } // if ROOT fit
-    
+
     // Sort by increasing time if necessary
     if(nGaus > 1) {
       std::vector< std::pair<unsigned short, unsigned short> > times;
@@ -543,12 +541,12 @@ namespace hit {
       dof = -1;
 //      if(prt) mf::LogVerbatim("CCHitFinder")<<"Bad fit parameters";
     }
-    
+
     return;
   } // FitNG
 
 /////////////////////////////////////////
-  void CCHitFinderAlg::MakeCrudeHit(unsigned short npt, 
+  void CCHitFinderAlg::MakeCrudeHit(unsigned short npt,
     float *ticks, float *signl)
   {
     // make a single crude hit if fitting failed
@@ -597,14 +595,14 @@ namespace hit {
   ) {
     // store the hits in the struct
     size_t nhits = par.size() / 3;
-    
+
     if(allhits.max_size() - allhits.size() < nhits) {
       mf::LogError("CCHitFinder")
         << "Too many hits: existing " << allhits.size() << " plus new " << nhits
         << " beyond the maximum " << allhits.max_size();
       return;
     }
-    
+
     if(nhits == 0) return;
 
     // fill RMS for single hits
@@ -624,7 +622,7 @@ namespace hit {
       const float charge = Sqrt2Pi * par[index] * par[index + 2];
       const float charge_err = SqrtPi
         * (parerr[index] * par[index + 2] + par[index] * parerr[index + 2]);
-      
+
       allhits.emplace_back(
         info.wire->Channel(),     // channel
         loTime,                   // start_tick
@@ -673,7 +671,7 @@ namespace hit {
     // flag = 0: Initialize study vectors
     // flag = 1: Set SelRat true if the Region Above Threshold resides within a wire/hit range
     // flag = 2: Find the maximum signal and calculate the RMS. Also find the low and high ticks of signals
-    //           in the wire range to allow a later calculation of the track angle. This isn't strictly 
+    //           in the wire range to allow a later calculation of the track angle. This isn't strictly
     //           necessary for the study and presumes that the user has selected compatible regions in each plane.
     // flag = 3: Accumulate the RMS from the first Gaussian fit
     // flag = 4: Calculate recommended fcl parameters and print the results to the screen
@@ -701,11 +699,11 @@ namespace hit {
       } // ii
       return;
     } // flag == 0
-    
+
     if(flag == 1) {
       SelRAT = false;
       if(thePlane == 0) {
-        if(theWireNum > fUWireRange[0] && theWireNum < fUWireRange[1] && 
+        if(theWireNum > fUWireRange[0] && theWireNum < fUWireRange[1] &&
            tstart     > fUTickRange[0] && tstart     < fUTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
@@ -713,7 +711,7 @@ namespace hit {
         return;
       } // thePlane == 0
       if(thePlane == 1) {
-        if(theWireNum > fVWireRange[0] && theWireNum < fVWireRange[1] && 
+        if(theWireNum > fVWireRange[0] && theWireNum < fVWireRange[1] &&
            tstart     > fVTickRange[0] && tstart     < fVTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
@@ -721,7 +719,7 @@ namespace hit {
         return;
       } // thePlane == 1
       if(thePlane == 2) {
-        if(theWireNum > fWWireRange[0] && theWireNum < fWWireRange[1] && 
+        if(theWireNum > fWWireRange[0] && theWireNum < fWWireRange[1] &&
            tstart     > fWTickRange[0] && tstart     < fWTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
@@ -729,7 +727,7 @@ namespace hit {
         return;
       } // thePlane == 2
     } // flag == 1
-    
+
     if(flag == 2) {
       if(!SelRAT) return;
       // in this section we find the low/hi wire/time for a signal. This can be used to calculate
@@ -742,7 +740,7 @@ namespace hit {
           imbig = ii;
         }
       } // ii
-      // require a significant PH 
+      // require a significant PH
       if(big > fMinPeak[0]) {
         // get the Lo info
         if(theWireNum < loWire[thePlane]) {
@@ -775,7 +773,7 @@ namespace hit {
         bumpRMS[thePlane] += std::sqrt(sumt / sum);
       } // bumps.size() == 1 && chidof < 9999.
       return;
-    } // flag == 2    
+    } // flag == 2
 
     // fill info for single hits
     if(flag == 3) {
@@ -789,7 +787,7 @@ namespace hit {
 
 
     if(flag == 4) {
-      // The goal is to adjust the fcl inputs so that the number of single 
+      // The goal is to adjust the fcl inputs so that the number of single
       // hits found is ~equal to the number of single bumps found for shallow
       // angle tracks. The ChiNorm inputs should be adjusted so the average
       //  chisq/DOF is ~1 in each plane.
@@ -816,7 +814,7 @@ namespace hit {
             <<std::setw(7)<<std::setprecision(2)
             <<bumpChi[ipl]*fChiNorms[ipl]
             <<std::endl;
-        } // 
+        } //
       } // ipl
       std::cout<<"nRAT is the number of Regions Above Threshold (RAT) used in the study.\n";
       std::cout<<"bCnt is the number of single bumps that were successfully fitted \n";
@@ -847,12 +845,12 @@ namespace hit {
     std::fill(MultiGausFits.begin(), MultiGausFits.end(), 0);
     FastFits = 0;
   } // CCHitFinderAlg::FitStats_t::Reset()
-  
-  
+
+
   void CCHitFinderAlg::FitStats_t::AddMultiGaus(unsigned int nGaus) {
     ++MultiGausFits[std::min(nGaus, (unsigned int) MultiGausFits.size()) - 1];
   } // CCHitFinderAlg::FitStats_t::AddMultiGaus()
-  
-  
+
+
 } // namespace hit
 

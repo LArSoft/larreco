@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOSTARTTIMECOMPAT_CXX
-#define RECOTOOL_CFALGOSTARTTIMECOMPAT_CXX
-
 #include "CFAlgoStartTimeCompat.h"
 #include <algorithm>
 
@@ -41,7 +38,7 @@ namespace cmtool {
     if ( clusters.size() != 3 )
       return -1;
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     //Get Start Wire [cm], Time [cm], Plane and Channel for each cluster in the 3 planes.
     double startWirecm0 = clusters.at(0)->GetParams().start_point.w;
@@ -195,6 +192,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }
-#endif

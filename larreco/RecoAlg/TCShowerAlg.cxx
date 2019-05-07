@@ -18,9 +18,9 @@ bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
   double lz = l.hits.size();
   double rz = r.hits.size();
-  
+
   // RSF: USED TO BE 50
-  int hitthres = 80; // TODO: ADJUST THIS THRESHOLD 
+  int hitthres = 80; // TODO: ADJUST THIS THRESHOLD
 
   if (lz > hitthres && rz <= hitthres) return false;
   else if (lz <= hitthres && rz > hitthres) return true;
@@ -52,10 +52,10 @@ namespace shower {
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
     dEdx.resize(2);
-    dEdxErr.resize(2);   
+    dEdxErr.resize(2);
 
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<pfpStuff> allpfps;
 
@@ -65,7 +65,7 @@ namespace shower {
       thispfp.hits.clear();
       thispfp.clsIDs.clear();
       thispfp.pfp = pfplist[i];
-      
+
       std::vector<art::Ptr<recob::Vertex> > thisvtxlist =  vtxpfp_fm.at(pfplist[i].key());
       if (thisvtxlist.size()) thispfp.vtx = thisvtxlist[0];
 
@@ -88,15 +88,15 @@ namespace shower {
 
       } // loop through clusters
 
-      if (clustersize.size() == 3) {	
+      if (clustersize.size() == 3) {
 	if (!thispfp.vtx) continue;
 	if (!thispfp.trk) continue;
 
 	allpfps.push_back(thispfp);
-	
+
 	double tick = detprop->ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0,0,2) );
         int wire = geom->WireCoordinate(thispfp.vtx->position().Y(), thispfp.vtx->position().Z(), geo::PlaneID(0,0,2));
-	
+
 	std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " vertex " << thispfp.vtx->ID() << " " << tick << ":" << wire << " z " << thispfp.vtx->position().Z() << std::endl;
 
       } // add pfp to list
@@ -140,8 +140,8 @@ namespace shower {
 	shwDir = -pfptrk->EndDirection<TVector3>();
       }
 
-      //      int tolerance = 100; // how many shower like cluster you need to define a shower              
-      int tolerance = 60; // how many shower like cluster you need to define a shower              
+      //      int tolerance = 100; // how many shower like cluster you need to define a shower
+      int tolerance = 60; // how many shower like cluster you need to define a shower
       double pullTolerance = 0.7; // hits should be evenly distributed around the track
       double maxDist = 20; // how far a shower like cluster can be from the track
       double minDistVert = 15; // exclude tracks near the vertex
@@ -152,7 +152,7 @@ namespace shower {
 
       if (pfphits.size() < 30) continue;
       //      if (pfphits.size() < 15) continue;
-      if (pfphits.size() > 500) continue;  
+      if (pfphits.size() > 500) continue;
       // adjust tolerances for short tracks
       if (pfphits.size() < 90) {
 	tolerance = 50;
@@ -160,7 +160,7 @@ namespace shower {
       }
       if (pfphits.size() > 400) tolerance = 200;
       else if (pfphits.size() > 100) tolerance = 100; // RSF added used to be 100, 100
- 
+
       // add pfp hits to shower
       for (size_t ii = 0; ii < pfphits.size(); ++ii) {
 	if ( addShowerHit(pfphits[ii], showerHits) ) showerHits.push_back(pfphits[ii]);
@@ -176,7 +176,7 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick1;
       std::map<geo::PlaneID, double> trk_wire1;
 
-      // second track point       
+      // second track point
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
@@ -212,9 +212,9 @@ namespace shower {
 	    isGoodCluster = true;
 	  }
 
-	} // loop over hits in cluster 
+	} // loop over hits in cluster
 
-	// add hits to shower  
+	// add hits to shower
 	if (isGoodCluster) {
 	  for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
 	    nShowerHits++;
@@ -226,19 +226,19 @@ namespace shower {
 	    if ( addShowerHit(cls_hitlist[jj], showerHits) ) showerHits.push_back(cls_hitlist[jj]);
 
 	  } // loop over hits in cluster
-	} // cluster contains hit close to track 
+	} // cluster contains hit close to track
 
       } // loop through cluserlist
 
-      showerHitPull /= nShowerHits; 
+      showerHitPull /= nShowerHits;
 
-      std::cout << "shower hits " << showerHits.size() << " " << nShowerHits << " shower pull " << showerHitPull << std::endl; 
+      std::cout << "shower hits " << showerHits.size() << " " << nShowerHits << " shower pull " << showerHitPull << std::endl;
 
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
 	std::cout << "SHOWER CANDIDATE" << std::endl;
 	// loop over hits to find those that aren't associated with any clusters
-	if (nShowerHits > 400) maxDist *= 2; // TODO: optimize this threshold              
+	if (nShowerHits > 400) maxDist *= 2; // TODO: optimize this threshold
 	for (size_t k = 0; k < hitlist.size(); ++k) {
 	  std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(hitlist[k].key());
 	  if (hit_clslist.size()) continue;
@@ -251,7 +251,7 @@ namespace shower {
 	for (size_t k = 0; k < clusterlist.size(); ++k) {
 	  std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[k].key());
 	  //	  if (clusterlist[k]->ID() < 0) continue;
-	  if (clusterlist[k]->ID() > 0 && cls_hitlist.size() > 50) continue; 
+	  if (clusterlist[k]->ID() > 0 && cls_hitlist.size() > 50) continue;
 
 	  double thisDist = maxDist;
 	  double thisMin = minDistVert;
@@ -276,9 +276,9 @@ namespace shower {
             else if (isGoodHit == 1) {
               ngoodhits++;
             }
-          } // loop over cluster hits 
+          } // loop over cluster hits
 
-	  double fracGood = (double)ngoodhits/nhits;  
+	  double fracGood = (double)ngoodhits/nhits;
 
 	  bool isGoodTrack = fracGood > 0.4;
 
@@ -315,7 +315,7 @@ namespace shower {
 	  unsigned int thisplane = vhit[h]->WireID().planeID().Plane;
 	  if (thisplane != plane) continue;
 
-	  if (!pitch) { // find pitch if it hasn't been calculated 
+	  if (!pitch) { // find pitch if it hasn't been calculated
 	    double wirePitch = geom->WirePitch(vhit[h]->WireID().planeID());
 	    double angleToVert = geom->WireAngleToVertical(geom->Plane(vhit[h]->WireID().planeID()).View(), vhit[h]->WireID().planeID()) - 0.5 * ::util::pi<>();
 
@@ -370,10 +370,10 @@ namespace shower {
     return 0;
   } // makeShowers
 
-  // ----------------------------------------------------- 
+  // -----------------------------------------------------
   // return -1 if hit is too close to track vertex or has a wide opening angle
   // return 1 if hit is close to the shower axis
-  // return 0 otherwise                                     
+  // return 0 otherwise
 
   int TCShowerAlg::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2){
 
@@ -382,15 +382,15 @@ namespace shower {
 
   } // goodHit
 
-  // -----------------------------------------------------   
+  // -----------------------------------------------------
   // return -1 if hit is too close to track vertex or has a wide opening angle
   // return 1 if hit is close to the shower axis
-  // return 0 otherwise   
-  
+  // return 0 otherwise
+
   int TCShowerAlg::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull){
 
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     double wirePitch = geom->WirePitch(hit->WireID());
     double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
@@ -431,19 +431,19 @@ namespace shower {
 
     return 0;
 
-  } // goodHit  
+  } // goodHit
 
   // -----------------------------------------------------
-  
+
   bool TCShowerAlg::addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits) {
 
     for (size_t i = 0; i < showerhits.size(); ++i) {
       if ( hit.key() == showerhits[i].key() ) return false;
     }
-    
+
     return true;
-    
-  } // addShowerHit  
+
+  } // addShowerHit
 
   // -----------------------------------------------------
 

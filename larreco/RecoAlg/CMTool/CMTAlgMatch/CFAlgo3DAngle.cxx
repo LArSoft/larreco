@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGO3DANGLE_CXX
-#define RECOTOOL_CFALGO3DANGLE_CXX
-
 #include "CFAlgo3DAngle.h"
 
 namespace cmtool {
@@ -45,21 +42,21 @@ namespace cmtool {
 	auto hits_1 = clusters.at(1)->GetParams().N_Hits ;
 	auto hits_2 = clusters.at(2)->GetParams().N_Hits ;
 
-	auto sumCharge0 = clusters.at(0)->GetParams().sum_charge; 
-	auto sumCharge1 = clusters.at(1)->GetParams().sum_charge; 
-	auto sumCharge2 = clusters.at(2)->GetParams().sum_charge; 
-	
+	auto sumCharge0 = clusters.at(0)->GetParams().sum_charge;
+	auto sumCharge1 = clusters.at(1)->GetParams().sum_charge;
+	auto sumCharge2 = clusters.at(2)->GetParams().sum_charge;
+
 	//Calculate angles theta and phi for cluster pairs across 2 planes
 	//Theta goes from -90 to 90, phi from -180 to 180
-	double phi_01    = 0;   	
+	double phi_01    = 0;
 	double theta_01  = 0;
-	double phi_12    = 0;   
+	double phi_12    = 0;
 	double theta_12  = 0;
 	double phi_02 	 = 0;
 	double theta_02  = 0;
 
 	double max_phi(0), middle_phi(0), min_phi(0);
-	double max_theta(0), middle_theta(0), min_theta(0); 
+	double max_theta(0), middle_theta(0), min_theta(0);
 	//When theta1, theta2, phi ratios are calcualted, find best 2
 	double max_ratio(0), middle_ratio(0), min_ratio(0);
 
@@ -69,57 +66,57 @@ namespace cmtool {
 
 	//Calculate phi and theta from first 2 planes; check if third plane is consistent
 	::util::GeometryUtilities geou;
-	geou.Get3DaxisN(plane_0,plane_1,angle_2d_0,angle_2d_1,phi_01,theta_01);	
-	geou.Get3DaxisN(plane_1,plane_2,angle_2d_1,angle_2d_2,phi_12,theta_12);	
+	geou.Get3DaxisN(plane_0,plane_1,angle_2d_0,angle_2d_1,phi_01,theta_01);
+	geou.Get3DaxisN(plane_1,plane_2,angle_2d_1,angle_2d_2,phi_12,theta_12);
 	geou.Get3DaxisN(plane_2,plane_0,angle_2d_2,angle_2d_0,phi_02,theta_02);
 
 	//Adjust the range of phis/thetas that are bigger than 360 or less than 0.
 	FixPhiTheta(phi_01,theta_01);
 	FixPhiTheta(phi_12,theta_12);
 	FixPhiTheta(phi_02,theta_02);
-	
+
 	//Order phi and theta for ratio calculation later
 	SetMaxMiddleMin(phi_01,phi_12,phi_02,max_phi,middle_phi,min_phi);
 	SetMaxMiddleMin(theta_01,theta_12,theta_02,max_theta,middle_theta,min_theta);
 
-	//Order hits from most to least 	
+	//Order hits from most to least
 	SetMaxMiddleMin(hits_0,hits_1,hits_2,max_hits,middle_hits,min_hits);
 
-	//Ratio for hits	
+	//Ratio for hits
 	double ratio_max_min    = 1;
 	double ratio_max_middle = 1;
 
 	//Ratio for theta angles
 	double ratio_theta1 = 1;
-	double ratio_theta2 = 1; 
+	double ratio_theta2 = 1;
 
 	//Ratio for phi--only 1 ratio because 2 of the angles come from collection plane 2
-	//and are thus the same. 
+	//and are thus the same.
 	double ratio_phi   = 1;
 
 	//Total ratio
-	double ratio 		= 1;		
+	double ratio 		= 1;
 
 	//This takes into account the fact that 0 and 360 having the same relative value (for phi; 0 and 180 for theta)
 	for(int i=0; i<2 ; i++){
 		while(min_phi + 360 < max_phi +_phi_cut && min_phi +360 > max_phi - _phi_cut)
-    	  {	
+    	  {
 			min_phi +=360 ;
 			SetMaxMiddleMin(max_phi, middle_phi, min_phi,max_phi,middle_phi,min_phi);
 		  }
 	  }
 
 	ratio_theta2 = min_theta / max_theta;
-	ratio_theta1 = middle_theta / max_theta; 
+	ratio_theta1 = middle_theta / max_theta;
 	ratio_phi = min_phi / max_phi ;
 
 	//Get the biggest ratios for the thetas and phi
 	SetMaxMiddleMin(ratio_phi, ratio_theta1, ratio_theta2, max_ratio, middle_ratio, min_ratio);
-	
-	ratio_max_min = min_hits / max_hits ;
-	ratio_max_middle = middle_hits / max_hits ;	
 
-	ratio =  max_ratio * sumCharge1* sumCharge2 * sumCharge0; //*  ; //* ratio_phi ; //* ratio_max_middle ; 
+	ratio_max_min = min_hits / max_hits ;
+	ratio_max_middle = middle_hits / max_hits ;
+
+	ratio =  max_ratio * sumCharge1* sumCharge2 * sumCharge0; //*  ; //* ratio_phi ; //* ratio_max_middle ;
 
 	//Test to make sure that max hits is not too much bigger than min
 	if( ratio_max_min <0.3)
@@ -146,7 +143,7 @@ namespace cmtool {
 		std::cout<<"2: 2dAngle: "<<clusters.at(2)->GetParams().cluster_angle_2d<<std::endl;
 		std::cout<<"\nTheta,Phi MaxMM : "<<max_theta<<", "<<middle_theta<<", "<<min_theta<<"\n\t\t"
 				 <<max_phi<<", "<<middle_phi<<", "<<min_phi;
-		
+
 		std::cout<<"\nStart End Points:  "<<clusters.at(0)->GetParams().start_point.t<<", "<<clusters.at(0)->GetParams().end_point.t<<"\n\t\t"
 		<<clusters.at(1)->GetParams().start_point.t<<", "<<clusters.at(1)->GetParams().end_point.t<<"\n\t\t "
 		<<clusters.at(2)->GetParams().start_point.t<<", "<<clusters.at(2)->GetParams().end_point.t;
@@ -163,13 +160,13 @@ namespace cmtool {
 	//	std::cout<<"\nNEW CLUSTERS PAIRS NOW\n\n\n"<<std::endl<<std::endl;
 		std::cout<<"\n\n\n";
 	}
-	
+
 	return(ratio > _ratio_cut ? ratio : -1) ;
   }
 
  //--------------------------------
   void CFAlgo3DAngle::FixPhiTheta(double &phi, double &theta)
- //--------------------------------	
+ //--------------------------------
    {
 	//	while(phi <= 0)
 	//		phi += 360 ;
@@ -182,11 +179,11 @@ namespace cmtool {
 		if(theta != -999)
 			theta += 180 ;
 
-	}	
+	}
 
 
   //------------------------------
-  void CFAlgo3DAngle::SetMaxMiddleMin(const double first, const double second, const double third, double &max, double &middle, double &min) 
+  void CFAlgo3DAngle::SetMaxMiddleMin(const double first, const double second, const double third, double &max, double &middle, double &min)
   //------------------------------
   {
 
@@ -201,18 +198,18 @@ namespace cmtool {
 	else if (first > third && first < second){
 		max = second ;
 		middle = first ;
-		min = third ; 
+		min = third ;
 		}
 	else if(first <second && first <third)
 		min = first ;
-	
+
 
 	if (max == first && second > third){
-		middle = second ; 
+		middle = second ;
 		min = third    ;
 		}
 	else if (max ==first && third > second){
-		middle = third ;	
+		middle = third ;
 		min = second 	;
 		}
 
@@ -237,13 +234,13 @@ namespace cmtool {
 		middle = first ;
 		min = second ;
 		}
-	
+
 	else if( first ==third && first > second){
 		max = first;
-		middle = third; 	
-		min = second; 
+		middle = third;
+		min = second;
 		}
-	
+
 	else if( first == third && first < second){
 		max = second ;
 		middle = first;
@@ -252,16 +249,16 @@ namespace cmtool {
 
 	else if( second ==third && second < first){
 		max = first;
-		middle = third; 	
-		min = second; 
+		middle = third;
+		min = second;
 		}
-	
+
 	else if( second == third && second > first){
 		max = second;
 		middle = third;
 		min = first ;
 		}
-	
+
 
 }
 
@@ -272,6 +269,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }
-#endif

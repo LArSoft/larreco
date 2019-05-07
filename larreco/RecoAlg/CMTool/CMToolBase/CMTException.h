@@ -2,7 +2,7 @@
  * \file CMTException.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for exception classes in CMTException
  *
  * @author kazuhiro
@@ -30,7 +30,7 @@ namespace cmtool {
     {}
 
     virtual ~CMTException() throw(){};
-    virtual const char* what() const throw() 
+    virtual const char* what() const throw()
     {return _msg.c_str(); }
 
   private:
@@ -40,5 +40,5 @@ namespace cmtool {
 
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

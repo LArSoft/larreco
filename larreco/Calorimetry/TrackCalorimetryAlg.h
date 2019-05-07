@@ -6,7 +6,7 @@
  *
  * Description: Algorithm that produces a calorimetry object given a track
  * Input:       recob::Track, Assn<recob::Spacepoint,recob::Track>, Assn<recob::Hit,recob::Track>
- * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>) 
+ * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>)
 */
 #include <iostream>
 
@@ -36,7 +36,7 @@ class calo::TrackCalorimetryAlg{
   using Providers_t = lar::ProviderPack<
     geo::GeometryCore, detinfo::LArProperties, detinfo::DetectorProperties
     >;
-  
+
   TrackCalorimetryAlg(fhicl::ParameterSet const& p);
   void reconfigure(fhicl::ParameterSet const& p);
 
@@ -64,9 +64,9 @@ class calo::TrackCalorimetryAlg{
     TVector3 xyz;
     float path_fraction;
     void Print() const
-    { 
+    {
       std::cout << "\tCharge " << charge
-		<< "  dQdx " << dQdx 
+		<< "  dQdx " << dQdx
 		<< "  dEdx " << dEdx
 		<< "  pitch " << pitch
 		<< "  (x,y,z) (" << xyz.X() << "," << xyz.Y() << "," << xyz.Z() << ")"
@@ -87,7 +87,7 @@ class calo::TrackCalorimetryAlg{
 
   void AnalyzeHit(recob::Hit const&,
 		  recob::Track const&,
-		  std::vector< std::pair<geo::WireID,float> > const&, 
+		  std::vector< std::pair<geo::WireID,float> > const&,
 		  std::vector<float> const&,
 		  HitPropertiesMultiset_t &,
 		  geo::GeometryCore const&);

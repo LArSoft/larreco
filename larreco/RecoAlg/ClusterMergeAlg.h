@@ -15,8 +15,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
@@ -47,33 +47,33 @@ namespace cluster
      A utility struct for cluster-wise analysis information for merging
   */
   struct cluster_merge_info {
-    
+
     unsigned int cluster_index; ///< Input cluster ID
     geo::View_t  view;          ///< Wire plane ID
     geo::PlaneID planeID;       ///< plane ID
-    
+
     float  start_wire;          ///< Vertex wire
     float  start_time;          ///< Vertex time
     float  end_wire;            ///< End point wire
     float  end_time;            ///< End point time
-    
+
     double start_wire_err;      ///< Vertex wire error
     double start_time_err;      ///< Vertex time error
     double end_wire_err;        ///< End point wire error
     double end_time_err;        ///< End point time error
-    
+
     float  angle;               ///< 2D starting angle (in radians)
-    
+
     /// Default constructor
     cluster_merge_info(): planeID() {
-      
+
       cluster_index = 0xffffffff;
       view = geo::kUnknown;
       start_wire = start_time = end_wire = end_time = -1;
       start_wire_err = start_time_err = end_wire_err =end_time_err = -1;
-      
+
     };
-    
+
     /// Initialization from a recob::Cluster
     explicit cluster_merge_info(const recob::Cluster& cl)
       :cluster_index(cl.ID())
@@ -88,7 +88,7 @@ namespace cluster
   };
 
   class ClusterMergeAlg {
-    
+
   public:
 
     /// Default constructor with fhicl parameters
@@ -156,7 +156,7 @@ namespace cluster
        Function to compute a distance between a 2D point (point_x, point_y) to a 2D finite line segment
        (start_x, start_y) => (end_x, end_y).
     */
-    double ShortestDistanceSquared(double point_x, double point_y, 
+    double ShortestDistanceSquared(double point_x, double point_y,
 				   double start_x, double start_y,
 				   double end_x,   double end_y  ) const;
 
@@ -166,7 +166,7 @@ namespace cluster
     */
     void PrintClusterVars(cluster_merge_info clus_info) const;
 
-    /** 
+    /**
 	Utility function to check if an index is already somewhere inside of _cluster_sets_v vector
 	returns the location of the element vector in _cluster_sets_v that contains the index
 	and returns -1 if the index is not in _cluster_sets_v anywhere
@@ -238,7 +238,7 @@ namespace cluster
     */
     std::vector<std::vector<unsigned int> > _cluster_sets_v;
 
-    std::vector<cluster::cluster_merge_info> _u_clusters; ///< Input U-plane clusters' information 
+    std::vector<cluster::cluster_merge_info> _u_clusters; ///< Input U-plane clusters' information
     std::vector<cluster::cluster_merge_info> _v_clusters; ///< Input V-plane clusters' information
     std::vector<cluster::cluster_merge_info> _w_clusters; ///< Input W-plane clusters' information
 
@@ -248,6 +248,6 @@ namespace cluster
     double _max_2D_dist2;              //in cm^2
     double _min_distance_unit;         //in cm^2
   }; // class ClusterMergeAlg
-  
+
 } //namespace cluster
 #endif

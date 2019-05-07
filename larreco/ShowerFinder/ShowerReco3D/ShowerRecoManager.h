@@ -2,7 +2,7 @@
  * \file ShowerRecoManager.h
  *
  * \ingroup ShowerReco3D
- * 
+ *
  * \brief Class def header for a class ShowerRecoManager
  *
  * @author kazuhiro
@@ -31,12 +31,12 @@ namespace showerreco {
      doxygen documentation!
   */
   class ShowerRecoManager{
-    
+
   public:
-    
+
     /// Default constructor
     ShowerRecoManager();
-    
+
     /// Default destructor
     ~ShowerRecoManager(){}
 
@@ -52,11 +52,11 @@ namespace showerreco {
     void Reconstruct (const std::vector<std::vector<util::PxHit> >& clusters,
 		      const ClusterAss_t& ass,
 		      std::vector< ::recob::Shower>& showers);
-    
+
     ::cmtool::CMatchManager& MatchManager() { return *fMatchMgr; }
 
   private:
-    
+
     /// Boolean flag to whether or not to run matching
     bool fMatch;
 
@@ -68,10 +68,10 @@ namespace showerreco {
 
     void Process(const ClusterAss_t& ass,
 		 std::vector< ::recob::Shower>& showers);
-    
+
   };
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

@@ -21,7 +21,7 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 
 // LArsoft includes
 #include "lardataobj/MCBase/MCShower.h"
@@ -88,7 +88,7 @@ public:
 private:
 
   // Declare member data here.
-  
+
   // read from fchicl: Input Tag
   std::string fMCTruthModuleLabel;
   std::string fHitModuleLabel;
@@ -136,9 +136,9 @@ private:
   double MC_lepton_theta;
   int    MC_leptonID;
   int    MC_LeptonTrack;
-  
+
   double MC_incoming_E; // incoming neutrino energy
-  double MC_lepton_startEnergy; 
+  double MC_lepton_startEnergy;
 
   // recob::Shower
   int n_recoShowers;
@@ -165,17 +165,17 @@ private:
 
   // TTree
   TTree *fEventTree;
-  
+
   TH1D *h_Ev_den; // incoming neutrino energy from MC. den: denominator
   TH1D *h_Ev_num; // recon. num: numerator
-  
+
   TH1D *h_Ee_den; // primary electron energy from MC
-  TH1D *h_Ee_num;   
+  TH1D *h_Ee_num;
 
   TEfficiency* h_Eff_Ev = 0;
   TEfficiency* h_Eff_Ee = 0;
-  
-  
+
+
 };
 
 // =====================================================================================
@@ -239,13 +239,13 @@ void NuShowerEff::beginJob(){
   fFidVolYmax = maxy - fFidVolCutY;
   fFidVolZmin = minz + fFidVolCutZ;
   fFidVolZmax = maxz - fFidVolCutZ;
-  
-  //cout << "\nFiducial Volume (length unit: cm):\n" 
+
+  //cout << "\nFiducial Volume (length unit: cm):\n"
        //<< "\t" << fFidVolXmin<<"\t< x <\t"<<fFidVolXmax<<"\n"
        //<< "\t" << fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
        //<< "\t" << fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   double E_bins[21] = {0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
 //  double theta_bins[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
@@ -269,7 +269,7 @@ void NuShowerEff::beginJob(){
 
     fEventTree->Branch("MC_incoming_E", &MC_incoming_E);
     fEventTree->Branch("MC_lepton_startEnergy", &MC_lepton_startEnergy);
-  
+
     fEventTree->Branch("n_showers", &n_recoShowers);
     fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
     //fEventTree->Branch("sh_purity", &sh_purity, "sh_purity[n_showers]/D");
@@ -321,12 +321,12 @@ void NuShowerEff::analyze(art::Event const & e)
   std::vector<art::Ptr<simb::MCTruth>> MCtruthlist;
   art::fill_ptr_vector(MCtruthlist, MCtruthHandle);
   art::Ptr<simb::MCTruth> MCtruth;
-  // MC (neutrino) interaction 
+  // MC (neutrino) interaction
   int MCinteractions = MCtruthlist.size();
   //cout << "\nMCinteractions: " << MCinteractions << endl;
   for (int i=0; i<MCinteractions; i++){
     MCtruth = MCtruthlist[i];
-    if ( MCtruth->NeutrinoSet() ) {  // NeutrinoSet(): whether the neutrino information has been set 
+    if ( MCtruth->NeutrinoSet() ) {  // NeutrinoSet(): whether the neutrino information has been set
       simb::MCNeutrino nu = MCtruth->GetNeutrino();// GetNeutrino(): reference to neutrino info
       if( nu.CCNC()==0 ) MC_isCC = 1;
       else if (nu.CCNC()==1) MC_isCC = 0;
@@ -344,37 +344,37 @@ void NuShowerEff::analyze(art::Event const & e)
       MC_lepton_PDG = lepton.PdgCode();
 
       MC_incoming_E = MC_incoming_P[3];
-      
+
       //cout << "\tMCinteraction: " << i              << "\n\t"
-      //     << "neutrino PDG: "  << MC_incoming_PDG  << "\n\t" 
+      //     << "neutrino PDG: "  << MC_incoming_PDG  << "\n\t"
       //     << "MC_lepton_PDG: " << MC_lepton_PDG    << "\n\t"
       //     << "MC_channel: "    << MC_channel       << "\n\t"
       //     << "incoming E: "    << MC_incoming_P[3] << "\n\t"
       //     << "MC_vertex: " << MC_vertex[0] << " , " << MC_vertex[1] << " , " <<MC_vertex[2] << " , " <<MC_vertex[3] << endl;
-    }   
+    }
     // MCTruth Generator Particles
     int nParticles =  MCtruthlist[0]->NParticles();
     //cout << "\n\tNparticles: " << MCtruth->NParticles() <<endl;
     for (int i=0; i<nParticles; i++){
       simb::MCParticle pi = MCtruthlist[0]->GetParticle(i);
       //cout << "\tparticle: " << i << "\n\t\t"
-           //<< "Pdgcode: " << pi.PdgCode() << "; Mother: " << pi.Mother() << "; TrackId: " << pi.TrackId() << endl;   
+           //<< "Pdgcode: " << pi.PdgCode() << "; Mother: " << pi.Mother() << "; TrackId: " << pi.TrackId() << endl;
     // Mother(): mother = -1 means that this particle has no mother
     // TrackId(): same as the index in the MCParticleList
-    }  
+    }
   }
 
   // Geant4: MCParticle -> lepton (e)
   // Note: generator level MCPartilceList is different from Geant4 level MCParticleList.  MCParticleList(Geant4) contains all particles in MCParticleList(generator) but their the indexes (TrackIds) are different.
-  simb::MCParticle *MClepton = NULL; //Geant4 level 
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  simb::MCParticle *MClepton = NULL; //Geant4 level
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   const sim::ParticleList& plist = pi_serv->ParticleList();
   simb::MCParticle *particle=0;
 
   for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end();++ipar){
     particle = ipar->second; // first is index(TrackId), second is value (point address)
 
-    auto & truth = pi_serv->ParticleToMCTruth_P(particle);// beam neutrino only 
+    auto & truth = pi_serv->ParticleToMCTruth_P(particle);// beam neutrino only
     if ( truth->Origin()==simb::kBeamNeutrino && std::abs(particle->PdgCode()) == fLeptonPDGcode &&  particle->Mother()==0){ // primary lepton; Mother() = 0 means e^{-} for v+n=e^{-}+p
       const TLorentzVector& lepton_momentum =particle->Momentum(0);
       const TLorentzVector& lepton_position =particle->Position(0);
@@ -385,7 +385,7 @@ void NuShowerEff::analyze(art::Event const & e)
       lepton_positionEnd.GetXYZT(MC_lepton_endXYZT);
       lepton_momentumEnd.GetXYZT(MC_lepton_endMomentum);
       MC_leptonID = particle->TrackId();
-      
+
       MC_lepton_startEnergy = MC_lepton_startMomentum[3];
       //cout << "\nGeant Track ID for electron/positron: " << endl;
       //cout << "\tMClepton PDG: " << particle->PdgCode() <<  " ; MC_leptonID: " << MC_leptonID << endl;
@@ -400,7 +400,7 @@ void NuShowerEff::analyze(art::Event const & e)
   isFiducial = insideFV( MC_vertex);
   if (isFiducial) {
     //cout <<"\nInfo: Interaction is inside the Fiducial Volume.\n" << endl;
-  } 
+  }
   else {
     //cout << "\n********Interaction is NOT inside the Fiducial Volume. RETURN**********" << endl;
     return;
@@ -408,7 +408,7 @@ void NuShowerEff::analyze(art::Event const & e)
 
   if (MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))) {
     if (MClepton){
-      h_Ev_den->Fill(MC_incoming_P[3]); 
+      h_Ev_den->Fill(MC_incoming_P[3]);
       h_Ee_den->Fill(MC_lepton_startMomentum[3]);
     }
   }
@@ -420,8 +420,8 @@ void NuShowerEff::analyze(art::Event const & e)
    //   << "\tSubRun  : " << SubRun << "\n"
     //  << "\tMC_incoming_E: " << MC_incoming_E << endl;
  // }
- 
-  // recob::Hit 
+
+  // recob::Hit
   // ---- build a map for total hit charges corresponding to MC_leptonID (Geant4) ----
 
   art::Handle<std::vector<recob::Hit>> hitHandle;
@@ -433,13 +433,13 @@ void NuShowerEff::analyze(art::Event const & e)
   //cout << "\tall_hits.size(): " << all_hits.size() << endl;
 
   double ehit_total =0.0;
-  
+
   art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> fmhitmc(hitHandle, e, fTruthMatchDataModuleLabel);// need #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
-  
+
   std::map<int,double> all_hits_trk_Q;//Q for charge: Integral()
   for (size_t i=0; i <  all_hits.size(); ++i) {
     art::Ptr<recob::Hit> hit = all_hits[i];
-    auto particles = fmhitmc.at(hit.key());// particles here is a pointer. A hit may come from multiple particles. 
+    auto particles = fmhitmc.at(hit.key());// particles here is a pointer. A hit may come from multiple particles.
     auto hitmatch = fmhitmc.data(hit.key());// metadata
     double maxenergy = -1e9;
     int hit_TrackId = 0;
@@ -458,13 +458,13 @@ void NuShowerEff::analyze(art::Event const & e)
   }
   //cout << "....ehit_total: " << ehit_total << endl;
   //cout << "\tall_hits_trk_Q.size(): " << all_hits_trk_Q.size() << endl;
-  
+
 
   //--------- Loop over all showers: find the associated hits for each shower ------------
   const simb::MCParticle *MClepton_reco = NULL;
- 
-  double temp_sh_ehit_Q = 0.0; 
-  double temp_sh_allHit_Q = 0.0; 
+
+  double temp_sh_ehit_Q = 0.0;
+  double temp_sh_allHit_Q = 0.0;
   int temp_sh_TrackId = -999;
   count_primary_e_in_Event = 0;
 
@@ -483,7 +483,7 @@ void NuShowerEff::analyze(art::Event const & e)
   for (int i=0; i<n_recoShowers;i++){ // loop over showers
     //const simb::MCParticle *particle;
     sh_hasPrimary_e[i] = 0;
-    
+
     std::map<int,double> sh_hits_trk_Q;//Q for charge: Integral()
     sh_hits_trk_Q.clear();
 
@@ -504,11 +504,11 @@ void NuShowerEff::analyze(art::Event const & e)
     std::vector<art::Ptr<recob::Hit>> sh_hits;// associated hits for ith shower
     //In mcc8, if we get hits associated with the shower through shower->hits association directly for pandora, the hit list is incomplete. The recommended way of getting hits is through association with pfparticle:
     //shower->pfparticle->clusters->hits
-    //----------getting hits through PFParticle (an option here)------------------- 
+    //----------getting hits through PFParticle (an option here)-------------------
     if (fHitShowerThroughPFParticle) {
-      //cout << "\n==== Getting Hits associated with shower THROUGH PFParticle ====\n" << endl;      
+      //cout << "\n==== Getting Hits associated with shower THROUGH PFParticle ====\n" << endl;
       //cout << "\nHits in a shower through PFParticle:\n" << endl;
-      
+
       // PFParticle
       art::Handle<std::vector<recob::PFParticle> > pfpHandle;
       std::vector<art::Ptr<recob::PFParticle> > pfps;
@@ -519,10 +519,10 @@ void NuShowerEff::analyze(art::Event const & e)
       if (e.getByLabel(fShowerModuleLabel, clusterHandle)) art::fill_ptr_vector(clusters, clusterHandle);
       art::FindManyP<recob::PFParticle> fmps(showerHandle, e, fShowerModuleLabel);// PFParticle in Shower
       art::FindManyP<recob::Cluster> fmcp(pfpHandle, e, fShowerModuleLabel); // Cluster vs. PFParticle
-      art::FindManyP<recob::Hit> fmhc(clusterHandle, e, fShowerModuleLabel); // Hit in Shower 
+      art::FindManyP<recob::Hit> fmhc(clusterHandle, e, fShowerModuleLabel); // Hit in Shower
       if (fmps.isValid()){
         std::vector<art::Ptr<recob::PFParticle>> pfs = fmps.at(i);
-        for (size_t ipf = 0; ipf<pfs.size(); ++ipf){ 
+        for (size_t ipf = 0; ipf<pfs.size(); ++ipf){
           if (fmcp.isValid()){
             std::vector<art::Ptr<recob::Cluster>> clus = fmcp.at(pfs[ipf].key());
             for (size_t iclu = 0; iclu<clus.size(); ++iclu){
@@ -530,19 +530,19 @@ void NuShowerEff::analyze(art::Event const & e)
                 std::vector<art::Ptr<recob::Hit>> hits = fmhc.at(clus[iclu].key());
                 for (size_t ihit = 0; ihit<hits.size(); ++ihit){
                   sh_hits.push_back(hits[ihit]);
-                } 
-              } 
-            } 
-          } 
+                }
+              }
+            }
+          }
         }
-      } 
+      }
 
-     // cout << "\tsh_hits.size(): " << sh_hits.size() << endl; 
+     // cout << "\tsh_hits.size(): " << sh_hits.size() << endl;
 
      // for (size_t k=0;k<sh_hits.size();k++){
      //   art::Ptr<recob::Hit> hit = sh_hits[k];
      //   cout << k << "\thit.key(): " << hit.key() << endl;
-     //   cout << k << "\thit->Integral(): " << hit->Integral() << endl;  
+     //   cout << k << "\thit->Integral(): " << hit->Integral() << endl;
      // }
     } else {
 
@@ -550,11 +550,11 @@ void NuShowerEff::analyze(art::Event const & e)
       sh_hits = sh_hitsAll.at(i);// associated hits for ith shower (using association of hits and shower)
       //cout << "\t\tsh_hits.size(): " << sh_hits.size() << endl;
     } // we only choose one method for hits associated with shower here.
-    
-    
+
+
     for (size_t k=0; k <  sh_hits.size(); ++k) {
       art::Ptr<recob::Hit> hit = sh_hits[k];
-      auto particles = fmhitmc.at(hit.key()); 
+      auto particles = fmhitmc.at(hit.key());
       auto hitmatch = fmhitmc.data(hit.key());
       double maxenergy = -1e9;
       int hit_TrackId = 0;
@@ -570,34 +570,34 @@ void NuShowerEff::analyze(art::Event const & e)
       }
       if (hit_TrackId == MC_leptonID) {
         sh_ehit_Q[i] += hit->Integral();
-      } 
-      sh_allhit_Q[i] += hit->Integral(); 
+      }
+      sh_allhit_Q[i] += hit->Integral();
       sh_hits_trk_Q[hit_TrackId] += hit->Integral();// Q from the same hit_TrackId
     }
     //cout << "\tsh_hits_trk_Q.size(): " << sh_hits_trk_Q.size() << endl;
-    //showers_hits_trk_Q.push_back(sh_hits_trk_Q); 
- 
+    //showers_hits_trk_Q.push_back(sh_hits_trk_Q);
+
     // get TrackId for a shower
     double maxshowerQ = -1.0e9;
     //sh_TrackId[i] = 0;
     for(std::map<int,double>::iterator k = sh_hits_trk_Q.begin(); k != sh_hits_trk_Q.end(); k++) {
-      //cout << k->first << "\t;\t" << k->second << endl;  
+      //cout << k->first << "\t;\t" << k->second << endl;
       if (k->second > maxshowerQ) {
         maxshowerQ = k->second;
        sh_TrackId[i] = k->first;//assign a sh_TrackId with TrackId from hit(particle) that contributing largest to the shower.
       }
     }
-    
+
     //---------------------------------------------------------------------------------
     //cout << "\nRecon Shower: " << i << endl;
     //cout << "\t*****shower primary TrackId: " << sh_TrackId[i] << endl;
-    
+
     if (sh_TrackId[i] == MC_leptonID && sh_ehit_Q[i] >0) {
       temp_sh_TrackId = sh_TrackId[i];
       sh_hasPrimary_e[i] = 1;
       count_primary_e_in_Event += 1;
       MClepton_reco = pi_serv->TrackIdToParticle_P(sh_TrackId[i]);
-      
+
       if (sh_allhit_Q[i] >0 && sh_ehit_Q[i] <= sh_allhit_Q[i]){
         sh_purity[i] = sh_ehit_Q[i]/sh_allhit_Q[i];
         //cout << "\t*****shower purity: " << sh_purity[i] << endl;
@@ -608,10 +608,10 @@ void NuShowerEff::analyze(art::Event const & e)
         sh_completeness[i] = sh_ehit_Q[i] / ehit_total;
         //cout << "\t*****shower completeness: " << sh_completeness[i] << endl;
       } else {
-        sh_completeness[i] = 0;  
+        sh_completeness[i] = 0;
       }
       temp_sh_ehit_Q += sh_ehit_Q[i];
-      temp_sh_allHit_Q += sh_allhit_Q[i];  
+      temp_sh_allHit_Q += sh_allhit_Q[i];
     }
 
     showers_trk_Q[sh_TrackId[i]] += maxshowerQ;
@@ -626,17 +626,17 @@ void NuShowerEff::analyze(art::Event const & e)
         esh_purity = temp_sh_ehit_Q/temp_sh_allHit_Q;
         esh_completeness = temp_sh_ehit_Q/ehit_total;
 
-        if (esh_purity > fMinPurity && 
+        if (esh_purity > fMinPurity &&
           esh_completeness > fMinCompleteness) {
           //cout << "\nInfo: fill h_Ev_num ........\n" << endl;
           h_Ev_num->Fill(MC_incoming_P[3]);
           h_Ee_num->Fill(MC_lepton_startMomentum[3]);
         }
-      } 
+      }
     }
-  } 
-  // -------------------------------------------------------------- 
-  
+  }
+  // --------------------------------------------------------------
+
   if ( (MClepton_reco && MClepton) && MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))){
     //cout << "\n count_primary_e_in_Event: " << count_primary_e_in_Event << endl;
     for (int j=0; j<count_primary_e_in_Event; j++){
@@ -648,7 +648,7 @@ void NuShowerEff::analyze(art::Event const & e)
     int temp_esh_index = 0;
     for (int i=0; i<n_recoShowers; i++) {
       if (sh_TrackId[i] == MC_leptonID) {
-        
+
         // for each electron shower
         if (sh_ehit_Q[i] >0){
           esh_each_purity[temp_esh_index] = sh_purity[i];
@@ -656,12 +656,12 @@ void NuShowerEff::analyze(art::Event const & e)
           temp_esh_index += 1;
         }
 
-        // find largest shower 
+        // find largest shower
         if ((sh_allhit_Q[i] > temp_esh_1_allhit) && (sh_ehit_Q[i] > 0.0) ) {
           temp_esh_1_allhit = sh_allhit_Q[i];
           temp_shower_index = i;
         }
-      }   
+      }
     }
     //if (temp_esh_index != count_primary_e_in_Event){
     //  cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww" << endl;
@@ -670,15 +670,15 @@ void NuShowerEff::analyze(art::Event const & e)
     esh_1_purity = sh_purity[temp_shower_index];
     esh_1_completeness = sh_completeness[temp_shower_index];
   }
-  
+
   if (count_primary_e_in_Event>0 && MC_isCC && fSaveMCTree) { fEventTree->Fill();}// so far, only save CC event
 }
 
 // ====================================================================================
 void NuShowerEff::doEfficiencies(){
   //cout << "\n==== function: doEfficiencies() ====" << endl;
-  
-  art::ServiceHandle<art::TFileService> tfs;
+
+  art::ServiceHandle<art::TFileService const> tfs;
 
   if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
     h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
@@ -686,7 +686,7 @@ void NuShowerEff::doEfficiencies(){
     grEff_Ev->Write("grEff_Ev");
     h_Eff_Ev->Write("h_Eff_Ev");
   }
-  
+
   if(TEfficiency::CheckConsistency(*h_Ee_num,*h_Ee_den)){
     h_Eff_Ee = tfs->make<TEfficiency>(*h_Ee_num,*h_Ee_den);
     TGraphAsymmErrors *grEff_Ee = h_Eff_Ee->CreateGraph();

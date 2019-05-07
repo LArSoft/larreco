@@ -2,7 +2,7 @@
  *  @file   Segmentation2D.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Split into linear clusters.
  */
 
@@ -195,7 +195,7 @@ void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > & group) co
 
 			if (!group[j].isDenseStart())
 			{
-				
+
 				if (pma::Dist2(start1, start0) < rad2)
 				{
 					group[j].tagDenseStart(true);
@@ -222,7 +222,7 @@ void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > & group) co
 				}
 			}
 		}
-					
+
 		if (denseStart) group[i].tagDenseStart(true);
 		if (denseEnd) group[i].tagDenseEnd(true);
 
@@ -245,7 +245,7 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 
 		for (size_t i = 0; i < group.size(); i++)
 		{
-			
+
 			if (group[i].isEM()) continue;
 
 			if (group[i].isDenseStart())
@@ -309,7 +309,7 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 				if (ne > maxE) { maxE = ne; idxMaxE = i; toMergeE = toMerge; }
 			}
 		}
-		
+
 		int idx = idxMaxS;
 		std::vector< size_t > toMergeIdxs = toMergeS;
 		if (idxMaxE > idx) { idx = idxMaxE; toMergeIdxs = toMergeE; }
@@ -361,7 +361,7 @@ void tss::Segmentation2D::splitHits(
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
 {
-	
+
 	trackHits.clear();
 	emHits.clear();
 
@@ -469,12 +469,12 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 
 	TVector2 point((cl2.max()).X(), (cl2.min()).Y());
 	float width = (cl2.max()).X() - (cl2.min()).X();
-	float height = (cl2.max()).Y() - (cl2.min()).Y();	
-		
+	float height = (cl2.max()).Y() - (cl2.min()).Y();
+
 	for (unsigned int h = 0; h < cl1.size(); h++)
 	{
 		float wire = cl1[h].Point2D().X(); float drift = cl1[h].Point2D().Y();
-			
+
 		if ( (wire <= (point.X() + shift)) && (wire >= (point.X() - width - shift)) )
 		{
 			if (drift < point.Y())
@@ -498,6 +498,6 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 	}
 
 	if (clover && clunder && clleft && clright) return true;
-	else return false;	
+	else return false;
 }
 

@@ -2,7 +2,7 @@
  * \file CMergeHelper.h
  *
  * \ingroup CMToolApp
- * 
+ *
  * \brief Class def header for a class CMergeHelper
  *
  * @author kazuhiro
@@ -24,12 +24,12 @@ namespace cmtool {
      doxygen documentation!
   */
   class CMergeHelper{
-    
+
   public:
-    
+
     /// Default constructor
     CMergeHelper(){}
-    
+
     /// Default destructor
     virtual ~CMergeHelper(){}
 
@@ -50,10 +50,10 @@ namespace cmtool {
     std::vector< ::cmtool::CMergeManager> _mgr_v;
 
     CMergeBookKeeper _bk;
-    
+
   };
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

@@ -13,11 +13,10 @@ extern "C" {
 #include <sys/stat.h>
 }
 #include <stdint.h>
-#include <iostream>
 #include <iomanip>
 
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
-//#include "messagefacility/MessageLogger/MessageLogger.h" 
+//#include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace trkf{
 
@@ -55,13 +54,13 @@ namespace trkf{
     // Pln1 ...............
     // Pln2 ....................
     // NOT VALID - Only one plane has a hit at MaxX
-    
+
 
     TrajPos.clear();
     TrajDir.clear();
-    
+
     prt = false;
-    
+
     unsigned short minLen = 9999;
     unsigned short maxLen = 0;
     unsigned short nPlnsWithHits = 0;
@@ -80,12 +79,12 @@ namespace trkf{
     if(prt) mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits;
     if(nPlnsWithHits < 2) return;
     if(aPlane > 2) return;
-    
+
     fMaxTrajPoints = 100;
     fHitWidthFactor = 5.;
 
     unsigned short iht;
-    
+
     // reverse the order of the hit arrays if necessary so that the minimum X end is at trk[][0] end.
     // We will use posX to reverse the trajectory later if necessary
     bool posX = true;
@@ -123,7 +122,7 @@ namespace trkf{
     minXPln = 0;
     maxX = -1E6;
     maxXPln = 0;
-    
+
     for(unsigned short ipl = 0; ipl < 3; ++ipl) {
       if(trkX[ipl].size() == 0) continue;
       if(trkX[ipl][0] < minX) {
@@ -136,9 +135,9 @@ namespace trkf{
         maxXPln = ipl;
       }
     } // ipl
-    
+
     if(prt) mf::LogVerbatim("TTA")<<"minX "<<minX<<" in plane "<<minXPln<<" maxX "<<maxX<<" in plane "<<maxXPln;
-    
+
     // estimate the number of trajectory points we will want based on the delta T and the
     // hit errors
     double aveHitXErr = 0;
@@ -150,7 +149,7 @@ namespace trkf{
       }
     } // ipl
     aveHitXErr /= (double)nHit;
-    
+
     unsigned short npt = (maxX - minX) / (1 * aveHitXErr);
     if(npt < 2) npt = 2;
     if(npt > maxLen) npt = maxLen;
@@ -160,14 +159,14 @@ namespace trkf{
     double maxBinX = (maxX - minX) / (double)(npt - 1);
     double binX = maxBinX;
     double xOrigin = minX;
-    
+
     TVector3 xyz, dir;
     // working vectors passed to TrackLineFitAlg
     std::vector<geo::WireID> hitWID;
     std::vector<double> hitX;
     std::vector<double> hitXErr;
     float ChiDOF;
-    
+
     // make a short track trajectory (end points only) to use in case an error occurs
     std::vector<TVector3> STPos;
     std::vector<TVector3> STDir;
@@ -208,11 +207,11 @@ namespace trkf{
       }
       return;
     } // maxLen < 4
-    
+
     // Start index of hits to include in the next fit
     std::array<unsigned short, 3> hStart;
     for(ipl = 0; ipl < 3; ++ipl) hStart[ipl] = 0;
-    
+
     bool gotLastPoint = false;
     for(unsigned short ipt = 0; ipt < npt + 1; ++ipt) {
       hitWID.clear();
@@ -260,12 +259,12 @@ namespace trkf{
       TrajPos.push_back(STPos[1]);
       TrajDir.push_back(STDir[1]);
     }
-    
+
     if(TrajPos.size() < 2) {
       TrajPos = STPos;
       TrajDir = STDir;
     }
-    
+
     if(!posX) {
       // reverse everything
       std::reverse(TrajPos.begin(), TrajPos.end());
@@ -276,13 +275,13 @@ namespace trkf{
         std::reverse(trkX[ipl].begin(), trkX[ipl].end());
         std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
       } // ipl
-      
+
     } // !posX
     if(prt) {
       mf::LogVerbatim("TTA")<<"TTA Traj2\n";
       for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2);
     }
- 
+
   } // TrackTrajectoryAlg
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,12 +291,12 @@ namespace trkf{
                                                 std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir)
   {
     // Make a short track trajectory composed of a space point at each end.
-    
+
     std::vector<unsigned short> usePlns;
     double y, z, endX, endY, endZ;
     unsigned short ipl, iht, nend, jpl, iPlane, jPlane;
     unsigned int iWire, jWire;
-    
+
     // do the min X end first
     float xCut;
     for(unsigned short nit = 0; nit < 5; ++nit) {
@@ -337,7 +336,7 @@ namespace trkf{
     xyz(2) = endZ / (float)nend;
     if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
     TrajPos.push_back(xyz);
-    
+
     // do the same for the other end
     fHitWidthFactor = 5;
 //    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
@@ -386,9 +385,9 @@ namespace trkf{
     dir = dir.Unit();
     TrajDir.push_back(dir);
     TrajDir.push_back(dir);
-  
+
     if(prt) mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
   }
 
-  
+
 } // trkf

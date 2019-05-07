@@ -10,8 +10,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TMath.h"
-#include "TVector2.h"
 #include "TVector3.h"
 
 // Constructor
@@ -43,7 +41,7 @@ void pma::PMAlgStitching::StitchTracksCPA(pma::TrkCandidateColl &tracks){
 void pma::PMAlgStitching::StitchTracksAPA(pma::TrkCandidateColl &tracks){
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for APA stitching.";
   StitchTracks(tracks,false);
-} 
+}
 
 // Main function of the algorithm
 // isCPA = true  : attempt to stitch tracks across the cathode.
@@ -79,9 +77,9 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
     double xBestShift = 0;
     double frontShift1 = t1->Nodes()[0]->Point3D().X() - offsetFront1;
     double backShift1 = t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() - offsetBack1;
-   
+
     double bestMatchScore = 99999;
- 
+
     for(unsigned int u = t+1; u < tracks.size(); ++u){
 
       pma::Track3D* t2 = tracks[u].Track();
@@ -96,7 +94,7 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
       // For stitching, we need to consider both ends of the track.
       double offsetFront2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),isCPA);
       double offsetBack2 = GetTPCOffset(t2->BackTPC(),t2->BackCryo(),isCPA);
- 
+
       // If the points to match are in the same TPC, then don't bother.
       // Remember we have 4 points to consider here.
       bool giveUp = false;
@@ -146,7 +144,7 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
         else{
           t1Pos = trk1Back;
           t1Dir = trk1BackDir;
-          xShift1 = backShift1; 
+          xShift1 = backShift1;
         }
         if(i%2 == 0){
           t2Pos = trk2Front;
@@ -315,7 +313,7 @@ double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TV
 
   // Extrapolate each vector to the other's extrapolation point
   TVector3 trk1Merge = pos1 + steps1*dir1;
-  TVector3 trk2Merge = pos2 + steps2*dir2;  
+  TVector3 trk2Merge = pos2 + steps2*dir2;
 
   // Find the difference between each vector and the extrapolation
   delta = (trk1Merge-pos2).Mag() + (trk2Merge-pos1).Mag();
@@ -365,7 +363,7 @@ void pma::PMAlgStitching::GetTPCXOffsets(){
     // Now check which is further from the APA and use that as the cathode value.
     if(fabs(xmin - xAnode) > fabs(xmax-xAnode)){
       xCathode = xmin;
-    } 
+    }
     else{
       xCathode = xmax;
     }

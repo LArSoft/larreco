@@ -38,7 +38,7 @@
 // ... more #include in tempimplementation below
 
 namespace cluster {
-   
+
   class ClusterParamsAlg {
 
   public:
@@ -61,7 +61,7 @@ namespace cluster {
     void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
 
     size_t MinNHits() const { return fMinNHits; }
-    
+
    // int SetHits(const std::vector<const ::larlite::hit*> &);
 
     int SetHits(const std::vector<util::PxHit> &);
@@ -81,7 +81,7 @@ namespace cluster {
     /**
      * This function returns a feature vector suitable for a neural net
      * This function uses the data from cluster_params but packages it
-     * up in a different way, and so is inappropriate to include in 
+     * up in a different way, and so is inappropriate to include in
      * clusterParams.hh.   That's why it's here.
      * @param  data  takes a reference to a vector< float>
      */
@@ -97,16 +97,16 @@ namespace cluster {
 
 
     /**
-      Runs all the functions which calculate cluster params                        
-      and stashes the results in the private ClusterParams                         
-      struct.                                                                      
-                                                                                   
-      @param override_DoGetAverages       force re-execution of GetAverages()      
-      @param override_DoGetRoughAxis      force re-execution of GetRoughAxis()     
-      @param override_DoGetProfileInfo    force re-execution of GetProfileInfo()   
+      Runs all the functions which calculate cluster params
+      and stashes the results in the private ClusterParams
+      struct.
+
+      @param override_DoGetAverages       force re-execution of GetAverages()
+      @param override_DoGetRoughAxis      force re-execution of GetRoughAxis()
+      @param override_DoGetProfileInfo    force re-execution of GetProfileInfo()
       @param override_DoRefineStartPoints force re-execution of RefineStartPoints()
-      @param override_DoGetFinalSlope     force re-execution of GetFinalSlope()    
-      @param override_DoEndCharge         force re-execution of GetEndCharges()    
+      @param override_DoGetFinalSlope     force re-execution of GetFinalSlope()
+      @param override_DoEndCharge         force re-execution of GetEndCharges()
     */
     void FillParams(bool override_DoGetAverages      =false,
                     bool override_DoGetRoughAxis     =false,
@@ -203,7 +203,7 @@ namespace cluster {
 
     double RoughSlope() {return fRough2DSlope;}
     double RoughIntercept() {return fRough2DIntercept;}
-    
+
     /**
      * @brief Returns the expected charge at the beginning of the cluster
      * @param nbins use at least this number of charge bins from charge profile
@@ -216,21 +216,21 @@ namespace cluster {
      * All the charge on the plane orthogonal to cluster axis is collapsed into
      * the point where that plane intersects the axis.
      * The resulting 1D distribution is then binned.
-     * 
+     *
      * This method returns the charge under the first length cm of the cluster.
-     * 
+     *
      * This method considers the first nbins of this charge distribution and
      * through a linear fit determines the expected charge at the first bin.
      * Then, it scales the result to reflect how much charge would be deposited
      * in a space of length centimetres, according to this linear fit.
-     * 
+     *
      * Note that length may be 0 (charge will be 0) or negative (sort of
      * extrapolation ahead of the cluster start).
-     * 
+     *
      * For more details, see IntegrateFitCharge().
      */
     double StartCharge(float length = 1., unsigned int nbins = 10);
-    
+
     /**
      * @brief Returns the expected charge at the end of the cluster
      * @param nbins use at least this number of charge bins from charge profile
@@ -243,11 +243,11 @@ namespace cluster {
      * For even more details, see IntegrateFitCharge().
      */
     double EndCharge(float length = 1., unsigned int nbins = 10);
-    
+
     /**
      * @brief Returns the number of multiple hits per wire
      * @return the number of multiple hits per wire
-     * 
+     *
      * This returns the fraction of wires that have more than one hit belonging
      * to this cluster.
      */
@@ -256,13 +256,13 @@ namespace cluster {
     /**
      * @brief Returns the number of multiple hits per wire
      * @return the number of multiple hits per wire
-     * 
+     *
      * This returns the number of wires with mmore than one hit belonging
      * to this cluster, divided by the cluster length in cm.
      */
     float MultipleHitDensity();
 
-    
+
     void EnableFANN();
 
     void DisableFANN(){enableFANN = false;}
@@ -273,14 +273,14 @@ namespace cluster {
     void SetPlane(int p);
 
   protected:
-    
+
     util::GeometryUtilities  *fGSer;
 
     /// Cut value for # hits: below this value clusters are not evaluated
     size_t fMinNHits;
 
     /**
-       This vector holds the pointer to hits. 
+       This vector holds the pointer to hits.
        This should be used for computation for speed.
     */
     std::vector<util::PxHit> fHitVector;
@@ -295,21 +295,21 @@ namespace cluster {
 
     //this is required in RefineDirection
     double fQMinRefDir;
-    
+
     std::vector< double > fChargeProfile;
     std::vector< double > fCoarseChargeProfile;
-    
+
     std::vector< double > fChargeProfileNew;
    // double fMaxLinLength;
    // double fLinBins;
-    
+
     int fCoarseNbins;
     int fProfileNbins;
     int fProfileMaximumBin;
     double fProfileIntegralForward;
     double fProfileIntegralBackward;
     double fProjectedLength;
-    
+
     //extreme intercepts using the rough_2d_slope
    // double fInterHigh;
    // double fInterLow;
@@ -317,20 +317,20 @@ namespace cluster {
     double fEndIntercept;
     double fInterHigh_side;
     double fInterLow_side;
-    
+
     // book keeping variables to validate completion of methods:
-    bool fFinishedGetAverages;       
-    bool fFinishedGetRoughAxis;      
-    bool fFinishedGetProfileInfo;    
-    bool fFinishedRefineStartPoints; 
-    bool fFinishedRefineDirection;   
-    bool fFinishedGetFinalSlope;     
+    bool fFinishedGetAverages;
+    bool fFinishedGetRoughAxis;
+    bool fFinishedGetProfileInfo;
+    bool fFinishedRefineStartPoints;
+    bool fFinishedRefineDirection;
+    bool fFinishedGetFinalSlope;
     bool fFinishedRefineStartPointAndDirection;
     bool fFinishedTrackShowerSep;
     bool fFinishedGetEndCharges;
 
-    double fRough2DSlope;        // slope 
-    double fRough2DIntercept;    // slope 
+    double fRough2DSlope;        // slope
+    double fRough2DIntercept;    // slope
     util::PxPoint fRoughBeginPoint;
     util::PxPoint fRoughEndPoint;
     bool enableFANN;
@@ -351,14 +351,14 @@ namespace cluster {
      * 1. the charge profile is parametrized with a linear fit within the
      *    specified region
      * 2. an integration of that fit is performed along the segment specified.
-     * 
+     *
      * The region at point 1. is from `fit_first_bin` to `fit_end_bin`. These
      * are specified in bin units. The binning is the one of the charge profile.
      * It is suggested that a few bins are always kept, say 5 to 10, to reduce
      * statistical fluctuations but maintaining a decent hypothesis of linearity
      * along the range.
      * The linear fit weighs all the bins in the profile the same.
-     * 
+     *
      * The region at point to is from `from_length` to `to_length`, and it is
      * measured in cm along the cluster axis, starting at the start of the
      * cluster.
@@ -367,10 +367,10 @@ namespace cluster {
       double from_length, double to_length,
       unsigned int fit_first_bin, unsigned int fit_end_bin
       );
-    
+
     /// Returns the integral of f(x) = mx + q defined in [x1, x2]
     static double LinearIntegral(double m, double q, double x1, double x2);
-    
+
     public:
 
     cluster::cluster_params fParams;
@@ -381,7 +381,7 @@ namespace cluster {
     std::vector<double> fTimeRecord_ProcTime;
 
   }; //class ClusterParamsAlg
-  
+
 } //namespace cluster
 
 
@@ -392,24 +392,24 @@ namespace cluster {
 #include <ostream> // std::endl
 
 namespace cluster {
-  
+
   template <typename Stream>
   void ClusterParamsAlg::TimeReport(Stream& stream) const {
-    
+
     stream << "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
     for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
-      
-      stream << "    Function: " 
-        << fTimeRecord_ProcName[i].c_str() 
-        << " ... Time = " 
+
+      stream << "    Function: "
+        << fTimeRecord_ProcName[i].c_str()
+        << " ... Time = "
         << fTimeRecord_ProcTime[i]
         << " [s]"
         << std::endl;
-      
+
     }
     stream<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
   }
-  
+
 } //namespace cluster
 
 #endif

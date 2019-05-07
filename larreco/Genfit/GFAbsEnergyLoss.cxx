@@ -28,7 +28,7 @@ void genf::GFAbsEnergyLoss::getParticleParameters(const int&    pdg,
                                             double& charge,
                                             double& mass){
   TParticlePDG * part = TDatabasePDG::Instance()->GetParticle(pdg);
-  charge = part->Charge()/(3.);                                
+  charge = part->Charge()/(3.);
   mass = part->Mass();
 }
 

@@ -5,7 +5,7 @@
  * Title:   GaussianEliminationAlg Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
+ * Description:
  * Class that solves system of linear equations via Gaussian Elimination.
  * Intended for use with RFFHitFitter
  *
@@ -29,11 +29,11 @@ namespace util{
 
     void FillAugmentedMatrix(const std::vector<float>& meanVector,
 			     const std::vector<float>& sigmaVector,
-			     const std::vector<float>& heightVector);			     
+			     const std::vector<float>& heightVector);
     void GaussianElimination();
     const std::vector<float>& GetSolutions() { return fSolutions; }
     void Print();
-    
+
   private:
 
     float fDistanceStepSize;

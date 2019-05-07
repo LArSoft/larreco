@@ -44,7 +44,7 @@ genf::GFTrackCand::GFTrackCand(double curv, double dip, double inv, std::vector<
     throw GFException("genf::GFTrackCand::GFTrackCand(): rho/det size mismatch", __LINE__, __FILE__).setFatal();
 }
 
-void 
+void
 genf::GFTrackCand::addHit(unsigned int detId, unsigned int hitId, double rho, unsigned int planeId)
 {
   fDetId.push_back(detId);
@@ -53,7 +53,7 @@ genf::GFTrackCand::addHit(unsigned int detId, unsigned int hitId, double rho, un
   fRho.push_back(rho);
 }
 
-std::vector<unsigned int> 
+std::vector<unsigned int>
 genf::GFTrackCand::GetHitIDs(int detId){
   if(detId<0){ // return hits from all detectors
     return fHitId;
@@ -81,7 +81,7 @@ bool genf::GFTrackCand::HitInTrack(unsigned int detId, unsigned int hitId)
 			if (hitId == fHitId[i])
 				return true;
 	}
-	return false;	
+	return false;
 }
 
 bool genf::operator== (const GFTrackCand& lhs, const GFTrackCand& rhs){

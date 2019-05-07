@@ -15,8 +15,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
@@ -59,11 +59,11 @@ namespace cluster
        occurs when we create art::PtrVector<recob::Hit> from input file.
        All information that is based on hits and is used for cluster-matching
        should be extracted from there to maximize I/O efficiency as looping
-       over hits takes time.  
+       over hits takes time.
        In other words... all hits related variables should be stored here!
     */
     struct cluster_match_info {
-      
+
       unsigned short cluster_index; ///< Cluster's index position in the input cluster vector array
       geo::View_t view;             ///< Wire plane ID
       unsigned int   nhits;         ///< Number of hits
@@ -76,7 +76,7 @@ namespace cluster
       double peak_time_min;         ///< Minimum "peak time"  among all hits in this cluster
       double end_time_min;          ///< Minimum "end time"   among all hits in this cluster
       double sum_charge;            ///< Summed charge among all hits in this cluster
-      
+
       /// Constructor with cluster's index ID
       cluster_match_info(unsigned short index) {
 	cluster_index = index;
@@ -87,13 +87,13 @@ namespace cluster
 	start_time_min = peak_time_min = end_time_min = 1.e9;
 	sum_charge = -1.;
       };
-      
+
       /// Default constructor
       cluster_match_info(){
 	cluster_match_info(0xffff);
       };
     };
-    
+
   public:
 
     /// Default constructor with fhicl parameters
@@ -121,20 +121,20 @@ namespace cluster
     void AppendClusterInfo(const art::Ptr<recob::Cluster> in_cluster,
 			   const std::vector<art::Ptr<recob::Hit> > &in_hit_v);
     /**
-       Method to run matching algorithms for three planes. 
-       Event info must be provided prior to this function call through FillEventInfo() 
-       function call. If the function is called more than once w/o supplying the new 
-       art::Event object, it does not perform any new matching unless a user explicitly 
+       Method to run matching algorithms for three planes.
+       Event info must be provided prior to this function call through FillEventInfo()
+       function call. If the function is called more than once w/o supplying the new
+       art::Event object, it does not perform any new matching unless a user explicitly
        calls ClearEventInfo() and then fill event info again though FillEventInfo().
     */
     void MatchThreePlanes();
-    
+
     /// Two plane version of cluster matching method.
     void MatchTwoPlanes();
 
     /// Method to retrieve matched cluster combinations. The format is [wire_plane][cluster_index]
     std::vector<std::vector<unsigned int> > GetMatchedClusters() const;
-    
+
     /// Method to retrieve matched SpacePoint for each combinations.
     const std::vector<std::vector<recob::SpacePoint> >& GetMatchedSpacePoints() const { return _matched_sps_v; };
 
@@ -152,7 +152,7 @@ namespace cluster
     /// Method to clear output matched cluster information
     void ClearMatchOutputInfo();
 
-    /// Method to clear TTree variables 
+    /// Method to clear TTree variables
     void ClearTTreeInfo();
 
     /// Internal method, called only once, to fill detector-wise information
@@ -161,7 +161,7 @@ namespace cluster
     /// Internal method to create output TTree for quality checking of the algorithm
     void PrepareTTree();
 
-    void FillHitInfo(cluster_match_info &ci, 
+    void FillHitInfo(cluster_match_info &ci,
 		     art::PtrVector<recob::Hit> &out_hit_v,
 		     const std::vector<art::Ptr<recob::Hit> > &in_hit_v);
 
@@ -169,7 +169,7 @@ namespace cluster
     void AppendClusterTreeVariables(const cluster_match_info &ci);
 
     /**
-       Match clusters based on min/max Z boundary information. It checks clusters' overlap 
+       Match clusters based on min/max Z boundary information. It checks clusters' overlap
        along Z spatial coordinate based on 2 input cluster information.
     */
     bool Match_RoughZ(const cluster_match_info &ci1,  const cluster_match_info &ci2,
@@ -184,7 +184,7 @@ namespace cluster
       is compared to the set cut value to claim a match.
     */
     //bool Match_RoughTime(const cluster_match_info &ci1, const cluster_match_info &ci2, const cluster_match_info &ci3);
-    
+
     /**
        Checks the ratio of two clusters' summed charge. If the ratio is within 1 +/- set cut value,
        two clusters are considered to match.
@@ -193,14 +193,14 @@ namespace cluster
 
     /**
        Cluster matching using space points. This can be slow as we run SpacePointFinder
-       algorithm per cluster pair.  Three clusters (U, V, W) are considerd to "match" if 
+       algorithm per cluster pair.  Three clusters (U, V, W) are considerd to "match" if
        there found N spacepoints using hits in them and N > min_nsps where "min_nsps" is
        the cut value you can set in SetNSpacePointCut() method.
     */
     bool Match_SpacePoint(const size_t uindex, const size_t vindex, const size_t windex, std::vector<recob::SpacePoint> &sps_v);
 
     //
-    // Cut parameter values 
+    // Cut parameter values
     //
     size_t _num_sps_cut;        ///< Number of SpacePoint used to cut in Match_SpacePoint method
     double _overlay_tratio_cut; ///< Minimum overlayed time fraction among two clusters used in Match_RoughTime method
@@ -231,7 +231,7 @@ namespace cluster
     std::vector<art::PtrVector<recob::Hit> > _uhits_v; ///< Local Hit pointer vector container ... U-plane
     std::vector<art::PtrVector<recob::Hit> > _vhits_v; ///< Local Hit pointer vector container ... V-plane
     std::vector<art::PtrVector<recob::Hit> > _whits_v; ///< Local Hit pointer vector container ... W-plane
-    
+
     std::vector<cluster_match_info> _ucluster_v; ///< Local cluster data container... U-plane
     std::vector<cluster_match_info> _vcluster_v; ///< Local cluster data container... V-plane
     std::vector<cluster_match_info> _wcluster_v; ///< Local cluster data container... W-plane
@@ -283,6 +283,6 @@ namespace cluster
     std::vector<double>   _tend_max_v;
 
   }; // class ClusterMatchAlg
-  
+
 } //namespace cluster
 #endif

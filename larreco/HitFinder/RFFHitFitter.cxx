@@ -2,11 +2,11 @@
  * Title:   RFFHitFitter Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
+ * Description:
  * Class that does the base RFF algorithm. RFF works by simplifiying a Gaussian
  * fit by dividing a pulse by its derivative. for a Gaussian, the result is a
- * line, with the slope and intercept related to the sigma and mean of the 
- * Gaussian. 
+ * line, with the slope and intercept related to the sigma and mean of the
+ * Gaussian.
  *
  * Input:  Signal (vector of floats)
  * Output: Guassian means and sigmas
@@ -38,13 +38,13 @@ void hit::RFFHitFitter::SetFitterParams(float        max_mean,
 {
     fMeanMatchThreshold = max_mean;
     fMinMergeMultiplicity = min_multi;
-  
+
     if(fMinMergeMultiplicity==0) fMinMergeMultiplicity=1;
 
     fFinalAmpThreshold = threshold;
 
     ClearResults();
-}				
+}
 
 void hit::RFFHitFitter::RunFitter(const std::vector<float>& signal)
 {
@@ -58,24 +58,24 @@ void hit::RFFHitFitter::RunFitter(const std::vector<float>& signal)
 void hit::RFFHitFitter::CalculateAllMeansAndSigmas(const std::vector<float>& signal)
 {
     if(signal.size()<=2) return;
-  
+
     float prev_dev=0,this_dev=0;;
     float slope=0; float sigma=0;
     float intercept=0; float mean=0;
-    
+
     for(size_t i_tick=1; i_tick < signal.size()-1; i_tick++)
     {
         this_dev = 0.5*(signal[i_tick+1]-signal[i_tick-1])/signal[i_tick];
         slope = this_dev - prev_dev;
-    
+
         prev_dev = this_dev;
-    
+
         if(slope>=0) continue;
-    
+
         sigma = std::sqrt(-1/slope);
         intercept = 0.5*(signal[i_tick+1]-signal[i_tick-1])/signal[i_tick] - slope*i_tick;
         mean = -1*intercept/slope;
-    
+
         fSignalSet.insert(std::make_pair(mean,sigma));
     }
 }
@@ -83,7 +83,7 @@ void hit::RFFHitFitter::CalculateAllMeansAndSigmas(const std::vector<float>& sig
 void hit::RFFHitFitter::CreateMergeVector()
 {
     fMergeVector.clear(); fMergeVector.reserve( fSignalSet.size() );
-  
+
     float prev_mean=-9e6;
     for(std::multiset<MeanSigmaPair>::iterator it=fSignalSet.begin(); it!=fSignalSet.end(); it++)
     {
@@ -147,7 +147,7 @@ void hit::RFFHitFitter::CalculateAmplitudes(const std::vector<float>& signal)
 {
     std::vector<float> heightVector(fMeanVector.size());
     size_t bin=0;
-  
+
     for(size_t i=0; i<fMeanVector.size(); i++)
     {
         if     (fMeanVector[i]<0)                 bin=0;
@@ -158,10 +158,10 @@ void hit::RFFHitFitter::CalculateAmplitudes(const std::vector<float>& signal)
             throw cet::exception("RFFHitFitter") << "Error in CalculatAmplitudes! bin is out of range!\n"
 					   << "\tFor element " << i << " bin is " << bin << "(" << fMeanVector[i] << ")"
 					   << " but size is " << signal.size() << ".\n";
-    
+
         heightVector[i] = signal[bin] - (fMeanVector[i]-(float)bin)*(signal[bin]-signal[bin+1]);
     }
-  
+
     fAmpVector = fGEAlg.SolveEquations(fMeanVector,fSigmaVector,heightVector);
 
     while(HitsBelowThreshold())
@@ -206,10 +206,10 @@ void hit::RFFHitFitter::ClearResults()
 void hit::RFFHitFitter::PrintResults()
 {
     std::cout << "InitialSignalSet" << std::endl;
-  
+
     for(auto const& sigpair : fSignalSet)
         std::cout << "\t" << sigpair.first << " / " << sigpair.second << std::endl;
-  
+
     std::cout << "\nNHits = " << NHits() << std::endl;
     std::cout << "\tMean / Sigma / Amp" << std::endl;
     for(size_t i=0; i<NHits(); i++)

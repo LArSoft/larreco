@@ -2,7 +2,7 @@
  *  @file   PmaTrkCandidate.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Track finding helper for the Projection Matching Algorithm
  *
  *          Candidate for 3D track. Used to test 2D cluster associations, validadion result, MSE value.

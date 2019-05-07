@@ -4,7 +4,7 @@
 ///
 /// \brief  Kalman Filter.
 ///
-/// \author H. Greenlee 
+/// \author H. Greenlee
 ///
 /// Configuration parameters:
 ///

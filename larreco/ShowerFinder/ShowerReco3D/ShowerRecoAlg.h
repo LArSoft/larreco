@@ -2,7 +2,7 @@
  * \file ShowerRecoAlg.h
  *
  * \ingroup ShowerReco3D
- * 
+ *
  * \brief Class def header for a class ShowerRecoAlg
  *
  * @author kazuhiro
@@ -19,19 +19,19 @@
 #include "ShowerCalo.h"
 
 namespace showerreco {
-  
+
   /**
      \class ShowerRecoAlg
      User defined class ShowerRecoAlg ... these comments are used to generate
      doxygen documentation!
   */
   class ShowerRecoAlg : public ShowerRecoAlgBase{
-    
+
   public:
-    
+
     /// Default constructor
     ShowerRecoAlg();
-    
+
     /// Default destructor
     virtual ~ShowerRecoAlg(){}
 
@@ -55,12 +55,12 @@ namespace showerreco {
   protected:
 
     util::GeometryUtilities  *fGSer;
-   
+
   private:
 
     /// Boolean -> decide if to use energy correction or not
     bool _Ecorrection;
-    
+
     double fcalodEdxlength;
     double fdEdxlength;
     bool fUseArea;
@@ -69,5 +69,5 @@ namespace showerreco {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

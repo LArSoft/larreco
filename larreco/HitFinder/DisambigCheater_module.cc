@@ -6,8 +6,6 @@
 // tylerdalion@gmail.com
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef DisambigCheater_h
-#define DisambigCheater_h
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/EDProducer.h"
@@ -38,8 +36,8 @@ namespace hit{
       void endJob() override;
       void reconfigure(fhicl::ParameterSet const & p);
 
-      art::ServiceHandle<geo::Geometry> geom;
-      art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+      art::ServiceHandle<geo::Geometry const> geom;
+      art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       std::string fChanHitLabel;
       std::string fWidHitLabel;
@@ -76,7 +74,7 @@ namespace hit{
 
     // Space charge can shift true IDE postiion to far-off channels.
     // Calculate maximum number of wires to shift hit in order to be on correct channel.
-    // Shift no more than half of the number of channels, as beyond there will 
+    // Shift no more than half of the number of channels, as beyond there will
     //   have been a closer wire segment.
     if( geom->Ncryostats()!=1 || geom->NTPC()<1 ){
       fMaxWireShift.resize(3);
@@ -94,8 +92,8 @@ namespace hit{
         for(unsigned int w = 0; w<nw; ++w){
 
           // for vertical planes
-          if(geom->Cryostat(0).TPC(0).Plane(p).View()==geo::kZ)   { 
-            fMaxWireShift[2] = geom->Cryostat(0).TPC(0).Plane(p).Nwires();      
+          if(geom->Cryostat(0).TPC(0).Plane(p).View()==geo::kZ)   {
+            fMaxWireShift[2] = geom->Cryostat(0).TPC(0).Plane(p).Nwires();
             break;
           }
 
@@ -103,7 +101,7 @@ namespace hit{
           geom->Cryostat(0).TPC(0).Plane(p).Wire(w+1).GetCenter(xyz_next);
 
           if(xyz[2]==xyz_next[2]){
-            fMaxWireShift[p] = w;      
+            fMaxWireShift[p] = w;
             break;
           }
         }// end wire loop
@@ -189,7 +187,7 @@ namespace hit{
       )
   {
 
-    if( !wid.isValid ){ 
+    if( !wid.isValid ){
       mf::LogWarning("InvalidWireID") << "wid is invalid, hit not being made\n";
       return;
     }
@@ -212,7 +210,7 @@ namespace hit{
       if( ChHits[h]->View() == geo::kU ) Ucount++;
       else if( ChHits[h]->View() == geo::kV ) Vcount++;
       std::vector<geo::WireID> cwids = geom->ChannelToWire(chit.Channel());
-      std::pair<double,double> ChanTime( (double) chit.Channel(), (double) chit.PeakTime()); // hit key value 
+      std::pair<double,double> ChanTime( (double) chit.Channel(), (double) chit.PeakTime()); // hit key value
 
       // get hit IDEs
       std::vector<const sim::IDE* > ides;
@@ -239,7 +237,7 @@ namespace hit{
       //  if none: hit maps to empty vector
       //  if one: we have a unique hit, vector of size 1
       //  if more than one: make a vector of all wids
-      std::vector<geo::WireID> widsWithIdes; 
+      std::vector<geo::WireID> widsWithIdes;
       for( size_t i=0; i<ides.size(); i++ ){
         const double xyzIde[] = { ides[i]->x, ides[i]->y, ides[i]->z };
 
@@ -247,7 +245,7 @@ namespace hit{
         /// \todo: Why would an IDE xyz position be outside of a TPC?
         geo::TPCID tpcID = geom->FindTPCAtPosition(xyzIde);
         if (!tpcID.isValid) {
-          mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0] 
+          mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0]
             << ", y = " << xyzIde[1]
             << ", z = " << xyzIde[2]
             << " does not correspond to a TPC.";
@@ -269,18 +267,18 @@ namespace hit{
             << e.what() << "\nUsing suggested wire " << IdeWid << "\n";
         }
         geo::WireID storethis = IdeWid; // default...
-        bool foundmatch(false);	
-        for( size_t w=0; w<cwids.size(); w++ ){	 
+        bool foundmatch(false);
+        for( size_t w=0; w<cwids.size(); w++ ){
           if (cwids[w].TPC!=tpc || cwids[w].Cryostat!=cryo) continue;
           if( (unsigned int)std::abs((int)(IdeWid.Wire) - (int)(cwids[w].Wire)) <= fMaxWireShift[cwids[0].Plane] ){
             storethis = cwids[w]; // ...apply correction
             foundmatch = true;
             break;
-          } 	  
+          }
         }
         if( !foundmatch ){
-          mf::LogWarning("DisambigCheat") << "IDE NearestWire return more than 1 off from channel wids: wire " 
-            << IdeWid.Wire; 
+          mf::LogWarning("DisambigCheat") << "IDE NearestWire return more than 1 off from channel wids: wire "
+            << IdeWid.Wire;
           fBadIDENearestWire++;
         }
 
@@ -314,8 +312,6 @@ namespace hit{
   {
     fChanHitLabel =  p.get< std::string >("ChanHitLabel");
   }
-
-#endif // DisambigCheater_h
 
   DEFINE_ART_MODULE(DisambigCheater)
 

@@ -2,7 +2,7 @@
  * \file MCMatchAlg.h
  *
  * \ingroup MCComp
- * 
+ *
  * \brief Class def header for a class MCMatchAlg
  *
  * @author kazuhiro
@@ -30,16 +30,16 @@ namespace btutil {
      doxygen documentation!
   */
   class MCMatchAlg {
-    
+
   public:
-    
+
     /// Default constructor
     MCMatchAlg();
-    
+
     /// Default destructor
     virtual ~MCMatchAlg(){};
 
-    
+
     /// Constructs needed information for Reco=>MC matching
     bool BuildMap(const std::vector< unsigned int>     &g4_trackid_v,
 		  const std::vector<sim::SimChannel> &simch_v,
@@ -49,9 +49,9 @@ namespace btutil {
     bool BuildMap(const std::vector<std::vector< unsigned int> > &g4_trackid_v,
 		  const std::vector<sim::SimChannel> &simch_v,
 		  const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v);
-      
+
     /**
-       For a specified MC object (via index in MCShower/MCTrack), returns best-matched clusters 
+       For a specified MC object (via index in MCShower/MCTrack), returns best-matched clusters
        represented by an index number of clusters. The return vector length is same as
        # of planes, and "-1" if there is no cluster found on the corresponding plane.
     */
@@ -66,7 +66,7 @@ namespace btutil {
 
     /**
        Similar to ClusterCorrectness() function except this one computes the correctness for multiple
-       clusters. It is meant to compute the correctness for a cluster combination that is matched 
+       clusters. It is meant to compute the correctness for a cluster combination that is matched
        across plane to represent one 3D reco object. The return is a pair of best-matched MC object
        and correctness.
      */
@@ -78,8 +78,8 @@ namespace btutil {
 					const size_t mcshower_index) const;
 
     /**
-       For a specified MC object, compute the best-matched cluster's efficiency and purity from 
-       the specified plane ID. Internally this function calls BestClusters() to find the best 
+       For a specified MC object, compute the best-matched cluster's efficiency and purity from
+       the specified plane ID. Internally this function calls BestClusters() to find the best
        cluster on each plane, then calls ClusterEP() to retrieve the efficiency and purity.
      */
     std::pair<double,double> BestClusterEP(const size_t mcshower_index,
@@ -92,7 +92,7 @@ namespace btutil {
 
     bool BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v);
 
-    /// MCBTAlg instance 
+    /// MCBTAlg instance
     MCBTAlg fBTAlgo;
 
     std::vector<size_t> _view_to_plane;
@@ -106,5 +106,5 @@ namespace btutil {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

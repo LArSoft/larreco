@@ -23,7 +23,7 @@ namespace tca {
     slc.crt.cr_pfpxmin.push_back(std::min(startPos[0], endPos[0]));
     slc.crt.cr_pfpxmax.push_back(std::max(startPos[0], endPos[0]));
 
-    //find max 
+    //find max
     const geo::TPCGeo &tpc = tcc.geom->TPC(0);
     float mindis0 = FLT_MAX;
     float mindis1 = FLT_MAX;
@@ -78,13 +78,13 @@ namespace tca {
   ////////////////////////////////////////////////
   int GetOrigin(TCSlice& slc, PFPStruct& pfp){
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;    
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;    
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
     std::map<int, float> omap; //<origin, energy>
 
     for(auto& tjID : pfp.TjIDs) {
-      
+
       Trajectory& tj = slc.tjs[tjID - 1];
       for(auto& tp : tj.Pts) {
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -97,14 +97,14 @@ namespace tca {
           double endTick = hit.PeakTime() + hit.RMS();
           // get a list of track IDEs that are close to this hit
           std::vector<sim::TrackIDE> tides;
-          tides = bt_serv->ChannelToTrackIDEs(channel, startTick, endTick);          
+          tides = bt_serv->ChannelToTrackIDEs(channel, startTick, endTick);
           for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
             omap[pi_serv->TrackIdToMCTruth_P(itide->trackID)->Origin()] += itide->energy;
           }
         }
       }
     }
-    
+
     float maxe = -1;
     int origin = 0;
     for (auto & i : omap){

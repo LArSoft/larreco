@@ -2,7 +2,7 @@
  * \file CBAlgoFake.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoFake
  *
  * @author kazuhiro
@@ -25,15 +25,15 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CBAlgoFake : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoFake();
-    
+
     /// Default destructor
     virtual ~CBAlgoFake(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -52,5 +52,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

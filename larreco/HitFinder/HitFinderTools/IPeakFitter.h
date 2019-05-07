@@ -21,10 +21,10 @@ namespace reco_tool
     {
     public:
         virtual ~IPeakFitter() noexcept = default;
-        
+
         // Define standard art tool interface
         virtual void configure(const fhicl::ParameterSet& pset) = 0;
-        
+
         // Define a structure to contain hits
         using PeakFitParams_t = struct PeakFitParams
         {
@@ -35,9 +35,9 @@ namespace reco_tool
             float peakAmplitude;
             float peakAmplitudeError;
         };
-        
+
         using PeakParamsVec = std::vector<PeakFitParams_t>;
-        
+
         // Get parameters for input candidate peaks
         virtual void findPeakParameters(const std::vector<float>&,
                                         const ICandidateHitFinder::HitCandidateVec&,

@@ -2,7 +2,7 @@
  * \file CRUException.h
  *
  * \ingroup ClusterRecoUtil
- * 
+ *
  * \brief Class def header for exception classes in ClusterRecoUtil package
  *
  * @author kazuhiro
@@ -30,7 +30,7 @@ namespace cluster {
     {}
 
     virtual ~CRUException() throw(){};
-    virtual const char* what() const throw() 
+    virtual const char* what() const throw()
     {return _msg.c_str(); }
 
   private:
@@ -40,5 +40,5 @@ namespace cluster {
 
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

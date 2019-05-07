@@ -2,7 +2,7 @@
  * \file CBAlgoPolyHitOverlap.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoPolyHitOverlap
  *
  * @author David Caratelli
@@ -24,15 +24,15 @@ namespace cmtool {
      Merge Polygons if one is completely inside the other
   */
   class CBAlgoPolyHitOverlap : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoPolyHitOverlap();
-    
+
     /// Default destructor
     virtual ~CBAlgoPolyHitOverlap(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -47,5 +47,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

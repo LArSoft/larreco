@@ -26,37 +26,37 @@
 genf::GFBookkeeping::GFBookkeeping(const GFBookkeeping& bk): TObject(bk) {
   fNhits = bk.fNhits;
   fMatrices = bk.fMatrices; //implicit copy constructor call
-  fNumbers = bk.fNumbers; 
-  fPlanes = bk.fPlanes; 
+  fNumbers = bk.fNumbers;
+  fPlanes = bk.fPlanes;
   fFailedHits = bk.fFailedHits;
 
   //deep copy
 
   std::map<std::string,TMatrixT<Double_t>*>::const_iterator it;
   std::map<std::string,TMatrixT<Double_t>*>::iterator it_here;
-  
+
   it = bk.fMatrices.begin();
   it_here = fMatrices.begin();
   while(it!=bk.fMatrices.end()){
     it_here->second  = new TMatrixT<Double_t>[fNhits];
     for(int i=0;i<fNhits;++i){
       (it_here->second)[i] = (it->second)[i];
-    }    
+    }
     it++;
     it_here++;
   }
-  
+
   it = bk.fNumbers.begin();
   it_here = fNumbers.begin();
   while(it!=bk.fNumbers.end()){
     it_here->second  = new TMatrixT<Double_t>[fNhits];
     for(int i=0;i<fNhits;++i){
       (it_here->second)[i] = (it->second)[i];
-    }    
+    }
     it++;
     it_here++;
   }
-  
+
   std::map<std::string,genf::GFDetPlane*>::const_iterator ip;
   std::map<std::string,genf::GFDetPlane*>::iterator ip_here;
 
@@ -66,7 +66,7 @@ genf::GFBookkeeping::GFBookkeeping(const GFBookkeeping& bk): TObject(bk) {
     ip_here->second  = new genf::GFDetPlane[fNhits];
     for(int i=0;i<fNhits;++i){
       (ip_here->second)[i] = ((ip->second)[i]);
-    }    
+    }
     ip++;
     ip_here++;
   }
@@ -77,13 +77,13 @@ genf::GFBookkeeping::GFBookkeeping(const GFBookkeeping& bk): TObject(bk) {
 
 void genf::GFBookkeeping::Streamer(TBuffer &R__b)
 {
-  
-  
+
+
    // Stream an object of class GFBookkeeping.
    if (R__b.IsReading()) {
 
-     //     Version_t R__v = R__b.ReadVersion(); 
-     TObject::Streamer(R__b); 
+     //     Version_t R__v = R__b.ReadVersion();
+     TObject::Streamer(R__b);
 
      clearAll();
 
@@ -142,8 +142,8 @@ void genf::GFBookkeeping::Streamer(TBuffer &R__b)
        }
      }//done reading failed hits
    } else {
-     //     R__b.WriteVersion(genf::GFBookkeeping::IsA()); 
-     TObject::Streamer(R__b); 
+     //     R__b.WriteVersion(genf::GFBookkeeping::IsA());
+     TObject::Streamer(R__b);
 
      //write number of hits
      R__b << fNhits;
@@ -173,7 +173,7 @@ void genf::GFBookkeeping::Streamer(TBuffer &R__b)
        }
      }//done saving GFDetPlanes
      keys.clear();
-     {//save numbers    
+     {//save numbers
        keys = getNumberKeys();
        R__b << (unsigned int)(keys.size());
        for(unsigned int i=0;i<keys.size();++i){
@@ -183,15 +183,15 @@ void genf::GFBookkeeping::Streamer(TBuffer &R__b)
 	   ((fNumbers[keys.at(i)])[j]).Streamer(R__b);
 	 }
        }
-     }//done saving numbers 
+     }//done saving numbers
      {//save failedHits
        R__b << ((unsigned int) fFailedHits.size());
        for(unsigned int i=0;i<fFailedHits.size();++i){
 	 R__b << fFailedHits.at(i);
        }
-     }//done saving failed Hits    
+     }//done saving failed Hits
    }
-  
+
 }
 
 void genf::GFBookkeeping::bookMatrices(std::string key){
@@ -201,7 +201,7 @@ void genf::GFBookkeeping::bookMatrices(std::string key){
   }
   if(fMatrices[key] != NULL){
     std::ostringstream ostr;
-    ostr << "The key " << key 
+    ostr << "The key " << key
 	 << " is already occupied in genf::GFBookkeeping::bookMatrices()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
     throw exc;
@@ -216,7 +216,7 @@ void genf::GFBookkeeping::bookGFDetPlanes(std::string key){
   }
   if(fPlanes[key] != NULL){
     std::ostringstream ostr;
-    ostr << "The key " << key 
+    ostr << "The key " << key
 	 << " is already occupied in genf::GFBookkeeping::bookGFDetPlanes()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
     throw exc;
@@ -232,7 +232,7 @@ void genf::GFBookkeeping::bookNumbers(std::string key,double val){
   }
   if(fPlanes[key] != NULL){
     std::ostringstream ostr;
-    ostr << "The key " << key 
+    ostr << "The key " << key
 	 << " is already occupied in genf::GFBookkeeping::bookNumbers()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
     throw exc;
@@ -242,7 +242,7 @@ void genf::GFBookkeeping::bookNumbers(std::string key,double val){
     ((fNumbers[key])[i]).ResizeTo(1,1);
     ((fNumbers[key])[i])[0][0] = val;
   }
-  
+
 }
 
 void genf::GFBookkeeping::setMatrix(std::string key, unsigned int index,
@@ -258,7 +258,7 @@ void genf::GFBookkeeping::setMatrix(std::string key, unsigned int index,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::setMatrix()";
    GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   (fMatrices[key])[index].ResizeTo(mat);
   (fMatrices[key])[index] = mat;
@@ -276,7 +276,7 @@ void genf::GFBookkeeping::setDetPlane(std::string key, unsigned int index,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::setGFDetPlane()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   (fPlanes[key])[index] = pl;
 }
@@ -293,7 +293,7 @@ void genf::GFBookkeeping::setNumber(std::string key, unsigned int index,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::setNumber()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   ((fNumbers[key])[index])[0][0] = num;
 }
@@ -313,7 +313,7 @@ bool genf::GFBookkeeping::getMatrix(std::string key,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::getMatrix()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   mat.ResizeTo(iMatrix->second[index]);
   mat = iMatrix->second[index];
@@ -335,7 +335,7 @@ bool genf::GFBookkeeping::getDetPlane(std::string key,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::getGFDetPlane()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   pl = iPlane->second[index];
   return true;
@@ -355,7 +355,7 @@ bool genf::GFBookkeeping::getNumber(std::string key,
     ostr << "The index " << index
 	 << " is out of range in genf::GFBookkeeping::getNumber()";
     GFException exc(ostr.str(),__LINE__,__FILE__);
-    throw exc;    
+    throw exc;
   }
   num = iNumber->second[index][0][0];
   return true;

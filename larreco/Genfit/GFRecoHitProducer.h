@@ -16,14 +16,14 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @addtogroup genfit 
+/** @addtogroup genfit
  * @{ */
 
 
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 
 #ifndef GFRECOHITPRODUCER_H
@@ -44,7 +44,7 @@ class GFAbsRecoHit;
  */
 class GFAbsRecoHitProducer {
 public:
-  /** @brief Virtual abstract method to produce a RecoHit. 
+  /** @brief Virtual abstract method to produce a RecoHit.
    * Implemented in GFRecoHitProducer
    */
   virtual GFAbsRecoHit* produce(int index)=0;
@@ -55,21 +55,21 @@ public:
 /** @brief Template class for a hit producer module
  *
  * A GFRecoHitProducer module is used by RecoHitFactory to create RecoHits for
- * one specific detector type. 
+ * one specific detector type.
  *
  * It is assumed that each detector has as output of its digitization /
  * clustering some sort of cluster class which stores all information that
- * corresponds to a measured hit in that detector. The RecoHit producer 
+ * corresponds to a measured hit in that detector. The RecoHit producer
  * converts this information into a class that can be handled by genfit.
  * This class is realized as a RecoHit (a class inherting from GFAbsRecoHit).
  *
  * In order to use the GFRecoHitProducer facility a
- * RecoHit has to implement a constructor which takes as an argument 
+ * RecoHit has to implement a constructor which takes as an argument
  * a pointer to the cluster class. This constructor serves as the initializing
  * constructor for the RecoHit.
  *
  * The GFRecoHitProducer will fetch the cluster objects from a TClonesArray and
- * use the initializing constructor to build the corresponding RecoHit. 
+ * use the initializing constructor to build the corresponding RecoHit.
  *
  * @param hit_t template parameter specifying cluster class
  * @param recoHit_t template parameter specifying recoHit
@@ -87,10 +87,10 @@ class GFRecoHitProducer : public GFAbsRecoHitProducer {
   //GFRecoHitProducer(std::vector<GFAbsRecoHit*>*);
   virtual ~GFRecoHitProducer();
 
-  /** @brief Create a RecoHit from the cluster at position index 
+  /** @brief Create a RecoHit from the cluster at position index
    * in TClonesArray
    */
-  virtual GFAbsRecoHit* produce(int index);	
+  virtual GFAbsRecoHit* produce(int index);
 };
 /** @} */
 
@@ -137,6 +137,6 @@ GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
 }
 
 
-#endif 
+#endif
 
 

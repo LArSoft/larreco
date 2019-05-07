@@ -6,14 +6,11 @@
 // Generated at Tue Nov  8 09:41:20 2011 by Brian Rebel using artmod
 // from art v1_00_02.
 ////////////////////////////////////////////////////////////////////////
-#ifndef HitCheater_h
-#define HitCheater_h
 
 // C/C++ standard libraries
 #include <cmath> // std::sqrt()
 #include <string>
 #include <map>
-#include <vector>
 
 #include "canvas/Utilities/InputTag.h"
 #include "canvas/Utilities/Exception.h"
@@ -58,9 +55,9 @@ private:
     );
 
 
-  std::string         fG4ModuleLabel;              ///< label name for module making sim::SimChannels                
-  std::string         fWireModuleLabel;                 ///< label name for module making recob::Wires                
-  double              fMinCharge;                       ///< Minimum charge required to make a hit                 
+  std::string         fG4ModuleLabel;              ///< label name for module making sim::SimChannels
+  std::string         fWireModuleLabel;                 ///< label name for module making recob::Wires
+  double              fMinCharge;                       ///< Minimum charge required to make a hit
   double              fElectronsToADC;             ///< Conversion factor of electrons to ADC counts
   std::string         fCalDataProductInstanceName; ///< label name for module making recob::Wires
   int                 fReadOutWindowSize;          ///< Number of samples in a readout window; NOT total samples
@@ -88,25 +85,25 @@ void hit::HitCheater::produce(art::Event & e)
   // this object contains the hit collection
   // and its associations to wires and raw digits:
   recob::HitCollectionCreator hits(*this, e);
-  
+
   // Read in the wire List object(s).
   art::InputTag WireInputTag(fWireModuleLabel, fCalDataProductInstanceName);
   art::ValidHandle< std::vector<recob::Wire>> wHandle =
     e.getValidHandle<std::vector<recob::Wire>>(WireInputTag);
-  
+
   int whatSpill = 1;
   if( !fCalDataProductInstanceName.empty() ) {
     if( fCalDataProductInstanceName.find("ost") != std::string::npos) whatSpill=2;
     else whatSpill=0;
   }
-  
+
   // also get the raw digits associated with the wires;
   // we assume they have been created by the same module as the wires
   art::FindOneP<raw::RawDigit> WireToRawDigits(wHandle, e, WireInputTag);
-  
+
   // make a map of wires to channel numbers
   std::map<raw::ChannelID_t, art::Ptr<recob::Wire>> wireMap;
-  
+
   for(size_t wc = 0; wc < wHandle->size(); ++wc){
     art::Ptr<recob::Wire> wire(wHandle, wc);
     wireMap[wire->Channel()] = wire;
@@ -119,18 +116,18 @@ void hit::HitCheater::produce(art::Event & e)
   // find the hits on each channel
   for(sim::SimChannel const* sc: sccol) {
     std::vector<recob::Hit> hits_on_channel;
-    
+
     FindHitsOnChannel(sc, hits_on_channel, whatSpill);
-    
+
     art::Ptr<recob::Wire> const& wire = wireMap[sc->Channel()];
     art::Ptr<raw::RawDigit> rawdigits; // null by default
     if (wire.isNonnull()) rawdigits = WireToRawDigits.at(wire.key());
-    
+
     // add all the hits found on this channel to the data product,
     // all associated to the same hit and wire
     for (recob::Hit& hit: hits_on_channel)
       hits.emplace_back(std::move(hit), wire, rawdigits);
-    
+
   }// end loop over SimChannels
 
   // put the cheated hits into the event
@@ -145,8 +142,8 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
                                         std::vector<recob::Hit>& hits,
                                         int                      spill)
 {
-  art::ServiceHandle<geo::Geometry> geo;
-  
+  art::ServiceHandle<geo::Geometry const> geo;
+
   raw::ChannelID_t channel = sc->Channel();
   geo::SigType_t signal_type = geo->SignalType(channel);
   geo::View_t view = geo->View(channel);
@@ -156,7 +153,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
   // then make a map of tdc to electrons for each one of those geo::WireIDs
   // then find hits on each geo::WireID
   std::vector<geo::WireID> wireids = geo->ChannelToWire(channel);
-  
+
   std::map<geo::WireID, std::map< unsigned int, double> > wireIDSignals;
 
   auto const& idemap = sc->TDCIDEMap();
@@ -165,18 +162,18 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
     unsigned short tdc = mapitr.first;
 
     if( fReadOutWindowSize != fNumberTimeSamples ) {
-      if( tdc < spill*fReadOutWindowSize || 
+      if( tdc < spill*fReadOutWindowSize ||
           tdc > (spill+1)*fReadOutWindowSize )  continue;
      } else {
       if ( tdc < 0 || tdc > fReadOutWindowSize) continue;
     }
-    
+
     // figure out which TPC we are in for each voxel
 
     for(auto const& ideitr : mapitr.second){
 
       const float edep = ideitr.numElectrons;
-      
+
       std::array<double, 3> pos;
       pos[0] = ideitr.x;
       pos[1] = ideitr.y;
@@ -195,7 +192,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
       for( auto const& wid : wireids){
         if(wid.TPC == tpc && wid.Cryostat == cstat){
           // in the right TPC, now figure out which wire we want
-          // this works because there is only one plane option for 
+          // this works because there is only one plane option for
           // each WireID in each TPC
           if(wid.Wire == geo->NearestWire(pos.data(), wid.Plane, wid.TPC, wid.Cryostat))
             wireIDSignals[wid][tdc] += edep;
@@ -207,7 +204,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
   // now loop over each wire ID and determine where the hits are
   for( auto const& widitr : wireIDSignals){
 
-    // get the first tdc in the 
+    // get the first tdc in the
     unsigned short prev         = widitr.second.begin()->first;
     unsigned short startTime    = prev;
     double         totCharge    = 0.;
@@ -223,11 +220,11 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         throw art::Exception(art::errors::LogicError)
           << "SimChannel TDCs going backward!";
       }
-      
-      // more than a one tdc gap between times with 
+
+      // more than a one tdc gap between times with
       // signal, start a new hit
       if(tdc - prev > fNewHitTDCGap){
-        
+
         if(totCharge > fMinCharge){
           hits.emplace_back(
             channel,       // channel
@@ -249,9 +246,9 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
             signal_type,                      // signal_type
             widitr.first                      // wireID
             );
-          
+
           MF_LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
-          
+
         }// end if charge is large enough
 
         // reset the variables for each hit
@@ -262,7 +259,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         time.clear();
 
       }// end if need to start a new hit
-      
+
       const double adc = fElectronsToADC*tdcitr.second;
 
       totCharge += adc;
@@ -302,13 +299,13 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         signal_type,                      // signal_type
         widitr.first                      // wireID
         );
-      
+
       MF_LOG_DEBUG("HitCheater") << "last hit is " << hits.back();
-      
+
     }// end if charge is large enough
-    
+
   }// end loop over map of geo::WireID to map<tdc,electrons>
-  
+
 
   return;
 }
@@ -338,7 +335,5 @@ void hit::HitCheater::reconfigure(fhicl::ParameterSet const & p)
 
   return;
 }
-
-#endif /* HitCheater_h */
 
 DEFINE_ART_MODULE(hit::HitCheater)

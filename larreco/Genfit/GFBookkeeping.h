@@ -82,7 +82,7 @@ class GFBookkeeping : public TObject {
  private:
   //protect from call of net yet defined assignement operator
   GFBookkeeping& operator=(const GFBookkeeping& /* rhs */) = delete; // {return *this;}
-  
+
   virtual void Print(Option_t*) const
     { throw GFException(std::string(__func__) + "::Print(Option_t*) not available", __LINE__, __FILE__).setFatal(); }
 

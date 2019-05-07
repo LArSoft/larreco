@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOSTARTPOINTMATCH_CXX
-#define RECOTOOL_CFALGOSTARTPOINTMATCH_CXX
-
 #include "CFAlgoStartPointMatch.h"
 
 namespace cmtool {
@@ -14,7 +11,7 @@ namespace cmtool {
     _t2cm = geou.TimeToCm();
     UseTime(true);
     SetMaxArea(100.);
-    
+
   }
 
   //-----------------------------
@@ -62,8 +59,8 @@ namespace cmtool {
     //y and z indicate detector coordinate and numbers indicate planes
     //used to generate that intersection point
     double yS12, zS12, yS13, zS13, yS23, zS23;
-    
-    art::ServiceHandle<geo::Geometry> geo;
+
+    art::ServiceHandle<geo::Geometry const> geo;
     geo->IntersectionPoint( startWire1, startWire2,
 			    Pl1, Pl2,
 			    cryo, tpc,
@@ -88,9 +85,9 @@ namespace cmtool {
     }
 
     if ( _verbose ){
-      std::cout << "Intersection Pl1-Pl3: ( " << yS13 << ", " << zS13 << " )" << std::endl;  
-      std::cout << "Intersection Pl1-Pl2: ( " << yS12 << ", " << zS12 << " )" << std::endl;  
-      std::cout << "Intersection Pl2-Pl3: ( " << yS23 << ", " << zS23 << " )" << std::endl;  
+      std::cout << "Intersection Pl1-Pl3: ( " << yS13 << ", " << zS13 << " )" << std::endl;
+      std::cout << "Intersection Pl1-Pl2: ( " << yS12 << ", " << zS12 << " )" << std::endl;
+      std::cout << "Intersection Pl2-Pl3: ( " << yS23 << ", " << zS23 << " )" << std::endl;
     }
 
     //Parameter used for evaluation is area of triangle formed by the three intersection points
@@ -103,7 +100,7 @@ namespace cmtool {
 		     (yS13+yS23)/2. , (zS13+zS23)/2. , startTime3,
 		     (yS12+yS23)/2. , (zS13+zS23)/2. , startTime2 );
     }
-    
+
     if ( _verbose ) { std::cout << "Area of intersections triangle is: " << area << std::endl; }
 
     if ( area > _MaxArea )
@@ -149,6 +146,5 @@ namespace cmtool {
     return 0.5*sqrt( (By*Cz-Cz*By)*(By*Cz-Cz*By) + (Bz*Cx-Bx*Cz)*(Bz*Cx-Bx*Cz) + (Bx*Cy-By*Cx)*(Bx*Cy-By*Cx) );
   }
 
-    
+
 }
-#endif

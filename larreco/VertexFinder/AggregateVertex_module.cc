@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef AGGREGATEVERTEX_H
-#define AGGREGATEVERTEX_H
 
 extern "C" {
 #include <sys/types.h>
@@ -15,7 +13,7 @@ extern "C" {
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
@@ -23,10 +21,10 @@ extern "C" {
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -37,7 +35,6 @@ extern "C" {
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
-#include <vector>
 #include <string>
 
 namespace vertex {
@@ -74,7 +71,7 @@ namespace vertex {
 namespace vertex {
 
   //-----------------------------------------------
-  AggregateVertex::AggregateVertex(fhicl::ParameterSet const& pset) 
+  AggregateVertex::AggregateVertex(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
     , fDBScanModuleLabel  (pset.get< std::string >("DBScanModuleLabel"  ))
     , fHoughModuleLabel   (pset.get< std::string >("HoughModuleLabel"   ))
@@ -86,9 +83,9 @@ namespace vertex {
     produces< art::Assns<recob::Vertex, recob::Track> >();
     produces< art::Assns<recob::Vertex, recob::Shower> >();
   }
-  
+
   //-----------------------------------------------
-  void AggregateVertex::produce(art::Event& evt) 
+  void AggregateVertex::produce(art::Event& evt)
   {
 
     art::Handle< std::vector<recob::EndPoint2D> > epListHandle;
@@ -109,8 +106,8 @@ namespace vertex {
     // Only match strong vertices to tracks.
     art::PtrVector<recob::EndPoint2D>::const_iterator epIter = feplist.begin();
 
-    while (epIter != feplist.end()){            
-      art::Ptr <recob::EndPoint2D> ep = (*epIter);  
+    while (epIter != feplist.end()){
+      art::Ptr <recob::EndPoint2D> ep = (*epIter);
       if (ep->ID() < 3) feplistStrong.push_back(ep); // -- cuz there's one less
       epIter++;
     }
@@ -138,7 +135,7 @@ namespace vertex {
 									   art::Assns<recob::Vertex, recob::Hit>& vhassn)
   {
     mf::LogInfo("AggregateVertex") << "AggregateEvent::MatchV2T(): (strong) vertexlistStrong"
-				   << " and tracklist lengths are " 
+				   << " and tracklist lengths are "
 				   << feplistStrong.size() << " and " <<  ftracklist.size() << ".";
 
     art::FindManyP<recob::Hit> fmhst(feplistStrong, evt, fEndPointModuleLabel);
@@ -155,14 +152,14 @@ namespace vertex {
     art::FindManyP<recob::Hit> fmht(ftracklist, evt, fTrack3DModuleLabel);
     art::FindManyP<recob::Hit> fmhs(ftracklist, evt, fTrack3DModuleLabel);
 
-    for(size_t epctr = 0; epctr < feplistStrong.size(); ++epctr){            
+    for(size_t epctr = 0; epctr < feplistStrong.size(); ++epctr){
       art::PtrVector<recob::Track>  tlistAssoc; // Will fill with matching tracks.
       art::PtrVector<recob::Shower> slistAssoc; // Will fill with matching showers.
       std::vector<size_t> trkIdx;
       std::vector<size_t> shwIdx;
 
       std::vector< art::Ptr<recob::Hit> > hitvertexlistStrong = fmhst.at(epctr);
-      
+
       // Should be just one hit per vtx, as per Josh, but we loop anyway.
       art::PtrVector<recob::Hit>::const_iterator hvIter = hitvertexlistStrong.begin();
       while (hvIter != hitvertexlistStrong.end())  {
@@ -170,22 +167,22 @@ namespace vertex {
 
 	// Now loop on the track hits
 	for(size_t t = 0; t < ftracklist.size(); ++t){
-	  
+
 	  std::vector< art::Ptr<recob::Hit> > hittlist = fmht.at(t);
 
 	  std::vector< art::Ptr<recob::Hit> >::const_iterator htIter = hittlist.begin();
 	  while (htIter != hittlist.end())  {
-	    
+
 	    art::Ptr<recob::Hit> hitt = (*htIter);
-	    
+
 	    if (hitt==hitv){
-	      //std::cout << "AggregateEvent::MatchV2T(): BooYiggity! Vtx/Trk hit match! hitt, hitv= " 
+	      //std::cout << "AggregateEvent::MatchV2T(): BooYiggity! Vtx/Trk hit match! hitt, hitv= "
 	      //<< hitt << " " <<hitv << std::endl;
 	      //std::cout << "AggregateEvent::MatchV2T(): vtx, trk " << vtx<< " " <<trk << std::endl;
 	      tlistAssoc.push_back(ftracklist[t]);
 	      trkIdx.push_back(t);
 	      htIter = hittlist.end()-1; // jump to end of track hitlist, since we've satisfied match
-	    }			
+	    }
 	    htIter++;
 	  } // end hits associated to track
 	} // end track loop
@@ -208,7 +205,7 @@ namespace vertex {
 	  util::CreateAssn(*this, evt, *verts, hits, vhassn);
 	}
       }// end if there are tracks to be associated
-    
+
       if (slistAssoc.size() > 0){
 	/// \todo Really need to also determine the xyz position of the found vertex
 	/// \todo Also should determine the ID for this vertex
@@ -228,11 +225,11 @@ namespace vertex {
       }// end if there are showers to be associated
 
       //HnhinVtxes->Fill(hitvertexlistStrong.size(),1);
-	      
-    } // end loop over end points 
-    
+
+    } // end loop over end points
+
     return verts;
-      
+
   } // end AggregateVertex::MatchV2T
 
 
@@ -243,4 +240,3 @@ namespace vertex{
   DEFINE_ART_MODULE(AggregateVertex)
 
 }
-#endif // AGGREGATEVERTEX_H

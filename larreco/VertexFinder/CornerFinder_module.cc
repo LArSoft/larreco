@@ -12,11 +12,10 @@
 
 
 //Basic includes
-#include <vector>
 #include <string>
 
 //Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
@@ -30,37 +29,37 @@
 //header info for CornerFinder class
 
 namespace vertex {
-   
+
   class CornerFinder :  public art::EDProducer {
-    
+
   public:
-    
-    explicit CornerFinder(fhicl::ParameterSet const& pset); 
-    
+
+    explicit CornerFinder(fhicl::ParameterSet const& pset);
+
   private:
     void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt) override;
 
     corner::CornerFinderAlg  fCornerAlg;
-    art::ServiceHandle<geo::Geometry> fGeometryHandle;
+    art::ServiceHandle<geo::Geometry const> fGeometryHandle;
 
     std::string               fCalDataModuleLabel;
 
     void printEndpoints(std::vector<recob::EndPoint2D> const& corner_vector);
 
   }; //class CornerFinder
-  
-  
+
+
 
   //-----------------------------------------------------------------------------
   CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
     EDProducer{pset},
     fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"))
-  {  
-    this->reconfigure(pset);    
+  {
+    this->reconfigure(pset);
     produces< std::vector<recob::EndPoint2D> >();
   }
-  
+
   //---------------------------------------------------------------------------
   void CornerFinder::reconfigure(fhicl::ParameterSet const& pset) {
     fCalDataModuleLabel = pset.get<std::string>("CalDataModuleLabel");
@@ -69,7 +68,7 @@ namespace vertex {
 
   //-----------------------------------------------------------------------------
   void CornerFinder::produce(art::Event& evt){
-  
+
     //We need do very little here, as it's all handled by the corner finder.
     const bool DEBUG_TEST = false; //turn on/off some messages
 
@@ -85,7 +84,7 @@ namespace vertex {
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
     fCornerAlg.get_feature_points_fast(*corner_vector,*fGeometryHandle);
 
-    mf::LogInfo("CornerFinderModule") << "CornerFinderAlg finished, and returned " 
+    mf::LogInfo("CornerFinderModule") << "CornerFinderAlg finished, and returned "
 					  << corner_vector->size() << " endpoints.";
 
     if(DEBUG_TEST) printEndpoints(*corner_vector);
@@ -103,9 +102,9 @@ namespace vertex {
 
     for(auto iter=corner_vector.begin(); iter!=corner_vector.end(); iter++){
       geo::WireID wid = iter->WireID();
-      mf::LogVerbatim("CornerFinderModule") << "Endpoint found: (plane,wire,time,strength)=(" 
-					    << wid.Plane << "," 
-					    << wid.Wire << "," 
+      mf::LogVerbatim("CornerFinderModule") << "Endpoint found: (plane,wire,time,strength)=("
+					    << wid.Plane << ","
+					    << wid.Wire << ","
 					    << iter->DriftTime() << ","
 					    << iter->Strength() << ")";
     }

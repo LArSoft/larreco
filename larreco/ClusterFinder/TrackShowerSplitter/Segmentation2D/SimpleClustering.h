@@ -2,7 +2,7 @@
  *  @file   SimpleClustering.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Trivial, collect hits "touching" each other (next wire or consecutive ticks),
  *          plus Cluster2D class to hold data needed by tss algorithms.
  */
@@ -25,13 +25,13 @@ struct tss::bDistToPointLess :
 	public std::binary_function<const tss::Hit2D*, const tss::Hit2D*, bool>
 {
 	bDistToPointLess(const TVector2& point) : p0(point) { }
-	
+
 	bool operator() (const tss::Hit2D* h1, const tss::Hit2D* h2)
 	{
 		if (h1 && h2) return pma::Dist2(h1->Point2D(), p0) < pma::Dist2(h2->Point2D(), p0);
 		else return false;
 	}
-	
+
 	private: TVector2 p0;
 };
 

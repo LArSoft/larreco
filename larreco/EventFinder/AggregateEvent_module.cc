@@ -11,7 +11,6 @@ extern "C" {
 }
 #include <math.h>
 #include <algorithm>
-#include <iostream>
 #include <fstream>
 
 // Framework includes
@@ -23,8 +22,8 @@ extern "C" {
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
@@ -41,25 +40,23 @@ extern "C" {
 #include "TVectorD.h"
 #include "TFile.h"
 #include "TGraph.h"
-#include "TMath.h"
 
 #include "art/Framework/Core/EDProducer.h"
 
 #include "TH2F.h"
 #include "TF1.h"
-#include <vector>
 #include <string>
 
 namespace recob{ class Vertex; }
 
 namespace event {
-   
+
   class AggregateEvent : public art::EDProducer {
-    
+
   public:
-    
+
     explicit AggregateEvent(fhicl::ParameterSet const& );
-    
+
   private:
     void produce(art::Event& evt) override;
 
@@ -75,7 +72,7 @@ namespace event {
 namespace event {
 
   //-------------------------------------------------
-  AggregateEvent::AggregateEvent(fhicl::ParameterSet const& pset) : 
+  AggregateEvent::AggregateEvent(fhicl::ParameterSet const& pset) :
     EDProducer{pset},
     fVertexModuleLabel(pset.get< std::string >("VertexModuleLabel"))
   {
@@ -86,12 +83,12 @@ namespace event {
 
   //------------------------------------------------------------------------------------//
   void AggregateEvent::produce(art::Event& evt)
-  { 
+  {
 
     std::unique_ptr<std::vector<recob::Event> > ecol(new std::vector<recob::Event>);
-    
+
     // get the geometry
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     art::Handle< std::vector<recob::Vertex> > vertexListHandle;
     evt.getByLabel(fVertexModuleLabel,vertexListHandle);

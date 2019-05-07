@@ -5,12 +5,12 @@
  * Outputs: std::vector<recob::SpacePoint>
  *
  * Description:
- * This space point algorithm tries to improve speed by 
+ * This space point algorithm tries to improve speed by
  * (1) keeping hit collections distinct among planes;
  * (2) sorting hit collections by time; and,
  * (3) having a lookup table for (y,z) coordinate positions.
- * The original use case for this code was with the TTHitFinder, 
- * which produces an incredibly large number of hits per plane, 
+ * The original use case for this code was with the TTHitFinder,
+ * which produces an incredibly large number of hits per plane,
  * making some sorted space point alg more attractive.
  *
  * This code is totally microboone specific, btw.
@@ -39,7 +39,7 @@ namespace sppt{
     TIME_OFFSET_SET    = false;
     COORDINATES_FILLED = false;
   }
-  
+
   //-------------------------------------------------
   SpacePointAlg_TimeSort::~SpacePointAlg_TimeSort(){}
 
@@ -68,7 +68,7 @@ namespace sppt{
   //-------------------------------------------------
   void SpacePointAlg_TimeSort::setTimeOffsets(){
 
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();    
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     TIME_OFFSET_U = -1*detprop->GetXTicksOffset(geo::View_t::kU,0,0);
     TIME_OFFSET_V = -1*detprop->GetXTicksOffset(geo::View_t::kV,0,0);
     TIME_OFFSET_Y = -1*detprop->GetXTicksOffset(geo::View_t::kZ,0,0);
@@ -80,11 +80,11 @@ namespace sppt{
   //-------------------------------------------------
   void SpacePointAlg_TimeSort::fillCoordinatesArrays(){
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     unsigned int nwires_u = geom->Nwires(geo::View_t::kU);
     unsigned int nwires_v = geom->Nwires(geo::View_t::kV);
     unsigned int nwires_y = geom->Nwires(geo::View_t::kZ);
-    
+
     coordinates_UV_y.resize(boost::extents[nwires_v][nwires_u]);
     coordinates_UV_z.resize(boost::extents[nwires_v][nwires_u]);
     coordinates_UY_y.resize(boost::extents[nwires_y][nwires_u]);
@@ -104,8 +104,8 @@ namespace sppt{
 				coordinates_UY_y[iy][iu],
 				coordinates_UY_z[iy][iu]);
       }
-    }	    
-    
+    }
+
     COORDINATES_FILLED = true;
   }
 
@@ -115,7 +115,7 @@ namespace sppt{
 						 std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
 						 std::unique_ptr<std::vector<recob::SpacePoint> > &spptCollection,
 						 std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > &spptAssociatedHits)
-  { 
+  {
 
     if(!TIME_OFFSET_SET){
       mf::LogWarning("SpacePointAlg_TimeSort")
@@ -136,9 +136,9 @@ namespace sppt{
     sortHitsByTime(hitVec_U);
     sortHitsByTime(hitVec_V);
     sortHitsByTime(hitVec_Y);
-    
-    MF_LOG_DEBUG("SpacePointAlg_TimeSort") 
-      << "Sorted " 
+
+    MF_LOG_DEBUG("SpacePointAlg_TimeSort")
+      << "Sorted "
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
       << hitVec_Y.size() << " y hits.";
@@ -155,11 +155,11 @@ namespace sppt{
     while(ihitu != hitVec_U.end()){
       time_hitu = (*ihitu)->PeakTime() + TIME_OFFSET_U;
 
-      mf::LogInfo("SpacePointAlg_TimeSort") 
+      mf::LogInfo("SpacePointAlg_TimeSort")
 	<< "Hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
-	<< time_hity << ")"; 
+	<< time_hity << ")";
 
       //if time_hitu is too much bigger than time_hitv, need to advance hitv iterator
       while( (time_hitu-time_hitv)>fTimeDiffMax ){
@@ -168,7 +168,7 @@ namespace sppt{
 	time_hitv = (*ihitv)->PeakTime() + TIME_OFFSET_V;
       }
       if(ihitv==hitVec_V.end()) break;
-      
+
       //same thing with time_hitu and time_hity
       while( (time_hitu-time_hity)>fTimeDiffMax ){
 	ihity++;
@@ -178,22 +178,22 @@ namespace sppt{
       if(ihity==hitVec_Y.end()) break;
 
       //OK, now we know time_hitu <= time_hitv and time_hitu <= time_hity.
-      //Next, check if time_hitu is near time_hitv and time_hit y. If not, 
+      //Next, check if time_hitu is near time_hitv and time_hit y. If not,
       //we have to increment ihitu.
       if(std::abs(time_hitu-time_hitv)>fTimeDiffMax || std::abs(time_hitu-time_hity)>fTimeDiffMax){
 	ihitu++;
 	continue;
       }
 
-      //OK! Note we KNOW that these three match in time: 
+      //OK! Note we KNOW that these three match in time:
       //  -- time_hitu is within fTimeDiffMax of both time_hitv and time_hity; and
       //  -- time_hitu <= time_hitv AND time_hitu <=time_hity, so time_hitv and time_hity are near too
-      
-      mf::LogInfo("SpacePointAlg_TimeSort") 
+
+      mf::LogInfo("SpacePointAlg_TimeSort")
 	<< "Matching hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
-	<< time_hity << ")"; 
+	<< time_hity << ")";
 
       //Next thing to do, we need to loop over all possible 3-hit matches for our given u-hit.
       //We need new iterators in v and y at this location, and will loop over those
@@ -208,7 +208,7 @@ namespace sppt{
 	unsigned int vwire = (*ihitv_inner)->WireID().Wire;
 	unsigned int ywire = (*ihity_inner)->WireID().Wire;
 
-	mf::LogInfo("SpacePointAlg_TimeSort") 
+	mf::LogInfo("SpacePointAlg_TimeSort")
 	  << "(y,z) coordinate for uv/uy: ("
 	  << coordinates_UV_y[vwire][uwire] << ","
 	  << coordinates_UV_z[vwire][uwire] << ")/("
@@ -237,7 +237,7 @@ namespace sppt{
 					(time_hity_inner-t_val)*(time_hity_inner-t_val));
 	  xyz[0] = TICKS_TO_X * t_val;
 	  xyz_err[0] = TICKS_TO_X * t_err;
-	  
+
 	  //make space point to put on event
 	  recob::SpacePoint spt(xyz, xyz_err, 0., spptCollection->size());
 	  spptCollection->push_back(spt);
@@ -265,7 +265,7 @@ namespace sppt{
       ihitu++;
     }// end while looping over u hits
 
-    MF_LOG_DEBUG("SpacePointAlg_TimeSort") 
+    MF_LOG_DEBUG("SpacePointAlg_TimeSort")
       << "Finished with " << spptCollection->size() << " spacepoints.";
 
   }//end createSpacePoints

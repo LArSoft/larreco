@@ -4,7 +4,7 @@
  * @author petrillo@fnal.gov
  * @date   February 3, 2015
  * @see    StandardClusterParamsAlg.cxx
- * 
+ *
  * ****************************************************************************/
 
 #ifndef OVERRIDDENCLUSTERPARAMSALG_H
@@ -24,14 +24,14 @@
 
 /// Cluster reconstruction namespace
 namespace cluster {
-  
+
   namespace details {
     /**
      * @brief Class holding a value of one among some selected types...
-     * 
+     *
      * The result of default construction is not defined.
      * That's basically throwing away one of the pillars of C++.
-     * 
+     *
      * This horrible class is supposed to keep a value that you give to it,
      * and give it back to you if you ask nicely.
      * Of course, if you ask something you did not give it first, it will become
@@ -41,32 +41,32 @@ namespace cluster {
     class MultiValue {
         public:
       using Measure_t = cluster::details::Measure_t<float>;
-      
+
       // I can't believe I am writing this shit
       union {
         Measure_t measure_value;
         float     float_value;
         size_t    size_t_value;
       };
-      
+
       /// Default constructor; it's here only to allow for vectors to be resized
       /// and its effect is undefined. This class is not to be considered valid
       /// until it's assigned a value with the operator= .
       MultiValue() {}
-      
+
       /// Sets the value from a value of type T; undefined by default
       template <typename T>
       MultiValue& operator= (T);
-      
+
       /// Converts the value to type T; undefined by default
       template <typename T>
       operator T() const;
-      
+
     }; // MultiValue
-    
+
   } // namespace details
-  
-  
+
+
   /** **************************************************************************
    * @brief Algorithm collection class computing cluster parameters
    * @tparam AlgoBase class of algorithms to be overridden
@@ -88,7 +88,7 @@ namespace cluster {
     using Algo_t = AlgoBase;
     using This_t = OverriddenClusterParamsAlg<AlgoBase>;
     using Measure_t = typename AlgoBase::Measure_t;
-    
+
     typedef enum {
       cpStartAngle,          ///< StartAngle()
       cpEndAngle,            ///< EndAngle()
@@ -105,18 +105,18 @@ namespace cluster {
       cpWidth,               ///< Width()
       NParameters            ///< total number of supported parameters
     } ParameterType_t; ///< type of cluster parameters
-    
+
     /// Constructor; just forwards the arguments to the base class
     template <typename... Args>
     explicit OverriddenClusterParamsAlg(Args&&... args):
       algo(std::forward<Args>(args)...),
       values(NParameters)
       {}
-    
+
     /// Destructor
     virtual ~OverriddenClusterParamsAlg() = default;
-    
-    
+
+
     /**
      * @brief Overrides the specified cluster parameter
      * @param param which cluster parameter to override
@@ -132,8 +132,8 @@ namespace cluster {
         values[(size_t) param] = value;
         return *this;
       } // OverrideParameter()
-    
-    
+
+
     /**
      * @brief Cancels the override of the specified cluster parameter
      * @param param which cluster parameter not to override any more
@@ -142,26 +142,26 @@ namespace cluster {
      */
     This_t& ReleaseParameter(ParameterType_t param)
       { overridden_set.set((size_t) param); return *this; }
-    
-    
+
+
     /// Returns whether the specified parameter is currently overridden
     bool isOverridden(ParameterType_t param) const
       { return overridden_set.test((size_t) param); }
-    
-    
+
+
     /// @{
     /// @name Standard ClusterParamsAlgBase interface
-    /// 
+    ///
     /// The following methods replicate the ones of the templated Algo_t class.
     /// Except, of course, when they are overridden.
-    
+
     /**
      * @brief Restores the class to post-configuration, pre-initialization state
      * @see Algo_t::Clear()
      */
     virtual void Clear() override { algo.Clear(); }
-    
-    
+
+
     /**
      * @brief Sets the list of input hits
      * @param hits list of pointers to hits
@@ -170,7 +170,7 @@ namespace cluster {
      */
     virtual void SetHits(std::vector<recob::Hit const*> const& hits) override
       { algo.SetHits(hits); }
-    
+
     /**
      * @brief Sets the list of input hits
      * @param hits list of hits (hits will not be modified)
@@ -179,16 +179,16 @@ namespace cluster {
      */
     virtual void SetHits(std::vector<recob::Hit> const& hits) override
       { algo.SetHits(hits); }
-    
-    
+
+
     /// Set the verbosity level; @see Algo_t::SetVerbose().
     virtual void SetVerbose(int level = 1) override
       { ClusterParamsAlgBase::SetVerbose(level); algo.SetVerbose(level); }
-    
-    
+
+
     /// @{
     /// @name Algorithm results
-    
+
     //@{
     /**
      * @brief Computes the charge on the first and last wire of the track
@@ -200,24 +200,24 @@ namespace cluster {
     virtual Measure_t EndCharge() override
       { return ReturnValue(cpEndCharge, &Algo_t::EndCharge); }
     //@}
-    
+
     //@{
     /**
      * @brief Computes the angle of the cluster
      * @return angle of the cluster in the wire x time space, in radians
      * @see Algo_t::StartAngle(), Algo_t::EndAngle()
-     * 
+     *
      * The angle is in the @f$ [ -\pi, \pi ] @f$ range, with 0 corresponding to
      * a cluster parallel to the wire plane and @f$ \pi @f$ to a cluster
      * orthogonal to the wire plane, going farther from it.
      */
     virtual Measure_t StartAngle() override
       { return ReturnValue(cpStartAngle, &Algo_t::StartAngle); }
-    
+
     virtual Measure_t EndAngle() override
       { return ReturnValue(cpEndAngle, &Algo_t::EndAngle); }
     //@}
-    
+
     //@{
     /**
      * @brief Computes the opening angle at the start or end of the cluster
@@ -229,8 +229,8 @@ namespace cluster {
     virtual Measure_t EndOpeningAngle() override
       { return ReturnValue(cpEndOpeningAngle, &Algo_t::EndOpeningAngle); }
     //@}
-    
-    
+
+
     /// @name Cluster charge
     /// @{
     /**
@@ -241,7 +241,7 @@ namespace cluster {
      */
     virtual Measure_t Integral() override
       { return ReturnValue(cpIntegral, &Algo_t::Integral); }
-    
+
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
      * @return the standard deviation of charge of hits, in ADC count units
@@ -250,7 +250,7 @@ namespace cluster {
      */
     virtual Measure_t IntegralStdDev() override
       { return ReturnValue(cpIntegralStdDev, &Algo_t::IntegralStdDev); }
-    
+
     /**
      * @brief Computes the total charge of the cluster from Hit::SummedADC()
      * @return total charge of the cluster, in ADC count units
@@ -259,7 +259,7 @@ namespace cluster {
      */
     virtual Measure_t SummedADC() override
       { return ReturnValue(cpSummedADC, &Algo_t::SummedADC); }
-    
+
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
      * @return the standard deviation of charge of hits, in ADC count units
@@ -268,15 +268,15 @@ namespace cluster {
      */
     virtual Measure_t SummedADCStdDev() override
       { return ReturnValue(cpSummedADCStdDev, &Algo_t::SummedADCStdDev); }
-    
+
     /// @}
-    
-    
+
+
     /// Returns the number of hits in the cluster
     virtual size_t NHits() override
       { return ReturnValue(cpNHits, &Algo_t::NHits); }
-    
-    
+
+
     /**
      * @brief Fraction of wires in the cluster with more than one hit
      * @return fraction of wires with more than one hit, or 0 if no wires
@@ -284,7 +284,7 @@ namespace cluster {
      */
     virtual float MultipleHitDensity() override
       { return ReturnValue(cpMultipleHitDensity, &Algo_t::MultipleHitDensity); }
-    
+
     /**
      * @brief Computes the width of the cluster
      * @return width of the cluster
@@ -292,21 +292,21 @@ namespace cluster {
      */
     virtual float Width() override
       { return ReturnValue(cpWidth, &Algo_t::Width); }
-    
+
     /// @}
-    
+
     /// @}
-    
+
       protected:
-    
+
     using ValueFunction_t = float (Algo_t::*) ();
     using MeasureFunction_t = Measure_t (Algo_t::*) ();
-    
+
     Algo_t algo; ///< an instance of the wrapped algorithm class
-    
+
     std::vector<details::MultiValue> values; ///< the overridden values
     std::bitset<NParameters> overridden_set; ///< bits for overriding
-    
+
     template <typename Func>
     auto ReturnValue(ParameterType_t param, Func func)
       -> decltype((algo.*func)())
@@ -319,9 +319,9 @@ namespace cluster {
         else
           return (algo.*func)();
       } // ReturnValue()
-    
+
   }; // class OverriddenClusterParamsAlg
-  
+
 } // namespace cluster
 
 
@@ -331,36 +331,36 @@ namespace cluster {
 //==============================================================================
 
 namespace cluster {
-  
+
   namespace details {
-    
+
     // specialization: size_t
     template <>
     MultiValue& MultiValue::operator= (size_t value)
       { size_t_value = value; return *this; }
-    
+
     template <>
     MultiValue::operator size_t () const { return size_t_value; }
-    
+
     // specialization: float
     template <>
     MultiValue& MultiValue::operator= (float value)
       { float_value = value; return *this; }
-    
+
     template <>
     MultiValue::operator float () const { return float_value; }
-    
+
     // specialization: Measure_t
     template <>
     MultiValue& MultiValue::operator= (Measure_t value)
       { measure_value = value; return *this; }
-    
+
     template <>
     MultiValue::operator MultiValue::Measure_t () const
       { return measure_value; }
-    
+
   } // namespace details
-  
+
 } // namespace cluster
 
 #endif // OVERRIDDENCLUSTERPARAMSALG_H

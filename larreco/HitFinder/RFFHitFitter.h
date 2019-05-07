@@ -5,11 +5,11 @@
  * Title:   RFFHitFitter Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
+ * Description:
  * Class that does the base RFF algorithm. RFF works by simplifiying a Gaussian
  * fit by dividing a pulse by its derivative. for a Guassian, the result is a
- * line, with the slope and intercept related to the sigma and mean of the 
- * Gaussian. 
+ * line, with the slope and intercept related to the sigma and mean of the
+ * Gaussian.
  *
  * Input:  Signal (vector of floats)
  * Output: Guassian means and sigmas
@@ -25,13 +25,13 @@ namespace hit{
   struct SignalSetComp{
     bool operator() (const std::pair<float,float>& lhs,
 		     const std::pair<float,float>& rhs) const
-    { return lhs.first < rhs.first; } 		     
+    { return lhs.first < rhs.first; }
   };
 
   class RFFHitFitter {
 
     typedef std::pair<float,float> MeanSigmaPair;
-    
+
   public:
     RFFHitFitter(float,unsigned int,float,float step=0.1,float max=5.0);
     RFFHitFitter(float step=0.1,float max=5.0);
@@ -51,7 +51,7 @@ namespace hit{
     void ClearResults();
 
     void PrintResults();
-			 
+
   private:
     float fMeanMatchThreshold;
     unsigned int fMinMergeMultiplicity;
@@ -61,7 +61,7 @@ namespace hit{
   //  float fGEAlgStepSize;
   //  float fGEAlgMax;
     util::GaussianEliminationAlg fGEAlg;
-    
+
     std::vector<float> fMeanVector;
     std::vector<float> fSigmaVector;
     std::vector<float> fMeanErrorVector;

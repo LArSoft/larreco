@@ -16,8 +16,8 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -79,10 +79,10 @@ private:
   double fProjWidthThreshold;        // Maximum projected width (width of a tube parallel to the line connecting centres of clusters which just encompasses the clusters) for merging
 
   // Create geometry and detector property handle
-  art::ServiceHandle<geo::Geometry> fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
 //  const detinfo::DetectorProperties* fDetProp;
-  art::ServiceHandle<art::TFileService> tfs;
-//  art::ServiceHandle<cheat::BackTracker> backtracker;
+  art::ServiceHandle<art::TFileService const> tfs;
+//  art::ServiceHandle<cheat::BackTracker const> backtracker;
 
   std::map<int,int> trueClusterMap;
 

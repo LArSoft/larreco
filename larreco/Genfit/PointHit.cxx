@@ -78,31 +78,31 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& bet
 
     Double_t C = 0.0136/betac*sqrt(dist/14.0)*(1+0.038*log(dist/14.0)); // EC, 2-Jan-2012.
 
-    HMatrix[0][0] = C; 
+    HMatrix[0][0] = C;
     HMatrix[0][1] = 0.;
     HMatrix[0][2] = 0.;
     HMatrix[0][3] = 0.;
     HMatrix[0][4] = 0.;
 
-    HMatrix[1][0] = 0.; 
+    HMatrix[1][0] = 0.;
     HMatrix[1][1] = 1.;
     HMatrix[1][2] = 0.;
     HMatrix[1][3] = 0.;
     HMatrix[1][4] = 0.;
 
-    HMatrix[2][0] = 0.; 
+    HMatrix[2][0] = 0.;
     HMatrix[2][1] = 0.;
     HMatrix[2][2] = 1.;
     HMatrix[2][3] = 0.;
     HMatrix[2][4] = 0.;
 
-    HMatrix[3][0] = 0.; 
+    HMatrix[3][0] = 0.;
     HMatrix[3][1] = 0.;
     HMatrix[3][2] = 0.;
     HMatrix[3][3] = 1.;
     HMatrix[3][4] = 0.;
 
-    HMatrix[4][0] = 0.; 
+    HMatrix[4][0] = 0.;
     HMatrix[4][1] = 0.;
     HMatrix[4][2] = 0.;
     HMatrix[4][3] = 0.;
@@ -113,13 +113,13 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& bet
   }
   else if(dynamic_cast<const genf::SlTrackRep*>(stateVector)){
     TMatrixT<Double_t> HMatrix(2,4);
-    
+
     HMatrix[0][0] = 1.;
     HMatrix[0][1] = 0.;
     HMatrix[0][2] = 0.;
     HMatrix[0][3] = 0.;
 
-    
+
     HMatrix[1][0] = 0.;
     HMatrix[1][1] = 1.;
     HMatrix[1][2] = 0.;
@@ -132,7 +132,7 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& bet
              << " vectors of type genf::RKTrackRep or genf::SlTrackRep -> throw" << std::endl;
    throw;
  }
- 
+
 }
 
 TMatrixT<Double_t>
@@ -167,13 +167,13 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector)
   }
   else if(dynamic_cast<const genf::SlTrackRep*>(stateVector)){
     TMatrixT<Double_t> HMatrix(2,4);
-    
+
     HMatrix[0][0] = 1.;
     HMatrix[0][1] = 0.;
     HMatrix[0][2] = 0.;
     HMatrix[0][3] = 0.;
 
-    
+
     HMatrix[1][0] = 0.;
     HMatrix[1][1] = 1.;
     HMatrix[1][2] = 0.;
@@ -186,5 +186,5 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector)
              << " vectors of type genf::RKTrackRep or genf::SlTrackRep -> throw" << std::endl;
    throw;
  }
- 
+
 }

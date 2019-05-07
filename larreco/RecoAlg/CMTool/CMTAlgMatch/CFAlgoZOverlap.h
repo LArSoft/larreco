@@ -2,7 +2,7 @@
  * \file CFAlgoZOverlap.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CFAlgoZOverlap
  *
  * @author ah673
@@ -23,23 +23,23 @@ namespace cmtool {
      doxygen documentation!
   */
   class CFAlgoZOverlap : public CFloatAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFAlgoZOverlap();
-    
+
     /// Default destructor
     virtual ~CFAlgoZOverlap(){};
 
     //
-    // Author should be aware of 3 functions at least: Float, Report, 
-    // and Reset. More possibly-useful functions can be found in the later 
+    // Author should be aware of 3 functions at least: Float, Report,
+    // and Reset. More possibly-useful functions can be found in the later
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
     /**
-       Core function: given a set of CPANs, return a float which indicates 
+       Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
@@ -49,7 +49,7 @@ namespace cmtool {
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset();
 
@@ -62,7 +62,7 @@ namespace cmtool {
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     //virtual void EventEnd();
- 
+
     /**
        Optional function: called at the beggining of each iterative loop.
        This provides all clusters' information in case the algorithm need them. Note this
@@ -80,5 +80,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

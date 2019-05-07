@@ -6,7 +6,7 @@
 //
 // A module to validate clustering algorithms.
 // Compares the output of different clustering algorithms run over a pi0 sample.
-// 
+//
 // Usage: Specify the hit finder (HitsModuleLabel) and the clustering outputs
 // to validate (ClusterModuleLabels) in the fhicl file.
 // Module will make validation plots for all clusterings specified and also
@@ -22,8 +22,8 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art_root_io/TFileService.h"
+#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "canvas/Persistency/Common/FindManyP.h"
 
@@ -44,9 +44,7 @@
 #include "nusimdata/SimulationBase/MCTruth.h"
 
 // ROOT & STL includes
-#include "TTree.h"
 #include "TTimeStamp.h"
-#include "TLorentzVector.h"
 #include "TH2F.h"
 #include "TFile.h"
 #include "TH1.h"
@@ -109,9 +107,9 @@ private:
   std::map<TrackID,std::map<std::string,double> > particleProperties;
   std::map<TrackID,simb::MCParticle>              trueParticles;
 
-  art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<geo::Geometry const> geometry;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
 };
 
@@ -204,9 +202,9 @@ private:
   std::map<TrackID,const simb::MCParticle*>                                       trueParticles;
 
   // Services
-  art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<geo::Geometry const> geometry;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
 };
 
@@ -370,7 +368,7 @@ TObjArray ClusteringValidation::ClusterAnalyser::GetHistograms() {
   fHistArray.Add(hCleanliness);      fHistArray.Add(hCleanlinessEnergy);  fHistArray.Add(hCleanlinessAngle);  fHistArray.Add(hCleanlinessConversionDistance);  fHistArray.Add(hCleanlinessConversionSeparation);
   fHistArray.Add(hComplCleanl);      fHistArray.Add(hComplCleanlEnergy);  fHistArray.Add(hComplCleanlAngle);  fHistArray.Add(hComplCleanlConversionDistance);  fHistArray.Add(hComplCleanlConversionSeparation);
   fHistArray.Add(hEfficiencyEnergy); fHistArray.Add(hEfficiencyAngle);    fHistArray.Add(hEfficiencyConversionDistance); fHistArray.Add(hEfficiencyConversionSeparation);
-  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);  
+  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);
 
   return fHistArray;
 }
