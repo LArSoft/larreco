@@ -1514,7 +1514,6 @@ namespace tca {
   //////////////////////////////////////////
   bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt)
   {
-<<<<<<< HEAD
     // Attaches to any 3D vertex but doesn't require consistency with
     // PFP -> Tj -> 2V -> 3V assns
     if(pfp.ID <= 0) return false;
