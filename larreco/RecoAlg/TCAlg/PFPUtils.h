@@ -35,7 +35,6 @@
 namespace tca {
 
   void StitchPFPs();
-//  void UpdateMatchStructs(TCSlice& slc, int oldTj, int newTj);
   void FindPFParticles(TCSlice& slc);
   void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
   void ReconcileTPs(TCSlice& slc);
