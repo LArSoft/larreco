@@ -158,7 +158,6 @@ namespace tca {
   } // StitchPFPs
 
   /////////////////////////////////////////
-<<<<<<< HEAD
   void FindPFParticles(TCSlice& slc)
   {
     // Match Tjs in 3D and create PFParticles
@@ -1041,55 +1040,6 @@ namespace tca {
     return USHRT_MAX;
   } // Find3DRecoRange
 
-  } // MakeTP3
-
-  ////////////////////////////////////////////////
-  double DeltaAngle(const Vector3_t v1, const Vector3_t v2)
-  {
-    if(v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2]) return 0;
-    return acos(DotProd(v1, v2));
-  }
-
-  ////////////////////////////////////////////////
-  Vector3_t PointDirection(const Point3_t p1, const Point3_t p2)
-  {
-    // Finds the direction vector between the two points from p1 to p2
-    Vector3_t dir;
-    for(unsigned short xyz = 0; xyz < 3; ++xyz) dir[xyz] = p2[xyz] - p1[xyz];
-    if(dir[0] == 0 && dir[1] == 0 && dir[2] == 0) return dir;
-    if(!SetMag(dir, 1)) { dir[0] = 0; dir[1] = 0; dir[3] = 0; }
-    return dir;
-  } // PointDirection
-
-  //////////////////////////////////////////
-  double PosSep(const Point3_t& pos1, const Point3_t& pos2)
-  {
-    return sqrt(PosSep2(pos1, pos2));
-  } // PosSep
-
-  //////////////////////////////////////////
-  double PosSep2(const Point3_t& pos1, const Point3_t& pos2)
-  {
-    // returns the separation distance^2 between two positions in 3D
-    double d0 = pos1[0] - pos2[0];
-    double d1 = pos1[1] - pos2[1];
-    double d2 = pos1[2] - pos2[2];
-    return d0*d0 + d1*d1 + d2*d2;
-  } // PosSep2
-
-  //////////////////////////////////////////
-  bool SetMag(Vector3_t& v1, double mag)
-  {
-    double den = v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2];
-    if(den == 0) return false;
-    den = sqrt(den);
-
-    v1[0] *= mag / den;
-    v1[1] *= mag / den;
-    v1[2] *= mag / den;
-    return true;
-  } // SetMag
-
   /////////////////////////////////////////
   bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex)
   {
@@ -1688,11 +1638,6 @@ namespace tca {
     // define mallTraj
     Tj2Pt tj2pt;
     unsigned short cnt = 0;
-  } // FillmAllTraj
-
-  //////////////////////////////////////////
-  void FillmAllTraj(TCSlice& slc)
-  {
 
     for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
@@ -1926,7 +1871,6 @@ namespace tca {
   /////////////////////////////////////////
   bool SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d)
   {
-<<<<<<< HEAD
     // Determine which SectionFit this tp3d should reside, then calculate
     // the 3D position and the distance fromt the center of the SectionFit
 
@@ -2323,28 +2267,6 @@ namespace tca {
     for(unsigned short xyz = 0; xyz < 3; ++xyz) intersect[xyz] /= 2;
     return true;
   } // LineLineIntersect
-
-  ////////////////////////////////////////////////
-  void ReversePFP(TCSlice& slc, PFPStruct& pfp)
-  {
-    std::swap(pfp.XYZ[0], pfp.XYZ[1]);
-    std::swap(pfp.Dir[0], pfp.Dir[1]);
-    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-      pfp.Dir[0][xyz] *= -1;
-      pfp.Dir[1][xyz] *= -1;
-    }
-    std::swap(pfp.DirErr[0], pfp.DirErr[1]);
-    std::swap(pfp.dEdx[0], pfp.dEdx[1]);
-    std::swap(pfp.dEdxErr[0], pfp.dEdxErr[1]);
-    std::swap(pfp.Vx3ID[0], pfp.Vx3ID[1]);
-    std::reverse(pfp.Tp3s.begin(), pfp.Tp3s.end());
-    for(auto& tp3 : pfp.Tp3s) {
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-        tp3.Dir[xyz] *= -1;
-        tp3.Dir[xyz] *= -1;
-      } // xyz
-    } // tp3
-  } // ReversePFP
 
   ////////////////////////////////////////////////
   float ChgFracBetween(TCSlice& slc, Point3_t pos1, Point3_t pos2)
