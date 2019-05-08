@@ -235,7 +235,7 @@ void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<f
 		float sum_adc = 0;
 		for (size_t k = k0; k < k1; ++k)
 		{
-			sum_adc += adc[k] * fLifetimeCorrFactors[k + tick0];
+                  if ( k + tick0 < fLifetimeCorrFactors.size()) sum_adc += adc[k] * fLifetimeCorrFactors[k + tick0];
 		}
         dst[i] = sum_adc * fDriftWindowInv;
 	}
@@ -449,8 +449,10 @@ bool img::DataProviderAlg::patchFromOriginalView(size_t wire, float drift, size_
 	int w0 = wire - halfSizeW;
 	int w1 = wire + halfSizeW;
 
-	int d0 = drift - halfSizeD;
-	int d1 = drift + halfSizeD;
+	int d0 = int(drift) - halfSizeD;
+	int d1 = int(drift) + halfSizeD;
+
+        if (d0<0) d0 = 0;
 
 	std::vector<float> tmp(dsize);
 	int wsize = fWireDriftData.size();
