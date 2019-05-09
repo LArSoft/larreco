@@ -364,6 +364,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
                                  0.,
                                  0.,
                                  0.,
+                                 0.,
                                  hitVector,
                                  hitDelTSigVec,
                                  wireIDVec);
