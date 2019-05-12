@@ -3272,16 +3272,23 @@ namespace tca {
         if(tj2.AlgMod[kKilled]) continue;
         float dang = DeltaAngle(tp1.Ang, tp2.Ang);
         // make an angle cut
-        if(dang > 0.1) continue;
+        if(prt && dang < 0.5) mf::LogVerbatim("TC")<<" T"<<tj1.ID<<" T"<<tj2.ID<<" dang "<<dang;
+        if(dang > 0.2) continue;
         // and an impact parameter cut
         unsigned short ipt1, ipt2;
         float ip12 = PointTrajDOCA(slc, tp1.Pos[0], tp1.Pos[1], tp2);
         float ip21 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
-        if(ip12 > 5 && ip21 > 5) continue;
-        // and a proximity cut
-        float minSep = 25;
-        TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep);
-        if(minSep == 5) continue;
+        if(prt) mf::LogVerbatim("TC")<<" ip12 "<<ip12<<" ip21 "<<ip21;
+        if(ip12 > 10 && ip21 > 10) continue;
+        float minSep = 100;
+        // find the separation considering dead wires
+        TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep, false);
+        if(minSep == 100) continue;
+        if(ipt1 >= tj1.Pts.size() || ipt2 >= tj2.Pts.size()) continue;
+        float dwc = DeadWireCount(slc, tj1.Pts[ipt1], tj2.Pts[ipt2]);
+        if(prt) mf::LogVerbatim("TC")<<" minSep "<<minSep<<" dwc "<<dwc;
+        minSep -= dwc;
+        if(minSep > 5) continue;
         // finally require that the proximate points are close to the ends
         float sep10 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
         float sep11 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[1]].Pos);
