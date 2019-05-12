@@ -505,7 +505,7 @@ namespace cluster {
           fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
           tim = clock() - tim;
           auto& slc = fTCAlg->GetSlice(isl);
-          std::cout<<"TCA: Event "<<evt.event()<<" CPU "<<std::setprecision(1)<<(float)tim / CLOCKS_PER_SEC<<" s nPFP "<<slc.pfps.size()<<"\n";
+          if(slc.isValid) std::cout<<"TCA: Event "<<evt.event()<<" CPU "<<std::fixed<<std::setprecision(1)<<(float)tim / CLOCKS_PER_SEC<<" s nPFP "<<slc.pfps.size()<<"\n";
         } // reconstructSlice
       } // isl
 
