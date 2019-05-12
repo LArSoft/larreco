@@ -3883,9 +3883,11 @@ namespace tca {
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);
     // anything really really long must be a muon
     if(npwc > 500) isAMuon = true;
+/*
     if(tj.PDGCode != 0 && tj.PDGCode != 13 && isAMuon) {
       std::cout<<"T"<<tj.ID<<" changing PDGCode from "<<tj.PDGCode<<" to 13. Is this wise? eventsProcessed "<<evt.eventsProcessed<<"\n";
     }
+*/
     if(isAMuon) tj.PDGCode = 13;
 
   } // SetPDGCode
