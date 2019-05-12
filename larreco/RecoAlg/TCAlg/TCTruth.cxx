@@ -279,7 +279,7 @@ namespace tca {
               ++nBadEP;
               mf::LogVerbatim myprt("TC");
               myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
-              myprt<<" imcp "<<imcp;
+              myprt<<" MCP "<<mcpIndex[imcp];
               myprt<<" in pln "<<plane;
               myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
               auto& fhit = (*evt.allHits)[firstHit];
@@ -375,7 +375,7 @@ namespace tca {
         if(maxEP < 0.8) {
           auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
           mf::LogVerbatim myprt("TC");
-          myprt<<"BadP"<<pfp.ID<<" -> mcp "<<pfp.mcpIndex<<" T "<<(int)TMeV;
+          myprt<<"BadP"<<pfp.ID<<" MVI "<<pfp.MVI<<" -> mcp "<<pfp.mcpIndex<<" T "<<(int)TMeV;
           myprt<<" PDG "<<pdg;
           myprt<<" EP "<<std::setprecision(2)<<pfp.EffPur;
           for(auto tid : pfp.TjIDs) myprt<<" T"<<tid;
