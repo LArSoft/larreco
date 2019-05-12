@@ -211,7 +211,7 @@ namespace tca {
     bool NeedsUpdate {true};        ///< set true if the section needs to be updated
   };
 
-  // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
+  // a 3D trajectory point composed of a 3D point & direction and a single TP
   struct TP3D {
     Point3_t Pos {{ -10.0, -10.0, -10.0 }};  ///< position of the trajectory
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
@@ -223,7 +223,6 @@ namespace tca {
     CTP_t CTP;
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
-    bool VLAInduction {false};  ///< Very Large Angle projection in an induction plane
     bool IsGood {true};      ///< TP can be used in the fit and for calorimetry
   };
 
@@ -255,9 +254,11 @@ namespace tca {
     int ID {0};
     int UID {0};              // unique global ID
     unsigned short MVI;       // matVec index for detailed debugging
-    std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
+    std::array<std::bitset<8>, 2> EndFlag {};  // Uses the same enum as Trajectory EndFlag
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the Update function needs to be called
+    bool CanSection {true}; // Set false if re-sectioning is a bad idea
+    bool IsJunk {false};    // Has a good 3D match to the Tjs but is short and fails Sectioning
   };
 
   struct ShowerPoint {
