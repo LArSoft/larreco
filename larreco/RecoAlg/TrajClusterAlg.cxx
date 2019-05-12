@@ -135,7 +135,7 @@ namespace tca {
       // turn off printing
       tcc.showerTag[12] = -1;
     }
-    if(tcc.match3DCuts.size() < 5) throw art::Exception(art::errors::Configuration)<<"Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to fit in each PFP section\n 4 = max chiDOF for rejecting TP3Ds in sections";
+    if(tcc.match3DCuts.size() < 6) throw art::Exception(art::errors::Configuration)<<"Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to fit in each PFP section\n 4 = max pull for accepting TP3Ds in sections\n 5 = max ChiDOF for a SectionFit";
     
     // check the angle ranges and convert from degrees to radians
     if(tcc.angleRanges.back() < 90) {
