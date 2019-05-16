@@ -41,6 +41,7 @@ namespace tca {
   void ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
+  void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
   bool Define(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
@@ -48,17 +49,18 @@ namespace tca {
   void CountBadPoints(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt);
   bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
+  void GetRange(PFPStruct& pfp, unsigned short sfIndex, unsigned short& fromPt, unsigned short& npts);
   bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
-  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, const std::vector<unsigned short>& tpList, float& chiDOF, unsigned short sfIndex);
+  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short npts, unsigned short sfIndex, float& chiDOF);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
   void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ValidTwoPlaneMatch(TCSlice& slc, PFPStruct& pfp);
   void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, 
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt);
-  bool InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
+  unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
-  void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
+//  void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
