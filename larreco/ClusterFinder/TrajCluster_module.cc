@@ -28,9 +28,6 @@
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 
-// temp for timing studies
-//#include <time.h> // clock
-
 //root includes
 #include "TTree.h"
 
@@ -242,7 +239,6 @@ namespace cluster {
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
-    std::cout<<"Module on branch bb_new3D\n";
     if(nInputHits > 0) {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
       // are not copied.
@@ -500,12 +496,7 @@ namespace cluster {
             fTCAlg->SetSptHits(sptHits);
           } // space point collection exists
 */
-          clock_t tim;
-          tim = clock();
           fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
-          tim = clock() - tim;
-          auto& slc = fTCAlg->GetSlice(isl);
-          if(slc.isValid) std::cout<<"TCA: Event "<<evt.event()<<" CPU "<<std::fixed<<std::setprecision(1)<<(float)tim / CLOCKS_PER_SEC<<" s nPFP "<<slc.pfps.size()<<"\n";
         } // reconstructSlice
       } // isl
 
