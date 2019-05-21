@@ -9,7 +9,7 @@ fwdir  product_dir config_data
 product         version
 larsim		v08_07_01
 eigen		v3_3_4a
-nutools         v2_29_02
+nutools         v2_29_03
 tensorflow      v1_3_0e		-	optional
 
 cetbuildtools	v7_12_01	-	only_for_build
