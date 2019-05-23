@@ -185,9 +185,6 @@ namespace tca {
     if(slc.nPlanes == 2) maxNit = 1;
     if(std::nearbyint(tcc.match3DCuts[2]) == 0) maxNit = 1;
     for(unsigned short nit = 0; nit < maxNit; ++nit) {
-      unsigned short nPlanes = 3;
-      if(slc.nPlanes == 2) nPlanes = 2;
-      if(slc.nPlanes == 3 && nit == 1) nPlanes = 2;
       // fill the mAllTraj vector with TPs that aren't matched in 3D
       FillmAllTraj(slc);
       if(slc.nPlanes == 3 && nit == 0) {
@@ -2123,7 +2120,7 @@ namespace tca {
   float dEdx(TCSlice& slc, TP3D& tp3d)
   {
     if(!tp3d.IsGood) return 0;
-    if(tp3d.TjID > slc.slHits.size()) return 0;
+    if(tp3d.TjID > (int)slc.slHits.size()) return 0;
     if(tp3d.TjID <= 0) return 0;
 
     double dQ = 0.;
@@ -2154,7 +2151,7 @@ namespace tca {
     // should be placed and the 3D position can't be determined until the the TP3D is 
     // associated with a pfp. See SetSection()
     
-    if(tjID <= 0 || tjID > slc.tjs.size()) {
+    if(tjID <= 0 || tjID > (int)slc.tjs.size()) {
       std::cout<<"bad tjID\n";
       exit(1);
     }
