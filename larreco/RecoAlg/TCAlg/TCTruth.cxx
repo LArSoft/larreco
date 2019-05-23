@@ -368,7 +368,7 @@ namespace tca {
             } // sht
           } // slc
           // print a list of trajectories
-          myprt<<" Hits in";
+          myprt<<" Hits in slcID:T";
           for(auto tid : tlist) myprt<<" "<<tid.first<<":T"<<tid.second;
           continue;
         } // no match
