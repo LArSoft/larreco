@@ -12,7 +12,7 @@ standard_cluster3dkdTree:
 standard_standardhit3dbuilder:
 {
   tool_type:            StandardHit3DBuilder
-  HitFinderTag:         "gaushit"
+  HitFinderTagVec:      ["gaushit"]
   EnableMonitoring:     true  # enable monitoring of functions
   NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
   HitWidthScaleFactor:  6.    #

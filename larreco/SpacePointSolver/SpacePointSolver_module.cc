@@ -340,6 +340,9 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
        satisfiedInduction.count(sc->fWire2) == 0){
       orphanSCs.push_back(sc);
     }
+    else{
+      delete sc;
+    }
   }
   spaceCharges.insert(spaceCharges.end(), orphanSCs.begin(), orphanSCs.end());
 

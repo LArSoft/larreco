@@ -1265,6 +1265,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
         nFreePoints++;
 
         spacePointErr[1] = hitPair.getTotalCharge();
+        spacePointErr[3] = hitPair.getChargeAsymmetry();
 
         output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spacePointErr, chisq, output.artSpacePointVector->size()));
 
@@ -1607,6 +1608,7 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&                output,
         double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
 
         spError[1] = hitPair->getTotalCharge();
+        spError[3] = hitPair->getChargeAsymmetry();
 
         output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artSpacePointVector->size()));
 
@@ -1648,6 +1650,7 @@ void Cluster3D::MakeAndSaveKinkPoints(ArtOutputHandler& output, reco::ConvexHull
         double spacePointPos[] = {hit->getPosition()[0],hit->getPosition()[1],hit->getPosition()[2]};
 
         spError[1] = hit->getTotalCharge();
+        spError[3] = hit->getChargeAsymmetry();
 
         output.artExtremePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artExtremePointVector->size()));
     }

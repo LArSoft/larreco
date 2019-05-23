@@ -433,7 +433,12 @@ void calo::Calorimetry::produce(art::Event& evt)
 	fHitIndex.push_back(hitIndex);
 	++fnsps;
       }
-      if (!fnsps){
+      if (fnsps<2){
+        vdEdx.clear();
+        vdQdx.clear();
+        vresRange.clear();
+        deadwire.clear();
+        fpitch.clear();
 	//std::cout << "Adding the aforementioned positions..." << std::endl;
 	calorimetrycol->push_back(anab::Calorimetry(util::kBogusD,
 						    vdEdx,
@@ -484,6 +489,9 @@ void calo::Calorimetry::produce(art::Event& evt)
 
       // determine the starting residual range and fill the array
       fResRng.resize(fnsps);
+      if (fResRng.size() < 2 || spdelta.size() < 2){
+        mf::LogWarning("Calorimetry")<<"fResrng.size() = "<<fResRng.size()<<" spdelta.size() = "<<spdelta.size();
+      }
       if(GoingDS) {
         fResRng[fnsps - 1] = spdelta[fnsps - 1] / 2;
         for(int isp = fnsps - 2; isp > -1; isp--) {

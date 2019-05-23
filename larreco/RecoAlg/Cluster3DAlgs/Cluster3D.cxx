@@ -63,24 +63,25 @@ bool operator < (const ClusterHit2D & a, const ClusterHit2D & b)
 }
 
 
-ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
-                               m_statusBits(0),
-                               m_position(Eigen::Vector3f::Zero()),
-                               m_totalCharge(0.),
-                               m_avePeakTime(-1.),
-                               m_deltaPeakTime(0.),
-                               m_sigmaPeakTime(0.),
-                               m_hitChiSquare(0.),
-                               m_overlapFraction(0.),
-                               m_docaToAxis(0.),
-                               m_arclenToPoca(0.)
+ClusterHit3D::ClusterHit3D() : fID(std::numeric_limits<size_t>::max()),
+                               fStatusBits(0),
+                               fPosition(Eigen::Vector3f::Zero()),
+                               fTotalCharge(0.),
+                               fAvePeakTime(-1.),
+                               fDeltaPeakTime(0.),
+                               fSigmaPeakTime(0.),
+                               fHitChiSquare(0.),
+                               fOverlapFraction(0.),
+                               fChargeAsymmetry(0.),
+                               fDocaToAxis(0.),
+                               fArclenToPoca(0.)
 {
-    m_hitDelTSigVec.clear();
-    m_wireIDVector.clear();
-    m_hitVector.clear();
-    m_hitDelTSigVec.resize(3, 0.);
-    m_wireIDVector.resize(3, geo::WireID());
-    m_hitVector.resize(3, NULL);
+    fHitDelTSigVec.clear();
+    fWireIDVector.clear();
+    fHitVector.clear();
+    fHitDelTSigVec.resize(3, 0.);
+    fWireIDVector.resize(3, geo::WireID());
+    fHitVector.resize(3, NULL);
 }
 
 ClusterHit3D::ClusterHit3D(size_t                          id,
@@ -92,45 +93,48 @@ ClusterHit3D::ClusterHit3D(size_t                          id,
                            float                           sigmaPeakTime,
                            float                           hitChiSquare,
                            float                           overlapFraction,
+                           float                           chargeAsymmetry,
                            float                           docaToAxis,
                            float                           arclenToPoca,
                            const ClusterHit2DVec&          hitVec,
                            const std::vector<float>&       hitDelTSigVec,
                            const std::vector<geo::WireID>& wireIDs) :
-              m_id(id),
-              m_statusBits(statusBits),
-              m_position(position),
-              m_totalCharge(totalCharge),
-              m_avePeakTime(avePeakTime),
-              m_deltaPeakTime(deltaPeakTime),
-              m_sigmaPeakTime(sigmaPeakTime),
-              m_hitChiSquare(hitChiSquare),
-              m_overlapFraction(overlapFraction),
-              m_docaToAxis(docaToAxis),
-              m_arclenToPoca(arclenToPoca),
-              m_hitDelTSigVec(hitDelTSigVec),
-              m_wireIDVector(wireIDs)
+              fID(id),
+              fStatusBits(statusBits),
+              fPosition(position),
+              fTotalCharge(totalCharge),
+              fAvePeakTime(avePeakTime),
+              fDeltaPeakTime(deltaPeakTime),
+              fSigmaPeakTime(sigmaPeakTime),
+              fHitChiSquare(hitChiSquare),
+              fOverlapFraction(overlapFraction),
+              fChargeAsymmetry(chargeAsymmetry),
+              fDocaToAxis(docaToAxis),
+              fArclenToPoca(arclenToPoca),
+              fHitDelTSigVec(hitDelTSigVec),
+              fWireIDVector(wireIDs)
 {
-    m_hitVector.resize(3,NULL);
-    std::copy(hitVec.begin(),hitVec.end(),m_hitVector.begin());
+    fHitVector.resize(3,NULL);
+    std::copy(hitVec.begin(),hitVec.end(),fHitVector.begin());
 }
 
 ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
 {
-    m_id              = toCopy.m_id;
-    m_statusBits      = toCopy.m_statusBits;
-    m_position        = toCopy.m_position;
-    m_totalCharge     = toCopy.m_totalCharge;
-    m_avePeakTime     = toCopy.m_avePeakTime;
-    m_deltaPeakTime   = toCopy.m_deltaPeakTime;
-    m_sigmaPeakTime   = toCopy.m_sigmaPeakTime;
-    m_hitChiSquare    = toCopy.m_hitChiSquare;
-    m_overlapFraction = toCopy.m_overlapFraction;
-    m_docaToAxis      = toCopy.m_docaToAxis;
-    m_arclenToPoca    = toCopy.m_arclenToPoca;
-    m_hitVector       = toCopy.m_hitVector;
-    m_hitDelTSigVec   = toCopy.m_hitDelTSigVec;
-    m_wireIDVector    = toCopy.m_wireIDVector;
+    fID              = toCopy.fID;
+    fStatusBits      = toCopy.fStatusBits;
+    fPosition        = toCopy.fPosition;
+    fTotalCharge     = toCopy.fTotalCharge;
+    fAvePeakTime     = toCopy.fAvePeakTime;
+    fDeltaPeakTime   = toCopy.fDeltaPeakTime;
+    fSigmaPeakTime   = toCopy.fSigmaPeakTime;
+    fHitChiSquare    = toCopy.fHitChiSquare;
+    fOverlapFraction = toCopy.fOverlapFraction;
+    fChargeAsymmetry = toCopy.fChargeAsymmetry;
+    fDocaToAxis      = toCopy.fDocaToAxis;
+    fArclenToPoca    = toCopy.fArclenToPoca;
+    fHitVector       = toCopy.fHitVector;
+    fHitDelTSigVec   = toCopy.fHitDelTSigVec;
+    fWireIDVector    = toCopy.fWireIDVector;
 }
 
 void ClusterHit3D::initialize(size_t                          id,
@@ -142,33 +146,35 @@ void ClusterHit3D::initialize(size_t                          id,
                               float                           sigmaPeakTime,
                               float                           hitChiSquare,
                               float                           overlapFraction,
+                              float                           chargeAsymmetry,
                               float                           docaToAxis,
                               float                           arclenToPoca,
                               const ClusterHit2DVec&          hitVec,
                               const std::vector<float>&       hitDelTSigVec,
                               const std::vector<geo::WireID>& wireIDs)
 {
-    m_id              = id;
-    m_statusBits      = statusBits;
-    m_position        = position;
-    m_totalCharge     = totalCharge;
-    m_avePeakTime     = avePeakTime;
-    m_deltaPeakTime   = deltaPeakTime;
-    m_sigmaPeakTime   = sigmaPeakTime;
-    m_hitChiSquare    = hitChiSquare;
-    m_overlapFraction = overlapFraction;
-    m_docaToAxis      = docaToAxis;
-    m_arclenToPoca    = arclenToPoca;
-    m_hitVector       = hitVec;
-    m_hitDelTSigVec   = hitDelTSigVec;
-    m_wireIDVector    = wireIDs;
+    fID              = id;
+    fStatusBits      = statusBits;
+    fPosition        = position;
+    fTotalCharge     = totalCharge;
+    fAvePeakTime     = avePeakTime;
+    fDeltaPeakTime   = deltaPeakTime;
+    fSigmaPeakTime   = sigmaPeakTime;
+    fHitChiSquare    = hitChiSquare;
+    fOverlapFraction = overlapFraction;
+    fChargeAsymmetry = chargeAsymmetry;
+    fDocaToAxis      = docaToAxis;
+    fArclenToPoca    = arclenToPoca;
+    fHitVector       = hitVec;
+    fHitDelTSigVec   = hitDelTSigVec;
+    fWireIDVector    = wireIDs;
 
     return;
 }
 
 void ClusterHit3D::setWireID(const geo::WireID& wid) const
 {
-    m_wireIDVector[wid.Plane] = wid;
+    fWireIDVector[wid.Plane] = wid;
 }
 
 std::ostream& operator<< (std::ostream& o, const ClusterHit3D& c)
