@@ -527,7 +527,10 @@ namespace tca {
             Trajectory work;
             if(!StartTraj(slc, work, fromWire, fromTick, toWire, toTick, inCTP, pass)) continue;
             // check for a major failure
-            if(!slc.isValid) return;
+            if(!slc.isValid) {
+              std::cout<<"RAT: StartTraj major failure\n";
+              return;
+            }
             if(work.Pts.empty()) {
               if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: StartTraj failed";
               continue;
@@ -546,7 +549,10 @@ namespace tca {
             bool sigOK;
             AddHits(slc, work, 0, sigOK);
             // check for a major failure
-            if(!slc.isValid) return;
+            if(!slc.isValid) {
+              std::cout<<"RAT: AddHits major failure\n";
+              return;
+            }
             if(!sigOK || work.Pts[0].Chg == 0) {
               if(tcc.dbgStp) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
               ReleaseHits(slc, work);
@@ -561,12 +567,18 @@ namespace tca {
             // now try stepping away
             StepAway(slc, work);
             // check for a major failure
-            if(!slc.isValid) return;
+            if(!slc.isValid) {
+              std::cout<<"RAT: StepAway major failure\n";
+              return;
+            }
             if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After first StepAway. IsGood "<<work.IsGood;
             // Check the quality of the work trajectory
             CheckTraj(slc, work);
             // check for a major failure
-            if(!slc.isValid) return;
+            if(!slc.isValid) {
+              std::cout<<"RAT: CheckTraj major failure\n";
+              return;
+            }
             if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: After CheckTraj EndPt "<<work.EndPt[0]<<"-"<<work.EndPt[1]<<" IsGood "<<work.IsGood;
             if(tcc.dbgStp) mf::LogVerbatim("TC")<<"StepAway done: IsGood "<<work.IsGood<<" NumPtsWithCharge "<<NumPtsWithCharge(slc, work, true)<<" cut "<<tcc.minPts[work.Pass];
             // decide if the trajectory is long enough for this pass
@@ -575,20 +587,18 @@ namespace tca {
               ReleaseHits(slc, work);
               continue;
             }
-            slc.isValid = StoreTraj(slc, work);
-            // check for a major failure
-            if(!slc.isValid) return;
+            if(!StoreTraj(slc, work)) {
+              ReleaseHits(slc, work);
+              continue;
+            }
             if(tcc.dbgStp) {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
               mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
-            }
-            if(tcc.useAlg[kChkInTraj]) {
-              slc.isValid = InTrajOK(slc, "RAT");
-              if(!slc.isValid) {
-                mf::LogVerbatim("TC")<<"InTrajOK failed in ReconstructAllTraj";
+              if(!InTrajOK(slc, "RAT")) {
+                std::cout<<"RAT: InTrajOK major failure. \n";
                 return;
               }
-            } // use ChkInTraj
+            } // dbgStp
             // See if it should be split
             CheckTrajBeginChg(slc, slc.tjs.size() - 1);
             BraggSplit(slc, slc.tjs.size() - 1);
@@ -635,7 +645,10 @@ namespace tca {
         tcc.useAlg[kStopAtTj] = false;
         CheckTraj(slc, work);
         // check for a major failure
-        if(!slc.isValid) return;
+        if(!slc.isValid) {
+          std::cout<<"RAT: CheckTraj major failure\n";
+          return;
+        }
         // decide if the trajectory is long enough for this pass
         if(!work.IsGood || NumPtsWithCharge(slc, work, true) < tcc.minPts[work.Pass]) {
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<NumPtsWithCharge(slc, work, true)<<" minimum "<<tcc.minPts[work.Pass]<<" or !IsGood";
@@ -644,7 +657,10 @@ namespace tca {
         }
         slc.isValid = StoreTraj(slc, work);
         // check for a major failure
-        if(!slc.isValid) return;
+        if(!slc.isValid) {
+          std::cout<<"RAT: StoreTraj major failure\n";
+          return;
+        }
         if(tcc.dbgStp) {
           auto& tj = slc.tjs[slc.tjs.size() - 1];
           mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID<<" using seed TP "<<PrintPos(slc, tp);
@@ -662,13 +678,18 @@ namespace tca {
        // don't use lastPass cuts if we will use LastEndMerge
        if(tcc.useAlg[kLastEndMerge]) lastPass = false;
        EndMerge(slc, inCTP, lastPass);
-       if(!slc.isValid) return;
-       
+       if(!slc.isValid) {
+         std::cout<<"RAT: EndMerge major failure\n";
+         return;
+       }
        // TY: Split high charge hits near the trajectory end
        ChkHiChgHits(slc, inCTP);
        
        Find2DVertices(slc, inCTP, pass);
-       if(!slc.isValid) return;
+       if(!slc.isValid) {
+         std::cout<<"RAT: F2V major failure\n";
+         return;
+       }
 
     } // pass
     
@@ -678,7 +699,10 @@ namespace tca {
     // make junk trajectories using nearby un-assigned hits
     if(tcc.JTMaxHitSep2 > 0) {
       FindJunkTraj(slc, inCTP);
-      if(!slc.isValid) return;
+      if(!slc.isValid) {
+        std::cout<<"RAT: FindJunkTraj major failure\n";
+        return;
+      }
     }
     TagDeltaRays(slc, inCTP);
     // dressed muons with halo trajectories
@@ -697,8 +721,11 @@ namespace tca {
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
     // check for a major failure
-    if(!slc.isValid) return;
-
+    if(!slc.isValid) {
+      std::cout<<"RAT: MakeJunkVertices major failure\n";
+      return;
+    }
+    
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
       auto& vx2 = slc.vtxs[ivx];
@@ -892,8 +919,9 @@ namespace tca {
       for(auto& tp : tj.Pts) {
         if(tp.Hits.size() > 16) {
           tj.AlgMod[kKilled] = true;
-          mf::LogWarning("TC")<<"ChkInTraj: More than 16 hits created a UseHit bitset overflow\n";
+          mf::LogVerbatim("TC")<<"ChkInTraj: More than 16 hits created a UseHit bitset overflow\n";
           slc.isValid = false;
+          std::cout<<"ChkInTraj major failure\n";
           return;
         }
       } // tp
