@@ -59,7 +59,7 @@ namespace tca {
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
     //       12 = BraggSplit
     short Topo {0};
     CTP_t CTP {0};
@@ -387,6 +387,7 @@ namespace tca {
     kComp3DVx,
     kComp3DVxIG,
     kHED, // High End Delta
+    kHamBragg,
     kHamVx,
     kHamVx2,
     kJunkVx,
@@ -439,6 +440,7 @@ namespace tca {
     kSplitTjCVx,
     kMakePFPTjs,
     kFillGaps3D,
+    kTEP3D,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
 
