@@ -378,13 +378,14 @@ namespace tca {
     if(pass == USHRT_MAX) {
       FindHammerVertices(slc, inCTP);
       FindHammerVertices2(slc, inCTP);
+      FindHamBragg(slc, inCTP);
     }
 
     if(prt) PrintAllTraj("F2DVo", slc, USHRT_MAX, USHRT_MAX);
 
   } // Find2DVertices
 
-
+/*
   //////////////////////////////////////////
   void FindVtxTjs(TCSlice& slc, VtxStore& vx2)
   {
@@ -504,7 +505,7 @@ namespace tca {
     // Flag this as tried so we don't try again
     vx2.Stat[kVtxTrjTried] = true;
   } // FindVtxTjs
-
+*/
   //////////////////////////////////////////
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID)
   {
@@ -781,6 +782,110 @@ namespace tca {
       } // delta-ray check
     } // ivx
   } // ChkVxTjs
+  
+  //////////////////////////////////////////
+  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP)
+  {
+    // Look for a trajectory T1 that intersects trajectory T2
+    // with the requirement that T2 has Bragg peaks at both ends
+    // the trajectory and make a vertex. The convention used
+    // is shown pictorially here
+    // T1      *------*
+    // T2         /
+    // T2        /
+    // The cuts on T1 and T2 are less restrictive than those in
+    // FindHammerVertices and FindHammerVertices2
+    if(!tcc.useAlg[kHamBragg]) return;
+    
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamBragg]);
+    constexpr float docaCut = 10;
+    if(prt) mf::LogVerbatim("TC")<<"Inside HamBragg inCTP "<<inCTP<<" docaCUT "<<docaCut;
+    
+    for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
+      if(slc.tjs[it1].CTP != inCTP) continue;
+      if(slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
+      if(slc.tjs[it1].AlgMod[kHamVx]) continue;
+      if(slc.tjs[it1].AlgMod[kHamVx2]) continue;
+      if(slc.tjs[it1].AlgMod[kJunkTj]) continue;
+      if(slc.tjs[it1].PDGCode == 111) continue;
+      unsigned short npwc1 = NumPtsWithCharge(slc, slc.tjs[it1], false);
+      if(npwc1 < 6) continue;
+      // require a Bragg peak at both ends
+      if(!slc.tjs[it1].EndFlag[0][kBragg] && !slc.tjs[it1].EndFlag[1][kBragg]) continue;
+      if(prt) mf::LogVerbatim("TC")<<"FHB: Found T"<<slc.tjs[it1].ID<<" with two Bragg peaks";
+      for(unsigned short it2 = 0; it2 < slc.tjs.size(); ++it2) {
+        // require that both be in the same CTP
+        if(slc.tjs[it2].CTP != inCTP) continue;
+        if(it1 == it2) continue;
+        if(slc.tjs[it2].AlgMod[kKilled] || slc.tjs[it2].AlgMod[kHaloTj]) continue;
+        if(slc.tjs[it2].AlgMod[kHamVx]) continue;
+        if(slc.tjs[it2].AlgMod[kHamVx2]) continue;
+        if(slc.tjs[it2].AlgMod[kJunkTj]) continue;
+        if(slc.tjs[it2].PDGCode == 111) continue;
+        unsigned short npwc2 = NumPtsWithCharge(slc, slc.tjs[it2], true);
+        if(npwc2 < 4) continue;
+        float doca = docaCut;
+        unsigned short ipt1, ipt2;
+        if(!TrajTrajDOCA(slc, slc.tjs[it1], slc.tjs[it2], ipt1, ipt2, doca)) continue;
+        if(ipt1 > slc.tjs[it1].EndPt[1] || ipt2 > slc.tjs[it2].EndPt[1]) continue;
+        unsigned short end2 = USHRT_MAX;
+        if(ipt2 == slc.tjs[it2].EndPt[0]) end2 = 0;
+        if(ipt2 == slc.tjs[it2].EndPt[1]) end2 = 1;
+        if(prt) mf::LogVerbatim("TC")<<"FHB:   T"<<slc.tjs[it2].ID<<" end2 "<<end2;
+        if(end2 > 1) continue;
+        // Find the intersection position between the tj2 closest end point sand tj1 closest Pt
+        float wint, tint;
+        TrajIntersection(slc.tjs[it2].Pts[end2], slc.tjs[it1].Pts[ipt1], wint, tint);
+        // make an angle cut
+        float dang = DeltaAngle(slc.tjs[it2].Pts[end2].Ang, slc.tjs[it1].Pts[ipt1].Ang);
+        // find the point on T1 that is closest to the intersection point
+        float intDOCA = docaCut;
+        unsigned short intPt1;
+        TrajIntersection(slc.tjs[it1].Pts[ipt1], slc.tjs[it2].Pts[slc.tjs[it2].EndPt[end2]], wint, tint);
+        if(!TrajClosestApproach(slc.tjs[it1], wint, tint, intPt1, intDOCA)) continue;
+        if(prt) mf::LogVerbatim("TC")<<"FHB   T"<<slc.tjs[it2].ID<<" intPt1 "<<intPt1;
+        // make sure the intersection point isn't near and end of T1
+        if(intPt1 < slc.tjs[it1].EndPt[0] + 5) continue;
+        if(intPt1 > slc.tjs[it1].EndPt[1] - 5) continue;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"FHB   T"<<slc.tjs[it2].ID<<" is close "<<doca;
+          myprt<<" at end "<<end2;
+          myprt<<" near "<<PrintPos(slc, slc.tjs[it1].Pts[ipt1])<<" on T"<<slc.tjs[it1].ID;
+          myprt<<" dang "<<dang;
+          myprt<<" intersection DOCA "<<intDOCA<<" at "<<PrintPos(slc, slc.tjs[it1].Pts[intPt1]);
+        } // prt
+        // create a new vertex
+        VtxStore aVtx;
+        aVtx.Pos = {{ wint, tint }};
+        aVtx.NTraj = 3;
+        aVtx.Pass = 9;
+        aVtx.Topo = 10;
+        aVtx.ChiDOF = 0;
+        aVtx.CTP = inCTP;
+        aVtx.ID = slc.vtxs.size() + 1;
+        if(!StoreVertex(slc, aVtx)) continue;
+        unsigned short ivx = slc.vtxs.size() - 1;
+        if(!SplitTraj(slc, it1, intPt1, ivx, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<"FHB: Failed to split trajectory";
+          MakeVertexObsolete("HamBragg", slc, slc.vtxs[slc.vtxs.size() - 1], true);
+          continue;
+        }
+        slc.tjs[it2].VtxID[end2] = slc.vtxs[ivx].ID;
+        slc.tjs[it2].AlgMod[kHamBragg] = true;
+        slc.tjs[it1].AlgMod[kHamBragg] = true;
+        unsigned short newTjIndex = slc.tjs.size() - 1;
+        slc.tjs[newTjIndex].AlgMod[kHamBragg] = true;
+        SetVx2Score(slc);
+        // Update the PDGCode for the chopped trajectory
+        SetPDGCode(slc, it2);
+        // and for the new trajectory
+        SetPDGCode(slc, newTjIndex);
+        break;
+      } // it2
+    } // it1
+    
+  } // FindHamBragg
 
   //////////////////////////////////////////
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP)
