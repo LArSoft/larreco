@@ -1021,7 +1021,7 @@ namespace tca {
     } // isSA
     // Oct 30, 2018. FindSoftKink needs work
 //    FindSoftKink(slc, tj);
-    
+        
     // BB May 2, 2019 The value of this function need to be re-evaluated
 //    HiEndDelta(slc, tj);
     
@@ -2191,7 +2191,7 @@ namespace tca {
       // fill in the gap
       for(unsigned short mpt = firstPtWithChg + 1; mpt < nextPtWithChg; ++mpt) {
         if(tj.Pts[mpt].Chg > 0) {
-          mf::LogWarning("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
+          mf::LogVerbatim("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
           slc.isValid = false;
           return;
         }
@@ -2784,7 +2784,8 @@ namespace tca {
 
     // don't bother with really short tjs
     if(tj.Pts.size() < 3) return;
-    if(tj.MCSMom < 200) return;
+    // BB May 20. Cut was tj.MCSMom < 200
+    if(tj.MCSMom < 100) return;
 
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
@@ -2838,14 +2839,20 @@ namespace tca {
       if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
       if(!needsRevProp) {
         // check for hits on a not-dead wire
-        float maxDelta = 3 * tp.DeltaRMS;
-        if(FindCloseHits(slc, tp, maxDelta, kUnusedHits) && !tp.Hits.empty()) {
-          needsRevProp = true;
-          if(tcc.dbgStp) {
-            mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<". Call ReversePropagate";
-            PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
-          }
-        }
+        // BB May 20, 2019 Do this more carefully
+        float maxDelta = 2 * tp.DeltaRMS;
+        if(FindCloseHits(slc, tp, maxDelta, kAllHits) && !tp.Hits.empty()) {
+          // count used and unused hits
+          unsigned short nused = 0;
+          for(auto iht : tp.Hits) if(slc.slHits[iht].InTraj > 0) ++nused;
+          if(nused == 0) {
+            needsRevProp = true;
+            if(tcc.dbgStp) {
+              mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<". Call ReversePropagate";
+              PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
+            } // tcc.dbgStp
+          } // nused = 0
+        } // Close hits exist
       } // !needsRevProp
     } // !needsRevProp
 
@@ -3241,7 +3248,7 @@ namespace tca {
     if(slc.tjs.size() < 2) return;
     if(!tcc.useAlg[kLastEndMerge]) return;
     
-    bool prt = (tcc.dbgMrg && tcc.dbgSlc && inCTP == debug.CTP);
+    bool prt = tcc.dbgAlg[kLastEndMerge];
     
     // create an averaged TP for each long Trajectory
     std::vector<TrajPoint> tjTP;
@@ -3279,7 +3286,7 @@ namespace tca {
         float ip12 = PointTrajDOCA(slc, tp1.Pos[0], tp1.Pos[1], tp2);
         float ip21 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
         if(prt) mf::LogVerbatim("TC")<<" ip12 "<<ip12<<" ip21 "<<ip21;
-        if(ip12 > 10 && ip21 > 10) continue;
+        if(ip12 > 15 && ip21 > 15) continue;
         float minSep = 100;
         // find the separation considering dead wires
         TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep, false);
@@ -3821,7 +3828,7 @@ namespace tca {
 
     // find the last good point (with charge)
     unsigned short lastGoodPt = USHRT_MAX ;
-
+/* BB May 18, 2019 This caused an error in NTPsFit in a short Tj that caused a vertex finding failure. Shut it off for now
     if (!ChkMichel(slc, tj, lastGoodPt)){ //did not find michel electron
       for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
         unsigned short ipt = tj.EndPt[1] - nPts - ii;
@@ -3832,6 +3839,7 @@ namespace tca {
         if(ipt == 0) break;
       } // ii
     }
+*/
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"MTEP: lastGoodPt "<<lastGoodPt<<" Pts size "<<tj.Pts.size()<<" tj.IsGood "<<tj.IsGood;
     }
@@ -4228,149 +4236,5 @@ namespace tca {
     }
     return true;
   } // MakeJunkTraj
-/*
-  //////////////////////////////////////////
-  bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits)
-  {
-
-    if(!tcc.useAlg[kJunkTj]) return false;
-    // Make a crummy trajectory using the provided hits
-
-    if(tHits.size() < 2) return false;
-
-    bool prt = (tcc.dbgStp || tcc.dbgAlg[kJunkTj]);
-    std::vector<std::vector<unsigned int>> tpHits;
-
-    // Start the trajectory using the first and last hits to
-    // define a starting direction. Use the last pass settings
-    Trajectory work;
-    unsigned short pass = tcc.minPts.size() - 1;
-    if(!StartTraj(slc, work, tHits[0], tHits[tHits.size()-1], pass)) return false;
-
-    // Make TPs with the same separation as the wire spacing
-    constexpr float pointSize = 1;
-
-    // Do a more detailed specification of TPs if there
-    // are enough hits
-    if(tHits.size() > 6) {
-      // fit all of the hits to a line
-      Point2_t inPt;
-      Vector2_t outVec, outVecErr;
-      float inPtErr = 1, chiDOF;
-      // initialize
-      Fit2D(0, inPt, inPtErr, outVec, outVecErr, chiDOF);
-      std::vector<Point2_t> fitPts(tHits.size());
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
-        unsigned int iht = tHits[ii];
-        if(slc.slHits[iht].InTraj == SHRT_MAX) return false;
-        auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-        inPt[0] = hit.WireID().Wire;
-        inPt[1] = hit.PeakTime() * tcc.unitsPerTick;
-        fitPts[ii] = inPt;
-        // accumulate. Don't store the points since we don't care about chisq
-        Fit2D(1, inPt, inPtErr, outVec, outVecErr, chiDOF);
-      } // ii
-      if(!Fit2D(-1, inPt, inPtErr, outVec, outVecErr, chiDOF)) return false;
-
-      if(prt) mf::LogVerbatim("TC")<<" tHits line fit Angle "<<atan(outVec[1]);
-      // A rough estimate of the trajectory angle
-      work.Pts[0].Ang = atan(outVec[1]);
-      work.Pts[0].Dir[0] = cos(work.Pts[0].Ang);
-      work.Pts[0].Dir[1] = sin(work.Pts[0].Ang);
-      SetAngleCode(work.Pts[0]);
-      // Rotate the hits into this coordinate system to find the start and end
-      // points and general direction
-      double cs = cos(-work.Pts[0].Ang);
-      double sn = sin(-work.Pts[0].Ang);
-      float tAlong, minAlong = 1E6, maxAlong = -1E6;
-      // sort the hits by the distance along the general direction
-      std::vector<SortEntry> sortVec(tHits.size());
-      SortEntry sortEntry;
-      for(unsigned short ii = 0; ii < fitPts.size(); ++ii) {
-        tAlong = cs * fitPts[ii][0] - sn * fitPts[ii][1];
-        if(tAlong < minAlong) minAlong = tAlong;
-        if(tAlong > maxAlong) maxAlong = tAlong;
-        sortEntry.index = ii;
-        sortEntry.val = tAlong;
-        sortVec[ii] = sortEntry;
-      } // ii
-      std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
-      // make a temp vector
-      std::vector<unsigned int> tmp(sortVec.size());
-      // overwrite with the sorted values
-      for(unsigned short ii = 0; ii < sortVec.size(); ++ii) tmp[ii] = tHits[sortVec[ii].index];
-      tHits = tmp;
-      // create a trajectory point at each WSE unit (if there are hits at that point)
-      unsigned short npts = (unsigned short)((maxAlong - minAlong) / pointSize);
-      // rotate back into normal coordinate system
-      if(prt) mf::LogVerbatim("TC")<<" minAlong "<<minAlong<<" maxAlong "<<maxAlong<<" work.Pts[0].Ang "<<work.Pts[0].Ang<<" npts "<<npts;
-      if(npts < 2) npts = 2;
-      tpHits.resize(npts);
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
-        unsigned short ipt = ((sortVec[ii].val - minAlong) / pointSize);
-        if(ipt > npts - 1) ipt = npts - 1;
-        if(prt) mf::LogVerbatim("TC")<<"tHit "<<PrintHit(slc.slHits[tHits[ii]])<<" length "<<sortVec[ii].val<<" ipt "<<ipt;
-        if(tpHits[ipt].size() < 16) tpHits[ipt].push_back(tHits[ii]);
-      }
-    }  else {
-      // just a few hits. Put each one at a TP in the order that
-      // they were found
-      tpHits.resize(tHits.size());
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) tpHits[ii].push_back(tHits[ii]);
-    } // tHits.size()
-    // make the TPs
-    // work.Pts[0] is already defined but it needs hits added
-    work.Pts[0].Hits = tpHits[0];
-    for(auto iht : tpHits[0]) slc.slHits[iht].InTraj = work.ID;
-    // set all bits true
-    work.Pts[0].UseHit.set();
-    DefineHitPos(slc, work.Pts[0]);
-    work.Pts[0].Pos = work.Pts[0].HitPos;
-    if(prt) PrintTrajectory("MJT", slc, work, USHRT_MAX);
-    // another TP to get the direction
-    TrajPoint tpd;
-    // make the rest of the TPs
-    for(unsigned short ipt = 1; ipt < tpHits.size(); ++ipt) {
-      if(tpHits[ipt].empty()) continue;
-      // Use the previous TP as a starting point
-      unsigned short lastPt = work.Pts.size() - 1;
-      TrajPoint tp = work.Pts[lastPt];
-      tp.Step = ipt;
-      tp.Hits = tpHits[ipt];
-      for(auto iht : tpHits[ipt]) slc.slHits[iht].InTraj = work.ID;
-      // use all hits
-      tp.UseHit.set();
-      DefineHitPos(slc, tp);
-      // Just use the hit position as the tj position
-      tp.Pos = tp.HitPos;
-      if(TrajPointSeparation(work.Pts[ipt-1], tp) < 0.5) {
-        for(auto iht : tpHits[ipt]) slc.slHits[iht].InTraj = 0;
-        continue;
-      }
-      work.Pts.push_back(tp);
-      SetEndPoints(work);
-    }
-    if(prt) {
-      PrintTrajectory("MJT", slc, work, USHRT_MAX);
-    }
-    work.AlgMod[kJunkTj] = true;
-    work.IsGood = true;
-    // Finally push it onto slc.tjs
-    slc.isValid = StoreTraj(slc, work);
-    if(!slc.isValid) {
-      ReleaseHits(slc, work);
-      return false;
-    }
-    if(tcc.useAlg[kChkInTraj]) {
-      slc.isValid = InTrajOK(slc, "MJT");
-      if(!slc.isValid) {
-        ReleaseHits(slc, work);
-        mf::LogVerbatim("TC")<<"InTrajOK failed in MakeJunkTraj";
-        return false;
-      }
-    }
-    return true;
-  } // MakeJunkTraj
-*/
 
 } // namespace tca
