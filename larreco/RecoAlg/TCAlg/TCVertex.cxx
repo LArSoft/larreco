@@ -1675,7 +1675,7 @@ namespace tca {
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt)
   {
     // Try to attach a tj that is stored in slc.tjs with any vertex
-    if(tjID <= 0 || tjID > slc.tjs.size()) return false;
+    if(tjID <= 0 || tjID > (int)slc.tjs.size()) return false;
     if(slc.vtxs.empty()) return false;
     auto& tj = slc.tjs[tjID - 1];
     if(tj.AlgMod[kKilled]) return false;
