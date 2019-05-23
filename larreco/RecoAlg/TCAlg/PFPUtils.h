@@ -36,18 +36,20 @@ namespace tca {
 
   void StitchPFPs();
   void FindPFParticles(TCSlice& slc);
+  void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec);
   void AddMissedTjs(TCSlice& slc, PFPStruct& pfp, std::vector<MatchStruct> matVec);
   void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
   void ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
-  void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
+  void Match2Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
   bool Define(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
   void CountBadPoints(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt);
   bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
+  bool CanSection(TCSlice& slc, PFPStruct& pfp);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
   void GetRange(PFPStruct& pfp, unsigned short sfIndex, unsigned short& fromPt, unsigned short& npts);
   bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
@@ -95,6 +97,7 @@ namespace tca {
   float Length(const PFPStruct& pfp);
   bool SectionStartEnd(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& startPt, unsigned short& endPt);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
+  unsigned int FindMCPIndex(TCSlice& slc, TP3D tp3d);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
 } // namespace tca
 
