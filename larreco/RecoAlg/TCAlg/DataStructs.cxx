@@ -24,6 +24,7 @@ namespace tca {
     "Comp3DVx",
     "Comp3DVxIG",
     "HED",
+    "HamBragg",
     "HamVx",
     "HamVx2",
     "JunkVx",
@@ -75,7 +76,8 @@ namespace tca {
     "CompleteShower",
     "SplitTjCVx",
     "MakePFPTjs",
-    "FillGaps3D"
+    "FillGaps3D",
+    "TEP3D"
   };
   
   const std::vector<std::string> EndFlagNames {
