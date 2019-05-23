@@ -16,8 +16,8 @@ art_make(
 			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
-      ${ART_FRAMEWORK_SERVICES_OPTIONAL}
-      ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+      ${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+      ${ART_ROOT_IO_TFILESERVICE_SERVICE}
 			canvas
 			${MF_MESSAGELOGGER}
 			
