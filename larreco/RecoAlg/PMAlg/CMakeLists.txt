@@ -3,7 +3,7 @@ art_make(
           LIB_LIBRARIES lardataobj_RecoBase
                         larcorealg_Geometry
                         larcore_Geometry_Geometry_service
-                        lardata_RecoObjects larreco_Deprecated
+                        lardata_RecoObjects
                         lardataobj_AnalysisBase
                         lardata_Utilities
            		${ART_FRAMEWORK_CORE}
