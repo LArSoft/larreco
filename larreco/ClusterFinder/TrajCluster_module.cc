@@ -356,7 +356,7 @@ namespace cluster {
         for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
           auto& p = (*ipart).second;
           int trackID = p->TrackId();
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
           int KE = 1000 * (p->E() - p->Mass());
           if(!anySource && theTruth->Origin() != origin) continue;
           if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
@@ -385,7 +385,7 @@ namespace cluster {
           } // im
           if(trackID == 0) continue;
           // see if this is a MCParticle that should be tracked
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
           if(!anySource && theTruth->Origin() != origin) continue;
           // get the index
           for(unsigned int indx = 0; indx < (*mcpHandle).size(); ++indx) {
