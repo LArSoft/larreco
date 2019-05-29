@@ -51,6 +51,7 @@ namespace tca {
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
   int PrimaryUID(TCSlice& slc, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt);
+  float PointPull(TCSlice& slc, Point2_t pos, float chg, const Trajectory& tj);
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2);
@@ -62,7 +63,6 @@ namespace tca {
   float TjDirFOM(TCSlice& slc, const Trajectory& tj, bool prt);
 //  void WatchHit(std::string someText, TCSlice& slc);
   unsigned short GetPFPIndex(TCSlice& slc, int tjID);
-  unsigned short MatchVecIndex(TCSlice& slc, int tjID);
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
@@ -79,7 +79,6 @@ namespace tca {
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTp(TrajPoint const& tp);
-//  bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
@@ -174,6 +173,7 @@ namespace tca {
 //  void TagMuonDirections(TCSlice& slc, short debugWorkID);
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(std::string inFcnLabel, TCSlice& slc, VtxStore& vx2, bool prt);
+  TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, CTP_t inCTP);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(TCSlice& slc, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
@@ -186,6 +186,7 @@ namespace tca {
   void SetPDGCode(TCSlice& slc, unsigned short itj);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
+  void FillWireHitRange(geo::TPCID inTPCID);
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
@@ -223,8 +224,9 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp);
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
-
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
+  std::string PrintEndFlag(const PFPStruct& pfp, unsigned short end);
+  
   ////////////////////////////////////////////////
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)
