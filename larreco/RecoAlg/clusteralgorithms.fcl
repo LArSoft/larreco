@@ -63,14 +63,14 @@ standard_trajclusteralg:
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
    Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
-   physics.producers.trajcluster2.TrajClusterAlg.Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
+   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
    # 0 dx (cm) matching cut
    # 1 max number of 3-plane matches for any Tj
    # 2 Attempt 2-view match with 3rd plane dead wire requirement? (0 = no)
    # 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
    # 4 max pull for adding/rejecting TP3Ds in sections
    # 5 suggested max ChiDOF for a SectionFit
-   SkipAlgs: [ "Split3DKink", "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
+   SkipAlgs: [ "SplitTjCVx", "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugConfig: []
