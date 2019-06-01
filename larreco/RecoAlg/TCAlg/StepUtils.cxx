@@ -4230,11 +4230,7 @@ namespace tca {
       PrintTrajectory("MJT", slc, work, USHRT_MAX);
     }
     // Finally push it onto slc.tjs
-    if(!StoreTraj(slc, work)) {
-      ReleaseHits(slc, work);
-      return false;
-    }
-    return true;
+    return StoreTraj(slc, work);
   } // MakeJunkTraj
 
 } // namespace tca
