@@ -134,14 +134,13 @@ microboone_trajclusteralg.ShowerTag: [ 3, 100, 10, 20, 2.5, 0, 15, 3, 3, 0.7, 0.
 microboone_trajclusteralg.SaveShowerTree: false
 microboone_trajclusteralg.MVAShowerParentWeights: "TMVA_ShowerParent_BDT.weights.xml"
 
-microboone_trajclusteralg.Match3DCuts: [ 0.3, -0.3, 4, 100, 2000, 10, 0.2] 
+physics.producers.trajcluster2.TrajClusterAlg.Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
 # 0 dx (cm) matching cut
-# 1 delta angle cut (radians). Set <= 0 to turn off angle checking
-# 2 min length for 2-view match 
-# 3 min MCSMom (if max Tj length > 10)
-# 4 max allowed number of 3D combinations
-# 5 min 2D length for 3D merging
-# 6 angle cut for 3D merging (radians)
+# 1 max number of 3-plane matches for any Tj
+# 2 Attempt 2-view match?
+# 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
+# 4 max pull for adding/rejecting TP3Ds in sections
+# 5 suggested max ChiDOF for a SectionFit
 
 microboone_trajcluster:                       @local::standard_trajcluster
 microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
