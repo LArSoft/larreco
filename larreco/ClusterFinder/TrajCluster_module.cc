@@ -66,6 +66,7 @@ namespace cluster {
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
     art::InputTag fSpacePointModuleLabel;
+    art::InputTag fSpacePointHitAssnLabel;
 
     unsigned int fMaxSliceHits;    
     bool fDoWireAssns;
@@ -142,6 +143,8 @@ namespace cluster {
     if(pset.has_key("MaxSliceHits")) fMaxSliceHits = pset.get<unsigned int>("MaxSliceHits");
     fSpacePointModuleLabel = "NA";
     if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
+    fSpacePointHitAssnLabel = "NA";
+    if(pset.has_key("SpacePointHitAssnLabel")) fSpacePointHitAssnLabel = pset.get<art::InputTag>("SpacePointHitAssnLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
     fSaveAll2DVertices = false;
@@ -239,33 +242,20 @@ namespace cluster {
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
+   
     if(nInputHits > 0) {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
       // are not copied.
-      if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
+      if(!fTCAlg->SetInputHits(*inputHits, evt.run(), evt.event())) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
       if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Plane<<":"<<tca::debug.Wire<<":"<<tca::debug.Tick<<"\n";
       if(fSliceModuleLabel != "NA") {
+        // tell the alg about this
+        fTCAlg->ExpectSlicedHits();
         // Expecting to find sliced hits from Slice -> Hits assns
         auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
         art::fill_ptr_vector(slices, slcHandle);
         art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
         for(size_t isl = 0; isl < slices.size(); ++isl) {
-          // select slices with user-defined cuts in test beam mode
-          if(tca::tcc.modes[tca::kTestBeam] && tca::tcc.testBeamCuts.size() > 1) {
-            float zlo = slices[isl]->End0Pos().Z();
-            if(slices[isl]->End1Pos().Z() < zlo) zlo = slices[isl]->End1Pos().Z();
-            auto sepVec = slices[isl]->End0Pos() - slices[isl]->End1Pos();
-            float len = sqrt(sepVec.Mag2());
-            bool isBeam = (zlo < tca::tcc.testBeamCuts[0] && len > tca::tcc.testBeamCuts[1]);
-            if(isBeam && tca::tcc.modes[tca::kDebug]) {
-              std::cout<<"Beam slice "<<slices[isl]->ID();
-              std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
-              std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
-              std::cout<<" Length "<<(int)len;
-              std::cout<<"\n";
-            } // zlo < 10
-            if(!isBeam) continue;
-          } // TestBeam mode
           auto& hit_in_slc = hitFromSlc.at(isl);
           if(hit_in_slc.size() < 3) continue;
           std::vector<unsigned int> slhits(hit_in_slc.size());
@@ -289,6 +279,21 @@ namespace cluster {
         slcIDs.resize(1, 1);
       } // no input slices
 
+      // Check for SpacePoints
+      if(fSpacePointModuleLabel != "NA") {
+        auto sptHandle = art::Handle<std::vector<recob::SpacePoint>>();
+        if(!evt.getByLabel(fSpacePointModuleLabel, sptHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
+        fTCAlg->SetSptHandle(*sptHandle);
+        // Size the Hit -> SpacePoint assn vector
+        tca::evt.allHitsSptIndex.resize(nInputHits, UINT_MAX);
+        art::FindManyP<recob::Hit> hitsFromSpt (sptHandle, evt, fSpacePointHitAssnLabel);
+        if(!hitsFromSpt.isValid()) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoint -> Hit assns\n";
+        for(unsigned int isp = 0; isp < (*sptHandle).size(); ++isp) {
+          auto &hits = hitsFromSpt.at(isp);
+          for(auto& hit : hits) tca::evt.allHitsSptIndex[hit.key()] = isp;
+        } // isp
+      } // space point collection exists
+      
       // split slHitsVec so that all hits in a sub-slice are in the same TPC
       const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
       if(geom->NTPC() > 1) {
@@ -324,13 +329,6 @@ namespace cluster {
         slHitsVec = tpcSlcHitsVec;
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
-/* Disable for now
-      if (fSpacePointModuleLabel != "NA") {
-        auto sptHandle = art::Handle<std::vector<recob::SpacePoint>>();
-        if(!evt.getByLabel(fSpacePointModuleLabel, sptHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
-        fTCAlg->SetSptHandle(*sptHandle);
-      } //
-*/
       bool requireSliceMCTruthMatch = false;
       if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
         // pass a reference to the MCParticle collection to TrajClusterAlg
@@ -427,8 +425,13 @@ namespace cluster {
         for(unsigned short ii = 0; ii < slhits.size(); ++ii) slhits[ii] = tmp[sortVec[ii].index];
         // clear the temp vector
         tmp.resize(0);
+        // determine if this is a slice that should be reconstructed - default is yes
+        bool reconstructSlice = true;
         // try to find a hit in debug step mode
         if(tca::tcc.modes[tca::kDebug]) {
+          if(tca::tcc.recoTPC >= 0 && (*inputHits)[slhits[0]].WireID().TPC != tca::tcc.recoTPC) {
+            reconstructSlice = false;
+          }
           for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
             auto& hit = (*inputHits)[slhits[indx]];
             if((int)hit.WireID().TPC == tca::debug.TPC &&
@@ -443,8 +446,6 @@ namespace cluster {
             } // Look for debug hit
           } // iht
         } // Debug mode
-        // determine if this is a slice that should be reconstructed - default is yes
-        bool reconstructSlice = true;
         // unless we are reconstructing MC events and require a good truth match
         if(requireSliceMCTruthMatch) {
           // require that at least 50% of the hits in the slice are matched to a MCParticle
@@ -461,41 +462,6 @@ namespace cluster {
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
         if(reconstructSlice) {
-/* disable for now
-          if(fSpacePointModuleLabel != "NA") {
-            // fill a vector of SpacePoint - hit triplets (or doublets) and pass it to the alg
-            std::vector<tca::SptHits> sptHits;
-            art::FindManyP<recob::SpacePoint> sptFromHit (inputHits, evt, fSpacePointModuleLabel);
-            for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
-              unsigned int ahi = slhits[indx];
-              auto& spt_from_hit = sptFromHit.at(ahi);
-              for(auto& spt : spt_from_hit) {
-                // see if this space point is already in the vector
-                unsigned int sIndx = 0;
-                for(sIndx = 0; sIndx < sptHits.size(); ++sIndx) {
-                  if(spt.key() == sptHits[sIndx].sptIndex) break;
-                } // sIndx
-                if(sIndx == sptHits.size()) {
-                  // not found so add one
-                  tca::SptHits sph;
-                  sph.sptIndex = spt.key();
-                  sptHits.push_back(sph);
-                } // sIndx == sptHits.size()
-                // associate the hit with the space point
-                auto& sph = sptHits[sIndx];
-                // get the hit so we can find out which plane it is in
-                auto& hit = (*inputHits)[slhits[indx]];
-                unsigned short plane = hit.WireID().Plane;
-                if(plane > 2) {
-                  std::cout<<"Crazy plane "<<plane<<"\n";
-                  exit(1);
-                }
-                sph.allHitsIndex[plane] = slhits[indx];
-              } // spt
-            } // indx
-            fTCAlg->SetSptHits(sptHits);
-          } // space point collection exists
-*/
           fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
         } // reconstructSlice
       } // isl
