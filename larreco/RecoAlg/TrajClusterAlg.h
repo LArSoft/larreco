@@ -28,20 +28,14 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "canvas/Utilities/Exception.h"
 
 // LArSoft libraries
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
-//#include "TH1F.h"
-//#include "TH2F.h"
-//#include "TProfile.h"
 #include "TTree.h"
 
 namespace tca {
@@ -58,9 +52,9 @@ namespace tca {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
-    bool SetInputHits(std::vector<recob::Hit> const& inputHits);
+    bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);
     void SetSptHandle(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
-    void SetSptHits(std::vector<SptHits> const& sptHits) { evt.sptHits = &sptHits; }
+    void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
     void FinishEvent();
@@ -79,7 +73,7 @@ namespace tca {
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
 
     /// Deletes all the results
-    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.wireHitRange.resize(0); }
+    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.allHitsSptIndex.resize(0); evt.wireHitRange.resize(0); }
     TruthMatcher fTM;
 
     private:
