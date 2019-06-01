@@ -39,12 +39,11 @@ namespace tca {
 
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
   void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass);
-//  void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
   void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
-  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
+//  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
   void Find3DVertices(TCSlice& slc);
