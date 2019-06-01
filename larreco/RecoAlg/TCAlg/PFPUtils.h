@@ -35,6 +35,7 @@
 namespace tca {
 
   void StitchPFPs();
+  void FindSptPFParticles(TCSlice& slc);
   void FindPFParticles(TCSlice& slc);
   void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec);
   void AddMissedTjs(TCSlice& slc, PFPStruct& pfp, std::vector<MatchStruct> matVec);
