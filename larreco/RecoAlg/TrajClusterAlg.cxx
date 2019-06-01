@@ -21,9 +21,6 @@ namespace tca {
     tcc.showerParentReader = &fMVAReader;
     reconfigure(pset);
     tcc.caloAlg = &fCaloAlg;
-//    art::ServiceHandle<art::TFileService const> tfs;
-//    hist.CreateHists(*tfs);
-//    tm.Initialize();
   }
 
   //------------------------------------------------------------------------------
@@ -58,8 +55,6 @@ namespace tca {
     if(pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
     std::vector<std::string> debugConfigVec;
     if(pset.has_key("DebugConfig")) debugConfigVec = pset.get<std::vector<std::string>>("DebugConfig");
-    std::vector<std::string> specialAlgsVec;
-    if(pset.has_key("SpecialAlgs")) specialAlgsVec = pset.get<std::vector<std::string>>("SpecialAlgs");
 
     tcc.hitErrFac = pset.get< float >("HitErrFac", 0.4);
     // Allow the user to specify the typical hit rms for small-angle tracks
@@ -99,7 +94,8 @@ namespace tca {
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tcc.match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
     tcc.pfpStitchCuts     = pset.get< std::vector<float >>("PFPStitchCuts", {-1});
-    pset.get_if_present<std::vector<float>>("TestBeamCuts", tcc.testBeamCuts);
+    // don't search for a neutrino vertex in test beam mode
+    tcc.modes[kTestBeam] = pset.get<bool>("TestBeam", false);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
 
@@ -150,8 +146,6 @@ namespace tca {
       // convert angle to cos
       tcc.pfpStitchCuts[1] = cos(tcc.pfpStitchCuts[1]);
     }
-    // turn on TestBeam mode?
-    tcc.modes[kTestBeam] = (!tcc.testBeamCuts.empty());
 
 
     // configure algorithm debugging. Configuration for debugging standard stepping
@@ -229,31 +223,7 @@ namespace tca {
       for(auto strng : AlgBitNames) std::cout<<" "<<strng;
       std::cout<<"\n";
       std::cout<<"Or specify All to turn all algs off\n";
-      throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
-    // overwrite any settings above with special algs
-    for(auto strng : specialAlgsVec) {
-      bool gotit = false;
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-        if(strng == AlgBitNames[ib]) {
-          tcc.useAlg[ib] = true;
-          gotit = true;
-          break;
-        }
-      } // ib
-      if(!gotit) {
-        std::cout<<"******* Unknown SpecialAlgs input string '"<<strng<<"'\n";
-        printHelp = true;
-      }
-    } // strng
-    if(printHelp) {
-      std::cout<<"Valid AlgNames:";
-      for(auto strng : AlgBitNames) std::cout<<" "<<strng;
-      std::cout<<"\n";
-      std::cout<<"Or specify All to turn all algs off\n";
-      throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
-    }
-
     // Configure the TMVA reader for the shower parent BDT
     if(fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0) ConfigureMVA(tcc, fMVAShowerParentWeights);
 
@@ -280,12 +250,14 @@ namespace tca {
   } // reconfigure
 
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
+  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event)
   {
     // defines the pointer to the input hit collection, analyzes them,
     // initializes global counters and refreshes service references
     ClearResults();
     evt.allHits = &inputHits;
+    evt.run = run;
+    evt.event = event;
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
@@ -347,7 +319,7 @@ namespace tca {
       if(tcc.match3DCuts[0] > 0) {
         if(evt.sptHandle) {
           // Use space points to find PFParticles
-//          FindSptPFParticles(slc);
+          FindSptPFParticles(slc);
         } else {
           FindPFParticles(slc);
         }
@@ -587,15 +559,12 @@ namespace tca {
               ReleaseHits(slc, work);
               continue;
             }
-            if(!StoreTraj(slc, work)) {
-              ReleaseHits(slc, work);
-              continue;
-            }
+            if(!StoreTraj(slc, work)) continue;
             if(tcc.dbgStp) {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
               mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
               if(!InTrajOK(slc, "RAT")) {
-                std::cout<<"RAT: InTrajOK major failure. \n";
+                std::cout<<"RAT: InTrajOK major failure. "<<tj.ID<<"\n";
                 return;
               }
             } // dbgStp
@@ -655,12 +624,7 @@ namespace tca {
           ReleaseHits(slc, work);
           continue;
         }
-        slc.isValid = StoreTraj(slc, work);
-        // check for a major failure
-        if(!slc.isValid) {
-          std::cout<<"RAT: StoreTraj major failure\n";
-          return;
-        }
+        if(!StoreTraj(slc, work)) continue;
         if(tcc.dbgStp) {
           auto& tj = slc.tjs[slc.tjs.size() - 1];
           mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID<<" using seed TP "<<PrintPos(slc, tp);
@@ -1330,11 +1294,17 @@ namespace tca {
     // Stitch PFParticles between TPCs
 
     // define the PFP TjUIDs vector before calling StitchPFPs
+    unsigned short npfp = 0;
+    unsigned short ntj = 0;
+    float nht = 0;
+    float nhtUsed = 0;
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
+      nht += slc.slHits.size();
       MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
+        ++npfp;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
         for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
           // do a sanity check while we are here
@@ -1347,7 +1317,18 @@ namespace tca {
           pfp.TjUIDs[ii] = tj.UID;
         } // ii
       } // pfp
+      // temp
+      for(auto& tj : slc.tjs) {
+        if(tj.AlgMod[kKilled]) continue;
+        ++ntj;
+        auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
+        nhtUsed += tjhits.size();
+      } // tj
     } // slc
+    float frac = -1;
+    if(nht > 0) frac = nhtUsed / nht;
+    std::cout<<"FinishEvent "<<evt.event<<" nht "<<nht<<" fracUsed "<<std::fixed<<std::setprecision(2)<<frac;
+    std::cout<<" ntj "<<ntj<<" npfp "<<npfp<<"\n";
 
     StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here
