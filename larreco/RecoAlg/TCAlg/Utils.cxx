@@ -1141,16 +1141,14 @@ namespace tca {
   bool StoreTraj(TCSlice& slc, Trajectory& tj)
   {
 
-    if(slc.tjs.size() >= USHRT_MAX) {
-      mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<slc.tjs.size();
-      return false;
-    }
-
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tj);
 
-    if(tj.EndPt[1] <= tj.EndPt[0]) return false;
-    if(tj.EndPt[1] > tj.Pts.size()) return false;
+    if(slc.tjs.size() >= USHRT_MAX || tj.EndPt[1] <= tj.EndPt[0] || tj.EndPt[1] > tj.Pts.size()) {
+      ReleaseHits(slc, tj);
+      return false;
+    }
+
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
     if(npts < 2) return false;
 
@@ -1202,7 +1200,7 @@ namespace tca {
             return false;
           }
           if(slc.slHits[iht].InTraj > 0) {
-            std::cout<<"StoreTraj: fail hit "<<iht<<" "<<PrintHit(slc.slHits[iht])<<" is in T"<<slc.slHits[iht].InTraj<<" WorkID "<<tj.WorkID;
+            std::cout<<"StoreTraj: work ID "<<tj.ID<<" fail hit "<<iht<<" "<<PrintHit(slc.slHits[iht]);
             std::cout<<" algs ";
             for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
             std::cout<<"\n";
@@ -1864,10 +1862,10 @@ namespace tca {
     }
   } // ExpectedHitsRMS
 
-  /////////////////////////////////////////
-  bool SignalAtTp(const TrajPoint& tp)
+  ////////////////////////////////////////////////
+  bool SignalAtTpInSlc(const TCSlice& slc, const TrajPoint& tp)
   {
-    // returns true if there is a hit near tp.Pos by searching through the full hit collection 
+    // Version of SignalAtTP that only checks the hit collection in the current slice
     
     if(tp.Pos[0] < -0.4) return false;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
@@ -1876,6 +1874,52 @@ namespace tca {
     if(wire > evt.goodWire[pln].size() - 1) return false;
     // assume there is a signal on a dead wire
     if(!evt.goodWire[pln][wire]) return true;
+    // no signal here if there are no hits on this wire
+    if(slc.wireHitRange[pln][wire].first == UINT_MAX) return false;
+    // check the proximity of all of the hits in the range
+    float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
+    float tickRange = 0;
+    if(std::abs(tp.Dir[1]) != 0) {
+      tickRange = std::abs(0.5 / tp.Dir[1]) / tcc.unitsPerTick;
+      // don't let it get too large
+      if(tickRange > 40) tickRange = 40;
+    }
+    float loTpTick = projTick - tickRange;
+    float hiTpTick = projTick + tickRange;
+    for(unsigned int iht = slc.wireHitRange[pln][wire].first; iht <= slc.wireHitRange[pln][wire].second; ++iht) {
+      unsigned int ahi = slc.slHits[iht].allHitsIndex;
+      auto& hit = (*evt.allHits)[ahi];
+      if(projTick < hit.PeakTime()) {
+        float loHitTick = hit.PeakTime() - 3 * hit.RMS();
+        if(hiTpTick > loHitTick) return true;
+      } else {
+        float hiHitTick = hit.PeakTime() + 3 * hit.RMS();
+        if(loTpTick < hiHitTick) return true;
+      }
+    } // iht
+    return false;
+  } // SignalAtTpInSlc
+
+  /////////////////////////////////////////
+  bool SignalAtTp(const TrajPoint& tp)
+  {
+    // returns true if there is a hit near tp.Pos by searching through the full hit collection (if there
+    // are multiple slices) or through the last slice
+    
+    // just check the hits in the last slice
+    if(evt.wireHitRange.empty()) {
+      const auto& slc = slices[slices.size() - 1];
+      return SignalAtTpInSlc(slc, tp);
+    }
+    
+    if(tp.Pos[0] < -0.4) return false;
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned short pln = planeID.Plane;
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    if(wire > evt.goodWire[pln].size() - 1) return false;
+    // assume there is a signal on a dead wire
+    if(!evt.goodWire[pln][wire]) return true;
+    
     // no signal here if there are no hits on this wire
     if(evt.wireHitRange[pln][wire].first == UINT_MAX) return false;
     // check the proximity of all of the hits in the range
@@ -1891,7 +1935,7 @@ namespace tca {
     for(unsigned int iht = evt.wireHitRange[pln][wire].first; iht <= evt.wireHitRange[pln][wire].second; ++iht) {
       auto& hit = (*evt.allHits)[iht];
       // We wouldn't need to make this check if hits were sorted
-      auto wid = hit.WireID();
+      const auto& wid = hit.WireID();
       if(wid.Cryostat != planeID.Cryostat) continue;
       if(wid.TPC != planeID.TPC) continue;
       if(wid.Plane != planeID.Plane) continue;
@@ -3978,15 +4022,12 @@ namespace tca {
     unsigned int tpc = inTPCID.TPC;
     if(tcc.useChannelStatus) {
       lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
-      evt.wireHitRange.resize(nplanes);
       evt.goodWire.resize(nplanes);
       for(unsigned short pln = 0; pln < nplanes; ++pln) {
         unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
-        evt.wireHitRange[pln].resize(nwires);
         // set all wires dead
         evt.goodWire[pln].resize(nwires, false);
         for(unsigned int wire = 0; wire < nwires; ++wire) {
-          evt.wireHitRange[pln][wire] = {UINT_MAX, UINT_MAX};
           raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
           evt.goodWire[pln][wire] = channelStatus.IsGood(chan);
         } // wire
@@ -4000,6 +4041,18 @@ namespace tca {
       } // pln
     } // don't use channelStatus
     
+    // there is no need to define evt.wireHitRange if the hit collection is not sliced. The function
+    // SignalAtTP will then use the (smaller) slc.WireHitRange instead of evt.wireHitRange
+    if(!evt.expectSlicedHits) return;
+    
+    // define the size of evt.wireHitRange
+    evt.wireHitRange.resize(nplanes);
+    for(unsigned short pln = 0; pln < nplanes; ++pln) {
+      unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
+      evt.wireHitRange[pln].resize(nwires);
+      for(unsigned int wire = 0; wire < nwires; ++wire) evt.wireHitRange[pln][wire] = {UINT_MAX, UINT_MAX};
+    } // pln
+    
     // next define the wireHitRange values. Make one loop through the allHits collection
     for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
       auto& hit = (*evt.allHits)[iht];
@@ -4011,7 +4064,6 @@ namespace tca {
       if(evt.wireHitRange[pln][wire].first == UINT_MAX) evt.wireHitRange[pln][wire].first = iht;
       evt.wireHitRange[pln][wire].second = iht;
     } // iht
-    
   } // FillWireHitRange
   
   ////////////////////////////////////////////////
@@ -4119,11 +4171,6 @@ namespace tca {
       } // wire
     } // plane
 
-//    if(slc.TPCID.TPC != 20) return false;
-//    if(slc.wireHitRange[2][481].first < 4) return false;
-
-//    if(!CheckWireHitRange(tcs)) return false;
-
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
     if(tcc.modes[kDebug] && (int)tpc == debug.TPC) {
       // Note that this function is called before the slice is pushed into slices so the index
@@ -4138,38 +4185,7 @@ namespace tca {
     return true;
 
   } // FillWireHitRange
-/*
-  ////////////////////////////////////////////////
-  bool CheckWireHitRange(TCSlice& slc)
-  {
-    // do a QC check
-    for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
-      for(unsigned int wire = 0; wire < slc.nWires[ipl]; ++wire) {
-        // No hits or dead wire
-        if(slc.wireHitRange[ipl][wire].first < 0) continue;
-        unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
-        unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
-        if(lastHit > xxx.fHits.size()) {
-          mf::LogWarning("TC")<<"CheckWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<xxx.fHits.size()<<" in plane "<<ipl;
-          return false;
-        }
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          if(xxx.fHits[iht].ArtPtr->WireID().Plane != ipl) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid plane "<<xxx.fHits[iht].ArtPtr->WireID().Plane<<" != "<<ipl;
-            return false;
-          }
-          if(xxx.fHits[iht].ArtPtr->WireID().Wire != wire) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid wire "<<xxx.fHits[iht].ArtPtr->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
-            return false;
-          }
-        } // iht
-      } // wire
-    } // ipl
 
-    return true;
-
-  } // CheckWireHitRange
-*/
   ////////////////////////////////////////////////
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP)
   {
@@ -4779,6 +4795,11 @@ namespace tca {
       tcc.dbgStp = false;
       return true;
     } // words.size() == 3 && words[0] == "WorkID"
+    if(words.size() == 3 && words[0] == "Reco" && words[1] == "TPC") {
+      tcc.recoTPC = std::stoi(words[2]);
+      std::cout<<"Reconstructing TPC "<<tcc.recoTPC<<"\n";
+      return true;
+    }
     if(words.size() == 3) {
       // configure for uB, LArIAT, etc
       debug.Cryostat = 0;
@@ -4903,7 +4924,7 @@ namespace tca {
         if(TMeV < 10) continue;
         // See if there are MC-matched hits in any cryostat, TPC, plane
         unsigned short nht = 0;
-        for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) if(evt.allHitsMCPIndex[iht] == imcp) ++nht;
+        for(unsigned int iht = 0; iht < evt.allHitsMCPIndex.size(); ++iht) if(evt.allHitsMCPIndex[iht] == imcp) ++nht;
         if(nht == 0) continue;
         myprt<<std::setw(8)<<imcp;
         myprt<<std::setw(5)<<pdg;
