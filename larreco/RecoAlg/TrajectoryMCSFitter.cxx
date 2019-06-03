@@ -1,5 +1,6 @@
 #include "TrajectoryMCSFitter.h"
 #include "larcorealg/Geometry/geo_vectors_utils.h"
+#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 
@@ -57,29 +58,58 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 
 void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj, vector<size_t>& breakpoints, vector<float>& segradlengths, vector<float>& cumseglens) const {
   //
+  auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
+  //
   const double trajlen = traj.Length();
-  const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
-  const double thisSegLen = trajlen/double(nseg);
-  // std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
+  const double thisSegLen = (trajlen>(segLen_*minNSegs_) ? segLen_ : trajlen/double(minNSegs_) );
+  // std::cout << "track with length=" << trajlen << " broken in nseg=" << std::max(minNSegs_,int(trajlen/segLen_)) << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
   //
   constexpr double lar_radl_inv = 1./14.0;
   cumseglens.push_back(0.);//first segment has zero cumulative length from previous segments
   double thislen = 0.;
+  double totlen = 0.;
   auto nextValid=traj.FirstValidPoint();
   breakpoints.push_back(nextValid);
   auto pos0 = traj.LocationAtPoint(nextValid);
+  if (applySCEcorr_) {
+    auto pos0_offset = _SCE->GetCalPosOffsets(geo::Point_t(pos0.X(), pos0.Y(), pos0.Z())); //GetCalPosOffsets (reco->true) | GetPosOffsets (true->reco)
+    pos0.SetX(pos0.X() - pos0_offset.X());
+    pos0.SetY(pos0.Y() + pos0_offset.Y());
+    pos0.SetZ(pos0.Z() + pos0_offset.Z());
+  }
+  auto dir0 = traj.DirectionAtPoint(nextValid);
   nextValid = traj.NextValidPoint(nextValid+1);
   int npoints = 0;
   while (nextValid!=recob::TrackTrajectory::InvalidIndex) {
+    if (npoints==0) dir0 = traj.DirectionAtPoint(nextValid);
     auto pos1 = traj.LocationAtPoint(nextValid);
-    thislen += ( (pos1-pos0).R() );
+    if (applySCEcorr_) {
+      auto pos1_offset = _SCE->GetCalPosOffsets(geo::Point_t(pos1.X(), pos1.Y(), pos1.Z()));
+      pos1.SetX(pos1.X() - pos1_offset.X());
+      pos1.SetY(pos1.Y() + pos1_offset.Y());
+      pos1.SetZ(pos1.Z() + pos1_offset.Z());
+    }
+    //increments along the initial direction of the segment
+    auto step = (pos1-pos0).R();
+    thislen += dir0.Dot(pos1-pos0);
+    totlen += step;
     pos0=pos1;
+    // //fixme: testing alternative approaches here
+    // //test1: increments following scatters
+    // auto step = (pos1-pos0).R();
+    // thislen += step;
+    // totlen += step;
+    // pos0=pos1;
+    // //test2: end-start distance along the initial direction of the segment
+    // thislen = dir0.Dot(pos1-pos0);
+    // totlen = (pos1-pos0).R();
+    //
     npoints++;
-    if (thislen>=thisSegLen) {
+    if (thislen>=(thisSegLen-segLenTolerance_)) {
       breakpoints.push_back(nextValid);
       if (npoints>=minHitsPerSegment_) segradlengths.push_back(thislen*lar_radl_inv);
       else segradlengths.push_back(-999.);
-      cumseglens.push_back(cumseglens.back()+thislen);
+      cumseglens.push_back(totlen);
       thislen = 0.;
       npoints = 0;
     }
@@ -94,13 +124,14 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
   return;
 }
 
-const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, bool momDepConst, int pid) const {
+const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen,
+									    bool fwdFit, bool momDepConst, int pid, float pmin, float pmax, float pstep) const {
   int    best_idx  = -1;
-  double best_logL = std::numeric_limits<double>::max();
-  double best_p    = -1.0;
+  float best_logL = std::numeric_limits<float>::max();
+  float best_p    = -1.0;
   std::vector<float> vlogL;
-  for (double p_test = pMin_; p_test <= pMax_; p_test+=pStep_) {
-    double logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid);
+  for (float p_test = pmin; p_test <= pmax; p_test+=pstep) {
+    float logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid);
     if (logL < best_logL) {
       best_p    = p_test;
       best_logL = logL;
@@ -110,35 +141,68 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
   }
   //
   //uncertainty from left side scan
-  double lunc = -1.0;
+  float lunc = std::numeric_limits<float>::max();
   if (best_idx>0) {
     for (int j=best_idx-1;j>=0;j--) {
-      double dLL = vlogL[j]-vlogL[best_idx];
-      if ( dLL<0.5 ) {
-	lunc = (best_idx-j)*pStep_;
-      } else break;
+      float dLL = vlogL[j]-vlogL[best_idx];
+      if ( dLL>=0.5 ) {
+        lunc = (best_idx-j)*pstep;
+	break;
+      }
     }
   }
   //uncertainty from right side scan
-  double runc = -1.0;
+  float runc = std::numeric_limits<float>::max();
   if (best_idx<int(vlogL.size()-1)) {
     for (unsigned int j=best_idx+1;j<vlogL.size();j++) {
-      double dLL = vlogL[j]-vlogL[best_idx];
-      if ( dLL<0.5 ) {
-	runc = (j-best_idx)*pStep_;
-      } else break;
+      float dLL = vlogL[j]-vlogL[best_idx];
+      if ( dLL>=0.5 ) {
+        runc = (j-best_idx)*pstep;
+	break;
+      }
     }
   }
   return ScanResult(best_p, std::max(lunc,runc), best_logL);
 }
 
+const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen,
+									    bool fwdFit, bool momDepConst, int pid) const {
+
+  //do a first, coarse scan
+  const ScanResult& coarseRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid, pMin_, pMax_, pStepCoarse_);
+
+  float pmax = std::min(coarseRes.p+fineScanWindow_,pMax_);
+  float pmin = std::max(coarseRes.p-fineScanWindow_,pMin_);
+  if (coarseRes.pUnc < (std::numeric_limits<float>::max()-1.)) {
+    pmax = std::min(coarseRes.p+2*coarseRes.pUnc,pMax_);
+    pmin = std::max(coarseRes.p-2*coarseRes.pUnc,pMin_);
+  }
+
+  //do the fine grained scan in a smaller region
+  const ScanResult& refineRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid, pmin, pmax, pStep_);
+
+  return refineRes;
+}
+
 void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, Vector_t& pcdir) const {
+  //
+  auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
   //
   int npoints = 0;
   geo::vect::MiddlePointAccumulator middlePointCalc;
   size_t nextValid = firstPoint;
+  //fixme explore a max number of points to use for linear regression
+  //while (nextValid<std::min(firstPoint+10,lastPoint)) {
   while (nextValid<lastPoint) {
-    middlePointCalc.add(traj.LocationAtPoint(nextValid));
+    auto tempP = traj.LocationAtPoint(nextValid);
+    if (applySCEcorr_) {
+      auto tempP_offset = _SCE->GetCalPosOffsets(geo::Point_t(tempP.X(), tempP.Y(), tempP.Z()));
+      tempP.SetX(tempP.X() - tempP_offset.X());
+      tempP.SetY(tempP.Y() + tempP_offset.Y());
+      tempP.SetZ(tempP.Z() + tempP_offset.Z());
+    }
+    middlePointCalc.add(tempP);
+    //middlePointCalc.add(traj.LocationAtPoint(nextValid));
     nextValid = traj.NextValidPoint(nextValid+1);
     npoints++;
   }
@@ -150,7 +214,13 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   TMatrixDSym m(3);
   nextValid = firstPoint;
   while (nextValid<lastPoint) {
-    const auto p = traj.LocationAtPoint(nextValid);
+    auto p = traj.LocationAtPoint(nextValid);
+    if (applySCEcorr_) {
+      auto p_offset = _SCE->GetCalPosOffsets(geo::Point_t(p.X(), p.Y(), p.Z()));
+      p.SetX(p.X() - p_offset.X());
+      p.SetY(p.Y() + p_offset.Y());
+      p.SetZ(p.Z() + p_offset.Z());
+    }
     const double xxw0 = p.X()-avgpos.X();
     const double yyw0 = p.Y()-avgpos.Y();
     const double zzw0 = p.Z()-avgpos.Z();
@@ -190,7 +260,7 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
   const int end  = (fwd ? dthetaij.size() : -1);
   const int incr = (fwd ? +1 : -1);
   //
-  // bool print = false;//(p>1.999 && p<2.001);
+  // bool print = false;
   //
   const double m = mass(pid);
   const double m2 = m*m;
@@ -205,16 +275,8 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
       continue;
     }
     //
-    if (eLossMode_==1) {
-      // ELoss mode: MIP (constant)
-      constexpr double kcal = 0.002105;
-      const double Eij = Etot - kcal*cumLen[i];//energy at this segment
-      Eij2 = Eij*Eij;
-    } else {
-      // Non constant energy loss distribution
       const double Eij = GetE(Etot,cumLen[i],m);
       Eij2 = Eij*Eij;
-    }
     //
     if ( Eij2 <= m2 ) {
       result = std::numeric_limits<double>::max();
@@ -281,6 +343,13 @@ double TrajectoryMCSFitter::energyLossBetheBloch(const double mass,const double 
 //
 double TrajectoryMCSFitter::GetE(const double initial_E, const double length_travelled, const double m) const {
   //
+  if (eLossMode_==1) {
+    // ELoss mode: MIP (constant)
+    constexpr double kcal = 0.002105;
+    return (initial_E - kcal*length_travelled);//energy at this segment
+  }
+  //
+  // Non constant energy loss distribution
   const double step_size = length_travelled / nElossSteps_;
   //
   double current_E = initial_E;
