@@ -4153,8 +4153,17 @@ namespace tca {
     // Make a crummy trajectory using the provided hits
 
     if(tHits.size() < 2) return false;
-
-    bool prt = (tcc.dbgStp || tcc.dbgAlg[kJunkTj]);
+    
+    bool prt = false;
+    if(tcc.dbgAlg[kJunkTj]) {
+      for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
+        if(slc.slHits[tHits[ii]].allHitsIndex == debug.Hit) {
+          prt = true;
+          break;
+        }
+      } // ii
+      if(prt) std::cout<<"MakeJunkTraj found debug hit\n";
+    } // tcc.dbgAlg[kJunkTj]
 
     // Start the trajectory using the first and last hits to
     // define a starting direction. Use the last pass settings
@@ -4183,19 +4192,6 @@ namespace tca {
     if(!Fit2D(-1, inPt, inPtErr, outVec, outVecErr, chiDOF)) return false;
 
     if(prt) mf::LogVerbatim("TC")<<" tHits line fit Angle "<<atan(outVec[1]);
-    // A rough estimate of the trajectory angle
-    work.Pts[0].Ang = atan(outVec[1]);
-    work.Pts[0].Dir[0] = cos(work.Pts[0].Ang);
-    work.Pts[0].Dir[1] = sin(work.Pts[0].Ang);
-    SetAngleCode(work.Pts[0]);
-    // clone this information for all of the other points
-    for(unsigned short ipt = 1; ipt < work.Pts.size(); ++ipt) {
-      auto& tp = work.Pts[ipt];
-      tp.CTP = work.CTP;
-      tp.Ang = work.Pts[0].Ang;
-      tp.Dir = work.Pts[0].Dir;
-      tp.AngleCode = work.Pts[0].AngleCode;
-    } // ipt
     // Rotate the hits into this coordinate system to find the start and end
     // points and general direction
     double cs = cos(-work.Pts[0].Ang);
