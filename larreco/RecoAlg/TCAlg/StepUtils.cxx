@@ -70,7 +70,7 @@ namespace tca {
       unsigned short ivx = TPNearVertex(slc, ltp);
       if(ivx != USHRT_MAX) {
         // Trajectory stops near a vertex so make the assignment
-        if(AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp || tcc.dbg2V)) tj.StopFlag[1][kAtVtx] = true;
+        if(AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp || tcc.dbg2V)) tj.EndFlag[1][kAtVtx] = true;
         break;
       }
 
@@ -99,7 +99,7 @@ namespace tca {
       bool sigOK = false;
       AddHits(slc, tj, lastPt, sigOK);
       // Check the stop flag
-      if(tj.StopFlag[1][kAtTj]) break;
+      if(tj.EndFlag[1][kAtTj]) break;
       // If successfull, AddHits has defined UseHit for this TP,
       // set the trajectory endpoints, and define HitPos.
       if(tj.Pts[lastPt].Hits.empty()) {
@@ -116,7 +116,7 @@ namespace tca {
           if(!sigOK && tj.AlgMod[kRvPrp]) break;
           // Ensure that there is a signal here after missing a number of steps on a LA trajectory
           if(tj.Pts[lastPt].AngleCode > 0 && nMissedSteps > 4 && !sigOK) {
-            tj.StopFlag[1][kSignal] = false;
+            tj.EndFlag[1][kSignal] = false;
             break;
           }
           // the last point with hits (used or not) is the previous point
@@ -243,7 +243,7 @@ namespace tca {
       bool keepGoing = true;
       // check for a kink. Stop crawling if one is found
       GottaKink(slc, tj, killPts);
-      if(tj.StopFlag[1][kAtKink]) {
+      if(tj.EndFlag[1][kAtKink]) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"   stop at kink with killPts "<<killPts;
         keepGoing = false;
       }
@@ -252,11 +252,9 @@ namespace tca {
       // as much as possible for this pass, so this trajectory is in trouble.
       if(killPts == 0 &&  tj.Pts[lastPt].FitChi > tcc.maxChi && useMaxChiCut) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"   bad FitChi "<<tj.Pts[lastPt].FitChi<<" cut "<<tcc.maxChi;
-        if(tcc.useAlg[kNewStpCuts]) {
-          // remove the last point before quitting
-          UnsetUsedHits(slc, tj.Pts[lastPt]);
-          SetEndPoints(tj);
-        }
+        // remove the last point before quitting
+        UnsetUsedHits(slc, tj.Pts[lastPt]);
+        SetEndPoints(tj);
         tj.IsGood = (NumPtsWithCharge(slc, tj, true) > tcc.minPtsFit[tj.Pass]);
         return;
       }
@@ -318,7 +316,9 @@ namespace tca {
     float npwc = NumPtsWithCharge(slc, tj, false);
     bool tkLike = (tjf.outlook < 1.5);
     // A showering-electron-like trajectory
-    bool shLike = (tjf.outlook > 2 && tjf.chgSlope > 0);
+    bool chgIncreasing = (tjf.chgSlope > 0);
+    // A showering-electron-like trajectory
+    bool shLike = (tjf.outlook > 2 && chgIncreasing);
     if(!shLike) shLike = tjf.showerLikeFraction > 0.5;
     float momRat = 0;
     if(tj.MCSMom > 0) momRat = (float)tjf.MCSMom / (float)tj.MCSMom;
@@ -328,7 +328,8 @@ namespace tca {
       myprt<<" tj MCSMom "<<tj.MCSMom<<" forecast MCSMom "<<tjf.MCSMom;
       myprt<<" momRat "<<std::fixed<<std::setprecision(2)<<momRat;
       myprt<<" tkLike? "<<tkLike<<" shLike? "<<shLike;
-      myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd<<" endBraggPeak? "<<tjf.endBraggPeak;
+      myprt<<" chgIncreasing? "<<chgIncreasing;
+      myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd<<" endBraggPeak? "<<tjf.endBraggPeak; 
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
     }
     if(tjf.outlook < 0) return;
@@ -341,14 +342,14 @@ namespace tca {
       return;
     } // StiffMu
     bool notStiff = (!tj.Strategy[kStiffEl] && !tj.Strategy[kStiffMu]);
-    if(notStiff && !shLike && tj.MCSMom < 100 && tjf.MCSMom < 100) {
+    if(notStiff && !shLike && tj.MCSMom < 100 && tjf.MCSMom < 100 && chgIncreasing) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Low MCSMom. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
       lastTP.NTPsFit = 5;
       return;
     } // Low MCSMom
-    if(notStiff && !shLike && tj.MCSMom < 200 && momRat < 0.7) {
+    if(notStiff && !shLike && tj.MCSMom < 200 && momRat < 0.7 && chgIncreasing) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Low MCSMom & low momRat. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
@@ -386,22 +387,6 @@ namespace tca {
       tj.StartEnd = 0;
       return;
     }
-/* fix this
-    // A curvy trajectory (not nessecarily track-like) with a consistent increase in charge
-    if(tkLike && tjf.MCSMom < 100 && !tjf.leavesBeforeEnd) {
-      // find the charge slope of the trajectory
-      float chgSlope, chgSlopeErr, chiDOF;
-      ChgSlope(slc, tj, chgSlope, chgSlopeErr, chiDOF);
-      // a significant increase in the charge in the reconstructed tj, which continues in the
-      // forecase polygon. TODO: use chgSlopeErr?
-      if(chgSlope > 3 * chgSlopeErr && (tjf.chgSlope > 3 * tjf.chgSlopeErr)) {
-        tj.Strategy.reset();
-        tj.Strategy[kSlowing] = true;
-        lastTP.NTPsFit = 5;
-      }
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Curvy? tj chgSlope "<<chgSlope<<" +/ "<<chgSlopeErr<<" forecast chgSlope "<<tjf.chgSlope<<" +/- "<<tjf.chgSlopeErr<<" Slowing? "<<tj.Strategy[kSlowing];
-    } // Slowing
-*/
   } // SetStrategy
 
   //////////////////////////////////////////
@@ -552,7 +537,7 @@ namespace tca {
     } // istp
     // not enuf info to make a forecast
     tcc.dbgStp = doPrt;
-    if(fctj.Pts.size() < 6) return;
+    if(fctj.Pts.size() < 3) return;
     // truncate and re-calculate totChg?
     if(trimPts > 0) {
       // truncate the forecast trajectory
@@ -578,8 +563,8 @@ namespace tca {
     ChkStop(slc, fctj);
     UpdateTjChgProperties("Fc", slc, fctj, false);
     tjf.chgRMS = fctj.ChgRMS;
-    tjf.endBraggPeak = fctj.StopFlag[1][kBragg];
-    // Set outlook = Estimate of the number of hits per wire
+    tjf.endBraggPeak = fctj.EndFlag[1][kBragg];
+    // Set outlook = Estimate of the number of hits per wire 
     tjf.outlook = fctj.TotChg / (fctj.Pts.size() * tj.AveChg);
     // assume we got to the end
     tjf.nextForecastUpdate = npwc + fctj.Pts.size();
@@ -691,8 +676,7 @@ namespace tca {
     // update MCSMom. First ensure that nothing bad has happened
     if(npwc > 3 && tj.Pts[lastPt].Chg > 0 && !tj.Strategy[kSlowing]) {
       short newMCSMom = MCSMom(slc, tj);
-      short minMCSMom = 0.6 * tj.MCSMom;
-      if(tcc.useAlg[kNewStpCuts]) minMCSMom = 0.5 * tj.MCSMom;
+      short minMCSMom = 0.5 * tj.MCSMom;
       if(lastPt > 10 && newMCSMom < minMCSMom) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive "<<newMCSMom;
         UnsetUsedHits(slc, lastTP);
@@ -740,8 +724,7 @@ namespace tca {
     // Reduce the number of points fit if the trajectory is long and chisq is getting a bit larger
     if(lastPt > 20 && tj.Pts[prevPtWithHits].FitChi > 1.5 && lastTP.NTPsFit > minPtsFit) lastTP.NTPsFit -= 2;
     // don't let long muon fits get too long
-    if(tcc.useAlg[kNewStpCuts] && cleanMuon && lastPt > 200 && tj.Pts[prevPtWithHits].FitChi > 1.0) lastTP.NTPsFit -= 2;
-
+    if(cleanMuon && lastPt > 200 && tj.Pts[prevPtWithHits].FitChi > 1.0) lastTP.NTPsFit -= 2;
     FitTraj(slc, tj);
 
     // don't get too fancy when we are starting out
@@ -964,11 +947,11 @@ namespace tca {
     bool isSA = (tj.Pts[tj.EndPt[1]].AngleCode == 0);
 
     // First remove any TPs at the end that have no hits after
-    // setting the StopFlag. Assume that there are no hits on TPs after the end
-    tj.StopFlag[1][kSignal] = false;
+    // setting the EndFlag. Assume that there are no hits on TPs after the end
+    tj.EndFlag[1][kSignal] = false;
     if(tj.EndPt[1] < tj.Pts.size() - 1) {
-      // There must be hits at the end so set the kSignal StopFlag
-      if(!tj.Pts[tj.EndPt[1]+1].Hits.empty()) tj.StopFlag[1][kSignal] = true;
+      // There must be hits at the end so set the kSignal EndFlag
+      if(!tj.Pts[tj.EndPt[1]+1].Hits.empty()) tj.EndFlag[1][kSignal] = true;
     }
     tj.Pts.resize(tj.EndPt[1] + 1);
 
@@ -976,23 +959,6 @@ namespace tca {
     if(!isVLA) FillGaps(slc, tj);
 
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<" CheckTraj MCSMom "<<tj.MCSMom<<" isVLA? "<<isVLA<<" NumPtsWithCharge "<<NumPtsWithCharge(slc, tj, false)<<" Min Req'd "<<tcc.minPts[tj.Pass];
-
-    // Check for hit width consistency on short trajectories
-    if(!tcc.useAlg[kNewStpCuts] && tj.Pts.size() < 10) {
-      float maxWidth = 0;
-      float minWidth = 999;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        if(tj.Pts[ipt].Chg == 0) continue;
-        if(tj.Pts[ipt].HitPosErr2 > maxWidth) maxWidth = tj.Pts[ipt].HitPosErr2;
-        if(tj.Pts[ipt].HitPosErr2 < minWidth) minWidth = tj.Pts[ipt].HitPosErr2;
-      } // ipt
-      // Require less than a 3X difference in the hit width or 10X for HitPosErr2
-      if(maxWidth > 10 * minWidth) {
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<" TP width variation too large: minWidth "<<minWidth<<" maxWidth "<<maxWidth;
-        tj.IsGood = false;
-        return;
-      }
-    } // short trajectory
 
     // Trim the end points until the TJ meets the quality cuts
     TrimEndPts("CT", slc, tj, tcc.qualityCuts, tcc.dbgStp);
@@ -1009,11 +975,10 @@ namespace tca {
 
     // ignore short trajectories
     if(tj.EndPt[1] < 4) return;
-
-    if(isSA && !tj.StopFlag[1][kBragg]) {
+    
+    if(isSA && !tj.EndFlag[1][kBragg]) {
       // Small angle checks
-
-      if(tcc.useAlg[kCTKink] && tj.EndPt[1] > 8 && !tj.StopFlag[1][kAtKink] && tj.MCSMom > 50) {
+      if(tcc.useAlg[kCTKink] && tj.EndPt[1] > 8 && !tj.EndFlag[1][kAtKink] && tj.MCSMom > 50) {
         // look for the signature of a kink near the end of the trajectory.
         // These are: Increasing delta for the last few hits
         unsigned short newSize = USHRT_MAX;
@@ -1056,9 +1021,10 @@ namespace tca {
     } // isSA
     // Oct 30, 2018. FindSoftKink needs work
 //    FindSoftKink(slc, tj);
-
-    HiEndDelta(slc, tj);
-
+        
+    // BB May 2, 2019 The value of this function need to be re-evaluated
+//    HiEndDelta(slc, tj);
+    
     // final quality check
     float npwc = NumPtsWithCharge(slc, tj, true);
     float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
@@ -1114,13 +1080,11 @@ namespace tca {
     float projErr = dpos * tj.Pts[lastPtWithUsedHits].AngErr;
     // Add this to the Delta RMS factor and construct a cut
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
-
-    if(tcc.useAlg[kNewStpCuts]) {
-      // The delta cut shouldn't be less than the delta of hits added on the previous step
-      float minDeltaCut = 1.1 * tj.Pts[lastPtWithUsedHits].Delta;
-      if(deltaCut < minDeltaCut) deltaCut = minDeltaCut;
-    }
-
+    
+    // The delta cut shouldn't be less than the delta of hits added on the previous step
+    float minDeltaCut = 1.1 * tj.Pts[lastPtWithUsedHits].Delta;
+    if(deltaCut < minDeltaCut) deltaCut = minDeltaCut;
+    
     deltaCut *= tcc.projectionErrFactor;
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut<<" dw "<<dw<<" dpos "<<dpos;
 
@@ -1143,7 +1107,7 @@ namespace tca {
     // ignore all hits with delta larger than maxDeltaCut
     float maxDeltaCut = 2 * bigDelta;
     // apply some limits
-    if(tcc.useAlg[kNewStpCuts] && !passedDeadWires && maxDeltaCut > 3) {
+    if(!passedDeadWires && maxDeltaCut > 3) {
       maxDeltaCut = 3;
       bigDelta = 1.5;
     }
@@ -1160,12 +1124,12 @@ namespace tca {
     unsigned int ipl = planeID.Plane;
     if(wire > slc.lastWire[ipl]) return;
     // Assume a signal exists on a dead wire
-    if(slc.wireHitRange[ipl][wire].first == -1) sigOK = true;
-    if(slc.wireHitRange[ipl][wire].first < 0) return;
-    unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
+    if(!evt.goodWire[ipl][wire]) sigOK = true;
+    if(slc.wireHitRange[ipl][wire].first == UINT_MAX) return;
+    unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+    unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
     float fwire = wire;
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+    for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
       if(slc.slHits[iht].InTraj == tj.ID) continue;
       if(slc.slHits[iht].InTraj == SHRT_MAX) continue;
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -1174,7 +1138,7 @@ namespace tca {
       float delta = PointTrajDOCA(slc, fwire, ftime, tp);
       // increase the delta cut if this is a long pulse hit
       bool longPulseHit = LongPulseHit(hit);
-      if(tcc.useAlg[kNewStpCuts] && longPulseHit) {
+      if(longPulseHit) {
         if(delta > 3) continue;
       } else {
         if(delta > maxDeltaCut) continue;
@@ -1198,7 +1162,7 @@ namespace tca {
         bigDelta = delta;
         imBig = iht;
       }
-      if(tcc.useAlg[kNewStpCuts] && longPulseHit) {
+      if(longPulseHit) {
         if(delta > 3) continue;
       } else {
         if(delta > deltaCut) continue;
@@ -1249,7 +1213,7 @@ namespace tca {
         if(tcHit.InTraj == 0) ++nAvailable;
       } // ii
       if(nAvailable == 0) {
-        tj.StopFlag[1][kAtTj] = true;
+        tj.EndFlag[1][kAtTj] = true;
         return;
       }
     } // stop at Tj
@@ -1323,8 +1287,8 @@ namespace tca {
       int wire = wires[ii];
       if(wire < 0 || wire > (int)slc.lastWire[plane]) continue;
       // Assume a signal exists on a dead wire
-      if(slc.wireHitRange[plane][wire].first == -1) sigOK = true;
-      if(slc.wireHitRange[plane][wire].first < 0) continue;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) sigOK = true;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
       wireWindow[0] = wire;
       wireWindow[1] = wire;
       bool hitsNear;
@@ -1382,8 +1346,8 @@ namespace tca {
           if(atPt != USHRT_MAX) break;
         } // ipt
         if(atPt != USHRT_MAX && DeltaAngle(tp.Ang, otj.Pts[atPt].Ang) < 0.1) {
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a VLA merge candidate trajectory "<<otj.ID<<". Set StopFlag[kAtTj] and stop stepping";
-          tj.StopFlag[1][kAtTj] = true;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a VLA merge candidate trajectory "<<otj.ID<<". Set EndFlag[kAtTj] and stop stepping";
+          tj.EndFlag[1][kAtTj] = true;
           return;
         } // atPt is valid
       } // nAvailable == 0 &&
@@ -1435,7 +1399,8 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(tj.CTP);
     unsigned short ipl = planeID.Plane;
     while(nextWire > slc.firstWire[ipl] && nextWire < slc.lastWire[ipl]) {
-      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
+      if(evt.goodWire[ipl][nextWire]) break;
+//      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
       nextWire -= tj.StepDir;
     }
     if(nextWire == slc.lastWire[ipl] - 1) return;
@@ -1502,63 +1467,6 @@ namespace tca {
     }
 
   } // ReversePropagate
-
-/*
-  //////////////////////////////////////////
-  void UseUnusedHits(TCSlice& slc)
-  {
-    if(slc.tjs.size() == 0) return;
-    if(!tcc.useAlg[kUUH]) return;
-
-    // max change in position allowed after adding all unused hits in a multiplet
-    float maxPosSep2 = 0.25;
-
-    std::vector<unsigned int> hitsInMultiplet;
-    for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-      Trajectory& tj = slc.tjs[itj];
-      if(tj.AlgMod[kKilled]) continue;
-      // Find the max delta
-      unsigned short firstPt = tj.EndPt[0];
-      unsigned short lastPt = tj.EndPt[1];
-      for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        if(AngleRange(tp) == 0) continue;
-        if(tp.Hits.empty()) continue;
-        // ignore if the TP has long-pulse hits -> large HitPosErr2
-        if(tp.HitPosErr2 > 50) continue;
-        bool hitsAdded = false;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          GetHitMultiplet(slc, iht, hitsInMultiplet);
-          if(hitsInMultiplet.size() > 1) {
-            for(unsigned short jj = ii + 1; jj < tp.Hits.size(); ++jj) {
-              if(!tp.UseHit[jj]) continue;
-              if(std::find(hitsInMultiplet.begin(), hitsInMultiplet.end(), tp.Hits[jj]) != hitsInMultiplet.end()) {
-                tp.UseHit[jj] = true;
-                slc.slHits[tp.Hits[jj]].InTraj = tj.ID;
-                hitsAdded = true;
-              }
-            } // jj
-          }
-        } // ii
-        if(hitsAdded) {
-          // save the hit position
-          std::array<float, 2> oldHitPos = tp.HitPos;
-          DefineHitPos(slc, tp);
-          // keep it if
-          if(PosSep2(tj.Pts[ipt].HitPos, oldHitPos) < maxPosSep2) {
-            tj.AlgMod[kUUH] = true;
-          } else {
-            UnsetUsedHits(slc, tj.Pts[ipt]);
-          }
-        }
-      } // ipt
-      if(tj.AlgMod[kUUH]) SetEndPoints(tj);
-    } // itj
-
-  } // UseUnusedHits
-*/
 
   ////////////////////////////////////////////////
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
@@ -1727,25 +1635,6 @@ namespace tca {
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"CSEP: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<" lastPt Pos "<<PrintPos(slc, lastTP.Pos);
     }
-
-    // Check the charge and delta of the last point if there were many points fit
-    // BB 11/26/ 2018 This is a bad idea for stopping tracks
-    if(!tcc.useAlg[kNewStpCuts]) {
-      if(lastTP.NTPsFit > 10 && lastTP.DeltaRMS > 0 && (lastTP.Delta / lastTP.DeltaRMS) > 3 && lastTP.ChgPull > 3) {
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Removing last TP with large Delta "<<lastTP.Delta<<" and large ChgPull "<<lastTP.ChgPull;
-        UnsetUsedHits(slc, lastTP);
-        tj.AlgMod[kChkStopEP] = true;
-        SetEndPoints(tj);
-        // check again
-        auto& tp = tj.Pts[tj.EndPt[1]];
-        if(tp.DeltaRMS > 0 && (tp.Delta / tp.DeltaRMS) > 3 && tp.ChgPull > 3) {
-          UnsetUsedHits(slc, tp);
-          SetEndPoints(tj);
-        }
-        return;
-      }
-    }
-
     TrajPoint ltp;
     ltp.CTP = tj.CTP;
     ltp.Pos = tj.Pts[endPt].Pos;
@@ -1817,7 +1706,7 @@ namespace tca {
 
     // require a Bragg peak
     ChkStop(slc, tj);
-    if(!tj.StopFlag[1][kBragg]) {
+    if(!tj.EndFlag[1][kBragg]) {
       // restore the original
       for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
       SetEndPoints(tj);
@@ -1851,7 +1740,7 @@ namespace tca {
       tp.Chg = hit.Integral();
       tp.HitPos[0] = hit.WireID().Wire;
       tp.HitPos[1] = hit.PeakTime() * tcc.unitsPerTick;
-      if(tcc.useAlg[kNewStpCuts] && LongPulseHit(hit)) {
+      if(LongPulseHit(hit)) {
         // give it a huge error^2 since the position is not well defined
         tp.HitPosErr2 = 100;
       } else {
@@ -1920,19 +1809,6 @@ namespace tca {
     TrajPoint& tp = tj.Pts[ipt];
 
     if(tp.Hits.empty()) return;
-/* Nov 6, 2018. This is a bad idea if widely separated hits were associated with the TP
-    // Use all available hits on the last pass for the first few points when starting out
-    if(ipt < 3 && tj.Pass == tcc.minPts.size() - 1) {
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        unsigned int iht = tp.Hits[ii];
-        if(slc.slHits[iht].InTraj > 0) continue;
-        tp.UseHit[ii] = true;
-        slc.slHits[iht].InTraj = tj.ID;
-      }
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"FUH: Using all hits on seed trajectory on the last pass";
-      return;
-    } // last pass for the first two points
-*/
     // don't check charge when starting out
     if(ipt < 5) useChg = false;
     float chgPullCut = 1000;
@@ -1943,8 +1819,7 @@ namespace tca {
 
     bool ignoreLongPulseHits = false;
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-    if(tcc.useAlg[kNewStpCuts] && (npts < 10 || tj.AlgMod[kRvPrp])) ignoreLongPulseHits = true;
-
+    if(npts < 10 || tj.AlgMod[kRvPrp]) ignoreLongPulseHits = true;
     float expectedHitsRMS = ExpectedHitsRMS(slc, tp);
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<std::setprecision(2)<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(slc, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)expectedHitsRMS<<" AngCode "<<tp.AngleCode;
@@ -2205,7 +2080,7 @@ namespace tca {
     // This is best done after FixTrajBegin has been called.
 
     if(!tcc.useAlg[kSoftKink]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.Strategy[kStiffEl]) return;
+    if(tj.Strategy[kStiffEl]) return;
     if(tj.Pts.size() < 15) return;
     if(tj.MCSMom < 100) return;
 
@@ -2255,8 +2130,8 @@ namespace tca {
   void FillGaps(TCSlice& slc, Trajectory& tj)
   {
     // Fill in any gaps in the trajectory with close hits regardless of charge (well maybe not quite that)
-
-    if(!tcc.useAlg[kFillGap]) return;
+    
+    if(!tcc.useAlg[kFillGaps]) return;
     if(tj.AlgMod[kJunkTj]) return;
 
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"FG: Check Tj "<<tj.ID<<" from "<<PrintPos(slc, tj.Pts[tj.EndPt[0]])<<" to "<<PrintPos(slc, tj.Pts[tj.EndPt[1]]);
@@ -2283,16 +2158,6 @@ namespace tca {
         firstPtWithChg = nextPtWithChg;
         continue;
       }
-      // 10/1/2018 BB This shouldn't be a requirement
-      // Compare the charge before and after
-      if(!tcc.useAlg[kNewStpCuts] && tj.Pts[firstPtWithChg].Chg > 0) {
-        float chgrat = tj.Pts[nextPtWithChg].Chg / tj.Pts[firstPtWithChg].Chg;
-        if(chgrat < 0.7 || chgrat > 1.4) {
-          firstPtWithChg = nextPtWithChg;
-          continue;
-        }
-      }
-
       // Make a bare trajectory point at firstPtWithChg that points to nextPtWithChg
       TrajPoint tp;
       if(!MakeBareTrajPoint(slc, tj.Pts[firstPtWithChg], tj.Pts[nextPtWithChg], tp)) {
@@ -2326,7 +2191,7 @@ namespace tca {
       // fill in the gap
       for(unsigned short mpt = firstPtWithChg + 1; mpt < nextPtWithChg; ++mpt) {
         if(tj.Pts[mpt].Chg > 0) {
-          mf::LogWarning("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
+          mf::LogVerbatim("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
           slc.isValid = false;
           return;
         }
@@ -2351,7 +2216,7 @@ namespace tca {
         }
         if(filled) {
           DefineHitPos(slc, tj.Pts[mpt]);
-          tj.AlgMod[kFillGap] = true;
+          tj.AlgMod[kFillGaps] = true;
           if(tcc.dbgStp) {
             PrintTrajPoint("FG", slc, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
             mf::LogVerbatim("TC")<<"Check MCSMom "<<MCSMom(slc, tj);
@@ -2360,11 +2225,11 @@ namespace tca {
       } // mpt
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
-
-    if(tj.AlgMod[kFillGap]) tj.MCSMom = MCSMom(slc, tj);
-
-  } // FillGaps
-
+    
+    if(tj.AlgMod[kFillGaps]) tj.MCSMom = MCSMom(slc, tj);
+    
+  } // FillGaps 
+  
   ////////////////////////////////////////////////
   void CheckHiMultUnusedHits(TCSlice& slc, Trajectory& tj)
   {
@@ -2507,7 +2372,7 @@ namespace tca {
     // if we made it here it must be OK
     SetEndPoints(tj);
     // Try to extend it, unless there was a kink
-    if(tj.StopFlag[1][kAtKink]) return;
+    if(tj.EndFlag[1][kAtKink]) return;
     // trim the end points although this shouldn't happen
     if(tj.EndPt[1] != tj.Pts.size() - 1) tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kCHMUH] = true;
@@ -2518,7 +2383,7 @@ namespace tca {
   {
     // mask off high multiplicity TPs at the end
     if(!tcc.useAlg[kCHMEH]) return;
-    if(tj.StopFlag[1][kBragg]) return;
+    if(tj.EndFlag[1][kBragg]) return;
     if(tj.Pts.size() < 10) return;
     if(tj.Pts[tj.EndPt[1]].AngleCode == 0) return;
     // find the average multiplicity in the first half
@@ -2552,75 +2417,6 @@ namespace tca {
       SetEndPoints(tj);
     }
   } // CheckHiMultEndHits
-
-  ////////////////////////////////////////////////
-  void HiEndDelta(TCSlice& slc, Trajectory& tj)
-  {
-    // Modify the trajectory at the end if there is a consistent increase in delta. It
-    // is called from CheckTraj.
-    // This needs to be done carefully...
-
-    if(!tcc.useAlg[kHED]) return;
-    if(tj.StopFlag[1][kBragg]) return;
-    if(tj.Strategy[kStiffEl]) return;
-    // Only consider long high momentum.
-    if(tj.MCSMom < 100) return;
-    if(tj.Pts.size() < 50) return;
-
-    unsigned short ept = tj.EndPt[1];
-
-    TrajPoint& lastTp = tj.Pts[ept];
-
-    if(lastTp.AngleCode > 1) return;
-    if(lastTp.FitChi < 1) return;
-
-    unsigned short npts = USHRT_MAX;
-    float lastDelta = lastTp.Delta;
-    // check the last 20 points on the trajectory for a systematic increase in Delta and FitChi
-    for(unsigned short ii = 1; ii < 20; ++ii) {
-      unsigned short ipt = ept - ii;
-      TrajPoint& tp = tj.Pts[ipt];
-      if(tp.Chg == 0) continue;
-      if(tp.FitChi < 1 || tp.Delta > lastDelta) {
-        npts = ii;
-        break;
-      }
-      lastDelta = tp.Delta;
-    } // ii
-
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"HED: last point FitChi "<<lastTp.FitChi<<" NTPsFit "<<lastTp.NTPsFit<<" new npts "<<npts;
-
-    // something bad happened
-    if(npts == USHRT_MAX) return;
-    // The Tj end has some other problem
-    if(npts < 4) return;
-
-    // re-fit the end of the trajectory
-    lastTp.NTPsFit = npts;
-    FitTraj(slc, tj);
-    if(tcc.dbgStp) PrintTrajPoint("HED", slc, ept, tj.StepDir, tj.Pass, lastTp);
-    // update the last points
-    for(unsigned short ii = 1; ii <= npts; ++ii) {
-      unsigned short ipt = ept - ii;
-      TrajPoint& tp = tj.Pts[ipt];
-      if(tp.Chg == 0) continue;
-      tp.Dir = tj.Pts[ept].Dir;
-      tp.Ang = tj.Pts[ept].Ang;
-      tp.AngErr = tj.Pts[ept].AngErr;
-      tp.AngleCode = tj.Pts[ept].AngleCode;
-      // Correct the projected time to the wire
-      float dw = tp.Pos[0] - tj.Pts[ept].Pos[0];
-      if(tp.Dir[0] != 0) tp.Pos[1] = tj.Pts[ept].Pos[1] + dw * tp.Dir[1] / tp.Dir[0];
-      tp.Delta = PointTrajDOCA(slc, tp.HitPos[0], tp.HitPos[1], tp);
-      tp.DeltaRMS = tj.Pts[ept].DeltaRMS;
-      tp.NTPsFit = tj.Pts[ept].NTPsFit;
-      tp.FitChi = tj.Pts[ept].FitChi;
-      if(tcc.dbgStp) PrintTrajPoint("HED", slc, ipt, tj.StepDir, tj.Pass, tp);
-    } // ii
-
-    tj.AlgMod[kHED] = true;
-
-  } // HiEndDelta
 
   //////////////////////////////////////////
   void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj)
@@ -2856,7 +2652,7 @@ namespace tca {
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     unsigned short nPtsFit = tcc.kinkCuts[2];
     // fit more points if this is a muon
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 13) nPtsFit += 2;
+    if(tj.PDGCode == 13) nPtsFit += 2;
     if(npwc < 2 * nPtsFit) return;
     unsigned short lastPt = tj.EndPt[1];
     if(tj.Pts[lastPt].Chg == 0) return;
@@ -2917,8 +2713,8 @@ namespace tca {
       myprt<<" kinkSig "<<kinkSig;
       myprt<<" endChgAsym "<<endChgAsym;
     } // dbgStp
-
-    if(tcc.useAlg[kNewStpCuts] && npwc < 20) {
+    
+    if(npwc < 20) {
       // improvements(?) for short tjs where the kink angle is a bit low but the kink
       // angle significance is high
       bool foundKink = (dang > 0.8 * kinkAngCut && kinkSig > 5);
@@ -2926,14 +2722,13 @@ namespace tca {
       } // debug
       if(foundKink) {
         killPts = nPtsFit;
-        tj.StopFlag[1][kAtKink] = true;
-        tj.AlgMod[kNewStpCuts] = true;
+        tj.EndFlag[1][kAtKink] = true;
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a short Tj kink";
         return;
       }
-    } // kNewStpCuts and short tj
+    } // short tj
 
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 13 && dang > kinkAngCut) {
+    if(tj.PDGCode == 13 && dang > kinkAngCut) {
       // New muon cuts. There is probably a delta-ray at the end if there is a kink
       // that is not really large and the end charge is high - Not a kink.
       // chgAsym = 0.2 corresponds to an average charge after the kink points that is
@@ -2941,14 +2736,13 @@ namespace tca {
       if(dang < 2 * kinkAngCut && endChgAsym > 0.2) return;
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a muon Tj kink. Calling it not-a-kink";
       killPts = nPtsFit;
-      tj.StopFlag[1][kAtKink] = true;
-      tj.AlgMod[kNewStpCuts] = true;
+      tj.EndFlag[1][kAtKink] = true;
       return;
-    } // kNewStpCuts and muon with a kink
+    } // muon with a kink
 
     if(dang > kinkAngCut) {
       killPts = nPtsFit;
-      tj.StopFlag[1][kAtKink] = true;
+      tj.EndFlag[1][kAtKink] = true;
     }
 
     if(killPts > 0) {
@@ -2959,19 +2753,19 @@ namespace tca {
         if(tj.MCSMom < 0) tj.MCSMom = MCSMom(slc, tj);
         if(tj.MCSMom < 50) {
           killPts = 0;
-          tj.StopFlag[1][kAtKink] = false;
+          tj.EndFlag[1][kAtKink] = false;
           tj.AlgMod[kNoKinkChk] = true;
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink turning off kink checking. MCSMom "<<tj.MCSMom;
         }
       } // turn off kink check
       // Don't stop if the last few points had high charge pull and we are tracking a muon, but do mask off the hits
-      if(killPts > 0 && tj.PDGCode == 13 && tj.Pts[lastPt].ChgPull > 2  && tj.Pts[lastPt-1].ChgPull > 2) tj.StopFlag[1][kAtKink] = false;
+      if(killPts > 0 && tj.PDGCode == 13 && tj.Pts[lastPt].ChgPull > 2  && tj.Pts[lastPt-1].ChgPull > 2) tj.EndFlag[1][kAtKink] = false;
       // Don't keep stepping or mask off any TPs if we hit a kink while doing RevProp
       if(tj.AlgMod[kRvPrp]) killPts = 0;
     }
-
-    if(tcc.dbgStp && tj.StopFlag[1][kAtKink]) mf::LogVerbatim("TC")<<"GottaKink killPts "<<killPts;
-//    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink "<<kinkPt<<" Pos "<<PrintPos(slc, tj.Pts[kinkPt])<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<" cut "<<kinkAngCut<<" tpFit chi "<<tpFit.FitChi<<" killPts "<<killPts<<" GottaKink? "<<tj.StopFlag[1][kAtKink]<<" MCSMom "<<tj.MCSMom<<" thetaRMS "<<thetaRMS;
+    
+    if(tcc.dbgStp && tj.EndFlag[1][kAtKink]) mf::LogVerbatim("TC")<<"GottaKink killPts "<<killPts;
+//    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink "<<kinkPt<<" Pos "<<PrintPos(slc, tj.Pts[kinkPt])<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<" cut "<<kinkAngCut<<" tpFit chi "<<tpFit.FitChi<<" killPts "<<killPts<<" GottaKink? "<<tj.EndFlag[1][kAtKink]<<" MCSMom "<<tj.MCSMom<<" thetaRMS "<<thetaRMS;
 
   } // GottaKink
 
@@ -2990,7 +2784,8 @@ namespace tca {
 
     // don't bother with really short tjs
     if(tj.Pts.size() < 3) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.MCSMom < 200) return;
+    // BB May 20. Cut was tj.MCSMom < 200
+    if(tj.MCSMom < 100) return;
 
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
@@ -3020,7 +2815,7 @@ namespace tca {
     bool needsRevProp = firstPtFit > 3;
     float eLike = ElectronLikelihood(slc, tj);
     unsigned short nPtsLeft = NumPtsWithCharge(slc, tj, false) - firstPtFit;
-    if(tcc.useAlg[kNewStpCuts] && needsRevProp) {
+    if(needsRevProp) {
       needsRevProp = (nPtsLeft > 5);
       if(needsRevProp) needsRevProp = (eLike < 0.5);
     }
@@ -3037,23 +2832,27 @@ namespace tca {
       if(tp.AngleCode < 2) stepSize = std::abs(1/tp.Dir[0]);
       tp.Pos[0] -= tp.Dir[0] * stepSize * tj.StepDir;
       tp.Pos[1] -= tp.Dir[1] * stepSize * tj.StepDir;
-      if(tcc.useAlg[kNewStpCuts]) {
-        // launch RevProp if this wire is dead
-        unsigned int wire = std::nearbyint(tp.Pos[0]);
-        unsigned short plane = DecodeCTP(tp.CTP).Plane;
-        needsRevProp = (wire < slc.nWires[plane] && slc.wireHitRange[plane][wire].first == -1);
-        if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
-      } // NewStpCuts
+      // launch RevProp if this wire is dead
+      unsigned int wire = std::nearbyint(tp.Pos[0]);
+      unsigned short plane = DecodeCTP(tp.CTP).Plane;
+      needsRevProp = (wire < slc.nWires[plane] && !evt.goodWire[plane][wire]);
+      if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
       if(!needsRevProp) {
         // check for hits on a not-dead wire
-        float maxDelta = 3 * tp.DeltaRMS;
-        if(FindCloseHits(slc, tp, maxDelta, kUnusedHits) && !tp.Hits.empty()) {
-          needsRevProp = true;
-          if(tcc.dbgStp) {
-            mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<". Call ReversePropagate";
-            PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
-          }
-        }
+        // BB May 20, 2019 Do this more carefully
+        float maxDelta = 2 * tp.DeltaRMS;
+        if(FindCloseHits(slc, tp, maxDelta, kAllHits) && !tp.Hits.empty()) {
+          // count used and unused hits
+          unsigned short nused = 0;
+          for(auto iht : tp.Hits) if(slc.slHits[iht].InTraj > 0) ++nused;
+          if(nused == 0) {
+            needsRevProp = true;
+            if(tcc.dbgStp) {
+              mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<". Call ReversePropagate";
+              PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
+            } // tcc.dbgStp
+          } // nused = 0
+        } // Close hits exist
       } // !needsRevProp
     } // !needsRevProp
 
@@ -3066,7 +2865,7 @@ namespace tca {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"  clobber TPs "<<PrintPos(slc, tj.Pts[0])<<" to "<<PrintPos(slc, tj.Pts[firstPtFit])<<". Call TrimEndPts then ReversePropagate ";
       // first save the first TP on this trajectory. We will try to re-use it if
       // it isn't used during reverse propagation
-      if(tcc.useAlg[kNewStpCuts]) seeds.push_back(tj.Pts[0]);
+      seeds.push_back(tj.Pts[0]);
       for(unsigned short ipt = 0; ipt <= firstPtFit; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
       SetEndPoints(tj);
       tj.AlgMod[kFTBRvProp] = true;
@@ -3100,27 +2899,23 @@ namespace tca {
     // ignore junk trajectories
     if(tj.AlgMod[kJunkTj]) return;
     // ignore stopping trajectories
-    if(tj.StopFlag[0][kBragg]) return;
-
-
+    if(tj.EndFlag[0][kBragg]) return;
     unsigned short firstPt = tj.EndPt[0];
 
     if(atPt == tj.EndPt[0]) return;
 
     // Default is to use DeltaRMS of the last point on the Tj
     float maxDelta = 4 * tj.Pts[tj.EndPt[1]].DeltaRMS;
-    if(tcc.useAlg[kNewStpCuts]) {
-      // 10/2/2018 BB Change requirement
-      // Find the max DeltaRMS of points from atPt to EndPt[1]
-      float maxDeltaRMS = 0;
-      for(unsigned short ipt = atPt; ipt <= tj.EndPt[1]; ++ipt) {
-        if(tj.Pts[ipt].DeltaRMS > maxDeltaRMS) maxDeltaRMS = tj.Pts[ipt].DeltaRMS;
-      } // ipt
-      maxDelta = 3 * maxDeltaRMS;
-    } // kNewStpCuts
+
+    // Find the max DeltaRMS of points from atPt to EndPt[1]
+    float maxDeltaRMS = 0;
+    for(unsigned short ipt = atPt; ipt <= tj.EndPt[1]; ++ipt) {
+      if(tj.Pts[ipt].DeltaRMS > maxDeltaRMS) maxDeltaRMS = tj.Pts[ipt].DeltaRMS;
+    } // ipt
+    maxDelta = 3 * maxDeltaRMS;
 
     if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintStopFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
+      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintEndFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
     }
 
     // update the trajectory for all the points up to atPt
@@ -3145,19 +2940,8 @@ namespace tca {
       tj.Pts[ipt].ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
       bool maskThisPt = (tj.Pts[ipt].Delta > maxDelta);
       if(maskThisPt) maskedPts = true;
-      if(tcc.useAlg[kNewStpCuts]) {
-        // 10/1/18 BB only mask off the bad point. Not all of them to the end
-        if(maskThisPt) {
-          UnsetUsedHits(slc, tp);
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
-        } // maskThisPt
-      } else {
-        // old cuts - mask off all points to the beginning
-        if(maskedPts) {
-          UnsetUsedHits(slc, tp);
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
-        } // maskedPts
-      } // old cuts
+      UnsetUsedHits(slc, tp);
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
       if(ipt == 0) break;
     } // ii
     if(maskedPts) SetEndPoints(tj);
@@ -3181,8 +2965,8 @@ namespace tca {
     // ignore junk trajectories
     if(tj.AlgMod[kJunkTj]) return;
     // ingore stopping trajectories
-    if(tj.StopFlag[1][kBragg]) return;
-
+    if(tj.EndFlag[1][kBragg]) return;
+    
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"FixTrajEnd: atPt "<<atPt;
     }
@@ -3457,6 +3241,149 @@ namespace tca {
   } // IsGhost
 
   ////////////////////////////////////////////////
+  void LastEndMerge(TCSlice& slc, CTP_t inCTP)
+  {
+    // last ditch attempt to merge long straight broken trajectories by averaging
+    // all points in the trajectory and applying tight angle and separation cuts. 
+    if(slc.tjs.size() < 2) return;
+    if(!tcc.useAlg[kLastEndMerge]) return;
+    
+    bool prt = tcc.dbgAlg[kLastEndMerge];
+    
+    // create an averaged TP for each long Trajectory
+    std::vector<TrajPoint> tjTP;
+    for(auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != inCTP) continue;
+      if(tj.Pts.size() < 10) continue;
+      if(tj.MCSMom < 100) continue;
+      auto tjtp = CreateTPFromTj(slc, tj);
+      if(tjtp.Chg < 0) continue;
+      tjTP.push_back(tjtp);
+    } // tj
+    if(tjTP.size() < 2) return;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"inside LastEndMerge slice "<<slices.size()-1<<" inCTP "<<inCTP<<" tjTPs";
+      for(auto& tjtp : tjTP) myprt<<" T"<<tjtp.Step;
+    }
+
+    for(unsigned short pt1 = 0; pt1 < tjTP.size() - 1; ++pt1) {
+      auto& tp1 = tjTP[pt1];
+      auto& tj1 = slc.tjs[tp1.Step - 1];
+      if(tj1.AlgMod[kKilled]) continue;
+      for(unsigned short pt2 = pt1 + 1; pt2 < tjTP.size(); ++pt2) {
+        auto& tp2 = tjTP[pt2];
+        auto& tj2 = slc.tjs[tp2.Step - 1];
+        if(tj2.AlgMod[kKilled]) continue;
+        float dang = DeltaAngle(tp1.Ang, tp2.Ang);
+        // make an angle cut
+        if(prt && dang < 0.5) mf::LogVerbatim("TC")<<" T"<<tj1.ID<<" T"<<tj2.ID<<" dang "<<dang;
+        if(dang > 0.2) continue;
+        // and an impact parameter cut
+        unsigned short ipt1, ipt2;
+        float ip12 = PointTrajDOCA(slc, tp1.Pos[0], tp1.Pos[1], tp2);
+        float ip21 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
+        if(prt) mf::LogVerbatim("TC")<<" ip12 "<<ip12<<" ip21 "<<ip21;
+        if(ip12 > 15 && ip21 > 15) continue;
+        float minSep = 100;
+        // find the separation considering dead wires
+        TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep, false);
+        if(minSep == 100) continue;
+        if(ipt1 >= tj1.Pts.size() || ipt2 >= tj2.Pts.size()) continue;
+        float dwc = DeadWireCount(slc, tj1.Pts[ipt1], tj2.Pts[ipt2]);
+        if(prt) mf::LogVerbatim("TC")<<" minSep "<<minSep<<" dwc "<<dwc;
+        minSep -= dwc;
+        if(minSep > 5) continue;
+        // finally require that the proximate points are close to the ends
+        float sep10 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
+        float sep11 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[1]].Pos);
+        if(sep10 > 5 && sep11 > 5) continue;
+        unsigned short end1 = 0;
+        if(sep11 < sep10) end1 = 1;
+        float sep20 = PosSep(tj2.Pts[ipt2].Pos, tj2.Pts[tj2.EndPt[0]].Pos);
+        float sep21 = PosSep(tj2.Pts[ipt2].Pos, tj2.Pts[tj2.EndPt[1]].Pos);
+        if(sep20 > 5 && sep21 > 5) continue;
+        unsigned short end2 = 0;
+        if(sep21 < sep20) end2 = 1;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"LEM: T"<<tj1.ID<<"_"<<PrintPos(slc, tp1);
+          if(tj1.VtxID[end1] > 0) myprt<<"->2V"<<tj1.VtxID[end1];
+          myprt<<" T"<<tj2.ID<<"_"<<PrintPos(slc, tp2);
+          if(tj2.VtxID[end2] > 0) myprt<<"->2V"<<tj2.VtxID[end2];
+          myprt<<" dang "<<std::setprecision(2)<<dang<<" ip12 "<<ip12;
+          myprt<<" ip21 "<<ip21;
+          myprt<<" minSep "<<minSep;
+          myprt<<" end sep1 "<<sep10<<" "<<sep11;
+          myprt<<" end sep2 "<<sep20<<" "<<sep21;
+        } // prt
+        if(tj1.VtxID[end1] > 0) {
+          auto& vx2 = slc.vtxs[tj1.VtxID[end1] - 1];
+          MakeVertexObsolete("LEM", slc, vx2, true);
+        }
+        if(tj2.VtxID[end2] > 0 && tj2.VtxID[end2] != tj1.VtxID[end1]) {
+          auto& vx2 = slc.vtxs[tj2.VtxID[end2] - 1];
+          MakeVertexObsolete("LEM", slc, vx2, true);
+        }
+        // remove Bragg flags
+        tj1.EndFlag[end1][kBragg] = false;
+        tj2.EndFlag[end2][kBragg] = false;
+        unsigned int it1 = tj1.ID - 1;
+        unsigned int it2 = tj2.ID - 1;
+        if(!MergeAndStore(slc, it1, it2, tcc.dbgMrg)) continue;
+        // set the AlgMod bit
+        auto& ntj = slc.tjs[slc.tjs.size() - 1];
+        ntj.AlgMod[kLastEndMerge] = true;
+        // create a tp for this tj and add it to the list
+        auto tjtp = CreateTPFromTj(slc, ntj);
+        if(tjtp.Chg < 0) continue;
+        if(prt) mf::LogVerbatim("TC")<<" added T"<<ntj.ID<<" to the merge list";
+        tjTP.push_back(tjtp);
+        break;
+      } // pt1
+    } // pt1
+    
+  } // LastEndMerge
+  
+  ////////////////////////////////////////////////
+  TrajPoint CreateTPFromTj(TCSlice& slc, const Trajectory& tj)
+  {
+    // Create a trajectory point by averaging the position and direction of all
+    // TPs in the trajectory. This is used in LastEndMerge
+    TrajPoint tjtp;
+    // set the charge invalid
+    tjtp.Chg = -1;
+    if(tj.AlgMod[kKilled]) return tjtp;
+    // stash the ID in the Step
+    tjtp.Step = tj.ID;
+    tjtp.CTP = tj.CTP;
+    tjtp.Pos[0] = 0;
+    tjtp.Pos[1] = 0;
+    tjtp.Dir[0] = 0;
+    tjtp.Dir[1] = 0;
+    float cnt = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      tjtp.Pos[0] += tp.Pos[0];
+      tjtp.Pos[1] += tp.Pos[1];
+      tjtp.Dir[1] += tp.Dir[1];
+      ++cnt;
+    } // ipt
+    tjtp.Pos[0] /= cnt;
+    tjtp.Pos[1] /= cnt;
+    tjtp.Dir[1] /= cnt;
+    double arg = 1 - tjtp.Dir[1] * tjtp.Dir[1];
+    if(arg < 0) arg = 0;
+    tjtp.Dir[0] = sqrt(arg);
+    tjtp.Ang = atan2(tjtp.Dir[1], tjtp.Dir[0]);
+    tjtp.Chg = 1;
+    return tjtp;
+  } // CreateTjTP
+
+  ////////////////////////////////////////////////
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass)
   {
     // Merges trajectories end-to-end or makes vertices. Does a more careful check on the last pass
@@ -3615,13 +3542,8 @@ namespace tca {
           if(!isVLA && !SignalBetween(slc, tp1, tp2, 0.99)) continue;
 
           // decide whether to merge or make a vertex
-          float dang = 0;
-          if(tcc.useAlg[kNewStpCuts]) {
-            // protect against angles > pi/2
-            dang = acos(DotProd(tp1.Dir, tp2.Dir));
-          } else {
-            dang = DeltaAngle(tp1.Ang, tp2.Ang);
-          }
+          // protect against angles > pi/2
+          float dang = acos(DotProd(tp1.Dir, tp2.Dir));
           float sep = PosSep(tp1.Pos, tp2.Pos);
 
           float dangCut;
@@ -3709,8 +3631,8 @@ namespace tca {
           if(doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
 
           // don't merge if a Bragg peak exists. A vertex should be made instead
-          if(doMerge && (tj1.StopFlag[end1][kBragg] || tj2.StopFlag[end2][kBragg])) doMerge = false;
-
+          if(doMerge && (tj1.EndFlag[end1][kBragg] || tj2.EndFlag[end2][kBragg])) doMerge = false;
+          
           // Check the MCSMom asymmetry and don't merge if it is higher than the user-specified cut
           float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
           if(doMerge && momAsym > tcc.vtx2DCuts[9]) doMerge = false;
@@ -3815,8 +3737,8 @@ namespace tca {
             tj2.AlgMod[kMerge] = true;
             // Set pion-like PDGCodes
             if(!tj1.Strategy[kStiffEl] && !tj2.Strategy[kStiffEl]) {
-              if(tj1.StopFlag[end1][kBragg] && !tj2.StopFlag[end2][kBragg]) tj1.PDGCode = 211;
-              if(tj2.StopFlag[end2][kBragg] && !tj1.StopFlag[end1][kBragg]) tj2.PDGCode = 211;
+              if(tj1.EndFlag[end1][kBragg] && !tj2.EndFlag[end2][kBragg]) tj1.PDGCode = 211;
+              if(tj2.EndFlag[end2][kBragg] && !tj1.EndFlag[end1][kBragg]) tj2.PDGCode = 211;
             }
             if(!StoreVertex(slc, aVtx)) continue;
             SetVx2Score(slc);
@@ -3829,7 +3751,7 @@ namespace tca {
             if(newVx2.Score < tcc.vtx2DCuts[7] && CompatibleMerge(slc, tj1, tj2, tcc.dbgMrg)) {
               slc.tjs[it1].VtxID[end1] = 0;
               slc.tjs[it2].VtxID[end2] = 0;
-              slc.vtxs.pop_back();
+              MakeVertexObsolete("EM", slc, newVx2, true);
               bool didMerge = false;
               if(end1 == 1) {
                 didMerge = MergeAndStore(slc, it1, it2, tcc.dbgMrg);
@@ -3906,7 +3828,7 @@ namespace tca {
 
     // find the last good point (with charge)
     unsigned short lastGoodPt = USHRT_MAX ;
-
+/* BB May 18, 2019 This caused an error in NTPsFit in a short Tj that caused a vertex finding failure. Shut it off for now
     if (!ChkMichel(slc, tj, lastGoodPt)){ //did not find michel electron
       for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
         unsigned short ipt = tj.EndPt[1] - nPts - ii;
@@ -3917,6 +3839,7 @@ namespace tca {
         if(ipt == 0) break;
       } // ii
     }
+*/
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"MTEP: lastGoodPt "<<lastGoodPt<<" Pts size "<<tj.Pts.size()<<" tj.IsGood "<<tj.IsGood;
     }
@@ -3953,15 +3876,15 @@ namespace tca {
   ////////////////////////////////////////////////
   void ChkStop(TCSlice& slc, Trajectory& tj)
   {
-    // Sets the StopFlag[kBragg] bits on the trajectory by identifying the Bragg peak
+    // Sets the EndFlag[kBragg] bits on the trajectory by identifying the Bragg peak
     // at each end. This function checks both ends, finding the point with the highest charge nearest the
     // end and considering the first (when end = 0) 4 points or last 4 points (when end = 1). The next
     // 5 - 10 points (fChkStop[0]) are fitted to a line, Q(x - x0) = Qo + (x - x0) * slope where x0 is the
     // wire position of the highest charge point. A large negative slope indicates that there is a Bragg
     // peak at the end.
-
-    tj.StopFlag[0][kBragg] = false;
-    tj.StopFlag[1][kBragg] = false;
+    
+    tj.EndFlag[0][kBragg] = false;
+    tj.EndFlag[1][kBragg] = false;
     if(!tcc.useAlg[kChkStop]) return;
     if(tcc.chkStopCuts[0] < 0) return;
 
@@ -4035,7 +3958,7 @@ namespace tca {
       // Flip the sign so we can make a cut against tcc.chkStopCuts[0] which is positive.
       outVec[1] = -outVec[1];
       if(outVec[1] > tcc.chkStopCuts[0] && chiDOF < tcc.chkStopCuts[2] && outVec[1] > 2 * outVecErr[1]) {
-        tj.StopFlag[end][kBragg] = true;
+        tj.EndFlag[end][kBragg] = true;
         tj.AlgMod[kChkStop] = true;
         if(tj.PDGCode == 11) tj.PDGCode = 0;
         // Put the charge at the end into tp.AveChg
@@ -4313,149 +4236,5 @@ namespace tca {
     }
     return true;
   } // MakeJunkTraj
-/*
-  //////////////////////////////////////////
-  bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits)
-  {
-
-    if(!tcc.useAlg[kJunkTj]) return false;
-    // Make a crummy trajectory using the provided hits
-
-    if(tHits.size() < 2) return false;
-
-    bool prt = (tcc.dbgStp || tcc.dbgAlg[kJunkTj]);
-    std::vector<std::vector<unsigned int>> tpHits;
-
-    // Start the trajectory using the first and last hits to
-    // define a starting direction. Use the last pass settings
-    Trajectory work;
-    unsigned short pass = tcc.minPts.size() - 1;
-    if(!StartTraj(slc, work, tHits[0], tHits[tHits.size()-1], pass)) return false;
-
-    // Make TPs with the same separation as the wire spacing
-    constexpr float pointSize = 1;
-
-    // Do a more detailed specification of TPs if there
-    // are enough hits
-    if(tHits.size() > 6) {
-      // fit all of the hits to a line
-      Point2_t inPt;
-      Vector2_t outVec, outVecErr;
-      float inPtErr = 1, chiDOF;
-      // initialize
-      Fit2D(0, inPt, inPtErr, outVec, outVecErr, chiDOF);
-      std::vector<Point2_t> fitPts(tHits.size());
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
-        unsigned int iht = tHits[ii];
-        if(slc.slHits[iht].InTraj == SHRT_MAX) return false;
-        auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-        inPt[0] = hit.WireID().Wire;
-        inPt[1] = hit.PeakTime() * tcc.unitsPerTick;
-        fitPts[ii] = inPt;
-        // accumulate. Don't store the points since we don't care about chisq
-        Fit2D(1, inPt, inPtErr, outVec, outVecErr, chiDOF);
-      } // ii
-      if(!Fit2D(-1, inPt, inPtErr, outVec, outVecErr, chiDOF)) return false;
-
-      if(prt) mf::LogVerbatim("TC")<<" tHits line fit Angle "<<atan(outVec[1]);
-      // A rough estimate of the trajectory angle
-      work.Pts[0].Ang = atan(outVec[1]);
-      work.Pts[0].Dir[0] = cos(work.Pts[0].Ang);
-      work.Pts[0].Dir[1] = sin(work.Pts[0].Ang);
-      SetAngleCode(work.Pts[0]);
-      // Rotate the hits into this coordinate system to find the start and end
-      // points and general direction
-      double cs = cos(-work.Pts[0].Ang);
-      double sn = sin(-work.Pts[0].Ang);
-      float tAlong, minAlong = 1E6, maxAlong = -1E6;
-      // sort the hits by the distance along the general direction
-      std::vector<SortEntry> sortVec(tHits.size());
-      SortEntry sortEntry;
-      for(unsigned short ii = 0; ii < fitPts.size(); ++ii) {
-        tAlong = cs * fitPts[ii][0] - sn * fitPts[ii][1];
-        if(tAlong < minAlong) minAlong = tAlong;
-        if(tAlong > maxAlong) maxAlong = tAlong;
-        sortEntry.index = ii;
-        sortEntry.val = tAlong;
-        sortVec[ii] = sortEntry;
-      } // ii
-      std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
-      // make a temp vector
-      std::vector<unsigned int> tmp(sortVec.size());
-      // overwrite with the sorted values
-      for(unsigned short ii = 0; ii < sortVec.size(); ++ii) tmp[ii] = tHits[sortVec[ii].index];
-      tHits = tmp;
-      // create a trajectory point at each WSE unit (if there are hits at that point)
-      unsigned short npts = (unsigned short)((maxAlong - minAlong) / pointSize);
-      // rotate back into normal coordinate system
-      if(prt) mf::LogVerbatim("TC")<<" minAlong "<<minAlong<<" maxAlong "<<maxAlong<<" work.Pts[0].Ang "<<work.Pts[0].Ang<<" npts "<<npts;
-      if(npts < 2) npts = 2;
-      tpHits.resize(npts);
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
-        unsigned short ipt = ((sortVec[ii].val - minAlong) / pointSize);
-        if(ipt > npts - 1) ipt = npts - 1;
-        if(prt) mf::LogVerbatim("TC")<<"tHit "<<PrintHit(slc.slHits[tHits[ii]])<<" length "<<sortVec[ii].val<<" ipt "<<ipt;
-        if(tpHits[ipt].size() < 16) tpHits[ipt].push_back(tHits[ii]);
-      }
-    }  else {
-      // just a few hits. Put each one at a TP in the order that
-      // they were found
-      tpHits.resize(tHits.size());
-      for(unsigned short ii = 0; ii < tHits.size(); ++ii) tpHits[ii].push_back(tHits[ii]);
-    } // tHits.size()
-    // make the TPs
-    // work.Pts[0] is already defined but it needs hits added
-    work.Pts[0].Hits = tpHits[0];
-    for(auto iht : tpHits[0]) slc.slHits[iht].InTraj = work.ID;
-    // set all bits true
-    work.Pts[0].UseHit.set();
-    DefineHitPos(slc, work.Pts[0]);
-    work.Pts[0].Pos = work.Pts[0].HitPos;
-    if(prt) PrintTrajectory("MJT", slc, work, USHRT_MAX);
-    // another TP to get the direction
-    TrajPoint tpd;
-    // make the rest of the TPs
-    for(unsigned short ipt = 1; ipt < tpHits.size(); ++ipt) {
-      if(tpHits[ipt].empty()) continue;
-      // Use the previous TP as a starting point
-      unsigned short lastPt = work.Pts.size() - 1;
-      TrajPoint tp = work.Pts[lastPt];
-      tp.Step = ipt;
-      tp.Hits = tpHits[ipt];
-      for(auto iht : tpHits[ipt]) slc.slHits[iht].InTraj = work.ID;
-      // use all hits
-      tp.UseHit.set();
-      DefineHitPos(slc, tp);
-      // Just use the hit position as the tj position
-      tp.Pos = tp.HitPos;
-      if(TrajPointSeparation(work.Pts[ipt-1], tp) < 0.5) {
-        for(auto iht : tpHits[ipt]) slc.slHits[iht].InTraj = 0;
-        continue;
-      }
-      work.Pts.push_back(tp);
-      SetEndPoints(work);
-    }
-    if(prt) {
-      PrintTrajectory("MJT", slc, work, USHRT_MAX);
-    }
-    work.AlgMod[kJunkTj] = true;
-    work.IsGood = true;
-    // Finally push it onto slc.tjs
-    slc.isValid = StoreTraj(slc, work);
-    if(!slc.isValid) {
-      ReleaseHits(slc, work);
-      return false;
-    }
-    if(tcc.useAlg[kChkInTraj]) {
-      slc.isValid = InTrajOK(slc, "MJT");
-      if(!slc.isValid) {
-        ReleaseHits(slc, work);
-        mf::LogVerbatim("TC")<<"InTrajOK failed in MakeJunkTraj";
-        return false;
-      }
-    }
-    return true;
-  } // MakeJunkTraj
-*/
 
 } // namespace tca

@@ -59,7 +59,7 @@ namespace tca {
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
     //       12 = BraggSplit
     short Topo {0};
     CTP_t CTP {0};
@@ -103,18 +103,16 @@ namespace tca {
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
   struct Tj2Pt{
-    Vector2_t dir;
     unsigned int wire;
     // x range spanned by hits on the TP
     float xlo;
     float xhi;
-    CTP_t ctp;
+    unsigned short plane;
     // the Trajectory ID
     unsigned short id;
     unsigned short ipt; // The trajectory point
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
-    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
   };
 
   struct TrajPoint {
@@ -135,6 +133,7 @@ namespace tca {
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
+    unsigned short InPFP {0};     // ID of the PFParticle that owns this TP
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
@@ -175,7 +174,7 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpIndex {UINT_MAX};
-    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
     bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
@@ -196,52 +195,70 @@ namespace tca {
     bool endBraggPeak {false};
   };
 
-  // struct used for TrajCluster 3D trajectory points
+  // Temporary 3D trajectory points composed of triplet or doublet wire intersections
   struct TrajPoint3 {
     Point3_t Pos {{ 0.0, 0.0, 0.0 }};
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
-    float dEdx {0};             // The charge is stored here before dE/dx is calculated
-    Point2_t AlongTrans;         // Longitudinal & transverse position (cm) relative to the trajectory
+  };
+  
+  struct SectionFit {
+    Point3_t Pos   {{ -10.0, 0.0, 0.0 }};      ///< center position of this section
+    Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
+    Vector3_t DirErr  {{ 0.0, 0.0, 0.0 }};   ///< and direction error
+    float ChiDOF {-1};
+    unsigned short NPts {0};
+    bool NeedsUpdate {true};        ///< set true if the section needs to be updated
+  };
+
+  // a 3D trajectory point composed of a 3D point & direction and a single TP
+  struct TP3D {
+    Point3_t Pos {{ -10.0, -10.0, -10.0 }};  ///< position of the trajectory
+    Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
+    double TPX {-10};        ///< X position of the TP or the single hit
+    double TPXErr2 {1};      ///< (X position error)^2
+    float Wire {-1};
+    float along {1E6};           ///< distance from the start Pos of the section
+    int TjID {0};               ///< ID of the trajectory -> TP3D assn
+    CTP_t CTP;
+    unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
+    unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
+    bool IsGood {true};      ///< TP can be used in the fit and for calorimetry
   };
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     // Count of the number of X-matched hits and de-weight by angle
     float Count {0};                    // Set to 0 if matching failed
-    Point3_t Pos;               // Position center using 3D-matched points on the Tjs - 3D fit
-    Vector3_t Dir;              // Direction using 3D-matched points on the Tjs - 3D fit
   };
 
   struct PFPStruct {
     std::vector<int> TjIDs;             // used to reference Tjs within a slice
     std::vector<int> TjUIDs;             // used to reference Tjs in any slice
-    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
-    std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
+    std::vector<TP3D> TP3Ds;      // vector of 3D trajectory points
+    std::vector<SectionFit> SectionFits;
     // Start is 0, End is 1
-    std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
-    std::array<Vector3_t, 2> Dir;
-    std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<int, 2> Vx3ID {{ 0, 0 }};
     int BestPlane {-1};
-    // stuff for constructing the PFParticle
     int PDGCode {-1};
     std::vector<int> DtrUIDs;
     size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int mcpIndex {UINT_MAX};
-    unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
+    unsigned short MVI;       // matVec index for detailed debugging
+    std::array<std::bitset<8>, 2> EndFlag {};  // Uses the same enum as Trajectory EndFlag
     bool Primary;             // PFParticle is attached to a primary vertex
-    bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
+    bool NeedsUpdate {true};    // Set true if the Update function needs to be called
+    bool CanSection {true}; // Set false if re-sectioning is a bad idea
+    bool IsJunk {false};    // Has a good 3D match to the Tjs but is short and fails Sectioning
   };
 
   struct ShowerPoint {
@@ -370,15 +387,17 @@ namespace tca {
     kComp3DVx,
     kComp3DVxIG,
     kHED, // High End Delta
+    kHamBragg,
     kHamVx,
     kHamVx2,
     kJunkVx,
     kJunkTj,
     kKilled,
     kMerge,
+    kLastEndMerge,
     kTEP,
     kCHMEH,
-    kFillGap,
+    kFillGaps,
     kUseGhostHits,
     kMrgGhost,
     kChkInTraj,
@@ -405,9 +424,6 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
-    kM3DVxTj,
-    kMat3DMerge,
-    kSplit3DKink,
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
@@ -422,8 +438,9 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
-    kNewStpCuts,
-    kNewVtxCuts,
+    kMakePFPTjs,
+    kFillGaps3D,
+    kTEP3D,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
 
@@ -442,8 +459,9 @@ namespace tca {
     kBragg,
     kAtTj,
     kOutFV,
+    kNoFitVx,
     kFlagBitSize     ///< don't mess with this line
-  } StopFlag_t;
+  } EndFlag_t; 
 
   // Environment near a trajectory point
   typedef enum {
@@ -452,7 +470,6 @@ namespace tca {
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits,
-    kEnvClean,      ///< the charge fraction is small near this point
     kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
 
@@ -471,7 +488,7 @@ namespace tca {
   } TCModes_t;
 
   extern const std::vector<std::string> AlgBitNames;
-  extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> EndFlagNames;
   extern const std::vector<std::string> VtxBitNames;
   extern const std::vector<std::string> StrategyBitNames;
 
@@ -536,7 +553,8 @@ namespace tca {
     bool dbgDump {false};   /// dump trajectory points
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
-    bool doForecast {false};
+    bool doForecast {true};
+    bool useChannelStatus {true};
   };
 
   struct TCHit {
@@ -561,7 +579,11 @@ namespace tca {
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
-    std::vector<AllHitsRange> allHitsRanges;
+    //  hit Range for the full hit collection in the current TPCID
+    //   plane      wire             firstHit, lastHit
+    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange; 
+    // list of good wires in the current TPCID
+    std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
     std::vector<SptHits> const* sptHits = nullptr;           ///< pointer to the spacepoint - hit vector
@@ -572,12 +594,12 @@ namespace tca {
     unsigned int eventsProcessed;
     std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
     int WorkID;
-    int globalTjID;
-    int globalPFPID;
-    int globalVx2ID;
-    int globalVx3ID;
-    int globalS2ID;
-    int globalS3ID;
+    int globalT_UID;
+    int globalP_UID;
+    int global2V_UID;
+    int global3V_UID;
+    int global2S_UID;
+    int global3S_UID;
     bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
   };
 
@@ -602,12 +624,11 @@ namespace tca {
     std::vector<Trajectory> tjs; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
-    // in the range fFirstWire to fLastWire. A value of -2 indicates that there
-    // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector<std::vector< std::pair<int, int>>> wireHitRange;
+    // in the range fFirstWire to fLastWire. A value of UINT_MAX indicates that there
+    // are no hits on the wire.
+    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange;
     std::vector< VtxStore > vtxs; ///< 2D vertices
     std::vector< Vtx3Store > vtx3s; ///< 3D vertices
-    std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<DontClusterStruct> dontCluster; // pairs of Tjs that shouldn't clustered in one shower

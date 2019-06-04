@@ -24,6 +24,7 @@ namespace tca {
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
     unsigned int Hit {UINT_MAX};    ///< set to the hit index in evt.allHits if a Plane:Wire:Tick match is found
     int WorkID {0}; ///< Select the StartWorkID for debugging
+    unsigned int MVI {UINT_MAX}; ///< MatchVec Index for detailed 3D matching
     int Slice {-1};
   };
   extern DebugStuff debug;

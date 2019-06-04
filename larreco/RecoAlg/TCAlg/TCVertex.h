@@ -7,7 +7,7 @@
 //
 ///////////////////////////////////////////////////////////////////////
 #ifndef TRAJCLUSTERALGVERTEX_H
-#define TRAJCLUSTERALGVERTEX_H
+#define TRAJCLUSTERALGVERTEX_HOngoing 3D reconstruction re-write
 
 
 // C/C++ standard libraries
@@ -38,17 +38,16 @@ namespace tca {
   extern std::vector<TCSlice> slices;
 
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
-  void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass = USHRT_MAX);
-  void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
-  void FindNeutralVertices(TCSlice& slc);
+  void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass);
+//  void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
   void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
+  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
   void Find3DVertices(TCSlice& slc);
-  void Match3DVtxTjs(TCSlice& slc, bool prt);
   void CompleteIncomplete3DVertices(TCSlice& slc);
 //  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
@@ -56,7 +55,8 @@ namespace tca {
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP);
 
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp);
-  bool AttachPFPToVertex(TCSlice& slc, PFPStruct& pfp, unsigned short end, unsigned short vx3ID, bool prt);
+  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt);
+  bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt);
   bool AttachAnyTrajToVertex(TCSlice& slc, unsigned short iv, bool prt);
   bool AttachTrajToVertex(TCSlice& slc, Trajectory& tj, VtxStore& vx, bool prt);
   float TrajPointVertexPull(TCSlice& slc, const TrajPoint& tp, const VtxStore& vx);
@@ -77,7 +77,6 @@ namespace tca {
   bool MakeVertexObsolete(TCSlice& slc, Vtx3Store& vx3);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score);
-  std::vector<unsigned short> GetPFPVertices(const TCSlice& slc, const PFPStruct& pfp);
   void PosInPlane(const TCSlice& slc, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos);
   unsigned short IsCloseToVertex(TCSlice& slc, VtxStore& vx);
   unsigned short IsCloseToVertex(TCSlice& slc, Vtx3Store& vx3);

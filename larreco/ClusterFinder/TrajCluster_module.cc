@@ -67,9 +67,10 @@ namespace cluster {
     art::InputTag fHitTruthModuleLabel;
     art::InputTag fSpacePointModuleLabel;
 
+    unsigned int fMaxSliceHits;    
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
-
+    bool fSaveAll2DVertices;
   }; // class TrajCluster
 
 } // namespace cluster
@@ -137,10 +138,14 @@ namespace cluster {
     if(pset.has_key("SliceModuleLabel")) fSliceModuleLabel = pset.get<art::InputTag>("SliceModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
+    fMaxSliceHits = UINT_MAX;
+    if(pset.has_key("MaxSliceHits")) fMaxSliceHits = pset.get<unsigned int>("MaxSliceHits");
     fSpacePointModuleLabel = "NA";
     if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
+    fSaveAll2DVertices = false;
+    if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
 
   } // TrajCluster::reconfigure()
 
@@ -292,6 +297,8 @@ namespace cluster {
         for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
           auto& slhits = slHitsVec[isl];
           if(slhits.size() < 2) continue;
+          // don't attempt to reconstruct if too many hits
+          if(slhits.size() > fMaxSliceHits) continue;
           // list of hits in this slice in each TPC
           std::vector<std::vector<unsigned int>> tpcHits;
           // list of TPCs in this slice
@@ -349,7 +356,7 @@ namespace cluster {
         for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
           auto& p = (*ipart).second;
           int trackID = p->TrackId();
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
           int KE = 1000 * (p->E() - p->Mass());
           if(!anySource && theTruth->Origin() != origin) continue;
           if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
@@ -378,7 +385,7 @@ namespace cluster {
           } // im
           if(trackID == 0) continue;
           // see if this is a MCParticle that should be tracked
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
           if(!anySource && theTruth->Origin() != origin) continue;
           // get the index
           for(unsigned int indx = 0; indx < (*mcpHandle).size(); ++indx) {
@@ -496,7 +503,7 @@ namespace cluster {
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
       fTCAlg->fTM.MatchTruth();
-      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event()); 
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // input hits exist
 
@@ -557,7 +564,6 @@ namespace cluster {
     // vector to map 3V UID -> ID in each sub-slice
     std::vector<slcVxStruct> vx3StrList;
 
-
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
       // define a hit collection begin index to pass to CreateAssn for each cluster
@@ -574,6 +580,8 @@ namespace cluster {
         // make EndPoint2Ds
         for(auto& vx2 : slc.vtxs) {
           if(vx2.ID <= 0) continue;
+          // skip complete 2D vertices?
+          if(!fSaveAll2DVertices && vx2.Vx3ID != 0) continue;
           unsigned int vtxID = vx2.UID;
           unsigned int wire = std::nearbyint(vx2.Pos[0]);
           geo::PlaneID plID = tca::DecodeCTP(vx2.CTP);
@@ -743,6 +751,7 @@ namespace cluster {
             } // vx2str
           } // end
         } // tj (aka cluster)
+        
         // make Showers
         for(auto& ss3 : slc.showers) {
           if(ss3.ID <= 0) continue;
@@ -799,8 +808,10 @@ namespace cluster {
           std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
           for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
-          double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
-          double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
+          auto pos = PosAtEnd(pfp, 0);
+          auto dir = DirAtEnd(pfp, 0);
+          double sp[] = {pos[0],pos[1],pos[2]};
+          double sd[] = {dir[0],dir[1],dir[2]};
           double spe[] = {0.,0.,0.};
           double sde[] = {0.,0.,0.};
           sedCol.emplace_back(sp,sd,spe,sde);
