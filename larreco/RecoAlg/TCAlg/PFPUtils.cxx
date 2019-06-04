@@ -163,7 +163,6 @@ namespace tca {
     // Find 3D Tj matches using SpacePoints
     if(!evt.sptHandle) return;
     // ensure that allHitsSptIndex was sized correctly
-    std::cout<<"Inside FindSptPFParticles in slice "<<slc.ID<<" with "<<(*evt.allHits).size()<<" hits and "<<(*evt.sptHandle).size()<<" spts\n";
     if(evt.allHitsSptIndex.size() != (*evt.allHits).size()) return;
     // This code will choke if there are too many spts
     if(evt.allHitsSptIndex.size() > INT_MAX) return;
