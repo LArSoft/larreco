@@ -317,12 +317,10 @@ namespace tca {
       }
     } // plane
       if(tcc.match3DCuts[0] > 0) {
-        if(evt.sptHandle) {
-          // Use space points to find PFParticles
-          FindSptPFParticles(slc);
-        } else {
-          FindPFParticles(slc);
-        }
+        // First try to use SpacePoints (if they were loaded)
+        FindSptPFParticles(slc);
+        // Then try using wire intersections of un-matched TPs
+        FindPFParticles(slc);
         DefinePFPParents(slc, false);
 /*
         if(tcc.modes[kTagCosmics]) {
@@ -343,9 +341,6 @@ namespace tca {
           showertree->Fill();
         }
       } // 3D shower code
-//    } // tpcid
-
-//    if(tcc.studyMode) tm.StudyShowerParents(hist);
 
     if(!slc.isValid) {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
@@ -357,13 +352,6 @@ namespace tca {
 
 //    if (tcc.modes[kSaveCRTree]) crtree->Fill();
 
-/*
-    // fill some basic histograms
-    if(tcc.modes[kStudy1]) {
-      for(auto& vx2 : slc.vtxs) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
-      for(auto& vx3 : slc.vtx3s) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
-    }
-*/
     Finish3DShowers(slc);
 
     // count algorithm usage
@@ -726,6 +714,9 @@ namespace tca {
         slHit.InTraj = 0;
       }
     }
+
+    bool prt = false;
+
     unsigned short plane = DecodeCTP(inCTP).Plane;
     std::vector<unsigned int> tHits;
     // Stay well away from the last wire in the plane
@@ -746,10 +737,6 @@ namespace tca {
         tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
-        bool prt = (tcc.dbgStp || tcc.dbgAlg[kJunkTj]);
-        if(prt) {
-          mf::LogVerbatim("TC")<<"FindJunkTraj: Found debug hit "<<PrintHit(islHit)<<" iht "<<iht<<" jfirsthit "<<jfirsthit<<" jlasthit "<<jlasthit;
-        }
         std::vector<unsigned int> iHits;
         GetHitMultiplet(slc, iht, iHits);
         for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
@@ -821,47 +808,6 @@ namespace tca {
     } // iwire
   } // FindJunkTraj
 
-
-/*
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::PrepareForNextPass(TCSlice& slc, Trajectory& tj)
-  {
-    // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
-    // fitted points to get FitCHi < 2
-
-    fTryWithNextPass = false;
-
-    // See if there is another pass available
-    if(tj.Pass > tcc.minPtsFit.size()-2) return;
-    ++tj.Pass;
-
-    unsigned short lastPt = tj.Pts.size() - 1;
-    // Return if the last fit chisq is OK
-    if(tj.Pts[lastPt].FitChi < 1.5) {
-      fTryWithNextPass = true;
-      return;
-    }
-    TrajPoint& lastTP = tj.Pts[lastPt];
-    unsigned short newNTPSFit = lastTP.NTPsFit;
-    // only give it a few tries before giving up
-    unsigned short nit = 0;
-
-     while(lastTP.FitChi > 1.5 && lastTP.NTPsFit > 2) {
-      if(lastTP.NTPsFit > 3) newNTPSFit -= 2;
-      else if(lastTP.NTPsFit == 3) newNTPSFit = 2;
-      lastTP.NTPsFit = newNTPSFit;
-      FitTraj(slc, tj);
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"PrepareForNextPass: FitChi is > 1.5 "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" tj.Pass "<<tj.Pass;
-      if(lastTP.NTPsFit <= tcc.minPtsFit[tj.Pass]) break;
-      ++nit;
-      if(nit == 3) break;
-    }
-    // decide if the next pass should indeed be attempted
-    if(lastTP.FitChi > 2) return;
-    fTryWithNextPass = true;
-
-  } // PrepareForNextPass
-*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::ChkInTraj(std::string someText, TCSlice& slc)
   {
