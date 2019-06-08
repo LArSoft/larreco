@@ -53,7 +53,7 @@ namespace tca {
 
     void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);
-    void SetSptHandle(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
+    void SetInputSpts(std::vector<recob::SpacePoint> const& inputSpts) { evt.sptHandle = &inputSpts; }
     void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
