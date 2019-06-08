@@ -17,7 +17,6 @@ namespace tca {
     "DeltaRay",
     "CTKink",
     "CTStepChk",
-    "TryNextPass",
     "RvPrp",
     "CHMUH",
     "Split",
