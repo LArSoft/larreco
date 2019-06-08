@@ -381,7 +381,6 @@ namespace tca {
     kDeltaRay,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
-    kTryWithNextPass,
     kRvPrp,
     kCHMUH,
     kSplit,
@@ -566,6 +565,7 @@ namespace tca {
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
+    geo::TPCID TPCID;
     std::vector<recob::Hit> const* allHits = nullptr;
     std::vector<unsigned int> tpcHits;  ///< 
     //  hit Range for the full hit collection in the current TPCID
