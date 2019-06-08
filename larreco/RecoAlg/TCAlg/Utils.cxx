@@ -1904,10 +1904,10 @@ namespace tca {
   bool SignalAtTp(const TrajPoint& tp)
   {
     // returns true if there is a hit near tp.Pos by searching through the full hit collection (if there
-    // are multiple slices) or through the last slice
+    // are multiple slices) or through the last slice (if there is only one slice)
     
     // just check the hits in the last slice
-    if(evt.wireHitRange.empty()) {
+    if(evt.expectSlicedHits) {
       const auto& slc = slices[slices.size() - 1];
       return SignalAtTpInSlc(slc, tp);
     }
@@ -3772,7 +3772,8 @@ namespace tca {
   float TPHitsRMSTick(TCSlice& slc, TrajPoint& tp, HitStatus_t hitRequest)
   {
     // Estimate the RMS of all hits associated with a trajectory point
-    // without a lot of calculation
+    // without a lot of calculation. Note that this returns a value that is
+    // closer to a FWHM, not the RMS
     if(tp.Hits.empty()) return 0;
     float minVal = 9999;
     float maxVal = 0;
@@ -4007,16 +4008,14 @@ namespace tca {
   void FillWireHitRange(geo::TPCID inTPCID)
   {
     // Defines the local vector of dead wires and the low-high range of hits in each wire in
-    // the TPCID. Note that there is no requirement that the allHits collection is sorted. Care should
+    // the TPCID in TCEvent. Note that there is no requirement that the allHits collection is sorted. Care should
     // be taken when looping over hits using this range - see SignalAtTp
     
-    // see if this function was called in a TPCID that has already been analyzed
-    if(!slices.empty()) {
-      // compare the TPCID of the last slice with the one passed here
-      auto& slc = slices[slices.size() - 1];
-      if(slc.TPCID == inTPCID) return;
-    } // wireHitRange not empty
+    // see if this function was called in the current TPCID. There is nothing that needs to
+    // be done if that is the case
+    if(inTPCID == evt.TPCID) return;
     
+    evt.TPCID = inTPCID;
     unsigned short nplanes = tcc.geom->Nplanes(inTPCID);
     unsigned int cstat = inTPCID.Cryostat;
     unsigned int tpc = inTPCID.TPC;
@@ -5853,7 +5852,7 @@ namespace tca {
   /////////////////////////////////////////
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp)
   {
-    return std::to_string(tp.CTP) + ":" + PrintPos(slc, tp.Pos);
+    return std::to_string(DecodeCTP(tp.CTP).Plane) + ":" + PrintPos(slc, tp.Pos);
   } // PrintPos
 
   /////////////////////////////////////////
