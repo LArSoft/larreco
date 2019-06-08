@@ -523,8 +523,6 @@ namespace tca {
             myprt<<std::setw(6)<<(int)nTkLike;
             myprt<<std::setw(6)<<(int)nShLike;
           } // doPrt
-        } else {
-//          if(doPrt) std::cout<<istp<<" Pos "<<PrintPos(slc, tp)<<" window "<<window<<" dead wire\n";
         }
       } else {
         // no hits found
@@ -1130,6 +1128,10 @@ namespace tca {
     unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
     float fwire = wire;
     for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
+      if(iht >= slc.slHits.size() || slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) {
+        std::cout<<"oops\n";
+        continue;
+      }
       if(slc.slHits[iht].InTraj == tj.ID) continue;
       if(slc.slHits[iht].InTraj == SHRT_MAX) continue;
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -1481,13 +1483,24 @@ namespace tca {
     hitsInMultiplet.clear();
     localIndex = 0;
     if(theHit > slc.slHits.size() - 1) return;
-    if(slc.slHits[theHit].InTraj == SHRT_MAX) return;
-    hitsInMultiplet.resize(1);
-    hitsInMultiplet[0] = theHit;
-
+    if(slc.slHits[theHit].InTraj == INT_MAX) return;
+    
     auto& hit = (*evt.allHits)[slc.slHits[theHit].allHitsIndex];
     unsigned int theWire = hit.WireID().Wire;
     unsigned short ipl = hit.WireID().Plane;
+    // use the hit finder determination of a multiplet for long pulse hits if
+    // we aren't using a sliced hits collection
+    if(LongPulseHit(hit) && !evt.expectSlicedHits) {
+      localIndex = hit.LocalIndex();
+      unsigned int firstHit = theHit - localIndex;
+      hitsInMultiplet.resize(hit.Multiplicity());
+      std::iota(hitsInMultiplet.begin(), hitsInMultiplet.end(), firstHit);
+      return;
+    } // longPulseHit
+    
+    hitsInMultiplet.resize(1);
+    hitsInMultiplet[0] = theHit;
+
     float theTime = hit.PeakTime();
     float theRMS = hit.RMS();
     float narrowHitCut = 1.5 * evt.aveHitRMS[ipl];
@@ -1730,6 +1743,14 @@ namespace tca {
       if(!tp.UseHit[ii]) continue;
       ++nused;
       iht = tp.Hits[ii];
+      if(iht >= slc.slHits.size()) {
+        std::cout<<"DefineHitPos: Invalid slHits index "<<iht<<" size "<<slc.slHits.size()<<"\n";
+        return;
+      }
+      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) {
+        std::cout<<"DefineHitPos: Invalid allHits index\n";
+        return;
+      }
     }
     if(nused == 0) return;
 
@@ -1845,6 +1866,14 @@ namespace tca {
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       tp.UseHit[ii] = false;
       unsigned int iht = tp.Hits[ii];
+      if(iht >= slc.slHits.size()) {
+        std::cout<<"FUH: Invalid slHits index "<<iht<<" size "<<slc.slHits.size()<<"\n";
+        continue;
+      }
+      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) {
+        std::cout<<"FUH: Invalid allHitsIndex index "<<slc.slHits[iht].allHitsIndex<<" size "<<(*evt.allHits).size()<<"\n";
+        continue;
+      }
       delta = PointTrajDOCA(slc, iht, tp);
       if(delta < bestDelta) bestDelta = delta;
       if(slc.slHits[iht].InTraj > 0) {
@@ -3775,36 +3804,6 @@ namespace tca {
     } // iterate
 
     ChkVxTjs(slc, inCTP, tcc.dbgMrg);
-    /*
-     // Do some checking in debug mode
-     if(tcc.modes[kDebug] && lastPass) {
-     for(unsigned short it1 = 0; it1 < slc.tjs.size() - 1; ++it1) {
-     auto& tj1 = slc.tjs[it1];
-     if(tj1.CTP != inCTP) continue;
-     if(tj1.AlgMod[kKilled]) continue;
-     for(unsigned short end1 = 0; end1 < 2; ++end1) {
-     unsigned short end2 = 1 - end1;
-     auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
-     for(unsigned short it2 = it1 + 1; it2 < slc.tjs.size(); ++it2) {
-     auto& tj2 = slc.tjs[it2];
-     if(tj2.CTP != inCTP) continue;
-     if(tj2.AlgMod[kKilled]) continue;
-     auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
-     float sep = PosSep2(tp1.HitPos, tp2.HitPos);
-     if(sep < 2.5) {
-     if(tj1.VtxID[end1] == 0 && tj2.VtxID[end2] == 0) {
-     std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(slc, tp1.HitPos)<<" "<<tj2.CTP<<":"<<PrintPos(slc, tp2.HitPos)<<" with no merge or vertex\n";
-     } else if(tj1.VtxID[end1] != tj2.VtxID[end2]) {
-     std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(slc, tp1.HitPos);
-     std::cout<<" but have different vertex IDs "<<tj1.VtxID[end1]<<" != "<<tj2.VtxID[end2];
-     std::cout<<"\n";
-     }
-     } // close points
-     } // it2
-     } // end1
-     } // it1
-     } // debug mode
-     */
   } // EndMerge
 
   //////////////////////////////////////////
@@ -3828,18 +3827,7 @@ namespace tca {
 
     // find the last good point (with charge)
     unsigned short lastGoodPt = USHRT_MAX ;
-/* BB May 18, 2019 This caused an error in NTPsFit in a short Tj that caused a vertex finding failure. Shut it off for now
-    if (!ChkMichel(slc, tj, lastGoodPt)){ //did not find michel electron
-      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[1] - nPts - ii;
-        if(tj.Pts[ipt].Chg > 0) {
-          lastGoodPt = ipt;
-          break;
-        }
-        if(ipt == 0) break;
-      } // ii
-    }
-*/
+
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"MTEP: lastGoodPt "<<lastGoodPt<<" Pts size "<<tj.Pts.size()<<" tj.IsGood "<<tj.IsGood;
     }
@@ -4192,6 +4180,19 @@ namespace tca {
     if(!Fit2D(-1, inPt, inPtErr, outVec, outVecErr, chiDOF)) return false;
 
     if(prt) mf::LogVerbatim("TC")<<" tHits line fit Angle "<<atan(outVec[1]);
+    // A rough estimate of the trajectory angle
+    work.Pts[0].Ang = atan(outVec[1]);
+    work.Pts[0].Dir[0] = cos(work.Pts[0].Ang);
+    work.Pts[0].Dir[1] = sin(work.Pts[0].Ang);
+    SetAngleCode(work.Pts[0]);
+    // clone this information for all of the other points
+    for(unsigned short ipt = 1; ipt < work.Pts.size(); ++ipt) {
+      auto& tp = work.Pts[ipt];
+      tp.CTP = work.CTP;
+      tp.Ang = work.Pts[0].Ang;
+      tp.Dir = work.Pts[0].Dir;
+      tp.AngleCode = work.Pts[0].AngleCode;
+    } // ipt
     // Rotate the hits into this coordinate system to find the start and end
     // points and general direction
     double cs = cos(-work.Pts[0].Ang);
