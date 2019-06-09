@@ -17,7 +17,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
-#include "art_root_io/TFileService.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
@@ -351,7 +351,7 @@ namespace cluster {
         if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
         // get the assns
         art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
-        art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
         sim::ParticleList const& plist = pi_serv->ParticleList();
         for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
           auto& p = (*ipart).second;

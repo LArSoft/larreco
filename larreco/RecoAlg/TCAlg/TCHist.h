@@ -9,8 +9,8 @@
 #ifndef TRAJCLUSTERALGHISTSTRUCT_H
 #define TRAJCLUSTERALGHISTSTRUCT_H
 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
 
 #include "TH1F.h"
 #include "TH2F.h"

@@ -78,8 +78,8 @@ namespace tca {
   ////////////////////////////////////////////////
   int GetOrigin(TCSlice& slc, PFPStruct& pfp){
 
-    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
     std::map<int, float> omap; //<origin, energy>
 
