@@ -14,7 +14,7 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace tca {
-  
+
   struct DebugStuff {
     int Cryostat {0};    ///< Select Cryostat
     int TPC {0};    ///< Select TPC

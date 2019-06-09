@@ -1,19 +1,19 @@
-////////////////////////////////////////////////////////////////////////                            
-//                                                                                                  
-//                                                                                                  
+////////////////////////////////////////////////////////////////////////
+//
+//
 // TCAlg shower tree code
-//                                                                           
+//
 // Rory Fitzpatrick
 //
-///////////////////////////////////////////////////////////////////////   
+///////////////////////////////////////////////////////////////////////
 #ifndef TRAJCLUSTERALGTREE_H
 #define TRAJCLUSTERALGTREE_H
 
-// C/C++ standard libraries                                                                         
+// C/C++ standard libraries
 #include <array>
 #include <vector>
 #include <bitset>
-#include <utility> // std::pair<>                                                                   
+#include <utility> // std::pair<>
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -21,7 +21,7 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-// LArSoft libraries                                                                                
+// LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"

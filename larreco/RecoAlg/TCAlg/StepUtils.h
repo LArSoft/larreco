@@ -34,7 +34,7 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 
 namespace tca {
-  
+
   // Main stepping/crawling routine
   void StepAway(TCSlice& slc, Trajectory& tj);
   void SetStrategy(TCSlice& slc, Trajectory& tj);
@@ -50,8 +50,6 @@ namespace tca {
   void AddHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
   // Large Angle version
   void AddLAHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
-  // Try to use unused nearby hits in all trajectories after stepping is done
-//  void UseUnusedHits(TCSlice& slc);
   // Step through TPs starting at the end and moving to the beginning
   void ReversePropagate(TCSlice& slc, Trajectory& tj);
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
@@ -75,7 +73,7 @@ namespace tca {
   void CheckHiMultUnusedHits(TCSlice& slc, Trajectory& tj);
   void CheckHiMultEndHits(TCSlice& slc, Trajectory& tj);
   // Check for high values of Delta at the beginning of the trajectory
-  void HiEndDelta(TCSlice& slc, Trajectory& tj);
+//  void HiEndDelta(TCSlice& slc, Trajectory& tj);
 
   // Estimate the Delta RMS of the TPs on the end of tj.
   void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj);
@@ -95,7 +93,9 @@ namespace tca {
   void FixTrajEnd(TCSlice& slc, Trajectory& tj, unsigned short atPt);
   bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits);
   bool IsGhost(TCSlice& slc, Trajectory& tj);
+  void LastEndMerge(TCSlice& slc, CTP_t inCTP);
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);
+  TrajPoint CreateTPFromTj(TCSlice& slc, const Trajectory& tj);
   void MaskTrajEndPoints(TCSlice& slc, Trajectory& tj, unsigned short nPts);
   // Sets the StopsAtEnd bits for the trajectory
   void ChkStop(TCSlice& slc, Trajectory& tj);
