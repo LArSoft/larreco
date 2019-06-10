@@ -283,7 +283,7 @@ namespace cluster {
       std::vector<unsigned int> tpcList;
       for(const auto& tpcid : geom->IterateTPCIDs()) {
         // only reconstruct hits in a user-selected TPC in debug mode
-        if(tca::tcc.modes[tca::kDebug] && tca::tcc.recoTPC >= 0 && tpcid.TPC != tca::tcc.recoTPC) continue;
+        if(tca::tcc.modes[tca::kDebug] && tca::tcc.recoTPC >= 0 && (short)tpcid.TPC != tca::tcc.recoTPC) continue;
         // a vector for the subset of hits in each slice in a TPC
         //    slice      hits in this tpc
         std::vector<std::vector<unsigned int>> sltpcHits;
