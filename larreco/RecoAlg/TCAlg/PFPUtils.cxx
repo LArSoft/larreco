@@ -722,10 +722,7 @@ namespace tca {
         // Get a reference to the 2D TP
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         if(tp.Chg <= 0) continue;
-        if(tp.InPFP > 0 && tp.InPFP != pfp.ID) {
-//          std::cout<<"TP in P"<<pfp.ID<<" is InPFP "<<tp.InPFP<<"\n";
-          continue;
-        }
+        if(tp.InPFP > 0 && (int)tp.InPFP != pfp.ID) continue;
         tp.InPFP = pfp.ID;
         unsigned short plane = DecodeCTP(tp.CTP).Plane;
         // append it to Pts
