@@ -302,23 +302,8 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
 
             bool checkSeparation(false);
 
-            // 3 conditions: same 3 wires so looking for next "long" pulse
-            //               Nearest neighbor, first diff = 0, next two are 1
-            //               First two diffs are 1, last is 2
-            if (wireDeltas[0] == 0)
-            {
-                if      (wireDeltas[1] == 1 && wireDeltas[2] == 1) checkSeparation = true;
-                else if (wireDeltas[1] == 0 && wireDeltas[2] == 0) checkSeparation = true;
-            }
-            else if (wireDeltas[0] == 1 && wireDeltas[1] == 1 && wireDeltas[2] == 2) checkSeparation = true;
-            // This until we understand this better
-            else if (wireDeltas[2] < 3) checkSeparation = true;
-
-            int totWireDeltas = wireDeltas[0] + wireDeltas[1] + wireDeltas[2];
-
-            checkSeparation = false;
-
-            if (totWireDeltas < fMaxWireDeltas) checkSeparation = true;
+            // Because we hve sorted this is all we need to check
+            if (wireDeltas[2] < 2) checkSeparation = true;
 
             // Requirement to be considered a nearest neighbor
             if (checkSeparation)
