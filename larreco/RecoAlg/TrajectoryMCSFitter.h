@@ -95,14 +95,14 @@ namespace trkf {
 	Comment("Window size for fine grained likelihood scan around result of coarse scan."),
 	0.01
       };
-      fhicl::Atom<double> angResol {
+      fhicl::Sequence<double, 5> angResol {
         Name("angResol"),
-	Comment("Angular resolution parameter used in modified Highland formula. Unit is mrad."),
-	3.0
+	Comment("Angular resolution parameters used in Highland formula. Formula is angResol[0]/(p*p) + angResol[1]/p + angResol[2] + angResol[3]*p + angResol[4]*p*p. Unit is mrad."),
+        {0.,0.,3.0,0,0}
       };
       fhicl::Sequence<double, 5> hlParams {
         Name("hlParams"),
-	Comment("Parameters for tuning of Highland formula. Default is pdg value of 13.6. For values as in https://arxiv.org/abs/1703.0618 set to [0.1049,0.,11.0038,0,0]. Formula is hlParams_[0]/(p*p) + hlParams_[1]/p + hlParams_[2] + hlParams_[3]*p + hlParams_[4]*p*p."),
+	Comment("Parameters for tuning of Highland formula. Default is pdg value of 13.6. For values as in https://arxiv.org/abs/1703.0618 set to [0.1049,0.,11.0038,0,0]. Formula is hlParams[0]/(p*p) + hlParams[1]/p + hlParams[2] + hlParams[3]*p + hlParams[4]*p*p."),
 	  {0.,0.,13.6,0,0}
       };
       fhicl::Atom<double> segLenTolerance {
@@ -118,7 +118,7 @@ namespace trkf {
     };
     using Parameters = fhicl::Table<Config>;
     //
-    TrajectoryMCSFitter(int pIdHyp, int minNSegs, double segLen, int minHitsPerSegment, int nElossSteps, int eLossMode, double pMin, double pMax, double pStepCoarse, double pStep, double fineScanWindow, double angResol, const std::array<double, 5>& hlParams, double segLenTolerance, bool applySCEcorr){
+    TrajectoryMCSFitter(int pIdHyp, int minNSegs, double segLen, int minHitsPerSegment, int nElossSteps, int eLossMode, double pMin, double pMax, double pStepCoarse, double pStep, double fineScanWindow, const std::array<double, 5>& angResol, const std::array<double, 5>& hlParams, double segLenTolerance, bool applySCEcorr){
       pIdHyp_ = pIdHyp;
       minNSegs_ = minNSegs;
       segLen_ = segLen;
@@ -138,21 +138,21 @@ namespace trkf {
     explicit TrajectoryMCSFitter(const Parameters & p)
       : TrajectoryMCSFitter(p().pIdHypothesis(),p().minNumSegments(),p().segmentLength(),p().minHitsPerSegment(),p().nElossSteps(),p().eLossMode(),p().pMin(),p().pMax(),p().pStepCoarse(),p().pStep(),p().fineScanWindow(),p().angResol(),p().hlParams(),p().segLenTolerance(),p().applySCEcorr()) {}
     //
-    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, bool momDepConst = true) const { return fitMcs(traj,pIdHyp_,momDepConst); }
-    recob::MCSFitResult fitMcs(const recob::Track& track,          bool momDepConst = true) const { return fitMcs(track,pIdHyp_,momDepConst); }
-    recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      bool momDepConst = true) const { return fitMcs(traj,pIdHyp_,momDepConst); }
+    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj) const { return fitMcs(traj,pIdHyp_); }
+    recob::MCSFitResult fitMcs(const recob::Track& track         ) const { return fitMcs(track,pIdHyp_); }
+    recob::MCSFitResult fitMcs(const recob::Trajectory& traj     ) const { return fitMcs(traj,pIdHyp_); }
     //
-    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, int pid, bool momDepConst = true) const;
-    recob::MCSFitResult fitMcs(const recob::Track& track,          int pid, bool momDepConst = true) const { return fitMcs(track.Trajectory(),pid,momDepConst); }
-    recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      int pid, bool momDepConst = true) const {
+    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, int pid) const;
+    recob::MCSFitResult fitMcs(const recob::Track& track,          int pid) const { return fitMcs(track.Trajectory(),pid); }
+    recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      int pid) const {
       recob::TrackTrajectory::Flags_t flags(traj.NPoints());
       const recob::TrackTrajectory tt(traj,std::move(flags));
-      return fitMcs(tt,pid,momDepConst);
+      return fitMcs(tt,pid);
     }
     //
     void breakTrajInSegments(const recob::TrackTrajectory& traj, std::vector<size_t>& breakpoints, std::vector<float>& segradlengths, std::vector<float>& cumseglens) const;
     void linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, recob::tracking::Vector_t& pcdir) const;
-    double mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, bool momDepConst, int pid) const;
+    double mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, int pid) const;
     //
     struct ScanResult {
       public:
@@ -160,12 +160,15 @@ namespace trkf {
         double p, pUnc, logL;
     };
     //
-    const ScanResult doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, bool momDepConst, int pid) const;
-    const ScanResult doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, bool momDepConst, int pid,
-				      float pmin, float pmax, float pstep) const;
+    const ScanResult doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, int pid, float detAngResol) const;
+    const ScanResult doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, int pid,
+				      float pmin, float pmax, float pstep, float detAngResol) const;
     //
-    inline double MomentumDependentConstant(const double p) const {
+    inline double HighlandFirstTerm(const double p) const {
       return hlParams_[0]/(p*p) + hlParams_[1]/p + hlParams_[2] + hlParams_[3]*p + hlParams_[4]*p*p;
+    }
+    inline double DetectorAngularResolution(const double uz) const {
+      return angResol_[0]/(uz*uz) + angResol_[1]/uz + angResol_[2] + angResol_[3]*uz + angResol_[4]*uz*uz;
     }
     double mass(int pid) const {
       if (abs(pid)==13)   { return mumass; }
@@ -179,6 +182,10 @@ namespace trkf {
     //
     double GetE(const double initial_E, const double length_travelled, const double mass) const;
     //
+    int minNSegs() const { return minNSegs_; }
+    double segLen() const { return segLen_; }
+    double segLenTolerance() const { return segLenTolerance_; }
+    //
   private:
     int    pIdHyp_;
     int    minNSegs_;
@@ -191,7 +198,7 @@ namespace trkf {
     double pStepCoarse_;
     double pStep_;
     double fineScanWindow_;
-    double angResol_;
+    std::array<double, 5> angResol_;
     std::array<double, 5> hlParams_;
     double segLenTolerance_;
     bool   applySCEcorr_;

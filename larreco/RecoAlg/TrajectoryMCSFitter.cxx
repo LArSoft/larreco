@@ -8,7 +8,7 @@ using namespace std;
 using namespace trkf;
 using namespace recob::tracking;
 
-recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj, int pid, bool momDepConst) const {
+recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj, int pid) const {
   //
   // Break the trajectory in segments of length approximately equal to segLen_
   //
@@ -47,8 +47,9 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
     cumLenFwd.push_back(cumseglens[i]);
     cumLenBwd.push_back(cumseglens.back()-cumseglens[i+2]);
   }
-  const ScanResult fwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenFwd, true,  momDepConst, pid);
-  const ScanResult bwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenBwd, false, momDepConst, pid);
+  double detAngResol = DetectorAngularResolution(std::abs(traj.StartDirection().Z()));
+  const ScanResult fwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenFwd, true , pid, detAngResol);
+  const ScanResult bwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenBwd, false, pid, detAngResol);
   //
   return recob::MCSFitResult(pid,
 			     fwdResult.p,fwdResult.pUnc,fwdResult.logL,
@@ -125,13 +126,13 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
 }
 
 const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen,
-									    bool fwdFit, bool momDepConst, int pid, float pmin, float pmax, float pstep) const {
+									    bool fwdFit, int pid, float pmin, float pmax, float pstep, float detAngResol) const {
   int    best_idx  = -1;
   float best_logL = std::numeric_limits<float>::max();
   float best_p    = -1.0;
   std::vector<float> vlogL;
   for (float p_test = pmin; p_test <= pmax; p_test+=pstep) {
-    float logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid);
+    float logL = mcsLikelihood(p_test, detAngResol, dtheta, seg_nradlengths, cumLen, fwdFit, pid);
     if (logL < best_logL) {
       best_p    = p_test;
       best_logL = logL;
@@ -141,7 +142,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
   }
   //
   //uncertainty from left side scan
-  float lunc = std::numeric_limits<float>::max();
+  float lunc = -1.;
   if (best_idx>0) {
     for (int j=best_idx-1;j>=0;j--) {
       float dLL = vlogL[j]-vlogL[best_idx];
@@ -152,7 +153,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
     }
   }
   //uncertainty from right side scan
-  float runc = std::numeric_limits<float>::max();
+  float runc = -1.;
   if (best_idx<int(vlogL.size()-1)) {
     for (unsigned int j=best_idx+1;j<vlogL.size();j++) {
       float dLL = vlogL[j]-vlogL[best_idx];
@@ -166,10 +167,10 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
 }
 
 const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen,
-									    bool fwdFit, bool momDepConst, int pid) const {
+									    bool fwdFit, int pid, float detAngResol) const {
 
   //do a first, coarse scan
-  const ScanResult& coarseRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid, pMin_, pMax_, pStepCoarse_);
+  const ScanResult& coarseRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, pid, pMin_, pMax_, pStepCoarse_, detAngResol);
 
   float pmax = std::min(coarseRes.p+fineScanWindow_,pMax_);
   float pmin = std::max(coarseRes.p-fineScanWindow_,pMin_);
@@ -179,7 +180,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
   }
 
   //do the fine grained scan in a smaller region
-  const ScanResult& refineRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid, pmin, pmax, pStep_);
+  const ScanResult& refineRes = doLikelihoodScan(dtheta, seg_nradlengths, cumLen, fwdFit, pid, pmin, pmax, pStep_, detAngResol);
 
   return refineRes;
 }
@@ -254,7 +255,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   //
 }
 
-double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, bool momDepConst, int pid) const {
+double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, int pid) const {
   //
   const int beg  = (fwd ? 0 : (dthetaij.size()-1));
   const int end  = (fwd ? dthetaij.size() : -1);
@@ -284,9 +285,8 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
     }
     const double pij = sqrt(Eij2 - m2);//momentum at this segment
     const double beta = sqrt( 1. - ((m2)/(pij*pij + m2)) );
-    constexpr double tuned_HL_term1 = 11.0038; // https://arxiv.org/abs/1703.06187
-    constexpr double HL_term2 = 0.038;
-    const double tH0 = ( (momDepConst ? MomentumDependentConstant(pij) : tuned_HL_term1) / (pij*beta) ) * ( 1.0 + HL_term2 * std::log( seg_nradl[i] ) ) * sqrt( seg_nradl[i] );
+    constexpr double HighlandSecondTerm = 0.038;
+    const double tH0 = ( HighlandFirstTerm(pij) / (pij*beta) ) * ( 1.0 + HighlandSecondTerm * std::log( seg_nradl[i] ) ) * sqrt( seg_nradl[i] );
     const double rms = sqrt( 2.0*( tH0 * tH0 + theta0x * theta0x ) );
     if (rms==0.0) {
       std::cout << " Error : RMS cannot be zero ! " << std::endl;
@@ -294,7 +294,6 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
     }
     const double arg = dthetaij[i]/rms;
     result += ( std::log( rms ) + 0.5 * arg * arg + fixedterm);
-    // if (print && fwd==true) cout << "TrajectoryMCSFitter pij=" << pij << " dthetaij[i]=" << dthetaij[i] << " tH0=" << tH0 << " rms=" << rms << " prob=" << ( std::log( rms ) + 0.5 * arg * arg + fixedterm) << " const=" << (momDepConst ? MomentumDependentConstant(pij) : tuned_HL_term1) << " beta=" << beta << " red_length=" << seg_nradl[i] << endl;
   }
   return result;
 }
