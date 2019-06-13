@@ -1105,7 +1105,7 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
                                     hit3D->getPosition()[2] - pcaCenter(2));
         Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
 
-        pointList.emplace_back(dcel2d::Point(pcaToHit(1),pcaToHit(2),hit3D));
+        pointList.emplace_back(pcaToHit(1),pcaToHit(2),hit3D);
     }
 
     // Sort the point vec by increasing x, then increase y
