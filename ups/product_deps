@@ -1,6 +1,6 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v08_04_00_06
+parent	larreco	v08_04_00_07
 
 defaultqual	e17
 #
