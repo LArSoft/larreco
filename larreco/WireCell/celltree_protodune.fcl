@@ -36,3 +36,7 @@ physics:
   end_paths: [ analysis ]
 }
 
+physics.analyzers.wirecell.nRawSamples : 6000
+physics.analyzers.wirecell.saveJSON : true
+physics.analyzers.wirecell.SpacePointLabels : ["truthDepo"]
+physics.analyzers.wirecell.saveMC : true

@@ -6,6 +6,7 @@
 #include "lardata/Utilities/GeometryUtilities.h"
 
 #include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimEnergyDeposit.h"
 #include "larsim/Simulation/LArG4Parameters.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -88,6 +89,7 @@ public:
   void processOpHit(const art::Event& evt);
   void processOpFlash(const art::Event& evt);
   void processSpacePoint( const art::Event& event, TString option, ostream& out=cout);
+  void processSpacePointTruthDepo( const art::Event& event, TString option, ostream& out=cout);
   void processSimChannel(const art::Event& evt);
   void processMC(const art::Event& evt);
   void processMCTracks();
@@ -112,6 +114,7 @@ private:
   std::string fOpHitLabel;
   std::string fOpFlashLabel;
   std::string fTriggerLabel;
+  std::string fSimEnergyDepositLabel;
   std::vector<std::string> fSpacePointLabels;
   std::string fOutFileName;
   std::string mcOption;
@@ -227,11 +230,11 @@ CellTree::CellTree(fhicl::ParameterSet const& parameterSet)
     : EDAnalyzer(parameterSet)
 {
     dbPDG = new TDatabasePDG();
+    entryNo = 0;
 
     reconfigure(parameterSet);
     InitProcessMap();
     initOutput();
-    entryNo = 0;
 }
 
 //-----------------------------------------------------------------------
@@ -246,6 +249,7 @@ void CellTree::reconfigure(fhicl::ParameterSet const& p){
     fOpHitLabel      = p.get<std::string>("OpHitLabel");
     fOpFlashLabel    = p.get<std::string>("OpFlashLabel");
     fTriggerLabel    = p.get<std::string>("TriggerLabel");
+    fSimEnergyDepositLabel = p.get<std::string>("SimEnergyDepositLabel");
     fSpacePointLabels= p.get<std::vector<std::string> >("SpacePointLabels");
     fOutFileName     = p.get<std::string>("outFile");
     mcOption        = p.get<std::string>("mcOption");
@@ -355,12 +359,11 @@ void CellTree::initOutput()
     fEventTree->Branch("mc_nu_mom", &mc_nu_mom, "mc_nu_mom[4]/F");
 
     gDirectory = tmpDir;
-
     if (fSaveJSON) {
         system("rm -rf bee");
         gSystem->MakeDirectory("bee");
-        gSystem->ChangeDirectory("bee");
-        gSystem->MakeDirectory("data");
+        // gSystem->ChangeDirectory("bee");
+        gSystem->MakeDirectory("bee/data");
     }
 
 }
@@ -387,6 +390,7 @@ void CellTree::endJob()
     fOutFile->Close();
 
     if (fSaveJSON) {
+        gSystem->ChangeDirectory("bee");
         system("zip -r bee_upload data");
         gSystem->ChangeDirectory("..");
     }
@@ -418,20 +422,25 @@ void CellTree::analyze( const art::Event& event )
     if (fSaveTrigger) processTrigger(event);
 
     if (fSaveJSON) {
-        gSystem->MakeDirectory(TString::Format("data/%i", entryNo).Data());
+        gSystem->MakeDirectory(TString::Format("bee/data/%i", entryNo).Data());
         int nSp = fSpacePointLabels.size();
         for (int i=0; i<nSp; i++) {
             TString jsonfile;
-            jsonfile.Form("data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+            jsonfile.Form("bee/data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
             std::ofstream out(jsonfile.Data());
-            processSpacePoint(event, fSpacePointLabels[i], out);
+            if (fSpacePointLabels[i] == "truthDepo") {
+                processSpacePointTruthDepo(event, fSpacePointLabels[i], out);
+            }
+            else {
+                processSpacePoint(event, fSpacePointLabels[i], out);
+            }
             out.close();
         }
 
         if(fSaveMC) {
             processMCTracks();
             TString jsonfile;
-            jsonfile.Form("data/%i/%i-mc.json", entryNo, entryNo);
+            jsonfile.Form("bee/data/%i/%i-mc.json", entryNo, entryNo);
             std::ofstream out(jsonfile.Data());
             DumpMCJSON(out);
             out.close();
@@ -812,10 +821,10 @@ void CellTree::processSpacePoint( const art::Event& event, TString option, ostre
     art::fill_ptr_vector(sps, sp_handle);
     if (pc_exists) {
         art::fill_ptr_vector(pcs, pc_handle);
-	if (sps.size() != pcs.size()) {
-	    cout << "WARNING: SpacePoint and PointCharge length mismatch" << endl;
-	    return;
-	}
+    	if (sps.size() != pcs.size()) {
+    	    cout << "WARNING: SpacePoint and PointCharge length mismatch" << endl;
+    	    return;
+    	}
     }
     double x=0, y=0, z=0, q=0, nq=1;
     vector<double> vx, vy, vz, vq, vnq;
@@ -825,16 +834,16 @@ void CellTree::processSpacePoint( const art::Event& event, TString option, ostre
         x = sps[i]->XYZ()[0];
         y = sps[i]->XYZ()[1];
         z = sps[i]->XYZ()[2];
-	if (pc_exists && pcs[i]->hasCharge()) {
-	  q = pcs[i]->charge();
-	} else {
-	  q = 0;
-	}
+    	if (pc_exists && pcs[i]->hasCharge()) {
+    	   q = pcs[i]->charge();
+    	} else {
+    	   q = 0;
+    	}
         vx.push_back(x);
         vy.push_back(y);
         vz.push_back(z);
-	vq.push_back(q);
-	vnq.push_back(nq);
+        vq.push_back(q);
+        vnq.push_back(nq);
     }
 
     out << fixed << setprecision(1);
@@ -848,9 +857,68 @@ void CellTree::processSpacePoint( const art::Event& event, TString option, ostre
     if (geomName.Contains("35t")) { geomName = "dune35t"; }
     else if (geomName.Contains("protodune")) { geomName = "protodune"; }
     else if (geomName.Contains("workspace")) { geomName = "dune10kt_workspace"; }
+    else if (geomName.Contains("icarus")) { geomName = "icarus"; }
     else { geomName = "uboone"; } // use uboone as default
     out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
 
+
+    print_vector(out, vx, "x");
+    print_vector(out, vy, "y");
+    print_vector(out, vz, "z");
+
+    out << fixed << setprecision(0);
+    print_vector(out, vq, "q");
+    print_vector(out, vnq, "nq");
+
+    out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+    out << "}" << endl;
+}
+
+//-----------------------------------------------------------------------
+void CellTree::processSpacePointTruthDepo( const art::Event& event, TString option, ostream& out)
+{
+
+    art::Handle< std::vector<sim::SimEnergyDeposit> > sed_handle;
+    if (!event.getByLabel(fSimEnergyDepositLabel, sed_handle)) {
+        cout << "WARNING: no label " << fSimEnergyDepositLabel << " for SimEnergyDeposit" << endl;
+        return;
+    }
+    std::vector< art::Ptr<sim::SimEnergyDeposit> > sed;
+    art::fill_ptr_vector(sed, sed_handle);
+    int size = sed.size();
+    double x=0, y=0, z=0, q=0, nq=1;
+    vector<double> vx, vy, vz, vq, vnq;
+
+    for (int i=0; i < size; i++ ) {
+        // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+        x = sed[i]->MidPointX();
+        y = sed[i]->MidPointY();
+        z = sed[i]->MidPointZ();
+        q = sed[i]->NumElectrons(); 
+        if (q<0) q = sed[i]->Energy()*25000; // approx. #electrons
+        // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+        if (q<1000) continue; // skip small dots to reduce size
+        vx.push_back(x);
+        vy.push_back(y);
+        vz.push_back(z);
+        vq.push_back(q);
+        vnq.push_back(nq);
+    }
+
+    out << fixed << setprecision(1);
+    out << "{" << endl;
+
+    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+
+    TString geomName(fGeometry->DetectorName().c_str());
+    if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodune")) { geomName = "protodune"; }
+    else if (geomName.Contains("workspace")) { geomName = "dune10kt_workspace"; }
+    else if (geomName.Contains("icarus")) { geomName = "icarus"; }
+    else { geomName = "uboone"; } // use uboone as default
+    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
 
     print_vector(out, vx, "x");
     print_vector(out, vy, "y");
@@ -940,7 +1008,7 @@ void CellTree::processTrigger(const art::Event& event)
     art::fill_ptr_vector(triggerlist, triggerListHandle);
   }
   else {
-    cout << "WARNING: no label " << fTriggerLabel << endl;
+    cout << "WARNING: no trigger label " << fTriggerLabel << endl;
   }
   if (triggerlist.size()){
     fTriggernumber = triggerlist[0]->TriggerNumber();
@@ -975,12 +1043,29 @@ bool CellTree::DumpMCJSON(int id, ostream& out)
         }
     }
 
+    vector<double> vx, vy, vz;
+    if (fSaveMCTrackPoints) {
+        // fMC_trackPosition->Print();
+        TClonesArray *traj = (TClonesArray*)(*fMC_trackPosition)[i];
+        int nPoints = traj->GetEntries();
+        // cout << "traj points: " << nPoints << endl;
+        for(int j=0; j<nPoints; j++) {
+          TLorentzVector* pos = (TLorentzVector*)(*traj)[j];
+          vx.push_back(pos->X());
+          vy.push_back(pos->Y());
+          vz.push_back(pos->Z());
+        }
+    }
+    
     out << fixed << setprecision(1);
     out << "{";
 
     out << "\"id\":" << id << ",";
     out << "\"text\":" << "\"" << PDGName(mc_pdg[i]) << "  " << e << " MeV\",";
     out << "\"data\":{";
+    print_vector(out, vx, "traj_x");
+    print_vector(out, vy, "traj_y");
+    print_vector(out, vz, "traj_z");
     out << "\"start\":[" << mc_startXYZT[i][0] << ", " <<  mc_startXYZT[i][1] << ", " << mc_startXYZT[i][2] << "],";
     out << "\"end\":[" << mc_endXYZT[i][0] << ", " <<  mc_endXYZT[i][1] << ", " << mc_endXYZT[i][2] << "]";
     out << "},";
@@ -1042,7 +1127,15 @@ bool CellTree::KeepMC(int i)
 {
     double e = KE(mc_startMomentum[i])*1000;
     double thresh_KE_em = 5.; // MeV
-    double thresh_KE_np = 10; // MeV
+    double thresh_KE_np = 50; // MeV
+    // cout << "pdg: " << mc_pdg[i] << ", KE: " << e << " MeV, process: " << mc_process[i] << endl;
+    if (mc_process[i] == 8 // muIoni
+      || mc_process[i] == 6 // eBrem
+      || mc_process[i] == 5 // eIoni
+    ) {
+      return false; // skip those ionization and radiation electrons as there are too many to show.
+    }
+
     if (mc_pdg[i]==22 || mc_pdg[i]==11 || mc_pdg[i]==-11) {
         if (e>=thresh_KE_em) return true;
         else return false;
@@ -1116,7 +1209,7 @@ void CellTree::InitProcessMap()
     processMap["conv"]                 = 7;
     processMap["muIoni"]               = 8;
     processMap["muMinusCaptureAtRest"] = 9;
-    processMap["NeutronInelastic"]     = 10;
+    processMap["neutronInelastic"]     = 10;
     processMap["nCapture"]             = 11;
     processMap["hadElastic"]           = 12;
     processMap["Decay"]                = 13;
@@ -1126,10 +1219,10 @@ void CellTree::InitProcessMap()
     processMap["muPairProd"]           = 17;
     processMap["PhotonInelastic"]      = 18;
     processMap["hIoni"]                = 19;
-    processMap["ProtonInelastic"]      = 20;
-    processMap["PionPlusInelastic"]    = 21;
+    processMap["protonInelastic"]      = 20;
+    processMap["pi+Inelastic"]    = 21;
     processMap["CHIPSNuclearCaptureAtRest"] = 22;
-    processMap["PionMinusInelastic"]   = 23;
+    processMap["pi-Inelastic"]   = 23;
 }
 
 //-----------------------------------------------------------------------

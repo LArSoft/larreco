@@ -6,10 +6,10 @@ standard_celltree:
 
   saveRaw         : false
   saveCalib       : false
-  saveOpHit	  : true
-  saveOpFlash     : true
+  saveOpHit	      : false
+  saveOpFlash     : false
   saveSimChannel  : false
-  saveTrigger     : true
+  saveTrigger     : false
   saveMC          : false
   saveJSON        : false
   nRawSamples     : 9600
@@ -19,6 +19,7 @@ standard_celltree:
   OpFlashLabel    : "opflash"
   TriggerLabel    : "daq"
   SpacePointLabels: ["trackkalmanhit","wirecell"]
+  SimEnergyDepositLabel  : "largeant:TPCActive"
   mcOption        : "all"
   opMultPEThresh  : 5
   saveMCTrackPoints : true
