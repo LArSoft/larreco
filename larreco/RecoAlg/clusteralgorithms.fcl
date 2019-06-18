@@ -70,7 +70,7 @@ standard_trajclusteralg:
    # 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
    # 4 max pull for adding/rejecting TP3Ds in sections
    # 5 suggested max ChiDOF for a SectionFit
-   SkipAlgs: [ "Split3DKink", "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
+   SkipAlgs: [ "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugConfig: []

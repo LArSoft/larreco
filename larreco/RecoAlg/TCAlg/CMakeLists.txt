@@ -27,6 +27,7 @@ art_make(
 			${Boost_SYSTEM_LIBRARY}
 			${ROOT_GENVECTOR}
       ${ROOT_TMVA}
+      art_Framework_Services_Optional
         )
 
 add_subdirectory(TCDebugTools)
