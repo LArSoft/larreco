@@ -244,7 +244,7 @@ void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     // Test run the path finding algorithm
     for (auto& clusterParams : clusterParametersList) FindBestPathInCluster(clusterParams, topNode);
 
-    mf::LogDebug("Cluster3D") << ">>>>> Cluster3DHits done, found " << clusterParametersList.size() << " clusters" << std::endl;
+    mf::LogDebug("MinSpanTreeAlg") << ">>>>> Cluster3DHits done, found " << clusterParametersList.size() << " clusters" << std::endl;
 
     return;
 }
