@@ -136,6 +136,15 @@ standard_convexhullPathAlg:
   ClusterAlg:             @local::standard_cluster3ddbscanalg
 }
 
+standard_MSTPathAlg:
+{
+  tool_type:              MSTPathFinder
+  EnableMonitoring:       true           # enable monitoring of functions
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  kdTree:                 @local::standard_cluster3dkdTree
+}
+
 microboone_standardhit3dbuilder:               @local::standard_standardhit3dbuilder
 microboone_spacepointhit3dbuilder:             @local::standard_spacepointhit3dbuilder
 microboone_cluster3dMergeAlg:                  @local::standard_cluster3dMergeAlg
