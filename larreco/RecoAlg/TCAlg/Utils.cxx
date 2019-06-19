@@ -1907,7 +1907,8 @@ namespace tca {
     // are multiple slices) or through the last slice (if there is only one slice)
     
     // just check the hits in the last slice
-    if(evt.expectSlicedHits) {
+    //if(evt.expectSlicedHits) {  -- fix per Bruce Baller
+    if(evt.wireHitRange.empty()) {
       const auto& slc = slices[slices.size() - 1];
       return SignalAtTpInSlc(slc, tp);
     }
