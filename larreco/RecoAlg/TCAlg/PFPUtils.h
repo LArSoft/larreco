@@ -35,9 +35,9 @@
 namespace tca {
 
   void StitchPFPs();
+  void FindSptPFParticles(TCSlice& slc);
   void FindPFParticles(TCSlice& slc);
   void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec);
-  void AddMissedTjs(TCSlice& slc, PFPStruct& pfp, std::vector<MatchStruct> matVec);
   void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
   void ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
@@ -48,7 +48,7 @@ namespace tca {
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
   void CountBadPoints(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt);
-  bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
+  void KillBadPoints(TCSlice& slc, PFPStruct& pfp, float pullCut, bool prt);
   bool CanSection(TCSlice& slc, PFPStruct& pfp);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
   void GetRange(PFPStruct& pfp, unsigned short sfIndex, unsigned short& fromPt, unsigned short& npts);
@@ -62,7 +62,6 @@ namespace tca {
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
-//  void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);

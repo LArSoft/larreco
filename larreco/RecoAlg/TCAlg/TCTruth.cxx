@@ -28,7 +28,7 @@ namespace tca {
   } // Initialize
 
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth()
+  void TruthMatcher::MatchTruth(std::vector<unsigned int>& tpcList)
   {
     // Match trajectories, PFParticles, etc to the MC truth matched hits then
     // calculate reconstruction efficiency and purity. This function should only be
@@ -84,7 +84,7 @@ namespace tca {
     // decide if electrons inside showers should be associated with the eve electron
 //    bool showerRecoMode = (tcc.showerTag[0] == 2) || (tcc.showerTag[0] == 4);
 
-    MatchAndSum();
+    MatchAndSum(tpcList);
 /*
     // print electron likelihood to output to create an ntuple
     if(tcc.modes[kStudy2]) {
@@ -115,7 +115,7 @@ namespace tca {
   } // MatchTruth
 
   ////////////////////////////////////////////////
-  void TruthMatcher::MatchAndSum()
+  void TruthMatcher::MatchAndSum(std::vector<unsigned int>& tpcList)
   {
     // Match Tjs and PFParticles and accumulate performance statistics
 
@@ -126,6 +126,7 @@ namespace tca {
     // reconstructed in only one TPC so we need to consider them separately
     for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
       unsigned int tpc = tpcid.TPC;
+      if(std::find(tpcList.begin(), tpcList.end(), tpc) == tpcList.end()) continue;
       unsigned int cstat = tpcid.Cryostat;
       // find the MCParticles with matched hits in this TPC
       std::vector<unsigned int> mcpIndex;
@@ -215,7 +216,7 @@ namespace tca {
           // get the MCP hits in this plane
           std::vector<unsigned int> mcpPlnHits;
           unsigned int firstHit = 0;
-          unsigned int firstWire = USHRT_MAX;
+          unsigned int firstWire = UINT_MAX;
           unsigned int lastHit = 0;
           unsigned int lastWire = 0;
           for(auto iht : mcpHits[imcp]) {
@@ -258,9 +259,9 @@ namespace tca {
               ++nBadEP;
               mf::LogVerbatim myprt("TC");
               myprt<<particleName<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to imcp "<<imcp;
-              myprt<<" in pln "<<plane;
-              myprt<<" nTrue hits "<<mcpPlnHits.size();
               auto& fhit = (*evt.allHits)[firstHit];
+              myprt<<" in TPC "<<fhit.WireID().TPC;
+              myprt<<" nTrue hits "<<mcpPlnHits.size();
               myprt<<" extent "<<fhit.WireID().Plane<<":"<<fhit.WireID().Wire<<":"<<(int)(fhit.PeakTime());
               auto& lhit = (*evt.allHits)[lastHit];
               myprt<<" - "<<lhit.WireID().Plane<<":"<<lhit.WireID().Wire<<":"<<(int)(lhit.PeakTime());
@@ -280,9 +281,9 @@ namespace tca {
               mf::LogVerbatim myprt("TC");
               myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
               myprt<<" MCP "<<mcpIndex[imcp];
-              myprt<<" in pln "<<plane;
-              myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
               auto& fhit = (*evt.allHits)[firstHit];
+              myprt<<" in TPC "<<fhit.WireID().TPC;
+              myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
               myprt<<" extent "<<fhit.WireID().Plane<<":"<<fhit.WireID().Wire<<":"<<(int)(fhit.PeakTime());
               auto& lhit = (*evt.allHits)[lastHit];
               myprt<<" - "<<lhit.WireID().Plane<<":"<<lhit.WireID().Wire<<":"<<(int)(lhit.PeakTime());

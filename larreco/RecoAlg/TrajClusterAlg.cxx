@@ -21,9 +21,6 @@ namespace tca {
     tcc.showerParentReader = &fMVAReader;
     reconfigure(pset);
     tcc.caloAlg = &fCaloAlg;
-//    art::ServiceHandle<art::TFileService const> tfs;
-//    hist.CreateHists(*tfs);
-//    tm.Initialize();
   }
 
   //------------------------------------------------------------------------------
@@ -58,8 +55,6 @@ namespace tca {
     if(pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
     std::vector<std::string> debugConfigVec;
     if(pset.has_key("DebugConfig")) debugConfigVec = pset.get<std::vector<std::string>>("DebugConfig");
-    std::vector<std::string> specialAlgsVec;
-    if(pset.has_key("SpecialAlgs")) specialAlgsVec = pset.get<std::vector<std::string>>("SpecialAlgs");
 
     tcc.hitErrFac = pset.get< float >("HitErrFac", 0.4);
     // Allow the user to specify the typical hit rms for small-angle tracks
@@ -99,7 +94,8 @@ namespace tca {
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tcc.match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
     tcc.pfpStitchCuts     = pset.get< std::vector<float >>("PFPStitchCuts", {-1});
-    pset.get_if_present<std::vector<float>>("TestBeamCuts", tcc.testBeamCuts);
+    // don't search for a neutrino vertex in test beam mode
+    tcc.modes[kTestBeam] = pset.get<bool>("TestBeam", false);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
 
@@ -150,8 +146,6 @@ namespace tca {
       // convert angle to cos
       tcc.pfpStitchCuts[1] = cos(tcc.pfpStitchCuts[1]);
     }
-    // turn on TestBeam mode?
-    tcc.modes[kTestBeam] = (!tcc.testBeamCuts.empty());
 
 
     // configure algorithm debugging. Configuration for debugging standard stepping
@@ -229,31 +223,7 @@ namespace tca {
       for(auto strng : AlgBitNames) std::cout<<" "<<strng;
       std::cout<<"\n";
       std::cout<<"Or specify All to turn all algs off\n";
-      throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
-    // overwrite any settings above with special algs
-    for(auto strng : specialAlgsVec) {
-      bool gotit = false;
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-        if(strng == AlgBitNames[ib]) {
-          tcc.useAlg[ib] = true;
-          gotit = true;
-          break;
-        }
-      } // ib
-      if(!gotit) {
-        std::cout<<"******* Unknown SpecialAlgs input string '"<<strng<<"'\n";
-        printHelp = true;
-      }
-    } // strng
-    if(printHelp) {
-      std::cout<<"Valid AlgNames:";
-      for(auto strng : AlgBitNames) std::cout<<" "<<strng;
-      std::cout<<"\n";
-      std::cout<<"Or specify All to turn all algs off\n";
-      throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
-    }
-
     // Configure the TMVA reader for the shower parent BDT
     if(fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0) ConfigureMVA(tcc, fMVAShowerParentWeights);
 
@@ -280,12 +250,14 @@ namespace tca {
   } // reconfigure
 
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
+  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event)
   {
     // defines the pointer to the input hit collection, analyzes them,
     // initializes global counters and refreshes service references
     ClearResults();
     evt.allHits = &inputHits;
+    evt.run = run;
+    evt.event = event;
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
@@ -319,8 +291,6 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
-    // flag high-multiplicity hits
-//    AnalyzeHits(slc);
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -328,8 +298,6 @@ namespace tca {
       if(!slc.isValid) return;
     } // plane
 
-    // No sense taking muon direction if delta ray tagging is disabled
-//    if(tcc.deltaRayTag[0] >= 0) TagMuonDirections(slc, debug.WorkID);
     Find3DVertices(slc);
     // Look for incomplete 3D vertices that won't be recovered because there are
     // missing trajectories in a plane
@@ -344,23 +312,21 @@ namespace tca {
         std::cout<<"RTC: ChkVtxAssociations found an error\n";
       }
     } // plane
-      if(tcc.match3DCuts[0] > 0) {
-        if(evt.sptHandle) {
-          // Use space points to find PFParticles
-//          FindSptPFParticles(slc);
-        } else {
-          FindPFParticles(slc);
-        }
-        DefinePFPParents(slc, false);
+    if(tcc.match3DCuts[0] > 0) {
+      // First try to use SpacePoints (if they were loaded)
+      FindSptPFParticles(slc);
+      // Then try using wire intersections of un-matched TPs
+      FindPFParticles(slc);
+      DefinePFPParents(slc, false);
 /*
-        if(tcc.modes[kTagCosmics]) {
-          for(auto& pfp : slc.pfps) {
-            if(pfp.ID == 0) continue;
-            SaveCRInfo(slc, pfp, prt, fIsRealData);
-          } // pfp
-        } // TagCosmics
- */
-      } // 3D matching requested
+       if(tcc.modes[kTagCosmics]) {
+       for(auto& pfp : slc.pfps) {
+       if(pfp.ID == 0) continue;
+       SaveCRInfo(slc, pfp, prt, fIsRealData);
+       } // pfp
+       } // TagCosmics
+*/
+    } // 3D matching requested
       KillPoorVertices(slc);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
@@ -371,9 +337,6 @@ namespace tca {
           showertree->Fill();
         }
       } // 3D shower code
-//    } // tpcid
-
-//    if(tcc.studyMode) tm.StudyShowerParents(hist);
 
     if(!slc.isValid) {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
@@ -385,13 +348,6 @@ namespace tca {
 
 //    if (tcc.modes[kSaveCRTree]) crtree->Fill();
 
-/*
-    // fill some basic histograms
-    if(tcc.modes[kStudy1]) {
-      for(auto& vx2 : slc.vtxs) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
-      for(auto& vx3 : slc.vtx3s) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
-    }
-*/
     Finish3DShowers(slc);
 
     // count algorithm usage
@@ -407,7 +363,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::ReconstructAllTraj(TCSlice& slc, CTP_t inCTP)
   {
-    // Reconstruct clusters in inCTP and put them in allTraj
+    // Reconstruct trajectories in inCTP and put them in allTraj
 
     unsigned short plane = DecodeCTP(inCTP).Plane;
     if(slc.firstWire[plane] > slc.nWires[plane]) return;
@@ -587,15 +543,12 @@ namespace tca {
               ReleaseHits(slc, work);
               continue;
             }
-            if(!StoreTraj(slc, work)) {
-              ReleaseHits(slc, work);
-              continue;
-            }
+            if(!StoreTraj(slc, work)) continue;
             if(tcc.dbgStp) {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
               mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
               if(!InTrajOK(slc, "RAT")) {
-                std::cout<<"RAT: InTrajOK major failure. \n";
+                std::cout<<"RAT: InTrajOK major failure. "<<tj.ID<<"\n";
                 return;
               }
             } // dbgStp
@@ -621,7 +574,6 @@ namespace tca {
           }
         } // ii
         if(nAvailable == 0) continue;
-//        std::cout<<"Seed TP "<<PrintPos(slc, tp)<<" is available\n";
         Trajectory work;
         work.ID = evt.WorkID;
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -655,12 +607,7 @@ namespace tca {
           ReleaseHits(slc, work);
           continue;
         }
-        slc.isValid = StoreTraj(slc, work);
-        // check for a major failure
-        if(!slc.isValid) {
-          std::cout<<"RAT: StoreTraj major failure\n";
-          return;
-        }
+        if(!StoreTraj(slc, work)) continue;
         if(tcc.dbgStp) {
           auto& tj = slc.tjs[slc.tjs.size() - 1];
           mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID<<" using seed TP "<<PrintPos(slc, tp);
@@ -686,10 +633,6 @@ namespace tca {
        ChkHiChgHits(slc, inCTP);
        
        Find2DVertices(slc, inCTP, pass);
-       if(!slc.isValid) {
-         std::cout<<"RAT: F2V major failure\n";
-         return;
-       }
 
     } // pass
     
@@ -697,13 +640,7 @@ namespace tca {
     LastEndMerge(slc, inCTP);
     
     // make junk trajectories using nearby un-assigned hits
-    if(tcc.JTMaxHitSep2 > 0) {
-      FindJunkTraj(slc, inCTP);
-      if(!slc.isValid) {
-        std::cout<<"RAT: FindJunkTraj major failure\n";
-        return;
-      }
-    }
+    FindJunkTraj(slc, inCTP);
     TagDeltaRays(slc, inCTP);
     // dressed muons with halo trajectories
     if(tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
@@ -743,9 +680,6 @@ namespace tca {
     // TY: Improve hit assignments near vertex
     VtxHitsSwap(slc, inCTP);
 
-    // Refine vertices, trajectories and nearby hits
-//    Refine2DVertices();
-
   } // ReconstructAllTraj
 
   //////////////////////////////////////////
@@ -753,6 +687,7 @@ namespace tca {
   {
     // Makes junk trajectories using unassigned hits
 
+    if(tcc.JTMaxHitSep2 <= 0) return;
     if(!tcc.useAlg[kJunkTj]) return;
 
     // shouldn't have to do this but...
@@ -762,6 +697,9 @@ namespace tca {
         slHit.InTraj = 0;
       }
     }
+
+    bool prt = false;
+
     unsigned short plane = DecodeCTP(inCTP).Plane;
     std::vector<unsigned int> tHits;
     // Stay well away from the last wire in the plane
@@ -782,10 +720,6 @@ namespace tca {
         tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
-        bool prt = (tcc.dbgStp || tcc.dbgAlg[kJunkTj]);
-        if(prt) {
-          mf::LogVerbatim("TC")<<"FindJunkTraj: Found debug hit "<<PrintHit(islHit)<<" iht "<<iht<<" jfirsthit "<<jfirsthit<<" jlasthit "<<jlasthit;
-        }
         std::vector<unsigned int> iHits;
         GetHitMultiplet(slc, iht, iHits);
         for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
@@ -839,6 +773,7 @@ namespace tca {
           } // nit < 100
           // clear InTraj
           for(auto iht : tHits) slc.slHits[iht].InTraj = 0;
+          if(tHits.size() < 3) continue;
           if(prt) {
             mf::LogVerbatim myprt("TC");
             myprt<<"FJT: tHits";
@@ -857,47 +792,6 @@ namespace tca {
     } // iwire
   } // FindJunkTraj
 
-
-/*
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::PrepareForNextPass(TCSlice& slc, Trajectory& tj)
-  {
-    // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
-    // fitted points to get FitCHi < 2
-
-    fTryWithNextPass = false;
-
-    // See if there is another pass available
-    if(tj.Pass > tcc.minPtsFit.size()-2) return;
-    ++tj.Pass;
-
-    unsigned short lastPt = tj.Pts.size() - 1;
-    // Return if the last fit chisq is OK
-    if(tj.Pts[lastPt].FitChi < 1.5) {
-      fTryWithNextPass = true;
-      return;
-    }
-    TrajPoint& lastTP = tj.Pts[lastPt];
-    unsigned short newNTPSFit = lastTP.NTPsFit;
-    // only give it a few tries before giving up
-    unsigned short nit = 0;
-
-     while(lastTP.FitChi > 1.5 && lastTP.NTPsFit > 2) {
-      if(lastTP.NTPsFit > 3) newNTPSFit -= 2;
-      else if(lastTP.NTPsFit == 3) newNTPSFit = 2;
-      lastTP.NTPsFit = newNTPSFit;
-      FitTraj(slc, tj);
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"PrepareForNextPass: FitChi is > 1.5 "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" tj.Pass "<<tj.Pass;
-      if(lastTP.NTPsFit <= tcc.minPtsFit[tj.Pass]) break;
-      ++nit;
-      if(nit == 3) break;
-    }
-    // decide if the next pass should indeed be attempted
-    if(lastTP.FitChi > 2) return;
-    fTryWithNextPass = true;
-
-  } // PrepareForNextPass
-*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::ChkInTraj(std::string someText, TCSlice& slc)
   {
@@ -1285,17 +1179,15 @@ namespace tca {
     slc.slHits.resize(hitsInSlice.size());
     bool first = true;
     unsigned int cstat = 0;
-    unsigned int tpc = 0;
+    unsigned int tpc = UINT_MAX;
     unsigned int cnt = 0;
     std::vector<unsigned int> nHitsInPln;
-    bool newTPC = false;
     for(auto iht : hitsInSlice) {
       if(iht > (*evt.allHits).size() - 1) return false;
       auto& hit = (*evt.allHits)[iht];
       if(first) {
         cstat = hit.WireID().Cryostat;
         tpc = hit.WireID().TPC;
-        newTPC = (tpc != slc.TPCID.TPC);
         slc.TPCID = geo::TPCID(cstat, tpc);
         nHitsInPln.resize(tcc.geom->Nplanes(slc.TPCID));
         first = false;
@@ -1307,9 +1199,9 @@ namespace tca {
     } // iht
     // require at least two hits in each plane
     for(auto hip : nHitsInPln) if(hip < 2) return false;
-    // Define the wire hit range vector for this new TPC for ALL hits
-    if(newTPC) FillWireHitRange(slc.TPCID);
-    // next define the wire hit range vectors, UnitsPerTick, etc for this slice
+    // Define the TCEvent wire hit range vector for this new TPC for ALL hits
+    FillWireHitRange(slc.TPCID);
+    // next define the Slice wire hit range vectors, UnitsPerTick, etc for this slice
     if(!FillWireHitRange(slc)) return false;
     slc.isValid = true;
     slices.push_back(slc);
@@ -1320,6 +1212,14 @@ namespace tca {
         debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
       }
     }
+    // do a sanity check
+    for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
+      unsigned int ahi = slc.slHits[iht].allHitsIndex;
+      if(ahi >= (*evt.allHits).size()) {
+        std::cout<<"CreateSlice: Bad allHitsIndex "<<ahi<<" "<<(*evt.allHits).size()<<"\n";
+        return false;
+      }
+    } // iht
     return true;
   } // CreateSlice
 
@@ -1330,11 +1230,17 @@ namespace tca {
     // Stitch PFParticles between TPCs
 
     // define the PFP TjUIDs vector before calling StitchPFPs
+    unsigned short npfp = 0;
+    unsigned short ntj = 0;
+    float nht = 0;
+    float nhtUsed = 0;
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
+      nht += slc.slHits.size();
       MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
+        ++npfp;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
         for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
           // do a sanity check while we are here
@@ -1347,7 +1253,18 @@ namespace tca {
           pfp.TjUIDs[ii] = tj.UID;
         } // ii
       } // pfp
+      // temp
+      for(auto& tj : slc.tjs) {
+        if(tj.AlgMod[kKilled]) continue;
+        ++ntj;
+        auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
+        nhtUsed += tjhits.size();
+      } // tj
     } // slc
+    float frac = -1;
+    if(nht > 0) frac = nhtUsed / nht;
+    std::cout<<"FinishEvent "<<evt.event<<" nht "<<nht<<" fracUsed "<<std::fixed<<std::setprecision(2)<<frac;
+    std::cout<<" ntj "<<ntj<<" npfp "<<npfp<<"\n";
 
     StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here
