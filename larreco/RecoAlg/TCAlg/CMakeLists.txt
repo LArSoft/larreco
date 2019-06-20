@@ -16,8 +16,8 @@ art_make(
 			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
-      ${ART_FRAMEWORK_SERVICES_OPTIONAL}
-      ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+      ${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+      ${ART_ROOT_IO_TFILESERVICE_SERVICE}
 			canvas
 			${MF_MESSAGELOGGER}
 			
@@ -27,6 +27,7 @@ art_make(
 			${Boost_SYSTEM_LIBRARY}
 			${ROOT_GENVECTOR}
       ${ROOT_TMVA}
+      art_Framework_Services_Optional
         )
 
 add_subdirectory(TCDebugTools)

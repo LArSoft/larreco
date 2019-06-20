@@ -18,14 +18,14 @@
 
 
 namespace tca {
-  
+
   class TruthMatcher
   {
-    
+
     public:
-    
+
     TruthMatcher() {
-      EPCnts.fill(0); 
+      EPCnts.fill(0);
       TSums.fill(0.0);
       EPTSums.fill(0.0);
       TruVxCounts.fill(0);
@@ -41,7 +41,7 @@ namespace tca {
       nLongMCP = 0;
       nGoodLongMCP = 0;
    }
-    
+
     void Initialize();
     void MatchTruth();
     void MatchAndSum();
@@ -50,20 +50,20 @@ namespace tca {
     void StudyShowerParents(TCSlice& slc, HistStuff& hist);
     void StudyElectrons(TCSlice& slc, const HistStuff& hist);
     void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
-    
+
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
     std::array<short, 5> EPCnts {{0}};
     std::array<float, 5> TSums;    // sum of kinetic energy
     std::array<float, 5> EPTSums;   // E*P sum weighted by kinetic energy for 5 particle types
-    
+
     float MCP_TSum;                // T sum of MCParticles that should be reconstructed in 3D
     float MCP_EPTSum;              // E*P weighted T sum of MCParticles that ARE reconstructed in 3D
     float MCP_Cnt;                 // Count of MCParticles that should be reconstructed in 3D
     float MCP_PFP_Cnt;             // Count of MCParticles that are matched to a PFParticle
-    float Prim_TSum;               // T sum of Primary MCParticles that should be reconstructed in 3D 
+    float Prim_TSum;               // T sum of Primary MCParticles that should be reconstructed in 3D
     float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
     float PFP_Cnt;                 // Count of ALL PFParticles
-    
+
     unsigned short nBadEP;      // Number of MCParticles that have >= MatchTruth[3] hits in a plane  && EP < MatchTruth[2]
     unsigned short nLongInPln;   // Number of MCParticles that have >= MatchTruth[3] hits in a plane
     unsigned short nLongMCP;   // Number of MCParticles that have >= MatchTruth[3] hits
@@ -75,7 +75,7 @@ namespace tca {
     // [2] = [1] + the vertex is attached to a neutrino PFParticle
     std::array<unsigned short, 3> TruVxCounts;
   }; // TruthMatcher class
-  
+
   class MCParticleListUtils
   {
   public:

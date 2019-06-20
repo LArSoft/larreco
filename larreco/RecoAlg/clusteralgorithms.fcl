@@ -63,15 +63,14 @@ standard_trajclusteralg:
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
    Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
-   Match3DCuts: [ 0.3, -0.3, 4, 0.9, 2000, 10, 0.2] 
+   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
    # 0 dx (cm) matching cut
-   # 1 delta angle cut (radians). Set <= 0 to turn off angle checking
-   # 2 min length for 2-view match 
-   # 3 min AspectRatio (if max Tj length > 10)
-   # 4 max allowed number of 3D combinations
-   # 5 min 2D length for 3D merging
-   # 6 angle cut for 3D merging (radians)
-   SkipAlgs: [ "Mat3DMerge", "Split3DKink", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
+   # 1 max number of 3-plane matches for any Tj
+   # 2 Attempt 2-view match with 3rd plane dead wire requirement? (0 = no)
+   # 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
+   # 4 max pull for adding/rejecting TP3Ds in sections
+   # 5 suggested max ChiDOF for a SectionFit
+   SkipAlgs: [ "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugConfig: []
@@ -417,8 +416,6 @@ microboone_trajclusteralg.MuonTag: [40, 500, 10, 3]
 microboone_trajclusteralg.VLAStepSize: 1
 microboone_trajclusteralg.Vertex2DCuts: [ 6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
 microboone_trajclusteralg.Vertex3DCuts: [1, 2]
-microboone_trajclusteralg.Match3DCuts: [ 0.3, -0.3, 4, 0.9, 2000, 10, 0.2]
-microboone_trajclusteralg.SkipAlgs: [ "Mat3DMerge", "Split3DKink", "CTKink", "SplitHiChgHits" ]
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg

@@ -1,7 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace tca {
-  
+
   TCEvent evt;
   TCConfig tcc;
   std::vector<TjForecast> tjfs;
@@ -17,19 +17,21 @@ namespace tca {
     "DeltaRay",
     "CTKink",
     "CTStepChk",
-    "Make3D",
+    "TryNextPass",
     "RvPrp",
     "CHMUH",
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
     "HED",
+    "HamBragg",
     "HamVx",
     "HamVx2",
     "JunkVx",
     "JunkTj",
     "Killed",
     "Merge",
+    "LastEndMerge",
     "TEP",
     "CHMEH",
     "FillGap",
@@ -48,6 +50,7 @@ namespace tca {
     "MisdVxTj",
     "Photon",
     "HaloTj",
+    "NoFitToVx",
     "VxMerge",
     "VxNeutral",
     "NoKinkChk",
@@ -58,9 +61,6 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
-    "M3DVxTj",
-    "Mat3DMerge",
-    "Split3DKink",
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
@@ -74,7 +74,10 @@ namespace tca {
     "MergeNrShowers",
     "MergeShChain",
     "CompleteShower",
-    "SplitTjCVx"
+    "SplitTjCVx",
+    "MakePFPTjs",
+    "FillGaps3D",
+    "TEP3D"
   };
   
   const std::vector<std::string> EndFlagNames {
@@ -86,7 +89,7 @@ namespace tca {
     "OutFV",
     "NoFitVx"
   };
-  
+
   const std::vector<std::string> VtxBitNames {
     "VtxTrjTried",
     "Fixed",
@@ -96,14 +99,14 @@ namespace tca {
     "VtxMerged",
     "VtxIndPlnNoChg"
   };
-  
+
   const std::vector<std::string> StrategyBitNames {
     "Normal",
     "StiffEl",
     "StiffMu",
     "Slowing"
   };
-  
+
   geo::PlaneID DecodeCTP(CTP_t CTP) {
     auto const cryo = (CTP / Cpad);
     return geo::PlaneID(
@@ -112,6 +115,6 @@ namespace tca {
          /* Plane */ (CTP % 10)
       );
   }
-  
+
 } // namespace tca
 
