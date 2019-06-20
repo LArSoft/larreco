@@ -5,7 +5,7 @@ art_make(
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc KalmanFilterFitTrackMaker_tool.cc
           MODULE_LIBRARIES  larreco_RecoAlg
 			    larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
-			    lardata_RecoObjects larreco_Deprecated
+			    lardata_RecoObjects
 			    lardataobj_RecoBase
 			    larcorealg_Geometry
 			    larcore_Geometry_Geometry_service
@@ -37,7 +37,7 @@ simple_plugin( Track3DKalman "module"
   			 larreco_Genfit 
 			 larreco_RecoAlg
 			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
-			 lardata_RecoObjects larreco_Deprecated
+			 lardata_RecoObjects
 			 lardataobj_RecoBase
 			 larcorealg_Geometry
 			 larcore_Geometry_Geometry_service
@@ -68,7 +68,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 larreco_Genfit 
 			 larreco_RecoAlg
 			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
-			 lardata_RecoObjects larreco_Deprecated
+			 lardata_RecoObjects
 			 lardataobj_RecoBase
 			 larcorealg_Geometry
 			 larcore_Geometry_Geometry_service
