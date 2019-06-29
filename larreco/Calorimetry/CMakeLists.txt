@@ -22,7 +22,7 @@ art_make( LIB_LIBRARIES	larevt_Filters
 		        ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
                         larevt_Filters
-                        lardata_RecoObjects larreco_Deprecated
+                        lardata_RecoObjects
                         lardataobj_RecoBase
 		        lardata_ArtDataHelper
                         larcorealg_Geometry

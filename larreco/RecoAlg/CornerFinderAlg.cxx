@@ -34,9 +34,6 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 
-#include "larreco/Deprecated/BezierTrack.h"
-
-
 // NOTE: In the .h file I assumed this would belong in the cluster class....if
 // we decide otherwise we will need to search and replace for this
 
@@ -1117,33 +1114,6 @@ float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, floa
   }
 
   return fraction/bin_counter;
-}
-
-
-std::vector<float> corner::CornerFinderAlg::line_integrals(trkf::BezierTrack& TheTrack, size_t Steps, float threshold){
-
-  std::vector<float> fractions(3);
-
-  for(size_t i=0; i!=Steps; ++i)
-    {
-      double s = float(i)/float(Steps);
-      double uvw[3], ticks[3];
-      int c=0, t=0;
-      TheTrack.GetProjectedPointUVWT(s, uvw, ticks, c, t);
-
-      for(size_t j=0; j!=WireData_histos.size(); ++j)
-        {
-          int x = WireData_histos.at(j).GetXaxis()->FindBin(uvw[j]);
-          int y = WireData_histos.at(j).GetYaxis()->FindBin(ticks[j]);
-
-          if( WireData_histos.at(j).GetBinContent(x,y) > threshold )
-            fractions.at(j) += 1.;
-        }
-    }
-  for(size_t j=0; j!=fractions.size(); ++j)
-    fractions.at(j) /= float(Steps);
-
-  return fractions;
 }
 
 

@@ -130,10 +130,10 @@ namespace tca {
     float Delta {0};              // Deviation between trajectory and hits (WSE)
     float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
     float FitChi {0};             // Chi/DOF of the fit
+    unsigned int InPFP {0};     // ID of the PFParticle that owns this TP
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
-    unsigned short InPFP {0};     // ID of the PFParticle that owns this TP
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
@@ -224,6 +224,7 @@ namespace tca {
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
     bool IsGood {true};      ///< TP can be used in the fit and for calorimetry
+    bool IsBad {false};     ///< TP shouldnt be associated with the PFParticle
   };
 
   // Struct for 3D trajectory matching
@@ -380,7 +381,6 @@ namespace tca {
     kDeltaRay,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
-    kTryWithNextPass,
     kRvPrp,
     kCHMUH,
     kSplit,
@@ -509,7 +509,6 @@ namespace tca {
     std::vector<float> chargeCuts;
     std::vector<float> qualityCuts; ///< Min points/wire, min consecutive pts after a gap
     std::vector<float> pfpStitchCuts;      ///< cuts for stitching between TPCs
-    std::vector<float> testBeamCuts;
     std::vector<unsigned short> minPtsFit; ///< Reconstruct in several passes
     std::vector<unsigned short> minPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> maxAngleCode;   ///< max allowed angle code for each pass
@@ -535,6 +534,7 @@ namespace tca {
     std::bitset<128> useAlg;  ///< Allow user to mask off specific algorithms
     std::bitset<128> dbgAlg;  ///< Allow user to turn on debug printing in algorithms (that print...)
     short recoSlice {0};     ///< only reconstruct the slice with ID (0 = all)
+    short recoTPC {-1};     ///< only reconstruct in the seleted TPC
     bool dbgSlc {true};          ///< debug only in the user-defined slice? default is all slices
     bool dbgStp {false};          ///< debug stepping using debug.Cryostat, debug.TPC, etc
     bool dbgMrg {false};
@@ -562,23 +562,12 @@ namespace tca {
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
 
-  // lower/upper range of hits indexed into allHits for a CTP - wire pair
-  struct AllHitsRange {
-    CTP_t CTP;
-    unsigned int wire {UINT_MAX};
-    unsigned int firstHit {UINT_MAX};
-    unsigned int lastHit {UINT_MAX};
-  };
-
-  struct SptHits {
-    unsigned int sptIndex {UINT_MAX};                   ///< index into SpacePoint collection offset by sptHandle
-    std::array<unsigned int, 3> allHitsIndex {{UINT_MAX}}; ///< index into allHits collection for each plane
-  };
-
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
+    geo::TPCID TPCID;
     std::vector<recob::Hit> const* allHits = nullptr;
+    std::vector<unsigned int> tpcHits;  ///< 
     //  hit Range for the full hit collection in the current TPCID
     //   plane      wire             firstHit, lastHit
     std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange; 
@@ -586,8 +575,8 @@ namespace tca {
     std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
-    std::vector<SptHits> const* sptHits = nullptr;           ///< pointer to the spacepoint - hit vector
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
+    std::vector<unsigned int> allHitsSptIndex;              ///< index of matched hits into sptHandle vector
     unsigned int event;
     unsigned int run;
     unsigned int subRun;
@@ -601,6 +590,7 @@ namespace tca {
     int global2S_UID;
     int global3S_UID;
     bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
+    bool expectSlicedHits {false};        ///< info passed from the module - used to (not) define wireHitRange
   };
 
   struct TCSlice {

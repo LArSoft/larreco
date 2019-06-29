@@ -17,7 +17,6 @@
 
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
-#include "larreco/Deprecated/BezierTrack.h"
 
 namespace recob
 {
@@ -27,9 +26,6 @@ namespace recob
 
 
 namespace trkf {
-
-  class BezierTrack;
-  class BezierTrackerAlgorithm;
 
   class FeatureTracker : public art::EDProducer {
   public:
@@ -60,10 +56,6 @@ namespace trkf {
 
     recob::Seed ExtendSeed(recob::Seed TheSeed);
 
-
-    std::map<int, std::map<int, double> >  GetConnectionMap(std::vector<recob::Seed>& Seeds, double ADCThresh, double FracThresh);
-
-    std::vector<trkf::BezierTrack> GenerateBezierTracks(std::map<int,std::map<int,double> > , std::vector<recob::Seed>);
 
     bool CheckSeedLineInt(recob::Seed& TheSeed);
 
@@ -149,19 +141,6 @@ namespace trkf {
     std::vector<recob::SpacePoint> sps = Get3DFeaturePoints(EndPoints, hitvec);
 
     std::vector<recob::Seed> SeedsToStore = GetValidLines( sps, true );
-
-    std::map<int, std::map<int, double> > ConnMap = GetConnectionMap(SeedsToStore, 3, 0.90);
-
-    /*    for(size_t i=0; i!=SeedsToStore.size(); ++i)
-      {
-	SeedsToStore[i] = ExtendSeed(SeedsToStore.at(i));
-      }
-
-
-    ConnMap = GetConnectionMap(SeedsToStore, 3, 0.90);
-    */
-
-    std::vector<trkf::BezierTrack> BTracks = GenerateBezierTracks(ConnMap, SeedsToStore);
 
     std::unique_ptr< std::vector<recob::Seed > > seeds ( new std::vector<recob::Seed>);
 
@@ -521,237 +500,6 @@ namespace trkf {
 	  }
       }
     return true;
-  }
-
-
-  //----------------------------------------------------------------------
-
-  std::map<int, std::map<int, double> > FeatureTracker::GetConnectionMap(std::vector<recob::Seed>& Seeds, double ADCThresh, double FracThresh)
-  {
-
-    art::ServiceHandle<geo::Geometry const> geom;
-    std::vector<TVector3> WireDirs;
-
-    double EndThresh = 0.5;
-
-    std::map<int,bool> RedundantSeeds;
-
-    std::map<int, std::map<int, double> > ConnectionMap;
-
-    for(size_t i=0; i!=Seeds.size(); ++i)
-      {
-	for(size_t j=0; j!=i; ++j)
-	  {
-	    std::vector<recob::Seed > SeedsVec;
-	    SeedsVec.push_back(Seeds.at(i));
-	    SeedsVec.push_back(Seeds.at(j));
-
-	    trkf::BezierTrack TestTrack(SeedsVec);
-
-	    std::vector<float> LineScore = fCorner.line_integrals(TestTrack, 100, ADCThresh);
-
-	    bool HasConnection=true;
-
-	    for(size_t view =0; view!=LineScore.size(); ++view)
-	      {
-		if(LineScore.at(view)<FracThresh)
-		  {
-		    HasConnection=false;
-		  }
-	      }
-	    double Seed1Pt[3], Seed2Pt[3], Seed1Dir[3], Seed2Dir[3], Err[3];
-
-	    Seeds.at(i).GetPoint(Seed1Pt,Err);
-	    Seeds.at(j).GetPoint(Seed2Pt,Err);
-	    Seeds.at(i).GetDirection(Seed1Dir,Err);
-	    Seeds.at(j).GetDirection(Seed2Dir,Err);
-
-	    TVector3 Seed1End1, Seed1End2, Seed2End1, Seed2End2;
-
-	    for(size_t index=0; index!=3; ++index)
-	      {
-		Seed1End1[index]=Seed1Pt[index]+Seed1Dir[index];
-		Seed1End2[index]=Seed1Pt[index]-Seed1Dir[index];
-		Seed2End1[index]=Seed2Pt[index]+Seed2Dir[index];
-		Seed2End2[index]=Seed2Pt[index]-Seed2Dir[index];
-	      }
-
-	    if( ( (Seed1End1-Seed2End1).Mag() < EndThresh)
-		||( (Seed1End2-Seed2End1).Mag() < EndThresh)
-		||( (Seed1End1-Seed2End2).Mag() < EndThresh)
-		||( (Seed1End2-Seed2End2).Mag() < EndThresh))
-	      HasConnection=true;
-
-	    if(HasConnection)
-	      {
-
-		double Pt[3]; double Dir[3]; double Err[3];
-		TVector3 End1; TVector3 End2;
-
-		ConnectionMap[i][j] = ConnectionMap[j][i] = TestTrack.GetLength();
-		for(size_t isd=0; isd!=Seeds.size(); ++isd)
-		  {
-		    if((isd!=i)&&(isd!=j)&&(RedundantSeeds[i]!=true)&&(RedundantSeeds[j]!=true)&&(RedundantSeeds[isd]!=true))
-		      {
-			Seeds.at(isd).GetPoint(Pt,Err);
-			Seeds.at(isd).GetDirection(Dir,Err);
-			TVector3 End1;
-			TVector3 End2;
-			for(size_t index=0; index!=3; ++index)
-			  {
-			    End1[index]=Pt[index]+Dir[index];
-			    End2[index]=Pt[index]-Dir[index];
-			  }
-			double s1, s2, d1,d2;
-			TestTrack.GetClosestApproach(End1,s1,d1);
-			TestTrack.GetClosestApproach(End2,s2,d2);
-
-			//			std::cout<<"in 3D :  " << d1 << ", " <<d2<<std::endl;
-			if((d1<1.)&&(d2<1.))
-			  {
-			    std::cout<<" meets 3D throw condition"<<std::endl;
-			  }
-
-			bool NoFails=true;
-			for(size_t p=0; p!=3; ++p)
-			  {
-			    int t=0, c=0;
-			    uint32_t wire1 = geom->NearestWire(End1, p, t, c);
-			    uint32_t wire2 = geom->NearestWire(End2, p, t, c);
-			    double dp1, sp1, dp2, sp2;
-			    TestTrack.GetClosestApproach(wire1, p, t, c, End1[0], sp1,dp1);
-			    TestTrack.GetClosestApproach(wire2, p, t, c, End2[0], sp2,dp2);
-			    //  std::cout<<p<<": [ "<< dp1 <<", "<<dp2<<" ]     " ;
-			    if((dp1>1.0)||(dp2>1.0)) NoFails = false;
-			  }
-
-			if(NoFails)
-			  {
-			    std::cout<<"Propose throwing out seed " << isd<<std::endl;
-			    RedundantSeeds[isd]=true;
-			  }
-		      }
-		  }
-	      }
-	  }
-
-
-      }
-
-    // Now we need to throw out all the seeds we marked as redundant
-    std::map<int, std::map<int, double> > FilteredMap;
-
-    std::vector<int> OldNew;
-    for(size_t i=0; i!=Seeds.size(); ++i)
-      {
-	OldNew.push_back(i);
-      }
-
-    for(int i=Seeds.size()-1; i!=-1; --i)
-      {
-	if(RedundantSeeds[i])
-	  {
-	    Seeds.erase(Seeds.begin()+i);
-	    OldNew.erase(OldNew.begin()+i);
-	  }
-      }
-
-    for(size_t i=0; i!=OldNew.size(); ++i)
-      {
-	for(size_t j=0; j!=OldNew.size(); ++j)
-	  {
-	    FilteredMap[i][j] = ConnectionMap[OldNew[i]][OldNew[j]];
-	  }
-      }
-
-    ConnectionMap = FilteredMap;
-
-
-    // Deal with loops by throwing out the longest paths.
-    for(size_t i=0; i!=Seeds.size(); ++i)
-      {
-	for(size_t j=0; j!=i; ++j)
-	  {
-	    if(ConnectionMap[i][j]>0)
-	      {
-		for(size_t k=0; k!=Seeds.size(); ++k)
-		  {
-		    if((ConnectionMap[i][k]>0)&&(ConnectionMap[k][j]>0))
-		      {
-			if( ( ConnectionMap[i][k] > ConnectionMap[i][j]) && ( ConnectionMap[i][k] > ConnectionMap[j][k]))
-			  ConnectionMap[i][j] = ConnectionMap[j][i] = ConnectionMap[k][j] = ConnectionMap[j][k] = 0;
-			else if( ( ConnectionMap[i][j] > ConnectionMap[i][k]) && ( ConnectionMap[i][j] > ConnectionMap[j][k]))
-			  ConnectionMap[j][k] = ConnectionMap[k][j] = ConnectionMap[i][k] = ConnectionMap[k][i] = 0;
-			else
-			  ConnectionMap[i][j] = ConnectionMap[j][i] =  ConnectionMap[i][k] = ConnectionMap[k][i] = 0;
-
-		      }
-		  }
-	      }
-	  }
-      }
-
-    for(size_t i=0; i!=Seeds.size(); ++i)
-      {
-	int Count=0;
-	for(size_t j=0; j!=Seeds.size(); ++j)
-	  {
-	    if(ConnectionMap[i][j]>0)
-	      Count++;
-	  }
-	std::cout<<" After delooping, seed " << i << " is connected " << Count << " times"<<std::endl;
-
-      }
-    return FilteredMap;
-
-  }
-
-  //----------------------------------------------------------------------
-
-  std::vector<trkf::BezierTrack> FeatureTracker::GenerateBezierTracks(std::map<int,std::map<int,double> > ConnMap, std::vector<recob::Seed> Seeds)
-  {
-    std::vector<trkf::BezierTrack> ReturnVec;
-
-    std::vector<std::vector<int> > CollectedSeeds;
-    std::map<int, bool>  AlreadyCounted;
-
-
-
-    bool StillFinding=true;
-
-
-    for(size_t baseseed=0; baseseed!=Seeds.size(); ++baseseed)
-      {
-	if(!AlreadyCounted[baseseed])
-	  {
-	    std::vector<int>     SeedsThisTrack;
-	    SeedsThisTrack.clear();
-
-	    SeedsThisTrack.push_back(baseseed);
-	    while(StillFinding)
-	      {
-		StillFinding=false;
-		for(size_t i=0; i!=SeedsThisTrack.size(); ++i)
-		  {
-		    for(size_t j=0; j!=Seeds.size(); ++j)
-		      {
-			if((!AlreadyCounted[j])&&(ConnMap[SeedsThisTrack[i]][j]>0))
-			  {
-			    SeedsThisTrack.push_back(j);
-			    AlreadyCounted[j]=true;
-			    StillFinding=true;
-			  }
-		      }
-		  }
-	      }
-	    CollectedSeeds.push_back(SeedsThisTrack);
-	  }
-      }
-    std::cout<<"Found " << CollectedSeeds.size()<< " sensible collections.  Sizes:"<<std::endl;
-    for(size_t i=0; i!=CollectedSeeds.size();  ++i)
-      std::cout<<"  " << CollectedSeeds.at(i).size()<<std::endl;
-
-    return std::vector<trkf::BezierTrack>();
   }
 
 }

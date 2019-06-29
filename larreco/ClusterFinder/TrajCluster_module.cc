@@ -27,6 +27,7 @@
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
+#include "lardataobj/RecoBase/Slice.h"
 
 //root includes
 #include "TTree.h"
@@ -60,12 +61,24 @@ namespace cluster {
 
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
-//    TTree* crtree;
+    void GetHits(const std::vector<recob::Hit>& inputHits,
+                 const geo::TPCID& tpcid, std::vector<std::vector<unsigned int>>& tpcHits);
+    void GetHits(const std::vector<recob::Hit>& inputHits, 
+                 const geo::TPCID& tpcid,
+                 const std::vector<recob::Slice>& inputSlices,
+                 art::FindManyP<recob::Hit>& hitFromSlc,
+                 std::vector<std::vector<unsigned int>>& tpcHits,
+                 std::vector<int>& slcIDs);
+    void FillMCPList(art::Event & evt, 
+                     art::InputTag& fHitTruthModuleLabel, 
+                     art::Handle<std::vector<recob::Hit>> & inputHits);
+
 
     art::InputTag fHitModuleLabel;
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
     art::InputTag fSpacePointModuleLabel;
+    art::InputTag fSpacePointHitAssnLabel;
 
     unsigned int fMaxSliceHits;    
     bool fDoWireAssns;
@@ -92,7 +105,6 @@ namespace cluster {
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
-#include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -142,6 +154,8 @@ namespace cluster {
     if(pset.has_key("MaxSliceHits")) fMaxSliceHits = pset.get<unsigned int>("MaxSliceHits");
     fSpacePointModuleLabel = "NA";
     if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
+    fSpacePointHitAssnLabel = "NA";
+    if(pset.has_key("SpacePointHitAssnLabel")) fSpacePointHitAssnLabel = pset.get<art::InputTag>("SpacePointHitAssnLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
     fSaveAll2DVertices = false;
@@ -221,291 +235,119 @@ namespace cluster {
     // Get a single hit collection from a HitsModuleLabel or multiple sets of "sliced" hits
     // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel.
     // A pointer to the full hit collection is passed to TrajClusterAlg. The hits that are
-    // in each slice are tracked to find 2D trajectories (that become clusters),
+    // in each slice are reconstructed to find 2D trajectories (that become clusters),
     // 2D vertices (EndPoint2D), 3D vertices, PFParticles and Showers. These data products
     // are then collected and written to the event. Each slice is considered as an independent
     // collection of hits with the additional requirement that all hits in a slice reside in
     // one TPC
 
-    // Define a vector of indices into inputHits (= evt.allHits in TrajClusterAlg)
-    // for each slice for hits associated with 3D-clustered SpacePoints
-    std::vector<std::vector<unsigned int>> slHitsVec;
-    // Slice IDs that will be correlated with sub-slices
-    std::vector<int> slcIDs;
     // pointers to the slices in the event
     std::vector<art::Ptr<recob::Slice>> slices;
+    std::vector<int> slcIDs;
     unsigned int nInputHits = 0;
-    // get a handle for the hit collection
+    
+    // get a reference to the Hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
+    if(!fTCAlg->SetInputHits(*inputHits, evt.run(), evt.event())) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
+    
+    // get an optional reference to the Slice collection
+    auto inputSlices = art::Handle<std::vector<recob::Slice>>();
+    if(fSliceModuleLabel != "NA") {
+      fTCAlg->ExpectSlicedHits();
+      if(!evt.getByLabel(fSliceModuleLabel, inputSlices)) throw cet::exception("TrajClusterModule")<<"Failed to get a inputSlices";
+    } // fSliceModuleLabel specified
+
+    // get an optional reference to the SpacePoint collection
+    auto InputSpts = art::Handle<std::vector<recob::SpacePoint>>();
+    if(fSpacePointModuleLabel != "NA") {
+      if(!evt.getByLabel(fSpacePointModuleLabel, InputSpts)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
+      fTCAlg->SetInputSpts(*InputSpts);
+      // Size the Hit -> SpacePoint assn vector
+      tca::evt.allHitsSptIndex.resize(nInputHits, UINT_MAX);
+      art::FindManyP<recob::Hit> hitsFromSpt (InputSpts, evt, fSpacePointHitAssnLabel);
+      if(!hitsFromSpt.isValid()) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoint -> Hit assns\n";
+      for(unsigned int isp = 0; isp < (*InputSpts).size(); ++isp) {
+        auto &hits = hitsFromSpt.at(isp);
+        for(auto& hit : hits) tca::evt.allHitsSptIndex[hit.key()] = isp;
+      } // isp
+    } // fSpacePointModuleLabel specified
+    
+    // load MCParticles?
+    if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0) FillMCPList(evt, fHitTruthModuleLabel, inputHits);
+    
     if(nInputHits > 0) {
-      // This is a pointer to a vector of recob::Hits that exist in the event. The hits
-      // are not copied.
-      if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
-      if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Plane<<":"<<tca::debug.Wire<<":"<<tca::debug.Tick<<"\n";
-      if(fSliceModuleLabel != "NA") {
-        // Expecting to find sliced hits from Slice -> Hits assns
-        auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
-        art::fill_ptr_vector(slices, slcHandle);
-        art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
-        for(size_t isl = 0; isl < slices.size(); ++isl) {
-          // select slices with user-defined cuts in test beam mode
-          if(tca::tcc.modes[tca::kTestBeam] && tca::tcc.testBeamCuts.size() > 1) {
-            float zlo = slices[isl]->End0Pos().Z();
-            if(slices[isl]->End1Pos().Z() < zlo) zlo = slices[isl]->End1Pos().Z();
-            auto sepVec = slices[isl]->End0Pos() - slices[isl]->End1Pos();
-            float len = sqrt(sepVec.Mag2());
-            bool isBeam = (zlo < tca::tcc.testBeamCuts[0] && len > tca::tcc.testBeamCuts[1]);
-            if(isBeam && tca::tcc.modes[tca::kDebug]) {
-              std::cout<<"Beam slice "<<slices[isl]->ID();
-              std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
-              std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
-              std::cout<<" Length "<<(int)len;
-              std::cout<<"\n";
-            } // zlo < 10
-            if(!isBeam) continue;
-          } // TestBeam mode
-          auto& hit_in_slc = hitFromSlc.at(isl);
-          if(hit_in_slc.size() < 3) continue;
-          std::vector<unsigned int> slhits(hit_in_slc.size());
-          unsigned int indx = 0;
-          if(hit_in_slc[0].id() != inputHits.id()) throw cet::exception("TrajClusterModule")<<"Input hits from '"<<fHitModuleLabel.label()<<"' have a different product id than hits referenced in '"<<fSliceModuleLabel.label()<<"'\n";
-          for(auto& hit : hit_in_slc) {
-            if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
-            slhits[indx] = hit.key();
-            ++indx;
-          } // hit
-          if(slhits.size() < 3) continue;
-          slHitsVec.push_back(slhits);
-          slcIDs.push_back(slices[isl]->ID());
+      auto const* geom = lar::providerFrom<geo::Geometry>();
+      // a list of TPCs that will be considered when comparing with MC
+      std::vector<unsigned int> tpcList;
+      for(const auto& tpcid : geom->IterateTPCIDs()) {
+        // only reconstruct hits in a user-selected TPC in debug mode
+        if(tca::tcc.modes[tca::kDebug] && tca::tcc.recoTPC >= 0 && (short)tpcid.TPC != tca::tcc.recoTPC) continue;
+        // a vector for the subset of hits in each slice in a TPC
+        //    slice      hits in this tpc
+        std::vector<std::vector<unsigned int>> sltpcHits;
+        if(inputSlices.isValid()) {
+          // get hits in this TPC and slice
+          art::FindManyP<recob::Hit> hitFromSlc(inputSlices, evt, fSliceModuleLabel);
+          GetHits(*inputHits, tpcid, *inputSlices, hitFromSlc, sltpcHits, slcIDs);
+        } else {
+          // get hits in this TPC
+          // All hits are in one "fake" slice
+          GetHits(*inputHits, tpcid, sltpcHits);
+          slcIDs.resize(1);
+          slcIDs[0] = 1;
+        }
+        if(sltpcHits.empty()) continue;
+        for(unsigned short isl = 0; isl < sltpcHits.size(); ++isl) {
+          auto& tpcHits = sltpcHits[isl];
+          // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
+          // This assumes that hits with larger LocalIndex are at larger Tick.
+          std::vector<HitLoc> sortVec(tpcHits.size());
+          for(unsigned int indx = 0; indx < tpcHits.size(); ++indx) {
+            auto& hit = (*inputHits)[tpcHits[indx]];
+            sortVec[indx].index = indx;
+            sortVec[indx].ctp = tca::EncodeCTP(hit.WireID());
+            sortVec[indx].wire = hit.WireID().Wire;
+            sortVec[indx].tick = hit.StartTick();
+            sortVec[indx].localIndex = hit.LocalIndex();
+          } // iht
+          std::sort(sortVec.begin(), sortVec.end(), SortHits);
+          std::vector tmp = tpcHits;
+          for(unsigned int ii = 0; ii < tpcHits.size(); ++ii) tpcHits[ii] = tmp[sortVec[ii].index];
+          // clear the temp vector
+          tmp.resize(0);
+          sortVec.resize(0);
+          // look for a debug hit
+          if(tca::tcc.dbgStp) {
+            tca::debug.Hit = UINT_MAX;
+            for(unsigned short indx = 0; indx < tpcHits.size(); ++indx) {
+              auto& hit = (*inputHits)[tpcHits[indx]];
+              if((int)hit.WireID().TPC == tca::debug.TPC &&
+                 (int)hit.WireID().Plane == tca::debug.Plane &&
+                 (int)hit.WireID().Wire == tca::debug.Wire &&
+                 hit.PeakTime() > tca::debug.Tick - 10  && hit.PeakTime() < tca::debug.Tick + 10) {
+                std::cout<<"Debug hit "<<tpcHits[indx]<<" found in slice ID "<<slcIDs[isl];
+                std::cout<<" RMS "<<hit.RMS();
+                std::cout<<" Multiplicity "<<hit.Multiplicity();
+                std::cout<<" GoodnessOfFit "<<hit.GoodnessOfFit();
+                std::cout<<"\n";
+                tca::debug.Hit = tpcHits[indx];
+                break;
+              } // Look for debug hit
+            } // iht
+          } // tca::tcc.dbgStp
+          fTCAlg->RunTrajClusterAlg(tpcHits, slcIDs[isl]);
+          // this is only used for MC truth matching
+          tpcList.push_back(tpcid.TPC);
         } // isl
-      } else {
-        // There was no pre-processing of the hits to define slices
-        // so put all hits into one slice
-        slHitsVec.resize(1);
-        slHitsVec[0].resize(nInputHits);
-        for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
-        slcIDs.resize(1, 1);
-      } // no input slices
-
-      // split slHitsVec so that all hits in a sub-slice are in the same TPC
-      const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
-      if(geom->NTPC() > 1) {
-        std::vector<std::vector<unsigned int>> tpcSlcHitsVec;
-        std::vector<int> tpcSlcIDs;
-        for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
-          auto& slhits = slHitsVec[isl];
-          if(slhits.size() < 2) continue;
-          // don't attempt to reconstruct if too many hits
-          if(slhits.size() > fMaxSliceHits) continue;
-          // list of hits in this slice in each TPC
-          std::vector<std::vector<unsigned int>> tpcHits;
-          // list of TPCs in this slice
-          std::vector<unsigned short> tpcNum;
-          for(auto iht : slhits) {
-            auto& hit = (*inputHits)[iht];
-            unsigned short tpc = hit.WireID().TPC;
-            unsigned short tpcIndex = 0;
-            for(tpcIndex = 0; tpcIndex < tpcNum.size(); ++tpcIndex) if(tpcNum[tpcIndex] == tpc) break;
-            if(tpcIndex == tpcNum.size()) {
-              // not in tpcNum so make a new entry
-              tpcHits.resize(tpcIndex + 1);
-              tpcNum.push_back(tpc);
-            }
-            tpcHits[tpcIndex].push_back(iht);
-          } // iht
-          for(auto& tHits : tpcHits) {
-            tpcSlcHitsVec.push_back(tHits);
-            tpcSlcIDs.push_back(slcIDs[isl]);
-          }
-        } // slhits
-        // over-write slHitsVec
-        slHitsVec = tpcSlcHitsVec;
-        slcIDs = tpcSlcIDs;
-      } // > 1 TPC
-/* Disable for now
-      if (fSpacePointModuleLabel != "NA") {
-        auto sptHandle = art::Handle<std::vector<recob::SpacePoint>>();
-        if(!evt.getByLabel(fSpacePointModuleLabel, sptHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
-        fTCAlg->SetSptHandle(*sptHandle);
-      } //
-*/
-      bool requireSliceMCTruthMatch = false;
-      if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
-        // pass a reference to the MCParticle collection to TrajClusterAlg
-        auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
-        if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to MCParticles\n";
-        fTCAlg->SetMCPHandle(*mcpHandle);
-        // size the hit -> MCParticle match vector
-        tca::evt.allHitsMCPIndex.resize(nInputHits, UINT_MAX);
-        // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
-        // when checking neutrino reconstruction performance.
-        // create a list of MCParticles of interest
-        // save MCParticles that have the desired MCTruth origin using
-        // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
-        simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
-        // or save them all
-        bool anySource = (origin == simb::kUnknown);
-        // only reconstruct slices that have hits matched to the desired MC origin?
-        if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
-        // get the assns
-        art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
-        art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-        sim::ParticleList const& plist = pi_serv->ParticleList();
-        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-          auto& p = (*ipart).second;
-          int trackID = p->TrackId();
-          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-          int KE = 1000 * (p->E() - p->Mass());
-          if(!anySource && theTruth->Origin() != origin) continue;
-          if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
-            std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
-            <<" pdg "<<p->PdgCode()
-            <<std::setw(7)<<KE
-            <<" "<<p->Process()
-            <<"\n";
-          }
-        } // ipart
-        std::vector<art::Ptr<simb::MCParticle>> particle_vec;
-        std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-        for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
-          particle_vec.clear(); match_vec.clear();
-          try{ particles_per_hit.get(iht, particle_vec, match_vec); }
-          catch(...) {
-            std::cout<<"BackTrackerHitMatchingData not found\n";
-            break;
-          }
-          if(particle_vec.empty()) continue;
-          int trackID = 0;
-          for(unsigned short im = 0; im < match_vec.size(); ++im) {
-            if(match_vec[im]->ideFraction < 0.5) continue;
-            trackID = particle_vec[im]->TrackId();
-            break;
-          } // im
-          if(trackID == 0) continue;
-          // see if this is a MCParticle that should be tracked
-          const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-          if(!anySource && theTruth->Origin() != origin) continue;
-          // get the index
-          for(unsigned int indx = 0; indx < (*mcpHandle).size(); ++indx) {
-            auto& mcp = (*mcpHandle)[indx];
-            if(mcp.TrackId() != trackID) continue;
-            tca::evt.allHitsMCPIndex[iht] = indx;
-            break;
-          } // indx
-        }
-      } // fill mcpList
-
-      // First sort the hits in each sub-slice and then reconstruct
-      for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
-        auto& slhits = slHitsVec[isl];
-        // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
-        // This assumes that hits with larger LocalIndex are at larger Tick.
-        std::vector<HitLoc> sortVec(slhits.size());
-        bool badHit = false;
-        for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
-          if(slhits[indx] > nInputHits - 1) {
-            badHit = true;
-            break;
-          }
-          auto& hit = (*inputHits)[slhits[indx]];
-          sortVec[indx].index = indx;
-          sortVec[indx].ctp = tca::EncodeCTP(hit.WireID());
-          sortVec[indx].wire = hit.WireID().Wire;
-          sortVec[indx].tick = hit.StartTick();
-          sortVec[indx].localIndex = hit.LocalIndex();
-        } // iht
-        if(badHit) {
-          std::cout<<"TrajCluster found an invalid slice reference to the input hit collection. Ignoring this slice.\n";
-          continue;
-        }
-        std::sort(sortVec.begin(), sortVec.end(), SortHits);
-        // make a temporary copy of slhits
-        auto tmp = slhits;
-        // put slhits into proper order
-        for(unsigned short ii = 0; ii < slhits.size(); ++ii) slhits[ii] = tmp[sortVec[ii].index];
-        // clear the temp vector
-        tmp.resize(0);
-        // try to find a hit in debug step mode
-        if(tca::tcc.modes[tca::kDebug]) {
-          for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
-            auto& hit = (*inputHits)[slhits[indx]];
-            if((int)hit.WireID().TPC == tca::debug.TPC &&
-               (int)hit.WireID().Plane == tca::debug.Plane &&
-               (int)hit.WireID().Wire == tca::debug.Wire &&
-               hit.PeakTime() > tca::debug.Tick - 10  && hit.PeakTime() < tca::debug.Tick + 10) {
-              std::cout<<"Debug hit "<<slhits[indx]<<" found in sub-slice index "<<isl;
-              std::cout<<"\n";
-              tca::debug.Hit = slhits[indx];
-              tca::tcc.dbgStp = true;
-              break;
-            } // Look for debug hit
-          } // iht
-        } // Debug mode
-        // determine if this is a slice that should be reconstructed - default is yes
-        bool reconstructSlice = true;
-        // unless we are reconstructing MC events and require a good truth match
-        if(requireSliceMCTruthMatch) {
-          // require that at least 50% of the hits in the slice are matched to a MCParticle
-          // that has the desired origin specified in MatchTruth[0]
-          unsigned int ntm = 0;
-          for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
-            // get the index to this hit in this slice
-            unsigned int iht = slhits[indx];
-            // ensure that it is MC-matched
-            if(tca::evt.allHitsMCPIndex[iht] != UINT_MAX) ++ntm;
-          } // indx
-          if(slhits.size() > 2 && ntm < tca::tcc.matchTruth[4]) reconstructSlice = false;
-        } // requireSliceMCTruthMatch
-        // reconstruct using the hits in this sub-slice. The data products are stored internally in
-        // TrajCluster data structs.
-        if(reconstructSlice) {
-/* disable for now
-          if(fSpacePointModuleLabel != "NA") {
-            // fill a vector of SpacePoint - hit triplets (or doublets) and pass it to the alg
-            std::vector<tca::SptHits> sptHits;
-            art::FindManyP<recob::SpacePoint> sptFromHit (inputHits, evt, fSpacePointModuleLabel);
-            for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
-              unsigned int ahi = slhits[indx];
-              auto& spt_from_hit = sptFromHit.at(ahi);
-              for(auto& spt : spt_from_hit) {
-                // see if this space point is already in the vector
-                unsigned int sIndx = 0;
-                for(sIndx = 0; sIndx < sptHits.size(); ++sIndx) {
-                  if(spt.key() == sptHits[sIndx].sptIndex) break;
-                } // sIndx
-                if(sIndx == sptHits.size()) {
-                  // not found so add one
-                  tca::SptHits sph;
-                  sph.sptIndex = spt.key();
-                  sptHits.push_back(sph);
-                } // sIndx == sptHits.size()
-                // associate the hit with the space point
-                auto& sph = sptHits[sIndx];
-                // get the hit so we can find out which plane it is in
-                auto& hit = (*inputHits)[slhits[indx]];
-                unsigned short plane = hit.WireID().Plane;
-                if(plane > 2) {
-                  std::cout<<"Crazy plane "<<plane<<"\n";
-                  exit(1);
-                }
-                sph.allHitsIndex[plane] = slhits[indx];
-              } // spt
-            } // indx
-            fTCAlg->SetSptHits(sptHits);
-          } // space point collection exists
-*/
-          fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
-        } // reconstructSlice
-      } // isl
-
+      } // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
-      fTCAlg->fTM.MatchTruth();
+      if(!evt.isRealData()) fTCAlg->fTM.MatchTruth(tpcList);
       if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event()); 
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
-    } // input hits exist
+    } // nInputHits > 0
 
     // Vectors to hold all data products that will go into the event
     std::vector<recob::Hit> hitCol;       // output hit collection
@@ -652,7 +494,6 @@ namespace cluster {
                 std::cout<<"\n";
                 break;
               }
-//              newIndex[allHitsIndex] = hitCol.size();
             } // ii
             // Let the alg define the hit either by merging multiple hits or by a simple copy
             // of a single hit from inputHits
@@ -672,7 +513,7 @@ namespace cluster {
           // Sum the charge and make the associations
           float sumChg = 0;
           float sumADC = 0;
-          for(unsigned short indx =  hitColBeginIndex; indx < hitCol.size(); ++indx) {
+          for(unsigned int indx =  hitColBeginIndex; indx < hitCol.size(); ++indx) {
             auto& hit = hitCol[indx];
             sumChg += hit.Integral();
             sumADC += hit.SummedADC();
@@ -687,7 +528,7 @@ namespace cluster {
           if(tj.AlgMod[tca::kShowerLike]) clsID = -clsID;
           // dressed muon - give the halo cluster the same ID as the parent
           if(tj.AlgMod[tca::kHaloTj]) clsID = -tj.ParentID;
-          unsigned short nclhits = hitCol.size() - hitColBeginIndex + 1;
+          unsigned int nclhits = hitCol.size() - hitColBeginIndex + 1;
           clsCol.emplace_back(
                               firstTP.Pos[0],         // Start wire
                               0,                      // sigma start wire
@@ -892,8 +733,8 @@ namespace cluster {
       // add the hits that weren't used in any slice to hitCol unless this is a
       // special debugging mode and would be a waste of time
       if(!slices.empty() && tca::tcc.recoSlice == 0) {
-        auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
-        art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
+        auto inputSlices = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
+        art::FindManyP<recob::Hit> hitFromSlc(inputSlices, evt, fSliceModuleLabel);
         for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if(newIndex[allHitsIndex] != UINT_MAX) continue;
           std::vector<unsigned int> oneHit(1, allHitsIndex);
@@ -990,6 +831,122 @@ namespace cluster {
     evt.put(std::move(sp_hit_assn)); // www: association between sp and hit (trjaclust)
   } // TrajCluster::produce()
 
+  ////////////////////////////////////////////////
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits, 
+                            const geo::TPCID& tpcid, 
+                            std::vector<std::vector<unsigned int>>& tpcHits)
+  {
+    // Put hits in this TPC into a single "slice"
+    unsigned int tpc = tpcid.TPC;
+    tpcHits.resize(1);
+    for(unsigned int iht = 0; iht < inputHits.size(); ++iht) {
+      auto& hit = inputHits[iht];
+      if(hit.WireID().TPC == tpc) tpcHits[0].push_back(iht);
+    }
+  } // GetHits
+
+  
+  ////////////////////////////////////////////////
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits, 
+                            const geo::TPCID& tpcid,
+                            const std::vector<recob::Slice>& inputSlices,
+                            art::FindManyP<recob::Hit>& hitFromSlc,
+                            std::vector<std::vector<unsigned int>>& tpcHits,
+                            std::vector<int>& slcIDs)
+  {
+    // Put the hits in all slices into tpcHits in this TPC
+    tpcHits.clear();
+    slcIDs.clear();
+    if(!hitFromSlc.isValid()) return;
+
+    unsigned int tpc = tpcid.TPC;
+    
+    for(size_t isl = 0; isl < inputSlices.size(); ++isl) {
+      auto& hit_in_slc = hitFromSlc.at(isl);
+      if(hit_in_slc.size() < 3) continue;
+      int slcID = inputSlices[isl].ID();
+      for(auto& hit : hit_in_slc) {
+        if(hit->WireID().TPC != tpc) continue;
+        unsigned short indx = 0;
+        for(indx = 0; indx < slcIDs.size(); ++indx) if(slcID == slcIDs[indx]) break;
+        if(indx == slcIDs.size()) {
+          slcIDs.push_back(slcID);
+          tpcHits.resize(tpcHits.size() + 1);
+        }
+        tpcHits[indx].push_back(hit.key());
+      } // hit
+    } // isl
+
+  } // GetHits
+
+  ////////////////////////////////////////////////
+  void TrajCluster::FillMCPList(art::Event & evt, 
+                                art::InputTag& fHitTruthModuleLabel, 
+                                art::Handle<std::vector<recob::Hit>> & inputHits)
+  {
+    // pass a reference to the MCParticle collection to TrajClusterAlg
+    auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
+    if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to MCParticles\n";
+    fTCAlg->SetMCPHandle(*mcpHandle);
+    // size the hit -> MCParticle match vector
+    tca::evt.allHitsMCPIndex.resize((*inputHits).size(), UINT_MAX);
+    // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
+    // when checking neutrino reconstruction performance.
+    // create a list of MCParticles of interest
+    // save MCParticles that have the desired MCTruth origin using
+    // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
+    simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
+    // or save them all
+    bool anySource = (origin == simb::kUnknown);
+    // only reconstruct slices that have hits matched to the desired MC origin?
+//    if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
+    // get the assns
+    art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    sim::ParticleList const& plist = pi_serv->ParticleList();
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      auto& p = (*ipart).second;
+      int trackID = p->TrackId();
+      const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      int KE = 1000 * (p->E() - p->Mass());
+      if(!anySource && theTruth->Origin() != origin) continue;
+      if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
+        std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
+        <<" pdg "<<p->PdgCode()
+        <<std::setw(7)<<KE
+        <<" "<<p->Process()
+        <<"\n";
+      }
+    } // ipart
+    std::vector<art::Ptr<simb::MCParticle>> particle_vec;
+    std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
+    for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+      particle_vec.clear(); match_vec.clear();
+      try{ particles_per_hit.get(iht, particle_vec, match_vec); }
+      catch(...) {
+        std::cout<<"BackTrackerHitMatchingData not found\n";
+        break;
+      }
+      if(particle_vec.empty()) continue;
+      int trackID = 0;
+      for(unsigned short im = 0; im < match_vec.size(); ++im) {
+        if(match_vec[im]->ideFraction < 0.5) continue;
+        trackID = particle_vec[im]->TrackId();
+        break;
+      } // im
+      if(trackID == 0) continue;
+      // see if this is a MCParticle that should be tracked
+      const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      if(!anySource && theTruth->Origin() != origin) continue;
+      // get the index
+      for(unsigned int indx = 0; indx < (*mcpHandle).size(); ++indx) {
+        auto& mcp = (*mcpHandle)[indx];
+        if(mcp.TrackId() != trackID) continue;
+        tca::evt.allHitsMCPIndex[iht] = indx;
+        break;
+      } // indx
+    } // iht
+  } // FillMCPList
   //----------------------------------------------------------------------------
   DEFINE_ART_MODULE(TrajCluster)
 

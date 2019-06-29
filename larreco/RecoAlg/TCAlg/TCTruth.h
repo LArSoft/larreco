@@ -43,8 +43,8 @@ namespace tca {
    }
 
     void Initialize();
-    void MatchTruth();
-    void MatchAndSum();
+    void MatchTruth(std::vector<unsigned int>& tpcList);
+    void MatchAndSum(std::vector<unsigned int>& tpcList);
     void PrintResults(int eventNum) const;
     bool CanReconstruct(std::vector<unsigned int> mcpHits, unsigned short nDimensions, const geo::TPCID& inTPCID);
     void StudyShowerParents(TCSlice& slc, HistStuff& hist);

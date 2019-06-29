@@ -20,10 +20,6 @@
 #include "larcore/Geometry/Geometry.h"
 
 
-namespace trkf {
-  class BezierTrack;
-}
-
 namespace corner { //<---Not sure if this is the right namespace
 
    class CornerFinderAlg {
@@ -50,8 +46,6 @@ namespace corner { //<---Not sure if this is the right namespace
 				  geo::Geometry const&);                         //here we get feature points with corner score
 
      float line_integral(TH2F const& hist, int x1, float y1, int x2, float y2, float threshold);
-
-     std::vector<float> line_integrals(trkf::BezierTrack&, size_t Steps, float threshold);
 
      TH2F const& GetWireDataHist(unsigned int);
      TH2F const& GetConversionHist(unsigned int);
