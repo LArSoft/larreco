@@ -6,7 +6,7 @@
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io//TFileService.h"
 #include "cetlib_except/exception.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
@@ -54,7 +54,7 @@ namespace reco_tool
     double fPeakRange;
     double fAmpRange;
     bool fFloatBaseline;
-    bool fOutputHistograms;
+//    bool fOutputHistograms;
 
     // std::unique_ptr<marqfitgaus::MarqFitAlg> fMarqFitAlg;
     //    mutable BaselinedGausFitCache  fFitCache;
@@ -136,10 +136,11 @@ namespace reco_tool
     int fitResult=-1;
 
     //recast signal -> y to keep the  catch about negative adc values
-    for(size_t idx=0; idx<signal.size(); idx++){
+    for(size_t idx=0; idx<roiSize; idx++){
 
-      if(signal[idx]<=0.) y[idx]=0;
-      else y[idx]=signal[idx];
+//      if(signal[idx]<=0.) y[idx]=0;
+//      else y[idx]=signal[idx];
+        y[idx] = signal[idx + startTime];
 
     }
 

@@ -697,9 +697,9 @@ void MSTPathFinder::ReconstructBestPath(const reco::ClusterHit3D* goalNode,
 }
     
 void MSTPathFinder::LeastCostPath(const reco::EdgeTuple&    curEdge,
-                                   const reco::ClusterHit3D* goalNode,
-                                   reco::ClusterParameters&  clusterParams,
-                                   float&                    showMeTheMoney) const
+                                  const reco::ClusterHit3D* goalNode,
+                                  reco::ClusterParameters&  clusterParams,
+                                  float&                    showMeTheMoney) const
 {
     // Recover the mapping between hits and edges
     reco::Hit3DToEdgeMap& curEdgeMap = clusterParams.getHit3DToEdgeMap();
