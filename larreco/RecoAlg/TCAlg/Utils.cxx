@@ -3944,7 +3944,7 @@ namespace tca {
     // Find the average hit rms by analyzing the full hit collection. This
     // only needs to be done once per job.
 
-    if((*evt.allHits).empty()) return false;
+    if((*evt.allHits).empty()) return true;
     // no sense re-calculating it if it's been done
     if(evt.aveHitRMSValid) return true;
 
