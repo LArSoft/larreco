@@ -150,7 +150,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
       for( size_t k = 0; k < hits_in_plane; ++k ){  
         size_t hit_index = hit_indices_per_plane[j][k];
         auto theHit = hits[ hit_index ];        
-        float this_pitch = geom->WirePitch( planeID );
+        float wire_pitch = geom->WirePitch( planeID );
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
         // !!! Warining by default lets use the vertex of the shower for Y and Z in case there are not SP associated to this hit
         float theHit_Ypos = shower.ShowerStart().Y();
@@ -166,16 +166,25 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
             }
           }
         }
-        else std::cout<<"no sp associated w/this hit ... we will use shower vertex for Y and Z..."<<std::endl;
- 
+        else{
+         std::cout<<"no sp associated w/this hit ... we will skip this hit"<<std::endl;
+         continue;
+        }
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
         const double tmp_hit_pos[3]={pos.X(), pos.Y(), pos.Z()};
         geo::TPCID tpcid = geom->FindTPCAtPosition ( tmp_hit_pos  );
-
+        
+        //correct pitch for hit direction 
+        float this_pitch = wire_pitch;
+        float angleToVert = geom->WireAngleToVertical(theHit->View(),theHit->WireID().Plane, theHit->WireID().Cryostat) - 0.5*::util::pi<>();
+        float cosgamma = std::abs(sin(angleToVert)*shower.Direction().Y()+ cos(angleToVert)*shower.Direction().Z());
+        if( cosgamma>0  ) this_pitch /=cosgamma;
+        if( this_pitch<wire_pitch ) this_pitch = wire_pitch;
+ 
         //Correct for SCE
         geo::Vector_t posOffsets = {0., 0., 0.};
         geo::Vector_t dirOffsets = {0., 0., 0.};
-
+    
         if( fSCE && sce->EnableCalSpatialSCE() )
           posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),tpcid.TPC);
           
@@ -184,7 +193,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
           dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + this_pitch*shower.Direction().X(), pos.Y() + this_pitch*shower.Direction().Y(), pos.Z() + this_pitch*shower.Direction().Z()},tpcid.TPC);
           
         TVector3 dir_corr = {this_pitch*shower.Direction().X() - dirOffsets.X() + posOffsets.X(), this_pitch*shower.Direction().Y() + dirOffsets.Y() - posOffsets.Y(), this_pitch*shower.Direction().Z() + dirOffsets.Z() - posOffsets.Z()};
-
         pitch[k] = dir_corr.Mag();
         dQdx[k] = theHit->Integral() / pitch[k];
         //Just for now, use dQdx for dEdx
