@@ -27,6 +27,7 @@
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "larcore/Geometry/Geometry.h"
 
@@ -61,13 +62,15 @@ private:
 
   std::string fShowerTag;
   bool fSCE;
+  CalorimetryAlg caloAlg;
 };
 
 
 calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
   EDProducer{p},
   fShowerTag( p.get< std::string >( "ShowerTag" ) ),
-  fSCE(p.get< bool >("CorrectSCE"))
+  fSCE(p.get< bool >("CorrectSCE")),
+  caloAlg(p.get<fhicl::ParameterSet>("CalorimetryAlg"))
 {
   produces< std::vector< anab::Calorimetry > >();
   produces< art::Assns< recob::Shower, anab::Calorimetry > >();
@@ -173,7 +176,8 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
          
         dQdx[k] = theHit->Integral() / this_pitch;
         //Just for now, use dQdx for dEdx
-        dEdx[k] = theHit->Integral() / this_pitch; 
+        //dEdx[k] = theHit->Integral() / this_pitch; 
+        dEdx[k] = caloAlg.dEdx_AREA(*theHit,this_pitch),
         pitch[k] = this_pitch;
 
         kineticEnergy += dEdx[k];

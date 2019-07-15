@@ -1,5 +1,6 @@
 #include "services_dune.fcl"
 #include "ShowerCalorimetry.fcl" 
+#include "calorimetry.fcl"
 
 process_name: ShowerCalorimetry
 
@@ -57,3 +58,4 @@ physics:
  end_paths:         [ stream1 ]
 }
 physics.producers.showercalo.CorrectSCE: true
+physics.producers.showercalo.CalorimetryAlg: @local::standard_calorimetryalgmc 
