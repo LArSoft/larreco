@@ -4,6 +4,7 @@ shower_calorimetry:
 {
   module_type: "ShowerCalorimetry"
   ShowerTag:   "pandoraShower"
+  CorrectSCE:  false
 }
 
 END_PROLOG

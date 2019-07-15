@@ -18,15 +18,22 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
 
 #include "larcore/Geometry/Geometry.h"
 
+#include "larevt/SpaceCharge/SpaceCharge.h"
+#include "larevt/SpaceChargeServices/SpaceChargeService.h"
+
 #include <memory>
+#include <TVector3.h>
 
 namespace calo{
   class ShowerCalorimetry;
@@ -52,12 +59,14 @@ public:
 private:
 
   std::string fShowerTag;
+  bool fSCE;
 };
 
 
 calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
   EDProducer{p},
-  fShowerTag( p.get< std::string >( "ShowerTag" ) )
+  fShowerTag( p.get< std::string >( "ShowerTag" ) ),
+  fSCE(p.get< bool >("CorrectSCE"))
 {
   produces< std::vector< anab::Calorimetry > >();
   //produces< art::Assns< recob::Shower, anab::Calorimetry > >();
@@ -66,6 +75,10 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
 void calo::ShowerCalorimetry::produce(art::Event& e) {
 
   art::ServiceHandle< geo::Geometry > geom;
+
+  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
+
 
   //Make the container for the calo product to put onto the event.
   std::unique_ptr< std::vector<anab::Calorimetry> > caloPtr(new std::vector<anab::Calorimetry>);
@@ -97,7 +110,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
   //Also get the hits from all the showers
   art::FindManyP<recob::Hit> findHitsFromShowers(showerHandle,e,fShowerTag);
-
   //Go through all of the reconstructed showers in the event
   for( size_t i = 0; i < recoShowers.size(); ++i ){
     const recob::Shower & shower = *(recoShowers.at(i));
@@ -107,9 +119,10 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
     //This wil be used in the calorimetry object later
     float shower_length = shower.Length();
-  
     //Get the hits from this shower 
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
+    art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"hitpdune");
+    std::cout<<"SP "<<spFromShowerHits.size()<<std::endl;
     
     //Sort the hits by their plane 
     //This vector stores the index of each hit on each plane 
@@ -139,9 +152,29 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
       for( size_t k = 0; k < hits_in_plane; ++k ){  
         size_t hit_index = hit_indices_per_plane[j][k];
-        auto theHit = hits[ hit_index ];
-        
+        auto theHit = hits[ hit_index ];        
         float this_pitch = geom->WirePitch( planeID );
+        float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
+
+        //Y and Z from SP ... to do fill out Y and Z
+        TVector3 pos(theHit_Xpos,0,0);
+        const double tmp_hit_pos[3]={pos.X(), pos.Y(), pos.Z()};
+        geo::TPCID tpcid = geom->FindTPCAtPosition ( tmp_hit_pos  );
+
+        //Correct for SCE
+        geo::Vector_t posOffsets = {0., 0., 0.};
+        geo::Vector_t dirOffsets = {0., 0., 0.};
+
+        if( sce->EnableCalSpatialSCE() && fSCE ) 
+          posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),tpcid.TPC);
+
+        //For now, use the shower direction from Pandora...a better idea?
+        if( sce->EnableCalSpatialSCE() && fSCE ) 
+          dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + this_pitch*shower.Direction().X(), pos.Y() + this_pitch*shower.Direction().Y(), pos.Z() + this_pitch*shower.Direction().Z()},tpcid.TPC);
+
+        TVector3 dir_corr = {this_pitch*shower.Direction().X() - dirOffsets.X() + posOffsets.X(), this_pitch*shower.Direction().Y() + dirOffsets.Y() - posOffsets.Y(), this_pitch*shower.Direction().Z() + dirOffsets.Z() - posOffsets.Z()};
+
+         
         dQdx[k] = theHit->Integral() / this_pitch;
         //Just for now, use dQdx for dEdx
         dEdx[k] = theHit->Integral() / this_pitch; 
