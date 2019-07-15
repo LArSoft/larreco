@@ -26,6 +26,7 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 #include "larcore/Geometry/Geometry.h"
 
@@ -69,7 +70,7 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
   fSCE(p.get< bool >("CorrectSCE"))
 {
   produces< std::vector< anab::Calorimetry > >();
-  //produces< art::Assns< recob::Shower, anab::Calorimetry > >();
+  produces< art::Assns< recob::Shower, anab::Calorimetry > >();
 }
 
 void calo::ShowerCalorimetry::produce(art::Event& e) {
@@ -84,20 +85,12 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
   std::unique_ptr< std::vector<anab::Calorimetry> > caloPtr(new std::vector<anab::Calorimetry>);
   std::vector< anab::Calorimetry > & caloVector(*caloPtr);
 
-/*Do this later
   //Make a container for the track<-->calo associations.
   //One entry per track, with entry equal to index in calorimetry collection of associated object.
   std::vector< size_t > assnShowerCaloVector;
   std::unique_ptr< art::Assns< recob::Shower,anab::Calorimetry> > associationPtr( new  art::Assns< recob::Shower, anab::Calorimetry > );
 
-*/
-  //Make the associations for ART 
-  /*for( size_t i = 0; i < assnTrackCaloVector.size(); i++ ){
-    if( assnTrackCaloVector[i] == std::numeric_limits< size_t >::max() ) continue;
 
-    art::Ptr<recob::Track> trk_ptr(trackHandle,assnTrackCaloVector[i]);
-    util::CreateAssn(*this, e, caloVector, trk_ptr, *assnTrackCaloPtr, i);
-  }*/
 
 
 
@@ -115,12 +108,14 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
     const recob::Shower & shower = *(recoShowers.at(i));
 
     int shower_index = GetShowerIndex( shower, e );
-    MF_LOG_DEBUG("ShowerCalorimetry") << "Getting Calorimetry info for " << shower_index << "\n";
+    MF_LOG_INFO("ShowerCalorimetry") << "Getting Calorimetry info for " << shower_index << "\n";
 
     //This wil be used in the calorimetry object later
     float shower_length = shower.Length();
     //Get the hits from this shower 
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
+
+
     art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"hitpdune");
     std::cout<<"SP "<<spFromShowerHits.size()<<std::endl;
     
@@ -152,6 +147,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
       for( size_t k = 0; k < hits_in_plane; ++k ){  
         size_t hit_index = hit_indices_per_plane[j][k];
+        std::cout << "\tHit " << hit_index << std::endl;
         auto theHit = hits[ hit_index ];        
         float this_pitch = geom->WirePitch( planeID );
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
@@ -165,13 +161,13 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         geo::Vector_t posOffsets = {0., 0., 0.};
         geo::Vector_t dirOffsets = {0., 0., 0.};
 
-        if( sce->EnableCalSpatialSCE() && fSCE ) 
+        if( fSCE && sce->EnableCalSpatialSCE() )
           posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),tpcid.TPC);
-
+          
         //For now, use the shower direction from Pandora...a better idea?
-        if( sce->EnableCalSpatialSCE() && fSCE ) 
+        if( fSCE && sce->EnableCalSpatialSCE() )
           dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + this_pitch*shower.Direction().X(), pos.Y() + this_pitch*shower.Direction().Y(), pos.Z() + this_pitch*shower.Direction().Z()},tpcid.TPC);
-
+          
         TVector3 dir_corr = {this_pitch*shower.Direction().X() - dirOffsets.X() + posOffsets.X(), this_pitch*shower.Direction().Y() + dirOffsets.Y() - posOffsets.Y(), this_pitch*shower.Direction().Z() + dirOffsets.Z() - posOffsets.Z()};
 
          
@@ -196,14 +192,26 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         recob::tracking::convertCollToPoint(xyz),
         planeID
       );
+
+      //Place the shower index in the association object
+      assnShowerCaloVector.emplace_back( shower_index );
     }
     
   }
 
+  //Make the associations for ART 
+  for( size_t i = 0; i < assnShowerCaloVector.size(); i++ ){
+    if( assnShowerCaloVector[i] == std::numeric_limits< size_t >::max() ) continue;
+
+    art::Ptr<recob::Shower> shower_ptr(showerHandle,assnShowerCaloVector[i]);
+    util::CreateAssn(*this, e, caloVector, shower_ptr, *associationPtr, i);
+  }
+
+
 
   //Finish up: Put the objects into the event
   e.put( std::move( caloPtr ) );
-  //e.put( std::move( associationPtr ) );
+  e.put( std::move( associationPtr ) );
   
 
 }

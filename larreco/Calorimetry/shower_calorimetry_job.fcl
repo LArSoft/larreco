@@ -18,6 +18,7 @@ services:
   LArFFT:                       @local::dunefd_larfft  
   DatabaseUtil:                 @local::dunefd_database
   ChannelStatusService:         @local::dunefd_channel_status
+  @table::protodune_services
 
   #TFileService: { #closeFileFast: true
   #                fileName: "shower_calo_hist.root" #can be overridden by '-T'
@@ -55,4 +56,4 @@ physics:
  trigger_paths:     [ produce ]
  end_paths:         [ stream1 ]
 }
-
+physics.producers.showercalo.CorrectSCE: true
