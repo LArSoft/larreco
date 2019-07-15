@@ -22,6 +22,9 @@
 #include "lardataobj/RecoBase/Hit.h"
 
 #include "canvas/Persistency/Common/FindManyP.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+
+#include "larcore/Geometry/Geometry.h"
 
 #include <memory>
 
@@ -62,9 +65,11 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
 
 void calo::ShowerCalorimetry::produce(art::Event& e) {
 
+  art::ServiceHandle< geo::Geometry > geom;
+
   //Make the container for the calo product to put onto the event.
   std::unique_ptr< std::vector<anab::Calorimetry> > caloPtr(new std::vector<anab::Calorimetry>);
-  //std::vector< anab::Calorimetry > & caloVector(*caloPtr);
+  std::vector< anab::Calorimetry > & caloVector(*caloPtr);
 
 /*Do this later
   //Make a container for the track<-->calo associations.
@@ -93,9 +98,73 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
   //Also get the hits from all the showers
   art::FindManyP<recob::Hit> findHitsFromShowers(showerHandle,e,fShowerTag);
 
+  //Go through all of the reconstructed showers in the event
   for( size_t i = 0; i < recoShowers.size(); ++i ){
     const recob::Shower & shower = *(recoShowers.at(i));
-    std::cout << GetShowerIndex(shower, e) << std::endl;
+
+    int shower_index = GetShowerIndex( shower, e );
+    MF_LOG_DEBUG("ShowerCalorimetry") << "Getting Calorimetry info for " << shower_index << "\n";
+
+    //This wil be used in the calorimetry object later
+    float shower_length = shower.Length();
+  
+    //Get the hits from this shower 
+    std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
+    
+    //Sort the hits by their plane 
+    //This vector stores the index of each hit on each plane 
+    std::vector< std::vector< size_t > > hit_indices_per_plane( geom->Nplanes() );
+    for( size_t j = 0; j < hits.size(); ++j ){
+      hit_indices_per_plane[ hits[j]->WireID().Plane ].push_back( j );
+    }
+
+    //Go through each plane and make calorimetry objects
+    for( size_t j = 0; j < geom->Nplanes(); ++j ){
+
+      size_t hits_in_plane = hit_indices_per_plane[j].size();
+
+      //Reserve vectors for each part of the calorimetry object
+      std::vector< float > dEdx( hits_in_plane );
+      std::vector< float > dQdx( hits_in_plane );
+      std::vector< float > pitch( hits_in_plane );
+
+      //residual range, xyz, and deadwire default for now
+      std::vector< float > resRange( hits_in_plane, 0. );
+      std::vector< TVector3 > xyz( hits_in_plane, TVector3(0.,0.,0.) );
+      std::vector< float > deadwires( hits_in_plane, 0. );
+
+      geo::PlaneID planeID( 0, 0, j );
+
+      float kineticEnergy = 0.;
+
+      for( size_t k = 0; k < hits_in_plane; ++k ){  
+        size_t hit_index = hit_indices_per_plane[j][k];
+        auto theHit = hits[ hit_index ];
+        
+        float this_pitch = geom->WirePitch( planeID );
+        dQdx[k] = theHit->Integral() / this_pitch;
+        //Just for now, use dQdx for dEdx
+        dEdx[k] = theHit->Integral() / this_pitch; 
+        pitch[k] = this_pitch;
+
+        kineticEnergy += dEdx[k];
+
+      }
+      
+      //Make a calo object in the vector 
+      caloVector.emplace_back(
+        kineticEnergy,
+        dEdx,
+        dQdx,
+        resRange,
+        deadwires,
+        shower_length,
+        pitch,
+        recob::tracking::convertCollToPoint(xyz),
+        planeID
+      );
+    }
+    
   }
 
 

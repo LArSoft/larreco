@@ -1,0 +1,9 @@
+BEGIN_PROLOG
+
+shower_calorimetry:
+{
+  module_type: "ShowerCalorimetry"
+  ShowerTag:   "pandoraShower"
+}
+
+END_PROLOG
