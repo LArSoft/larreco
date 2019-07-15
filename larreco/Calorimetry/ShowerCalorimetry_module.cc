@@ -119,8 +119,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
 
 
-    art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"hitpdune");
-    std::cout<<"SP "<<spFromShowerHits.size()<<std::endl;
+    art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"pandora");
     
     //Sort the hits by their plane 
     //This vector stores the index of each hit on each plane 
@@ -150,13 +149,26 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
       for( size_t k = 0; k < hits_in_plane; ++k ){  
         size_t hit_index = hit_indices_per_plane[j][k];
-        std::cout << "\tHit " << hit_index << std::endl;
         auto theHit = hits[ hit_index ];        
         float this_pitch = geom->WirePitch( planeID );
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
-
-        //Y and Z from SP ... to do fill out Y and Z
-        TVector3 pos(theHit_Xpos,0,0);
+        // !!! Warining by default lets use the vertex of the shower for Y and Z in case there are not SP associated to this hit
+        float theHit_Ypos = shower.ShowerStart().Y();
+        float theHit_Zpos = shower.ShowerStart().Z();
+        std::vector<art::Ptr<recob::SpacePoint>> sp = spFromShowerHits.at(hit_index); 
+        if( sp.size() >0 ){
+          for( size_t sp_idx =0; sp_idx< sp.size(); ++sp_idx){
+            //Note X position and ConvertTicksToX should be identicall otherwise something went wrong with the associations  
+            //check what SP matches better the X-hit position in case there are more than one SP per hit
+            if( abs(sp[sp_idx]->XYZ()[0]-theHit_Xpos) < 1e-5 ){
+              theHit_Ypos = sp[sp_idx]->XYZ()[1];
+              theHit_Zpos = sp[sp_idx]->XYZ()[2];
+            }
+          }
+        }
+        else std::cout<<"no sp associated w/this hit ... we will use shower vertex for Y and Z..."<<std::endl;
+ 
+        TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
         const double tmp_hit_pos[3]={pos.X(), pos.Y(), pos.Z()};
         geo::TPCID tpcid = geom->FindTPCAtPosition ( tmp_hit_pos  );
 
@@ -173,12 +185,11 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
           
         TVector3 dir_corr = {this_pitch*shower.Direction().X() - dirOffsets.X() + posOffsets.X(), this_pitch*shower.Direction().Y() + dirOffsets.Y() - posOffsets.Y(), this_pitch*shower.Direction().Z() + dirOffsets.Z() - posOffsets.Z()};
 
-         
-        dQdx[k] = theHit->Integral() / this_pitch;
+        pitch[k] = dir_corr.Mag();
+        dQdx[k] = theHit->Integral() / pitch[k];
         //Just for now, use dQdx for dEdx
         //dEdx[k] = theHit->Integral() / this_pitch; 
-        dEdx[k] = caloAlg.dEdx_AREA(*theHit,this_pitch),
-        pitch[k] = this_pitch;
+        dEdx[k] = caloAlg.dEdx_AREA(*theHit,pitch[k]),
 
         kineticEnergy += dEdx[k];
 
