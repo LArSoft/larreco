@@ -188,16 +188,17 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         float cosgamma = std::abs(sin(angleToVert)*shower->Direction().Y()+ cos(angleToVert)*shower->Direction().Z());
         if( cosgamma > 0 ) this_pitch /= cosgamma;
         if( this_pitch<wire_pitch ) this_pitch = wire_pitch;
- 
+        pitch[k] = this_pitch;
+
         //Correct for SCE
-        geo::Vector_t posOffsets = {0., 0., 0.};
-        geo::Vector_t dirOffsets = {0., 0., 0.};
+        if( fSCE && sce->EnableCalSpatialSCE() ){
+
+          geo::Vector_t posOffsets = {0., 0., 0.};
+          geo::Vector_t dirOffsets = {0., 0., 0.};
     
-        if( fSCE && sce->EnableCalSpatialSCE() )
           posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),theHit->WireID().TPC);
           
-        //For now, use the shower direction from Pandora...a better idea?
-        if( fSCE && sce->EnableCalSpatialSCE() )
+          //For now, use the shower direction from Pandora...a better idea?
           dirOffsets = sce->GetCalPosOffsets(
             geo::Point_t{
               pos.X() + this_pitch*shower->Direction().X(), 
@@ -207,13 +208,15 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
             theHit->WireID().TPC
           );
           
-        TVector3 dir_corr = {
-          this_pitch*shower->Direction().X() - dirOffsets.X() + posOffsets.X(), 
-          this_pitch*shower->Direction().Y() + dirOffsets.Y() - posOffsets.Y(), 
-          this_pitch*shower->Direction().Z() + dirOffsets.Z() - posOffsets.Z()
-        };
+          TVector3 dir_corr = {
+            this_pitch*shower->Direction().X() - dirOffsets.X() + posOffsets.X(), 
+            this_pitch*shower->Direction().Y() + dirOffsets.Y() - posOffsets.Y(), 
+            this_pitch*shower->Direction().Z() + dirOffsets.Z() - posOffsets.Z()
+          };
 
-        pitch[k] = dir_corr.Mag();
+          pitch[k] = dir_corr.Mag();
+        }
+
         dQdx[k] = theHit->Integral() / pitch[k];
 
         //Just for now, use dQdx for dEdx
