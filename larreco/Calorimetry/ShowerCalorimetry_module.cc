@@ -140,6 +140,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
       std::vector< float > resRange( hits_in_plane, 0. );
       std::vector< TVector3 > xyz( hits_in_plane, TVector3(0.,0.,0.) );
       std::vector< float > deadwires( hits_in_plane, 0. );
+      std::vector< size_t > hitIndex ( hits_in_plane );
 
       geo::PlaneID planeID;
 
@@ -152,6 +153,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         if (!planeID.isValid){
 	  planeID = theHit->WireID();
 	}
+        hitIndex[k] = hit_index;
         float wire_pitch = geom->WirePitch( theHit->View() );
 
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID());
@@ -237,6 +239,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         shower_length,
         pitch,
         recob::tracking::convertCollToPoint(xyz),
+        hitIndex,
         planeID
       );
 
