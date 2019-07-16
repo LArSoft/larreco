@@ -141,27 +141,30 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
       std::vector< TVector3 > xyz( hits_in_plane, TVector3(0.,0.,0.) );
       std::vector< float > deadwires( hits_in_plane, 0. );
 
-      geo::PlaneID planeID( 0, 0, j );
+      geo::PlaneID planeID;
 
       float kineticEnergy = 0.;
 
       for( size_t k = 0; k < hits_in_plane; ++k ){  
 
         size_t hit_index = hit_indices_per_plane[j][k];
-        auto theHit = hits[ hit_index ];        
-        float wire_pitch = geom->WirePitch( planeID );
+        auto & theHit = hits[ hit_index ];
+        if (!planeID.isValid){
+	  planeID = theHit->WireID();
+	}
+        float wire_pitch = geom->WirePitch( theHit->View() );
 
-        float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
+        float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID());
         // !!! Warining by default lets use the vertex of the shower for Y and Z in case there are not SP associated to this hit
         float theHit_Ypos = shower->ShowerStart().Y();
         float theHit_Zpos = shower->ShowerStart().Z();
 
         std::vector<art::Ptr<recob::SpacePoint>> sp = spFromShowerHits.at(hit_index); 
-        if( sp.size() >0 ){
+        if( !sp.empty() ){
           for( size_t sp_idx =0; sp_idx< sp.size(); ++sp_idx){
             //Note X position and ConvertTicksToX should be identicall otherwise something went wrong with the associations  
             //check what SP matches better the X-hit position in case there are more than one SP per hit
-            if( abs(sp[sp_idx]->XYZ()[0]-theHit_Xpos) < 1e-5 ){
+            if( std::abs(sp[sp_idx]->XYZ()[0]-theHit_Xpos) < 1e-5 ){
               theHit_Ypos = sp[sp_idx]->XYZ()[1];
               theHit_Zpos = sp[sp_idx]->XYZ()[2];
             }
@@ -173,15 +176,12 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         }
 
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
-        const double tmp_hit_pos[3]={pos.X(), pos.Y(), pos.Z()};
-        geo::TPCID tpcid = geom->FindTPCAtPosition ( tmp_hit_pos  );
         
         //correct pitch for hit direction 
         float this_pitch = wire_pitch;
         float angleToVert = geom->WireAngleToVertical(
                               theHit->View(),
-                              theHit->WireID().Plane, 
-                              theHit->WireID().Cryostat
+                              theHit->WireID()
                             );
         angleToVert -= 0.5*::util::pi<>();
 
@@ -194,7 +194,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         geo::Vector_t dirOffsets = {0., 0., 0.};
     
         if( fSCE && sce->EnableCalSpatialSCE() )
-          posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),tpcid.TPC);
+          posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos),theHit->WireID().TPC);
           
         //For now, use the shower direction from Pandora...a better idea?
         if( fSCE && sce->EnableCalSpatialSCE() )
@@ -204,7 +204,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
               pos.Y() + this_pitch*shower->Direction().Y(), 
               pos.Z() + this_pitch*shower->Direction().Z()
             },
-            tpcid.TPC
+            theHit->WireID().TPC
           );
           
         TVector3 dir_corr = {
