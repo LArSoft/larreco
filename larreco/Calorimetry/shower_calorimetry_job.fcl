@@ -57,8 +57,8 @@ physics:
  trigger_paths:     [ produce ]
  end_paths:         [ stream1 ]
 }
+
 physics.producers.showercalo.CorrectSCE: true
-physics.producers.showercalo.CalorimetryAlg: @local::standard_calorimetryalgmc 
 services.SpaceCharge.CalibrationInputFilename: "SpaceChargeProtoDUNE/SCE_DataDriven_180kV_v2.root"
 services.SpaceCharge.RepresentationType: "Voxelized_TH3"
 services.SpaceCharge.EnableCalSpatialSCE: false

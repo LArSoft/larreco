@@ -1,3 +1,5 @@
+#include "calorimetry.fcl"
+
 BEGIN_PROLOG
 
 shower_calorimetry:

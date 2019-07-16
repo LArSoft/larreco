@@ -104,6 +104,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
   //Also get the hits from all the showers
   art::FindManyP<recob::Hit> findHitsFromShowers(showerHandle,e,fShowerTag);
+
   //Go through all of the reconstructed showers in the event
   for( size_t i = 0; i < recoShowers.size(); ++i ){
     auto & shower = recoShowers[i];
