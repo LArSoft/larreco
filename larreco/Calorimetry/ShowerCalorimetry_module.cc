@@ -172,7 +172,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
           }
         }
         else{
-         MF_LOG_INFO(<<"no sp associated w/this hit ... we will skip this hit"<<std::endl;
+         MF_LOG_INFO("ShowerCalorimetry")<<"no sp associated w/this hit ... we will skip this hit";
          continue;
         }
 
