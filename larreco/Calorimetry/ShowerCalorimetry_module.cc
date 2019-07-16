@@ -58,7 +58,8 @@ public:
 
 private:
 
-  std::string fShowerTag;
+  art::InputTag fShowerTag;
+  art::InputTag fSpacePointTag;
   bool fSCE;
   CalorimetryAlg caloAlg;
 };
@@ -66,7 +67,8 @@ private:
 
 calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p):
   EDProducer{p},
-  fShowerTag( p.get< std::string >( "ShowerTag" ) ),
+  fShowerTag( p.get< art::InputTag >( "ShowerTag" ) ),
+  fSpacePointTag ( p.get< art::InputTag >( "SpacePointTag" ) ),
   fSCE(p.get< bool >("CorrectSCE")),
   caloAlg(p.get<fhicl::ParameterSet>("CalorimetryAlg"))
 {
@@ -111,7 +113,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
     //Get the hits from this shower 
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
 
-    art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"pandora");
+    art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,fSpacePointTag);
     
     //Sort the hits by their plane 
     //This vector stores the index of each hit on each plane 
@@ -255,12 +257,9 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
     util::CreateAssn(*this, e, caloVector, shower_ptr, *associationPtr, i);
   }
 
-
-
   //Finish up: Put the objects into the event
   e.put( std::move( caloPtr ) );
   e.put( std::move( associationPtr ) );
-  
 
 }
 
