@@ -2,9 +2,11 @@ BEGIN_PROLOG
 
 shower_calorimetry:
 {
-  module_type: "ShowerCalorimetry"
-  ShowerTag:   "pandoraShower"
-  CorrectSCE:  false
+  module_type:     "ShowerCalorimetry"
+  ShowerTag:       "pandoraShower"
+  SpacePointTag:   "pandora"
+  CorrectSCE:      false
+  CalorimetryAlg:  @local::standard_calorimetryalgmc
 }
 
 END_PROLOG
