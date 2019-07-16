@@ -56,8 +56,6 @@ public:
   // Required functions.
   void produce(art::Event& e) override;
 
-  int GetShowerIndex( const recob::Shower & shower, art::Event const & evt ) const;
-
 private:
 
   std::string fShowerTag;
@@ -108,13 +106,13 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
   art::FindManyP<recob::Hit> findHitsFromShowers(showerHandle,e,fShowerTag);
   //Go through all of the reconstructed showers in the event
   for( size_t i = 0; i < recoShowers.size(); ++i ){
-    const recob::Shower & shower = *(recoShowers.at(i));
+    auto & shower = recoShowers[i];
 
-    int shower_index = GetShowerIndex( shower, e );
+    int shower_index = shower.key();
     MF_LOG_INFO("ShowerCalorimetry") << "Getting Calorimetry info for " << shower_index << "\n";
 
     //This wil be used in the calorimetry object later
-    float shower_length = shower.Length();
+    float shower_length = shower->Length();
     //Get the hits from this shower 
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
 
@@ -155,8 +153,8 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID().Plane,theHit->WireID().TPC,0);
         // !!! Warining by default lets use the vertex of the shower for Y and Z in case there are not SP associated to this hit
-        float theHit_Ypos = shower.ShowerStart().Y();
-        float theHit_Zpos = shower.ShowerStart().Z();
+        float theHit_Ypos = shower->ShowerStart().Y();
+        float theHit_Zpos = shower->ShowerStart().Z();
 
         std::vector<art::Ptr<recob::SpacePoint>> sp = spFromShowerHits.at(hit_index); 
         if( sp.size() >0 ){
@@ -187,7 +185,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
                             );
         angleToVert -= 0.5*::util::pi<>();
 
-        float cosgamma = std::abs(sin(angleToVert)*shower.Direction().Y()+ cos(angleToVert)*shower.Direction().Z());
+        float cosgamma = std::abs(sin(angleToVert)*shower->Direction().Y()+ cos(angleToVert)*shower->Direction().Z());
         if( cosgamma > 0 ) this_pitch /= cosgamma;
         if( this_pitch<wire_pitch ) this_pitch = wire_pitch;
  
@@ -202,17 +200,17 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         if( fSCE && sce->EnableCalSpatialSCE() )
           dirOffsets = sce->GetCalPosOffsets(
             geo::Point_t{
-              pos.X() + this_pitch*shower.Direction().X(), 
-              pos.Y() + this_pitch*shower.Direction().Y(), 
-              pos.Z() + this_pitch*shower.Direction().Z()
+              pos.X() + this_pitch*shower->Direction().X(), 
+              pos.Y() + this_pitch*shower->Direction().Y(), 
+              pos.Z() + this_pitch*shower->Direction().Z()
             },
             tpcid.TPC
           );
           
         TVector3 dir_corr = {
-          this_pitch*shower.Direction().X() - dirOffsets.X() + posOffsets.X(), 
-          this_pitch*shower.Direction().Y() + dirOffsets.Y() - posOffsets.Y(), 
-          this_pitch*shower.Direction().Z() + dirOffsets.Z() - posOffsets.Z()
+          this_pitch*shower->Direction().X() - dirOffsets.X() + posOffsets.X(), 
+          this_pitch*shower->Direction().Y() + dirOffsets.Y() - posOffsets.Y(), 
+          this_pitch*shower->Direction().Z() + dirOffsets.Z() - posOffsets.Z()
         };
 
         pitch[k] = dir_corr.Mag();
@@ -262,25 +260,5 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
 }
 
-int calo::ShowerCalorimetry::GetShowerIndex( const recob::Shower & shower, art::Event const & evt ) const{
-  if(shower.ID() != -999) return shower.ID();
-
-  auto recoShowers = evt.getValidHandle<std::vector<recob::Shower> >(fShowerTag);
-
-  // Iterate through all showers to find the matching one to our shower
-  int actualIndex = shower.ID();
-  if(shower.ID() < 0){
-    for(unsigned int s = 0; s < recoShowers->size(); ++s){
-      const recob::Shower thisShower = (*recoShowers)[s];
-      // Can't compare actual objects so look at a property
-      if(fabs(thisShower.Length() - shower.Length()) < 1.e-5){
-        actualIndex = s;
-        continue;
-      }
-    }
-  }
-
-  return actualIndex;
-}
 
 DEFINE_ART_MODULE(calo::ShowerCalorimetry)
