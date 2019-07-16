@@ -2,9 +2,12 @@
 // Class:       ShowerCalorimetry
 // Plugin Type: producer (art v3_02_06)
 // File:        ShowerCalorimetry_module.cc
-//
+// Authors:     calcuttj@msu.edu
+//              ahiguera@Central.UH.EDU
+//              tjyang@fnal.gov
 // Generated at Fri Jul 12 14:14:46 2019 by Jacob Calcutt using cetskelgen
 // from cetlib version v3_07_02.
+//
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
@@ -169,7 +172,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
           }
         }
         else{
-         std::cout<<"no sp associated w/this hit ... we will skip this hit"<<std::endl;
+         MF_LOG_INFO(<<"no sp associated w/this hit ... we will skip this hit"<<std::endl;
          continue;
         }
 
