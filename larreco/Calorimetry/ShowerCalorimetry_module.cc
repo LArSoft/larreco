@@ -81,7 +81,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
-
   //Make the container for the calo product to put onto the event.
   std::unique_ptr< std::vector<anab::Calorimetry> > caloPtr(new std::vector<anab::Calorimetry>);
   std::vector< anab::Calorimetry > & caloVector(*caloPtr);
@@ -90,10 +89,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
   //One entry per track, with entry equal to index in calorimetry collection of associated object.
   std::vector< size_t > assnShowerCaloVector;
   std::unique_ptr< art::Assns< recob::Shower,anab::Calorimetry> > associationPtr( new  art::Assns< recob::Shower, anab::Calorimetry > );
-
-
-
-
 
   //Get the shower handle
   auto showerHandle = e.getValidHandle< std::vector< recob::Shower > >(fShowerTag);
@@ -115,7 +110,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
     float shower_length = shower->Length();
     //Get the hits from this shower 
     std::vector< art::Ptr< recob::Hit > > hits = findHitsFromShowers.at( shower_index );
-
 
     art::FindManyP<recob::SpacePoint> spFromShowerHits(hits,e,"pandora");
     
@@ -178,6 +172,10 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         }
 
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
+
+        resRange[k] = sqrt(pow(theHit_Xpos - shower->ShowerStart().X(),2)+
+                           pow(theHit_Ypos - shower->ShowerStart().Y(),2)+
+                           pow(theHit_Zpos - shower->ShowerStart().Z(),2));
         
         //correct pitch for hit direction 
         float this_pitch = wire_pitch;
