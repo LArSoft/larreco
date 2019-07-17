@@ -178,7 +178,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         }
 
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
-
+        xyz[k].SetXYZ(theHit_Xpos,theHit_Ypos,theHit_Zpos); 
         resRange[k] = sqrt(pow(theHit_Xpos - shower->ShowerStart().X(),2)+
                            pow(theHit_Ypos - shower->ShowerStart().Y(),2)+
                            pow(theHit_Zpos - shower->ShowerStart().Z(),2));
