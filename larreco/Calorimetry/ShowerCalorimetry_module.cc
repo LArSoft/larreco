@@ -178,11 +178,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         }
 
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
-        xyz[k].SetXYZ(theHit_Xpos,theHit_Ypos,theHit_Zpos); 
-        resRange[k] = sqrt(pow(theHit_Xpos - shower->ShowerStart().X(),2)+
-                           pow(theHit_Ypos - shower->ShowerStart().Y(),2)+
-                           pow(theHit_Zpos - shower->ShowerStart().Z(),2));
-        
+       
         //correct pitch for hit direction 
         float this_pitch = wire_pitch;
         float angleToVert = geom->WireAngleToVertical(
@@ -221,8 +217,17 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
           };
 
           pitch[k] = dir_corr.Mag();
+          //correct position for SCE
+          theHit_Xpos -= posOffsets.X();
+          theHit_Ypos += posOffsets.Y();
+          theHit_Zpos += posOffsets.Z();
+             
         }
-
+        xyz[k].SetXYZ(theHit_Xpos,theHit_Ypos,theHit_Zpos); 
+        resRange[k] = sqrt(pow(theHit_Xpos - shower->ShowerStart().X(),2)+
+                           pow(theHit_Ypos - shower->ShowerStart().Y(),2)+
+                           pow(theHit_Zpos - shower->ShowerStart().Z(),2));
+       
         dQdx[k] = theHit->Integral() / pitch[k];
 
         //Just for now, use dQdx for dEdx
