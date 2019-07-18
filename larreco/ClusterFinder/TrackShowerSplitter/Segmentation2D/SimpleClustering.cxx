@@ -8,8 +8,6 @@
 
 #include "SimpleClustering.h"
 
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
 tss::Cluster2D::Cluster2D(const std::vector< const tss::Hit2D* > & hits) :
 	fDenseStart(false), fDenseEnd(false), fIsEM(false)
 {
@@ -291,4 +289,3 @@ std::vector< tss::Cluster2D > tss::SimpleClustering::run(const tss::Cluster2D & 
 	return result;
 }
 // ------------------------------------------------------
-

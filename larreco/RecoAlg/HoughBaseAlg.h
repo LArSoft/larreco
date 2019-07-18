@@ -130,10 +130,6 @@
 #include <map>
 #include <utility> // std::pair<>
 
-#include "TMath.h"
-#include "CLHEP/Random/RandomEngine.h"
-
-#include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/Ptr.h"
 
 #include "canvas/Persistency/Common/PtrVector.h"
@@ -148,7 +144,9 @@
 
 #include "lardata/Utilities/CountersMap.h"
 
+namespace CLHEP { class HepRandomEngine; }
 namespace art { class Event; }
+namespace fhicl { class ParameterSet; }
 
 namespace recob {
   class Hit;

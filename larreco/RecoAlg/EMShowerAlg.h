@@ -12,26 +12,19 @@
 #define EMShowerAlg_hxx
 
 // framework
-#include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
+namespace fhicl { class ParameterSet; }
 
 // larsoft
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "lardata/ArtDataHelper/TrackUtils.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcorealg/Geometry/GeometryCore.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -39,32 +32,21 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
-#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
 // C++
-#include <iostream>
 #include <map>
-#include <iterator>
 
 // ROOT
+#include "RtypesCore.h"
 #include "TVector2.h"
-#include "TMath.h"
+#include "TVector3.h"
 
 //temp
-#include "TGraph.h"
-#include "TMultiGraph.h"
-#include "TLine.h"
-#include "TCanvas.h"
-#include "TString.h"
-#include "TF1.h"
 #include "larsim/MCCheater/BackTrackerService.h"
-#include "TH1I.h"
-#include "TText.h"
-#include "TFile.h"
-#include "TPrincipal.h"
-#include "TProfile.h"
+
+class TH1I;
+class TProfile;
 
 namespace shower {
   class EMShowerAlg;

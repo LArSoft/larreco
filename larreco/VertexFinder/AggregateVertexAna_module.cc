@@ -6,18 +6,12 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-
 // Framework includes
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -31,9 +25,7 @@ extern "C" {
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
-#include "TF1.h"
 #include "TH1.h"
 #include "TH2.h"
 

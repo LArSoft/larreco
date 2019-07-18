@@ -7,24 +7,15 @@
 
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
-#include "art/Utilities/make_tool.h"
-#include "art_root_io/TFileService.h"
-#include "cetlib/search_path.h"
-#include "cetlib/cpu_timer.h"
-
-#include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
+#include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
 
 // std includes
-#include <functional>
-#include <iostream>
-#include <memory>
+#include <ostream>
+#include <vector>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

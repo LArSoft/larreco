@@ -1,5 +1,7 @@
 #include "CBAlgoAngleAlign.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   CBAlgoAngleAlign::CBAlgoAngleAlign() : CBoolAlgoBase() {

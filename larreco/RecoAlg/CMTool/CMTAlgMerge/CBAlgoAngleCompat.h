@@ -14,8 +14,10 @@
 #ifndef RECOTOOL_CBALGOANGLECOMPAT_H
 #define RECOTOOL_CBALGOANGLECOMPAT_H
 
-#include <iostream>
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+
+class TH1F;
 
 namespace cmtool {
   /**
@@ -82,4 +84,3 @@ namespace cmtool {
 
 #endif
   /** @} */ // end of doxygen group
-

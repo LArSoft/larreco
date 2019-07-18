@@ -8,31 +8,14 @@
 #include "larcorealg/CoreUtils/quiet_Math_Functor.h"
 #include "lardataobj/RecoBase/Track.h"
 
-#include "TAxis.h"
 #include "TGraph.h"
-#include "TGraphErrors.h"
-#include "TMath.h"
-#include "TMatrixDSym.h"
-#include "TMatrixDSymEigen.h"
-#include "TPolyLine3D.h"
-#include "TSpline.h"
 #include "TVector3.h"
 
-#include "Math/Factory.h"
-#include "Math/Minimizer.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/Minuit2Minimizer.h"
-#include "Minuit2/MnMigrad.h"
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserParameters.h"
-
-#include <cmath>
-#include <iostream>
 #include <optional>
 #include <vector>
 #include <tuple>
+
+class TPolyLine3D;
 
 namespace trkf {
 

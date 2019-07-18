@@ -11,16 +11,22 @@
 /////////////////////////////////////////////////////////////////////////
 #ifndef COSMICTRACKERALG_H
 #define COSMICTRACKERALG_H
-#include "fhiclcpp/ParameterSet.h"
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
+namespace fhicl { class ParameterSet; }
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
+namespace detinfo {
+  class DetectorProperties;
+  class LArProperties;
+}
 
 #include <vector>
+
+#include "TVector3.h"
 
 namespace trkf
 {

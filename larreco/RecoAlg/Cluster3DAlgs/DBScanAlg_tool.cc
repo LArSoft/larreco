@@ -6,23 +6,21 @@
  */
 
 // Framework Includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/make_tool.h"
 #include "art/Utilities/ToolMacros.h"
-#include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/RecoBase/Hit.h"
 
 // std includes
-#include <functional>
-#include <iostream>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

@@ -15,21 +15,11 @@
 
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "TMatrixD.h"
-#include "TVectorD.h"
-#include "TPrincipal.h"
-#include "TTree.h"
-#include "art_root_io/TFileService.h"
-
 
 namespace trkf {
 

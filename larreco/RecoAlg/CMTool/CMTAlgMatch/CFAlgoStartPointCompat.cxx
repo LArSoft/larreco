@@ -1,5 +1,8 @@
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "larcore/Geometry/Geometry.h"
+
 #include "CFAlgoStartPointCompat.h"
-#include <algorithm>
+#include "lardata/Utilities/GeometryUtilities.h"
 
 namespace cmtool {
 

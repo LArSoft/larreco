@@ -1,9 +1,39 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
-#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
 #include "larsim/MCCheater/ParticleInventoryService.h" // for printing
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"                                // for Hit
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/RecoAlg/TCAlg/StepUtils.h"
+#include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"                         // for tcc
+#include "nusimdata/SimulationBase/MCParticle.h"
+
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 
 struct SortEntry{
@@ -5867,4 +5897,3 @@ namespace tca {
 
 
 } // namespace tca
-

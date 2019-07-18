@@ -20,43 +20,28 @@
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "canvas/Persistency/Common/FindManyP.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/RawData/ExternalTrigger.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
-#include "lardataobj/AnalysisBase/ParticleID.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
 
 // ROOT & STL includes
-#include "TTimeStamp.h"
-#include "TH2F.h"
 #include "TFile.h"
 #include "TH1.h"
+#include "TH2D.h"
 #include "TCanvas.h"
 #include "TProfile.h"
 #include "TEfficiency.h"
 #include "TLegend.h"
-#include "TFolder.h"
 #include "TStyle.h"
 
 #include <map>
-#include <iostream>
 #include <algorithm>
 #include <iostream>
 #include <fstream>

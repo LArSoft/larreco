@@ -21,12 +21,17 @@
 #include "canvas/Utilities/Exception.h"
 
 // LArSoft libraries
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include "larcorealg/Geometry/Exceptions.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"

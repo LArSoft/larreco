@@ -1,5 +1,9 @@
 #include "ShowerCalo.h"
 
+#include "TString.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoException.h"
+#include <string>
+
 namespace showerreco {
 
   std::pair<double,double> ShowerCalo::ShowerEnergy(double energy,

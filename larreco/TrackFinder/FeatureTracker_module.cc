@@ -9,21 +9,15 @@
 
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/Wire.h"
 
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
-
-namespace recob
-{
-  class Seed;
-  class Hit;
-}
-
 
 namespace trkf {
 
@@ -83,10 +77,7 @@ namespace trkf {
 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 

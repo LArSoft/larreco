@@ -1,10 +1,37 @@
 #include "TrackKalmanFitter.h"
 
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/TrackingPlaneHelper.h"
-#include "larreco/RecoAlg/TrackCreationBookKeeper.h"
-
+#include "canvas/Persistency/Common/Ptr.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include <float.h>
+#include <stddef.h>
+#include <string>
+#include <algorithm>
+#include <iostream>
+#include <cassert>
+#include <cmath>
+
+#include "Math/BinaryOperators.h"
+#include "Math/Expression.h"
+#include "Math/GenVector/Cartesian3D.h"
+#include "Math/GenVector/DisplacementVector3D.h"
+#include "Math/GenVector/PositionVector3D.h"
+#include "Math/MatrixRepresentationsStatic.h"
+#include "Math/SMatrix.h"
+
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardataobj/RecoBase/TrackTrajectory.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
+#include "lardataobj/Utilities/BitMask.h"
+#include "larreco/TrackFinder/TrackMaker.h"
+#include "larreco/RecoAlg/TrackCreationBookKeeper.h"
 
 bool trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj, const int tkID, const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 				       const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, const bool flipDirection,

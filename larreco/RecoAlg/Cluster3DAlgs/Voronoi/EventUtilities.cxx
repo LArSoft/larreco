@@ -5,16 +5,14 @@
  *
  */
 
-// Framework Includes
-
+// LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/EventUtilities.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/IEvent.h"
 
 // std includes
-#include <functional>
-#include <memory>
-#include <queue>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

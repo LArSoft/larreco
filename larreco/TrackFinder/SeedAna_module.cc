@@ -29,11 +29,10 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larsim/MCCheater/BackTrackerService.h"
 #include "lardataobj/MCBase/MCTrack.h"
 
+#include "TH1F.h"
 #include "TH2F.h"
-#include "TFile.h"
 #include "TMatrixD.h"
 
 namespace {

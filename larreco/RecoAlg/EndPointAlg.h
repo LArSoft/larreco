@@ -8,11 +8,10 @@
 #ifndef ENDPOINTALG_H
 #define ENDPOINTALG_H
 
-#include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "canvas/Persistency/Common/Ptr.h"
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "TMath.h"
+namespace fhicl { class ParameterSet; }
+
 #include <vector>
 #include <string>
 

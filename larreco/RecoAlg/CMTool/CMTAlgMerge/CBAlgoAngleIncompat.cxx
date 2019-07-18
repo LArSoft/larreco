@@ -1,5 +1,7 @@
 #include "CBAlgoAngleIncompat.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   //-------------------------------------------------------

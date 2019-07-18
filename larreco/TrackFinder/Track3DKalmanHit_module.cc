@@ -36,18 +36,23 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
-#include <algorithm>
 #include <deque>
 
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art_root_io/TFileDirectory.h"
 #include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoObjects/KHit.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -57,8 +62,7 @@
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
-#include "lardata/Utilities/AssociationUtil.h"
-
+#include "larreco/RecoAlg/Track3DKalmanHit.h"
 
 #include "TH1F.h"
 

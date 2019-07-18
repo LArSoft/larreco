@@ -1,5 +1,17 @@
 #include "MCBTAlg.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardataalg/DetectorInfo/DetectorClocks.h"
+#include "lardataobj/Simulation/SimChannel.h"
+#include "larreco/MCComp/MCBTAlgConstants.h"
+#include "larreco/MCComp/MCBTException.h"
+
+#include <string>
+
 namespace btutil {
 
   MCBTAlg::MCBTAlg(const std::vector<unsigned int>& g4_trackid_v,

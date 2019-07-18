@@ -10,7 +10,25 @@
 ////////////////////////////////////////////////////////////////////
 
 #include "cetlib/pow.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "larreco/RecoAlg/BlurredClusteringAlg.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "RtypesCore.h"
+#include "TCanvas.h"
+#include "TColor.h"
+#include "TH2.h"
+#include "TLatex.h"
+#include "TMarker.h"
+#include "TString.h"
+#include "TStyle.h"
+#include "TVector2.h"
+#include "TVirtualPad.h"
 
 #include <cassert>
 #include <cmath>

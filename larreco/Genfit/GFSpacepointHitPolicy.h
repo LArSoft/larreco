@@ -23,7 +23,7 @@
 #ifndef GFSPACEPOINTHITPOLICY_H
 #define GFSPACEPOINTHITPOLICY_H
 
-
+#include "RtypesCore.h"
 #include "TMatrixT.h"
 #include "TObject.h"
 

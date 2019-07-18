@@ -1,5 +1,3 @@
-
-
 ////////////////////////////////////////////////////////////////////////
 //
 // StitchAlg.cxx
@@ -15,10 +13,7 @@
 #include "larreco/RecoAlg/StitchAlg.h"
 
 // C/C++ standard libraries
-#include <time.h>
 #include <cmath>
-#include <iostream>
-#include <fstream>
 #include <cstdlib>
 #include <vector>
 
@@ -28,10 +23,6 @@
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-
-// LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // geo::kZ
-
 
 trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset)
 {
@@ -583,4 +574,3 @@ bool  trkf::StitchAlg::CommonComponentStitch()
   return match;
 
 }   // end of bool CommonComponentStitch()
-

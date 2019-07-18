@@ -9,18 +9,10 @@
 //  of the 3D reconstructed tracks
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 #include <string>
 #include <math.h>
-#include <algorithm>
-#include <iostream>
-#include <fstream>
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -42,12 +34,6 @@ extern "C" {
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 // ROOT includes
-#include <TROOT.h>
-#include <TFile.h>
-#include <TTree.h>
-#include <TBranch.h>
-#include <TH1F.h>
-#include <TH2F.h>
 #include <TMath.h>
 #include <TGraph.h>
 #include <TF1.h>
@@ -61,10 +47,7 @@ extern "C" {
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "cetlib/pow.h" // cet::sum_of_squares()
 

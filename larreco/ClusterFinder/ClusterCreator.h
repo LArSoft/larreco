@@ -11,17 +11,16 @@
 #define CLUSTERCREATOR_H
 
 // C/C++ standard library
-#include <string>
-#include <vector>
 #include <utility> // std::move()
 
 // LArSoft libraries
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
-
 
 /// Cluster reconstruction namespace
 namespace cluster {
+
+  class ClusterParamsAlgBase;
 
   /** **************************************************************************
    * @brief Class managing the creation of a new recob::Cluster object

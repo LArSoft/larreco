@@ -1,5 +1,7 @@
 #include "CMergeHelper.h"
 
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
+
 namespace cmtool {
 
   ::cmtool::CMergeManager& CMergeHelper::GetManager(size_t mgr_id)

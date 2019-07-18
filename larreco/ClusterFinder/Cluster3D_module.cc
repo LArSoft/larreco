@@ -48,16 +48,11 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "art_root_io/TFileService.h"
-#include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
-#include "larsim/MCCheater/BackTracker.h"
-#include "lardataobj/RawData/RawDigit.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Edge.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -83,10 +78,10 @@
 
 // ROOT includes
 #include "TTree.h"
+#include "TVector3.h"
 
 // std includes
 #include <string>
-#include <functional>
 #include <iostream>
 #include <memory>
 

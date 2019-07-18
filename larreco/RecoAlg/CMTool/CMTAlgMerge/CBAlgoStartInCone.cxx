@@ -1,5 +1,7 @@
 #include "CBAlgoStartInCone.h"
 
+#include "lardata/Utilities/GeometryUtilities.h"
+
 namespace cmtool {
 
   CBAlgoStartInCone::CBAlgoStartInCone()

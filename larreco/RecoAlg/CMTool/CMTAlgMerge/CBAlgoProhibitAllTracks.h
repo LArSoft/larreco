@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CBALGOPROHIBITALLTRACKS_H
 #define RECOTOOL_CBALGOPROHIBITALLTRACKS_H
 
-#include <iostream>
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
   /**
@@ -84,4 +84,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

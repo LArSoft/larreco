@@ -8,6 +8,10 @@
  *          3D track segment. See PmaTrack3D.h file for details.
  */
 
+#include <math.h>
+
+#include "Math/GenVector/DisplacementVector2D.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -293,4 +297,3 @@ double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const 
 		return dx * dx + dy * dy;
 	}
 }
-

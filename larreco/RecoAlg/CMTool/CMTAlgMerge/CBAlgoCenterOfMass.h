@@ -14,9 +14,8 @@
 #ifndef RECOTOOL_CBALGOCENTEROFMASS_H
 #define RECOTOOL_CBALGOCENTEROFMASS_H
 
-#include <iostream>
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
-#include <math.h>
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
   /**
@@ -93,4 +92,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

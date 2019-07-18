@@ -24,14 +24,10 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -43,7 +39,8 @@
 #include "lardata/Utilities/AssociationUtil.h"
 
 // ROOT includes
-#include "TVectorD.h"
+#include "TVector2.h"
+#include "TVector3.h"
 #include "TMath.h"
 #include "TGraph.h"
 #include "TF1.h"

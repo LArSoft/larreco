@@ -1,5 +1,8 @@
 #include "Polygon2D.h"
 
+#include <iostream>
+#include <math.h>
+
 //------------------------------------------------
 float FindSlope( const std::pair<float,float> &p1,
 		 const std::pair<float,float> &p2 )

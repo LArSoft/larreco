@@ -3,7 +3,7 @@
 #ifndef QUADEXPR_H
 #define QUADEXPR_H
 
-#include <ostream>
+#include <iosfwd>
 
 class QuadExpr
 {

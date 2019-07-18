@@ -14,14 +14,14 @@
 #ifndef RECOTOOL_CMATCHMANAGER_H
 #define RECOTOOL_CMATCHMANAGER_H
 
-#include <iostream>
+#include <stddef.h>
 
 #include "CMManagerBase.h"
 #include "CMatchBookKeeper.h"
-#include "CFloatAlgoBase.h"
 
 namespace cmtool {
 
+  class CFloatAlgoBase;
   /**
      \class CMatchManager
      A class that instantiates merging algorithm(s) and run.
@@ -87,4 +87,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

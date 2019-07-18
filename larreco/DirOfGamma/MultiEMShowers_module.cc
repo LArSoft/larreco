@@ -9,37 +9,28 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "canvas/Utilities/InputTag.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/Utilities/AssociationUtil.h"
-
+#include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 
-#include "larreco/RecoAlg/ProjectionMatchingAlg.h"
-#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include <memory>
 
-#include "larreco/DirOfGamma/DirOfGamma.h"
-
 // ROOT includes
 #include "TTree.h"
 #include "TLorentzVector.h"
-#include "TMathBase.h"
 
 namespace ems {
 	class MCinfo;
@@ -686,4 +677,3 @@ double ems::MultiEMShowers::getMinDist(std::vector< art::Ptr<recob::Hit> > const
 }
 
 DEFINE_ART_MODULE(ems::MultiEMShowers)
-

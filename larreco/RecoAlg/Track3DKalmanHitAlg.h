@@ -26,41 +26,27 @@
 #ifndef TRACK3DKALMANHITALG_H
 #define TRACK3DKALMANHITALG_H
 
-#include <cmath>
-#include <algorithm>
-#include <vector>
+#include <stddef.h>
 #include <deque>
+#include <memory>
+#include <vector>
 
-#include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/EDProducer.h"
-#include "canvas/Persistency/Common/FindManyP.h"
-#include "art_root_io/TFileService.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
-#include "TMath.h"
-
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardata/RecoObjects/KGTrack.h"
+#include "lardata/RecoObjects/KHitContainer.h"
+#include "lardata/RecoObjects/Propagator.h"
+#include "lardata/RecoObjects/Surface.h"
 #include "lardataobj/RecoBase/Seed.h"
 #include "larreco/RecoAlg/KalmanFilterAlg.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "larreco/RecoAlg/Track3DKalmanHit.h"
-#include "lardata/RecoObjects/KHitContainerWireLine.h"
-#include "lardata/RecoObjects/KHitContainerWireX.h"
-#include "lardata/RecoObjects/SurfXYZPlane.h"
-#include "lardata/RecoObjects/PropAny.h"
-#include "lardata/RecoObjects/KHit.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
-#include "TH1F.h"
+namespace fhicl { class ParameterSet; }
+namespace trkf { class KHitContainer; }
+
 
 namespace trkf {
-   class Propagator;
    class Track3DKalmanHitAlg {
    public:
 

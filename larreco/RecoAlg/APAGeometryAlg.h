@@ -4,26 +4,17 @@
 ////////////////////////////////////////////////////////////////////
 #ifndef APAGeometryALG_H
 #define APAGeometryALG_H
-#include <vector>
-#include <cmath>
-#include <iostream>
+
 #include <stdint.h>
+#include <vector>
 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
-
-#include "larcore/Geometry/Geometry.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/Hit.h"
-
-#include "TMatrixD.h"
-#include "TVectorD.h"
 #include "TVector3.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
+namespace fhicl { class ParameterSet; }
 
 namespace apa{
 

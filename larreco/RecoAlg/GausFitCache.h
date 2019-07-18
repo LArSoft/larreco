@@ -18,12 +18,8 @@
 #include <vector>
 
 // ROOT libraries
-#include "Rtypes.h" // Double_t
+#include "RtypesCore.h" // Double_t
 #include "TF1.h" // Double_t
-
-// Framework libraries
-#include "canvas/Utilities/Exception.h"
-
 
 namespace hit {
 

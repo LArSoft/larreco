@@ -6,33 +6,34 @@
  */
 
 // Framework Includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/make_tool.h"
 #include "art/Utilities/ToolMacros.h"
-#include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "lardataobj/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 // std includes
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
-#include <Eigen/Dense>
+
+// Eigen includes
+#include <Eigen/Core>
+
+#include "TVector3.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

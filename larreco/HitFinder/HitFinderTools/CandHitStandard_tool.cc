@@ -6,14 +6,9 @@
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 
 #include "art/Utilities/ToolMacros.h"
-#include "art/Utilities/make_tool.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "cetlib_except/exception.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 
-#include <cmath>
-#include <fstream>
+#include <algorithm>
 
 namespace reco_tool
 {

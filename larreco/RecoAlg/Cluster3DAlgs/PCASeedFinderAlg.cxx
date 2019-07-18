@@ -7,27 +7,23 @@
  *          to find candidate track start points and directions
  */
 
-// The main include
 #include "larreco/RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
+
 // Framework Includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // ROOT includes
-#include "TCanvas.h"
-#include "TFrame.h"
-#include "TH2D.h"
+#include "TVector3.h"
 #include "TVectorD.h"
 #include "TMatrixD.h"
 #include "TDecompSVD.h"
 
 // std includes
-#include <functional>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

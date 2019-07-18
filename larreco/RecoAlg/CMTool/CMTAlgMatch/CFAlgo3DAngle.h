@@ -72,4 +72,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

@@ -35,28 +35,18 @@
 #include <iostream>
 
 // Framework includes
-#include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
-//#include "Simulation/sim.h"
-//#include "Simulation/SimListUtils.h"
-#include "larreco/RecoAlg/SmallClusterFinderAlg.h"
-#include "larcorealg/Geometry/geo.h"
-#include "lardata/Utilities/AssociationUtil.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-//#include "SimulationBase/simbase.h"
-//#include "RawData/RawDigit.h"
-//#include "SummaryData/summary.h"
-//#include "CLHEP/Random/JamesRandom.h"
-//#include "Utilities/SeedCreator.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larreco/RecoAlg/SmallClusterFinderAlg.h"
 
 // ***************** //
 

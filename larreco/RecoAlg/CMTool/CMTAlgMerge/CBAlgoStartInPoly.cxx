@@ -1,5 +1,7 @@
 #include "CBAlgoStartInPoly.h"
 
+#include "lardata/Utilities/GeometryUtilities.h"
+
 namespace cmtool {
 
   CBAlgoStartInPoly::CBAlgoStartInPoly()

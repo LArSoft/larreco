@@ -20,14 +20,14 @@
 #include <set>
 #include <map>
 #include <unordered_map>
-#include <memory>
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
+namespace recob { class Hit; }
 
 // Eigen
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 namespace reco {
 

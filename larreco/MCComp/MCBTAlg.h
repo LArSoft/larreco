@@ -14,18 +14,11 @@
 #ifndef RECOTOOL_MCBTALG_H
 #define RECOTOOL_MCBTALG_H
 
-#include <iostream>
+#include "lardataobj/Simulation/SimChannel.h"
+
 #include <vector>
 #include <map>
-#include <set>
-//#include "DataFormat/simch.h"
-//#include "LArUtil/TimeService.h"
-//#include "LArUtil/Geometry.h"
-#include "lardataobj/Simulation/SimChannel.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "larcore/Geometry/Geometry.h"
-#include "MCBTAlgConstants.h"
-#include "MCBTException.h"
+
 /**
    \class MCBTAlg
    MCBTAlg is meant to back-track reco-ed hits/clusters to MCShower/MCTrack
@@ -124,4 +117,3 @@ namespace btutil {
 }
 #endif
 /** @} */ // end of doxygen group
-

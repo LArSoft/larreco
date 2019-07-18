@@ -9,41 +9,24 @@
 // cluster IDs
 ////////////////////////////////////////////////////////////////////////
 
-#include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
-#include "art_root_io/TFileService.h"
-#include "canvas/Utilities/InputTag.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/FindManyP.h"
+namespace fhicl { class ParameterSet; }
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Vertex.h"
-#include "lardataobj/RecoBase/EndPoint2D.h"
-#include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "larcore/Geometry/Geometry.h"
-
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "TH1F.h"
-
-#include <memory>
+#include "TVector3.h"
 
 namespace shower {
   class TCShowerAlg {

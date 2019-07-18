@@ -16,16 +16,6 @@
 ///arXiv:1006.3012v1 [physics.ins-det]
 //Thanks to B. Morgan of U. of Warwick for comments and suggestions
 
-
-
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-
-#include <fstream>
-#include <math.h>
-#include <algorithm>
 #include <string>
 
 // Framework includes
@@ -36,9 +26,6 @@ extern "C" {
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes

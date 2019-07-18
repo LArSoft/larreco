@@ -15,15 +15,11 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -34,14 +30,9 @@
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
 
-#include <fstream>
 #include <cstdlib>
-#include "TGeoManager.h"
 #include "TH1.h"
-#include <cmath>
 #include <iomanip>
-
-class TH1F;
 
 namespace cluster{
 

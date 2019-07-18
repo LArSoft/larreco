@@ -9,30 +9,20 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
-#include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "canvas/Utilities/InputTag.h"
-#include "canvas/Persistency/Common/FindManyP.h"
 
-#include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
-
-#include "lardataobj/AnalysisBase/ParticleID.h"
 
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larreco/TrackFinder/TrackMaker.h"
+#include "lardata/RecoObjects/TrackStatePropagator.h"
 
 #include "lardataobj/MCBase/MCTrack.h"
 

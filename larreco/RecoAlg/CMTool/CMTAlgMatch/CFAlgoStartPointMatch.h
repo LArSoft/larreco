@@ -15,7 +15,6 @@
 #define RECOTOOL_CFALGOSTARTPOINTMATCH_H
 
 #include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
-#include <math.h>
 
 namespace cmtool {
   /**
@@ -100,4 +99,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

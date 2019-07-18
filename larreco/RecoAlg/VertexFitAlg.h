@@ -10,19 +10,18 @@
 #ifndef VERTEXFITALG_H
 #define VERTEXFITALG_H
 
-#include <math.h>
-#include <algorithm>
 #include <vector>
+
+// Framework includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "larreco/RecoAlg/VertexFitMinuitStruct.h"
 
 // ROOT includes
-#include "TMinuit.h"
+#include "RtypesCore.h"
+class TVector3;
 
 namespace trkf {
 

@@ -8,7 +8,23 @@
 // Mike Wallbank (m.wallbank@sheffield.ac.uk), September 2015
 ////////////////////////////////////////////////////////////////////
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "larcorealg/Geometry/Exceptions.h"
 #include "larreco/RecoAlg/EMShowerAlg.h"
+#include "lardata/ArtDataHelper/TrackUtils.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+
+#include "TAxis.h"
+#include "TCanvas.h"
+#include "TGraph.h"
+#include "TH1.h"
+#include "TLine.h"
+#include "TMath.h"
+#include "TMathBase.h"
+#include "TMultiGraph.h"
+#include "TProfile.h"
+#include "TFile.h"
 
 shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
 								    fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg")),

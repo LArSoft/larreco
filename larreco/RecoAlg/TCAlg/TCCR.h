@@ -8,9 +8,10 @@
 #ifndef TRAJCLUSTERTCCR_H
 #define TRAJCLUSTERTCCR_H
 
-#include "larreco/RecoAlg/TCAlg/DataStructs.h"
-
 namespace tca {
+
+  struct PFPStruct;
+  struct TCSlice;
 
   void SaveCRInfo(TCSlice& tcs, PFPStruct& ms, bool prt, bool fIsRealData);
   int  GetOrigin(TCSlice& tcs, PFPStruct& ms);

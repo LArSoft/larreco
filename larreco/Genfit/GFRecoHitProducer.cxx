@@ -17,10 +17,6 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "larreco/Genfit/GFRecoHitProducer.h"
-#include<iostream>
 
 GFAbsRecoHitProducer::~GFAbsRecoHitProducer() {
 }
-
-
-

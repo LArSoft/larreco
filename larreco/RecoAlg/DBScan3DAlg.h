@@ -39,11 +39,13 @@
 #define SUCCESS 0
 #define FAILURE -3
 
-#include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "larcore/Geometry/Geometry.h"
+namespace fhicl { class ParameterSet; }
+
 #include <map>
+
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"  // for WireID
 
 namespace recob {
   class SpacePoint;

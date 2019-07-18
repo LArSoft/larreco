@@ -13,11 +13,14 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaElement3D.h"
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "TVector2.h"
+#include "TVector3.h"
 
-#include "TVectorT.h"
-#include "TMatrixT.h"
+#include <vector>
+
+namespace geo { class TPCGeo; }
 
 namespace pma
 {
@@ -138,4 +141,3 @@ private:
 };
 
 #endif
-

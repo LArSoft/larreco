@@ -6,6 +6,7 @@
 #include "larreco/RecoAlg/PMAlgVertexing.h"
 
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -649,5 +650,3 @@ pma::PMAlgVertexing::getKinks(const pma::TrkCandidateColl& tracks) const
 	return ksel;
 }
 // ------------------------------------------------------
-
-

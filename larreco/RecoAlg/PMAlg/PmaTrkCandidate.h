@@ -21,6 +21,7 @@ namespace pma
 	typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 	typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
+        class Track3D;
 	class TrkCandidate;
 	class TrkCandidateColl;
 }
@@ -126,4 +127,3 @@ private:
 };
 
 #endif
-

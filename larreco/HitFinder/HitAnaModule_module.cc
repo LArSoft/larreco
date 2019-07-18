@@ -23,10 +23,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "canvas/Persistency/Common/Assns.h"
-#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include "art_root_io/TFileService.h"
@@ -38,6 +35,8 @@
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "larreco/HitFinder/HitAnaAlg.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
+
+#include "TTree.h"
 
 namespace hit {
   class HitAnaModule;

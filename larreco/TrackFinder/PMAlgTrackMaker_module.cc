@@ -34,13 +34,10 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "art_root_io/TFileService.h"
 
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
-#include "fhiclcpp/types/Sequence.h"
 #include "canvas/Utilities/InputTag.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -48,8 +45,6 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -59,7 +54,6 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/AnalysisBase/T0.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "art/Persistency/Common/PtrMaker.h"
 
@@ -71,6 +65,8 @@
 #include "larreco/RecoAlg/PMAlgStitching.h"
 
 #include <memory>
+
+#include "TH1F.h"
 
 namespace trkf {
 

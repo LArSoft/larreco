@@ -16,20 +16,14 @@
 #include <bitset>
 
 // LArSoft libraries
-#include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "canvas/Persistency/Common/Ptr.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/PFParticle.h"
-#include "lardataobj/RecoBase/Shower.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 
-#include "TMVA/Reader.h"
+namespace TMVA { class Reader; }
+namespace calo { class CalorimetryAlg; }
+namespace detinfo { class DetectorProperties; }
+namespace geo { class GeometryCore; }
+namespace recob { class Hit; class SpacePoint; }
+namespace simb { class MCParticle; }
 
 namespace tca {
 

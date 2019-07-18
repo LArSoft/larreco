@@ -10,10 +10,9 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
 
 // std includes
-#include <functional>
 #include <iostream>
-#include <memory>
-#include <queue>
+#include <limits>
+#include <string>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

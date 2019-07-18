@@ -36,8 +36,11 @@
 #ifndef SMALLCLUSTERFINDERALG_H
 #define SMALLCLUSTERFINDERALG_H
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+namespace fhicl { class ParameterSet; }
 
-#include "lardataobj/RecoBase/Cluster.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 

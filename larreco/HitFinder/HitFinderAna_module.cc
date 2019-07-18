@@ -9,43 +9,27 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 
-// ROOT includes
-#include <TMath.h>
-#include <TH1F.h>
-#include <TGraph.h>
-#include <TFile.h>
-
 // C++ includes
-#include <algorithm>
-#include <fstream>
-#include <bitset>
+#include <utility>
+#include <vector>
 
 // Framework includes
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nug4/ParticleNavigation/ParticleList.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/Utilities/LArFFT.h"
 
-#include "TComplex.h"
-#include "TString.h"
-#include "TGraph.h"
-#include "TH2.h"
 #include "TTree.h"
 
 #include "art/Framework/Core/EDAnalyzer.h"

@@ -14,10 +14,8 @@
 #ifndef RECOTOOL_CBALGOPOLYOVERLAP_H
 #define RECOTOOL_CBALGOPOLYOVERLAP_H
 
-#include <iostream>
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
-#include "lardata/Utilities/GeometryUtilities.h"
-
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
   /**
@@ -58,4 +56,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

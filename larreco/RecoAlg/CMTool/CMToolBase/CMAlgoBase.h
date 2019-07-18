@@ -14,9 +14,10 @@
 #ifndef RECOTOOL_CMALGOBASE_H
 #define RECOTOOL_CMALGOBASE_H
 
-#include <iostream>
+#include <vector>
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
-#include "TFile.h"
+
+class TFile;
 
 namespace cmtool {
 
@@ -92,4 +93,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

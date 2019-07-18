@@ -24,9 +24,10 @@
 #ifndef GFENERGYLOSSBETHEBLOCH_H
 #define GFENERGYLOSSBETHEBLOCH_H
 
-#include <iostream>
-
 #include"GFAbsEnergyLoss.h"
+
+#include "RtypesCore.h"
+class TVector3;
 
 
 /** @brief Energy loss for charged particles (Bethe Bloch), energy loss straggeling
@@ -78,4 +79,3 @@ class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
 #endif
 
 /** @} */
-

@@ -10,14 +10,12 @@
 // ROOT includes
 
 // LArSoft includes
-#include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Event.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
-#include "nug4/ParticleNavigation/ParticleList.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -26,9 +24,6 @@
 #include "art/Framework/Principal/View.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Core/EDProducer.h"

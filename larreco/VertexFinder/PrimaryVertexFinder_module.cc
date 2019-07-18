@@ -4,35 +4,28 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindMany.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
 #include <iomanip>
-#include <ios>
-#include <fstream>
 #include <math.h>
 #include <algorithm>
 #include <vector>
 #include <string>
 
-#include <TVector3.h>
-#include "TH1.h"
-#include "TH2.h"
-#include "TVectorD.h"
+#include "TVector3.h"
+#include "TH1F.h"
+#include "TH2F.h"
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -41,15 +34,6 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/AssociationUtil.h"
-
-
-namespace recob{
-  class SpacePoint;
-}
-
-class TH1F;
-class TH2F;
-class TVector3;
 
 ///vertex reconstruction
 namespace vertex {

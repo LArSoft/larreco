@@ -6,7 +6,25 @@
 // ***************************************************
 
 #include "showertree.h"
+
+#include <stddef.h>
 #include <sys/stat.h>
+#include <iostream>
+#include <math.h>
+#include <ostream>
+#include <sstream>
+#include <string>
+
+#include "TAxis.h"
+#include "TCanvas.h"
+#include "TDirectory.h"
+#include "TFile.h"
+#include "TH2.h"
+#include "TLine.h"
+#include "TPolyLine.h"
+#include "TROOT.h"
+#include "TString.h"
+#include "TStyle.h"
 
 using namespace std;
 

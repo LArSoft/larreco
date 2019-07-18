@@ -2,6 +2,13 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
+#include "TVector3.h"
+
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+
 namespace reco3d
 {
   // -------------------------------------------------------------------------

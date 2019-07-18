@@ -17,8 +17,7 @@
 #include <algorithm> // std::sort()
 
 // ROOT includes
-#include "TVectorD.h" // TVector3
-#include "TFile.h"
+#include "TVector3.h"
 #include "TMath.h"
 #include "TPrincipal.h"
 #include "TDatabasePDG.h"
@@ -60,11 +59,6 @@
 //\todo Reconstruction Producers should never include SimulationBase objects
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "larreco/RecoAlg/SpacePointAlg.h"
-
-
-
-
 
 static bool sp_sort_3dz(const art::Ptr<recob::SpacePoint>& h1, const art::Ptr<recob::SpacePoint>& h2)
 {

@@ -9,10 +9,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 // C++ includes
-#include <math.h>
 #include <algorithm>
-#include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 
@@ -23,7 +20,6 @@
 #include "art/Framework/Principal/Handle.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
@@ -41,20 +37,14 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/Simulation/sim.h"
 
 // ROOT includes
-#include "TVectorD.h"
-#include "TFile.h"
-#include "TGeoManager.h"
-#include "TF1.h"
-#include "TGraph.h"
+#include "TVector3.h"
 #include "TTree.h"
 #include "TMatrixT.h"
 
 // GENFIT includes
 #include "larreco/Genfit/GFException.h"
-#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/RKTrackRep.h"
 #include "larreco/Genfit/GFConstField.h"
 #include "larreco/Genfit/GFFieldManager.h"
@@ -62,7 +52,6 @@
 #include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFTrack.h"
 #include "larreco/Genfit/GFKalman.h"
-#include "larreco/Genfit/GFDaf.h"
 
 // CLHEP includes
 #include "CLHEP/Random/RandFlat.h"

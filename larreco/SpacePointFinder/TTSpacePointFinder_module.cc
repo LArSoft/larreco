@@ -18,7 +18,6 @@
  */
 
 #include <string>
-#include <math.h>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -26,9 +25,6 @@
 #include "art/Framework/Core/EDProducer.h"
 
 // LArSoft Includes
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"

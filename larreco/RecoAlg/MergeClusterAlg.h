@@ -14,39 +14,23 @@
 #define MergeCluster_h
 
 // Framework includes
-#include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft includes
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "larcore/Geometry/Geometry.h"
+namespace geo { struct WireID; }
 
 //tmp
-#include "art/Framework/Principal/Event.h"
-#include "canvas/Persistency/Common/FindManyP.h"
-//The backtracker is not actually used, so it is commented out.
-//#include "larsim/MCCheater/BackTrackerService.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/RecoBase/Vertex.h"
-#include "lardataobj/RecoBase/Shower.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
-#include "TTree.h"
-#include "TPrincipal.h"
 #include "TVector2.h"
+class TTree;
 
 #include <vector>
 #include <map>
@@ -80,9 +64,7 @@ private:
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry const> fGeom;
-//  const detinfo::DetectorProperties* fDetProp;
   art::ServiceHandle<art::TFileService const> tfs;
-//  art::ServiceHandle<cheat::BackTracker const> backtracker;
 
   std::map<int,int> trueClusterMap;
 

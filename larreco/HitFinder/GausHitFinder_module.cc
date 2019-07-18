@@ -36,15 +36,11 @@
 #include "art/Framework/Principal/Event.h"
 #include "art_root_io/TFileService.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -54,12 +50,8 @@
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
 
 // ROOT Includes
-#include "TGraphErrors.h"
-#include "TH1D.h"
-#include "TDecompSVD.h"
+#include "TH1F.h"
 #include "TMath.h"
-#include "TF1.h"
-#include "TStopwatch.h"
 
 namespace hit{
 class GausHitFinder : public art::EDProducer {

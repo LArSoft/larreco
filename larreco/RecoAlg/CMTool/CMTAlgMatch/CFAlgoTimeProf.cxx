@@ -1,14 +1,8 @@
 #include "CFAlgoTimeProf.h"
 // ROOT includes
-#include "TF1.h"
-#include "TH2F.h"
-#include "TH1F.h"
-#include "TPrincipal.h"
-#include "TVectorD.h"
-#include "TGraph.h"
 #include "TH1D.h"
-#include "TVirtualFitter.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 
 namespace cmtool {
 

@@ -19,6 +19,7 @@
 #include <iostream>
 
 #include "larreco/Genfit/GFTrack.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
 #include "TVirtualGeoTrack.h"
 
 genf::GFTrack::GFTrack(GFAbsTrackRep* defaultRep)
@@ -247,6 +248,3 @@ void genf::GFTrack::getHitsByPlane(std::vector<std::vector<int>*>& retVal){
 }
 
 //ClassImp(GFTrack)
-
-
-

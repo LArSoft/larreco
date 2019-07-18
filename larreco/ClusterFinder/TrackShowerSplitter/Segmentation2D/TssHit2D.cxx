@@ -9,11 +9,6 @@
 #include "TssHit2D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-
-
 tss::Hit2D::Hit2D(void) :
 	fPlane(0), fWire(0),
 	fPoint2D(0, 0)
@@ -37,4 +32,3 @@ tss::Hit2D::Hit2D(const tss::Hit2D & src) :
 	fPoint2D(src.fPoint2D)
 {
 }
-

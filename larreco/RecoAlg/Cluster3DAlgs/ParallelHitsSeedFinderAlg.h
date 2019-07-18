@@ -8,19 +8,12 @@
 #define ParallelHitsSeedFinderAlg_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Seed.h"
-
-// ROOT includes
-#include "TCanvas.h"
-#include "TFrame.h"
-#include "TH2D.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

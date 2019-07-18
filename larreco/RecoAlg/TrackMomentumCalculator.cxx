@@ -8,6 +8,30 @@
 
 #include <array>
 #include <cassert>
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <string>
+#include <tuple>
+
+#include "Math/Functor.h"
+#include "Math/GenVector/PositionVector3D.h"
+#include "Minuit2/Minuit2Minimizer.h"
+#include "Rtypes.h"
+#include "TAxis.h"
+#include "TGraphErrors.h"
+#include "TMath.h"
+#include "TMatrixDSymEigen.h"
+#include "TMatrixDSymfwd.h"
+#include "TMatrixDfwd.h"
+#include "TMatrixT.h"
+#include "TMatrixTSym.h"
+#include "TPolyLine3D.h"
+#include "TSpline.h"
+#include "TVectorDfwd.h"
+#include "TVectorT.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "lardataobj/RecoBase/Track.h"
 
 using std::cout;
 using std::endl;

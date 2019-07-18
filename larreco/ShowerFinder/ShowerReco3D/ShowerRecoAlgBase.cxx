@@ -1,5 +1,9 @@
 #include "ShowerRecoAlgBase.h"
 
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoException.h"
+
 namespace showerreco {
 
   ShowerRecoAlgBase::ShowerRecoAlgBase() : fInputClusters()

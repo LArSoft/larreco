@@ -13,30 +13,15 @@
 // ### LArSoft Includes ###
 // ########################
 #include "lardataobj/RecoBase/EndPoint2D.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-#include "lardataobj/Simulation/sim.h"
-#include "larsim/Simulation/SimListUtils.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
 // ##########################
 // ### Basic C++ Includes ###
 // ##########################
 #include <string>
-#include <iostream>
-#include <iomanip>
-#include <ios>
-#include <fstream>
-#include <math.h>
-#include <algorithm>
 
 // ##########################
 // ### Framework Includes ###
@@ -50,18 +35,13 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // #####################
 // ### ROOT Includes ###
 // #####################
-#include "TH1D.h"
+#include "TH1F.h"
 #include "TH2D.h"
-#include "TVectorD.h"
-#include "TGeoManager.h"
-#include "TGraph.h"
-#include "TF1.h"
 
 // ====================================================================================
 // ====================================================================================

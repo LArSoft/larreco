@@ -14,32 +14,32 @@
 
 
 // Framework includes
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
-
+#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgCosmicTagger.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
 #include "larreco/RecoAlg/PMAlgStitching.h"
 
+namespace detinfo { class DetectorProperties; }
+namespace geo { class GeometryCore; }
+
 // ROOT & C++
-#include <memory>
+class TH1F;
+class TVector3;
 
 namespace pma
 {
@@ -50,6 +50,7 @@ namespace pma
 	class PMAlgTrackingBase;
 	class PMAlgFitter;
 	class PMAlgTracker;
+        class Track3D;
 }
 
 class pma::PMAlgTrackingBase

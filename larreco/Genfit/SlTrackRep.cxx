@@ -1,4 +1,3 @@
-#include "larreco/Genfit/GFAbsRecoHit.h"
 #include "larreco/Genfit/SlTrackRep.h"
 #include <cmath>
 

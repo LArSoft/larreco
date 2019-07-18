@@ -21,8 +21,10 @@
 // LArSoft Includes
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+
+// Frmaework includes
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl { class ParameterSet; }
 
 //boost includes
 #include "boost/multi_array.hpp"

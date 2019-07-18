@@ -6,6 +6,27 @@
 
 #include "ClusterMatchAlg.h"
 
+#include "TString.h"
+#include "TTree.h"
+
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Utilities/Exception.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
+
 namespace cluster{
 
   //##################################################################

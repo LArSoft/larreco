@@ -8,9 +8,6 @@
 #include <string>
 #include <algorithm>
 
-// ROOT includes
-#include "TStopwatch.h"
-
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
@@ -23,16 +20,12 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "nug4/ParticleNavigation/EmEveIdCalculator.h"
-#include "lardata/Utilities/GeometryUtilities.h"
-
 
 // Framework includes
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"

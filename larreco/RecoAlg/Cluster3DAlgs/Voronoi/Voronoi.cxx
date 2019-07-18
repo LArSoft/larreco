@@ -8,7 +8,6 @@
 // std includes
 #include <iostream>
 #include <numeric>
-#include <functional>
 
 // Framework Includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/Voronoi.h"
@@ -18,7 +17,6 @@
 // LArSoft includes
 
 // boost includes
-#include <boost/range/adaptor/reversed.hpp>
 #include <boost/polygon/voronoi.hpp>
 
 // Declare this here for boost

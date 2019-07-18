@@ -7,10 +7,6 @@
  * from cetpkgsupport v1_02_00.
  */
 
-
-// C/C++ standard libraries
-#include <utility> // std::unique_ptr<>
-
 // Framework libraries
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/EDProducer.h"
@@ -19,7 +15,6 @@
 #include "canvas/Utilities/InputTag.h"
 
 //LArSoft includes
-#include "larreco/RecoAlg/CCHitFinderAlg.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
 
 // ... more includes in the implementation section
@@ -77,9 +72,6 @@ namespace cluster {
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
-#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
-
 
 namespace cluster {
 

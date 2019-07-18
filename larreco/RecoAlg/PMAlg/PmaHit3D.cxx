@@ -10,6 +10,8 @@
  */
 
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 pma::Hit3D::Hit3D(void) :
 	fCryo(0), fTPC(0), fPlane(0), fWire(0),
@@ -84,4 +86,3 @@ double pma::Hit3D::GetDist2ToProj(void) const
 {
 	return pma::Dist2(fPoint2D, fProjection2D);
 }
-

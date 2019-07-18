@@ -18,6 +18,8 @@
 // ROOT libraries
 #include "TF1.h"
 
+// Framework libraries
+#include "canvas/Utilities/Exception.h"     // for Exception, LogicError
 
 namespace {
 
