@@ -57,7 +57,8 @@ gaus_hitfinder:
     }
 
     # Declare the peak fitting tool
-    PeakFitter:           @local::peakfitter_gaussian
+    #PeakFitter:           @local::peakfitter_gaussian
+    PeakFitter:           @local::peakfitter_mrqdt
 
     # The below are for the hit filtering section of the gaushit finder
     FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object

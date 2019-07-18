@@ -365,6 +365,9 @@ void GausHitFinder::produce(art::Event& evt)
                 // ##################################################
                 double                                chi2PerNDF(0.);
                 int                                   NDF(1);
+		/*stand alone
+                reco_tool::IPeakFitter::PeakParamsVec peakParamsVec(nGausForFit);
+		*/
                 reco_tool::IPeakFitter::PeakParamsVec peakParamsVec;
 
                 // #######################################################

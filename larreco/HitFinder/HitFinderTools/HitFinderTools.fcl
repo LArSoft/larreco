@@ -56,5 +56,15 @@ peakfitter_gaussian:
     FloatBaseline: false
 }
 
+peakfitter_mrqdt:
+{
+    tool_type:     "PeakFitterMrqdt"
+    MinWidth:      0.5
+    MaxWidthMult:  3.
+    PeakRangeFact: 2.
+    PeakAmpRange:  2.
+    FloatBaseline: false
+}
+
 
 END_PROLOG
