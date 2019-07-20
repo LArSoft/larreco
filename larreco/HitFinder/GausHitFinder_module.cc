@@ -82,6 +82,8 @@ private:
 
     std::string         fAllHitsInstanceName;
 
+    std::string         fRawDigitModuleLabel;
+
     std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
     std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
 
@@ -157,6 +159,8 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
 
     fAllHitsInstanceName = p.get< std::string >("AllHitsInstanceName","");
+
+    fRawDigitModuleLabel = p.get< std::string >("RawDigitModuleLabel","");
 
     fFilterHits         = p.get< bool >("FilterHits",false);
 
@@ -257,9 +261,37 @@ void GausHitFinder::produce(art::Event& evt)
     // #################################################################
     // ### Reading in the RawDigit associated with these wires, too  ###
     // #################################################################
-    art::FindOneP<raw::RawDigit> RawDigits
+    std::vector<art::Ptr<raw::RawDigit>> RawDigits;
+    if (fRawDigitModuleLabel!=""){
+      //Get raw digits using module label
+      art::Handle< std::vector<raw::RawDigit> > rawdigitListHandle;
+      std::vector<art::Ptr<raw::RawDigit>> rawdigits;
+      if (evt.getByLabel(fRawDigitModuleLabel,rawdigitListHandle))
+        art::fill_ptr_vector(rawdigits, rawdigitListHandle);
+      else{
+        throw cet::exception("GausHitFinder") << "Cannot get RawDigits using module label: "<<fRawDigitModuleLabel;
+      }
+      for(size_t wireIter = 0; wireIter < wireVecHandle->size(); ++wireIter){
+        art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
+        for (auto digits : rawdigits){
+          if (wire->Channel() == digits->Channel()){
+            RawDigits.push_back(digits);
+            break;
+          }
+        }
+      }
+    }
+    else{
+      //Get raw digits through association with recob::Wire
+      art::FindOneP<raw::RawDigit> RawDigits_assn
         (wireVecHandle, evt, fCalDataModuleLabel);
-
+      for(size_t wireIter = 0; wireIter < wireVecHandle->size(); ++wireIter){
+        RawDigits.push_back(RawDigits_assn.at(wireIter));
+      }
+    }
+    if (RawDigits.size()!=wireVecHandle->size()){
+      throw cet::exception("GausHitFinder") << "RawDigits.size() = "<<RawDigits.size()<<" wireVecHandle->size() = "<<wireVecHandle->size();
+    }
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
 
@@ -291,6 +323,10 @@ void GausHitFinder::produce(art::Event& evt)
         // ####################################
         art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
         art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
+
+        if (wire->Channel() != rawdigits->Channel()){
+          throw cet::exception("GausHitFinder") << "wire and rawdigits channels mismatch. wire->Channel() = "<<wire->Channel() <<" rawdigits->Channel() = "<<rawdigits->Channel();
+        }
 
         // --- Setting Channel Number and Signal type ---
         channel = wire->Channel();
