@@ -1,0 +1,19 @@
+BEGIN_PROLOG
+
+protodunesp_calorimetryalgmc: {
+  CaloUseModBox:        true   #use modified Box model recombination correction
+  CaloLifeTimeForm:     0
+  CaloDoLifeTimeCorrection: true
+  CalAmpConstants:  [ 0.9033e-3, 1.0287e-3, 0.8800e-3 ]
+  CalAreaConstants: [ 4.833e-3, 4.815e-3, 4.966e-3 ]
+}
+
+shower_calorimetry:
+{
+  module_type:     "ShowerCalorimetry"
+  ShowerTag:       "pandoraShower"
+  SpacePointTag:   "pandora"
+  CorrectSCE:      false
+  CalorimetryAlg:  @local::protodunesp_calorimetryalgmc
+}
+END_PROLOG
