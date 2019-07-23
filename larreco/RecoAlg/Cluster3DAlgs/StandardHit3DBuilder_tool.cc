@@ -212,6 +212,11 @@ private:
      */
     using ChannelStatusVec        = std::vector<size_t>;
     using ChannelStatusByPlaneVec = std::vector<ChannelStatusVec>;
+    
+    /**
+     *  @brief clear the tuple vectors before processing next event
+     */
+    void clear();
 
     /**
      *  @brief Data members to follow
@@ -231,14 +236,15 @@ private:
     float                                m_zPosOffset;
 
     // Define some basic histograms
-    TH1F*                                m_QualityMetricHist;     ///< Basic plot of the quality metric for space points
-    TH1F*                                m_SpacePointChargeHist;  ///< Charge in the overlap window for space points
-
     TTree*                               m_tupleTree;             ///< output analysis tree
 
-    std::vector<float>                   m_chiSquareVec;
-    std::vector<float>                   m_totChargeVec;
-    std::vector<float>                   m_hitOverlapFracVec;
+    mutable std::vector<float>           m_deltaTimeVec;
+    mutable std::vector<float>           m_chiSquare3DVec;
+    mutable std::vector<float>           m_overlapFractionVec;
+    mutable std::vector<float>           m_maxSideVecVec;
+    mutable std::vector<float>           m_qualityMetricVec;
+    mutable std::vector<float>           m_spacePointChargeVec;
+    mutable std::vector<float>           m_hitAsymmetryVec;
 
     // Get instances of the primary data structures needed
     mutable Hit2DList                    m_clusterHit2DMasterList;
@@ -304,26 +310,34 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     // histograms and n-tuples for us.
     art::ServiceHandle<art::TFileService> tfs;
 
-    // Do we want histograms?
     if (m_outputHistograms)
     {
-        // Make a directory for these histograms
-        art::TFileDirectory dir = tfs->mkdir("Hit3DBuilder");
-
-        m_QualityMetricHist    = dir.make<TH1F>("Hit3DQuality","Quality",        200, 0.,   20.);
-        m_SpacePointChargeHist = dir.make<TH1F>("Hit2DCharge", "3D Hit Chargel", 250, 0., 2500.);
+        m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by StandardHit3DBuilder");
+        
+        clear();
+        
+        m_tupleTree->Branch("DeltaTime2D",     "std::vector<float>", &m_deltaTimeVec);
+        m_tupleTree->Branch("ChiSquare3D",     "std::vector<float>", &m_chiSquare3DVec);
+        m_tupleTree->Branch("OverlapFraction", "std::vector<float>", &m_overlapFractionVec);
+        m_tupleTree->Branch("MaxSideVec",      "std::vector<float>", &m_maxSideVecVec);
+        m_tupleTree->Branch("QualityMetric",   "std::vector<float>", &m_qualityMetricVec);
+        m_tupleTree->Branch("SPCharge",        "std::vector<float>", &m_spacePointChargeVec);
+        m_tupleTree->Branch("HitAsymmetry",    "std::vector<float>", &m_hitAsymmetryVec);
     }
 
-    m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by StandardHit3DBuilder");
-
-    m_chiSquareVec.clear();
-    m_totChargeVec.clear();
-    m_hitOverlapFracVec.clear();
-
-    m_tupleTree->Branch("QualityMetric",  "std::vector<float>", &m_chiSquareVec);
-    m_tupleTree->Branch("SPCharge",       "std::vector<float>", &m_totChargeVec);
-    m_tupleTree->Branch("HitOverlapFrac", "std::vector<float>", &m_hitOverlapFracVec);
-
+    return;
+}
+    
+void StandardHit3DBuilder::clear()
+{
+    m_deltaTimeVec.clear();
+    m_chiSquare3DVec.clear();
+    m_overlapFractionVec.clear();
+    m_maxSideVecVec.clear();
+    m_qualityMetricVec.clear();
+    m_spacePointChargeVec.clear();
+    m_hitAsymmetryVec.clear();
+    
     return;
 }
 
@@ -437,10 +451,8 @@ void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, 
 
     // Handle tree output too
     m_tupleTree->Fill();
-
-    m_chiSquareVec.clear();
-    m_totChargeVec.clear();
-    m_hitOverlapFracVec.clear();
+    
+    clear();
 
     return;
 }
@@ -870,6 +882,8 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
 
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
+        
+        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
 
         // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
@@ -1008,10 +1022,14 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 Eigen::Vector2f pairYZVec(pair.getPosition()[1],pair.getPosition()[2]);
 
                 std::vector<float> sideVec = {(pair0hYZVec - pair1hYZVec).norm(),(pair1hYZVec - pairYZVec).norm(),(pairYZVec   - pair0hYZVec).norm()};
+                
+                float maxSideVecVal = *std::max_element(sideVec.begin(),sideVec.end());
+                
+                if (m_outputHistograms) m_maxSideVecVec.push_back(maxSideVecVal);
 
                 // The three sides will not be identically equal because of numeric issues. It is really sufficient to simply
                 // check that the longest side is less than the wire pitch
-                if (*std::max_element(sideVec.begin(),sideVec.end()) < wirePitch)
+                if (maxSideVecVal < wirePitch)
                 {
                     // Get a copy of the input hit vector (note the order is by plane - by definition)
                     reco::ClusterHit2DVec hitVector = pair.getHits();
@@ -1088,6 +1106,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
 
                         hitDelTSigVec.emplace_back(std::fabs(hitSig));
                     }
+                    
+                    if (m_outputHistograms) m_chiSquare3DVec.push_back(hitChiSquare);
 
                     // Keep only "good" hits...
                     if (hitChiSquare < m_maxHit3DChiSquare)
@@ -1515,13 +1535,11 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
 
         if (m_outputHistograms)
         {
-            m_QualityMetricHist->Fill(hit3D.getHitChiSquare(),1.);
-            m_SpacePointChargeHist->Fill(hit3D.getTotalCharge(),1.);
+            m_qualityMetricVec.push_back(hit3D.getHitChiSquare());
+            m_spacePointChargeVec.push_back(hit3D.getTotalCharge());
+            m_overlapFractionVec.push_back(hit3D.getOverlapFraction());
+            m_hitAsymmetryVec.push_back(hit3D.getChargeAsymmetry());
         }
-
-        m_chiSquareVec.push_back(hit3D.getHitChiSquare());
-        m_totChargeVec.push_back(hit3D.getTotalCharge());
-        m_hitOverlapFracVec.push_back(hit3D.getOverlapFraction());
     }
 
     size_t numNewHits = hitPtrVec.size();
