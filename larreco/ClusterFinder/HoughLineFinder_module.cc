@@ -31,7 +31,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-// nutools
+// nurandom
 #include "nurandom/RandomUtils/NuRandomService.h"
 
 // LArSoft includes

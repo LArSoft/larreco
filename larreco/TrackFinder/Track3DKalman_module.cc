@@ -30,7 +30,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-// nutools
+// nurandom
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nurandom/RandomUtils/NuRandomService.h"
 
