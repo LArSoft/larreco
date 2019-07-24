@@ -41,7 +41,7 @@ extern "C" {
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
-#include "nutools/MagneticField/MagneticField.h"
+#include "nug4/MagneticField/MagneticField.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "lardataobj/RecoBase/Track.h"

@@ -4,7 +4,7 @@ art_make(
 	  
           LIB_LIBRARIES    larcorealg_Geometry
 			   larcore_Geometry_Geometry_service
-			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			   larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			   lardataobj_RecoBase
 			   lardata_Utilities
 			   ${ART_FRAMEWORK_CORE}
@@ -29,7 +29,7 @@ art_make(
           MODULE_LIBRARIES larreco_MCComp
 			   larcorealg_Geometry
 			   larcore_Geometry_Geometry_service
-			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			   larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
                            ${ART_FRAMEWORK_BASIC}
