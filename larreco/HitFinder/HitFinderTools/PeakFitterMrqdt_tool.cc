@@ -41,7 +41,7 @@ namespace reco_tool
     double fPeakRange;
     double fAmpRange;
     bool fFloatBaseline;
-    bool fOutputHistograms;
+    //bool fOutputHistograms; // unused
 
     std::unique_ptr<gshf::MarqFitAlg> fMarqFitAlg;
 
