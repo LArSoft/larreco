@@ -4,7 +4,7 @@ include_directories ( $ENV{G4INCLUDE} )
 art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc KalmanFilterFitTrackMaker_tool.cc
           MODULE_LIBRARIES  larreco_RecoAlg
-			    larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			    larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			    lardata_RecoObjects
 			    lardataobj_RecoBase
 			    larcorealg_Geometry
@@ -12,7 +12,7 @@ art_make(
 			    larreco_Calorimetry
 			    lardataobj_AnalysisBase
 			    lardata_Utilities
-			    nutools_MagneticField_MagneticField_service
+			    nug4_MagneticField_MagneticField_service
 			    nusimdata_SimulationBase
 			    ${ART_FRAMEWORK_CORE}
 			    ${ART_FRAMEWORK_PRINCIPAL}
@@ -36,7 +36,7 @@ art_make(
 simple_plugin( Track3DKalman "module"
   			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			 larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			 lardata_RecoObjects
 			 lardataobj_RecoBase
 			 larcorealg_Geometry
@@ -45,7 +45,7 @@ simple_plugin( Track3DKalman "module"
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
 			 nurandom_RandomUtils_NuRandomService_service
-			 nutools_MagneticField_MagneticField_service
+			 nug4_MagneticField_MagneticField_service
 			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
 			 ${ART_FRAMEWORK_PRINCIPAL}
@@ -67,7 +67,7 @@ simple_plugin( Track3DKalman "module"
 simple_plugin( Track3DKalmanSPS "module"
 			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			 larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			 lardata_RecoObjects
 			 lardataobj_RecoBase
 			 larcorealg_Geometry
@@ -75,7 +75,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
-			 nutools_MagneticField_MagneticField_service
+			 nug4_MagneticField_MagneticField_service
 			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
 			 ${ART_FRAMEWORK_PRINCIPAL}

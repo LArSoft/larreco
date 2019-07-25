@@ -8,7 +8,7 @@ art_make(
 			    larcorealg_Geometry
 			    larcore_Geometry_Geometry_service
 			    lardata_Utilities
-			    nutools_MagneticField_MagneticField_service
+			    nug4_MagneticField_MagneticField_service
 			    nusimdata_SimulationBase
 			    ${ART_FRAMEWORK_CORE}
 			    ${ART_FRAMEWORK_PRINCIPAL}

@@ -22,7 +22,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "nutools/ParticleNavigation/EmEveIdCalculator.h"
+#include "nug4/ParticleNavigation/EmEveIdCalculator.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 
 

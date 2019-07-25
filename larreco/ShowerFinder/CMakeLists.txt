@@ -14,7 +14,7 @@ art_make(
                         larcore_Geometry_Geometry_service
                         larreco_Calorimetry
                         lardataobj_AnalysisBase
-                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+                        larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
                         lardata_Utilities
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}

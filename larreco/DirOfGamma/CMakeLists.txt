@@ -3,7 +3,7 @@ art_make(
           
           LIB_LIBRARIES larcorealg_Geometry
                         larcore_Geometry_Geometry_service
-                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+                        larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
                         lardataobj_RawData
                         lardataobj_RecoBase
 		        larreco_RecoAlg
@@ -31,7 +31,7 @@ art_make(
 			   larsim_MCCheater_BackTrackerService_service
 	                   larsim_MCCheater_ParticleInventoryService_service
       			   lardataobj_RecoBase
-			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			   larsim_Simulation nug4_ParticleNavigation lardataobj_Simulation
 			   larcorealg_Geometry
 	    		   larcore_Geometry_Geometry_service
       			   lardata_Utilities
