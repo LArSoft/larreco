@@ -183,9 +183,9 @@ namespace gshf{
       for (i = 0; i < npar; i++){
 	if (i != k) alpha[i*npar+k] = -alpha[i*npar+k]/aMax;
       }
-      for (i = 0; i < npar; i++){
+      #pragma omp simd
 	//#pragma GCC ivdep
-#pragma omp simd
+      for (i = 0; i < npar; i++){
 	for (j = 0; j < npar;j++){
 	  if ((i != k)&&(j!= k))alpha[i*npar+j]=alpha[i*npar+j]+alpha[i*npar+k]*alpha[k*npar+j];
 	}
