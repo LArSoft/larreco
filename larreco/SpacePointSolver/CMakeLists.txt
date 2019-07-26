@@ -1,47 +1,25 @@
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(HitReaders)
 
-art_make( BASENAME_ONLY
-          LIB_LIBRARIES larcorealg_Geometry
-                        ${ART_FRAMEWORK_CORE}
-			${ART_FRAMEWORK_PRINCIPAL}
-			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-                        canvas
-			cetlib
-                        cetlib_except
-                        ${Boost_SYSTEM_LIBRARY}
-			${ROOT_BASIC_LIB_LIST}
-
-          MODULE_LIBRARIES larcorealg_Geometry
-			larcore_Geometry_Geometry_service
-	                lardata_Utilities
-			larevt_Filters
-			lardataobj_RawData
-			lardataobj_RecoBase
-                        larsim_MCCheater_BackTrackerService_service
-	                larsim_MCCheater_ParticleInventoryService_service
-			lardata_ArtDataHelper
-                        ${ART_FRAMEWORK_CORE}
-			${ART_FRAMEWORK_PRINCIPAL}
-			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-			${ART_ROOT_IO_TFILESERVICE_SERVICE}
-			art_Persistency_Common canvas
-			art_Persistency_Provenance canvas
-			art_Utilities canvas
-			${MF_MESSAGELOGGER}
-			
-	                ${FHICLCPP}
-			cetlib cetlib_except
-                        ${ROOT_GEOM}
-                        ${ROOT_XMLIO}
-                        ${ROOT_GDML}
-			${ROOT_BASIC_LIB_LIST}
-                        larreco_SpacePointSolver
+art_make(BASENAME_ONLY
+         LIB_LIBRARIES
+           larcorealg_Geometry
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ROOT_CORE}
+           ${ROOT_PHYSICS}
+           canvas
+           cetlib_except
+         MODULE_LIBRARIES
+           larcorealg_Geometry
+           lardataobj_RecoBase
+           larsim_MCCheater_BackTrackerService_service
+           lardata_ArtDataHelper
+           larreco_SpacePointSolver
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ROOT_CORE}
+           ${ROOT_HIST}
         )
 
 install_headers()
 install_fhicl()
 install_source()
-

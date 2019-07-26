@@ -1,32 +1,17 @@
 art_make(LIB_LIBRARIES
-           lardataobj_RecoBase
-           lardata_ArtDataHelper
-           larsim_Simulation
-           lardataobj_Simulation
-           larevt_Filters
            larcorealg_Geometry
-           larcore_Geometry_Geometry_service
-           lardata_RecoObjects
-           lardataobj_AnalysisBase
-           larreco_Calorimetry
-           lardata_Utilities
+           larreco_RecoAlg_TCAlg
+           larreco_RecoAlg_PMAlg
            larreco_RecoAlg_ClusterRecoUtil
            larreco_RecoAlg_CMTool_CMToolBase
-           larreco_RecoAlg_CMTool_CMTAlgMatch
-           larreco_RecoAlg_TCAlg
            larreco_RecoAlg_ImagePatternAlgs_DataProvider
-           larreco_RecoAlg_PMAlg
-           nusimdata_SimulationBase
            ${ROOT_CORE}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-           art_Persistency_Common
-           art_Persistency_Provenance
-           art_Utilities
+           ${ROOT_PHYSICS}
+           ${ROOT_MATRIX}
+           ${ROOT_MINUIT}
            canvas
            ${FHICLCPP}
-           cetlib
-           ${CLHEP}
+           cetlib_except
         )
 
 add_subdirectory(CMTool)
