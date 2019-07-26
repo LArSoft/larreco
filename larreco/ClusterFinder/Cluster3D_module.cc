@@ -1595,11 +1595,11 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
     }
         
     // Now handle the edges according to whether associated with regular or "best" space points
-    if (!clusterParameters.getConvexHull().getConvexHullEdgeList().empty())
+    if (!clusterParameters.getBestEdgeList().empty()) //getConvexHull().getConvexHullEdgeList().empty())
     {
         size_t edgeStart = edgeVector->size();
         
-        for(const auto& edge : clusterParameters.getConvexHull().getConvexHullEdgeList())
+        for(const auto& edge : clusterParameters.getBestEdgeList()) //getConvexHull().getConvexHullEdgeList())
         {
             RecobSpacePointVector spacePointVec;
             

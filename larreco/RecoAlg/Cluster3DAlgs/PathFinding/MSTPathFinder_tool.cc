@@ -368,7 +368,7 @@ void MSTPathFinder::RunPrimsAlgorithm(const reco::HitPairListPtr&  hitPairList,
         {
             if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED))
             {
-                double edgeWeight = lastAddedHit->getHitChiSquare() * pair.second->getHitChiSquare();
+                double edgeWeight = pair.first * lastAddedHit->getHitChiSquare() * pair.second->getHitChiSquare();
                 
                 curEdgeList.push_back(reco::EdgeTuple(lastAddedHit,pair.second,edgeWeight));
             }
