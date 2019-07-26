@@ -1,12 +1,11 @@
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
 #include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
-//#include "larreco/HitFinder/MarqFitAlg.h"//marqfit functions
 #include "MarqFitAlg.h"//marqfit functions
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art_root_io//TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
@@ -16,22 +15,10 @@
 #include <fstream>
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
-//#include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
 
 namespace reco_tool
 {
-  /*
-  class BaselinedGauseFitCache: public hit::GauseFitCache {
 
-  public:
-    BaselinedGausFitCache(std::string const & new_name="BaselinedGausFitCache")
-      : hit::GausFitCache(new_name)
-    {}
-
-  protected:
-
-  }; // BaselinedGausFitCache
-  */
   class PeakFitterMrqdt : IPeakFitter
   {
   public:
@@ -54,10 +41,7 @@ namespace reco_tool
     double fPeakRange;
     double fAmpRange;
     bool fFloatBaseline;
-//    bool fOutputHistograms;
-
-    // std::unique_ptr<marqfitgaus::MarqFitAlg> fMarqFitAlg;
-    //    mutable BaselinedGausFitCache  fFitCache;
+    //bool fOutputHistograms; // unused
 
     std::unique_ptr<gshf::MarqFitAlg> fMarqFitAlg;
 
@@ -84,7 +68,6 @@ namespace reco_tool
     fPeakRange = pset.get<double>("PeakRangeFact", 2.);
     fAmpRange = pset.get<double>("PeakAmpRange", 2.);
     fFloatBaseline = pset.get< bool >("FloatBaseline", false);
-    //    fOutputHistograms = pset.get< bool >("OutputHistograms", false);
 
     return;
   }
@@ -103,20 +86,20 @@ namespace reco_tool
     float lambda   = 0.001;      /* Marquardt damping parameter */
     float chiSqr = std::numeric_limits<float>::max(), dchiSqr = std::numeric_limits<float>::max();
     int nParams=0;
-    float y[1000],p[15],perr[15];//pmin[15],pmax[15],perr[15];
 
     int startTime = fhc_vec.front().startTick;
     int endTime = fhc_vec.back().stopTick;
 
     int roiSize = endTime - startTime;
 
+    std::vector<float> y(roiSize);
+    std::vector<float> p(3*fhc_vec.size());
+    std::vector<float> perr(3*fhc_vec.size());
+
     /* choose the fit function and set the parameters */
     nParams = 0;
 
-    //    consider  moving to  auto loop  like most other things in larsoft? or is this less efficient?
-    //    for(auto const& candidateHit : hitCandidateVec)
-
-    for(size_t ih=0;ih<fhc_vec.size();ih++){
+    for(size_t ih=0; ih<fhc_vec.size(); ih++){
       float const peakMean   = fhc_vec[ih].hitCenter - (float)startTime;
       float const peakWidth  = fhc_vec[ih].hitSigma;
       float const amplitude  = fhc_vec[ih].hitHeight;
@@ -125,54 +108,55 @@ namespace reco_tool
       p[0+nParams]=amplitude;
       p[1+nParams]=peakMean;
       p[2+nParams]=peakWidth;
-      //pmin[0+nParams]=0.1 * amplitude;
-      //pmax[0+nParams]=fAmpRange * amplitude;
-      //pmin[1+nParams]=meanLowLim;
-      //pmax[1+nParams]=meanHiLim;
-      //pmin[2+nParams]=fmax(fMinWidth, 0.1 * peakWidth);
-      //pmax[2+nParams]=fMaxWidthMult * peakWidth;
+
       nParams += 3;
     }
     int fitResult=-1;
 
     //recast signal -> y to keep the  catch about negative adc values
-    for(size_t idx=0; idx<roiSize; idx++){
+    for(size_t idx=0; idx<size_t(roiSize); idx++){
+      // float adc=signal[startTime+idx];
+      //if(adc<=0.) adc=0;
+      //y[idx]=adc;
 
-//      if(signal[idx]<=0.) y[idx]=0;
-//      else y[idx]=signal[idx];
-        y[idx] = signal[idx + startTime];
-
+      if(signal[startTime+idx]<=0.) y[idx]=0;
+      else y[idx]=signal[startTime+idx];
     }
 
     int trial=0;
     lambda=-1.;   /* initialize lambda on first call */
     do{
-      fitResult=fMarqFitAlg->gshf::MarqFitAlg::mrqdtfit(lambda, p, y, nParams, roiSize, chiSqr, dchiSqr);
-      //      fitResult=fMarqFitAlg->mrqdtfit(lambda, p, y, nParams, roiSize, chiSqr, dchiSqr);
+      fitResult=fMarqFitAlg->gshf::MarqFitAlg::mrqdtfit(lambda, &p[0], &y[0], nParams, roiSize, chiSqr, dchiSqr);
       trial++;
       if(fitResult||(trial>100))break;
     }
     while (fabs(dchiSqr) >= chiCut);
 
-    //    int fitStat=-1;
     if (!fitResult){
-      int fitResult2=fMarqFitAlg->gshf::MarqFitAlg::cal_perr(p,y,nParams,roiSize,perr);
-      //int fitResult2=fMarqFitAlg->cal_perr(p,y,nParams,roiSize,perr);
+      int fitResult2=fMarqFitAlg->gshf::MarqFitAlg::cal_perr(&p[0],&y[0],nParams,roiSize,&perr[0]);
       if (!fitResult2){
 	float NDF = roiSize - nParams;
 	chi2PerNDF = chiSqr / NDF;
 	int parIdx = 0;
 	for(size_t i=0;i<fhc_vec.size();i++){
+
+	  /* stand alone method  
+	  mhpp_vec[i].peakAmplitude      = p[parIdx + 0];
+	  mhpp_vec[i].peakAmplitudeError = perr[parIdx + 0];
+	  mhpp_vec[i].peakCenter         = p[parIdx + 1] + 0.5 + float(startTime);
+	  mhpp_vec[i].peakCenterError    = perr[parIdx + 1];
+	  mhpp_vec[i].peakSigma          = p[parIdx + 2];
+	  mhpp_vec[i].peakSigmaError     = perr[parIdx + 2];
+	  */
 	  
 	  PeakFitParams_t mhpp;	  
-	  
 	  mhpp.peakAmplitude      = p[parIdx + 0];
-	  mhpp.peakAmplitudeError = perr[parIdx + 0];
-	  mhpp.peakCenter         = p[parIdx + 1] + 0.5 + float(startTime);
-	  mhpp.peakCenterError    = perr[parIdx + 1];
-	  mhpp.peakSigma          = p[parIdx + 2];
-	  mhpp.peakSigmaError     = perr[parIdx + 2];
-	  
+          mhpp.peakAmplitudeError = perr[parIdx + 0];
+          mhpp.peakCenter         = p[parIdx + 1] + 0.5 + float(startTime);
+          mhpp.peakCenterError    = perr[parIdx + 1];
+          mhpp.peakSigma          = p[parIdx + 2];
+          mhpp.peakSigmaError     = perr[parIdx + 2];
+  
 	  mhpp_vec.emplace_back(mhpp);
 	  
 	  parIdx += 3;

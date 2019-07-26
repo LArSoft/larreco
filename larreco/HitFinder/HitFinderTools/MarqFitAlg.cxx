@@ -2,28 +2,23 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace gshf{
-//namespace reco_tool{
-
-  //  HitFilterAlg::HitFilterAlg() {   
-  //  }
 
   /* multi-Gaussian function, number of Gaussians is npar divided by 3 */
   void MarqFitAlg::fgauss(const float yd[], const float p[], const int npar, const int ndat, std::vector<float> &res){
-    std::vector<float> yf(ndat);
     #pragma omp simd
     for(int i=0;i<ndat;i++){
-      yf[i]=0.;
+      float yf=0.;
       for(int j=0;j<npar;j+=3){
-	yf[i] = yf[i] + p[j]*std::exp(-0.5*std::pow((float(i)-p[j+1])/p[j+2],2));
+	yf = yf + p[j]*std::exp(-0.5*std::pow((float(i)-p[j+1])/p[j+2],2));
       }
-      res[i]=yd[i]-yf[i];
+      res[i]=yd[i]-yf;
     }
   }
 
   /* analytic derivatives for multi-Gaussian function in fgauss */
   void MarqFitAlg::dgauss(const float p[], const int npar, const int ndat, std::vector<float> &dydp){
     //#pragma GCC ivdep
-    #pragma omp simd 
+     #pragma omp simd 
     for(int i=0;i<ndat;i++){
       for(int j=0;j<npar;j+=3){
 	const float xmu=float(i)-p[j+1];
@@ -53,6 +48,8 @@ namespace gshf{
     int i,j,k;
   
     /* ... Calculate beta */
+     #pragma omp simd
+    //#pragma GCC ivdep
     for(j=0;j<npar;j++){
       beta[j]=0.0;
       for(i=0;i<ndat;i++){
@@ -61,6 +58,8 @@ namespace gshf{
     }
 
     /* ... Calculate alpha */
+#pragma omp simd
+    //#pragma GCC ivdep
     for (j = 0; j < npar; j++){
       for (k = j; k < npar; k++){
 	alpha[j*npar+k]=0.0;
@@ -76,11 +75,9 @@ namespace gshf{
   void MarqFitAlg::solve_matrix(const std::vector<float> &beta, const std::vector<float> &alpha, const int npar, std::vector<float> &dp)
   {
     int i,j,k,imax;
-    float hmax,hsav;//,h[npar][npar+1];
+    float hmax,hsav;
 
-    //std::vector<std::vector<float>> h(5, std::vector<int>(5,0));
     std::vector<std::vector<float>> h(npar, std::vector<float>(npar+1,0));
-    //    vector<vector<int>> vec(m, vector<int> (n, 0));
 
     /* ... set up augmented N x N+1 matrix */
     for(i=0;i<npar;i++){
@@ -134,11 +131,9 @@ namespace gshf{
     */
 
     //turn input alphas into doubles
-
-    //    double alpha[npar*npar];
     std::vector<double> alpha(npar*npar);
 
-    int i, j, k;//, ik[npar], jk[npar];
+    int i, j, k;
     std::vector<int> ik(npar);
     std::vector<int> jk(npar);
     double aMax, save, det;
@@ -170,8 +165,6 @@ namespace gshf{
       i = ik[k];
       if (i > k){
 	for (j = 0;j < npar;j++){
-
-	  
 	  save = alpha[k*npar+j];
 	  alpha[k*npar+j] = alpha[i*npar+j];
 	  alpha[i*npar+j] = -save;
@@ -181,8 +174,6 @@ namespace gshf{
       j = jk[k];
       if (j > k){
 	for (i = 0; i < npar; i++){
-
-	  
 	  save = alpha[i*npar+k];
 	  alpha[i*npar+k] = alpha[i*npar+j];
 	  alpha[i*npar+j] = -save;
@@ -192,6 +183,8 @@ namespace gshf{
       for (i = 0; i < npar; i++){
 	if (i != k) alpha[i*npar+k] = -alpha[i*npar+k]/aMax;
       }
+      #pragma omp simd
+	//#pragma GCC ivdep
       for (i = 0; i < npar; i++){
 	for (j = 0; j < npar;j++){
 	  if ((i != k)&&(j!= k))alpha[i*npar+j]=alpha[i*npar+j]+alpha[i*npar+k]*alpha[k*npar+j];
@@ -236,16 +229,14 @@ namespace gshf{
   /* Calculate parameter errors */
   int MarqFitAlg::cal_perr(float p[], float y[], const int nParam, const int nData, float perr[])
   {
-    int i,j;//,k;
+    int i,j;
     float det;
-    //float res[nData],dydp[nData*nParam],beta[nParam],alpha[nParam*nParam],alpsav[nParam][nParam];
+
     std::vector<float> res(nData);
     std::vector<float> dydp(nData*nParam);
     std::vector<float> beta(nParam);
     std::vector<float> alpha(nParam*nParam);
     std::vector<std::vector<float>> alpsav(nParam,std::vector<float>(nParam));
-   
-
 
     fgauss(y, p, nParam, nData, res);
     dgauss(p, nParam, nData, dydp);
@@ -273,7 +264,7 @@ namespace gshf{
   {
     int j;
     float nu,rho,lzmlh,amax,chiSq0;
-    //float res[nData],beta[nParam],dp[nParam],alpsav[nParam],psav[nParam],dydp[nData*nParam],alpha[nParam*nParam];
+
     std::vector<float> res(nData);
     std::vector<float> beta(nParam);
     std::vector<float> dp(nParam);
@@ -333,4 +324,4 @@ namespace gshf{
 
   }
 
-}//end namespace marqfitgaus
+}//end namespace gshf

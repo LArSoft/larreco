@@ -17,7 +17,6 @@
 //#include "lardataobj/RecoBase/Hit.h"
 
 namespace gshf{
-//namespace reco_tool{
 
   class MarqFitAlg {
     public:
@@ -27,11 +26,8 @@ namespace gshf{
       int cal_perr(float p[], float y[], const int nParam, const int nData, float perr[]);
       int mrqdtfit(float &lambda, float p[], float y[], const int nParam, const int nData, float &chiSqr, float &dchiSqr);
 
-      //      int cal_perr(float p[], float y[], const int nParam, const int nData, float perr[]);
-	//      int mrqdtfit(float &lambda, float p[], float y[], const int nParam, const int nData, float &chiSqr, float &dchiSqr);
 
     private:
-
       //these functions are  called by the public functions
       void fgauss(const float yd[], const float p[], const int npar, const int ndat, std::vector<float> &res);
       void dgauss(const float p[], const int npar, const int ndat, std::vector<float> &dydp);
@@ -42,5 +38,5 @@ namespace gshf{
 
   };
 
-}//end namespace marqfitgaus
+}//end namespace gshf
 #endif
