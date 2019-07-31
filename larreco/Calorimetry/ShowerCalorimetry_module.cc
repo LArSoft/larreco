@@ -153,7 +153,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         if (!planeID.isValid){
 	  planeID = theHit->WireID();
 	}
-        hitIndex[k] = hit_index;
+        hitIndex[k] = theHit.key();
         float wire_pitch = geom->WirePitch( theHit->View() );
 
         float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID());
