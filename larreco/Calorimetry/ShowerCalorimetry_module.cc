@@ -83,7 +83,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
 
   art::ServiceHandle< geo::Geometry > geom;
 
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  //auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   //Make the container for the calo product to put onto the event.
@@ -156,21 +156,17 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         hitIndex[k] = theHit.key();
         float wire_pitch = geom->WirePitch( theHit->View() );
 
-        float theHit_Xpos = detprop->ConvertTicksToX(theHit->PeakTime(),theHit->WireID());
-        // !!! Warining by default lets use the vertex of the shower for Y and Z in case there are not SP associated to this hit
-        float theHit_Ypos = shower->ShowerStart().Y();
-        float theHit_Zpos = shower->ShowerStart().Z();
+        float theHit_Xpos = -999.;
+        float theHit_Ypos = -999.;
+        float theHit_Zpos = -999.;
 
         std::vector<art::Ptr<recob::SpacePoint>> sp = spFromShowerHits.at(hit_index); 
         if( !sp.empty() ){
-          for( size_t sp_idx =0; sp_idx< sp.size(); ++sp_idx){
-            //Note X position and ConvertTicksToX should be identicall otherwise something went wrong with the associations  
-            //check what SP matches better the X-hit position in case there are more than one SP per hit
-            if( std::abs(sp[sp_idx]->XYZ()[0]-theHit_Xpos) < 1e-5 ){
-              theHit_Ypos = sp[sp_idx]->XYZ()[1];
-              theHit_Zpos = sp[sp_idx]->XYZ()[2];
-            }
-          }
+          //only use first space point 
+          theHit_Xpos = sp[0]->XYZ()[0];
+          theHit_Ypos = sp[0]->XYZ()[1];
+          theHit_Zpos = sp[0]->XYZ()[2];
+          
         }
         else{
          MF_LOG_INFO("ShowerCalorimetry")<<"no sp associated w/this hit ... we will skip this hit";
@@ -178,7 +174,6 @@ void calo::ShowerCalorimetry::produce(art::Event& e) {
         }
 
         TVector3 pos(theHit_Xpos,theHit_Ypos,theHit_Zpos);
-       
         //correct pitch for hit direction 
         float this_pitch = wire_pitch;
         float angleToVert = geom->WireAngleToVertical(
