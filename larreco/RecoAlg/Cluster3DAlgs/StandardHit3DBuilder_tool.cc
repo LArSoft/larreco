@@ -226,6 +226,7 @@ private:
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
     std::vector<int>                     m_invalidTPCVec;
+    float                                m_wirePitchScaleFactor;  ///< Scaling factor to determine max distance allowed between candidate pairs
     float                                m_maxHit3DChiSquare;     ///< Provide ability to select hits based on "chi square"
     bool                                 m_outputHistograms;      ///< Take the time to create and fill some histograms for diagnostics
 
@@ -288,15 +289,16 @@ void StandardHit3DBuilder::produces(art::EDProducer* producer)
 
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTagVec   = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",     std::vector<art::InputTag>()={"gaushit"});
-    m_enableMonitoring  = pset.get<bool                      >("EnableMonitoring",    true);
-    m_numSigmaPeakTime  = pset.get<float                     >("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr   = pset.get<float                     >("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig  = pset.get<float                     >("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset        = pset.get<float                     >("ZPosOffset",          0.0 );
-    m_invalidTPCVec     = pset.get<std::vector<int>          >("InvalidTPCVec",       std::vector<int>());
-    m_maxHit3DChiSquare = pset.get<float                     >("MaxHitChiSquare",     6.0 );
-    m_outputHistograms  = pset.get<bool                      >("OutputHistograms",    false );
+    m_hitFinderTagVec      = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",      std::vector<art::InputTag>()={"gaushit"});
+    m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",     true);
+    m_numSigmaPeakTime     = pset.get<float                     >("NumSigmaPeakTime",     3.  );
+    m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",  6.  );
+    m_deltaPeakTimeSig     = pset.get<float                     >("DeltaPeakTimeSig",     1.7 );
+    m_zPosOffset           = pset.get<float                     >("ZPosOffset",           0.0 );
+    m_invalidTPCVec        = pset.get<std::vector<int>          >("InvalidTPCVec",        std::vector<int>());
+    m_wirePitchScaleFactor = pset.get<float                     >("WirePitchScaleFactor", 1.9 );
+    m_maxHit3DChiSquare    = pset.get<float                     >("MaxHitChiSquare",      6.0 );
+    m_outputHistograms     = pset.get<bool                      >("OutputHistograms",     false );
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -877,8 +879,8 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         float hit2Sigma = hit2->getHit()->RMS();
 
         // ad hoc correction for most bad fits...
-        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
-        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
+//        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
+//        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
 
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
@@ -976,10 +978,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     // Assume failure
     bool result(false);
 
-    static const float rmsToSig(1.0); //0.75); //0.57735027);
-
     // We are going to force the wire pitch here, some time in the future we need to fix
-    static const double wirePitch = 1.01 * *std::max_element(m_wirePitch,m_wirePitch+3);
+    static const double wirePitch = m_wirePitchScaleFactor * *std::max_element(m_wirePitch,m_wirePitch+3);
 
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
@@ -1073,7 +1073,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
 
                         hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
 
-                        float hitRMS   = rmsToSig * hit2D->getHit()->RMS();
+                        float hitRMS   = hit2D->getHit()->RMS();
                         float weight   = 1. / (hitRMS * hitRMS);
                         float peakTime = hit2D->getTimeTicks();
 
@@ -1096,7 +1096,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
 
                     for(const auto& hit2D : hitVector)
                     {
-                        float hitRMS    = rmsToSig * hit2D->getHit()->RMS();
+                        float hitRMS    = hit2D->getHit()->RMS();
                         float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                         float peakTime  = hit2D->getTimeTicks();
                         float deltaTime = peakTime - avePeakTime;
