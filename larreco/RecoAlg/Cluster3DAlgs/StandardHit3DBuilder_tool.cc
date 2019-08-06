@@ -1132,14 +1132,11 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         }
                         
                         // Take opportunity to look at peak time diff
-                        if (m_outputHistograms)
-                        {
-                            float deltaPeakTime = hitVector[leftIdx]->getTimeTicks() - hitVector[rightIdx]->getTimeTicks();
+                        float deltaPeakTime = hitVector[leftIdx]->getTimeTicks() - hitVector[rightIdx]->getTimeTicks();
+                        
+                        if (std::abs(deltaPeakTime) > maxDeltaPeak) maxDeltaPeak = std::abs(deltaPeakTime);
                             
-                            if (std::abs(deltaPeakTime) > maxDeltaPeak) maxDeltaPeak = std::abs(deltaPeakTime);
-                            
-                            m_deltaTimeVec.push_back(deltaPeakTime);
-                        }
+                        if (m_outputHistograms) m_deltaTimeVec.push_back(deltaPeakTime);
                     }
                     
                     float chargeAsymmetry = (chargeAveVec[chargeIndex] - chargeVec[chargeIndex]) / (chargeAveVec[chargeIndex] + chargeVec[chargeIndex]);
