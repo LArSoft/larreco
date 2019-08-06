@@ -28,6 +28,8 @@ standard_spacepointhit3dbuilder:
   SpacePointProducerLabel: "SpacePointSolver"
   HitProducerLabel:        "gaushit"
   EnableMonitoring:        true  # enable monitoring of functions
+  MaxHitChiSquare:         6.0
+  OutputHistograms:        false
 }
 
 standard_cluster3dprincipalcomponentsalg:

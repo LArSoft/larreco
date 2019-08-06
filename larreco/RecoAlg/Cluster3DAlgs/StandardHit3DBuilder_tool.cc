@@ -246,7 +246,10 @@ private:
 
     mutable std::vector<float>           m_deltaTimeVec;
     mutable std::vector<float>           m_chiSquare3DVec;
+    mutable std::vector<float>           m_maxPullVec;
     mutable std::vector<float>           m_overlapFractionVec;
+    mutable std::vector<float>           m_overlapRangeVec;
+    mutable std::vector<float>           m_maxDeltaPeakVec;
     mutable std::vector<float>           m_maxSideVecVec;
     mutable std::vector<float>           m_pairWireDistVec;
     mutable std::vector<float>           m_smallChargeDiffVec;
@@ -328,7 +331,10 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
         
         m_tupleTree->Branch("DeltaTime2D",     "std::vector<float>", &m_deltaTimeVec);
         m_tupleTree->Branch("ChiSquare3D",     "std::vector<float>", &m_chiSquare3DVec);
+        m_tupleTree->Branch("MaxPullValue",    "std::vector<float>", &m_maxPullVec);
         m_tupleTree->Branch("OverlapFraction", "std::vector<float>", &m_overlapFractionVec);
+        m_tupleTree->Branch("OverlapRange",    "std::vector<float>", &m_overlapRangeVec);
+        m_tupleTree->Branch("MaxDeltaPeak",    "std::vector<float>", &m_maxDeltaPeakVec);
         m_tupleTree->Branch("MaxSideVec",      "std::vector<float>", &m_maxSideVecVec);
         m_tupleTree->Branch("PairWireDistVec", "std::vector<float>", &m_pairWireDistVec);
         m_tupleTree->Branch("SmallChargeDiff", "std::vector<float>", &m_smallChargeDiffVec);
@@ -345,7 +351,10 @@ void StandardHit3DBuilder::clear()
 {
     m_deltaTimeVec.clear();
     m_chiSquare3DVec.clear();
+    m_maxPullVec.clear();
     m_overlapFractionVec.clear();
+    m_overlapRangeVec.clear();
+    m_maxDeltaPeakVec.clear();
     m_maxSideVecVec.clear();
     m_pairWireDistVec.clear();
     m_smallChargeDiffVec.clear();
@@ -874,7 +883,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
         
-        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
+//        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
 
         // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
@@ -1062,7 +1071,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                     float peakTime  = hit2D->getTimeTicks();
                     float deltaTime = peakTime - avePeakTime;
-                    float hitSig    = deltaTime / combRMS; //hitRMS;
+                    float hitSig    = deltaTime / combRMS;
 
                     hitChiSquare += hitSig * hitSig;
 
@@ -1092,25 +1101,20 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 if (hitChiSquare < m_maxHit3DChiSquare && hiMinIndex > lowMaxIndex)
                 {
                     // One more pass through hits to get charge
-                    float totalCharge(0.);
-                    float overlapFraction(0.);
-                    float chargeAsymmetry(-1.);
-
                     std::vector<float> chargeVec;
                     
                     for(const auto& hit2D : hitVector)
                         chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex));
                     
-//                    std::sort(chargeVec.begin(),chargeVec.end());
+                    float totalCharge     = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
+                    float overlapRange    = float(hiMinIndex - lowMaxIndex);
+                    float overlapFraction = overlapRange / float(hiMaxIndex - lowMinIndex);
 
-                    totalCharge = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
-
-                    overlapFraction = float(hiMinIndex - lowMaxIndex) / (hiMaxIndex - lowMinIndex);
-                    
                     // Set up to compute the charge asymmetry
                     std::vector<float> smallestChargeDiffVec;
                     std::vector<float> chargeAveVec;
                     float              smallestDiff(std::numeric_limits<float>::max());
+                    float              maxDeltaPeak(0.);
                     size_t             chargeIndex(0);
                     
                     for(size_t idx = 0; idx < 3; idx++)
@@ -1126,9 +1130,19 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                             smallestDiff = smallestChargeDiffVec.back();
                             chargeIndex  = idx;
                         }
+                        
+                        // Take opportunity to look at peak time diff
+                        if (m_outputHistograms)
+                        {
+                            float deltaPeakTime = hitVector[leftIdx]->getTimeTicks() - hitVector[rightIdx]->getTimeTicks();
+                            
+                            if (std::abs(deltaPeakTime) > maxDeltaPeak) maxDeltaPeak = std::abs(deltaPeakTime);
+                            
+                            m_deltaTimeVec.push_back(deltaPeakTime);
+                        }
                     }
                     
-                    chargeAsymmetry = (chargeAveVec[chargeIndex] - chargeVec[chargeIndex]) / (chargeAveVec[chargeIndex] + chargeVec[chargeIndex]);
+                    float chargeAsymmetry = (chargeAveVec[chargeIndex] - chargeVec[chargeIndex]) / (chargeAveVec[chargeIndex] + chargeVec[chargeIndex]);
                     
                     // If this is true there has to be a negative charge that snuck in somehow
                     if (chargeAsymmetry < -1. || chargeAsymmetry > 1.)
@@ -1141,15 +1155,25 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         std::cout << "     index: " << chargeIndex << ", smallest diff: " << smallestDiff << std::endl;
                         return result;
                     }
+
+                    // Usurping "deltaPeakTime" to be the maximum pull
+                    float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
                     
                     if (m_outputHistograms)
                     {
                         m_smallChargeDiffVec.push_back(smallestDiff);
                         m_smallIndexVec.push_back(chargeIndex);
+                        m_maxPullVec.push_back(deltaPeakTime);
+                        m_qualityMetricVec.push_back(hitChiSquare);
+                        m_spacePointChargeVec.push_back(totalCharge);
+                        m_overlapFractionVec.push_back(overlapFraction);
+                        m_overlapRangeVec.push_back(overlapRange);
+                        m_maxDeltaPeakVec.push_back(maxDeltaPeak);
+                        m_hitAsymmetryVec.push_back(chargeAsymmetry);
                     }
-
-                    // Usurping "deltaPeakTime" to be the maximum pull
-                    float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
+                    
+                    // Try to weed out cases where overlap doesn't match peak separation
+                    if (maxDeltaPeak > overlapRange) return result;
 
                     // Create the 3D cluster hit
                     hitTriplet.initialize(0,
@@ -1573,14 +1597,6 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
                 // And set the pointer to this hit in the ClusterHit2D object
                 const_cast<reco::ClusterHit2D*>(hit2D)->setHit(newHit);
             }
-        }
-
-        if (m_outputHistograms)
-        {
-            m_qualityMetricVec.push_back(hit3D.getHitChiSquare());
-            m_spacePointChargeVec.push_back(hit3D.getTotalCharge());
-            m_overlapFractionVec.push_back(hit3D.getOverlapFraction());
-            m_hitAsymmetryVec.push_back(hit3D.getChargeAsymmetry());
         }
     }
 
