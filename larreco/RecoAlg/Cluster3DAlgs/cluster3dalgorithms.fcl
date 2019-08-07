@@ -17,6 +17,7 @@ standard_standardhit3dbuilder:
   NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
   HitWidthScaleFactor:  6.    #
   DeltaPeakTimeSig:     1.7   # "Significance" of agreement between 2 hit peak times
+  WirePitchScaleFactor: 1.9
   MaxHitChiSquare:      6.0
   OutputHistograms:     false
 }
@@ -27,6 +28,8 @@ standard_spacepointhit3dbuilder:
   SpacePointProducerLabel: "SpacePointSolver"
   HitProducerLabel:        "gaushit"
   EnableMonitoring:        true  # enable monitoring of functions
+  MaxHitChiSquare:         6.0
+  OutputHistograms:        false
 }
 
 standard_cluster3dprincipalcomponentsalg:
@@ -134,6 +137,15 @@ standard_convexhullPathAlg:
   MinTinyClusterSize:     40      # minimum number of hits to consider splitting
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
   ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+standard_MSTPathAlg:
+{
+  tool_type:              MSTPathFinder
+  EnableMonitoring:       true           # enable monitoring of functions
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  kdTree:                 @local::standard_cluster3dkdTree
 }
 
 microboone_standardhit3dbuilder:               @local::standard_standardhit3dbuilder
