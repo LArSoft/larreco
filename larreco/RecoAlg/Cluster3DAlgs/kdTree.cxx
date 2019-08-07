@@ -294,13 +294,8 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
             // put wire deltas in order...
             std::sort(wireDeltas, wireDeltas + 3);
 
-            bool checkSeparation(false);
-
-            // Because we hve sorted this is all we need to check
-            if (wireDeltas[2] < 2) checkSeparation = true;
-
             // Requirement to be considered a nearest neighbor
-            if (checkSeparation)
+            if (wireDeltas[2] < 3)
             {
                 float hitSeparation = std::max(float(0.0001),DistanceBetweenNodesYZ(pair1,pair2));
 

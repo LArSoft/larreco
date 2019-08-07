@@ -27,4 +27,13 @@ standard_convexhullPathAlg:
   ClusterAlg:             @local::standard_cluster3ddbscanalg
 }
 
+standard_MSTPathAlg:
+{
+  tool_type:              MSTPathFinder
+  EnableMonitoring:       true           # enable monitoring of functions
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  kdTree:                 @local::standard_cluster3dkdTree
+}
+
 END_PROLOG

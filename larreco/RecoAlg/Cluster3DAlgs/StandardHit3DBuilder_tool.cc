@@ -202,6 +202,11 @@ private:
     geo::WireID NearestWireID(const Eigen::Vector3f& position, const geo::WireID& wireID) const;
 
     /**
+     *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
+     */
+    float DistanceFromPointToHitWire(const Eigen::Vector3f& position, const geo::WireID& wireID) const;
+
+    /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
     void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap) const;
@@ -230,6 +235,7 @@ private:
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
     std::vector<int>                     m_invalidTPCVec;
+    float                                m_wirePitchScaleFactor;  ///< Scaling factor to determine max distance allowed between candidate pairs
     float                                m_maxHit3DChiSquare;     ///< Provide ability to select hits based on "chi square"
     bool                                 m_outputHistograms;      ///< Take the time to create and fill some histograms for diagnostics
 
@@ -244,8 +250,14 @@ private:
 
     mutable std::vector<float>           m_deltaTimeVec;
     mutable std::vector<float>           m_chiSquare3DVec;
+    mutable std::vector<float>           m_maxPullVec;
     mutable std::vector<float>           m_overlapFractionVec;
+    mutable std::vector<float>           m_overlapRangeVec;
+    mutable std::vector<float>           m_maxDeltaPeakVec;
     mutable std::vector<float>           m_maxSideVecVec;
+    mutable std::vector<float>           m_pairWireDistVec;
+    mutable std::vector<float>           m_smallChargeDiffVec;
+    mutable std::vector<int>             m_smallIndexVec;
     mutable std::vector<float>           m_qualityMetricVec;
     mutable std::vector<float>           m_spacePointChargeVec;
     mutable std::vector<float>           m_hitAsymmetryVec;
@@ -292,15 +304,16 @@ void StandardHit3DBuilder::produces(art::EDProducer* producer)
 
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTagVec   = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",     std::vector<art::InputTag>()={"gaushit"});
-    m_enableMonitoring  = pset.get<bool                      >("EnableMonitoring",    true);
-    m_numSigmaPeakTime  = pset.get<float                     >("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr   = pset.get<float                     >("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig  = pset.get<float                     >("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset        = pset.get<float                     >("ZPosOffset",          0.0 );
-    m_invalidTPCVec     = pset.get<std::vector<int>          >("InvalidTPCVec",       std::vector<int>());
-    m_maxHit3DChiSquare = pset.get<float                     >("MaxHitChiSquare",     6.0 );
-    m_outputHistograms  = pset.get<bool                      >("OutputHistograms",    false );
+    m_hitFinderTagVec      = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",      std::vector<art::InputTag>()={"gaushit"});
+    m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",     true);
+    m_numSigmaPeakTime     = pset.get<float                     >("NumSigmaPeakTime",     3.  );
+    m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",  6.  );
+    m_deltaPeakTimeSig     = pset.get<float                     >("DeltaPeakTimeSig",     1.7 );
+    m_zPosOffset           = pset.get<float                     >("ZPosOffset",           0.0 );
+    m_invalidTPCVec        = pset.get<std::vector<int>          >("InvalidTPCVec",        std::vector<int>());
+    m_wirePitchScaleFactor = pset.get<float                     >("WirePitchScaleFactor", 1.9 );
+    m_maxHit3DChiSquare    = pset.get<float                     >("MaxHitChiSquare",      6.0 );
+    m_outputHistograms     = pset.get<bool                      >("OutputHistograms",     false );
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -322,8 +335,14 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
         
         m_tupleTree->Branch("DeltaTime2D",     "std::vector<float>", &m_deltaTimeVec);
         m_tupleTree->Branch("ChiSquare3D",     "std::vector<float>", &m_chiSquare3DVec);
+        m_tupleTree->Branch("MaxPullValue",    "std::vector<float>", &m_maxPullVec);
         m_tupleTree->Branch("OverlapFraction", "std::vector<float>", &m_overlapFractionVec);
+        m_tupleTree->Branch("OverlapRange",    "std::vector<float>", &m_overlapRangeVec);
+        m_tupleTree->Branch("MaxDeltaPeak",    "std::vector<float>", &m_maxDeltaPeakVec);
         m_tupleTree->Branch("MaxSideVec",      "std::vector<float>", &m_maxSideVecVec);
+        m_tupleTree->Branch("PairWireDistVec", "std::vector<float>", &m_pairWireDistVec);
+        m_tupleTree->Branch("SmallChargeDiff", "std::vector<float>", &m_smallChargeDiffVec);
+        m_tupleTree->Branch("SmallChargeIdx",  "std::vector<int>",   &m_smallIndexVec);
         m_tupleTree->Branch("QualityMetric",   "std::vector<float>", &m_qualityMetricVec);
         m_tupleTree->Branch("SPCharge",        "std::vector<float>", &m_spacePointChargeVec);
         m_tupleTree->Branch("HitAsymmetry",    "std::vector<float>", &m_hitAsymmetryVec);
@@ -336,8 +355,14 @@ void StandardHit3DBuilder::clear()
 {
     m_deltaTimeVec.clear();
     m_chiSquare3DVec.clear();
+    m_maxPullVec.clear();
     m_overlapFractionVec.clear();
+    m_overlapRangeVec.clear();
+    m_maxDeltaPeakVec.clear();
     m_maxSideVecVec.clear();
+    m_pairWireDistVec.clear();
+    m_smallChargeDiffVec.clear();
+    m_smallIndexVec.clear();
     m_qualityMetricVec.clear();
     m_spacePointChargeVec.clear();
     m_hitAsymmetryVec.clear();
@@ -741,61 +766,36 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
         {
             if (pair12.second.empty()) continue;
 
-            // Use the planeID for the first hit
-            geo::WireID missingPlaneID = pair12.first;
-
-            // "Discover" the missing view (and we can't rely on assuming there are hits in the pair13Map at this point)
-            size_t missPlane = 0;
-
-            if      (!pair12.second.front().second.getHits()[1]) missPlane = 1;
-            else if (!pair12.second.front().second.getHits()[2]) missPlane = 2;
-
-            missingPlaneID.Plane = missPlane;
-
             // This loop is over hit pairs that share the same first two plane wires but may have different
             // hit times on those wires
-            for(const auto& hit2Dhit3DPair : pair12.second)
+            for(const auto& hit2Dhit3DPair12 : pair12.second)
             {
-                const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
-
-                // Get the wire ID for the nearest wire to the position of this hit
-                geo::WireID wireID = NearestWireID(pair1.getPosition(), missingPlaneID);
+                const reco::ClusterHit3D& pair1  = hit2Dhit3DPair12.second;
 
                 // populate the map with initial value
                 usedPairMap[&pair1] = false;
-
-                // For TPC's with 60 degree wire pitch the position returned for the the pair will
-                // lie between two wires in the missing plane. The call to nearestWireID should return
-                // the lower of the pair.
-                // So we really want to do a loop here so we can consider both wire combinations
-                for(int loopIdx = 0; loopIdx < 2; loopIdx++)
+                
+                // The simplest approach here is to loop over all possibilities and let the triplet builder weed out the weak candidates
+                for(const auto& pair13 : pair13Map)
                 {
-                    // Now look up the hit pairs on the wire which matches the current hit pair
-                    HitMatchPairVecMap::iterator thirdPlaneHitMapItr = pair13Map.find(wireID);
-
-                    // Loop over third plane hits and try to form a triplet
-                    if (thirdPlaneHitMapItr != pair13Map.end())
+                    if (pair13.second.empty()) continue;
+                    
+                    for(const auto& hit2Dhit3DPair13 : pair13.second)
                     {
-                        for(const auto& thirdPlaneHitItr : thirdPlaneHitMapItr->second)
+                        const reco::ClusterHit2D* hit2  = hit2Dhit3DPair13.first;
+                        const reco::ClusterHit3D& pair2 = hit2Dhit3DPair13.second;
+                        
+                        // If success try for the triplet
+                        reco::ClusterHit3D triplet;
+                        
+                        if (makeHitTriplet(triplet, pair1, hit2))
                         {
-                            const reco::ClusterHit2D* hit2  = thirdPlaneHitItr.first;
-                            const reco::ClusterHit3D& pair2 = thirdPlaneHitItr.second;
-
-                            // If success try for the triplet
-                            reco::ClusterHit3D triplet;
-
-                            if (makeHitTriplet(triplet, pair1, hit2))
-                            {
-                                triplet.setID(hitPairList.size());
-                                hitPairList.emplace_back(triplet);
-                                usedPairMap[&pair1] = true;
-                                usedPairMap[&pair2] = true;
-                            }
+                            triplet.setID(hitPairList.size());
+                            hitPairList.emplace_back(triplet);
+                            usedPairMap[&pair1] = true;
+                            usedPairMap[&pair2] = true;
                         }
                     }
-
-                    // Now bump the wire id to the next wire and do this again
-                    wireID.Wire += 1;
                 }
             }
         }
@@ -881,13 +881,13 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         float hit2Sigma = hit2->getHit()->RMS();
 
         // ad hoc correction for most bad fits...
-        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
-        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
+//        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
+//        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
 
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
         
-        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
+//        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
 
         // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
@@ -980,10 +980,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     // Assume failure
     bool result(false);
 
-    static const float rmsToSig(1.0); //0.75); //0.57735027);
-
     // We are going to force the wire pitch here, some time in the future we need to fix
-    static const double wirePitch = 1.01 * *std::max_element(m_wirePitch,m_wirePitch+3);
+    static const double wirePitch = 0.5 * m_wirePitchScaleFactor * *std::max_element(m_wirePitch,m_wirePitch+3);
 
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
@@ -996,12 +994,16 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     // Require the W hit to be "in range" with the UV Pair
     if (fabs(hitTimeTicks - pair.getAvePeakTime()) < m_hitWidthSclFctr * (pair.getSigmaPeakTime() + hitSigma))
     {
-        // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
-        geo::WireID wireID = NearestWireID(pair.getPosition(), hit->WireID());
+        // Check the distance from the point to the wire the hit is on
+        float hitWireDist = DistanceFromPointToHitWire(pair.getPosition(), hit->WireID());
+        
+        if (m_outputHistograms) m_maxSideVecVec.push_back(hitWireDist);
 
-        // There is an interesting round off issue that we need to watch for...
-        if (wireID.Wire == hit->WireID().Wire || wireID.Wire + 1 == hit->WireID().Wire)
+        // Reject hits that are not within range
+        if (hitWireDist < wirePitch)
         {
+            if (m_outputHistograms) m_pairWireDistVec.push_back(hitWireDist);
+            
             // Use the existing code to see the U and W hits are willing to pair with the V hit
             reco::ClusterHit3D pair0h;
             reco::ClusterHit3D pair1h;
@@ -1017,163 +1019,181 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
             // If good pairs made here then we can try to make a triplet
             if (makeHitPair(pair0h, hit0, hit, m_hitWidthSclFctr) && makeHitPair(pair1h, hit1, hit, m_hitWidthSclFctr))
             {
-                // We want to make sure the 3 sets of pair are really consistent
-                // For TPC's with a 60 degree pitch the wire "intersection" will be an equilateral triangle
-                // with equal sides of length  wire pitch / sin(60 degrees) / 2
-                // So we make sure all three achieve this
+                // Get a copy of the input hit vector (note the order is by plane - by definition)
+                reco::ClusterHit2DVec hitVector = pair.getHits();
+
+                // include the new hit
+                hitVector[hit->WireID().Plane] = hit;
+
+                // Set up to get average peak time, hitChiSquare, etc.
+                unsigned int statusBits(0x7);
+                float        avePeakTime(0.);
+                float        weightSum(0.);
+                float        xPosition(0.);
+
+                // And get the wire IDs
+                std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
+
+                // First loop through the hits to get WireIDs and calculate the averages
+                for(size_t planeIdx = 0; planeIdx < 3; planeIdx++)
+                {
+                    const reco::ClusterHit2D* hit2D = hitVector[planeIdx];
+
+                    wireIDVec[planeIdx] = hit2D->WireID();
+
+                    if (hit2D->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit2D->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
+
+                    hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
+
+                    float hitRMS   = hit2D->getHit()->RMS();
+                    float weight   = 1. / (hitRMS * hitRMS);
+                    float peakTime = hit2D->getTimeTicks();
+
+                    avePeakTime += peakTime * weight;
+                    xPosition   += hit2D->getXPosition() * weight;
+                    weightSum   += weight;
+                }
+
+                avePeakTime /= weightSum;
+                xPosition   /= weightSum;
+
                 Eigen::Vector2f pair0hYZVec(pair0h.getPosition()[1],pair0h.getPosition()[2]);
                 Eigen::Vector2f pair1hYZVec(pair1h.getPosition()[1],pair1h.getPosition()[2]);
                 Eigen::Vector2f pairYZVec(pair.getPosition()[1],pair.getPosition()[2]);
+                Eigen::Vector3f position(xPosition,
+                                         float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
+                                         float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.));
 
-                std::vector<float> sideVec = {(pair0hYZVec - pair1hYZVec).norm(),(pair1hYZVec - pairYZVec).norm(),(pairYZVec   - pair0hYZVec).norm()};
-                
-                float maxSideVecVal = *std::max_element(sideVec.begin(),sideVec.end());
-                
-                if (m_outputHistograms) m_maxSideVecVec.push_back(maxSideVecVal);
+                // Armed with the average peak time, now get hitChiSquare and the sig vec
+                float              hitChiSquare(0.);
+                float              sigmaPeakTime(std::sqrt(1./weightSum));
+                std::vector<float> hitDelTSigVec;
 
-                // The three sides will not be identically equal because of numeric issues. It is really sufficient to simply
-                // check that the longest side is less than the wire pitch
-                if (maxSideVecVal < wirePitch)
+                for(const auto& hit2D : hitVector)
                 {
-                    // Get a copy of the input hit vector (note the order is by plane - by definition)
-                    reco::ClusterHit2DVec hitVector = pair.getHits();
+                    float hitRMS    = hit2D->getHit()->RMS();
+                    float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
+                    float peakTime  = hit2D->getTimeTicks();
+                    float deltaTime = peakTime - avePeakTime;
+                    float hitSig    = deltaTime / combRMS;
 
-                    // include the new hit
-                    hitVector[hit->WireID().Plane] = hit;
+                    hitChiSquare += hitSig * hitSig;
 
-                    // Set up to get average peak time, hitChiSquare, etc.
-                    unsigned int statusBits(0x7);
-                    float        avePeakTime(0.);
-                    float        weightSum(0.);
-                    float        xPosition(0.);
-                    int          lowMinIndex(std::numeric_limits<int>::max());
-                    int          lowMaxIndex(std::numeric_limits<int>::min());
-                    int          hiMinIndex(std::numeric_limits<int>::max());
-                    int          hiMaxIndex(std::numeric_limits<int>::min());
+                    hitDelTSigVec.emplace_back(std::fabs(hitSig));
+                }
+                
+                if (m_outputHistograms) m_chiSquare3DVec.push_back(hitChiSquare);
+                
+                int lowMinIndex(std::numeric_limits<int>::max());
+                int lowMaxIndex(std::numeric_limits<int>::min());
+                int hiMinIndex(std::numeric_limits<int>::max());
+                int hiMaxIndex(std::numeric_limits<int>::min());
+                
+                // First task is to get the min/max values for the common overlap region
+                for(const auto& hit2D : hitVector)
+                {
+                    int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
+                    int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
                     
-                    // First task is to get the min/max values for the common overlap region
+                    lowMinIndex = std::min(hitStart,    lowMinIndex);
+                    lowMaxIndex = std::max(hitStart,    lowMaxIndex);
+                    hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
+                    hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
+                }
+
+                // Keep only "good" hits...
+                if (hitChiSquare < m_maxHit3DChiSquare && hiMinIndex > lowMaxIndex)
+                {
+                    // One more pass through hits to get charge
+                    std::vector<float> chargeVec;
+                    
                     for(const auto& hit2D : hitVector)
+                        chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex));
+                    
+                    float totalCharge     = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
+                    float overlapRange    = float(hiMinIndex - lowMaxIndex);
+                    float overlapFraction = overlapRange / float(hiMaxIndex - lowMinIndex);
+
+                    // Set up to compute the charge asymmetry
+                    std::vector<float> smallestChargeDiffVec;
+                    std::vector<float> chargeAveVec;
+                    float              smallestDiff(std::numeric_limits<float>::max());
+                    float              maxDeltaPeak(0.);
+                    size_t             chargeIndex(0);
+                    
+                    for(size_t idx = 0; idx < 3; idx++)
                     {
-                        int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
-                        int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
+                        size_t leftIdx  = (idx + 2) % 3;
+                        size_t rightIdx = (idx + 1) % 3;
                         
-                        lowMinIndex = std::min(hitStart,    lowMinIndex);
-                        lowMaxIndex = std::max(hitStart,    lowMaxIndex);
-                        hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
-                        hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
-                    }
-
-                    // And get the wire IDs
-                    std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
-
-                    // First loop through the hits to get WireIDs and calculate the averages
-                    for(size_t planeIdx = 0; planeIdx < 3; planeIdx++)
-                    {
-                        const reco::ClusterHit2D* hit2D = hitVector[planeIdx];
-
-                        wireIDVec[planeIdx] = hit2D->WireID();
-
-                        if (hit2D->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit2D->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
-
-                        hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
-
-                        float hitRMS   = rmsToSig * hit2D->getHit()->RMS();
-                        float weight   = 1. / (hitRMS * hitRMS);
-                        float peakTime = hit2D->getTimeTicks();
-
-                        avePeakTime += peakTime * weight;
-                        xPosition   += hit2D->getXPosition() * weight;
-                        weightSum   += weight;
-                    }
-
-                    avePeakTime /= weightSum;
-                    xPosition   /= weightSum;
-
-                    Eigen::Vector3f position(xPosition,
-                                             float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
-                                             float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.));
-
-                    // Armed with the average peak time, now get hitChiSquare and the sig vec
-                    float              hitChiSquare(0.);
-                    float              sigmaPeakTime(std::sqrt(1./weightSum));
-                    std::vector<float> hitDelTSigVec;
-
-                    for(const auto& hit2D : hitVector)
-                    {
-                        float hitRMS    = rmsToSig * hit2D->getHit()->RMS();
-                        float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
-                        float peakTime  = hit2D->getTimeTicks();
-                        float deltaTime = peakTime - avePeakTime;
-                        float hitSig    = deltaTime / combRMS; //hitRMS;
-
-                        hitChiSquare += hitSig * hitSig;
-
-                        hitDelTSigVec.emplace_back(std::fabs(hitSig));
+                        smallestChargeDiffVec.push_back(std::abs(chargeVec[leftIdx] - chargeVec[rightIdx]));
+                        chargeAveVec.push_back(float(0.5 * (chargeVec[leftIdx] + chargeVec[rightIdx])));
+                        
+                        if (smallestChargeDiffVec.back() < smallestDiff)
+                        {
+                            smallestDiff = smallestChargeDiffVec.back();
+                            chargeIndex  = idx;
+                        }
+                        
+                        // Take opportunity to look at peak time diff
+                        float deltaPeakTime = hitVector[leftIdx]->getTimeTicks() - hitVector[rightIdx]->getTimeTicks();
+                        
+                        if (std::abs(deltaPeakTime) > maxDeltaPeak) maxDeltaPeak = std::abs(deltaPeakTime);
+                            
+                        if (m_outputHistograms) m_deltaTimeVec.push_back(deltaPeakTime);
                     }
                     
-                    if (m_outputHistograms) m_chiSquare3DVec.push_back(hitChiSquare);
-
-                    // Keep only "good" hits...
-                    if (hitChiSquare < m_maxHit3DChiSquare)
+                    float chargeAsymmetry = (chargeAveVec[chargeIndex] - chargeVec[chargeIndex]) / (chargeAveVec[chargeIndex] + chargeVec[chargeIndex]);
+                    
+                    // If this is true there has to be a negative charge that snuck in somehow
+                    if (chargeAsymmetry < -1. || chargeAsymmetry > 1.)
                     {
-                        // One more pass through hits to get charge
-                        float totalCharge(0.);
-                        float overlapFraction(0.);
-                        float chargeAsymmetry(-1.);
-
-                        if (hiMinIndex > lowMaxIndex)
-                        {
-                            std::vector<float> chargeVec;
-                            
-                            for(const auto& hit2D : hitVector)
-                                chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex));
-                            
-                            std::sort(chargeVec.begin(),chargeVec.end());
-
-                            totalCharge = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
-
-                            overlapFraction = float(hiMinIndex - lowMaxIndex) / (hiMaxIndex - lowMinIndex);
-                            
-                            // Compute the asymmetry of the average of the two closest charges to the third charge
-                            if (std::abs(chargeVec[1]-chargeVec[0]) < std::abs(chargeVec[2] - chargeVec[1]))
-                            {
-                                float q01Ave = 0.5 * (chargeVec[0] + chargeVec[1]);
-                                float qSum   = q01Ave + chargeVec[2];
-                                
-                                if (qSum > 0.) chargeAsymmetry = (q01Ave - chargeVec[2]) / qSum;
-                            }
-                            else
-                            {
-                                float q12Ave = 0.5 * (chargeVec[1] + chargeVec[2]);
-                                float qSum   = q12Ave + chargeVec[2];
-
-                               if (qSum > 0.) chargeAsymmetry = (q12Ave - chargeVec[0]) / qSum;
-
-                            }
-                        }
-
-                        // Usurping "deltaPeakTime" to be the maximum pull
-                        float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
-
-                        // Create the 3D cluster hit
-                        hitTriplet.initialize(0,
-                                              statusBits,
-                                              position,
-                                              totalCharge,
-                                              avePeakTime,
-                                              deltaPeakTime,
-                                              sigmaPeakTime,
-                                              hitChiSquare,
-                                              overlapFraction,
-                                              chargeAsymmetry,
-                                              0.,
-                                              0.,
-                                              hitVector,
-                                              hitDelTSigVec,
-                                              wireIDVec);
-
-                        result = true;
+                        const geo::WireID& hitWireID = hitVector[chargeIndex]->WireID();
+                        
+                        std::cout << "============> Charge asymmetry out of range: " << chargeAsymmetry << " <============" << std::endl;
+                        std::cout << "     hit C: " << hitWireID.Cryostat << ", TPC: " << hitWireID.TPC << ", Plane: " << hitWireID.Plane << ", Wire: " << hitWireID.Wire << std::endl;
+                        std::cout << "     charge: " << chargeVec[0] << ", " << chargeVec[1] << ", " << chargeVec[2] << std::endl;
+                        std::cout << "     index: " << chargeIndex << ", smallest diff: " << smallestDiff << std::endl;
+                        return result;
                     }
+
+                    // Usurping "deltaPeakTime" to be the maximum pull
+                    float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
+                    
+                    if (m_outputHistograms)
+                    {
+                        m_smallChargeDiffVec.push_back(smallestDiff);
+                        m_smallIndexVec.push_back(chargeIndex);
+                        m_maxPullVec.push_back(deltaPeakTime);
+                        m_qualityMetricVec.push_back(hitChiSquare);
+                        m_spacePointChargeVec.push_back(totalCharge);
+                        m_overlapFractionVec.push_back(overlapFraction);
+                        m_overlapRangeVec.push_back(overlapRange);
+                        m_maxDeltaPeakVec.push_back(maxDeltaPeak);
+                        m_hitAsymmetryVec.push_back(chargeAsymmetry);
+                    }
+                    
+                    // Try to weed out cases where overlap doesn't match peak separation
+                    if (maxDeltaPeak > overlapRange) return result;
+
+                    // Create the 3D cluster hit
+                    hitTriplet.initialize(0,
+                                          statusBits,
+                                          position,
+                                          totalCharge,
+                                          avePeakTime,
+                                          deltaPeakTime,
+                                          sigmaPeakTime,
+                                          hitChiSquare,
+                                          overlapFraction,
+                                          chargeAsymmetry,
+                                          0.,
+                                          0.,
+                                          hitVector,
+                                          hitDelTSigVec,
+                                          wireIDVec);
+
+                    result = true;
                 }
             }
         }
@@ -1355,6 +1375,46 @@ geo::WireID StandardHit3DBuilder::NearestWireID(const Eigen::Vector3f& position,
     return wireID;
 }
 
+float StandardHit3DBuilder::DistanceFromPointToHitWire(const Eigen::Vector3f& position, const geo::WireID& wireIDIn) const
+{
+    float distance;
+    
+    // Embed the call to the geometry's services nearest wire id method in a try-catch block
+    try
+    {
+        // Get the wire endpoints
+        Eigen::Vector3d wireStart;
+        Eigen::Vector3d wireEnd;
+
+        m_geometry->WireEndPoints(wireIDIn,&wireStart[0],&wireEnd[0]);
+        
+        // Want the hit position to have same x value as wire coordinates
+        Eigen::Vector3d hitPosition(wireStart[0],position[1],position[2]);
+
+        // Want the wire direction
+        Eigen::Vector3d wireDir = wireEnd - wireStart;
+        
+        wireDir.normalize();
+        
+        // Get arc length to doca
+        double arcLen = (hitPosition - wireStart).dot(wireDir);
+        
+        Eigen::Vector3d docaVec = hitPosition - (wireStart + arcLen * wireDir);
+
+        distance = docaVec.norm();
+    }
+    catch(std::exception& exc)
+    {
+        // This can happen, almost always because the coordinates are **just** out of range
+        mf::LogWarning("Cluster3D") << "Exception caught finding nearest wire, position - " << exc.what() << std::endl;
+        
+        // Assume extremum for wire number depending on z coordinate
+        distance = 0.;
+    }
+    
+    return distance;
+}
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 bool SetHitTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
 {
@@ -1446,6 +1506,9 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt) const
     // them into the map
     for (const auto& recobHit : recobHitVec)
     {
+        // Reject hits with negative charge, these are misreconstructed
+        if (recobHit->Integral() < 0.) continue;
+        
         // For some detectors we can have multiple wire ID's associated to a given channel.
         // So we recover the list of these wire IDs
         const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
@@ -1535,14 +1598,6 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
                 // And set the pointer to this hit in the ClusterHit2D object
                 const_cast<reco::ClusterHit2D*>(hit2D)->setHit(newHit);
             }
-        }
-
-        if (m_outputHistograms)
-        {
-            m_qualityMetricVec.push_back(hit3D.getHitChiSquare());
-            m_spacePointChargeVec.push_back(hit3D.getTotalCharge());
-            m_overlapFractionVec.push_back(hit3D.getOverlapFraction());
-            m_hitAsymmetryVec.push_back(hit3D.getChargeAsymmetry());
         }
     }
 
