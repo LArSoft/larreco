@@ -9,11 +9,8 @@
 //   bjpjones@mit.edu
 //
 
-#include "art/Framework/Core/EDProducer.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 #include "TVector3.h"
-#include "larcore/Geometry/Geometry.h"
-#include "TTree.h"
 
 namespace recob
 {
@@ -24,6 +21,7 @@ namespace recob
 
 namespace trkf {
 
+  class SpacePointAlg;
   class SeedFinderAlgorithm
   {
   public:

@@ -8,11 +8,7 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-
+#include <math.h>
 #include "larreco/RecoAlg/LinFitAlg.h"
 
 

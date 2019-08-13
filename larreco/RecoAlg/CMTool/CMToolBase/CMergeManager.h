@@ -14,13 +14,15 @@
 #ifndef RECOTOOL_CMERGEMANAGER_H
 #define RECOTOOL_CMERGEMANAGER_H
 
-#include <iostream>
-
 #include "CMManagerBase.h"
 #include "CMergeBookKeeper.h"
-#include "CBoolAlgoBase.h"
+
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include <vector>
 
 namespace cmtool {
+
+  class CBoolAlgoBase;
 
   /**
      \class CMergeManager
@@ -112,4 +114,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

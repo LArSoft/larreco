@@ -6,24 +6,15 @@
  *          to find candidate track start points and directions
  */
 
-// The main include
 #include "larreco/RecoAlg/Cluster3DAlgs/ParallelHitsSeedFinderAlg.h"
-// Framework Includes
+
+// Framework includes
+#include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-
-// ROOT includes
-#include "TVectorD.h"
-#include "TMatrixD.h"
-#include "TDecompSVD.h"
 
 // std includes
-#include <functional>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

@@ -31,9 +31,10 @@
 #include "TObject.h"
 
 #include "larreco/Genfit/GFException.h" // PrintROOTobject()
-#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFDetPlane.h"
 #include<cmath>
+
+namespace genf { class GFAbsTrackRep; }
 
 /** @brief Base Class for representing a Hit in GENFIT
  *

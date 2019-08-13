@@ -9,16 +9,18 @@
 #ifndef Event_h
 #define Event_h
 
-// Get the beach line definitions
+// LArSoft includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/IEvent.h"
-
-// Algorithm includes
-#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+namespace voronoi2d { class BSTNode; }
 
 // std includes
-#include <vector>
 #include <list>
-#include <algorithm>
+#include <tuple>
+
+// Eigen includes
+#include <Eigen/Core>
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace voronoi2d

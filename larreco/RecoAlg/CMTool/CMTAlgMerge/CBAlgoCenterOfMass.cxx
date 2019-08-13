@@ -1,5 +1,7 @@
 #include "CBAlgoCenterOfMass.h"
 
+#include "TString.h"
+
 namespace cmtool {
 
   //----------------------------------------

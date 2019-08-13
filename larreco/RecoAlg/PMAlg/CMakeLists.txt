@@ -1,31 +1,13 @@
-
-art_make( 
-          LIB_LIBRARIES lardataobj_RecoBase
-                        larcorealg_Geometry
-                        larcore_Geometry_Geometry_service
-                        lardata_RecoObjects
-                        lardataobj_AnalysisBase
-                        lardata_Utilities
-           		${ART_FRAMEWORK_CORE}
-			${ART_FRAMEWORK_PRINCIPAL}
-			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_BASIC}
-			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-			${ART_ROOT_IO_TFILESERVICE_SERVICE}
-            		${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			art_Persistency_Common
-			art_Persistency_Provenance
-			art_Utilities
-			canvas
-			${MF_MESSAGELOGGER}
-			
-	        	${FHICLCPP}
-			cetlib cetlib_except
-            		${CLHEP}
-			${ROOT_BASIC_LIB_LIST}
-            		${ROOT_MINUIT}
-			${ROOT_MINUIT2}	
-			${Boost_SYSTEM_LIBRARY}
+art_make(LIB_LIBRARIES
+           larcorealg_Geometry
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ROOT_CORE}
+           ${ROOT_MATRIX}
+           ${ROOT_PHYSICS}
+           canvas
+           ${MF_MESSAGELOGGER}
+           cetlib_except
+           ${ROOT_MINUIT2}
         )
 
 install_headers()

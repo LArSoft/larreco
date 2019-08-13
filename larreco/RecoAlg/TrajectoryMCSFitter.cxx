@@ -1,5 +1,4 @@
 #include "TrajectoryMCSFitter.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "larcorealg/Geometry/geo_vectors_utils.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"

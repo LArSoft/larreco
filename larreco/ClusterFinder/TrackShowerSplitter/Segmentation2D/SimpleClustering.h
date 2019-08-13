@@ -17,7 +17,6 @@ namespace tss
 {
 	struct bDistToPointLess;
 	class Cluster2D;
-
 	class SimpleClustering;
 }
 
@@ -135,4 +134,3 @@ private:
 };
 
 #endif
-

@@ -6,13 +6,21 @@
 // CosmicTrackerAlg class
 //
 /////////////////////////////////////////////////////////////////////////
+
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "CosmicTrackerAlg.h"
 
-#include "TH1D.h"
-
-#include <iostream>
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 /*
 bool SortByMultiplet(art::Ptr<recob::Hit> const& a,

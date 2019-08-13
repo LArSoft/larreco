@@ -1,5 +1,6 @@
 #include "CFAlgoChargeDistrib.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 
 namespace cmtool {
 

@@ -12,17 +12,11 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
-#include "canvas/Utilities/InputTag.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <iostream>
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/MCBase/MCTrack.h"
-#include "lardataobj/MCBase/MCShower.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "MCBTAlg.h"

@@ -1,6 +1,5 @@
-
-add_subdirectory(Calorimetry)  
-add_subdirectory(Calibrator)  
+add_subdirectory(Calorimetry)
+add_subdirectory(Calibrator)
 add_subdirectory(ClusterFinder)
 add_subdirectory(EventFinder)
 add_subdirectory(Genfit)

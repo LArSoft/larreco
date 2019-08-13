@@ -13,10 +13,11 @@
 #include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include <vector>
+
+namespace detinfo { class DetectorProperties; }
 
 namespace recob {
   class Hit;

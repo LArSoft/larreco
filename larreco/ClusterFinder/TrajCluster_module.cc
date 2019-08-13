@@ -6,28 +6,30 @@
 *
  */
 
-
 // C/C++ standard libraries
 #include <string>
-#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "art_root_io/TFileService.h"
 
 //LArSoft includes
+#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
+#include "lardataobj/AnalysisBase/CosmicTag.h"
+#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Slice.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/AnalysisBase/CosmicTag.h"
-#include "larsim/MCCheater/BackTrackerService.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/larreco/RecoAlg/TCAlg/Utils.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
-#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
-#include "lardataobj/RecoBase/Slice.h"
 
 //root includes
 #include "TTree.h"

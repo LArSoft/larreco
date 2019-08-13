@@ -14,8 +14,10 @@
 #ifndef RECOTOOL_CBALGOPOLYSHORTESTDIST_H
 #define RECOTOOL_CBALGOPOLYSHORTESTDIST_H
 
-#include <iostream>
+#include <vector>
+
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
   /**
@@ -94,4 +96,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

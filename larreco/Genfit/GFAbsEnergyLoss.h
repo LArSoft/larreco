@@ -25,10 +25,9 @@
 #define GFABSENERGYLOSS_H
 
 #include"TObject.h"
-#include<vector>
-#include"TVector3.h"
 #include"TMatrixT.h"
 
+class TVector3;
 
 /** @brief Base class for energy loss and noise matrix calculation
  *
@@ -80,4 +79,3 @@ class GFAbsEnergyLoss : public TObject{
 #endif
 
 /** @} */
-

@@ -1,5 +1,24 @@
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <limits.h>
+#include <stdlib.h>
+#include <string>
+#include <vector>
+
 namespace tca {
 
   struct SortEntry{

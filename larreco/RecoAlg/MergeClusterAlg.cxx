@@ -12,6 +12,9 @@
 
 #include "larreco/RecoAlg/MergeClusterAlg.h"
 
+#include "TPrincipal.h"
+#include "TTree.h"
+
 cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset);
   fTree = tfs->make<TTree>("MatchingVariables","MatchingVariables");

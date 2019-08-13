@@ -8,6 +8,39 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+
+#include "TMath.h"
+
+#include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "cetlib_except/exception.h"
+#include "fhiclcpp/ParameterSet.h"
+
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoObjects/KETrack.h"
+#include "lardata/RecoObjects/KHitContainerWireLine.h"
+#include "lardata/RecoObjects/KHitContainerWireX.h"
+#include "lardata/RecoObjects/KHitTrack.h"
+#include "lardata/RecoObjects/KTrack.h"
+#include "lardata/RecoObjects/KalmanLinearAlgebra.h"
+#include "lardata/RecoObjects/PropAny.h"
+#include "lardata/RecoObjects/SurfXYZPlane.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "type_traits"
+#include "utility"
+#include "vector"
+
 #include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
 
 // Local functions.
@@ -601,4 +634,3 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(const Hits& hits) const
    return result;
 
 }
-

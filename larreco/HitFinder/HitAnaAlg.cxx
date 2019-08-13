@@ -11,9 +11,12 @@
  */
 
 #include "HitAnaAlg.h"
+#include "lardataalg/DetectorInfo/DetectorClocks.h"
 
 #include <functional>
 #include <unordered_map>
+
+#include "TTree.h"
 
 hit::HitAnaAlg::HitAnaAlg() {
   wireData.NHitModules = 0;

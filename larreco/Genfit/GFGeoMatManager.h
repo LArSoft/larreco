@@ -26,8 +26,6 @@
 
 #include"GFAbsGeoMatManager.h"
 
-#include"TObject.h"
-
 
 /** @brief Material and geometry interface via TGeoMaterial and gGeoManager
  *
@@ -69,5 +67,3 @@ class GFGeoMatManager : public GFAbsGeoMatManager{
 #endif
 
 /** @} */
-
-

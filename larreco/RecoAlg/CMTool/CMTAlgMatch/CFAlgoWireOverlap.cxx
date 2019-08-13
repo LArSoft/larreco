@@ -1,5 +1,12 @@
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "larcore/Geometry/Geometry.h"
+
 #include "CFAlgoWireOverlap.h"
-#include <algorithm>
+#include "larcoreobj/SimpleTypesAndConstants/geo_vectors.h"
+#include "lardata/Utilities/GeometryUtilities.h"
+#include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 namespace cmtool {
 

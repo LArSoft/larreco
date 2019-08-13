@@ -1,4 +1,9 @@
+#include <iostream>
+
+#include "TString.h"
+
 #include "CMergeBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
 
 namespace cmtool {
 

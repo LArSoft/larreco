@@ -31,8 +31,9 @@
 #include <stdexcept> // std::logic_error
 #include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFDetPlane.h"
-#include "larreco/Genfit/GFTrackCand.h"
 #include <TMatrixT.h>
+
+namespace genf { class GFTrackCand; }
 
 //#include "GFMaterialEffects.h"
 

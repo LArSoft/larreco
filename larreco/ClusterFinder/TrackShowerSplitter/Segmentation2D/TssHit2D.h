@@ -9,11 +9,9 @@
 #ifndef TssHit2D_h
 #define TssHit2D_h
 
+#include "canvas/Persistency/Common/Ptr.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
-
-#include "larcore/Geometry/Geometry.h"
-
-#include <functional>
 
 #include "TVector2.h"
 
@@ -58,4 +56,3 @@ private:
 };
 
 #endif
-

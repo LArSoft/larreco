@@ -8,10 +8,11 @@
  * ****************************************************************************/
 
 // C/C++ standard library
+#include <cmath>
 
 // LArSoft libraries
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h" // util::DegreesToRadians()
-#include "lardata/Utilities/PxHitConverter.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 

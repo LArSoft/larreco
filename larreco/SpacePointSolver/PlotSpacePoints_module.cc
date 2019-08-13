@@ -7,7 +7,6 @@
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 
@@ -17,7 +16,8 @@
 #include "larsim/MCCheater/BackTrackerService.h"
 
 #include "TGraph.h"
-#include "TPad.h"
+#include "TString.h"
+#include "TVirtualPad.h"
 
 namespace reco3d
 {

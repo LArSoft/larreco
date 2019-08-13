@@ -6,32 +6,36 @@
  */
 
 // Framework Includes
-#include "art/Utilities/ToolMacros.h"
-#include "art_root_io/TFileService.h"
-#include "cetlib/search_path.h"
-#include "cetlib/cpu_timer.h"
-#include "canvas/Utilities/InputTag.h"
 #include "art/Framework/Core/EDProducer.h"
-
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Persistency/Common/PtrMaker.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
+#include "art/Utilities/ToolMacros.h"
+#include "art_root_io/TFileDirectory.h"
+#include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/FindOneP.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Utilities/InputTag.h"
+#include "cetlib/cpu_timer.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardata/ArtDataHelper/HitCreator.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
 
 // Eigen
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 // std includes
 #include <string>
-#include <functional>
 #include <iostream>
 #include <memory>
 

@@ -17,26 +17,23 @@
 //Thanks to B. Morgan of U. of Warwick for comments and suggestions
 
 #include <vector>
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 #include <fstream>
 #include <math.h>
 #include <algorithm>
 
 #include "TMath.h"
+#include "TString.h"
 
 // Framework includes
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/EndPointAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -407,4 +404,3 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 
   return vtxcol.size();
 }
-

@@ -23,12 +23,11 @@
 #ifndef GFKALMAN_H
 #define GFKALMAN_H
 
-#include <map>
 #include <iostream>
 #include "larreco/Genfit/GFDetPlane.h"
 
+#include "RtypesCore.h"
 #include "TMatrixT.h"
-#include "TH1D.h"
 
 /** @brief Generic Kalman Filter implementation
  *

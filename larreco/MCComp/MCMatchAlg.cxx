@@ -1,5 +1,16 @@
 #include "MCMatchAlg.h"
 
+#include "TString.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larreco/MCComp/MCBTAlg.h"
+#include "larreco/MCComp/MCBTException.h"
+
+#include <string>
+
 namespace btutil {
 
   MCMatchAlg::MCMatchAlg() {

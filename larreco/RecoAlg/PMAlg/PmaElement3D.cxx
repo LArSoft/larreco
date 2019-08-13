@@ -10,6 +10,7 @@
  */
 
 #include "larreco/RecoAlg/PMAlg/PmaElement3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -303,4 +304,3 @@ bool pma::Element3D::SelectAllHits(void)
 	}
 	return changed;
 }
-

@@ -25,8 +25,6 @@
 #define GFABSTRACKREP_H
 
 #include<stdexcept> // std::logic_error
-#include<vector>
-#include<list>
 #include<iostream>
 
 #include "TMatrixT.h"

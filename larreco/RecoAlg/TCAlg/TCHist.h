@@ -9,13 +9,10 @@
 #ifndef TRAJCLUSTERALGHISTSTRUCT_H
 #define TRAJCLUSTERALGHISTSTRUCT_H
 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-
-#include "TH1F.h"
-#include "TH2F.h"
-#include "TProfile.h"
-//#include "TTree.h"
+namespace art { class TFileService; }
+class TH1F;
+class TH2F;
+class TProfile;
 
 namespace tca {
 

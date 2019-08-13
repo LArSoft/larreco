@@ -18,9 +18,14 @@
 */
 #include "larreco/Genfit/GFDetPlane.h"
 #include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFAbsFinitePlane.h"
 
 #include <iostream>
 #include <cmath>
+
+#include "Rtypes.h"
+#include "TPolyLine3D.h"
+#include "TPolyMarker3D.h"
 #include "TMath.h"
 #include "TRandom3.h"
 
@@ -372,4 +377,3 @@ TVector2 genf::GFDetPlane::straightLineToPlane (const TVector3& point,const TVec
   double t = 1/dirTimesN * ((fO-point)*normal);
   return project(point - fO + t * dirNorm);
 }
-

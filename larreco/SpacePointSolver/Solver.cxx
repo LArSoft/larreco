@@ -1,9 +1,9 @@
 #include "Solver.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdlib>
 #include <set>
+#include <string>
 #include <iostream>
 
 template<class T> T sqr(T x){return x*x;}

@@ -17,12 +17,17 @@
 #ifndef PmaTrack3D_h
 #define PmaTrack3D_h
 
+#include "TVector2.h"
+#include "TVector3.h"
+
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
-#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 namespace pma
 {
+        class Segment3D;
 	class Track3D;
 }
 
@@ -350,4 +355,3 @@ private:
 };
 
 #endif
-

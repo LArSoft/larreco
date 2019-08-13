@@ -15,13 +15,8 @@
 #ifndef RECOTOOL_POLYGON2D_H
 #define RECOTOOL_POLYGON2D_H
 
-#include <vector>
 #include <utility>
-#include <math.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <ctime>
+#include <vector>
 
 //a polygon is a vector of std::pairs with first = x coordinate
 //and second = y coordinate of that vertex

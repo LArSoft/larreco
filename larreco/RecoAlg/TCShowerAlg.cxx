@@ -1,5 +1,15 @@
 #include "TCShowerAlg.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Cluster.h"
+
 struct pfpStuff {
   art::Ptr<recob::PFParticle> pfp;
   art::Ptr<recob::Track> trk;
@@ -448,4 +458,3 @@ namespace shower {
   // -----------------------------------------------------
 
 } // namespace shower
-

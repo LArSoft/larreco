@@ -12,8 +12,6 @@
 
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/GeometryUtilities.h"
-#include "larsim/Simulation/LArG4Parameters.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -22,7 +20,6 @@
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "lardataobj/RawData/ExternalTrigger.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -32,13 +29,10 @@
 #include "art_root_io/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
 // ROOT includes
-#include "TFile.h"
-#include "TDirectory.h"
 #include "TH1.h"
 #include "TEfficiency.h"
 #include "TGraphAsymmErrors.h"

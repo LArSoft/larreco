@@ -24,19 +24,20 @@
 #ifndef GFTRACK_H
 #define GFTRACK_H
 
-#include<map>
+#include <vector>
 
 #include "larreco/Genfit/GFException.h"
 #include "larreco/Genfit/GFAbsTrackRep.h"
-#include "larreco/Genfit/GFAbsRecoHit.h"
 
-#include "TClonesArray.h"
 #include "TObjArray.h"
 
+#include "larreco/Genfit/GFDetPlane.h"
 #include "larreco/Genfit/GFTrackCand.h"
 #include "larreco/Genfit/GFBookkeeping.h"
 
 class TVirtualGeoTrack;
+
+namespace genf { class GFAbsRecoHit; }
 
 /** @brief Track object for genfit. genfit algorithms work on these objects.
  *

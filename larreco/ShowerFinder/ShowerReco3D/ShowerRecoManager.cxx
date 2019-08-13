@@ -1,5 +1,15 @@
 #include "ShowerRecoManager.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+
+#include "larcore/Geometry/Geometry.h"
+#include "lardataobj/RecoBase/Shower.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchManager.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoAlgBase.h"
+
 namespace showerreco {
 
   ShowerRecoManager::ShowerRecoManager()

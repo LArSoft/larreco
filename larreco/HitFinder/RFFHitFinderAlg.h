@@ -13,9 +13,8 @@
  * Output: recob::Hit
 */
 
-#include "fhiclcpp/ParameterSet.h"
+#include <vector>
 
-#include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 
@@ -23,6 +22,9 @@
 #include "lardataobj/RecoBase/Hit.h"
 
 #include "RFFHitFitter.h"
+
+namespace fhicl { class ParameterSet; }
+namespace geo { class Geometry; }
 
 namespace hit{
 

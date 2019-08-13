@@ -18,11 +18,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
-#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <memory>
 
@@ -31,6 +27,8 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardata/DetectorInfoServices/ServicePack.h" // lar::extractProviders()
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RecoBase/Track.h"
 #include "TrackCalorimetryAlg.h"
 
 namespace calo{

@@ -3,13 +3,13 @@
 #ifndef RECO3D_TRIPLETFINDER_H
 #define RECO3D_TRIPLETFINDER_H
 
-#include "larcore/Geometry/Geometry.h"
+#include "canvas/Persistency/Common/Ptr.h"
 
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
+namespace detinfo { class DetectorProperties; }
+namespace geo { class GeometryCore; }
 
 #include <map>
 #include <vector>

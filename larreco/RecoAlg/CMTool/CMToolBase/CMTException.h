@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CMTEXCEPTION_H
 #define RECOTOOL_CMTEXCEPTION_H
 
-#include <iostream>
 #include <exception>
+#include <string>
 
 namespace cmtool {
   /**
@@ -41,4 +41,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

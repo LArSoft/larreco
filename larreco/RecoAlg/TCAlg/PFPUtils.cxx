@@ -1,6 +1,37 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
-// temp include for study
-#include "larreco/RecoAlg/TCAlg/TCTruth.h"
+
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "TDecompSVD.h"
+#include "TMatrixD.h"
+#include "TVectorD.h"
+
+#include <limits.h>
+#include <stdlib.h>
+#include <cmath>
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <utility>
+#include <vector>
+
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/StepUtils.h"
+#include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
 

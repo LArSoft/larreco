@@ -7,19 +7,14 @@
 #ifndef PMAlgCosmicTagger_h
 #define PMAlgCosmicTagger_h
 
-#include <map>
-
 #include "fhiclcpp/types/Atom.h"
-// #include "fhiclcpp/types/Sequence.h"
-
-#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include "TVector3.h"
 
 namespace pma
 {
     class PMAlgCosmicTagger;
+    class TrkCandidateColl;
 }
 
 class pma::PMAlgCosmicTagger
@@ -159,4 +154,3 @@ private:
 };
 
 #endif
-

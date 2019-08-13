@@ -6,21 +6,15 @@
  */
 
 // Framework Includes
-#include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "lardataobj/RecoBase/Hit.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 
 // std includes
-#include <functional>
-#include <memory>
-#include <unordered_map>
+#include <cmath>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

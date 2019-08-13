@@ -21,6 +21,8 @@
 
 #include "TMath.h"
 
+#include <iostream>
+
 bool GFException::fQuiet = false;
 
 GFException::GFException(std::string _excString, int _line, std::string  _file) : fExcString(_excString), fLine(_line), fFile(_file),fFatal(false) {
@@ -88,4 +90,3 @@ void genf::PrintROOTobject(std::ostream& out, const TVector3& v) {
     " (rho,theta,phi)=(" << v.Mag() << "," << (v.Theta()*TMath::RadToDeg())
     << "," << (v.Phi()*TMath::RadToDeg()) << ")";
 } // genf::PrintROOTobject<TVector3>()
-

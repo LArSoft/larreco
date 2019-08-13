@@ -22,27 +22,21 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "fhiclcpp/types/Atom.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
-
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+namespace detinfo { class DetectorProperties; }
+namespace geo { class GeometryCore; class TPCGeo; }
 
 // ROOT & C++
-#include "TH1F.h"
 #include <memory>
+class TH1F;
 
 namespace pma
 {

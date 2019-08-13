@@ -46,20 +46,14 @@
 // Framework Includes
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "art/Utilities/make_tool.h"
 #include "art_root_io/TFileService.h"
-#include "art/Persistency/Common/PtrMaker.h"
-#include "canvas/Persistency/Common/PtrVector.h"
-#include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
-#include "larsim/MCCheater/BackTracker.h"
-#include "lardataobj/RawData/RawDigit.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Edge.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -85,10 +79,10 @@
 
 // ROOT includes
 #include "TTree.h"
+#include "TVector3.h"
 
 // std includes
 #include <string>
-#include <functional>
 #include <iostream>
 #include <memory>
 
@@ -222,7 +216,7 @@ private:
             for(size_t idx = edgeStart; idx < edgeVector.size(); idx++)
             {
                 art::Ptr<recob::Edge> edge = makeEdgePtr(idx, instance);
-                
+
                 util::CreateAssn(fOwner, fEvt, *artPFParticleVector, edge, pfPartEdgeAssociations);
             }
         }
@@ -263,17 +257,17 @@ private:
             fEvt.put(std::move(artVertexPointVector),          fVertexName);
             fEvt.put(std::move(artExtremePointVector),         fExtremeName);
         }
-        
+
         art::Ptr<recob::SpacePoint> makeSpacePointPtr(size_t index, const std::string& instance="")
         {
-            
+
             if (instance != "") return fSPPtrMakerPath(index);
             else                return fSPPtrMaker(index);
         };
-        
+
         art::Ptr<recob::Edge> makeEdgePtr(size_t index, const std::string& instance="")
         {
-            
+
             if (instance != "") return fEdgePtrMakerPath(index);
             else                return fEdgePtrMaker(index);
         };
@@ -541,14 +535,14 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     produces< std::vector<recob::Cluster>>();
     produces< std::vector<recob::Seed>>();
     produces< std::vector<recob::Edge>>();
-    
+
     produces< art::Assns<recob::PFParticle, recob::PCAxis>>();
     produces< art::Assns<recob::PFParticle, recob::Cluster>>();
     produces< art::Assns<recob::PFParticle, recob::Seed>>();
     produces< art::Assns<recob::Edge,       recob::PFParticle>>();
     produces< art::Assns<recob::Seed,       recob::Hit>>();
     produces< art::Assns<recob::Cluster,    recob::Hit>>();
-    
+
     produces< std::vector<recob::SpacePoint>>();
     produces< art::Assns<recob::SpacePoint, recob::PFParticle>>();
     produces< art::Assns<recob::Hit,        recob::SpacePoint>>();
@@ -563,7 +557,7 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
 
     produces< std::vector<recob::Edge>>(m_vertexInstance);
     produces< std::vector<recob::SpacePoint>>(m_vertexInstance);
-    
+
     produces< std::vector<recob::SpacePoint>>(m_extremeInstance);
 }
 
@@ -1217,7 +1211,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
             if (clusterParameters.daughterList().empty())
             {
                 ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap, hit3DToSPPtrMap, best3DToSPPtrMap);
-                
+
                 // Get the extreme points
                 MakeAndSaveKinkPoints(output, clusterParameters.getConvexHull().getConvexHullKinkPoints()); //getConvexExtremePoints());
             }
@@ -1228,41 +1222,41 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                 IdxToPCAMap idxToPCAMap;
                 size_t      numTotalDaughters = countUltimateDaughters(clusterParameters);
                 size_t      pfParticleIdx(output.artPFParticleVector->size() + numTotalDaughters);
-                
+
                 FindAndStoreDaughters(output, clusterParameters, pfParticleIdx, idxToPCAMap, hitToPtrMap, hit3DToSPPtrMap, best3DToSPPtrMap);
-                
+
                 // Now make the piecewise curve
                 //                MakeAndSavePCAPoints(output, clusterParameters.getFullPCA(), idxToPCAMap);
-                
+
                 // Need to make a daughter vec from our map
                 std::vector<size_t> daughterVec;
-                
+
                 for(auto& idxToPCA : idxToPCAMap) daughterVec.emplace_back(idxToPCA.first);
-                
+
                 // Now create/handle the parent PFParticle
                 recob::PFParticle pfParticle(13, pfParticleIdx, recob::PFParticle::kPFParticlePrimary, daughterVec);
                 output.artPFParticleVector->push_back(pfParticle);
-                
+
                 recob::PCAxis::EigenVectors eigenVecs;
                 double                      eigenVals[]   = {0.,0.,0.};
                 double                      avePosition[] = {0.,0.,0.};
-                
+
                 eigenVecs.resize(3);
-                
+
                 reco::PrincipalComponents& skeletonPCA = clusterParameters.getSkeletonPCA();
-                
+
                 for(size_t outerIdx = 0; outerIdx < 3; outerIdx++)
                 {
                     avePosition[outerIdx] = skeletonPCA.getAvePosition()[outerIdx];
                     eigenVals[outerIdx]   = skeletonPCA.getEigenValues()[outerIdx];
-                    
+
                     eigenVecs[outerIdx].resize(3);
-                    
+
                     // Be careful here... eigen stores in column major order buy default
                     for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors().row(outerIdx)[innerIdx];
                 }
-                
-                
+
+
                 recob::PCAxis skelPcAxis(skeletonPCA.getSvdOK(),
                                         skeletonPCA.getNumHitsUsed(),
                                         eigenVals,                      //skeletonPCA.getEigenValues(),
@@ -1270,19 +1264,19 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                                         avePosition,                    //skeletonPCA.getAvePosition(),
                                         skeletonPCA.getAveHitDoca(),
                                         output.artPCAxisVector->size());
-                
+
                 output.artPCAxisVector->push_back(skelPcAxis);
-                
+
                 reco::PrincipalComponents& fullPCA = clusterParameters.getFullPCA();
-                
+
                 for(size_t outerIdx = 0; outerIdx < 3; outerIdx++)
                 {
                     avePosition[outerIdx] = fullPCA.getAvePosition()[outerIdx];
                     eigenVals[outerIdx]   = fullPCA.getEigenValues()[outerIdx];
-                    
+
                     for (size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors().row(outerIdx)(innerIdx);
                 }
-                
+
                 recob::PCAxis fullPcAxis(fullPCA.getSvdOK(),
                                         fullPCA.getNumHitsUsed(),
                                         eigenVals,                      //fullPCA.getEigenValues(),
@@ -1290,12 +1284,12 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                                         avePosition,                    //fullPCA.getAvePosition(),
                                         fullPCA.getAveHitDoca(),
                                         output.artPCAxisVector->size());
-                
+
                 output.artPCAxisVector->push_back(fullPcAxis);
-                
+
                 // Create associations to the PFParticle
                 output.makePFPartPCAAssns();
-                
+
                 // Make associations to all space points for this cluster
                 MakeAndSaveSpacePoints(output,
                                        *output.artSpacePointVector.get(),
@@ -1303,17 +1297,17 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                                        clusterParameters.getHitPairListPtr(),
                                        hitToPtrMap,
                                        hit3DToSPPtrMap);
-                
+
                 // Get the extreme points
                 MakeAndSaveKinkPoints(output, clusterParameters.getConvexHull().getConvexHullKinkPoints()); //getConvexExtremePoints());
-                
+
                 // Build the edges now
                 size_t edgeStart(output.artEdgeVector->size());
-                
+
                 for(const auto& edge : clusterParameters.getConvexHull().getConvexHullEdgeList())
                 {
                     RecobSpacePointVector spacePointVec;
-                    
+
                     try{
                         spacePointVec.push_back(hit3DToSPPtrMap.at(std::get<0>(edge)));
                         spacePointVec.push_back(hit3DToSPPtrMap.at(std::get<1>(edge)));
@@ -1323,12 +1317,12 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                         std::cout << "Caught exception in looking up space point ptr... " << std::get<0>(edge) << ", " << std::get<1>(edge) << std::endl;
                         continue;
                     }
-                    
+
                     output.artEdgeVector->emplace_back(std::get<2>(edge), spacePointVec[0].key(), spacePointVec[1].key(), output.artEdgeVector->size());
-                    
+
                     output.makeEdgeSpacePointAssns(*output.artEdgeVector.get(), spacePointVec, *output.artEdgeSPAssociations.get());
                 }
-                
+
                 output.makePFPartEdgeAssns(*output.artEdgeVector.get(), *output.artPFPartEdgeAssociations.get(), edgeStart);
             }
         }
@@ -1547,16 +1541,16 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
     // Empty daughter vector for now
     std::vector<size_t> nullVector;
     size_t              pfParticleIdx(output.artPFParticleVector->size());
-    
+
     recob::PFParticle pfParticle(13, pfParticleIdx, pfParticleParent, nullVector);
     output.artPFParticleVector->push_back(pfParticle);
-    
+
     // Assume that if we are a daughter particle then there is a set of "best" 3D points and the convex hull will have been calculated from them
     // If there is no best list then assume the convex hull is from all of the points...
     std::string           instance("");
     reco::HitPairListPtr* hit3DListPtr  = &clusterParameters.getHitPairListPtr();
     Hit3DToSPPtrMap*      hit3DToPtrMap = &hit3DToSPPtrMap;
-    
+
     std::vector<recob::SpacePoint>*                   spVector        = output.artSpacePointVector.get();
     std::vector<recob::Edge>*                         edgeVector      = output.artEdgeVector.get();
     art::Assns<recob::Edge, recob::PFParticle >*      pfPartEdgeAssns = output.artPFPartEdgeAssociations.get();
@@ -1566,7 +1560,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
 
     // Make associations to all space points for this cluster
     int spacePointStart = spVector->size();
-    
+
     MakeAndSaveSpacePoints(output, *spVector, *spHitAssns, *hit3DListPtr, hitToPtrMap, *hit3DToPtrMap);
 
     // And make sure to have associations to the PFParticle
@@ -1578,31 +1572,31 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
         instance        = m_pathInstance;
         hit3DListPtr    = &clusterParameters.getBestHitPairListPtr();
         hit3DToPtrMap   = &best3DToSPPtrMap;
-        
+
         spVector        = output.artPathPointVector.get();
         edgeVector      = output.artPathEdgeVector.get();
         pfPartEdgeAssns = output.artPFPartPathEdgeAssociations.get();
         spEdgeAssns     = output.artEdgePPAssociations.get();
         spHitAssns      = output.artPPHitAssociations.get();
         pfPartSPAssns   = output.artPFPartPPAssociations.get();
-        
+
         spacePointStart = spVector->size();
-        
+
         MakeAndSaveSpacePoints(output, *spVector, *spHitAssns, *hit3DListPtr, hitToPtrMap, *hit3DToPtrMap, instance);
-        
+
         // And make sure to have associations to the PFParticle
         output.makePFPartSpacePointAssns(*spVector, *pfPartSPAssns, spacePointStart, instance);
     }
-        
+
     // Now handle the edges according to whether associated with regular or "best" space points
     if (!clusterParameters.getBestEdgeList().empty()) //getConvexHull().getConvexHullEdgeList().empty())
     {
         size_t edgeStart = edgeVector->size();
-        
+
         for(const auto& edge : clusterParameters.getBestEdgeList()) //getConvexHull().getConvexHullEdgeList())
         {
             RecobSpacePointVector spacePointVec;
-            
+
             try{
                 spacePointVec.push_back(hit3DToPtrMap->at(std::get<0>(edge)));
                 spacePointVec.push_back(hit3DToPtrMap->at(std::get<1>(edge)));
@@ -1612,12 +1606,12 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
                 std::cout << "Caught exception in looking up space point ptr... " << std::get<0>(edge) << ", " << std::get<1>(edge) << std::endl;
                 continue;
             }
-            
+
             edgeVector->emplace_back(std::get<2>(edge), spacePointVec[0].key(), spacePointVec[1].key(), edgeVector->size());
-            
+
             output.makeEdgeSpacePointAssns(*edgeVector, spacePointVec, *spEdgeAssns, instance);
         }
-        
+
         output.makePFPartEdgeAssns(*edgeVector, *pfPartEdgeAssns, edgeStart, instance);
     }
 
@@ -1686,7 +1680,7 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&                        
 {
     // Reserve space...
     spacePointVec.reserve(spacePointVec.size()+clusHitPairVector.size());
-    
+
     // Right now error matrix is uniform...
     double spError[] = {1., 0., 1., 0., 0., 1.};
 

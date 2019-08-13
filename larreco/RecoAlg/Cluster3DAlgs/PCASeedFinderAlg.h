@@ -8,22 +8,16 @@
 #define PCASeedFinderAlg_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Seed.h"
-
-// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+namespace geo { class Geometry; }
 
 // ROOT includes
-#include "TCanvas.h"
-#include "TFrame.h"
-#include "TH2D.h"
+class TVector3;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

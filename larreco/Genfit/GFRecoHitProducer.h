@@ -29,8 +29,7 @@
 #ifndef GFRECOHITPRODUCER_H
 #define GFRECOHITPRODUCER_H
 
-#include<vector>
-#include<map>
+#include <string>
 
 #include "TClonesArray.h"
 
@@ -138,5 +137,3 @@ GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
 
 
 #endif
-
-

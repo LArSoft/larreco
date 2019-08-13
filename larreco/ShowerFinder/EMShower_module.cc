@@ -19,8 +19,6 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -28,10 +26,8 @@
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -43,13 +39,21 @@
 #include "lardata/ArtDataHelper/MVAReader.h"
 
 // ROOT includes
-#include "TPrincipal.h"
+#include "RtypesCore.h"
 #include "TVector3.h"
-#include "TCanvas.h"
-#include "TH2D.h"
-#include "TStyle.h"
-#include "TGraph2D.h"
-#include "TF2.h"
+
+// C++ STL includes
+#include <algorithm>
+#include <array>
+#include <float.h>
+#include <iostream>
+#include <map>
+#include <math.h>
+#include <memory>
+#include <stddef.h>
+#include <string>
+#include <vector>
+
 
 namespace shower {
   class EMShower;

@@ -7,17 +7,14 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
-//
-
-
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larevt/CalibrationDBI/Interface/ElectronLifetimeService.h"
 #include "larevt/CalibrationDBI/Interface/ElectronLifetimeProvider.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 
 namespace calo{
 

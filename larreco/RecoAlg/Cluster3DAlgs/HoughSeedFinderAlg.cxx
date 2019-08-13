@@ -16,11 +16,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // ROOT includes
 #include "TCanvas.h"
@@ -32,7 +28,6 @@
 
 
 // std includes
-#include <functional>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

@@ -14,12 +14,20 @@
 #ifndef RECOTOOL_CMMANAGERBASE_H
 #define RECOTOOL_CMMANAGERBASE_H
 
-#include <iostream>
+#include <map>
+#include <stddef.h>
+#include <set>
+#include <vector>
 
-#include "CPriorityAlgoBase.h"
-#include "TStopwatch.h"
+#include "RtypesCore.h"
+class TFile;
+
+#include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
+
+  class CPriorityAlgoBase;
 
   /**
      \class CMManagerBase
@@ -139,4 +147,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

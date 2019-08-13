@@ -8,8 +8,7 @@
 #include "larreco/Genfit/RKTrackRep.h"
 #include "larreco/Genfit/SlTrackRep.h"
 #include "larreco/Genfit/GFDetPlane.h"
-#include "TRandom.h"
-#include "math.h"
+#include <math.h>
 
 // Class Member definitions -----------
 

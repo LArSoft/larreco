@@ -8,6 +8,7 @@
 
 #include "Segmentation2D.h"
 
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -500,4 +501,3 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 	if (clover && clunder && clleft && clright) return true;
 	else return false;
 }
-

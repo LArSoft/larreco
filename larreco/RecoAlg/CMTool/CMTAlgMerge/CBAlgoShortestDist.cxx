@@ -1,5 +1,9 @@
 #include "CBAlgoShortestDist.h"
 
+#include "TString.h"
+
+#include "lardata/Utilities/GeometryUtilities.h"
+
 namespace cmtool {
 
 

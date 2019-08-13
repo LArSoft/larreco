@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_SHOWERRECOEXCEPTION_H
 #define RECOTOOL_SHOWERRECOEXCEPTION_H
 
-#include <iostream>
+#include <string>
 #include <exception>
 
 namespace showerreco {
@@ -45,4 +45,3 @@ namespace showerreco {
 }
 #endif
 /** @} */ // end of doxygen group
-

@@ -7,7 +7,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <iomanip>
-#include <TH1F.h>
 #include <TProfile.h>
 #include <string>
 #include <array>
@@ -23,7 +22,6 @@
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 //LArSoft includes
@@ -31,22 +29,14 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nug4/ParticleNavigation/ParticleList.h"
-#include "nug4/ParticleNavigation/EmEveIdCalculator.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Vertex.h"
-// #include "RawData/RawDigit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
 #include "art/Framework/Core/EDAnalyzer.h"
 
-
-
-class TH1F;
-class TH2F;
 ///Cluster finding and building
 namespace cluster {
 

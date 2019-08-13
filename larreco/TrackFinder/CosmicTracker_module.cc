@@ -18,11 +18,9 @@
 ////////////////////////////////////////////////////////////////////////
 
 // C++ includes
-#include <math.h>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
-#include <fstream>
 #include <string>
 
 // Framework includes
@@ -35,14 +33,10 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -52,12 +46,8 @@
 #include "larreco/RecoAlg/CosmicTrackerAlg.h"
 
 // ROOT includes
-#include "TVectorD.h"
-#include "TF1.h"
-#include "TGraph.h"
+#include "TVector3.h"
 #include "TMath.h"
-#include "TH1D.h"
-#include "TVirtualFitter.h"
 
 struct trkPoint{
 public:

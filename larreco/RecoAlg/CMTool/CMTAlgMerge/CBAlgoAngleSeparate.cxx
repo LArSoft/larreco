@@ -1,5 +1,7 @@
 #include "CBAlgoAngleSeparate.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   //----------------------------------------

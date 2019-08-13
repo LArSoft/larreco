@@ -8,13 +8,16 @@
  *          3D track node. See PmaTrack3D.h file for details.
  */
 
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
+#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // Fixed optimization directions:     X      Y      Z
@@ -823,4 +826,3 @@ void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 
 	fHitsRadius = 0.0F;
 }
-

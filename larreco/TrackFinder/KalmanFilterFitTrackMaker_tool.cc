@@ -4,7 +4,6 @@
 #include "fhiclcpp/types/Sequence.h"
 
 #include "art/Framework/Principal/Handle.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
@@ -13,6 +12,7 @@
 #include "lardataobj/RecoBase/MCSFitResult.h"
 #include "larreco/RecoAlg/TrajectoryMCSFitter.h"
 
+#include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"

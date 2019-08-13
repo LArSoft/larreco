@@ -6,13 +6,10 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
 #include <iomanip>
 
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "lardataobj/RecoBase/Hit.h"
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace reco{
 
@@ -394,4 +391,3 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
 }
 
 }// namespace
-

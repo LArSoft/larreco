@@ -19,14 +19,17 @@
 
 #include <math.h>
 
+// Framework includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "canvas/Persistency/Common/Ptr.h"
 
 //boost includes
 #include "boost/multi_array.hpp"

@@ -20,7 +20,7 @@
 #include "larreco/Genfit/GFEnergyLossCoulomb.h"
 #include <string>
 #include "larreco/Genfit/GFException.h"
-#include "math.h"
+#include <math.h>
 
 genf::GFEnergyLossCoulomb::~GFEnergyLossCoulomb(){
 }

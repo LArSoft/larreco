@@ -9,7 +9,15 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/RecoAlg/TCAlg/StepUtils.h"
+#include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace tca {
 

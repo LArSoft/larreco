@@ -12,16 +12,16 @@
 #ifndef Utilities_h
 #define Utilities_h
 
-#include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-#include <functional>
+#include "Math/GenVector/Cartesian2D.h"
+#include "Math/GenVector/DisplacementVector2D.h"
 
 #include "TVector2.h"
 #include "TVector3.h"
 
-#include "Math/GenVector/DisplacementVector2D.h"
-#include "Math/GenVector/DisplacementVector3D.h"
+#include <map>
 
 namespace pma
 {
@@ -146,4 +146,3 @@ private:
 };
 
 #endif
-

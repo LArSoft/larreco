@@ -14,10 +14,8 @@
 #ifndef RECOTOOL_CMATCHBOOKKEEPER_H
 #define RECOTOOL_CMATCHBOOKKEEPER_H
 
-#include <iostream>
 #include <vector>
 #include <map>
-#include "CMTException.h"
 
 namespace cmtool {
   /**
@@ -56,4 +54,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

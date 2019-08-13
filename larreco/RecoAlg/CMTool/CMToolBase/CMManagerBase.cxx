@@ -1,4 +1,15 @@
 #include "CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+
+#include "TStopwatch.h"
+#include "TString.h"
+
+#include <cstddef>
+#include <iostream>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace cmtool {
 

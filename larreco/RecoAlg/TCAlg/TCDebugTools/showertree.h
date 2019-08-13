@@ -8,21 +8,14 @@
 #ifndef showertree_h
 #define showertree_h
 
-#include <TROOT.h>
-#include <TChain.h>
-#include <TFile.h>
-#include <TH2.h>
-#include <TStyle.h>
-#include <TCanvas.h>
-#include <TLine.h>
-#include <TPolyLine.h>
-
-#include <iostream>
-#include <iomanip>
+// C++ STL includes
 #include <string>
-#include <sstream>
+#include <vector>
 
-using namespace std;
+// ROOT includes
+#include "RtypesCore.h"
+#include "TTree.h"
+class TBranch;
 
 class showertree {
 public :
@@ -34,29 +27,29 @@ public :
    Int_t            subrun;
    Int_t            event;
 
-   vector<float>   *BeginWir;
-   vector<float>   *BeginTim;
-   vector<float>   *BeginAng;
-   vector<float>   *BeginChg;
-   vector<short>   *BeginVtx;
-   vector<float>   *EndWir;
-   vector<float>   *EndTim;
-   vector<float>   *EndAng;
-   vector<float>   *EndChg;
-   vector<short>   *EndVtx;
-   vector<short>   *MCSMom;
-   vector<short>   *PlaneNum;
-   vector<int>     *TjID;
-   vector<int>     *IsShowerTj;
-   vector<int>     *ShowerID;
-   vector<int>     *IsShowerParent;
-   vector<int>     *StageNum;
-   vector<string>  *StageName;
+   std::vector<float>   *BeginWir;
+   std::vector<float>   *BeginTim;
+   std::vector<float>   *BeginAng;
+   std::vector<float>   *BeginChg;
+   std::vector<short>   *BeginVtx;
+   std::vector<float>   *EndWir;
+   std::vector<float>   *EndTim;
+   std::vector<float>   *EndAng;
+   std::vector<float>   *EndChg;
+   std::vector<short>   *EndVtx;
+   std::vector<short>   *MCSMom;
+   std::vector<short>   *PlaneNum;
+   std::vector<int>     *TjID;
+   std::vector<int>     *IsShowerTj;
+   std::vector<int>     *ShowerID;
+   std::vector<int>     *IsShowerParent;
+   std::vector<int>     *StageNum;
+   std::vector<std::string>  *StageName;
 
-   vector<float>   *Envelope;
-   vector<int>     *EnvPlane;
-   vector<int>     *EnvStage;
-   vector<int>     *EnvShowerID;
+   std::vector<float>   *Envelope;
+   std::vector<int>     *EnvPlane;
+   std::vector<int>     *EnvStage;
+   std::vector<int>     *EnvShowerID;
 
    Int_t            nStages;
    Int_t            nPlanes;

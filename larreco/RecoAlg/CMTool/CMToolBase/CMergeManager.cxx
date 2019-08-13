@@ -1,5 +1,19 @@
 #include "CMergeManager.h"
 
+#include "RtypesCore.h"
+#include "TString.h"
+#include <iostream>
+#include <map>
+#include <set>
+#include <string>
+
+#include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+
 namespace cmtool {
 
   CMergeManager::CMergeManager() : CMManagerBase()

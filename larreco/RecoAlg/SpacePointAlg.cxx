@@ -22,7 +22,6 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "art_root_io/TFileService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 //\todo Remove include of BackTrackerService.h once this algorithm is stripped of test for MC
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -30,8 +29,6 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KHitWireX.h"
-
-#include "TH1F.h"
 
 //----------------------------------------------------------------------
 // Constructor.

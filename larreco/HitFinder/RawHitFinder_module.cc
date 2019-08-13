@@ -6,7 +6,6 @@
 
 // C/C++ standard libraries
 #include <string>
-#include <fstream>
 
 //Framework
 #include "fhiclcpp/ParameterSet.h"
@@ -20,12 +19,8 @@
 #include "canvas/Utilities/InputTag.h"
 
 //LArSoft
-#include "larcore/Geometry/Geometry.h"
-#include "larevt/Filters/ChannelFilter.h"
-#include "lardata/Utilities/LArFFT.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RawData/raw.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -34,20 +29,6 @@
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-
-//ROOT from CalData
-
-#include "TComplex.h"
-#include "TH2D.h"
-#include "TF1.h"
-
-//ROOT From Gauss
-
-#include "TH1D.h"
-#include "TDecompSVD.h"
 
 namespace hit {
 

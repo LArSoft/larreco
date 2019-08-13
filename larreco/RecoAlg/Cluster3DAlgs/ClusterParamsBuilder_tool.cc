@@ -7,19 +7,15 @@
 
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
-#include "cetlib/search_path.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
+#include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 
 // std includes
-#include <functional>
 #include <iostream>
 #include <memory>
 

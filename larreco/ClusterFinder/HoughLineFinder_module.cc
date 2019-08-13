@@ -35,7 +35,6 @@
 #include "nurandom/RandomUtils/NuRandomService.h"
 
 // LArSoft includes
-#include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"

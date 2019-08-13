@@ -12,22 +12,17 @@
 
 // C/C++ standard libraries
 #include <array>
-#include <map>
 #include <vector>
-#include <memory> // std::move()
 #include <utility> // std::pair<>
 
 // framework libraries
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+namespace geo { class Geometry; }
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larreco/RecoAlg/CCHitFinderAlg.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
 
 

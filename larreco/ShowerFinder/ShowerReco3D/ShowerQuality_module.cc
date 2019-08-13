@@ -12,13 +12,9 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardataobj/MCBase/MCShower.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -28,9 +24,10 @@
 #include "larreco/MCComp/MCMatchAlg.h"
 #include "ShowerRecoException.h"
 
-#include <TH1D.h>
-#include <TH2D.h>
-#include <TTree.h>
+#include "TH1D.h"
+#include "TH2D.h"
+#include "TTree.h"
+
 #include <map>
 
 class ShowerQuality;

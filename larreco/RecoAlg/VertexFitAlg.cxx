@@ -8,18 +8,16 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
-#include <iostream>
-#include <iomanip>
+#include <array>
+#include <cmath>
+#include "TMinuit.h"
+#include "TVector3.h"
 
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/VertexFitMinuitStruct.h"
 #include "larreco/RecoAlg/VertexFitAlg.h"
-
 
 namespace trkf{
 

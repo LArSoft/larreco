@@ -15,27 +15,21 @@
 
 
 //Framework includes:
-#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/DisambigAlg.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 
 
 #include <map>
 #include <cmath>
-#include <iostream>
-#include <fstream>
 #include <cstdlib>
 
 

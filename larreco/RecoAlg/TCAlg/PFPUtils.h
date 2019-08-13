@@ -1,4 +1,3 @@
-
 ////////////////////////////////////////////////////////////////////////
 //
 //
@@ -11,26 +10,11 @@
 #define TRAJCLUSTERALGSPTUTILS_H
 
 // C/C++ standard libraries
-#include <array>
-#include <vector>
-#include <bitset>
-#include <utility> // std::pair<>
-#include <cmath>
-#include <iostream>
-#include <iomanip>
-#include <algorithm>
-
-#include "TVectorD.h"
-#include "TDecompSVD.h"
-#include "TMatrixD.h"
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include <string>
 
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/Utils.h"
+namespace geo { struct TPCID; }
 
 namespace tca {
 

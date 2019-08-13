@@ -1,18 +1,21 @@
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
-
+#include "nusimdata/SimulationBase/MCParticle.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
-
-#include "lardata/RecoObjects/TrackStatePropagator.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "larevt/SpaceChargeServices/SpaceChargeService.h"
+#include <algorithm>
+#include <bitset>
+#include <iomanip>
+#include <iostream>
+#include <limits.h>
+#include <stdlib.h>
+#include <string>
+#include <utility>
 
 namespace tca {
 

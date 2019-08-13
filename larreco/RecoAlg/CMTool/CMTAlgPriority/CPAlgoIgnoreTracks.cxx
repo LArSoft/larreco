@@ -1,5 +1,7 @@
 #include "CPAlgoIgnoreTracks.h"
 
+#include "TMath.h"
+
 namespace cmtool {
 
   //----------------------------------------------------------

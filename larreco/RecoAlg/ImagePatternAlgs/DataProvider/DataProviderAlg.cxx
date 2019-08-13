@@ -5,15 +5,17 @@
 
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 
-#include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
+namespace detinfo { class DetectorProperties; }
+namespace geo { class GeometryCore; }
 
 #include "CLHEP/Random/RandGauss.h"
 
@@ -537,4 +539,3 @@ void img::DataProviderAlg::addCoherentNoise()
     }
 }
 // ------------------------------------------------------
-

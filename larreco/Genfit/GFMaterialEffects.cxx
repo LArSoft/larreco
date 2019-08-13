@@ -18,19 +18,20 @@
 */
 
 #include "larreco/Genfit/GFMaterialEffects.h"
-#include <iostream>
-#include "stdlib.h"
 
+#include <math.h>
 
-#include "math.h"
-
-#include "larreco/Genfit/GFAbsEnergyLoss.h"
-#include "larreco/Genfit/GFEnergyLossBetheBloch.h"
-#include "larreco/Genfit/GFEnergyLossBrems.h"
-#include "larreco/Genfit/GFEnergyLossCoulomb.h"
 #include "larreco/Genfit/GFException.h"
 
-#include "larreco/Genfit/GFGeoMatManager.h"
+#include "TDatabasePDG.h"
+#include "TGeoManager.h"
+#include "TGeoMaterial.h"
+#include "TGeoMedium.h"
+#include "TGeoVolume.h"
+#include "TMatrixT.h"
+#include "TMatrixTBase.h"
+#include "TMatrixTUtils.h"
+#include "TParticlePDG.h"
 
 genf::GFMaterialEffects* genf::GFMaterialEffects::finstance = NULL;
 
@@ -692,4 +693,3 @@ double genf::GFMaterialEffects::MeanExcEnergy_get(TGeoMaterial* mat){
 }
 
 //ClassImp(GFMaterialEffects)
-

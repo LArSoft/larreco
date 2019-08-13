@@ -43,10 +43,7 @@
 #include <string>
 #include <iostream>
 #include <iomanip>
-#include <ios>
-#include <fstream>
 #include <cmath>
-#include <algorithm>
 
 // ##########################
 // ### Framework Includes ###
@@ -60,8 +57,6 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // ########################
@@ -76,25 +71,16 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
-//#include "RecoAlg/ClusterParamsAlg.h"
 
 // #####################
 // ### ROOT Includes ###
 // #####################
-#include "TH1D.h"
-#include "TVectorD.h"
-#include "TGeoManager.h"
 #include "TGraph.h"
 #include "TF1.h"
 
 // =====================================================================================================
 // =====================================================================================================
-
-class TH1D;
 
 ///vertex reconstruction
 namespace vertex {

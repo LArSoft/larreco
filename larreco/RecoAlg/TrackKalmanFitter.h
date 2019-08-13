@@ -1,27 +1,28 @@
 #ifndef TRACKKALMANFITTER_H
 #define TRACKKALMANFITTER_H
 
-#include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "canvas/Persistency/Common/Ptr.h"
+
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/TrackFitHitInfo.h"
 #include "lardata/RecoObjects/KFTrackState.h"
-#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardataobj/RecoBase/TrajectoryPointFlags.h"
 
 namespace recob {
   class Hit;
+  class Track;
+  class TrackTrajectory;
 }
 
-class TVector3;
 namespace trkmkr {
   struct OptionalOutputs;
 }
 
 namespace trkf {
+
+  class TrackStatePropagator;
 
   /**
    * @file  larreco/RecoAlg/TrackKalmanFitter.h

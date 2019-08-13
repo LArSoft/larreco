@@ -17,14 +17,6 @@
 #include <vector>
 #include <string>
 #include <cmath> // std::tan() ...
-#include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <stdint.h>
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 
 // ### Framework includes ###
 #include "art/Framework/Core/ModuleMacros.h"
@@ -37,27 +29,16 @@ extern "C" {
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // ### ROOT includes ###
-#include "TMatrixD.h"
-#include "TVectorD.h"
-#include "TDecompSVD.h"
-#include "TH1.h"
-#include "TH2.h"
-#include "TF1.h"
-#include "TFile.h"
 #include "TMath.h"
 #include "TTree.h"
 
 // ### LArSoft includes ###
 
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -67,7 +48,6 @@ extern "C" {
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
 
 
 namespace shwf {

@@ -5,26 +5,33 @@
  *
  */
 
-// Framework Includes
-
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+
+// Framework Includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
-#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
 
 // std includes
 #include <functional>
 #include <iostream>
-#include <memory>
 #include <numeric>
-#include <Eigen/Dense>
+
+// Eigen includes
+#include "Eigen/Core"
+#include "Eigen/Dense"
+#include "Eigen/Eigenvalues"
+#include "Eigen/Geometry"
+#include "Eigen/Jacobi"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

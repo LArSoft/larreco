@@ -10,11 +10,23 @@
  */
 
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
-#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include <math.h>
+#include "TMatrixT.h"
+#include "TVectorT.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 double pma::Dist2(const TVector2 & v1, const TVector2 & v2)
 {
@@ -345,4 +357,3 @@ pma::bSegmentProjLess::bSegmentProjLess(const TVector3& s0, const TVector3& s1) 
 {
 	if (s0 == s1) mf::LogError("pma::bSegmentProjLess") << "Vectors equal!";
 }
-

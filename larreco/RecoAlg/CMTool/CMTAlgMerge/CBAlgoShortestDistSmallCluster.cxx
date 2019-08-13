@@ -1,5 +1,9 @@
 #include "CBAlgoShortestDistSmallCluster.h"
 
+#include "lardata/Utilities/GeometryUtilities.h"
+
+#include "TString.h"
+
 namespace cmtool {
 
   CBAlgoShortestDistSmallCluster::CBAlgoShortestDistSmallCluster() {

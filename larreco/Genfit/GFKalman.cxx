@@ -32,8 +32,6 @@
 #include "cetlib_except/exception.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #define COVEXC "cov_is_zero"
 
@@ -782,4 +780,3 @@ genf::GFKalman::calcGain(const TMatrixT<Double_t>& cov,
 
   return gain;
 }
-

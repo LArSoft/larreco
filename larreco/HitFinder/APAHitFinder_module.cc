@@ -29,8 +29,6 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "larreco/RecoAlg/DisambigAlg.h"
-#include "lardata/Utilities/AssociationUtil.h"
-
 
 namespace apa{
   class APAHitFinder : public art::EDProducer {

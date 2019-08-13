@@ -12,11 +12,7 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
-#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -29,12 +25,12 @@
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoNHits.h"
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoIgnoreTracks.h"
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoArray.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchManager.h"
 
 #include "ShowerRecoAlg.h"
 #include "ShowerRecoManager.h"
 
 #include <string>
-#include <iostream>
 #include <memory>
 
 class ShowerReco3D;

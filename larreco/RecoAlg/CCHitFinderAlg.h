@@ -10,17 +10,13 @@
 #define CCHITFINDERALG_H
 
 // C/C++ standard libraries
-#include <string>
 #include <vector>
 #include <memory> // std::unique_ptr<>
 #include <ostream> // std::endl
 
 // framework libraries
-#include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"

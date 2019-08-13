@@ -1,5 +1,30 @@
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "cetlib/search_path.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/RecoAlg/TCAlg/TCShTree.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
+
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <limits.h>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "TMVA/Reader.h"
 
 struct SortEntry{
   unsigned int index;

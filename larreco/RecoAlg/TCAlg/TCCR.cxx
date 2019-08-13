@@ -1,6 +1,26 @@
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/Simulation/SimChannel.h"
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/TCCR.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+
+#include <float.h>
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <map>
+#include <math.h>
+#include <utility>
+#include <vector>
 
 namespace tca {
 

@@ -9,6 +9,8 @@
 #ifndef Segmentation2D_h
 #define Segmentation2D_h
 
+#include "fhiclcpp/fwd.h"
+
 #include "SimpleClustering.h"
 
 namespace tss
@@ -75,4 +77,3 @@ private:
 };
 
 #endif
-

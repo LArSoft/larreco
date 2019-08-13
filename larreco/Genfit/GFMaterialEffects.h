@@ -24,19 +24,11 @@
 #ifndef GFMATERIALEFFECTS_H
 #define GFMATERIALEFFECTS_H
 
-#include <iostream>
 #include "TObject.h"
 #include <vector>
 #include "TVector3.h"
-#include "TMatrixT.h"
 
-#include "TDatabasePDG.h"
-#include "TGeoMaterial.h"
-#include "TGeoManager.h"
-
-#include "larreco/Genfit/GFAbsEnergyLoss.h"
-#include "larreco/Genfit/GFGeoMatManager.h"
-
+class TGeoMaterial;
 
 /** @brief  Handles energy loss classes. Contains stepper and energy loss/noise matrix calculation
  *
@@ -381,4 +373,3 @@ class GFMaterialEffects : public TObject{
 #endif
 
 /** @} */
-

@@ -1,5 +1,7 @@
 #include "CFAlgo3DAngle.h"
 
+#include "lardata/Utilities/GeometryUtilities.h"
+
 namespace cmtool {
 
   //-------------------------------------------------------

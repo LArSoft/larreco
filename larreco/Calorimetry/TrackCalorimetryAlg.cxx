@@ -7,11 +7,17 @@
  * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>)
 */
 
+#include "fhiclcpp/ParameterSet.h"
 #include "TrackCalorimetryAlg.h"
 
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/LArProperties.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
 #include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
-
-#include <limits>
 
 calo::TrackCalorimetryAlg::TrackCalorimetryAlg(fhicl::ParameterSet const& p):
   caloAlg(p.get<fhicl::ParameterSet>("CalorimetryAlg"))

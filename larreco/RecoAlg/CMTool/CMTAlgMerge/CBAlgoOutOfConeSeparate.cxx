@@ -1,5 +1,7 @@
 #include "CBAlgoOutOfConeSeparate.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   //----------------------------------------
