@@ -27,8 +27,8 @@
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/larreco/RecoAlg/TCAlg/PFPUtils.h"
-#include "larreco/larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 
 //root includes
