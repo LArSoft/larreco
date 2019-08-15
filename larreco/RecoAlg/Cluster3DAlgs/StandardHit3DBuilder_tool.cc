@@ -475,9 +475,12 @@ void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, 
     evt.put(std::move(rawDigitAssns));
 
     // Handle tree output too
-    m_tupleTree->Fill();
+    if (m_outputHistograms)
+    {
+        m_tupleTree->Fill();
     
-    clear();
+        clear();
+    }
 
     return;
 }
