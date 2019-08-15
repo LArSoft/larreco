@@ -5,7 +5,17 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "ClusterMergeHelper.h"
+
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cluster{
 

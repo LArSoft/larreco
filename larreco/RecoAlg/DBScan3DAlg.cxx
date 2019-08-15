@@ -1,12 +1,17 @@
 #include "larreco/RecoAlg/DBScan3DAlg.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "cetlib/pow.h"
 
-#include <math.h>
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "cetlib/pow.h"
+#include "fhiclcpp/ParameterSet.h"
+
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 

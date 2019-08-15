@@ -15,14 +15,22 @@
 #include "boost/numeric/ublas/matrix_proxy.hpp"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "lardata/RecoObjects/KHit.h"
+#include "lardata/RecoObjects/KHitContainer.h"
 #include "lardata/RecoObjects/SurfYZLine.h"
 #include "lardata/RecoObjects/SurfYZPlane.h"
 #include "larcore/Geometry/Geometry.h"
+
+#include "Rtypes.h"
+#include "TCanvas.h"
+#include "TMarker.h"
+#include "TObject.h"
+#include "TPad.h"
+#include "TPaveText.h"
+#include "TVirtualPad.h"
 #include "TGaxis.h"
 #include "TText.h"
 #include "TLegend.h"
 #include "TLegendEntry.h"
-#include "TText.h"
 
 // Local functions.
 

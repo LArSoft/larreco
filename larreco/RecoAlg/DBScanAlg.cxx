@@ -15,25 +15,21 @@
 
 
 //Framework includes:
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larreco/ClusterFinder/RStarTree/RStarBoundingBox.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/DBScanAlg.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 #include <cmath>
-#include <fstream>
 #include <cstdlib>
-
-#include "TH1.h"
 
 //----------------------------------------------------------
 // RStarTree stuff

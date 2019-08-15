@@ -44,8 +44,6 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
 class GFTrack;
 
 

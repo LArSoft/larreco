@@ -11,16 +11,10 @@
 #define CLUSTERMATCHALG_H
 
 // ART includes
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -28,16 +22,12 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "larreco/RecoAlg/SpacePointAlg.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larcore/Geometry/Geometry.h"
+namespace trkf { class SpacePointAlg; }
+
 // STL
-#include <set>
 #include <vector>
 
-// ROOT
-#include <TString.h>
-#include <TTree.h>
+class TTree;
 
 namespace cluster
 {

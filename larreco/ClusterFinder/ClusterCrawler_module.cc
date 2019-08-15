@@ -11,39 +11,23 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "canvas/Persistency/Common/FindOneP.h"
 
-#include <algorithm> // std::max()
-#include <functional> // std::mem_fn()
-#include <memory> // std::move
-#include <utility> // std::pair<>, std::unique_ptr<>
-#include <limits> // std::numeric_limits<>
+#include <memory>
 
 //LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/MakeIndex.h"
 #include "larreco/RecoAlg/CCHitFinderAlg.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
-#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
-
 
 namespace cluster {
   class ClusterCrawler;

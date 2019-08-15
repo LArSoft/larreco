@@ -9,8 +9,9 @@
 #ifndef TRAJCLUSTERALGDEBUGSTRUCT_H
 #define TRAJCLUSTERALGDEBUGSTRUCT_H
 
+#include <limits.h>
+
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace tca {

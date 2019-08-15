@@ -1,6 +1,7 @@
 #include "larreco/Genfit/GeaneMCApplication.h"
 #include "TVirtualMC.h"
-#include "TSystem.h"
+#include "TGeoManager.h"
+#include "TVector3.h"
 #include"GFFieldManager.h"
 
 
@@ -34,5 +35,3 @@ void genf::GeaneMCApplication::Field(const Double_t* x, Double_t* b) const
 
 
 //ClassImp(GeaneMCApplication)
-
-

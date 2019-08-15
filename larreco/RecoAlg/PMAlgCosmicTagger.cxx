@@ -4,8 +4,13 @@
 //              R. Sulej (robert.sulej@cern.ch) March 2017
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcorealg/Geometry/GeometryCore.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/PMAlgCosmicTagger.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 
@@ -431,4 +436,3 @@ short int pma::PMAlgCosmicTagger::ConvertDirToInt(const TVector3 &dir) const{
 
 	else return -1;
 }
-

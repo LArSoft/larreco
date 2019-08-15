@@ -12,12 +12,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 #include <math.h>
-#include <algorithm>
 
 // Framework includes
 #include "art/Framework/Principal/Event.h" 
@@ -26,14 +21,10 @@ extern "C" {
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -43,8 +34,6 @@ extern "C" {
 
 // ROOT
 #include "TMath.h"
-#include "TF1.h"
-#include "TH1D.h"
 
 
 ///shower finding

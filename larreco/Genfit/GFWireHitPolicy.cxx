@@ -22,12 +22,14 @@
 
 #include "larreco/Genfit/GFWireHitPolicy.h"
 
-#include "cassert"
+#include <cassert>
 #include <cmath>
+#include <iostream>
 
 #include "TMath.h"
 #include "TVector3.h"
 
+#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFAbsRecoHit.h"
 #include "larreco/Genfit/GFException.h"
 

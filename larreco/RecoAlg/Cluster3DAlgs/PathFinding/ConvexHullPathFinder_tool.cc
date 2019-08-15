@@ -8,8 +8,7 @@
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
-#include "art_root_io/TFileService.h"
-#include "cetlib/search_path.h"
+#include "art_root_io/TFileDirectory.h"
 #include "cetlib/cpu_timer.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
@@ -18,20 +17,15 @@
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/RecoBase/Hit.h"
 
 // Eigen
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 // Root histograms
 #include "TH1F.h"
-#include "TH2F.h"
-#include "TProfile.h"
 
 // std includes
 #include <string>
-#include <functional>
 #include <iostream>
 #include <memory>
 

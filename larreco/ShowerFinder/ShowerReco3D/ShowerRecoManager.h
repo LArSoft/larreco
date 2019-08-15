@@ -14,15 +14,17 @@
 #ifndef LARLITE_SHOWERRECOMANAGER_H
 #define LARLITE_SHOWERRECOMANAGER_H
 
-#include <iostream>
-#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchManager.h"
-#include "ShowerRecoException.h"
-#include "ShowerRecoAlgBase.h"
+#include <vector>
+
+#include "lardata/Utilities/PxUtils.h"
+namespace cmtool { class CMatchManager; }
+namespace recob { class Shower; }
 
 namespace showerreco {
 
-  typedef std::vector<std::vector<unsigned int> > ClusterAss_t;
+  class ShowerRecoAlgBase;
 
+  typedef std::vector<std::vector<unsigned int> > ClusterAss_t;
   typedef std::vector< ::util::PxHit> PxHitSet_t;
 
   /**
@@ -74,4 +76,3 @@ namespace showerreco {
 
 #endif
 /** @} */ // end of doxygen group
-

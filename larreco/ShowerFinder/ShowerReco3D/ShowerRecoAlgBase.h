@@ -14,13 +14,13 @@
 #ifndef RECOTOOL_SHOWERRECOALGBASE_H
 #define RECOTOOL_SHOWERRECOALGBASE_H
 
-#include <iostream>
+#include <vector>
+
+#include "lardata/Utilities/PxUtils.h"
 #include "lardataobj/RecoBase/Shower.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
-#include "ShowerRecoException.h"
-#include <limits>
-#include <climits>
+namespace calo { class CalorimetryAlg; }
+namespace cluster { class ClusterParamsAlg; }
+
 namespace showerreco {
 
   struct ShowerCluster_t {
@@ -87,4 +87,3 @@ namespace showerreco {
 
 #endif
 /** @} */ // end of doxygen group
-

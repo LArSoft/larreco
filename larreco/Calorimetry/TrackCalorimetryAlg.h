@@ -10,22 +10,19 @@
 */
 #include <iostream>
 
-#include "fhiclcpp/ParameterSet.h"
-
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
-
 #include "larcorealg/Geometry/GeometryCore.h"
-#include "lardataalg/DetectorInfo/LArProperties.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "larcorealg/CoreUtils/ProviderPack.h"
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include <set>
-#include "TTree.h"
 #include "TVector3.h"
+
+namespace anab { class Calorimetry; }
+namespace detinfo { class DetectorProperties; class LArProperties; }
+namespace fhicl { class ParameterSet; }
+namespace geo { struct PlaneID; struct WireID; }
+namespace recob { class Hit; class Track; }
 
 namespace calo{
   class TrackCalorimetryAlg;

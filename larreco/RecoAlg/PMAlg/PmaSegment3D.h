@@ -15,6 +15,10 @@
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
+#include "TVector2.h"
+#include "TVector3.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
+
 namespace pma
 {
 	class Segment3D;
@@ -76,4 +80,3 @@ private:
 };
 
 #endif
-

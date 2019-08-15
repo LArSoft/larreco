@@ -10,16 +10,12 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 
+// LArSoft includes
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 
-// LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
-
 // std includes
-#include <functional>
 #include <iostream>
-#include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

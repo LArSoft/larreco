@@ -22,9 +22,9 @@
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
-#include "TTree.h"
+class TTree;
+namespace detinfo { class DetectorClocks; }
 
 namespace hit{
 

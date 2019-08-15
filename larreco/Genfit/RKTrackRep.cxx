@@ -25,15 +25,14 @@
 
 #include "larreco/Genfit/RKTrackRep.h"
 #include <iostream>
-#include <memory> // std::unique_ptr
 #include <algorithm> // std::fill
 #include <type_traits> // std::extent<>
-#include "math.h"
-#include "TGeoManager.h"
+#include <math.h>
 #include "TDatabasePDG.h"
 #include "larreco/Genfit/GFException.h"
 #include "larreco/Genfit/GFFieldManager.h"
 #include "larreco/Genfit/GFMaterialEffects.h"
+#include "larreco/Genfit/GFTrackCand.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

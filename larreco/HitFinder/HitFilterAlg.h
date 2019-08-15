@@ -10,8 +10,9 @@
 #define HITFILTERALG_H
 
 #include <vector>
-#include "fhiclcpp/ParameterSet.h"
-#include "lardataobj/RecoBase/Hit.h"
+
+namespace fhicl { class ParameterSet; }
+namespace recob { class Hit; }
 
 namespace hit{
 

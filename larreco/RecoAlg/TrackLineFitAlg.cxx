@@ -8,15 +8,19 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
-#include <iomanip>
-
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
 
+#include <math.h>
+
+#include "TDecompSVD.h"
+#include "TMatrixDfwd.h"
+#include "TMatrixT.h"
+#include "TMatrixTUtils.h"
+#include "TVector3.h"
+#include "TVectorDfwd.h"
+#include "TVectorT.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 namespace trkf{
 

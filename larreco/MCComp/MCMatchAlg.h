@@ -14,14 +14,15 @@
 #ifndef RECOTOOL_MCMATCHALG_H
 #define RECOTOOL_MCMATCHALG_H
 
-#include <iostream>
-//#include "DataFormat/simch.h"
-//#include "DataFormat/hit.h"
-//#include "LArUtil/Geometry.h"
+#include "canvas/Persistency/Common/Ptr.h"
+
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
 #include "MCBTAlg.h"
+
+#include <cstddef>
+#include <utility>
+#include <vector>
 
 namespace btutil {
   /**
@@ -107,4 +108,3 @@ namespace btutil {
 }
 #endif
 /** @} */ // end of doxygen group
-

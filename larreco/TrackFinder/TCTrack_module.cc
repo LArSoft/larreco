@@ -9,7 +9,6 @@
 
 // C/C++ standard libraries
 #include <string>
-#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "fhiclcpp/ParameterSet.h"
@@ -23,9 +22,6 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/EndPoint2D.h"
-#include "lardataobj/RecoBase/Vertex.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"

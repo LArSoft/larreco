@@ -3,31 +3,19 @@
 // Added optical info --- Brooke Russell (brussell@yale.edu) 1/31/2017
 
 // LArSoft includes
-#include "lardata/Utilities/GeometryUtilities.h"
-
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/Simulation/SimEnergyDeposit.h"
-#include "larsim/Simulation/LArG4Parameters.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/PointCharge.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nusimdata/SimulationBase/MCNeutrino.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-// #include "MCCheater/BackTracker.h"
 #include "lardataobj/RawData/raw.h"
 #include "lardataobj/RawData/RawDigit.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/OpFlash.h"
-#include "lardataobj/AnalysisBase/ParticleID.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RawData/TriggerData.h"
 
 // Framework includes
@@ -35,11 +23,8 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindOneP.h"
-#include "canvas/Persistency/Common/FindMany.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
@@ -50,11 +35,10 @@
 #include "TString.h"
 #include "TClonesArray.h"
 #include "TH1F.h"
-#include "TH2F.h"
 #include "TLorentzVector.h"
-#include "TUnixSystem.h"
 #include "TDatabasePDG.h"
 #include "TObjArray.h"
+#include "TSystem.h"
 #include "TTimeStamp.h"
 
 // C++ Includes

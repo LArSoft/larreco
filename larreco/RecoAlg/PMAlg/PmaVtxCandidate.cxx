@@ -10,6 +10,10 @@
  */
 
 #include "larreco/RecoAlg/PMAlg/PmaVtxCandidate.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larcore/Geometry/Geometry.h"
@@ -735,4 +739,3 @@ bool pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl & tracks, pma::TrkCandi
 
 	return result;
 }
-

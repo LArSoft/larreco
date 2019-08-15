@@ -41,16 +41,22 @@
 #ifndef KALMANFILTERALG_H
 #define KALMANFILTERALG_H
 
-#include <vector>
+#include <map>
 #include <memory>
+#include <vector>
+
+#include "lardata/RecoObjects/KETrack.h"
 #include "lardata/RecoObjects/KGTrack.h"
+#include "lardata/RecoObjects/KTrack.h"
 #include "lardata/RecoObjects/Propagator.h"
-#include "lardata/RecoObjects/KHitContainer.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "canvas/Persistency/Common/PtrVector.h"
-#include "TCanvas.h"
-#include "TMarker.h"
-#include "TPaveText.h"
+
+namespace fhicl { class ParameterSet; }
+namespace trkf { class KHitContainer; }
+
+class TCanvas;
+class TMarker;
+class TPaveText;
+class TVirtualPad;
 
 namespace trkf {
 

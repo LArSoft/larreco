@@ -17,8 +17,9 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "larreco/Genfit/GFRecoHitFactory.h"
-
-#include<iostream>
+#include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFRecoHitProducer.h"
+#include "larreco/Genfit/GFTrackCand.h"
 
 
 genf::GFRecoHitFactory::GFRecoHitFactory(){
@@ -78,4 +79,3 @@ std::vector<genf::GFAbsRecoHit*> genf::GFRecoHitFactory::createMany(const GFTrac
   }
   return hitVec;
 }
-

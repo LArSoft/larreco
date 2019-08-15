@@ -11,34 +11,23 @@
 #define CLUSTERMERGEHELPER_H
 
 // ART includes
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Assns.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
+namespace art {
+  class EDProducer;
+  class Event;
+}
+namespace fhicl { class ParameterSet; }
 
 // LArSoft
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 
 // STL
-#include <set>
 #include <vector>
-#include <sstream>
-
-// ROOT
-#include <TString.h>
-#include <TTree.h>
 
 namespace cluster
 {

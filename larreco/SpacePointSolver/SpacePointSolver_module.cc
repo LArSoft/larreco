@@ -12,7 +12,6 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/Ptr.h"
@@ -22,25 +21,13 @@
 #include "larcore/Geometry/Geometry.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/ArtDataHelper/ChargedSpacePointCreator.h"
-
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/Simulation/SimChannel.h"
-#include "lardataobj/RecoBase/PointCharge.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-#include "larsim/MCCheater/BackTracker.h"
-
 #include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
-
-#include "TGraph.h"
-#include "TH1.h"
-#include "TPad.h"
 
 #include "Solver.h"
 #include "TripletFinder.h"

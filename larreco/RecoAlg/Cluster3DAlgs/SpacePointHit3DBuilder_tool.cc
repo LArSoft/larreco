@@ -6,28 +6,40 @@
  */
 
 // Framework Includes
+#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "art/Utilities/ToolMacros.h"
 #include "art_root_io/TFileService.h"
-#include "cetlib/search_path.h"
-#include "cetlib/cpu_timer.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Utilities/InputTag.h"
-
-#include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
+#include "cetlib/cpu_timer.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
 
 // std includes
-#include <functional>
+#include <cmath>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 // Ack!
 #include "TTree.h"
@@ -77,7 +89,7 @@ public:
     float getTimeToExecute(IHit3DBuilder::TimeValues index) const override {return fTimeVector.at(index);}
 
 private:
-    
+
     /**
      *  @brief clear the tuple vectors before processing next event
      */
@@ -105,7 +117,7 @@ private:
 
     // Define some basic histograms
     TTree*                               m_tupleTree;             ///< output analysis tree
-    
+
     mutable std::vector<float>           m_deltaTimeVec;
     mutable std::vector<float>           m_chiSquare3DVec;
     mutable std::vector<float>           m_maxPullVec;
@@ -162,13 +174,13 @@ void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
     art::ServiceHandle<art::TFileService> tfs;
-    
+
     if (m_outputHistograms)
     {
         m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by StandardHit3DBuilder");
-        
+
         clear();
-        
+
         m_tupleTree->Branch("DeltaTime2D",     "std::vector<float>", &m_deltaTimeVec);
         m_tupleTree->Branch("ChiSquare3D",     "std::vector<float>", &m_chiSquare3DVec);
         m_tupleTree->Branch("MaxPullValue",    "std::vector<float>", &m_maxPullVec);
@@ -188,7 +200,7 @@ void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     fGeometry = &*geometry;
     fDetector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
-    
+
 void SpacePointHit3DBuilder::clear()
 {
     m_deltaTimeVec.clear();
@@ -203,7 +215,7 @@ void SpacePointHit3DBuilder::clear()
     m_qualityMetricVec.clear();
     m_spacePointChargeVec.clear();
     m_hitAsymmetryVec.clear();
-    
+
     return;
 }
 
@@ -365,36 +377,36 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
         unsigned int statusBits(0x7);
         float        avePeakTime(0.);
         float        weightSum(0.);
-        
+
         // And get the wire IDs
         std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
-        
+
         // First loop through the hits to get WireIDs and calculate the averages
         for(size_t planeIdx = 0; planeIdx < 3; planeIdx++)
         {
             const reco::ClusterHit2D* hit2D = hitVector[planeIdx];
-            
+
             wireIDVec[planeIdx] = hit2D->WireID();
-            
+
             if (hit2D->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit2D->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
-            
+
             hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
-            
+
             float hitRMS   = hit2D->getHit()->RMS();
             float weight   = 1. / (hitRMS * hitRMS);
             float peakTime = hit2D->getTimeTicks();
-            
+
             avePeakTime += peakTime * weight;
             weightSum   += weight;
         }
-        
+
         avePeakTime /= weightSum;
-        
+
         // Armed with the average peak time, now get hitChiSquare and the sig vec
         float              hitChiSquare(0.);
         float              sigmaPeakTime(std::sqrt(1./weightSum));
         std::vector<float> hitDelTSigVec;
-        
+
         for(const auto& hit2D : hitVector)
         {
             float hitRMS    = hit2D->getHit()->RMS();
@@ -402,88 +414,88 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
             float peakTime  = hit2D->getTimeTicks();
             float deltaTime = peakTime - avePeakTime;
             float hitSig    = deltaTime / combRMS;
-            
+
             hitChiSquare += hitSig * hitSig;
-            
+
             hitDelTSigVec.emplace_back(std::fabs(hitSig));
         }
-        
+
         if (m_outputHistograms) m_chiSquare3DVec.push_back(hitChiSquare);
-        
+
         // Need to determine the hit overlap ranges
         int lowMinIndex(std::numeric_limits<int>::max());
         int lowMaxIndex(std::numeric_limits<int>::min());
         int hiMinIndex(std::numeric_limits<int>::max());
         int hiMaxIndex(std::numeric_limits<int>::min());
-        
+
         // This loop through hits to find min/max values for the common overlap region
         for(const auto& hit2D : hitVector)
         {
             int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
             int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
-            
+
             lowMinIndex = std::min(hitStart,    lowMinIndex);
             lowMaxIndex = std::max(hitStart,    lowMaxIndex);
             hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
             hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
         }
-        
+
         // Keep only "good" hits...
         if (hitChiSquare < m_maxHit3DChiSquare && hiMinIndex > lowMaxIndex)
         {
             // One more pass through hits to get charge
             std::vector<float> chargeVec;
-            
+
             for(const auto& hit2D : hitVector)
                 chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex));
-            
+
             float totalCharge     = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
             float overlapRange    = float(hiMinIndex - lowMaxIndex);
             float overlapFraction = overlapRange / float(hiMaxIndex - lowMinIndex);
-            
+
             // Set up to compute the charge asymmetry
             std::vector<float> smallestChargeDiffVec;
             std::vector<float> chargeAveVec;
             float              smallestDiff(std::numeric_limits<float>::max());
             size_t             chargeIndex(0);
-            
+
             for(size_t idx = 0; idx < 3; idx++)
             {
                 size_t leftIdx  = (idx + 2) % 3;
                 size_t rightIdx = (idx + 1) % 3;
-                
+
                 smallestChargeDiffVec.push_back(std::abs(chargeVec[leftIdx] - chargeVec[rightIdx]));
                 chargeAveVec.push_back(float(0.5 * (chargeVec[leftIdx] + chargeVec[rightIdx])));
-                
+
                 if (smallestChargeDiffVec.back() < smallestDiff)
                 {
                     smallestDiff = smallestChargeDiffVec.back();
                     chargeIndex  = idx;
                 }
-                
+
                 // Take opportunity to look at peak time diff
                 if (m_outputHistograms)
                 {
                     float deltaPeakTime = hitVector[leftIdx]->getTimeTicks() - hitVector[rightIdx]->getTimeTicks();
-                
+
                     m_deltaTimeVec.push_back(deltaPeakTime);
                 }
             }
-            
+
             float chargeAsymmetry = (chargeAveVec[chargeIndex] - chargeVec[chargeIndex]) / (chargeAveVec[chargeIndex] + chargeVec[chargeIndex]);
-            
+
             // If this is true there has to be a negative charge that snuck in somehow
             if (chargeAsymmetry < -1. || chargeAsymmetry > 1.)
             {
                 const geo::WireID& hitWireID = hitVector[chargeIndex]->WireID();
-                
+
                 std::cout << "============> Charge asymmetry out of range: " << chargeAsymmetry << " <============" << std::endl;
                 std::cout << "     hit C: " << hitWireID.Cryostat << ", TPC: " << hitWireID.TPC << ", Plane: " << hitWireID.Plane << ", Wire: " << hitWireID.Wire << std::endl;
                 std::cout << "     charge: " << chargeVec[0] << ", " << chargeVec[1] << ", " << chargeVec[2] << std::endl;
                 std::cout << "     index: " << chargeIndex << ", smallest diff: " << smallestDiff << std::endl;
                 continue;
             }
-            
+
             // Usurping "deltaPeakTime" to be the maximum pull
             float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
 
@@ -498,7 +510,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
                 m_overlapRangeVec.push_back(overlapRange);
                 m_hitAsymmetryVec.push_back(chargeAsymmetry);
             }
-            
+
             Eigen::Vector3f position(float(spacePoint->XYZ()[0]), float(spacePoint->XYZ()[1]), float(spacePoint->XYZ()[2]));
 
             // Create the 3D cluster hit
@@ -530,7 +542,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
 
     // Handle tree output too
     m_tupleTree->Fill();
-    
+
     clear();
 
     if (fEnableMonitoring)
@@ -553,13 +565,13 @@ float SpacePointHit3DBuilder::chargeIntegral(float peakMean,
                                              int   hi) const
 {
     float integral(0);
-    
+
     for(int sigPos = low; sigPos < hi; sigPos++)
     {
         float arg = (float(sigPos) - peakMean + 0.5) / peakSigma;
         integral += peakAmp * std::exp(-0.5 * arg * arg);
     }
-    
+
     return integral;
 }
 

@@ -29,7 +29,6 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 
 //LArSoft includes:
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -38,7 +37,6 @@
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
-#include "larreco/ClusterFinder/ClusterCreator.h"
 
 namespace cluster {
 

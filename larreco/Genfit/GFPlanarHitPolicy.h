@@ -23,9 +23,9 @@
 #ifndef GFPLANARHITPOLICY_H
 #define GFPLANARHITPOLICY_H
 
-#include<iostream>
 #include<string>
 
+#include "RtypesCore.h"
 #include "TMatrixT.h"
 #include "TObject.h"
 

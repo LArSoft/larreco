@@ -11,27 +11,18 @@
 
 
 //Framework includes:
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/APAGeometryAlg.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include <cmath>
 #include <algorithm>
 #include <iostream>
-#include <fstream>
 #include <cstdlib>
-
 
 namespace apa{
 

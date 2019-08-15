@@ -48,8 +48,6 @@
 
 namespace trkf {
 
-  class Propagator;
-
   class TrackKalmanCheater : public art::EDProducer {
   public:
     explicit TrackKalmanCheater(fhicl::ParameterSet const & pset);

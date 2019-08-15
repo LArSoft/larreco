@@ -14,10 +14,7 @@
 #ifndef RECOTOOL_CMERGEBOOKKEEPER_H
 #define RECOTOOL_CMERGEBOOKKEEPER_H
 
-#include <iostream>
 #include <vector>
-#include <TString.h>
-#include "CMTException.h"
 
 namespace cmtool {
 
@@ -107,4 +104,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

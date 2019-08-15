@@ -1,5 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
+#include <vector>
+
 namespace tca {
 
   TCEvent evt;
@@ -116,4 +118,3 @@ namespace tca {
   }
 
 } // namespace tca
-

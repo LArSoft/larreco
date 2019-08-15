@@ -18,7 +18,7 @@
 */
 #include "larreco/Genfit/GFAbsRecoHit.h"
 
-//ClassImp(GFAbsRecoHit)
+#include <iostream>
 
 
 genf::GFAbsRecoHit::GFAbsRecoHit(int NparHit) : fHitCoord(NparHit,1),

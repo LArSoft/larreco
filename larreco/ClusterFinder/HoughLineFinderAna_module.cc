@@ -10,28 +10,11 @@
 //  Niblack, W. and Petkovic, D. On Improving the Accuracy of the Hough Transform", Machine Vision and Applications 3, 87 (1990)
 ////////////////////////////////////////////////////////////////////////
 
+#include <cmath>
 #include <string>
 
-
-
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 // ROOT includes
-#include <TH1D.h>
-#include <TH2F.h>
-#include <TFile.h>
-#include <TTree.h>
-#include <TCanvas.h>
-#include <TTree.h>
-#include "TDatabasePDG.h"
-#include "TSystem.h"
-
-#include <fstream>
-#include <math.h>
-#include <algorithm>
-#include <iostream>
+#include "TTree.h"
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -42,26 +25,15 @@ extern "C" {
 #include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "lardata/Utilities/AssociationUtil.h"
 
-
-
-
-class TH1F;
-class TTree;
 namespace cluster {
 
   class HoughLineFinderAna : public art::EDAnalyzer {
@@ -264,4 +236,3 @@ namespace cluster{
   DEFINE_ART_MODULE(HoughLineFinderAna)
 
 } // end namespace caldata
-

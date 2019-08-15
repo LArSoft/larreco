@@ -9,15 +9,14 @@
 #include <map>
 
 #include "fhiclcpp/types/Atom.h"
-#include "fhiclcpp/types/Sequence.h"
 
-#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-#include "TVector3.h"
+class TVector3;
 
 namespace pma{
   class PMAlgStitching;
+  class TrkCandidateColl;
 }
 
 class pma::PMAlgStitching{
@@ -70,4 +69,3 @@ private:
 };
 
 #endif
-

@@ -4,6 +4,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -13,6 +14,8 @@
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "TH1F.h"
 
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config) :
     fGeom( &*(art::ServiceHandle<geo::Geometry const>()) ),
@@ -1401,4 +1404,3 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned
 	return dqdx;
 }
 // ------------------------------------------------------
-

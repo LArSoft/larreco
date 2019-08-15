@@ -24,6 +24,7 @@
 #define GFCONSTFIELD_H
 
 #include"GFAbsBField.h"
+#include "TVector3.h"
 
 /** @brief Constant Magnetic field
  *

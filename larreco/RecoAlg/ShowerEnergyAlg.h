@@ -10,18 +10,12 @@
 #define ShowerEnergyAlg_hxx
 
 // Framework
-#include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
+namespace fhicl { class ParameterSet; }
 
 // larsoft
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-
-// ROOT
-#include "TMath.h"
+namespace detinfo { class DetectorProperties; }
 
 namespace shower {
   class ShowerEnergyAlg;

@@ -10,8 +10,6 @@
 #ifndef LINFITALG_H
 #define LINFITALG_H
 
-#include <math.h>
-#include <algorithm>
 #include <vector>
 
 

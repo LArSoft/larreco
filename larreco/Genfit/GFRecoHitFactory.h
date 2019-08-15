@@ -31,12 +31,11 @@
 #include<vector>
 #include<map>
 
-#include "larreco/Genfit/GFRecoHitProducer.h"
-#include "larreco/Genfit/GFTrackCand.h"
-
+class GFAbsRecoHitProducer;
 
 namespace genf {
 
+class GFTrackCand;
 class GFAbsRecoHit;
 
 

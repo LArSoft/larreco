@@ -1,64 +1,26 @@
-
 add_subdirectory(job)
 
-art_make(
-	  
-          LIB_LIBRARIES
-			lardataobj_MCBase
-                        lardataobj_RecoBase
-                        lardata_Utilities
-			larreco_Calorimetry
-                        larreco_RecoAlg_ClusterRecoUtil
-			larreco_RecoAlg_CMTool_CMToolBase
-	  		larreco_RecoAlg_CMTool_CMTAlgPriority
-			larreco_RecoAlg_CMTool_CMTAlgMerge
-			larreco_RecoAlg_CMTool_CMTAlgMatch
-                        ${ART_FRAMEWORK_CORE}
-                        ${ART_FRAMEWORK_PRINCIPAL}
-                        ${ART_FRAMEWORK_SERVICES_REGISTRY}
-                        ${ART_FRAMEWORK_SERVICES_BASIC}
-                        ${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-                        ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-                        ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-                        art_Persistency_Common
-                        art_Persistency_Provenance
-                        art_Utilities
-			canvas
-                        ${MF_MESSAGELOGGER}
-                        
-                        ${FHICLCPP}
-                        cetlib cetlib_except
-                        ${CLHEP}
-                        ${ROOT_BASIC_LIB_LIST}
-                        ${ROOT_MINUIT}
-          MODULE_LIBRARIES 
-	  		   larreco_MCComp
-	  		   lardataobj_MCBase
-	  		   larreco_ShowerFinder_ShowerReco3D
-	  		   larreco_RecoAlg
-                           larsim_MCCheater_BackTrackerService_service
-	                   larsim_MCCheater_ParticleInventoryService_service
-                           larevt_Filters
-                           lardataobj_RecoBase
-                           larcorealg_Geometry
-                           larcore_Geometry_Geometry_service
-                           nusimdata_SimulationBase
-                           ${ART_FRAMEWORK_CORE}
-			   ${ART_FRAMEWORK_PRINCIPAL}
-			   ${ART_FRAMEWORK_SERVICES_REGISTRY}
-			   ${ART_FRAMEWORK_SERVICES_BASIC}
-			   ${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-			   ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-			   art_Persistency_Common
-			   art_Utilities
-			   canvas
-			   ${MF_MESSAGELOGGER}
-			   
-	                   ${FHICLCPP}
-			   cetlib cetlib_except
+art_make(LIB_LIBRARIES
+           lardata_Utilities
+           larreco_Calorimetry
+           larreco_RecoAlg_CMTool_CMToolBase
+           larreco_RecoAlg_CMTool_CMTAlgPriority
+           larreco_RecoAlg_CMTool_CMTAlgMatch
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ROOT_CORE}
+           canvas
+           cetlib_except
+         MODULE_LIBRARIES
+           larreco_MCComp
+           larreco_ShowerFinder_ShowerReco3D
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           ${ART_ROOT_IO_TFILE_SUPPORT}
+           ${ROOT_CORE}
+           ${ROOT_PHYSICS}
+           ${MF_MESSAGELOGGER}
          )
 
 install_headers()
 install_fhicl()
 install_source()
-

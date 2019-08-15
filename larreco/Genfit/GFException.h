@@ -24,15 +24,13 @@
 #define GFEXCEPTION_H
 
 #include <exception>
-#include <stdexcept>
 #include <string>
 #include <vector>
-#include <iostream>
 #include <sstream>
 #include <ios> // std::ios::fmtflags
 #include <iomanip> // std::setw()
 
-#include "TObject.h"
+#include "RtypesCore.h"
 #include "TMatrixT.h"
 #include "TVector3.h"
 

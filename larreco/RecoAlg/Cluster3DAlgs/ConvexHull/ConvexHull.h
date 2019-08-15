@@ -14,7 +14,9 @@
 
 // std includes
 #include <list>
-#include <algorithm>
+#include <tuple>
+#include <utility>
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace lar_cluster3d

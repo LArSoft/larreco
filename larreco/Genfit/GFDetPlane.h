@@ -33,12 +33,17 @@
 #define GFDETPLANE_H
 
 #include<stdexcept> // std::logic_error
+#include <string>
+
 #include"GFAbsFinitePlane.h"
 #include "TObject.h"
 
+#include "RtypesCore.h"
+#include "TVector2.h"
 #include "TVector3.h"
-#include "TPolyMarker3D.h"
-#include "TPolyLine3D.h"
+
+class TPolyMarker3D;
+class TPolyLine3D;
 
 /** @brief Detector plane genfit geometry class
  *

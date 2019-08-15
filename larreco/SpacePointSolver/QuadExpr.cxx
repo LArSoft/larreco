@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <ostream>
+#include <string>
 
 QuadExpr QuadExpr::X()
 {

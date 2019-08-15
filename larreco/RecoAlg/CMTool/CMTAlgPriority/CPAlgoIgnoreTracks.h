@@ -16,6 +16,8 @@
 
 #include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
+#include "RtypesCore.h"
+
 namespace cmtool {
   /**
      \class CPAlgoIgnoreTracks
@@ -96,4 +98,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

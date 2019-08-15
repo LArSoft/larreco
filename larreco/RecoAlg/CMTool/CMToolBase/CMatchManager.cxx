@@ -1,5 +1,21 @@
 #include "CMatchManager.h"
 
+#include <algorithm>
+#include <iostream>
+#include <set>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "TStopwatch.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+
 namespace cmtool {
 
   CMatchManager::CMatchManager() : CMManagerBase()

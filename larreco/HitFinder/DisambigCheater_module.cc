@@ -14,6 +14,7 @@
 #include "art/Framework/Principal/Event.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/Exceptions.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/Simulation/SimChannel.h"

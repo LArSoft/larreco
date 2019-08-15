@@ -1,5 +1,7 @@
 #include "CBAlgoTrackSeparate.h"
 
+#include "lardata/Utilities/GeometryUtilities.h"
+
 namespace cmtool {
 
   //----------------------------------------

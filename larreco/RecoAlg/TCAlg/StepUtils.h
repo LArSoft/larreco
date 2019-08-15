@@ -9,29 +9,12 @@
 #ifndef STEPUTILS_H
 #define STEPUTILS_H
 
+// LArSoft libraries
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 // C/C++ standard libraries
-#include <array>
 #include <vector>
-#include <utility> // std::pair<>
-#include <cmath>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <algorithm>
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
-// LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
-#include "larreco/RecoAlg/TCAlg/TCVertex.h"
-#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 
 namespace tca {
 

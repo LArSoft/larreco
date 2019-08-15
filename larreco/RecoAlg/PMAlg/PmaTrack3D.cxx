@@ -11,11 +11,15 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
+
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "larcore/Geometry/Geometry.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
@@ -3229,4 +3233,3 @@ void pma::Track3D::UpdateHitsRadius(void)
 	r = pma::GetHitsRadius2D(hitsInd1, true);
 	if (r > fHitsRadius) fHitsRadius = r;
 }
-

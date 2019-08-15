@@ -6,16 +6,11 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#include <fstream>
 #include <algorithm>
-#include <functional>
-#include <TH1.h>
-#include <TH2.h>
+#include <string>
+
 #include <TH1F.h>
 #include <TH2F.h>
-#include "TDatabasePDG.h"
-#include "TSystem.h"
-#include <string>
 
 //Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -27,8 +22,6 @@
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -42,15 +35,9 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
-#include "lardata/Utilities/AssociationUtil.h"
-
 
 #include "art/Framework/Core/EDAnalyzer.h"
 
-
-
-class TH1F;
-class TH2F;
 ///Cluster finding and building
 namespace cluster {
 

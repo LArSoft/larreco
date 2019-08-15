@@ -7,27 +7,14 @@
 //
 ///////////////////////////////////////////////////////////////////////
 #ifndef TRAJCLUSTERALGVERTEX_H
-#define TRAJCLUSTERALGVERTEX_HOngoing 3D reconstruction re-write
-
+#define TRAJCLUSTERALGVERTEX_H
 
 // C/C++ standard libraries
-#include <array>
+#include <string>
 #include <vector>
-#include <bitset>
-#include <utility> // std::pair<>
-#include <cmath>
-#include <iostream>
-#include <iomanip>
-#include <algorithm>
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/StepUtils.h"
-#include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
 

@@ -9,13 +9,12 @@
 #ifndef TRAJCLUSTERALGTRUTH_H
 #define TRAJCLUSTERALGTRUTH_H
 
-#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+#include <array>
+#include <vector>
 
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/TCHist.h"
-
+namespace geo { struct TPCID; }
+namespace tca { struct HistStuff; }
 
 namespace tca {
 

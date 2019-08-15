@@ -22,6 +22,7 @@
 #ifndef GFTRACKCAND_H
 #define GFTRACKCAND_H
 
+#include <iostream>
 #include <vector>
 #include <set>
 

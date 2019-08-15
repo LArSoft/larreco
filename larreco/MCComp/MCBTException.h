@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_MCBTEXCEPTION_H
 #define RECOTOOL_MCBTEXCEPTION_H
 
-#include <iostream>
 #include <exception>
+#include <string>
 
 namespace btutil {
 
@@ -42,4 +42,3 @@ namespace btutil {
 }
 #endif
 /** @} */ // end of doxygen group
-

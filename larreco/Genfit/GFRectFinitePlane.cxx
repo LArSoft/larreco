@@ -17,7 +17,6 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include<iostream>
 #include"GFRectFinitePlane.h"
 #include"GFException.h"
 

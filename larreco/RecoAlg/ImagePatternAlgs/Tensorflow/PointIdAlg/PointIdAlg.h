@@ -17,7 +17,6 @@
 
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes

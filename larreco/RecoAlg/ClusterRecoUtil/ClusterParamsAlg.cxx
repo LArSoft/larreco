@@ -5,9 +5,25 @@
 #include "lardata/Utilities/SimpleFits.h" // LinearFit<>
 
 //-----Math-------
+#include <algorithm>
+#include <cmath>
+#include <iostream>
 #include <math.h>
 #define PI 3.14159265
 
+#include "TCanvas.h"
+#include "TH1.h"
+#include "TLegend.h"
+#include "TMath.h"
+#include "TPrincipal.h"
+#include "TStopwatch.h"
+#include "TVectorDfwd.h"
+#include "TVectorT.h"
+
+#include "lardata/Utilities/GeometryUtilities.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/CRUException.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 namespace {
 

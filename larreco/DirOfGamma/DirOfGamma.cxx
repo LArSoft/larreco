@@ -1,12 +1,9 @@
 #include "DirOfGamma.h"
 
-#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 
@@ -376,10 +373,3 @@ void ems::DirOfGamma::FindInitialPart()
 	fCandidateID = saveid;
 
 }
-
-
-
-
-
-
-

@@ -8,6 +8,8 @@
 /// based on time and charge information
 ///
 ////////////////////////////////////////////////////////////////////////
+
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/ClusterMatchTQ.h"

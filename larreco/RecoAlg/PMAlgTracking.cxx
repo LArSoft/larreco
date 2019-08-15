@@ -7,8 +7,10 @@
 
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgStitching.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -1534,4 +1536,3 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
-

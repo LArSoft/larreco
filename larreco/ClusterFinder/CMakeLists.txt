@@ -1,35 +1,22 @@
-
-art_make( 
-          
-          LIB_LIBRARIES larcorealg_Geometry
-                        lardataobj_RecoBase
-                        larreco_RecoAlg_ClusterRecoUtil
-          MODULE_LIBRARIES larreco_RecoAlg
-                           larreco_RecoAlg_Cluster3DAlgs
-                           larreco_RecoAlg_ClusterRecoUtil
-                           larreco_ClusterFinder
-                           larsim_MCCheater_BackTrackerService_service
-	                   larsim_MCCheater_ParticleInventoryService_service
-                           larevt_Filters
-                           lardataobj_RecoBase
-                           larcorealg_Geometry
-                           larcore_Geometry_Geometry_service
-                           nurandom_RandomUtils_NuRandomService_service
-                           nusimdata_SimulationBase
-                           ${ART_FRAMEWORK_CORE}
-                           ${ART_FRAMEWORK_PRINCIPAL}
-                           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-                           ${ART_FRAMEWORK_SERVICES_BASIC}
-                           ${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
-                           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-                           art_Persistency_Common
-                           art_Persistency_Provenance
-                           art_Utilities
-			   canvas
-                           ${MF_MESSAGELOGGER}
-                           
-                           ${FHICLCPP}
-                           cetlib cetlib_except
+art_make(LIB_LIBRARIES
+           lardataobj_RecoBase
+         MODULE_LIBRARIES
+           larreco_Calorimetry
+           larreco_RecoAlg_Cluster3DAlgs
+           larreco_RecoAlg_TCAlg
+           larreco_RecoAlg
+           larreco_ClusterFinder
+           larsim_MCCheater_ParticleInventoryService_service
+           lardataobj_AnalysisBase
+           lardataobj_RecoBase
+           nurandom_RandomUtils_NuRandomService_service
+           nusimdata_SimulationBase
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ART_ROOT_IO_TFILE_SUPPORT}
+           ${ROOT_CORE}
+           ${ROOT_PHYSICS}
+           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           ${MF_MESSAGELOGGER}
          )
 
 install_headers()

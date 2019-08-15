@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CBALGOPROHIBITBIGCLUSTERS_H
 #define RECOTOOL_CBALGOPROHIBITBIGCLUSTERS_H
 
-#include <iostream>
 #include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
   /**
@@ -89,4 +89,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

@@ -12,12 +12,10 @@
 #ifndef PmaHit3D_h
 #define PmaHit3D_h
 
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
-
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
 
-#include <functional>
+#include <math.h>
 
 #include "TVector2.h"
 #include "TVector3.h"
@@ -25,8 +23,6 @@
 namespace pma
 {
 	class Hit3D;
-	struct bTrajectory3DOrderLess;
-
 	class Track3D;
 }
 
@@ -107,4 +103,3 @@ private:
 };
 
 #endif
-

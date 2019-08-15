@@ -24,7 +24,8 @@
 #ifndef GFENERGYLOSSBREMS_H
 #define GFENERGYLOSSBREMS_H
 
-#include <iostream>
+#include "RtypesCore.h"
+class TVector3;
 
 #include"GFAbsEnergyLoss.h"
 
@@ -73,4 +74,3 @@ class GFEnergyLossBrems : public GFAbsEnergyLoss{
 #endif
 
 /** @} */
-

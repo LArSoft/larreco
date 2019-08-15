@@ -1,5 +1,7 @@
 #include "CBAlgoAngleCompat.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   CBAlgoAngleCompat::CBAlgoAngleCompat() : CBoolAlgoBase() {

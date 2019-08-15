@@ -10,25 +10,11 @@
 #define TRAJCLUSTERALGTREE_H
 
 // C/C++ standard libraries
-#include <array>
+#include <string>
 #include <vector>
-#include <bitset>
-#include <utility> // std::pair<>
-#include <cmath>
-#include <iostream>
-#include <iomanip>
-#include <algorithm>
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/Utils.h"
-#include "larreco/RecoAlg/TCAlg/TCTruth.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
 

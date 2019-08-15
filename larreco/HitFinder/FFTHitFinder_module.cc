@@ -10,8 +10,7 @@
 
 // C/C++ standard library
 #include <string>
-#include <utility> // std::move
-#include <algorithm> // std::accumulate
+#include <numeric> // std::accumulate
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -24,12 +23,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/CryostatGeo.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
 // ROOT Includes

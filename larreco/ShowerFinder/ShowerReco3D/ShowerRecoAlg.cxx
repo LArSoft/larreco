@@ -1,4 +1,15 @@
 #include "ShowerRecoAlg.h"
+#include "lardata/Utilities/GeometryUtilities.h"
+
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "lardata/Utilities/GeometryUtilities.h"
+#include "lardata/Utilities/PxUtils.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerCalo.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoAlgBase.h"
+
+#include "TMath.h"
+#include "TVector3.h"
 
 namespace showerreco {
 

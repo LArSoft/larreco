@@ -9,13 +9,6 @@
 // C++ std library includes
 #include <string>
 #include <algorithm>
-#include <fstream>
-#include <bitset>
-// POSIX includes
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -23,18 +16,11 @@ extern "C" {
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 // Root Includes
-#include "TGraph.h"
-#include "TFile.h"
 #include "TLine.h"
-#include "TComplex.h"
-#include "TString.h"
-#include "TGraph.h"
 #include "TH2.h"
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -44,11 +30,7 @@ extern "C" {
 #include "nug4/MagneticField/MagneticField.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larsim/MCCheater/BackTrackerService.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
-
-
-namespace geo { class Geometry; }
 
 ///Detector simulation of raw signals on wires
 namespace hit {

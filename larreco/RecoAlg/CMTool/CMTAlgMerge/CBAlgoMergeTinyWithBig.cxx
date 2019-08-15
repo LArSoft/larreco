@@ -1,5 +1,7 @@
 #include "CBAlgoMergeTinyWithBig.h"
 
+#include <math.h>
+
 namespace cmtool {
 
   //-------------------------------------------------------

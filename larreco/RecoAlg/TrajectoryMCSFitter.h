@@ -1,10 +1,10 @@
 #ifndef TRAJECTORYMCSFITTER_H
 #define TRAJECTORYMCSFITTER_H
 
-#include "fhiclcpp/ParameterSet.h"
+// Framework includes
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
-#include "canvas/Persistency/Common/Ptr.h"
+
 #include "lardataobj/RecoBase/MCSFitResult.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardata/RecoObjects/TrackState.h"

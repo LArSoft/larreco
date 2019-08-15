@@ -14,7 +14,7 @@
 #ifndef CRUEXCEPTION_H
 #define CRUEXCEPTION_H
 
-#include <iostream>
+#include <string>
 #include <exception>
 
 namespace cluster {
@@ -41,4 +41,3 @@ namespace cluster {
 }
 #endif
 /** @} */ // end of doxygen group
-

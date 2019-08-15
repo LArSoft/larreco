@@ -9,16 +9,13 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
-#include "lardata/Utilities/AssociationUtil.h"
-
-
-namespace recob
-{
-  class SpacePoint;
-  class Cluster;
-  class Seed;
-  class Hit;
-}
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "larcore/Geometry/Geometry.h"
+#include "art/Framework/Principal/Event.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 
 namespace trkf {
 
@@ -50,27 +47,6 @@ namespace trkf {
 namespace trkf {
   DEFINE_ART_MODULE(SeedFinderModule)
 }
-
-//
-// Name: SeedFinderModule.cxx
-//
-// Purpose: Implementation file for module SeedFinderModule.
-//
-// Ben Jones, MIT
-//
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "larcore/Geometry/Geometry.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Seed.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "TMatrixD.h"
-#include "TVectorD.h"
 
 namespace trkf {
 

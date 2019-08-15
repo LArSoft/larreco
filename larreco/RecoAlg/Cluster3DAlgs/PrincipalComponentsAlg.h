@@ -9,24 +9,19 @@
 #define PrincipalComponentsAlg_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+namespace detinfo { class DetectorProperties; }
+namespace geo { class Geometry; }
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // Eigen
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 // std includes
-#include <string>
-#include <functional>
-#include <iostream>
-#include <memory>
-
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

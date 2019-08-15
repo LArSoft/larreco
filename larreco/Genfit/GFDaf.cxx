@@ -28,14 +28,13 @@
 
 #include "larreco/Genfit/GFDaf.h"
 #include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFBookkeeping.h"
+#include "larreco/Genfit/GFDetPlane.h"
 
 #include "TMath.h"
-#include "math.h"
+#include <math.h>
 
 #include "larreco/Genfit/GFTrack.h"
-#include "larreco/Genfit/GFAbsRecoHit.h"
-#include "larreco/Genfit/GFAbsTrackRep.h"
-#include "larreco/Genfit/GFException.h"
 #include "larreco/Genfit/GFAbsRecoHit.h"
 #include "larreco/Genfit/GFAbsTrackRep.h"
 
@@ -538,4 +537,3 @@ void genf::GFDaf::setBetas(
   fBeta.push_back(b10);
 
 }
-

@@ -1,5 +1,7 @@
 #include "CBAlgoShortestDistNonEndPoint.h"
 
+#include "TString.h"
+
 namespace cmtool {
 
 

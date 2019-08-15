@@ -10,26 +10,21 @@
 ////////////////////////////////////////////////////////////////////////
 #include "art/Framework/Core/EDProducer.h"
 
-#include <vector>
-#include <string>
-#include <iomanip>
-
 // C++ includes
-#include <math.h>
 #include <algorithm>
-#include <fstream>
+#include <iomanip>
+#include <math.h>
+#include <string>
+#include <vector>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
@@ -45,7 +40,8 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 
 // ROOT includes
-#include "TVectorD.h"
+#include "TVector2.h"
+#include "TVector3.h"
 #include "TF1.h"
 #include "TGraph.h"
 #include "TMath.h"

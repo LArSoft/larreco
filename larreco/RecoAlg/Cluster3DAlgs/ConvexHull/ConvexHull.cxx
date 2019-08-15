@@ -15,11 +15,11 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 // Eigen
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 // std includes
-#include <functional>
-#include <memory>
+#include <cmath>
+#include <limits>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

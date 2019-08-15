@@ -15,8 +15,6 @@
 #define RECOTOOL_CFALGOWIREOVERLAP_H
 
 #include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
-#include <math.h>
-#include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 namespace cmtool {
   /**
@@ -77,4 +75,3 @@ namespace cmtool {
 }
 #endif
 /** @} */ // end of doxygen group
-

@@ -14,8 +14,9 @@
 #ifndef CMERGEHELPER_H
 #define CMERGEHELPER_H
 
-#include <iostream>
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeBookKeeper.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
+class TFile;
 
 namespace cmtool {
   /**
@@ -56,4 +57,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

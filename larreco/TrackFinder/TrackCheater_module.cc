@@ -24,7 +24,6 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
@@ -33,9 +32,6 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "canvas/Persistency/Common/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 

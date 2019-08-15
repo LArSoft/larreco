@@ -10,16 +10,16 @@
 #define kdTree_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/fwd.h"
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
-#include <vector>
 #include <list>
-#include <set>
-#include <map>
+#include <vector>
+#include <utility>
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace lar_cluster3d

@@ -11,16 +11,18 @@
 #define LAZYCLUSTERPARAMSALG_H
 
 // C/C++ standard library
+#include <stddef.h>
 #include <vector>
 
 // LArSoft libraries
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
-
-
+namespace recob { class Hit; }
 
 /// Cluster reconstruction namespace
 namespace cluster {
+
+  class cluster_params;
 
   /**
    * @brief Algorithm class inheriting cluster parameters

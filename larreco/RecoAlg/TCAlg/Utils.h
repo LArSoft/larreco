@@ -9,27 +9,20 @@
 #ifndef TRAJCLUSTERALGUTILS_H
 #define TRAJCLUSTERALGUTILS_H
 
-// C/C++ standard libraries
-#include <array>
-#include <vector>
-#include <bitset>
-#include <utility> // std::pair<>
-#include <cmath>
-#include <iostream>
-#include <iomanip>
+// C++ standard libraries
 #include <algorithm>
+#include <array>
+#include <utility>
+#include <vector>
+#include <string>
 
+// Framework libraries
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-// LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
-#include "larreco/RecoAlg/TCAlg/TCVertex.h"
-#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
+// LArSoft
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
+namespace geo { struct TPCID; }
+namespace recob { class Hit; }
 
 namespace tca {
 

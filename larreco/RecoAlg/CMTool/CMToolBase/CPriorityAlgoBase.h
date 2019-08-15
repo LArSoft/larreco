@@ -15,6 +15,7 @@
 #define RECOTOOL_CPRIORITYALGOBASE_H
 
 #include "CMAlgoBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {
 
@@ -49,4 +50,3 @@ namespace cmtool {
 
 #endif
 /** @} */ // end of doxygen group
-

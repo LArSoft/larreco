@@ -6,14 +6,7 @@
  */
 
 // Framework Includes
-
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/SweepEvent.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
-
-// std includes
-#include <functional>
-#include <memory>
-#include <queue>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

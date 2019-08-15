@@ -13,9 +13,10 @@
 ////////////////////////////////////////////////////////////////////////
 #ifndef CLUSTERMATCHTQ_H
 #define CLUSTERMATCHTQ_H
+
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl { class ParameterSet; }
 
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"

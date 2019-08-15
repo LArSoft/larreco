@@ -15,18 +15,14 @@
 #define DataProviderAlg_h
 
 // Framework includes
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 
 // LArSoft includes
 #include "larcorealg/Geometry/GeometryCore.h"
-#include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "CLHEP/Random/JamesRandom.h" // for testing on noise, not used by any reco
 

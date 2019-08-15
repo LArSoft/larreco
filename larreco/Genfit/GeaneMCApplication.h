@@ -1,13 +1,8 @@
-
 #ifndef GEANE_MC_APPLICATION_H
 #define GEANE_MC_APPLICATION_H
 
+#include "RtypesCore.h"
 #include "TVirtualMCApplication.h"
-#include "TVirtualMC.h"
-#include "TGeoManager.h"
-#include<iostream>
-
-//#include "AbsBField.h"
 
 namespace genf {
 

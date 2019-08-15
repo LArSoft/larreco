@@ -10,7 +10,12 @@
  * Output: recob::Hit
 */
 
+#include "fhiclcpp/ParameterSet.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larreco/HitFinder/RFFHitFitter.h"
+
 #include "RFFHitFinderAlg.h"
+
 #include <numeric>
 
 hit::RFFHitFinderAlg::RFFHitFinderAlg(fhicl::ParameterSet const& p)

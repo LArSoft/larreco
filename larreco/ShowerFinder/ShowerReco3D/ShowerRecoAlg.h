@@ -14,9 +14,11 @@
 #ifndef RECOTOOL_SHOWERRECOALG_H
 #define RECOTOOL_SHOWERRECOALG_H
 
+#include <vector>
+
 #include "ShowerRecoAlgBase.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "ShowerCalo.h"
+#include "lardataobj/RecoBase/Shower.h"
+namespace util { class GeometryUtilities; }
 
 namespace showerreco {
 
@@ -70,4 +72,3 @@ namespace showerreco {
 
 #endif
 /** @} */ // end of doxygen group
-

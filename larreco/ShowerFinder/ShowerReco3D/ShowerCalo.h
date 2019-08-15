@@ -14,10 +14,8 @@
 #ifndef RECOTOOL_SHOWERCALO_H
 #define RECOTOOL_SHOWERCALO_H
 
-#include <iostream>
-#include <map>
-#include "ShowerRecoException.h"
-#include <TString.h>
+#include <utility>
+
 namespace showerreco {
 
   namespace energy {
@@ -60,4 +58,3 @@ namespace showerreco {
 
 #endif
 /** @} */ // end of doxygen group
-

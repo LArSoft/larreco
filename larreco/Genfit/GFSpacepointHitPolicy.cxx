@@ -17,6 +17,7 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "larreco/Genfit/GFSpacepointHitPolicy.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
 
 #include "TMath.h"
 

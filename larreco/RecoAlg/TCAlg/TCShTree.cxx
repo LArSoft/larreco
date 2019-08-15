@@ -1,4 +1,13 @@
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/TCShTree.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
+
+#include <array>
+#include <bitset>
+#include <math.h>
+#include <stddef.h>
+#include <string>
+#include <vector>
 
 namespace tca {
 

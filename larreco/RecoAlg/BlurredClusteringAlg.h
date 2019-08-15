@@ -13,55 +13,26 @@
 #define BlurredClustering_h
 
 // Framework includes
-#include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 #include "larcore/Geometry/Geometry.h"
+namespace detinfo { class DetectorProperties; }
+namespace fhicl { class ParameterSet; }
+namespace lariov { class ChannelStatusProvider; }
+namespace geo { struct WireID; }
 
 // ROOT
-#include <TTree.h>
-#include <TH2F.h>
-#include <TH2.h>
-#include <TCanvas.h>
-#include <TCutG.h>
-#include <TString.h>
-#include <TMarker.h>
-#include <TColor.h>
-#include <TCanvas.h>
-#include <TStyle.h>
-#include <TVirtualPad.h>
-#include <TLatex.h>
-#include <TGraph.h>
-#include <TF1.h>
-#include <TLine.h>
-#include <TPrincipal.h>
-#include <TMath.h>
-#include <TVector.h>
-#include <TVectorD.h>
-#include <TVector2.h>
+#include "TString.h"
+class TCanvas;
+class TH2F;
 
 // c++
 #include <array>
 #include <string>
 #include <vector>
-#include <map>
-#include <sstream>
-
 
 namespace cluster {
   class BlurredClusteringAlg;

@@ -11,8 +11,14 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "TVector3.h"
 
 pma::TrkCandidate::TrkCandidate(void) :
 	fParent(-1), fTrack(0), fKey(-1), fTreeId(-1),
@@ -384,4 +390,3 @@ pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, si
 
 	return trkCopy;
 }
-

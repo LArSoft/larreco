@@ -11,11 +11,11 @@
 
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/IEvent.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/EventUtilities.h"
+namespace dcel2d { class Face; class HalfEdge; }
 
 // std includes
-#include <vector>
 #include <list>
-#include <algorithm>
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace voronoi2d
