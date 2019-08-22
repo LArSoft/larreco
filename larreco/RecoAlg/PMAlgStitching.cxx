@@ -29,12 +29,6 @@ pma::PMAlgStitching::PMAlgStitching(const pma::PMAlgStitching::Config &config)
 
 }
 
-// Destructor
-pma::PMAlgStitching::~PMAlgStitching(){
-
-
-}
-
 // CPA stitching wrapper
 void pma::PMAlgStitching::StitchTracksCPA(pma::TrkCandidateColl &tracks){
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for CPA stitching.";

@@ -49,11 +49,6 @@ cluster::EndPointAlg::EndPointAlg(fhicl::ParameterSet const& pset)
 }
 
 //-----------------------------------------------------------------------------
-cluster::EndPointAlg::~EndPointAlg()
-{
-}
-
-//-----------------------------------------------------------------------------
 void cluster::EndPointAlg::reconfigure(fhicl::ParameterSet const& p)
 {
   fTimeBins      = p.get< int    >("TimeBins");

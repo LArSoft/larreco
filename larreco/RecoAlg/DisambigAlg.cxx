@@ -42,11 +42,6 @@ DisambigAlg::DisambigAlg(fhicl::ParameterSet const& pset)
 }
 
 //----------------------------------------------------------
-DisambigAlg::~DisambigAlg()
-{
-}
-
-//----------------------------------------------------------
 void DisambigAlg::reconfigure(fhicl::ParameterSet const& p)
 {
 

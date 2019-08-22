@@ -33,11 +33,6 @@ namespace trkf {
     }
 
     //----------------------------------------------------------------------------
-    SeedFinderAlgorithm::~SeedFinderAlgorithm()
-    {
-    }
-
-    //----------------------------------------------------------------------------
     void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
     {
 

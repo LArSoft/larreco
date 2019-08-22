@@ -37,7 +37,6 @@ namespace sppt{
 
   public:
     SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset);
-    ~SpacePointAlg_TimeSort();
 
     void reconfigure(fhicl::ParameterSet const& pset);
     void setTimeOffsets();

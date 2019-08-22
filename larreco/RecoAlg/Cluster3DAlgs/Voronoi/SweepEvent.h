@@ -39,7 +39,6 @@ public:
     {
         m_coords = dcel2d::Coords(std::get<0>(point),std::get<1>(point),0.);
     }
-    ~SiteEvent() {}
 
     void                  setInvalid()              const override {m_valid = false;}
     void                  setBSTNode(BSTNode* node)       override {m_node = node;}

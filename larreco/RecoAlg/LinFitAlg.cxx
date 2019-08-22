@@ -14,11 +14,6 @@
 
 namespace trkf{
 
-  LinFitAlg::LinFitAlg() { }
-
-  LinFitAlg::~LinFitAlg() { }
-
-
   void LinFitAlg::LinFit(std::vector<float>& x, std::vector<float>& y,
     std::vector<float>& ey2, float& Intercept, float& Slope,
     float& InterceptError, float& SlopeError, float& ChiDOF)

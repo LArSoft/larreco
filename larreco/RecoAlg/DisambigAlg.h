@@ -31,7 +31,6 @@ namespace apa{
 
 
     DisambigAlg(fhicl::ParameterSet const& pset);
-    ~DisambigAlg();
 
     void               reconfigure(fhicl::ParameterSet const& p);
 

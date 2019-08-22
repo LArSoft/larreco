@@ -53,13 +53,6 @@ namespace  trkf{
     }
 
     //----------------------------------------------------------------------
-    // Destructor.
-    //
-    SpacePointAlg::~SpacePointAlg()
-    {
-    }
-
-    //----------------------------------------------------------------------
     // Update configuration parameters.
     //
     void SpacePointAlg::reconfigure(const fhicl::ParameterSet& pset)

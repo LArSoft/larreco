@@ -31,7 +31,6 @@ namespace trkf {
     //--------------------------------------
 
     SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
-   ~SeedFinderAlgorithm();
 
     void reconfigure(fhicl::ParameterSet const& pset);
 

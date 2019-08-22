@@ -44,9 +44,6 @@ namespace sppt{
   }
 
   //-------------------------------------------------
-  SpacePointAlg_TimeSort::~SpacePointAlg_TimeSort(){}
-
-  //-------------------------------------------------
   void SpacePointAlg_TimeSort::reconfigure(fhicl::ParameterSet const& p) {
     fTimeDiffMax = p.get< float >("TimeDiffMax");
     fZDiffMax    = p.get< float >("ZDiffMax");

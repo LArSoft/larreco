@@ -27,13 +27,9 @@ using RootsPair = std::pair<double,double>;
 class EventUtilities
 {
 public:
-    EventUtilities() {}
-    ~EventUtilities() {}
-
     double computeArcVal(const double, const double, const IEvent*)             const;
     double computeBreak(const double, const IEvent*, const IEvent*, RootsPair&) const;
     bool   newSiteToLeft(const IEvent*, const IEvent*, const IEvent*)           const;
-private:
 };
 
 } // namespace lar_cluster3d

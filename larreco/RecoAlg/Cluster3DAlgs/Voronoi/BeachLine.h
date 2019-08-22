@@ -66,11 +66,6 @@ public:
     BSTNode(IEvent*, BSTNode*, BSTNode*, BSTNode*);
 
     /**
-     *  @brief  Virtual Destructor
-     */
-    ~BSTNode() {}
-
-    /**
      *  @brief recover the data members
      */
     int               getDepth()       const {return m_depth;}

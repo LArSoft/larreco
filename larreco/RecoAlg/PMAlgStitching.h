@@ -42,9 +42,6 @@ public:
   // Constructor
   PMAlgStitching(const pma::PMAlgStitching::Config &config);
 
-  // Destructor
-  ~PMAlgStitching();
-
   // CPA and APA stitching wrappers
   void StitchTracksCPA(pma::TrkCandidateColl &tracks);
   void StitchTracksAPA(pma::TrkCandidateColl &tracks);

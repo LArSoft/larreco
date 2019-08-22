@@ -26,11 +26,10 @@ namespace cmtool {
 
   public:
 
-    CMTException(std::string msg="") : std::exception(), _msg(msg)
+    CMTException(std::string msg="") : _msg(msg)
     {}
 
-    virtual ~CMTException() throw(){};
-    virtual const char* what() const throw()
+    const char* what() const noexcept override
     {return _msg.c_str(); }
 
   private:

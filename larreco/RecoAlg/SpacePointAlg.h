@@ -77,9 +77,6 @@ namespace trkf {
     // Constructor.
     SpacePointAlg(const fhicl::ParameterSet& pset);
 
-    // Destructor.
-    ~SpacePointAlg();
-
     // Configuration Accessors.
 
     bool filter() const {return fFilter;}
