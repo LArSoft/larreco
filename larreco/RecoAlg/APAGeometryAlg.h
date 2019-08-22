@@ -35,7 +35,6 @@ namespace apa{
 
     APAGeometryAlg(fhicl::ParameterSet const& pset);
     APAGeometryAlg();
-    virtual ~APAGeometryAlg();
 
     void                 reconfigure(fhicl::ParameterSet const& p);
 

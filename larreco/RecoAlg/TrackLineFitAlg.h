@@ -27,7 +27,7 @@ namespace trkf {
 
     TrackLineFitAlg();
 
-    virtual ~TrackLineFitAlg();
+    ~TrackLineFitAlg();
 
     void TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
                     double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF);

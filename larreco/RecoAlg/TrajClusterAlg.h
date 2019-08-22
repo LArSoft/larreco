@@ -41,7 +41,7 @@ namespace tca {
 
     TrajClusterAlg(fhicl::ParameterSet const& pset);
 
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
+    void reconfigure(fhicl::ParameterSet const& pset);
 
     void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);

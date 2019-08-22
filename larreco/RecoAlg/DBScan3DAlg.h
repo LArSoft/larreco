@@ -79,7 +79,7 @@ class DBScan3DAlg {
 
 
     DBScan3DAlg(fhicl::ParameterSet const& pset);
-    virtual ~DBScan3DAlg();
+    ~DBScan3DAlg();
 
     std::vector<point_t> points;
 

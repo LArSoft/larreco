@@ -27,7 +27,7 @@ namespace corner { //<---Not sure if this is the right namespace
    public:
 
      explicit CornerFinderAlg(fhicl::ParameterSet const& pset);
-     virtual ~CornerFinderAlg();
+     ~CornerFinderAlg();
 
      void   reconfigure(fhicl::ParameterSet const& pset);
 

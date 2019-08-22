@@ -102,7 +102,7 @@ namespace cluster {
 
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
 
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
+    void reconfigure(fhicl::ParameterSet const& pset);
     void RunCrawler(std::vector<recob::Hit> const& srchits);
 
     /// @{

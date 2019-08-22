@@ -29,7 +29,7 @@ namespace cluster {
   public:
 
     explicit EndPointAlg(fhicl::ParameterSet const& pset);
-    virtual ~EndPointAlg();
+    ~EndPointAlg();
 
     void   reconfigure(fhicl::ParameterSet const& pset);
 

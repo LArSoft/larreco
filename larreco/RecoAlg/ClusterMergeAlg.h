@@ -92,10 +92,6 @@ namespace cluster
 
     /// Default constructor with fhicl parameters
     ClusterMergeAlg(fhicl::ParameterSet const& pset);
-    //ClusterMergeAlg(fhicl::ParameterSet const& pset, art::ActivityRegistry& reg);
-
-    /// Default destructor
-    virtual ~ClusterMergeAlg(){};
 
     /// Method to set verbose mode
     void VerboseMode(bool on) { _verbose = on; }

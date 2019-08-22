@@ -37,7 +37,7 @@ public:
     /**
      *  @brief  Destructor
      */
-    virtual ~SkeletonAlg();
+    ~SkeletonAlg();
 
     /**
      *  @brief a handler for the case where the algorithm control parameters are to be reset

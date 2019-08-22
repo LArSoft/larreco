@@ -62,7 +62,7 @@ public:
 		PMAlgVertexing(fhicl::Table<Config>(pset, {})())
 	{}
 
-	virtual ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
+        ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
 
 	void reset(void) { cleanTracks(); }
 

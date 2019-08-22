@@ -29,10 +29,9 @@ public:
   Empty_Class_Name(){};
 
   /// Default destructor
-  virtual ~Empty_Class_Name(){};
+  ~Empty_Class_Name(){};
 
 };
 
 #endif
 /** @} */ // end of doxygen group
-

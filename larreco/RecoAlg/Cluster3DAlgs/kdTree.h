@@ -49,7 +49,7 @@ public:
     /**
      *  @brief  Destructor
      */
-    virtual ~kdTree();
+    ~kdTree();
 
     /**
      *  @brief Configure our kdTree...

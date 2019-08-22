@@ -29,7 +29,6 @@ class StitchAlg
 
  public:
   StitchAlg (fhicl::ParameterSet const& pset)  ;
-  virtual ~StitchAlg ()  {};
 
   void reconfigure(fhicl::ParameterSet const& pset) ;
 

@@ -20,7 +20,7 @@ namespace trkf{
 
     LinFitAlg();
 
-    virtual ~LinFitAlg();
+    ~LinFitAlg();
 
     void LinFit(std::vector<float>& x, std::vector<float>& y,
       std::vector<float>& ey2, float& Intercept, float& Slope,

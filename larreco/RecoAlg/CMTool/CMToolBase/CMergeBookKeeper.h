@@ -36,9 +36,6 @@ namespace cmtool {
     /// Default constructor
     CMergeBookKeeper(unsigned short nclusters=0);
 
-    /// Default destructor
-    virtual ~CMergeBookKeeper(){};
-
     /// Reset method
     void Reset(unsigned short nclusters=0);
 

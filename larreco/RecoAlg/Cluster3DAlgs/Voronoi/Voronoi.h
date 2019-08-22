@@ -44,7 +44,7 @@ public:
     /**
      *  @brief  Destructor
      */
-    virtual ~VoronoiDiagram();
+    ~VoronoiDiagram();
 
     /**
      *  @brief Given an input set of 2D points construct a 2D voronoi diagram
