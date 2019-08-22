@@ -33,15 +33,13 @@
 namespace sppt{
 
   class TTSpacePointFinder : public art::EDProducer {
-
   public:
 
     explicit TTSpacePointFinder(fhicl::ParameterSet const& pset);
 
+  private:
     void produce(art::Event& evt);
     void beginRun(art::Run& run);
-
-  private:
 
     std::string    fHitModuleLabel;     /// Input hit module name
     std::string    fUHitsInstanceLabel; /// Input U hits instance name
@@ -49,9 +47,6 @@ namespace sppt{
     std::string    fYHitsInstanceLabel; /// Input Y hits instance name
 
     SpacePointAlg_TimeSort fSpptAlg;
-
-  protected:
-
   }; // class TTSpacePointFinder
 
   //-------------------------------------------------

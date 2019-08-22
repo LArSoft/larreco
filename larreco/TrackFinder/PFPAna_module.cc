@@ -49,11 +49,11 @@ namespace pfpf {
     explicit PFPAna(fhicl::ParameterSet const& pset);
     virtual ~PFPAna();
 
+  private:
     /// read access to event
     void analyze(const art::Event& evt);
     void beginJob();
 
-  private:
     TH1F* fNClusters;
     TH1F* fNHitInCluster;
     // Cosmic Rays

@@ -46,11 +46,11 @@ class hit::HitAnaModule : public art::EDAnalyzer {
 public:
   explicit HitAnaModule(fhicl::ParameterSet const & p);
 
+private:
   void analyze(art::Event const & e) override;
 
   void beginJob() override;
 
-private:
   using HitWireAssns_t = art::Assns<recob::Hit, recob::Wire>;
 
   void createAssocVector(

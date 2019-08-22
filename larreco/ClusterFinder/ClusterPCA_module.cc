@@ -42,12 +42,12 @@ namespace cluster {
     explicit ClusterPCA(fhicl::ParameterSet const& pset);
     ~ClusterPCA();
 
+  private:
+
     void PerformClusterPCA(const std::vector<art::Ptr<recob::Hit> >& HitsThisCluster, double* PrincDirectionWT, double& PrincValue, double& TotalCharge, bool NormPC);
 
     void analyze(art::Event const& evt);
     void beginJob();
-
-  private:
 
     std::string     fClusterModuleLabel;
     bool            fNormPC;

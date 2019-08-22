@@ -49,11 +49,11 @@ namespace cluster {
     explicit DBclusterAna(fhicl::ParameterSet const& pset);
     virtual ~DBclusterAna();
 
+  private:
     /// read access to event
     void analyze(const art::Event& evt);
     void beginJob();
 
-  private:
     TH1F* fNoParticles_pdg;
     TH1F* fNoParticles_trackid;
     TH1F* fNoParticles_trackid_mother;

@@ -50,15 +50,14 @@ namespace cluster {
    *
    */
   class TrajCluster: public art::EDProducer {
-
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
 
+  private:
     void produce(art::Event & evt) override;
     void beginJob() override;
     void endJob() override;
 
-  private:
 
     tca::TrajClusterAlg fTCAlg; // define TrajClusterAlg object
     TTree* showertree;

@@ -38,6 +38,8 @@ namespace DUNE{
 
     explicit NeutrinoShowerEff(fhicl::ParameterSet const& pset);
 
+  private:
+
     void beginJob();
     void endJob();
     void beginRun(const art::Run& run);
@@ -49,8 +51,6 @@ namespace DUNE{
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
-
-  private:
 
     // the parameters we'll read from the .fcl
 

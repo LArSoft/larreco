@@ -36,9 +36,9 @@ public:
 	TrackShowerHits & operator = (TrackShowerHits const &) = delete;
 	TrackShowerHits & operator = (TrackShowerHits &&) = delete;
 
-	void produce(art::Event & e) override;
-
 private:
+
+        void produce(art::Event & e) override;
 
 	cryo_tpc_view_hitmap fHitMap;
 	bool sortHits(const art::Event& evt);

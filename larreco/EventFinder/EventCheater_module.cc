@@ -34,9 +34,9 @@ namespace event {
   public:
     explicit EventCheater(fhicl::ParameterSet const& pset);
 
-    void produce(art::Event& evt);
-
   private:
+
+    void produce(art::Event& evt);
 
     std::string fCheatedVertexLabel; ///< label for module creating recob::Vertex objects
     std::string fG4ModuleLabel;      ///< label for module running G4 and making particles, etc

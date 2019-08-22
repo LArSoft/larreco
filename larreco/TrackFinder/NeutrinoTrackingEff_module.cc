@@ -51,6 +51,8 @@ public:
 
     explicit NeutrinoTrackingEff(fhicl::ParameterSet const& pset);
 
+private:
+
     void beginJob();
     void endJob();
     void beginRun(const art::Run& run);
@@ -61,8 +63,6 @@ public:
     double truthLength( const simb::MCParticle *MCparticle );
     bool insideFV(double vertex[4]);
     void doEfficiencies();
-
-private:
 
     // the parameters we'll read from the .fcl
     std::string fMCTruthModuleLabel;

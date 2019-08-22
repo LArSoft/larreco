@@ -40,14 +40,11 @@
 namespace shwf {
 
   class ShowerFinder : public art::EDProducer {
-
   public:
-
     explicit ShowerFinder(fhicl::ParameterSet const&);
 
-    void produce(art::Event& evt);
-
   private:
+    void produce(art::Event& evt);
 
     std::string fVertexModuleLabel;         ///< label of module finding 2D endpoint
     std::string fClusterModuleLabel;        ///< label of module finding clusters
@@ -55,10 +52,6 @@ namespace shwf {
     std::string fVertexStrengthModuleLabel; ///< label of module finding 2D endpoint
     double      fRcone;                     ///< radious of cone for method
     double      fLcone;                     ///< length of the cone
-
-  protected:
-
-
   }; // class ShowerFinder
 
 

@@ -49,6 +49,8 @@ namespace trkf {
     explicit SpacePointAna(fhicl::ParameterSet const& pset);
     virtual ~SpacePointAna();
 
+  private:
+
     // Book histograms.
 
     void bookHistograms(bool mc);
@@ -56,8 +58,6 @@ namespace trkf {
     // Overrides.
 
     void analyze(const art::Event& evt);
-
-  private:
 
     // Fcl Attributes.
 

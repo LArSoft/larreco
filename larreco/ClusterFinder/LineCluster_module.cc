@@ -37,9 +37,9 @@ namespace cluster {
     public:
       explicit LineCluster(fhicl::ParameterSet const & pset);
 
+    private:
       void produce(art::Event & evt) override;
 
-    private:
       ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
 
       art::InputTag fHitFinderLabel; ///< label of module producing input hits

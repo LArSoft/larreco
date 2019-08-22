@@ -171,9 +171,9 @@ namespace trkf {
     KalmanFilterFinalTrackFitter & operator = (KalmanFilterFinalTrackFitter const &) = delete;
     KalmanFilterFinalTrackFitter & operator = (KalmanFilterFinalTrackFitter &&) = delete;
 
+  private:
     void produce(art::Event & e) override;
 
-  private:
     Parameters p_;
     TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;

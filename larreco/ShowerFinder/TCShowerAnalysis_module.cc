@@ -29,21 +29,16 @@ const int kMaxShowers = 1000;  //maximum number of showers
 namespace shower {
 
   class TCShowerAnalysis : public art::EDAnalyzer {
-
   public:
-
     explicit TCShowerAnalysis(fhicl::ParameterSet const& pset);
 
+  private:
     void beginJob();
     void analyze(const art::Event& evt);
-
-  protected:
 
     void reset();
 
     void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
-
-  private:
 
     TTree* fTree;
     int run;

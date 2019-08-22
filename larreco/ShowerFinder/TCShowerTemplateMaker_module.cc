@@ -33,19 +33,16 @@
 namespace shower {
 
   class TCShowerTemplateMaker : public art::EDAnalyzer {
-
   public:
-
     explicit TCShowerTemplateMaker(fhicl::ParameterSet const& pset);
 
+  private:
     void beginJob();
     void analyze(const art::Event& evt);
 
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep);
     void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep);
     void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron);
-
-  protected:
 
     //    TTree* fTree;
     TProfile* fShowerProfileSimLong;

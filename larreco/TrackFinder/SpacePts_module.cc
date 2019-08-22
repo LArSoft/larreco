@@ -48,24 +48,17 @@
 namespace trkf {
 
   class SpacePts : public art::EDProducer {
-
   public:
-
     explicit SpacePts(fhicl::ParameterSet const& pset);
 
-    //////////////////////////////////////////////////////////
-    void produce(art::Event& evt);
-
   private:
+    void produce(art::Event& evt);
 
     int             ftmatch; // tolerance for time matching (in time samples)
     double          fPreSamplings; // in ticks
     double fvertexclusterWindow;
     std::string     fClusterModuleLabel;// label for input cluster collection
     std::string     fEndPoint2DModuleLabel;//label for input EndPoint2D collection
-  protected:
-
-
   }; // class SpacePts
 
 

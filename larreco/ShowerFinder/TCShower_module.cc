@@ -49,13 +49,13 @@ public:
   TCShower & operator = (TCShower const &) = delete;
   TCShower & operator = (TCShower &&) = delete;
 
+private:
   // Required functions.
   void produce(art::Event& e) override;
 
   // Selected optional functions.
   void beginJob() override;
 
-private:
   int getShowersWithSlices(art::Event & evt, art::Ptr<recob::Slice> thisslice);
   int getShowersWithoutSlices(art::Event & evt);
 

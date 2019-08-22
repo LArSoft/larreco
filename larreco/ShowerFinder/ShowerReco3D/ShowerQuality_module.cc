@@ -44,6 +44,8 @@ public:
   ShowerQuality & operator = (ShowerQuality const &) = delete;
   ShowerQuality & operator = (ShowerQuality &&) = delete;
 
+private:
+
   // Required functions.
   void analyze(art::Event const & e) override;
 
@@ -79,8 +81,6 @@ public:
     }
     return h;
   }
-
-private:
 
   /// Shower back tracking algorithm
   ::btutil::MCMatchAlg fBTAlg;

@@ -33,11 +33,10 @@
 namespace shower {
 
   class TCShowerElectronLikelihood : public art::EDAnalyzer {
-
   public:
-
     explicit TCShowerElectronLikelihood(fhicl::ParameterSet const& pset);
 
+  private:
     void beginJob();
     void analyze(const art::Event& evt);
 
@@ -46,9 +45,6 @@ namespace shower {
     void getLongLikelihood();
     void getTranLikelihood();
 
-  protected:
-
-  private:
     void resetProfiles();
 
     std::string fTemplateFile;

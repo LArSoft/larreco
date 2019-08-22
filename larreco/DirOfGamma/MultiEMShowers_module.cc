@@ -235,12 +235,12 @@ public:
   MultiEMShowers & operator = (MultiEMShowers const &) = delete;
   MultiEMShowers & operator = (MultiEMShowers &&) = delete;
 
+private:
 	void beginJob() override;
 	void endJob() override;
 
   void analyze(art::Event const & e) override;
 
-private:
 	bool convCluster(art::Event const & evt);
 	double getMinDist(std::vector< art::Ptr<recob::Hit> > const & v,
 								TVector3 const & convmc,

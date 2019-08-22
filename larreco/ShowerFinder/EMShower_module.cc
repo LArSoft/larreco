@@ -64,9 +64,9 @@ public:
 
   EMShower(fhicl::ParameterSet const& pset);
 
+private:
   void produce(art::Event& evt);
 
-private:
 
   art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fVertexModuleLabel, fCNNEMModuleLabel;
   EMShowerAlg fEMShowerAlg;

@@ -91,9 +91,9 @@ public:
 	PMAlgTrajFitter & operator = (PMAlgTrajFitter const &) = delete;
 	PMAlgTrajFitter & operator = (PMAlgTrajFitter &&) = delete;
 
+private:
 	void produce(art::Event & e) override;
 
-private:
   // ******************** fcl parameters ***********************
   art::InputTag fHitModuleLabel; // tag for unclustered hit collection
   art::InputTag fPfpModuleLabel; // tag for PFParticle and cluster collections

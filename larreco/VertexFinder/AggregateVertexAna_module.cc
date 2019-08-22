@@ -38,10 +38,10 @@ namespace vertex {
     explicit AggregateVertexAna(fhicl::ParameterSet const& pset);
     ~AggregateVertexAna();
 
+  private:
+
     void analyze (const art::Event& evt);
     void beginJob();
-
-  private:
 
     TH1F* HnTrksVtx;
     TH1F* HnVtxes;

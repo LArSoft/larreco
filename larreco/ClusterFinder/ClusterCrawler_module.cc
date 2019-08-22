@@ -38,9 +38,9 @@ class cluster::ClusterCrawler : public art::EDProducer {
 public:
   explicit ClusterCrawler(fhicl::ParameterSet const & pset);
 
+private:
   void produce(art::Event & evt) override;
 
-private:
   hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
   ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
   std::string fCalDataModuleLabel; ///< label of module producing input wires

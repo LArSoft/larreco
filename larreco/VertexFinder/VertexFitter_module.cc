@@ -77,9 +77,9 @@ namespace trkf {
     VertexFitter & operator = (VertexFitter const &) = delete;
     VertexFitter & operator = (VertexFitter &&) = delete;
 
+  private:
     void produce(art::Event & e) override;
 
-  private:
     art::InputTag pfParticleInputTag;
     art::InputTag trackInputTag;
     Geometric3DVertexFitter fitter;

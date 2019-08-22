@@ -43,16 +43,13 @@ namespace hit {
 
   /// Base class for creation of raw signals on wires.
   class HitFinderAna : public art::EDAnalyzer {
-
   public:
-
     explicit HitFinderAna(fhicl::ParameterSet const& pset);
 
+  private:
     /// read/write access to event
     void analyze (const art::Event& evt);
     void beginJob();
-
-  private:
 
     std::string            fFFTHitFinderModuleLabel;
     std::string            fLArG4ModuleLabel;

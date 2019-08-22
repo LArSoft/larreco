@@ -33,10 +33,10 @@ public:
   PrintCalorimetry & operator = (PrintCalorimetry const &) = delete;
   PrintCalorimetry & operator = (PrintCalorimetry &&) = delete;
 
+private:
+
   // Required functions.
   void analyze(art::Event const & e) override;
-
-private:
 
   std::string              fTrackModuleLabel;
   std::vector<std::string> fCaloModuleLabels;

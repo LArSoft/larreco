@@ -50,16 +50,14 @@ namespace vertex{
 
 // Base class for creation of verticies
 class FeatureVertexFinderAna: public art::EDAnalyzer{
-
-
 public:
 	explicit FeatureVertexFinderAna(fhicl::ParameterSet const& pset);
 
+private:
 	// providing read write access to the event
 	void analyze (const art::Event& evt);
 	void beginJob();
 
-private:
 	std::string fLArG4ModuleLabel; //<---LArG4 Module Label
 	std::string fGenieModuleLabel; //<---Genie Module Label
 	std::string fVertexModuleLabel; //<---Vertex Module Label

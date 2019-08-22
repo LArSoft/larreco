@@ -47,10 +47,10 @@ public:
   TrackCalorimetry & operator = (TrackCalorimetry const &) = delete;
   TrackCalorimetry & operator = (TrackCalorimetry &&) = delete;
 
+private:
+
   // Required functions.
   void produce(art::Event & e) override;
-
-private:
 
   std::string    fTrackModuleLabel;
   std::string    fHitModuleLabel;

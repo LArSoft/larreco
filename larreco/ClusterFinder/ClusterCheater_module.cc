@@ -38,9 +38,9 @@ namespace cluster {
   public:
     explicit ClusterCheater(fhicl::ParameterSet const& pset);
 
+ private:
     void produce(art::Event& evt);
 
- private:
 
     std::string  fMCGeneratorLabel;  ///< label for module to get MC truth information
     std::string  fHitModuleLabel;    ///< label for module creating recob::Hit objects

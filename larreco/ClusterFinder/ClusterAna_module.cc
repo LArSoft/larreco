@@ -42,18 +42,16 @@ namespace cluster {
 
 
   class ClusterAna : public art::EDAnalyzer {
-
   public:
-
     explicit ClusterAna(fhicl::ParameterSet const& pset);
     virtual ~ClusterAna();
 
+  private:
     /// read access to event
     void analyze(const art::Event& evt);
     void beginJob();
     void endJob();
 
-  private:
     TH1F* fNClusters;
     TH1F* fNHitInCluster;
     // Cosmic Rays

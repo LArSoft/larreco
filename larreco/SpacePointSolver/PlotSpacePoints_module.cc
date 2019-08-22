@@ -27,9 +27,9 @@ class PlotSpacePoints: public art::EDAnalyzer
 public:
   explicit PlotSpacePoints(const fhicl::ParameterSet& pset);
 
+private:
   void analyze(const art::Event& evt);
 
-protected:
   void Plot(const std::vector<recob::SpacePoint>& pts,
             const std::string& suffix) const;
 

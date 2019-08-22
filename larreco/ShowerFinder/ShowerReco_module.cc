@@ -53,11 +53,11 @@
 namespace shwf {
 
   class ShowerReco : public art::EDProducer {
-
   public:
+    explicit ShowerReco(fhicl::ParameterSet const& pset);
 
-    /**METHODS global*/
-    explicit ShowerReco(fhicl::ParameterSet const& pset);/**Constructor*/
+  private:
+
     void beginJob();
     void beginRun(art::Run& run);
     void produce(art::Event& evt);                       /**Actual routine that reconstruct the shower*/
@@ -69,8 +69,6 @@ namespace shwf {
     void   LongTransEnergy(unsigned int set, std::vector< art::Ptr<recob::Hit> > hitlist, bool isData=false); //Longtudinal
 
 
-
- private:
 
   void ClearandResizeVectors(unsigned int nPlanes);
 

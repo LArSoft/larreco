@@ -33,11 +33,11 @@ public:
   MCBTDemo & operator = (MCBTDemo const &) = delete;
   MCBTDemo & operator = (MCBTDemo &&) = delete;
 
+private:
+
   // Required functions.
   void analyze(art::Event const & e) override;
 
-
-private:
 
   // Declare member data here.
 

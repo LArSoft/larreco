@@ -57,6 +57,8 @@ public:
 
   explicit CellTree(fhicl::ParameterSet const& pset);
 
+private:
+
   void endJob();
   void beginRun(const art::Run& run);
   void analyze(const art::Event& evt);
@@ -86,8 +88,6 @@ public:
   bool DumpMCJSON(int id, ostream& out);
   void DumpMCJSON(ostream& out=cout);
 
-
-private:
 
   // the parameters we'll read from the .fcl
   std::string fRawDigitLabel;

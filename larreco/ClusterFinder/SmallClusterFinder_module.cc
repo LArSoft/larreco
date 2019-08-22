@@ -58,15 +58,13 @@
 namespace cluster {
 
   class SmallClusterFinder : public art::EDProducer {
-
   public:
+    explicit SmallClusterFinder(fhicl::ParameterSet const& pset);
 
-    /**METHODS global*/
-    explicit SmallClusterFinder(fhicl::ParameterSet const& pset);/**Constructor*/
+  private:
     void beginJob();
     void produce(art::Event& evt);                       /**Routine that finds the cluster and sets the dTdW of the 2D shower*/
 
-  private:
 
     art::ServiceHandle<geo::Geometry const> geom;
 

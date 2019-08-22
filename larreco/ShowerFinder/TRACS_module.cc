@@ -53,6 +53,8 @@ public:
 
   TRACS(fhicl::ParameterSet const& pset);
 
+private:
+
   void produce(art::Event& evt);
 
   //This function returns the art::Ptr to the data object InstanceName. In the background it uses the PtrMaker which requires the element index of 
@@ -60,8 +62,6 @@ public:
   template <class T >
   art::Ptr<T> GetProducedElementPtr(std::string InstanceName, reco::shower::ShowerElementHolder& ShowerEleHolder, int iter=-1);
 
-
-private:
 
   //fcl object names 
   art::InputTag fPFParticleModuleLabel;

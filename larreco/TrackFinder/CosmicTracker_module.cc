@@ -183,13 +183,10 @@ namespace trkf {
 
   class CosmicTracker : public art::EDProducer {
   public:
-
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
 
-    //////////////////////////////////////////////////////////
-    void produce(art::Event& evt);
-
   private:
+    void produce(art::Event& evt);
 
     cluster::ClusterMatchTQ  fClusterMatch;
     trkf::CosmicTrackerAlg   fCTAlg;

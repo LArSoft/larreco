@@ -41,10 +41,11 @@ namespace cluster{
   {
   public:
     explicit DBcluster(fhicl::ParameterSet const& pset);
+
+  private:
     void produce(art::Event& evt);
     void beginJob();
 
-  private:
 
     TH1F *fhitwidth;
     TH1F *fhitwidth_ind_test;

@@ -355,12 +355,12 @@ namespace trkf {
     explicit SeedAna(fhicl::ParameterSet const& pset);
     virtual ~SeedAna();
 
+  private:
+
     // Overrides.
 
     void analyze(const art::Event& evt);
     void endJob();
-
-  private:
 
     // Fcl Attributes.
 

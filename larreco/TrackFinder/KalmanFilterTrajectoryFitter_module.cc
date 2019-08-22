@@ -128,9 +128,9 @@ namespace trkf {
     KalmanFilterTrajectoryFitter & operator = (KalmanFilterTrajectoryFitter const &) = delete;
     KalmanFilterTrajectoryFitter & operator = (KalmanFilterTrajectoryFitter &&) = delete;
 
+  private:
     void produce(art::Event & e) override;
 
-  private:
     Parameters p_;
     TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;

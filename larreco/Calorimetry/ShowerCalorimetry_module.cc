@@ -56,10 +56,10 @@ public:
   ShowerCalorimetry& operator=(ShowerCalorimetry const&) = delete;
   ShowerCalorimetry& operator=(ShowerCalorimetry&&) = delete;
 
+private:
+
   // Required functions.
   void produce(art::Event& e) override;
-
-private:
 
   art::InputTag fShowerTag;
   art::InputTag fSpacePointTag;

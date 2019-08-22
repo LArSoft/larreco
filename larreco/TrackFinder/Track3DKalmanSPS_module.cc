@@ -90,19 +90,16 @@ static bool sp_sort_nsppts(const art::PtrVector<recob::SpacePoint>& h1, const ar
 namespace trkf {
 
   class Track3DKalmanSPS : public art::EDProducer {
-
   public:
-
     explicit Track3DKalmanSPS(fhicl::ParameterSet const& pset);
 
-    //////////////////////////////////////////////////////////
+  private:
     void produce(art::Event& evt);
     void beginJob();
     void endJob();
     double energyLossBetheBloch(const double& mass,
 				const double p
 				);
-  private:
 
     void rotationCov(TMatrixT<Double_t>  &cov, const TVector3 &u, const TVector3 &v);
     std::vector <double> dQdxCalc(const art::FindManyP<recob::Hit> &h, const art::PtrVector<recob::SpacePoint> &s, const TVector3 &p, const TVector3 &d );
@@ -185,9 +182,6 @@ namespace trkf {
 
     genf::GFAbsTrackRep *repMC;
     genf::GFAbsTrackRep *rep;
-
-  protected:
-
 
   }; // class Track3DKalmanSPS
 

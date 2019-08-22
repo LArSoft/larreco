@@ -33,9 +33,9 @@ namespace calo {
 
       explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
 
-      void produce(art::Event& evt);
-
     private:
+
+      void produce(art::Event& evt);
 
       std::string    fTrackModuleLabel; ///< module creating the track objects and assns to hits
       double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service

@@ -42,6 +42,8 @@ namespace hit {
 
     explicit MagDriftAna(fhicl::ParameterSet const& pset);
 
+  private:
+
     /// read/write access to event
     void analyze (const art::Event& evt);
     void endJob();
@@ -52,8 +54,6 @@ namespace hit {
     // which used the database, so I test and run on each
     // event. Wasteful and silly, but at least it *works*.
     void ensureHists();
-
-  private:
 
     std::string            fFFTHitFinderModuleLabel;
     std::string            fTrackFinderModuleLabel;

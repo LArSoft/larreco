@@ -62,9 +62,9 @@ namespace trkf {
     MCSFitProducer & operator = (MCSFitProducer const &) = delete;
     MCSFitProducer & operator = (MCSFitProducer &&) = delete;
 
+  private:
     void produce(art::Event & e) override;
 
-  private:
     Parameters p_;
     art::InputTag inputTag;
     TrajectoryMCSFitter mcsfitter;

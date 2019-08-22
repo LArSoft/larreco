@@ -113,13 +113,13 @@ public:
      */
     Cluster3D(fhicl::ParameterSet const &pset);
 
+private:
+
     /**
      *  @brief declare the standard art functions that we'll implement in this producer module
      */
     void beginJob();
     void produce(art::Event &evt);
-
-private:
 
     class ArtOutputHandler
     {

@@ -76,9 +76,9 @@ public:
 	ParticleDecayId & operator = (ParticleDecayId const &) = delete;
 	ParticleDecayId & operator = (ParticleDecayId &&) = delete;
 
+private:
 	void produce(art::Event & e) override;
 
-private:
     bool DetectDecay(
         const std::vector<recob::Wire> & wires,
         const std::vector< art::Ptr<recob::Hit> > & hits,

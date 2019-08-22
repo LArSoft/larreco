@@ -61,16 +61,12 @@ struct SortByWire {
 namespace vertex {
 
  class VertexFinder2D :  public art::EDProducer {
-
   public:
-
     explicit VertexFinder2D(fhicl::ParameterSet const& pset);
-    void beginJob();
-
-
-    void produce(art::Event& evt);
 
   private:
+    void beginJob();
+    void produce(art::Event& evt);
 
     TH1D *dtIC;
 

@@ -34,9 +34,9 @@ namespace shwf {
   public:
     explicit ShowerCheater(fhicl::ParameterSet const& pset);
 
+ private:
     void produce(art::Event& evt);
 
- private:
 
     std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
     std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc

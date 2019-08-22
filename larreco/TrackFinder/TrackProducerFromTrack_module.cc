@@ -49,9 +49,9 @@ public:
   TrackProducerFromTrack(TrackProducerFromTrack &&) = delete;
   TrackProducerFromTrack & operator = (TrackProducerFromTrack const &) = delete;
   TrackProducerFromTrack & operator = (TrackProducerFromTrack &&) = delete;
+private:
   // Required functions.
   void produce(art::Event & e) override;
-private:
   std::unique_ptr<trkmkr::TrackMaker> trackMaker_;
   art::InputTag trackInputTag;
   bool doTrackFitHitInfo_;

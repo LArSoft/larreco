@@ -421,13 +421,13 @@ namespace trkf {
     explicit TrackAna(fhicl::ParameterSet const& pset);
     virtual ~TrackAna();
 
+  private:
+
     // Overrides.
 
     void analyze(const art::Event& evt);
     void anaStitch(const art::Event& evt);
     void endJob();
-
-  private:
 
     template <typename T> std::vector<size_t> fsort_indexes(const std::vector<T> &v) ;
 

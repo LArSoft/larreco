@@ -43,10 +43,10 @@ namespace cluster {
     explicit HoughLineFinderAna(fhicl::ParameterSet const& pset);
     ~HoughLineFinderAna();
 
+  private:
+
     void analyze(const art::Event&);
     void beginJob();
-
-  private:
 
     std::string fHoughModuleLabel;
     std::string fDigitModuleLabel;

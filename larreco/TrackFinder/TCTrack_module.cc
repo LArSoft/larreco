@@ -35,9 +35,9 @@ namespace trkf {
   public:
     explicit TCTrack(fhicl::ParameterSet const & pset);
 
-    void produce(art::Event & evt) override;
-
   private:
+
+    void produce(art::Event & evt) override;
 
     SpacePointAlg fSptalg;
 

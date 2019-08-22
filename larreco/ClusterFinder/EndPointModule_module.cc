@@ -45,9 +45,9 @@ namespace cluster {
 
     explicit EndPointModule(fhicl::ParameterSet const& pset);
 
-    void produce(art::Event& evt);
-
   private:
+
+    void produce(art::Event& evt);
 
     std::string fDBScanModuleLabel;
 

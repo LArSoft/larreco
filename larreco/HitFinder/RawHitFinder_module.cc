@@ -38,10 +38,10 @@ namespace hit {
 
       explicit RawHitFinder(fhicl::ParameterSet const& pset);
 
+    private:
       void produce(art::Event& evt) override;
 
 
-    private:
     unsigned int  fDataSize;                  //SIZE OF RAW DATA ON ONE WIRE.
     art::InputTag fDigitModuleLabel;          //MODULE THAT MADE DIGITS.
     std::string   fSpillName;                 //NOMINAL SPILL IS AN EMPTY STRING.

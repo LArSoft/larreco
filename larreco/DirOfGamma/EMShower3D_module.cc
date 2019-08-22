@@ -58,9 +58,9 @@ public:
   EMShower3D & operator = (EMShower3D const &) = delete;
   EMShower3D & operator = (EMShower3D &&) = delete;
 
+private:
   void produce(art::Event & e) override;
 
-private:
   	recob::Track ConvertFrom(pma::Track3D& src);
 	recob::Track ConvertFrom2(pma::Track3D& src);
 	recob::Cluster ConvertFrom(const std::vector< art::Ptr<recob::Hit> > & src);

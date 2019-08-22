@@ -449,11 +449,11 @@ public:
 
   explicit ClusteringValidation(fhicl::ParameterSet const &p);
 
+private:
+
   void analyze(art::Event const &evt);
   void beginJob();
   void endJob();
-
-private:
 
   // Clusterings to compare and the hits which the clustering was run over
   std::vector<std::string> fClusterModuleLabels;
