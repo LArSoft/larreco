@@ -109,12 +109,7 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     fFilterHits         = pset.get< bool >("FilterHits",false);
 
     if (fFilterHits) {
-      if (fHitFilterAlg) { // reconfigure existing algorithm
-        fHitFilterAlg->reconfigure(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
-      else { // create a new algorithm instance
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
     }
 
     FillOutHitParameterVector(pset.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);

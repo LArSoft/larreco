@@ -36,8 +36,6 @@ namespace event {
 
     void produce(art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
   private:
 
     std::string fCheatedVertexLabel; ///< label for module creating recob::Vertex objects
