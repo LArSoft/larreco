@@ -32,7 +32,6 @@ namespace hit {
       explicit HitFinder(fhicl::ParameterSet const & pset);
 
     private:
-      void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
 
       void endJob() override;
@@ -67,20 +66,6 @@ namespace hit {
   HitFinder::HitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    reconfigure(pset);
-
-    // let HitCollectionAssociator declare that we are going to produce
-    // hits and associations with wires and raw digits
-    // (with no particular product label);
-    // TODO this should be marked as transient when art will implement issue #8018
-    recob::HitCollectionAssociator::declare_products(*this);
-
-  } // HitFinder::HitFinder()
-
-
-  //----------------------------------------------------------------------------
-  void HitFinder::reconfigure(fhicl::ParameterSet const & pset)
-  {
     fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
 
     // this trick avoids double configuration on construction
@@ -90,7 +75,14 @@ namespace hit {
       fCCHFAlg.reset
         (new CCHitFinderAlg(pset.get<fhicl::ParameterSet>("CCHitFinderAlg")));
     }
-  } // HitFinder::reconfigure()
+
+    // let HitCollectionAssociator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label);
+    // TODO this should be marked as transient when art will implement issue #8018
+    recob::HitCollectionAssociator::declare_products(*this);
+
+  } // HitFinder::HitFinder()
 
 
   //----------------------------------------------------------------------------

@@ -50,9 +50,6 @@ public:
   // Required functions.
   void produce(art::Event & e) override;
 
-  // Selected optional functions.
-  void reconfigure(fhicl::ParameterSet const & p) ;
-
 private:
 
   std::string    fTrackModuleLabel;
@@ -68,16 +65,11 @@ calo::TrackCalorimetry::TrackCalorimetry(fhicl::ParameterSet const & p):
   fHitModuleLabel(p.get<std::string>("HitModuleLabel")),
   fTrackCaloAlg(p.get<fhicl::ParameterSet>("TrackCalorimetryAlg"))
 {
-  this->reconfigure(p);
+  fTrackModuleLabel = p.get<std::string>("TrackModuleLabel");
+  fHitModuleLabel = p.get<std::string>("HitModuleLabel");
 
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-void calo::TrackCalorimetry::reconfigure(fhicl::ParameterSet const & p)
-{
-  fTrackModuleLabel = p.get<std::string>("TrackModuleLabel");
-  fHitModuleLabel = p.get<std::string>("HitModuleLabel");
 }
 
 void calo::TrackCalorimetry::produce(art::Event & e)

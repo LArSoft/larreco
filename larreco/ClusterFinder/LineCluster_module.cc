@@ -37,7 +37,6 @@ namespace cluster {
     public:
       explicit LineCluster(fhicl::ParameterSet const & pset);
 
-      void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
 
     private:
@@ -79,7 +78,17 @@ namespace cluster {
   LineCluster::LineCluster(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    reconfigure(pset);
+    fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+    fDoWireAssns = pset.get<bool>("DoWireAssns",true);
+    fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",false);
+
+    // this trick avoids double configuration on construction
+    if (fCCAlg)
+      fCCAlg->reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
+    else {
+      fCCAlg.reset(new ClusterCrawlerAlg
+        (pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg")));
+    }
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -94,22 +103,6 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
   } // LineCluster::LineCluster()
 
-
-  //----------------------------------------------------------------------------
-  void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
-  {
-    fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
-    fDoWireAssns = pset.get<bool>("DoWireAssns",true);
-    fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",false);
-
-    // this trick avoids double configuration on construction
-    if (fCCAlg)
-      fCCAlg->reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
-    else {
-      fCCAlg.reset(new ClusterCrawlerAlg
-        (pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg")));
-    }
-  } // LineCluster::reconfigure()
 
   //----------------------------------------------------------------------------
   void LineCluster::produce(art::Event & evt)

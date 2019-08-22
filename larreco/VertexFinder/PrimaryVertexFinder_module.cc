@@ -44,7 +44,6 @@ namespace vertex {
 
     explicit PrimaryVertexFinder(fhicl::ParameterSet const& pset);
     void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
 
 
     void produce(art::Event& evt);
@@ -85,18 +84,13 @@ namespace vertex{
   PrimaryVertexFinder::PrimaryVertexFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fTrackModuleLabel  = pset.get< std::string >("TrackModuleLabel");
+    fVertexWindow      = pset.get<double     >  ("VertexWindow");
+
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Vertex, recob::Hit> >();
     produces< art::Assns<recob::Vertex, recob::Track> >();
     produces< art::Assns<recob::Vertex, recob::Shower> >();
-  }
-
-  //---------------------------------------------------------------------------
-  void PrimaryVertexFinder::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fTrackModuleLabel  = p.get< std::string >("TrackModuleLabel");
-    fVertexWindow      = p.get<double     >  ("VertexWindow");
   }
 
   //-------------------------------------------------------------------------

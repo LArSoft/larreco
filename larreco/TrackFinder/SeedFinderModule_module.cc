@@ -24,7 +24,6 @@ namespace trkf {
     explicit SeedFinderModule(fhicl::ParameterSet const& pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt) override;
 
     art::PtrVector<recob::Hit> GetHitsFromEvent(std::string HitModuleLabel,
@@ -55,15 +54,10 @@ namespace trkf {
     EDProducer{pset},
     fSeedAlg(pset.get<fhicl::ParameterSet>("SeedAlg"))
   {
-    reconfigure(pset);
-    produces<std::vector<recob::Seed> >();
-  }
-
-  //----------------------------------------------------------------------------
-  void SeedFinderModule::reconfigure(fhicl::ParameterSet const& pset)
-  {
     fInputModuleLabel      = pset.get<std::string>("InputModuleLabel");
     fInputSource           = pset.get<int>("InputSource");
+
+    produces<std::vector<recob::Seed> >();
   }
 
   //----------------------------------------------------------------------------

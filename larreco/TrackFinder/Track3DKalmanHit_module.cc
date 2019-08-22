@@ -74,7 +74,6 @@ namespace trkf {
       explicit Track3DKalmanHit(fhicl::ParameterSet const & pset);
 
    private:
-      void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & e) override;
       void beginJob() override;
       void endJob() override;
@@ -139,7 +138,18 @@ fHIncChisq(0),
 fHPull(0),
 fNumEvent(0)
 {
-   reconfigure(pset);
+   fHist = pset.get<bool>("Hist");
+   fUseClusterHits = pset.get<bool>("UseClusterHits");
+   fUsePFParticleHits = pset.get<bool>("UsePFParticleHits");
+   fUsePFParticleSeeds = pset.get<bool>("UsePFParticleSeeds");
+   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
+   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
+   fPFParticleModuleLabel = pset.get<std::string>("PFParticleModuleLabel");
+   if(fUseClusterHits && fUsePFParticleHits) {
+      throw cet::exception("Track3DKalmanHit")
+      << "Using input from both clustered and PFParticle hits.\n";
+   }
+
    produces<std::vector<recob::Track> >();
    produces<std::vector<recob::SpacePoint>            >();
    produces<art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
@@ -155,29 +165,6 @@ fNumEvent(0)
    << "  UseClusterHits = " << fUseClusterHits << "\n"
    << "  HitModuleLabel = " << fHitModuleLabel << "\n"
    << "  ClusterModuleLabel = " << fClusterModuleLabel;
-}
-
-//----------------------------------------------------------------------------
-/// Reconfigure method.
-///
-/// Arguments:
-///
-/// p - Fcl parameter set.
-///
-// SS: talk to Kyle about using parameter set validation
-void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
-{
-   fHist = pset.get<bool>("Hist");
-   fUseClusterHits = pset.get<bool>("UseClusterHits");
-   fUsePFParticleHits = pset.get<bool>("UsePFParticleHits");
-   fUsePFParticleSeeds = pset.get<bool>("UsePFParticleSeeds");
-   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
-   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
-   fPFParticleModuleLabel = pset.get<std::string>("PFParticleModuleLabel");
-   if(fUseClusterHits && fUsePFParticleHits) {
-      throw cet::exception("Track3DKalmanHit")
-      << "Using input from both clustered and PFParticle hits.\n";
-   }
 }
 
 //----------------------------------------------------------------------------

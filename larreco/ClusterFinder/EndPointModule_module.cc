@@ -45,7 +45,6 @@ namespace cluster {
 
     explicit EndPointModule(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
 
   private:
@@ -67,15 +66,10 @@ namespace cluster {
     : EDProducer{pset}
     , fEPAlg(pset.get< fhicl::ParameterSet >("EndPointAlg"))
   {
-    this->reconfigure(pset);
+    fDBScanModuleLabel = pset.get<std::string>("DBScanModuleLabel");
+
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
-  }
-
-  //-----------------------------------------------------------------------------
-  void EndPointModule::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fDBScanModuleLabel = p.get<std::string>("DBScanModuleLabel");
   }
 
   //-----------------------------------------------------------------------------

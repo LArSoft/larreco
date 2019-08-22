@@ -240,8 +240,6 @@ public:
 
   void analyze(art::Event const & e) override;
 
-	void reconfigure(fhicl::ParameterSet const& p);
-
 private:
 	bool convCluster(art::Event const & evt);
 	double getMinDist(std::vector< art::Ptr<recob::Hit> > const & v,
@@ -311,18 +309,11 @@ ems::MultiEMShowers::MultiEMShowers(fhicl::ParameterSet const & p)
 	fEvInput = 0;
 	fEv2Groups = 0;
 	fEv2Good = 0;
-	reconfigure(p);
-}
-
-void ems::MultiEMShowers::reconfigure(fhicl::ParameterSet const& p)
-{
   fHitsModuleLabel = p.get< art::InputTag >("HitsModuleLabel");
   fCluModuleLabel = p.get< art::InputTag >("ClustersModuleLabel");
   fTrk3DModuleLabel = p.get< art::InputTag >("Trk3DModuleLabel");
   fVtxModuleLabel = p.get< art::InputTag >("VtxModuleLabel");
   fShsModuleLabel = p.get< art::InputTag >("ShsModuleLabel");
-
-  return;
 }
 
 void ems::MultiEMShowers::beginJob()

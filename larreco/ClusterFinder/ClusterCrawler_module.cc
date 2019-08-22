@@ -38,7 +38,6 @@ class cluster::ClusterCrawler : public art::EDProducer {
 public:
   explicit ClusterCrawler(fhicl::ParameterSet const & pset);
 
-  void reconfigure(fhicl::ParameterSet const & pset) ;
   void produce(art::Event & evt) override;
 
 private:
@@ -61,8 +60,6 @@ namespace cluster {
       "\nIt is now replaced by HitFinder and LineCluster modules."
       ;
 
-    this->reconfigure(pset);
-
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
@@ -72,10 +69,6 @@ namespace cluster {
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
-  }
-
-  void ClusterCrawler::reconfigure(fhicl::ParameterSet const &)
-  {
   }
 
   void ClusterCrawler::produce(art::Event & evt)

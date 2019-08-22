@@ -92,7 +92,6 @@ namespace vertex {
     explicit FeatureVertexFinder(fhicl::ParameterSet const& pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
 
    // ### This function will take in and EndPoint2d from either cluster crawler
@@ -188,7 +187,12 @@ namespace vertex{
     EDProducer{pset}
   //fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
   {
-    /*this->*/reconfigure(pset);
+    fCornerFinderModuleLabel       = pset.get< std::string >("CornerFinderModuleLabel");
+    fClusterModuleLabel            = pset.get< std::string >("ClusterModuleLabel");
+    fHitModuleLabel                = pset.get< std::string >("HitModuleLabel");
+    fCCrawlerEndPoint2dModuleLabel = pset.get< std::string >("CCrawlerEndPoint2dModuleLabel");
+    fRunningMode                   = pset.get< double       >("RunningMode");
+
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
@@ -201,16 +205,6 @@ namespace vertex{
 
     art::ServiceHandle<geo::Geometry const> geom;
     Cls.resize(geom->Nplanes(),std::vector<int>());
-  }
-
-//---------------------------------------------------------------------------
-void FeatureVertexFinder::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fCornerFinderModuleLabel  	   = p.get< std::string >("CornerFinderModuleLabel");
-    fClusterModuleLabel       	   = p.get< std::string >("ClusterModuleLabel");
-    fHitModuleLabel	      	   = p.get< std::string >("HitModuleLabel");
-    fCCrawlerEndPoint2dModuleLabel = p.get< std::string >("CCrawlerEndPoint2dModuleLabel");
-    fRunningMode                   = p.get< double       >("RunningMode");
   }
 
 // -----------------------------------------------------------------------------

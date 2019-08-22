@@ -57,8 +57,6 @@ public:
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
     void processEff(const art::Event& evt, bool &isFiducial);
 
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Purity, double &Completeness, double &TotalRecoEnergy);
@@ -286,24 +284,19 @@ private:
 
 
 //========================================================================
-MuonTrackingEff::MuonTrackingEff(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+MuonTrackingEff::MuonTrackingEff(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
 {
-    reconfigure(parameterSet);
-}
-//========================================================================
-MuonTrackingEff::~MuonTrackingEff(){
-  //destructor
-}
-//========================================================================
-void MuonTrackingEff::reconfigure(fhicl::ParameterSet const& p){
-
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fTrackModuleLabel    = p.get<std::string>("TrackModuleLabel");
     fMuonPDGCode         = p.get<int>("MuonPDGCode");
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
+}
+//========================================================================
+MuonTrackingEff::~MuonTrackingEff(){
+  //destructor
 }
 //========================================================================
 void MuonTrackingEff::beginJob(){

@@ -36,8 +36,6 @@ namespace shwf {
 
     void produce(art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
  private:
 
     std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
@@ -52,7 +50,8 @@ namespace shwf{
   ShowerCheater::ShowerCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCheatedClusterLabel = pset.get< std::string >("CheatedClusterLabel", "cluster" );
+    fG4ModuleLabel       = pset.get< std::string >("G4ModuleLabel",       "largeant");
 
     produces< std::vector<recob::Shower> >();
     produces< std::vector<recob::SpacePoint> >();
@@ -60,13 +59,6 @@ namespace shwf{
     produces< art::Assns<recob::Shower, recob::SpacePoint> >();
     produces< art::Assns<recob::Shower, recob::Hit> >();
     produces< art::Assns<recob::Hit, recob::SpacePoint> >();
-  }
-
-  //--------------------------------------------------------------------
-  void ShowerCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fCheatedClusterLabel = pset.get< std::string >("CheatedClusterLabel", "cluster" );
-    fG4ModuleLabel       = pset.get< std::string >("G4ModuleLabel",       "largeant");
   }
 
   //--------------------------------------------------------------------

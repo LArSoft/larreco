@@ -43,7 +43,6 @@ namespace trkf {
  private:
     void produce(art::Event& evt) override;
 
-    void reconfigure(fhicl::ParameterSet const& pset);
 
     std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
     std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc
@@ -57,20 +56,14 @@ namespace trkf{
   TrackCheater::TrackCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCheatedClusterLabel = pset.get< std::string >("CheatedClusterLabel", "cluster" );
+    fG4ModuleLabel       = pset.get< std::string >("G4ModuleLabel",       "largeant");
 
     produces< std::vector<recob::Track>                   >();
     produces< std::vector<recob::SpacePoint>              >();
     produces< art::Assns<recob::Track, recob::Cluster>    >();
     produces< art::Assns<recob::Track, recob::SpacePoint> >();
     produces< art::Assns<recob::Track, recob::Hit>        >();
-  }
-
-  //--------------------------------------------------------------------
-  void TrackCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fCheatedClusterLabel = pset.get< std::string >("CheatedClusterLabel", "cluster" );
-    fG4ModuleLabel       = pset.get< std::string >("G4ModuleLabel",       "largeant");
   }
 
   //--------------------------------------------------------------------

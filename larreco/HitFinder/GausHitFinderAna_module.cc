@@ -53,7 +53,6 @@ namespace hit{
     /// read/write access to event
     void analyze (const art::Event& evt);
     void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
 
   private:
 
@@ -112,7 +111,9 @@ namespace hit{
   GausHitFinderAna::GausHitFinderAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
   {
-    this->reconfigure(pset);
+    fHitFinderModuleLabel       = pset.get< std::string >("HitsModuleLabel");
+    fLArG4ModuleLabel           = pset.get< std::string >("LArGeantModuleLabel");
+    fCalDataModuleLabel         = pset.get< std::string  >("CalDataModuleLabel");
   }
 
   //-------------------------------------------------
@@ -120,13 +121,6 @@ namespace hit{
   {
   }
 
-  void GausHitFinderAna::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fHitFinderModuleLabel 	= p.get< std::string >("HitsModuleLabel");
-    fLArG4ModuleLabel        	= p.get< std::string >("LArGeantModuleLabel");
-    fCalDataModuleLabel	 	= p.get< std::string  >("CalDataModuleLabel");
-    return;
-  }
   //-------------------------------------------------
   void GausHitFinderAna::beginJob()
   {

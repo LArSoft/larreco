@@ -40,8 +40,6 @@ namespace cluster {
 
     void produce(art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
  private:
 
     std::string  fMCGeneratorLabel;  ///< label for module to get MC truth information
@@ -82,19 +80,13 @@ namespace cluster{
   ClusterCheater::ClusterCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
-
-    produces< std::vector<recob::Cluster> >();
-    produces< art::Assns<recob::Cluster, recob::Hit> >();
-  }
-
-  //--------------------------------------------------------------------
-  void ClusterCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
     fMCGeneratorLabel  = pset.get< std::string  >("MCGeneratorLabel",  "generator");
     fHitModuleLabel    = pset.get< std::string  >("HitModuleLabel",    "hit"      );
     fG4ModuleLabel     = pset.get< std::string  >("G4ModuleLabel",     "largeant" );
     fMinHits           = pset.get< unsigned int >("MinHits",           1          );
+
+    produces< std::vector<recob::Cluster> >();
+    produces< art::Assns<recob::Cluster, recob::Hit> >();
   }
 
   //--------------------------------------------------------------------

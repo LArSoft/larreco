@@ -59,7 +59,6 @@ public:
 	// providing read write access to the event
 	void analyze (const art::Event& evt);
 	void beginJob();
-	void reconfigure(fhicl::ParameterSet const& p);
 
 private:
 	std::string fLArG4ModuleLabel; //<---LArG4 Module Label
@@ -146,7 +145,10 @@ private:
 FeatureVertexFinderAna::FeatureVertexFinderAna(fhicl::ParameterSet const& pset)
   : EDAnalyzer(pset)
 {
-  this->reconfigure(pset);
+        fLArG4ModuleLabel        = pset.get< std::string >("LArGeantModuleLabel");
+        fGenieModuleLabel	 = pset.get< std::string >("GenieModuleLabel");
+        fVertexModuleLabel       = pset.get< std::string >("VertexModuleLabel");
+        fEndPoint2dModuleLabel   = pset.get< std::string >("EndPoint2dModuleLabel");
 }
 
 //------------------------------------------------------------------
@@ -154,16 +156,6 @@ FeatureVertexFinderAna::~FeatureVertexFinderAna()
 {
 }
 
-
-//------------------------------------------------------------------
-void FeatureVertexFinderAna::reconfigure(fhicl::ParameterSet const& p)
-{
-	fLArG4ModuleLabel        = p.get< std::string >("LArGeantModuleLabel");
-	fGenieModuleLabel	 = p.get< std::string >("GenieModuleLabel");
-	fVertexModuleLabel       = p.get< std::string >("VertexModuleLabel");
-	fEndPoint2dModuleLabel   = p.get< std::string >("EndPoint2dModuleLabel");
-    	return;
-}
 
 //-------------------------------------------------
 void FeatureVertexFinderAna::beginJob()

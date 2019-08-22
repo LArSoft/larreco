@@ -39,7 +39,6 @@ namespace hit {
       explicit RawHitFinder(fhicl::ParameterSet const& pset);
 
       void produce(art::Event& evt) override;
-      void reconfigure(fhicl::ParameterSet const& p);
 
 
     private:
@@ -66,8 +65,6 @@ namespace hit {
     int              fColMinWindow;       // Minimum length of integration window for charge in ticks
     int              fIndCutoff;          //MAX WIDTH FOR EARLY SIDE OF INDUCTION HIT IN TICKS
 
-    protected:
-
   }; // class RawHitFinder
 
 
@@ -75,7 +72,23 @@ namespace hit {
   RawHitFinder::RawHitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fDigitModuleLabel   = pset.get< art::InputTag >("DigitModuleLabel", "daq");
+    fCalDataModuleLabel = pset.get< std::string  >("CalDataModuleLabel");
+    fMinSigInd          = pset.get< double       >("MinSigInd");
+    fMinSigCol          = pset.get< double       >("MinSigCol");
+    fIncludeMoreTail    = pset.get< double       >("IncludeMoreTail", 0.);
+    fIndWidth           = pset.get< int          >("IndWidth",20);
+    fColWidth           = pset.get< double       >("ColWidth");
+    fIndMinWidth        = pset.get< double       >("IndMinWidth");
+    fColMinWidth        = pset.get< double       >("ColMinWidth",0.);
+    fMaxMultiHit        = pset.get< int          >("MaxMultiHit");
+    fAreaMethod         = pset.get< int          >("AreaMethod");
+    fAreaNorms          = pset.get< std::vector< double > >("AreaNorms");
+    fUncompressWithPed  = pset.get< bool         >("UncompressWithPed", true);
+    fSkipInd = pset.get< bool         >("SkipInd", false);
+    fColMinWindow        = pset.get< int       >("ColMinWindow",0);
+    fIndCutoff        = pset.get< int       >("IndCutoff",20);
+    mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
 
     //LET HITCOLLECTIONCREATOR DECLARE THAT WE ARE GOING TO PRODUCE
     //HITS AND ASSOCIATIONS TO RAW DIGITS BUT NOT ASSOCIATIONS TO WIRES
@@ -84,27 +97,6 @@ namespace hit {
         /*instance_name*/"",
         /*doWireAssns*/false,
         /*doRawDigitAssns*/true);
-  }
-
-  void RawHitFinder::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fDigitModuleLabel   = p.get< art::InputTag >("DigitModuleLabel", "daq");
-    fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-    fMinSigInd          = p.get< double       >("MinSigInd");
-    fMinSigCol          = p.get< double       >("MinSigCol");
-    fIncludeMoreTail    = p.get< double       >("IncludeMoreTail", 0.);
-    fIndWidth           = p.get< int          >("IndWidth",20);
-    fColWidth           = p.get< double       >("ColWidth");
-    fIndMinWidth        = p.get< double       >("IndMinWidth");
-    fColMinWidth        = p.get< double       >("ColMinWidth",0.);
-    fMaxMultiHit        = p.get< int          >("MaxMultiHit");
-    fAreaMethod         = p.get< int          >("AreaMethod");
-    fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-    fUncompressWithPed  = p.get< bool         >("UncompressWithPed", true);
-    fSkipInd = p.get< bool         >("SkipInd", false);
-    fColMinWindow        = p.get< int       >("ColMinWindow",0);
-    fIndCutoff        = p.get< int       >("IndCutoff",20);
-    mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
   }
 
   //-------------------------------------------------

@@ -52,18 +52,12 @@ namespace event{
   EventCheater::EventCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCheatedVertexLabel = pset.get< std::string >("CheatedVertexLabel", "prong" );
+    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
 
     produces< std::vector<recob::Event> >();
     produces< art::Assns<recob::Event, recob::Vertex> >();
     produces< art::Assns<recob::Event, recob::Hit> >();
-  }
-
-  //--------------------------------------------------------------------
-  void EventCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fCheatedVertexLabel = pset.get< std::string >("CheatedVertexLabel", "prong" );
-    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
   }
 
   //--------------------------------------------------------------------

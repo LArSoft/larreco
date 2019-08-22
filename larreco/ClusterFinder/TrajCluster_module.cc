@@ -54,7 +54,6 @@ namespace cluster {
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
 
-    void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
     void beginJob() override;
     void endJob() override;
@@ -136,7 +135,8 @@ namespace cluster {
   } // SortHits
 
   //----------------------------------------------------------------------------
-  void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
+  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     // this trick avoids double configuration on construction
     if (fTCAlg)
@@ -144,7 +144,6 @@ namespace cluster {
     else {
       fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
     }
-
 
     fHitModuleLabel = "NA";
     if(pset.has_key("HitModuleLabel")) fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
@@ -162,14 +161,6 @@ namespace cluster {
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
     fSaveAll2DVertices = false;
     if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
-
-  } // TrajCluster::reconfigure()
-
-  //----------------------------------------------------------------------------
-  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
-    : EDProducer{pset}
-  {
-    reconfigure(pset);
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits

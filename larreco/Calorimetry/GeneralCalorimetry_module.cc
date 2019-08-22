@@ -33,7 +33,6 @@ namespace calo {
 
       explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
 
-      void reconfigure(fhicl::ParameterSet const& pset);
       void produce(art::Event& evt);
 
     private:
@@ -73,17 +72,10 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
     }
   }
 
-  this->reconfigure(pset);
+  fTrackModuleLabel = pset.get< std::string >("TrackModuleLabel");
 
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-//------------------------------------------------------------------------------------//
-void calo::GeneralCalorimetry::reconfigure(fhicl::ParameterSet const& pset)
-{
-  fTrackModuleLabel = pset.get< std::string >("TrackModuleLabel");
-  return;
 }
 
 //------------------------------------------------------------------------------------//

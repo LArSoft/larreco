@@ -100,7 +100,6 @@ namespace trkf {
     void produce(art::Event& evt);
     void beginJob();
     void endJob();
-    void reconfigure(fhicl::ParameterSet const& p);
     double energyLossBetheBloch(const double& mass,
 				const double p
 				);
@@ -216,20 +215,6 @@ namespace trkf {
     , fChi2Thresh(12.0E12)
     , fMaxPass (1)
   {
-
-    this->reconfigure(pset);
-
-    produces< std::vector<recob::Track>                  >();
-    produces<art::Assns<recob::Track, recob::Cluster>    >();
-    produces<art::Assns<recob::Track, recob::SpacePoint> >();
-    produces<art::Assns<recob::Track, recob::Hit>        >();
-
-  }
-
-//-------------------------------------------------
-  void Track3DKalmanSPS::reconfigure(fhicl::ParameterSet const& pset)
-  {
-
     fClusterModuleLabel    = pset.get< std::string >("ClusterModuleLabel");
     fSpptModuleLabel       = pset.get< std::string >("SpptModuleLabel");
     fGenieGenModuleLabel   = pset.get< std::string >("GenieGenModuleLabel");
@@ -268,7 +253,14 @@ namespace trkf {
       //   (assuming there is a LogDebugFile destination already; for example
       //   see the settings in uboonecode/uboone/Utilities/services_microboone.fcl )
     }
+
+    produces< std::vector<recob::Track>                  >();
+    produces<art::Assns<recob::Track, recob::Cluster>    >();
+    produces<art::Assns<recob::Track, recob::SpacePoint> >();
+    produces<art::Assns<recob::Track, recob::Hit>        >();
+
   }
+
 
 //-------------------------------------------------
   Track3DKalmanSPS::~Track3DKalmanSPS()

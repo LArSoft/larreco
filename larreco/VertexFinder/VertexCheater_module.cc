@@ -35,8 +35,6 @@ namespace vertex {
 
     void produce(art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
  private:
 
     std::string fCheatedTrackLabel;  ///< label for module creating recob::Track objects
@@ -52,21 +50,15 @@ namespace vertex{
   VertexCheater::VertexCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCheatedTrackLabel  = pset.get< std::string >("CheatedTrackLabel",  "track"   );
+    fCheatedShowerLabel = pset.get< std::string >("CheatedShowerLabel", "shower"  );
+    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
 
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Vertex, recob::Shower> >();
     produces< art::Assns<recob::Vertex, recob::Track>  >();
     produces< art::Assns<recob::Vertex, recob::Hit>    >();
 
-  }
-
-  //--------------------------------------------------------------------
-  void VertexCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fCheatedTrackLabel  = pset.get< std::string >("CheatedTrackLabel",  "track"   );
-    fCheatedShowerLabel = pset.get< std::string >("CheatedShowerLabel", "shower"  );
-    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
   }
 
   //--------------------------------------------------------------------

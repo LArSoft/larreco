@@ -35,7 +35,6 @@ namespace shower {
     explicit TCShowerAnalysis(fhicl::ParameterSet const& pset);
     virtual ~TCShowerAnalysis();
 
-    void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
     void analyze(const art::Event& evt);
 
@@ -88,18 +87,12 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel", "generator")  ),
   fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel", "largeant")  ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
-  this->reconfigure(pset);
 } // TCShowerTemplateMaker
 
 // -------------------------------------------------
 
 shower::TCShowerAnalysis::~TCShowerAnalysis() {
 } // ~TCShowerTemplateMaker
-
-// -------------------------------------------------
-
-void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
-} // reconfigure
 
 // -------------------------------------------------
 

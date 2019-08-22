@@ -45,7 +45,6 @@ namespace hit {
     /// read/write access to event
     void analyze (const art::Event& evt);
     void endJob();
-    void reconfigure(fhicl::ParameterSet const& p);
 
     // intilize the histograms
     //
@@ -103,16 +102,11 @@ namespace hit {
     , fDriftDeltaZAway()
     , fDeltaZoverXAway()
   {
-    this->reconfigure(pset);
+    fFFTHitFinderModuleLabel  = pset.get< std::string >("HitsModuleLabel");
+//     fTrackFinderModuleLabel   = pset.get< std::string >("TracksModuleLabel");
+    fLArG4ModuleLabel         = pset.get< std::string >("LArGeantModuleLabel");
   }
 
-  void MagDriftAna::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fFFTHitFinderModuleLabel  = p.get< std::string >("HitsModuleLabel");
-//     fTrackFinderModuleLabel   = p.get< std::string >("TracksModuleLabel");
-    fLArG4ModuleLabel         = p.get< std::string >("LArGeantModuleLabel");
-    return;
-  }
   //-------------------------------------------------
   void MagDriftAna::ensureHists() {
     if (initDone) return; // Bail if we've already done this.

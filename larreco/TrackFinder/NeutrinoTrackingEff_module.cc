@@ -57,8 +57,6 @@ public:
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
     double truthLength( const simb::MCParticle *MCparticle );
@@ -186,18 +184,9 @@ private:
 
 
 //========================================================================
-NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
 {
-    reconfigure(parameterSet);
-}
-//========================================================================
-NeutrinoTrackingEff::~NeutrinoTrackingEff(){
-  //destructor
-}
-//========================================================================
-void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
-
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fTrackModuleLabel    = p.get<std::string>("TrackModuleLabel");
     fisNeutrinoInt	 = p.get<bool>("isNeutrinoInt");
@@ -208,6 +197,10 @@ void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
+}
+//========================================================================
+NeutrinoTrackingEff::~NeutrinoTrackingEff(){
+  //destructor
 }
 //========================================================================
 void NeutrinoTrackingEff::beginJob(){

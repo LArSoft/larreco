@@ -75,7 +75,6 @@ namespace hit{
 
     void produce(art::Event& evt) override;
     void beginJob() override;
-    void reconfigure(fhicl::ParameterSet const& p) ;
 
     using TimeValsVec      = std::vector<std::tuple<int,int,int>>; // start, max, end of a peak
     using PeakTimeWidVec   = std::vector<std::tuple<int,int,int,int>>; // max, width, start, end of a peak within a group
@@ -215,7 +214,38 @@ DPRawHitFinder::DPRawHitFinder(fhicl::ParameterSet const& pset) :
 	    art::ServiceHandle<art::TriggerNamesService const>()->getProcessName()),
 	fHitParamWriter(this)
 {
-    this->reconfigure(pset);
+    fLogLevel                    = pset.get< int >("LogLevel");
+    fCalDataModuleLabel          = pset.get< std::string  >("CalDataModuleLabel");
+    fMaxMultiHit                 = pset.get< int    >("MaxMultiHit");
+    fMaxGroupLength              = pset.get< int    >("MaxGroupLength");
+    fTryNplus1Fits               = pset.get< bool   >("TryNplus1Fits");
+    fChi2NDFRetry                = pset.get< double >("Chi2NDFRetry");
+    fChi2NDFRetryFactorMultiHits = pset.get< double >("Chi2NDFRetryFactorMultiHits");
+    fChi2NDFMax                  = pset.get< double >("Chi2NDFMax");
+    fChi2NDFMaxFactorMultiHits   = pset.get< double >("Chi2NDFMaxFactorMultiHits");
+    fNumBinsToAverage            = pset.get< size_t >("NumBinsToAverage");
+    fMinSig                      = pset.get< float    >("MinSig");
+    fMinWidth                    = pset.get< int >("MinWidth");
+    fMinADCSum                   = pset.get< double >("MinADCSum");
+    fMinADCSumOverWidth          = pset.get< double >("MinADCSumOverWidth");
+    fChargeNorm                  = pset.get< double >("ChargeNorm");
+    fTicksToStopPeakFinder       = pset.get< double >("TicksToStopPeakFinder");
+    fMinTau                      = pset.get< double >("MinTau");
+    fMaxTau                      = pset.get< double >("MaxTau");
+    fFitPeakMeanRange            = pset.get< double >("FitPeakMeanRange");
+    fGroupMaxDistance            = pset.get< int >("GroupMaxDistance");
+    fGroupMinADC                 = pset.get< int >("GroupMinADC");
+    fSameShape                   = pset.get< bool >("SameShape");
+    fDoMergePeaks                = pset.get< bool   >("DoMergePeaks");
+    fMergeADCSumThreshold        = pset.get< double >("MergeADCSumThreshold");
+    fMergeMaxADCThreshold        = pset.get< double >("MergeMaxADCThreshold");
+    fMinRelativePeakHeightLeft	 = pset.get< double >("MinRelativePeakHeightLeft");
+    fMinRelativePeakHeightRight	 = pset.get< double >("MinRelativePeakHeightRight");
+    fMergeMaxADCLimit            = pset.get< double >("MergeMaxADCLimit");
+    fWidthNormalization          = pset.get< double >("WidthNormalization");
+    fLongMaxHits                 = pset.get< double >("LongMaxHits");
+    fLongPulseWidth              = pset.get< double >("LongPulseWidth");
+    fMaxFluctuations		 = pset.get< double >("MaxFluctuations");
 
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -249,45 +279,6 @@ void DPRawHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 
 }
 
-
-//-------------------------------------------------
-//-------------------------------------------------
-void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
-{
-    // Implementation of optional member function here.
-    fLogLevel              	 = p.get< int >("LogLevel");
-    fCalDataModuleLabel    	 = p.get< std::string  >("CalDataModuleLabel");
-    fMaxMultiHit      	   	 = p.get< int    >("MaxMultiHit");
-    fMaxGroupLength	   	 = p.get< int    >("MaxGroupLength");
-    fTryNplus1Fits    	   	 = p.get< bool   >("TryNplus1Fits");
-    fChi2NDFRetry     	   	 = p.get< double >("Chi2NDFRetry");
-    fChi2NDFRetryFactorMultiHits = p.get< double >("Chi2NDFRetryFactorMultiHits");
-    fChi2NDFMax        	   	 = p.get< double >("Chi2NDFMax");
-    fChi2NDFMaxFactorMultiHits 	 = p.get< double >("Chi2NDFMaxFactorMultiHits");
-    fNumBinsToAverage 	   	 = p.get< size_t >("NumBinsToAverage");
-    fMinSig           	   	 = p.get< float    >("MinSig");
-    fMinWidth         	   	 = p.get< int >("MinWidth");
-    fMinADCSum		   	 = p.get< double >("MinADCSum");
-    fMinADCSumOverWidth    	 = p.get< double >("MinADCSumOverWidth");
-    fChargeNorm       	   	 = p.get< double >("ChargeNorm");
-    fTicksToStopPeakFinder 	 = p.get< double >("TicksToStopPeakFinder");
-    fMinTau          	   	 = p.get< double >("MinTau");
-    fMaxTau           	   	 = p.get< double >("MaxTau");
-    fFitPeakMeanRange	   	 = p.get< double >("FitPeakMeanRange");
-    fGroupMaxDistance      	 = p.get< int >("GroupMaxDistance");
-    fGroupMinADC           	 = p.get< int >("GroupMinADC");
-    fSameShape           	 = p.get< bool >("SameShape");
-    fDoMergePeaks	   	 = p.get< bool   >("DoMergePeaks");
-    fMergeADCSumThreshold  	 = p.get< double >("MergeADCSumThreshold");
-    fMergeMaxADCThreshold  	 = p.get< double >("MergeMaxADCThreshold");
-    fMinRelativePeakHeightLeft	 = p.get< double >("MinRelativePeakHeightLeft");
-    fMinRelativePeakHeightRight	 = p.get< double >("MinRelativePeakHeightRight");
-    fMergeMaxADCLimit      	 = p.get< double >("MergeMaxADCLimit");
-    fWidthNormalization    	 = p.get< double >("WidthNormalization");
-    fLongMaxHits           	 = p.get< double >("LongMaxHits");
-    fLongPulseWidth        	 = p.get< double >("LongPulseWidth");
-    fMaxFluctuations		 = p.get< double >("MaxFluctuations");
-}
 
 //-------------------------------------------------
 //-------------------------------------------------

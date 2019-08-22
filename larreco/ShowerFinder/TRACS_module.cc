@@ -54,7 +54,6 @@ public:
   TRACS(fhicl::ParameterSet const& pset);
 
   void produce(art::Event& evt);
-  void reconfigure(fhicl::ParameterSet const& p);
 
   //This function returns the art::Ptr to the data object InstanceName. In the background it uses the PtrMaker which requires the element index of 
   //the unique ptr (iter). 
@@ -116,26 +115,6 @@ art::Ptr<T> reco::shower::TRACS::GetProducedElementPtr(std::string InstanceName,
 reco::shower::TRACS::TRACS(fhicl::ParameterSet const& pset) :
   EDProducer{pset}
 {
-  this->reconfigure(pset);
-  produces<std::vector<recob::Shower> >();
-  produces<art::Assns<recob::Shower, recob::Hit> >();
-  produces<art::Assns<recob::Shower, recob::Cluster> >();
-  produces<art::Assns<recob::Shower, recob::SpacePoint> >();
-  produces<art::Assns<recob::Shower, recob::PFParticle> >();
-
-  // Output -- showers and associations with hits and clusters
-  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<std::vector<recob::Shower> >(),"shower");
-  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::Cluster> >(),"clusterAssociationsbase");
-  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::Hit> >(),"hitAssociationsbase");
-  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::SpacePoint > >(),"spShowerAssociationsbase");
-  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::PFParticle> >(),"pfShowerAssociationsbase");
-
-  uniqueproducerPtrs.PrintPtrs();
-
-}
-
-void reco::shower::TRACS::reconfigure(fhicl::ParameterSet const& pset) {
-
   //Intialise the tools 
   auto const tool_psets = pset.get<std::vector<fhicl::ParameterSet>>("ShowerFinderTools");
   for (auto const& tool_pset : tool_psets) {
@@ -161,6 +140,22 @@ void reco::shower::TRACS::reconfigure(fhicl::ParameterSet const& pset) {
   fSecondInteration      = pset.get<bool         >("SecondInteration",false);
   fAllowPartialShowers   = pset.get<bool         >("AllowPartialShowers",false);
   fVerbose               = pset.get<bool         >("Verbose",false);
+
+  produces<std::vector<recob::Shower> >();
+  produces<art::Assns<recob::Shower, recob::Hit> >();
+  produces<art::Assns<recob::Shower, recob::Cluster> >();
+  produces<art::Assns<recob::Shower, recob::SpacePoint> >();
+  produces<art::Assns<recob::Shower, recob::PFParticle> >();
+
+  // Output -- showers and associations with hits and clusters
+  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<std::vector<recob::Shower> >(),"shower");
+  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::Cluster> >(),"clusterAssociationsbase");
+  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::Hit> >(),"hitAssociationsbase");
+  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::SpacePoint > >(),"spShowerAssociationsbase");
+  uniqueproducerPtrs.SetShowerUniqueProduerPtr(type<art::Assns<recob::Shower, recob::PFParticle> >(),"pfShowerAssociationsbase");
+
+  uniqueproducerPtrs.PrintPtrs();
+
 }
     
 void reco::shower::TRACS::produce(art::Event& evt) {
@@ -385,4 +380,3 @@ void reco::shower::TRACS::produce(art::Event& evt) {
 }
 
 DEFINE_ART_MODULE(reco::shower::TRACS)
-

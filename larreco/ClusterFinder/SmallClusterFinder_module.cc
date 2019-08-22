@@ -64,7 +64,6 @@ namespace cluster {
     /**METHODS global*/
     explicit SmallClusterFinder(fhicl::ParameterSet const& pset);/**Constructor*/
     void beginJob();
-    void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt);                       /**Routine that finds the cluster and sets the dTdW of the 2D shower*/
 
   private:
@@ -96,15 +95,11 @@ namespace cluster{
           : EDProducer{pset}
           , fSmallClusterFinderAlg(pset.get<fhicl::ParameterSet> ("smallClustAlg") )
 	{
-		this->reconfigure(pset);
-		produces< std::vector<recob::Cluster> >();				//This code makes clusters
-		produces< art::Assns<recob::Cluster, recob::Hit>  >();  //Matches clusters with hits
-	}
-
-	void SmallClusterFinder::reconfigure(fhicl::ParameterSet const& pset)
-	{
 		fHitFinderModuleLabel 	=pset.get< 	std::string > ("HitFinderModuleLabel");
 		verbose					=pset.get<	bool		> ("Verbose");
+
+                produces< std::vector<recob::Cluster> >();				//This code makes clusters
+                produces< art::Assns<recob::Cluster, recob::Hit>  >();  //Matches clusters with hits
 	 }
 
 	// ***************** //

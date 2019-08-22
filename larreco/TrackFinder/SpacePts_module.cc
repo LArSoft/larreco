@@ -55,7 +55,6 @@ namespace trkf {
     ~SpacePts();
 
     //////////////////////////////////////////////////////////
-    void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
     void beginJob();
     void endJob();
@@ -87,7 +86,11 @@ namespace trkf {
 SpacePts::SpacePts(fhicl::ParameterSet const& pset)
   : EDProducer{pset}
 {
-  this->reconfigure(pset);
+  fPreSamplings           = pset.get< double >("TicksOffset");
+  ftmatch                 = pset.get< int    >("TMatch");
+  fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
+  fEndPoint2DModuleLabel  = pset.get< std::string >("EndPoint2DModuleLabel");
+  fvertexclusterWindow    = pset.get< double >("vertexclusterWindow");
 
   produces< std::vector<recob::Track>                   >();
   produces< std::vector<recob::SpacePoint>              >();
@@ -100,15 +103,6 @@ SpacePts::SpacePts(fhicl::ParameterSet const& pset)
 //-------------------------------------------------
 SpacePts::~SpacePts()
 {
-}
-
-void SpacePts::reconfigure(fhicl::ParameterSet const& pset)
-{
-  fPreSamplings           = pset.get< double >("TicksOffset");
-  ftmatch                 = pset.get< int    >("TMatch");
-  fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
-  fEndPoint2DModuleLabel  = pset.get< std::string >("EndPoint2DModuleLabel");
-  fvertexclusterWindow    = pset.get< double >("vertexclusterWindow");
 }
 
 //-------------------------------------------------

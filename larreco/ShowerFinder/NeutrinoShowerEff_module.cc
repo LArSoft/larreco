@@ -44,8 +44,6 @@ namespace DUNE{
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
     template <size_t N> void checkCNNtrkshw(const art::Event& evt, std::vector<art::Ptr<recob::Hit>>all_hits);
@@ -260,20 +258,9 @@ namespace DUNE{
 
 
   //========================================================================
-  NeutrinoShowerEff::NeutrinoShowerEff(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+  NeutrinoShowerEff::NeutrinoShowerEff(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
   {
-    reconfigure(parameterSet);
-
-  }
-  //========================================================================
-  NeutrinoShowerEff::~NeutrinoShowerEff(){
-    //destructor
-  }
-  //========================================================================
-  void NeutrinoShowerEff::reconfigure(fhicl::ParameterSet const& p){
-
-
     fMCTruthModuleLabel  = p.get<art::InputTag>("MCTruthModuleLabel");
     fHitModuleLabel      = p.get<art::InputTag>("HitModuleLabel");
     fShowerModuleLabel   = p.get<art::InputTag>("ShowerModuleLabel");
@@ -286,7 +273,12 @@ namespace DUNE{
     fSaveMCTree		 = p.get<bool>("SaveMCTree");
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
-    fFidVolCutZ          = p.get<float>("FidVolCutZ");}
+    fFidVolCutZ          = p.get<float>("FidVolCutZ");
+  }
+  //========================================================================
+  NeutrinoShowerEff::~NeutrinoShowerEff(){
+    //destructor
+  }
   //========================================================================
   //========================================================================
   void NeutrinoShowerEff::beginJob(){

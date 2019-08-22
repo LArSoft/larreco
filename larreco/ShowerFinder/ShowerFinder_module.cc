@@ -46,7 +46,6 @@ namespace shwf {
     explicit ShowerFinder(fhicl::ParameterSet const&);
     virtual ~ShowerFinder();
 
-    void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
 
   private:
@@ -72,7 +71,12 @@ namespace shwf{
   ShowerFinder::ShowerFinder(fhicl::ParameterSet const& pset)  :
     EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fVertexModuleLabel        = pset.get<std::string > ("VertexModuleLabel");
+    fClusterModuleLabel       = pset.get<std::string > ("ClusterModuleLabel");
+    fHoughLineModuleLabel     = pset.get<std::string > ("HoughLineModuleLabel");
+    fVertexStrengthModuleLabel= pset.get<std::string > ("VertexStrengthModuleLabel");
+    fRcone                    = pset.get<double      > ("Rcone");
+    fLcone                    = pset.get<double      > ("Lcone");
 
     produces< std::vector<recob::Shower>                >();
     produces< art::Assns<recob::Shower, recob::Cluster> >();
@@ -83,19 +87,6 @@ namespace shwf{
   //-------------------------------------------------
   ShowerFinder::~ShowerFinder()
   {
-  }
-
-  //-------------------------------------------------
-  void ShowerFinder::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fVertexModuleLabel        = pset.get<std::string > ("VertexModuleLabel");
-    fClusterModuleLabel       = pset.get<std::string > ("ClusterModuleLabel");
-    fHoughLineModuleLabel     = pset.get<std::string > ("HoughLineModuleLabel");
-    fVertexStrengthModuleLabel= pset.get<std::string > ("VertexStrengthModuleLabel");
-    fRcone                    = pset.get<double      > ("Rcone");
-    fLcone                    = pset.get<double      > ("Lcone");
-
-    return;
   }
 
   //
