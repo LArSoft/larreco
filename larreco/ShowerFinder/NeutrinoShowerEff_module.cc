@@ -37,7 +37,6 @@ namespace DUNE{
   public:
 
     explicit NeutrinoShowerEff(fhicl::ParameterSet const& pset);
-    virtual ~NeutrinoShowerEff();
 
     void beginJob();
     void endJob();
@@ -274,10 +273,6 @@ namespace DUNE{
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
-  }
-  //========================================================================
-  NeutrinoShowerEff::~NeutrinoShowerEff(){
-    //destructor
   }
   //========================================================================
   //========================================================================

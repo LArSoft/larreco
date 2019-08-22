@@ -37,7 +37,6 @@ namespace shower {
   public:
 
     explicit TCShowerElectronLikelihood(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerElectronLikelihood();
 
     void beginJob();
     void analyze(const art::Event& evt);
@@ -176,13 +175,6 @@ shower::TCShowerElectronLikelihood::TCShowerElectronLikelihood(fhicl::ParameterS
   tranProfile_4 = new TH1F("tranProfile_4", "transverse shower profile [3 <= t < 4];dist (cm);Q", TBINS, TMIN, TMAX);;
   tranProfile_5 = new TH1F("tranProfile_5", "transverse shower profile [4 <= t < 5];dist (cm);Q", TBINS, TMIN, TMAX);;
 } // TCShowerElectronLikelihood
-
-// -------------------------------------------------
-
-shower::TCShowerElectronLikelihood::~TCShowerElectronLikelihood() {
-} // ~TCShowerElectronLikelihood
-
-// -------------------------------------------------
 
 // -------------------------------------------------
 

@@ -58,8 +58,6 @@ public:
   EMShower3D & operator = (EMShower3D const &) = delete;
   EMShower3D & operator = (EMShower3D &&) = delete;
 
-  void beginJob() override;
-
   void produce(art::Event & e) override;
 
 private:
@@ -134,10 +132,6 @@ ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   	produces< art::Assns<recob::Track, recob::Cluster> >();
-}
-
-void ems::EMShower3D::beginJob()
-{
 }
 
 recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::Hit> > & src)

@@ -37,7 +37,6 @@ namespace shower {
   public:
 
     explicit TCShowerTemplateMaker(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerTemplateMaker();
 
     void beginJob();
     void analyze(const art::Event& evt);
@@ -158,9 +157,6 @@ shower::TCShowerTemplateMaker::TCShowerTemplateMaker(fhicl::ParameterSet const& 
 } // TCShowerTemplateMaker
 
 // -------------------------------------------------
-
-shower::TCShowerTemplateMaker::~TCShowerTemplateMaker() {
-} // ~TCShowerTemplateMaker
 
 // -------------------------------------------------
 

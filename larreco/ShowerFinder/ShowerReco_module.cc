@@ -58,7 +58,6 @@ namespace shwf {
 
     /**METHODS global*/
     explicit ShowerReco(fhicl::ParameterSet const& pset);/**Constructor*/
-    virtual ~ShowerReco();                               /**Destructor*/
     void beginJob();
     void beginRun(art::Run& run);
     void produce(art::Event& evt);                       /**Actual routine that reconstruct the shower*/
@@ -200,11 +199,6 @@ ShowerReco::ShowerReco(fhicl::ParameterSet const& pset) :
   produces< art::Assns<recob::Shower, recob::Hit>     >();
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Shower, anab::Calorimetry> >();
-}
-
-//------------------------------------------------------------------------------
-ShowerReco::~ShowerReco()
-{
 }
 
 // struct SortByWire

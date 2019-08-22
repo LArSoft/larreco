@@ -114,15 +114,9 @@ public:
     Cluster3D(fhicl::ParameterSet const &pset);
 
     /**
-     *  @brief  Destructor
-     */
-    virtual ~Cluster3D();
-
-    /**
      *  @brief declare the standard art functions that we'll implement in this producer module
      */
     void beginJob();
-    void endJob();
     void produce(art::Event &evt);
 
 private:
@@ -573,12 +567,6 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-Cluster3D::~Cluster3D()
-{
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
 void Cluster3D::beginJob()
 {
     /**
@@ -589,12 +577,6 @@ void Cluster3D::beginJob()
         this->InitializeMonitoring();
 
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void Cluster3D::endJob()
-{
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

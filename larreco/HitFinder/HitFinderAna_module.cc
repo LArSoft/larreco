@@ -47,7 +47,6 @@ namespace hit {
   public:
 
     explicit HitFinderAna(fhicl::ParameterSet const& pset);
-    virtual ~HitFinderAna();
 
     /// read/write access to event
     void analyze (const art::Event& evt);
@@ -102,11 +101,6 @@ namespace hit{
   {
     fFFTHitFinderModuleLabel = pset.get< std::string >("HitsModuleLabel");
     fLArG4ModuleLabel        = pset.get< std::string >("LArGeantModuleLabel");
-  }
-
-  //-------------------------------------------------
-  HitFinderAna::~HitFinderAna()
-  {
   }
 
   //-------------------------------------------------

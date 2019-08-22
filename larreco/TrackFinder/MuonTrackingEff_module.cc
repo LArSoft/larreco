@@ -50,7 +50,6 @@ class MuonTrackingEff : public art::EDAnalyzer {
 public:
 
     explicit MuonTrackingEff(fhicl::ParameterSet const& pset);
-    virtual ~MuonTrackingEff();
 
     void beginJob();
     void endJob();
@@ -293,10 +292,6 @@ MuonTrackingEff::MuonTrackingEff(fhicl::ParameterSet const& p)
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
-}
-//========================================================================
-MuonTrackingEff::~MuonTrackingEff(){
-  //destructor
 }
 //========================================================================
 void MuonTrackingEff::beginJob(){

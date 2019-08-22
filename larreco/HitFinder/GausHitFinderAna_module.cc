@@ -48,7 +48,6 @@ namespace hit{
   public:
 
     explicit GausHitFinderAna(fhicl::ParameterSet const& pset);
-    virtual ~GausHitFinderAna();
 
     /// read/write access to event
     void analyze (const art::Event& evt);
@@ -114,11 +113,6 @@ namespace hit{
     fHitFinderModuleLabel       = pset.get< std::string >("HitsModuleLabel");
     fLArG4ModuleLabel           = pset.get< std::string >("LArGeantModuleLabel");
     fCalDataModuleLabel         = pset.get< std::string  >("CalDataModuleLabel");
-  }
-
-  //-------------------------------------------------
-  GausHitFinderAna::~GausHitFinderAna()
-  {
   }
 
   //-------------------------------------------------

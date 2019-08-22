@@ -33,7 +33,6 @@ namespace shower {
   public:
 
     explicit TCShowerAnalysis(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerAnalysis();
 
     void beginJob();
     void analyze(const art::Event& evt);
@@ -88,11 +87,6 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel", "largeant")  ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
 } // TCShowerTemplateMaker
-
-// -------------------------------------------------
-
-shower::TCShowerAnalysis::~TCShowerAnalysis() {
-} // ~TCShowerTemplateMaker
 
 // -------------------------------------------------
 

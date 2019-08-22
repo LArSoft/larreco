@@ -50,7 +50,6 @@ class NeutrinoTrackingEff : public art::EDAnalyzer {
 public:
 
     explicit NeutrinoTrackingEff(fhicl::ParameterSet const& pset);
-    virtual ~NeutrinoTrackingEff();
 
     void beginJob();
     void endJob();
@@ -197,10 +196,6 @@ NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& p)
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
-}
-//========================================================================
-NeutrinoTrackingEff::~NeutrinoTrackingEff(){
-  //destructor
 }
 //========================================================================
 void NeutrinoTrackingEff::beginJob(){

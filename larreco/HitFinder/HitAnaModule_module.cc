@@ -45,7 +45,6 @@ namespace hit {
 class hit::HitAnaModule : public art::EDAnalyzer {
 public:
   explicit HitAnaModule(fhicl::ParameterSet const & p);
-  virtual ~HitAnaModule();
 
   void analyze(art::Event const & e) override;
 
@@ -88,11 +87,6 @@ hit::HitAnaModule::HitAnaModule(fhicl::ParameterSet const & p)
   fHitModuleLabels  = p.get< std::vector<std::string> >("HitModuleLabels");
   fWireModuleLabel  = p.get< std::string              >("WireModuleLabel");
   fMCHitModuleLabel = p.get< std::string              >("MCHitModuleLabel");
-}
-
-hit::HitAnaModule::~HitAnaModule()
-{
-  // Clean up dynamic memory and other resources here.
 }
 
 void hit::HitAnaModule::createAssocVector(

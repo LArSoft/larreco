@@ -44,7 +44,6 @@ namespace shwf {
   public:
 
     explicit ShowerFinder(fhicl::ParameterSet const&);
-    virtual ~ShowerFinder();
 
     void produce(art::Event& evt);
 
@@ -83,11 +82,6 @@ namespace shwf{
     produces< art::Assns<recob::Shower, recob::Hit>     >();
   }
 
-
-  //-------------------------------------------------
-  ShowerFinder::~ShowerFinder()
-  {
-  }
 
   //
   //-------------------------------------------------

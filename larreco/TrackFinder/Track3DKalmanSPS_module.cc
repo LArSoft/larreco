@@ -94,7 +94,6 @@ namespace trkf {
   public:
 
     explicit Track3DKalmanSPS(fhicl::ParameterSet const& pset);
-    virtual ~Track3DKalmanSPS();
 
     //////////////////////////////////////////////////////////
     void produce(art::Event& evt);
@@ -261,11 +260,6 @@ namespace trkf {
 
   }
 
-
-//-------------------------------------------------
-  Track3DKalmanSPS::~Track3DKalmanSPS()
-  {
-  }
 
 //-------------------------------------------------
 // stolen, mostly, from GFMaterialEffects.

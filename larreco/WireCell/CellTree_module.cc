@@ -56,9 +56,7 @@ class CellTree : public art::EDAnalyzer {
 public:
 
   explicit CellTree(fhicl::ParameterSet const& pset);
-  virtual ~CellTree();
 
-  void beginJob();
   void endJob();
   void beginRun(const art::Run& run);
   void analyze(const art::Event& evt);
@@ -241,11 +239,6 @@ CellTree::CellTree(fhicl::ParameterSet const& p)
 }
 
 //-----------------------------------------------------------------------
-CellTree::~CellTree()
-{
-}
-
-//-----------------------------------------------------------------------
 void CellTree::initOutput()
 {
     TDirectory* tmpDir = gDirectory;
@@ -346,14 +339,6 @@ void CellTree::initOutput()
     }
 
 }
-
-//-----------------------------------------------------------------------
-void CellTree::beginJob()
-{
-
-
-}
-
 
 //-----------------------------------------------------------------------
 void CellTree::endJob()

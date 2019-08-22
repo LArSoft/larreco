@@ -54,7 +54,6 @@ class FeatureVertexFinderAna: public art::EDAnalyzer{
 
 public:
 	explicit FeatureVertexFinderAna(fhicl::ParameterSet const& pset);
-	virtual ~FeatureVertexFinderAna();
 
 	// providing read write access to the event
 	void analyze (const art::Event& evt);
@@ -150,12 +149,6 @@ FeatureVertexFinderAna::FeatureVertexFinderAna(fhicl::ParameterSet const& pset)
         fVertexModuleLabel       = pset.get< std::string >("VertexModuleLabel");
         fEndPoint2dModuleLabel   = pset.get< std::string >("EndPoint2dModuleLabel");
 }
-
-//------------------------------------------------------------------
-FeatureVertexFinderAna::~FeatureVertexFinderAna()
-{
-}
-
 
 //-------------------------------------------------
 void FeatureVertexFinderAna::beginJob()

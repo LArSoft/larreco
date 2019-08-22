@@ -52,12 +52,9 @@ namespace trkf {
   public:
 
     explicit SpacePts(fhicl::ParameterSet const& pset);
-    ~SpacePts();
 
     //////////////////////////////////////////////////////////
     void produce(art::Event& evt);
-    void beginJob();
-    void endJob();
 
   private:
 
@@ -98,20 +95,6 @@ SpacePts::SpacePts(fhicl::ParameterSet const& pset)
   produces< art::Assns<recob::Track, recob::Cluster>    >();
   produces< art::Assns<recob::Track, recob::Hit>        >();
   produces< art::Assns<recob::SpacePoint, recob::Hit>   >();
-}
-
-//-------------------------------------------------
-SpacePts::~SpacePts()
-{
-}
-
-//-------------------------------------------------
-void SpacePts::beginJob()
-{
-}
-
-void SpacePts::endJob()
-{
 }
 
 //------------------------------------------------------------------------------------//
