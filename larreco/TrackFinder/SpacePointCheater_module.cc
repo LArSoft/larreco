@@ -96,7 +96,6 @@ namespace trkf {
   // Arguments: pset - Configuration parameters.
   //
   {
-    fSptalg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
     fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
     fMinHits = pset.get<unsigned int>("MinHits");
     fClusterAssns = pset.get<bool>("ClusterAssns");

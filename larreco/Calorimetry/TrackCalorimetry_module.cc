@@ -78,8 +78,6 @@ void calo::TrackCalorimetry::reconfigure(fhicl::ParameterSet const & p)
 {
   fTrackModuleLabel = p.get<std::string>("TrackModuleLabel");
   fHitModuleLabel = p.get<std::string>("HitModuleLabel");
-
-  fTrackCaloAlg.reconfigure(p.get<fhicl::ParameterSet>("TrackCalorimetryAlg"));
 }
 
 void calo::TrackCalorimetry::produce(art::Event & e)

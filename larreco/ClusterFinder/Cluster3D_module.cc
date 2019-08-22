@@ -583,12 +583,6 @@ void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
     m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
     m_clusterPathAlg  = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
     m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
-
-    m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
-    m_skeletonAlg.reconfigure(pset.get<fhicl::ParameterSet>("SkeletonAlg"));
-    m_seedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
-    m_pcaSeedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("PCASeedFinderAlg"));
-    m_parallelHitsAlg.reconfigure(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

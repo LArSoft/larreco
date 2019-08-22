@@ -168,8 +168,6 @@ fNumEvent(0)
 void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
 {
    fHist = pset.get<bool>("Hist");
-   fTKHAlg.reconfigure(pset.get<fhicl::ParameterSet>("Track3DKalmanHitAlg"));
-   fSpacePointAlg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
    fUseClusterHits = pset.get<bool>("UseClusterHits");
    fUsePFParticleHits = pset.get<bool>("UsePFParticleHits");
    fUsePFParticleSeeds = pset.get<bool>("UsePFParticleSeeds");

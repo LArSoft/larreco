@@ -94,6 +94,7 @@ namespace cluster {
 namespace cluster{
 	SmallClusterFinder::SmallClusterFinder(fhicl::ParameterSet const& pset)
           : EDProducer{pset}
+          , fSmallClusterFinderAlg(pset.get<fhicl::ParameterSet> ("smallClustAlg") )
 	{
 		this->reconfigure(pset);
 		produces< std::vector<recob::Cluster> >();				//This code makes clusters
@@ -104,9 +105,6 @@ namespace cluster{
 	{
 		fHitFinderModuleLabel 	=pset.get< 	std::string > ("HitFinderModuleLabel");
 		verbose					=pset.get<	bool		> ("Verbose");
-
-		//Let the clusterAlg have access to the pset too:
-		fSmallClusterFinderAlg.reconfigure(pset.get<fhicl::ParameterSet> ("smallClustAlg") );
 	 }
 
 	// ***************** //

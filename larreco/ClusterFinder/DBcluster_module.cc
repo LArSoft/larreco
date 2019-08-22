@@ -74,7 +74,6 @@ namespace cluster{
   void DBcluster::reconfigure(fhicl::ParameterSet const& p)
   {
     fhitsModuleLabel = p.get< std::string >("HitsModuleLabel");
-    fDBScan.reconfigure(p.get< fhicl::ParameterSet >("DBScanAlg"));
   }
 
   //-------------------------------------------------

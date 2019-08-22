@@ -71,9 +71,6 @@ namespace sppt{
     fUHitsInstanceLabel = p.get< std::string >("UHitsInstaceLabel","uhits");
     fVHitsInstanceLabel = p.get< std::string >("VHitsInstaceLabel","vhits");
     fYHitsInstanceLabel = p.get< std::string >("YHitsInstaceLabel","yhits");
-
-    fSpptAlg.reconfigure(p.get< fhicl::ParameterSet >("SpacePointAlgParams"));
-
   }
 
   //-------------------------------------------------

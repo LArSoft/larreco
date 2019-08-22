@@ -62,7 +62,6 @@ namespace trkf {
   //----------------------------------------------------------------------------
   void SeedFinderModule::reconfigure(fhicl::ParameterSet const& pset)
   {
-    fSeedAlg.reconfigure ( pset.get<fhicl::ParameterSet>("SeedAlg") );
     fInputModuleLabel      = pset.get<std::string>("InputModuleLabel");
     fInputSource           = pset.get<int>("InputSource");
   }

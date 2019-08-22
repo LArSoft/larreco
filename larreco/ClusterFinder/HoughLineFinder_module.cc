@@ -72,7 +72,6 @@ namespace cluster {
     , fEngine(art::ServiceHandle<rndm::NuRandomService>{}
               ->createEngine(*this, pset, "Seed"))
   {
-    fHLAlg.reconfigure(pset.get< fhicl::ParameterSet >("HoughBaseAlg"));
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
   }

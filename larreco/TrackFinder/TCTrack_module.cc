@@ -53,9 +53,6 @@ namespace trkf {
   {
 //    fHitModuleLabel         = pset.get< std::string >("HitModuleLabel");
     fPFPModuleLabel     = pset.get< std::string >("PFPModuleLabel");
-
-    fSptalg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
-
   }
 
   //----------------------------------------------------------------------------

@@ -133,8 +133,6 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
 void trkf::TrackKalmanCheater::reconfigure(fhicl::ParameterSet const & pset)
 {
   fHist = pset.get<bool>("Hist");
-  fKFAlg.reconfigure(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"));
-  fSpacePointAlg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
   fUseClusterHits = pset.get<bool>("UseClusterHits");
   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");

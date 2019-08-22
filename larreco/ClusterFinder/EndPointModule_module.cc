@@ -76,7 +76,6 @@ namespace cluster {
   void EndPointModule::reconfigure(fhicl::ParameterSet const& p)
   {
     fDBScanModuleLabel = p.get<std::string>("DBScanModuleLabel");
-    fEPAlg.reconfigure(p.get< fhicl::ParameterSet >("EndPointAlg"));
   }
 
   //-----------------------------------------------------------------------------

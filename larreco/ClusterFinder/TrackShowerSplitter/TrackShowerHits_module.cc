@@ -73,8 +73,6 @@ void TrackShowerHits::reconfigure(fhicl::ParameterSet const& pset)
         fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 		fHugeShowers = pset.get< bool >("FindHugeShowers");
 		fShowersBySeg2D = pset.get< bool >("FindMoreShowers");
-
-		fSegmentation2D.reconfigure(pset.get< fhicl::ParameterSet >("Segmentation2DAlg"));
 }
 // ------------------------------------------------------
 

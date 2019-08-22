@@ -82,7 +82,6 @@ namespace trkf {
       fTrackModuleLabel    = pset.get< std::string >("TrackModuleLabel");
       fSpptModuleLabel     = pset.get< std::string >("SpptModuleLabel");
       fStizatch            = pset.get< bool >       ("CommonComponentStitch",true);
-      fStitchAlg.reconfigure(pset.get< fhicl::ParameterSet >("StitchAlg"));
    }
 
    //------------------------------------------------------------------------------------//

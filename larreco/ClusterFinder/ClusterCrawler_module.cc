@@ -74,10 +74,8 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
   }
 
-  void ClusterCrawler::reconfigure(fhicl::ParameterSet const & pset)
+  void ClusterCrawler::reconfigure(fhicl::ParameterSet const &)
   {
-    fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
-    fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
   }
 
   void ClusterCrawler::produce(art::Event & evt)
