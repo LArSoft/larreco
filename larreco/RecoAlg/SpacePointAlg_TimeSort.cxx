@@ -271,7 +271,7 @@ namespace sppt{
   }//end createSpacePoints
 
   //-------------------------------------------------
-  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec){
+  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec) const {
     std::sort(hitVec.begin(),hitVec.end(),HitTimeComparison);
   }
 

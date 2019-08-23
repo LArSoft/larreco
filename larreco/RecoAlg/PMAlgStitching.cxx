@@ -276,7 +276,7 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
 }
 
 // Perform the matching, allowing the shift to vary within +/- 5cm.
-double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift){
+double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift) const {
 
   double stepSize = 0.1;
   double minShift = shift - (50. * stepSize);
@@ -301,7 +301,7 @@ double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2
 }
 
 // Perform the extrapolation between the two vectors and return the distance between them.
-double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2){
+double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2) const {
 
   double delta = -999.;
 

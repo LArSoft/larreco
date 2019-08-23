@@ -44,15 +44,16 @@ class shower::TRACSCheatingAlg {
   public:
     TRACSCheatingAlg(const fhicl::ParameterSet& pset);
 
-    std::map<int,const simb::MCParticle*> GetTrueParticleMap();
-    std::map<int,std::vector<int> > GetTrueChain(std::map<int,const simb::MCParticle*> &trueParticles);
-    void CheatDebugEVD(const simb::MCParticle* trueParticle, art::Event& Event,
+    std::map<int,const simb::MCParticle*> GetTrueParticleMap() const;
+    std::map<int,std::vector<int> > GetTrueChain(std::map<int,const simb::MCParticle*>& trueParticles) const;
+    void CheatDebugEVD(const simb::MCParticle* trueParticle, art::Event const& Event,
         reco::shower::ShowerElementHolder& ShowerEleHolder,
-        const art::Ptr<recob::PFParticle>& pfparticle);
+        const art::Ptr<recob::PFParticle>& pfparticle) const;
 
-    int TrueParticleID(const art::Ptr<recob::Hit>& hit);
+    int TrueParticleID(const art::Ptr<recob::Hit>& hit) const;
 
-    std::pair<int,double> TrueParticleIDFromTrueChain(std::map<int,std::vector<int> >& ShowersMothers,const std::vector<art::Ptr<recob::Hit> >& hits, int planeid);
+    std::pair<int,double> TrueParticleIDFromTrueChain(std::map<int,std::vector<int> > const& ShowersMothers,
+                                                      std::vector<art::Ptr<recob::Hit> > const& hits, int planeid) const;
 
   private:
 

@@ -26,7 +26,7 @@ namespace trkf{
 
 //------------------------------------------------------------------------------
   void TrackLineFitAlg::TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
-                                   double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF)
+                                   double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF) const
   {
     // Linear fit using X as the independent variable. Hits to be fitted
     // are passed in the hits vector in a pair form (X, WireID). The

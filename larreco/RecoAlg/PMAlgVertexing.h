@@ -92,8 +92,8 @@ private:
 		return false;
 	}
 
-	std::vector< pma::VtxCandidate > firstPassCandidates(void);
-	std::vector< pma::VtxCandidate > secondPassCandidates(void);
+        std::vector< pma::VtxCandidate > firstPassCandidates(void) const;
+        std::vector< pma::VtxCandidate > secondPassCandidates(void) const;
 	size_t makeVertices(std::vector< pma::VtxCandidate >& candidates);
 
 	/// Get dQ/dx sequence to detect various features.

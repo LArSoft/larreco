@@ -60,7 +60,7 @@ void cluster::EndPointAlg::reconfigure(fhicl::ParameterSet const& p)
 }
 
 //-----------------------------------------------------------------------------
-double cluster::EndPointAlg::Gaussian(int x, int y, double sigma)
+double cluster::EndPointAlg::Gaussian(int x, int y, double sigma) const
 {
   double Norm=1./std::sqrt(2*TMath::Pi()*pow(sigma,2));
   double value=Norm*exp(-(pow(x,2)+pow(y,2))/(2*pow(sigma,2)));
@@ -68,7 +68,7 @@ double cluster::EndPointAlg::Gaussian(int x, int y, double sigma)
 }
 
 //-----------------------------------------------------------------------------
-double cluster::EndPointAlg::GaussianDerivativeX(int x,int y)
+double cluster::EndPointAlg::GaussianDerivativeX(int x,int y) const
 {
   double Norm=1./(std::sqrt(2*TMath::Pi())*pow(fGsigma,3));
   double value=Norm*(-x)*exp(-(pow(x,2)+pow(y,2))/(2*pow(fGsigma,2)));
@@ -76,7 +76,7 @@ double cluster::EndPointAlg::GaussianDerivativeX(int x,int y)
 }
 
 //-----------------------------------------------------------------------------
-double cluster::EndPointAlg::GaussianDerivativeY(int x,int y)
+double cluster::EndPointAlg::GaussianDerivativeY(int x,int y) const
 {
   double Norm=1./(std::sqrt(2*TMath::Pi())*pow(fGsigma,3));
   double value=Norm*(-y)*exp(-(pow(x,2)+pow(y,2))/(2*pow(fGsigma,2)));
@@ -86,7 +86,7 @@ double cluster::EndPointAlg::GaussianDerivativeY(int x,int y)
 
 //-----------------------------------------------------------------------------
 //this method saves a BMP image of the vertex map space, which can be viewed with gimp
-void cluster::EndPointAlg::VSSaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy)
+void cluster::EndPointAlg::VSSaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy) const
 {
   std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
@@ -127,7 +127,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 				      std::vector<recob::EndPoint2D>		     & vtxcol,
 				      std::vector< art::PtrVector<recob::Hit> >      & vtxHitsOut,
 				      art::Event                                const& evt,
-				      std::string                               const& label)
+                                      std::string                               const& label) const
 {
 
   art::ServiceHandle<geo::Geometry const> geom;

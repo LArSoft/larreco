@@ -7,7 +7,7 @@ shower::TRACSCheatingAlg::TRACSCheatingAlg(const fhicl::ParameterSet& pset):
   fHitModuleLabel        = pset.get<art::InputTag> ("HitModuleLabel");
 }
 
-std::map<int,const simb::MCParticle*>  shower::TRACSCheatingAlg::GetTrueParticleMap(){
+std::map<int,const simb::MCParticle*>  shower::TRACSCheatingAlg::GetTrueParticleMap() const {
 
   const sim::ParticleList& particles = particleInventory->ParticleList();
 
@@ -24,7 +24,7 @@ std::map<int,const simb::MCParticle*>  shower::TRACSCheatingAlg::GetTrueParticle
 
 
 std::map<int,std::vector<int> > shower::TRACSCheatingAlg::GetTrueChain(
-    std::map<int,const simb::MCParticle*> &trueParticles){
+    std::map<int,const simb::MCParticle*>& trueParticles) const {
 
   // Roll up showers if not already done:
   std::map<int,std::vector<int> > showerMothers;
@@ -48,8 +48,8 @@ std::map<int,std::vector<int> > shower::TRACSCheatingAlg::GetTrueChain(
 }
 
 void shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticle,
-    art::Event& Event, reco::shower::ShowerElementHolder& ShowerEleHolder,
-    const art::Ptr<recob::PFParticle>& pfparticle){
+    art::Event const& Event, reco::shower::ShowerElementHolder& ShowerEleHolder,
+    const art::Ptr<recob::PFParticle>& pfparticle) const {
 
   std::cout<<"Making Debug Event Display"<<std::endl;
 
@@ -221,7 +221,7 @@ void shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticl
   canvas->Write();
 }
 
-int shower::TRACSCheatingAlg::TrueParticleID(const art::Ptr<recob::Hit>& hit) {
+int shower::TRACSCheatingAlg::TrueParticleID(const art::Ptr<recob::Hit>& hit) const {
   double particleEnergy = 0;
   int likelyTrackID = 0;
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
@@ -235,7 +235,8 @@ int shower::TRACSCheatingAlg::TrueParticleID(const art::Ptr<recob::Hit>& hit) {
   return likelyTrackID;
 }
 
-std::pair<int,double> shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(std::map<int,std::vector<int>> &ShowersMothers,const std::vector<art::Ptr<recob::Hit> >& hits, int planeid) {
+std::pair<int,double> shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(std::map<int,std::vector<int>> const& ShowersMothers,
+                                                                            std::vector<art::Ptr<recob::Hit> > const& hits, int planeid) const {
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> particleInventory;
 
@@ -258,8 +259,8 @@ std::pair<int,double> shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(std:
   //Find the energy for each showermother.
   std::map<int,double> MotherIDtoEMap;
   std::map<int,double> MotherIDto3EMap;
-  for(std::map<int,std::vector<int> >::iterator showermother=ShowersMothers.begin(); showermother!=ShowersMothers.end(); ++showermother){
-    for(std::vector<int>::iterator daughter=(showermother->second).begin(); daughter!=(showermother->second).end(); ++daughter){
+  for(std::map<int,std::vector<int> >::const_iterator showermother=ShowersMothers.begin(); showermother!=ShowersMothers.end(); ++showermother){
+    for(std::vector<int>::const_iterator daughter=(showermother->second).begin(); daughter!=(showermother->second).end(); ++daughter){
       MotherIDtoEMap[showermother->first]  +=  trackIDToEDepMap[*daughter];
       MotherIDto3EMap[showermother->first] +=  trackIDTo3EDepMap[*daughter];
     }
@@ -284,4 +285,3 @@ std::pair<int,double> shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(std:
 
   return std::make_pair(objectTrack,MotherIDtoEMap[objectTrack]);
 }
-

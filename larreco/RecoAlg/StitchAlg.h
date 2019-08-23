@@ -37,8 +37,8 @@ class StitchAlg
   void WalkStitch();
   bool CommonComponentStitch();
 
-  void GetTrackComposites(std::vector <art::PtrVector <recob::Track> > & c) { c = fTrackComposite;};
-  void GetTracks(std::vector <recob::Track>& t) { t = fTrackVec ;};
+  void GetTrackComposites(std::vector <art::PtrVector <recob::Track> > & c) const { c = fTrackComposite;}
+  void GetTracks(std::vector <recob::Track>& t) const { t = fTrackVec ;}
 
   art::Handle< std::vector< recob::Track > > ftListHandle;
 

@@ -31,7 +31,7 @@ namespace fhicl { class ParameterSet; }
 
 namespace sppt{
 
-  bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
+  inline bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
 
   class SpacePointAlg_TimeSort {
 
@@ -67,7 +67,7 @@ namespace sppt{
     boost::multi_array<double, 2> coordinates_UY_y;
     boost::multi_array<double, 2> coordinates_UY_z;
 
-    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle);
+    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle) const;
 
   }; //class SpacePointAlg_TimeSort
 

@@ -44,39 +44,39 @@ class shower::TRACSAlg {
     TRACSAlg(const fhicl::ParameterSet& pset);
 
     void OrderShowerHits(std::vector<art::Ptr<recob::Hit> >& hits,
-        TVector3& ShowerDirection,
-        TVector3& ShowerPosition
-        );
+        TVector3 const& ShowerDirection,
+        TVector3 const& ShowerPosition
+        ) const;
 
     void OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint> >& showerspcs,
-        TVector3& vertex, TVector3& direction);
+        TVector3 const& vertex, TVector3 const& direction) const;
 
 
-    TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> >& showersps,
-        art::FindManyP<recob::Hit>& fmh, float& totalCharge);
+    TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> > const& showersps,
+        art::FindManyP<recob::Hit> const& fmh, float& totalCharge) const;
 
 
-    TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> >& showerspcs,
-        art::FindManyP<recob::Hit>& fmh);
+    TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> > const& showerspcs,
+        art::FindManyP<recob::Hit> const& fmh) const;
 
-    TVector3 SpacePointPosition(const art::Ptr<recob::SpacePoint>& sp);
+    TVector3 SpacePointPosition(art::Ptr<recob::SpacePoint> const& sp) const;
 
-    double SpacePointCharge(art::Ptr<recob::SpacePoint> sp, art::FindManyP<recob::Hit>& fmh);
+    double SpacePointCharge(art::Ptr<recob::SpacePoint> const& sp, art::FindManyP<recob::Hit> const& fmh) const;
 
-    double SpacePointTime(art::Ptr<recob::SpacePoint> sp, art::FindManyP<recob::Hit>& fmh);
+    double SpacePointTime(art::Ptr<recob::SpacePoint> const& sp, art::FindManyP<recob::Hit> const& fmh) const;
 
-    TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
+    TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit) const;
 
 
-    double SpacePointProjection(const art::Ptr<recob::SpacePoint>&sp, TVector3& vertex,
-        TVector3& direction);
+    double SpacePointProjection(art::Ptr<recob::SpacePoint> const& sp, TVector3 const& vertex,
+        TVector3 const& direction) const;
 
-    double SpacePointPerpendiular(const art::Ptr<recob::SpacePoint>&sp, TVector3& vertex,
-        TVector3& direction, double proj);
+    double SpacePointPerpendiular(art::Ptr<recob::SpacePoint> const& sp, TVector3 const& vertex,
+        TVector3 const& direction, double proj) const;
 
-    void DebugEVD(const art::Ptr<recob::PFParticle>& pfparticle,
-        art::Event& Event,
-        reco::shower::ShowerElementHolder& ShowerEleHolder);
+    void DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
+        art::Event const& Event,
+        reco::shower::ShowerElementHolder& ShowerEleHolder) const;
 
   private:
 

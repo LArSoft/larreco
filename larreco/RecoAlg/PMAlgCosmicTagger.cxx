@@ -39,7 +39,7 @@ void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
 }
 
 
-size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
+size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
 {
     mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks out of 1 drift window;";
     size_t n = 0;
@@ -86,7 +86,7 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
 
 // Leigh: Make use of the fact that our cathode and anode crossing tracks have a reconstructed T0.
 // Check to see if this time is consistent with the beam
-size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
+size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks) const {
 
 	size_t n = 0;
 
@@ -117,7 +117,7 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 
 }
 
-size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks){
+size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) const {
 
   size_t n = 0;
 
@@ -161,7 +161,7 @@ size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks){
 
 }
 
-size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks){
+size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks) const {
 
   size_t n = 0;
 
@@ -283,7 +283,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
 
 }
 
-size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks){
+size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks) const {
 
 	// Just use the first tpc to get the height dimension (instead of assuming y).
 	auto const* geom = lar::providerFrom<geo::Geometry>();
@@ -296,7 +296,7 @@ size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks)
 
 }
 
-size_t pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks){
+size_t pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks) const {
 
 	// Just use the first tpc to get the width dimension (instead of assuming x).
 	auto const* geom = lar::providerFrom<geo::Geometry>();
@@ -309,7 +309,7 @@ size_t pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks){
 
 }
 
-size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks){
+size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks) const {
 
 	// Just use the first tpc to get the length dimension (instead of assuming z).
 	auto const* geom = lar::providerFrom<geo::Geometry>();
@@ -322,7 +322,7 @@ size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks)
 
 }
 
-size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction){
+size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction) const {
 
 	if(direction == -1){
 		mf::LogWarning("pma::PMAlgCosmicTagger") << " - Could not recognise direction, not attempting to perform fullCrossingTagger.";

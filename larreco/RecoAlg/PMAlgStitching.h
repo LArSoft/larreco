@@ -50,8 +50,8 @@ private:
   // Main function of the algorithm
   void StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA);
 
-  double GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift);
-  double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2);
+  double GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift) const;
+  double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2) const;
 
   void GetTPCXOffsets();
   double GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA);

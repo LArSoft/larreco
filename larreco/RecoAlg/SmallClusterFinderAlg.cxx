@@ -265,7 +265,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(std::vector< art::Ptr < 
 													 std::vector < art::Ptr<recob::Hit> > &hitlistlocal,
 													  double  wire_start,
 													  double time_start,
-													  double radlimit)
+                                                                                                          double radlimit) const
 {
 	//loop over the hits in "hitlist", which should contain the hits we're selecting from
   	for(std::vector < art::Ptr < recob::Hit > >::const_iterator hitIter = hitlist.begin(); hitIter != hitlist.end();  hitIter++){
@@ -292,7 +292,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(std::vector< art::Ptr < 
 													  double  wire_start,
 													  double time_start,
 													  double radlimit,
-													  std::vector<int> &index)
+                                                                                                          std::vector<int> &index) const
 {
 	//loop over the hits in "hitlist", which should contain the hits we're selecting from
 	int i = 0; //i keeps track of the index of the hit.
@@ -326,7 +326,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(std::vector< art::Ptr < 
 /*		This method sorts this hitlist (which should only be on a single plane)
 
 */
-std::vector< art::Ptr<recob::Hit> > cluster::SmallClusterFinderAlg::CreateHighHitlist(std::vector< art::Ptr<recob::Hit> > hitlist,std::vector< art::Ptr<recob::Hit> > &leftovers)
+std::vector< art::Ptr<recob::Hit> > cluster::SmallClusterFinderAlg::CreateHighHitlist(std::vector< art::Ptr<recob::Hit> > hitlist,std::vector< art::Ptr<recob::Hit> > &leftovers) const
 {
 
   	std::vector< art::Ptr<recob::Hit> > hitlist_total; //This is the final result, a list of hits that are small clusters
@@ -379,7 +379,7 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
 						unsigned int &p, //plane
  						unsigned int &/*cs*/,  //cryostat
 						unsigned int &t, //time
-						unsigned int &w) //wire
+                                                unsigned int &w) const //wire
 {
 	art::ServiceHandle<geo::Geometry const> geom;
 	unsigned int channel = a->Channel();

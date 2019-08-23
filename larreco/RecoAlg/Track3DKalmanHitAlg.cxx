@@ -189,7 +189,7 @@ std::vector<trkf::KalmanOutput> trkf::Track3DKalmanHitAlg::makeTracks(KalmanInpu
 bool trkf::Track3DKalmanHitAlg::fetchPFParticleSeeds(const art::PtrVector<recob::Seed> &pfseeds,
                                                      const std::vector<Hits> &pfseedhits,
                                                      std::vector<recob::Seed>& seeds,
-                                                     std::vector<Hits>& hitsperseed){
+                                                     std::vector<Hits>& hitsperseed) const{
    for(const auto& pseed : pfseeds) {
       seeds.push_back(*pseed);
    }
@@ -469,7 +469,7 @@ bool trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack &trg0,
 
 bool trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack &trg1,
                                                     unsigned int prefplane,
-                                                    Hits &trackhits){
+                                                    Hits &trackhits) const {
    bool ok = true;
    const int niter = 6;
    int nfail = 0;  // Number of consecutive extend fails.
@@ -511,7 +511,7 @@ bool trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack &trg1,
 }
 //----------------------------------------------------------------------------
 /// fit and update method, used twice.
-void trkf::Track3DKalmanHitAlg::fitnupdateMomentum(KGTrack& trg1, KGTrack& trg2) {
+void trkf::Track3DKalmanHitAlg::fitnupdateMomentum(KGTrack& trg1, KGTrack& trg2) const {
    KETrack tremom;
    if(fKFAlg.fitMomentum(trg1, fProp.get(), tremom)) {
       fKFAlg.updateMomentum(tremom, fProp.get(), trg2);

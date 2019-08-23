@@ -116,11 +116,11 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
   WireData_histos.resize(nPlanes);
   WireData_histos_ProjectionX.resize(nPlanes);
   WireData_histos_ProjectionY.resize(nPlanes);
-  fConversion_histos.resize(nPlanes);
-  fDerivativeX_histos.resize(nPlanes);
-  fDerivativeY_histos.resize(nPlanes);
-  fCornerScore_histos.resize(nPlanes);
-  fMaxSuppress_histos.resize(nPlanes);
+  //  fConversion_histos.resize(nPlanes);
+  //  fDerivativeX_histos.resize(nPlanes);
+  //  fDerivativeY_histos.resize(nPlanes);
+  //  fCornerScore_histos.resize(nPlanes);
+  //  fMaxSuppress_histos.resize(nPlanes);
 
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
@@ -262,30 +262,30 @@ void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<r
 }
 
 //-----------------------------------------------------------------------------------
-void corner::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
+// void corner::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
 
-  int i_wire, j_wire;
-  float i_time, j_time;
-  for(size_t i=0; i != corner_vector.size(); i++){
+//   int i_wire, j_wire;
+//   float i_time, j_time;
+//   for(size_t i=0; i != corner_vector.size(); i++){
 
-    i_wire = corner_vector.at(i).WireID().Wire;
-    i_time = corner_vector.at(i).DriftTime();
+//     i_wire = corner_vector.at(i).WireID().Wire;
+//     i_time = corner_vector.at(i).DriftTime();
 
-    for(size_t j=i+1; j != corner_vector.size(); j++){
+//     for(size_t j=i+1; j != corner_vector.size(); j++){
 
-      j_wire = corner_vector.at(j).WireID().Wire;
-      j_time = corner_vector.at(j).DriftTime();
+//       j_wire = corner_vector.at(j).WireID().Wire;
+//       j_time = corner_vector.at(j).DriftTime();
 
-      if(std::abs(i_wire-j_wire) < 5 && std::abs(i_time - j_time) < 10){
-	corner_vector.erase(corner_vector.begin()+j);
-	j--;
-      }
+//       if(std::abs(i_wire-j_wire) < 5 && std::abs(i_time - j_time) < 10){
+//         corner_vector.erase(corner_vector.begin()+j);
+//         j--;
+//       }
 
-    }
+//     }
 
-  }
+//   }
 
-}
+// }
 
 struct compare_to_value{
 
@@ -620,7 +620,7 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F const
 
 //-----------------------------------------------------------------------------
 // Convert to pixel
-void corner::CornerFinderAlg::create_image_histo(TH2F const& h_wire_data, TH2F & h_conversion) {
+void corner::CornerFinderAlg::create_image_histo(TH2F const& h_wire_data, TH2F & h_conversion) const {
 
   double temp_integral=0;
 
@@ -992,7 +992,7 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_corner
 							    geo::View_t view,
 							    TH2D & h_maxSuppress,
 							    int startx,
-							    int starty){
+                                                            int starty) const {
 
   const int x_bins = h_cornerScore.GetNbinsX();
   const int y_bins = h_cornerScore.GetNbinsY();
@@ -1047,7 +1047,7 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_corner
 
 
 /* Silly little function for doing a line integral type thing. Needs improvement. */
-float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, float begin_y, int end_x, float end_y, float threshold){
+float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, float begin_y, int end_x, float end_y, float threshold) const{
 
   int x1 = hist.GetXaxis()->FindBin( begin_x );
   int y1 = hist.GetYaxis()->FindBin( begin_y );
@@ -1122,7 +1122,7 @@ float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, floa
 size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wire_data,
 								std::vector<recob::EndPoint2D> const & corner_vector,
 								std::vector<recob::EndPoint2D> & corner_lineIntegralScore_vector,
-								TH2F & h_lineIntegralScore){
+                                                                TH2F & h_lineIntegralScore) const {
 
   float score;
 
@@ -1164,7 +1164,7 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wir
 
 
 
-TH2F const& corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
+TH2F const& corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane) const {
   return WireData_histos.at(i_plane);
 }
 /*

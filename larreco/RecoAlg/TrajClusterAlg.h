@@ -56,10 +56,10 @@ namespace tca {
 
 //    void DefineCRTree(TTree* t);
 
-    unsigned short GetSlicesSize() { return slices.size(); }
+    unsigned short GetSlicesSize() const { return slices.size(); }
     TCSlice const& GetSlice(unsigned short sliceIndex) const {return slices[sliceIndex]; }
     void MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
-                     std::vector<unsigned int>& newHitAssns);
+                     std::vector<unsigned int>& newHitAssns) const;
 
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -70,7 +70,7 @@ namespace tca {
 
     private:
 
-    recob::Hit MergeTPHitsOnWire(std::vector<unsigned int>& tpHits);
+    recob::Hit MergeTPHitsOnWire(std::vector<unsigned int>& tpHits) const;
 
     // SHOWER VARIABLE TREE
     TTree* showertree;

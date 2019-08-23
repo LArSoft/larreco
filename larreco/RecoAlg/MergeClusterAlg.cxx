@@ -31,7 +31,7 @@ cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset) {
   fTree->Branch("TrueMerge",&fTrueMerge);
 }
 
-void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> const& cluster, TVector2 const& centre, TVector2 const& direction, TVector2& start, TVector2& end) {
+void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> const& cluster, TVector2 const& centre, TVector2 const& direction, TVector2& start, TVector2& end) const {
 
   /// Find estimates of cluster start/end points
 
@@ -52,7 +52,7 @@ void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> c
 
 }
 
-double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction, TVector2 const& centre, TVector2 const& start1, TVector2 const& end1, TVector2 const& start2, TVector2 const& end2) {
+double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction, TVector2 const& centre, TVector2 const& start1, TVector2 const& end1, TVector2 const& start2, TVector2 const& end2) const {
 
   /// Calculates the overlap of the clusters on the line projected between them
 
@@ -86,7 +86,7 @@ double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction, T
 
 }
 
-double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const &direction1, TVector2 const &centre1, TVector2 const  &direction2, TVector2 const &centre2) {
+double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const &direction1, TVector2 const &centre1, TVector2 const  &direction2, TVector2 const &centre2) const {
 
   /// Finds the distance between the crossing point of the lines and the closest line centre
 
@@ -103,7 +103,7 @@ double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const &direction1
 
 }
 
-double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> const& cluster1, art::PtrVector<recob::Hit> const& cluster2) {
+double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> const& cluster1, art::PtrVector<recob::Hit> const& cluster2) const {
 
   /// Calculates the minimum separation between two clusters
 
@@ -127,7 +127,7 @@ double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> co
 
 }
 
-double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1, TVector2 const& start1, TVector2 const& end1, TVector2 const& centre2, TVector2 const& start2, TVector2 const& end2) {
+double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1, TVector2 const& start1, TVector2 const& end1, TVector2 const& centre2, TVector2 const& start2, TVector2 const& end2) const {
 
   /// Projects clusters parallel to the line which runs through their centres and finds the minimum containing width
 
@@ -151,7 +151,7 @@ double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1, TVe
 
 }
 
-double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) {
+double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const {
 
   /// Find the global wire position
 
@@ -172,7 +172,7 @@ double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) {
 
 }
 
-TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) {
+TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) const {
 
   /// Return the coordinates of this hit in global wire/tick space
 
@@ -180,7 +180,7 @@ TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hi
 
 }
 
-int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hit> > const &planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) {
+int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hit> > const &planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) const {
 
   /// Merges clusters which lie along a straight line
 
@@ -418,7 +418,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 }
 
-bool cluster::MergeClusterAlg::PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& longLength) {
+bool cluster::MergeClusterAlg::PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& longLength) const {
 
   /// Boolean function which decides whether or not two clusters should be merged, depending on their properties
 

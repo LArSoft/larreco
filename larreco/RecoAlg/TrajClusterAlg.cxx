@@ -952,7 +952,7 @@ namespace tca {
 
   //////////////////////////////////////////
   void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
-                                   std::vector<unsigned int>& newHitAssns)
+                                   std::vector<unsigned int>& newHitAssns) const
   {
     // merge the hits indexed by tpHits into one or more hits with the requirement that the hits
     // are on different wires
@@ -1003,7 +1003,7 @@ namespace tca {
   } // MergeTPHits
 
   //////////////////////////////////////////
-  recob::Hit TrajClusterAlg::MergeTPHitsOnWire(std::vector<unsigned int>& tpHits)
+  recob::Hit TrajClusterAlg::MergeTPHitsOnWire(std::vector<unsigned int>& tpHits) const
   {
     // merge the hits indexed by tpHits into one hit
 

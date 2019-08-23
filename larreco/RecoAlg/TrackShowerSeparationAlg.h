@@ -167,31 +167,31 @@ class shower::TrackShowerSeparationAlg {
 						      const art::FindManyP<recob::Hit>& fmht,
 						      const art::FindManyP<recob::Track>& fmth,
 						      const art::FindManyP<recob::SpacePoint>& fmspt,
-						      const art::FindManyP<recob::Track>& fmtsp);
+                                                      const art::FindManyP<recob::Track>& fmtsp) const;
 
  private:
 
   ///
-  std::vector<int> InitialTrackLikeSegment(std::map<int,std::unique_ptr<ReconTrack> >& reconTracks);
+  std::vector<int> InitialTrackLikeSegment(std::map<int,std::unique_ptr<ReconTrack> >& reconTracks) const;
 
   ///
-  TVector3 Gradient(const std::vector<TVector3>& points, const std::unique_ptr<TVector3>& dir);
+  TVector3 Gradient(const std::vector<TVector3>& points, const std::unique_ptr<TVector3>& dir) const;
 
   ///
-  TVector3 Gradient(const art::Ptr<recob::Track>& track);
+  TVector3 Gradient(const art::Ptr<recob::Track>& track) const;
 
   ///
-  TVector3 Gradient(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+  TVector3 Gradient(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints) const;
 
   /// Projects the 3D point given along the line defined by the specified direction
   /// Coordinate system is assumed to be centred at the origin unless a difference point is specified
-  TVector3 ProjPoint(const TVector3& point, const TVector3& direction, const TVector3& origin = TVector3(0,0,0));
+  TVector3 ProjPoint(const TVector3& point, const TVector3& direction, const TVector3& origin = TVector3(0,0,0)) const;
 
   /// Return 3D point of this space point
-  TVector3 SpacePointPos(const art::Ptr<recob::SpacePoint>& spacePoint);
+  TVector3 SpacePointPos(const art::Ptr<recob::SpacePoint>& spacePoint) const;
 
   ///
-  double SpacePointsRMS(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+  double SpacePointsRMS(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints) const;
 
   // Parameters
   int fDebug;
