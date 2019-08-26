@@ -408,7 +408,7 @@ void shower::EMShower::produce(art::Event& evt) {
         TVector3 shwvtx(0,0,0);
         double mindis = DBL_MAX;
         for (auto &sp : showerSpacePoints_p){
-          double dis = sqrt(pow(nuvtx.X()-sp->XYZ()[0],2)+pow(nuvtx.X()-sp->XYZ()[1],2)+pow(nuvtx.X()-sp->XYZ()[2],2));
+          double dis = sqrt(pow(nuvtx.X()-sp->XYZ()[0],2)+pow(nuvtx.Y()-sp->XYZ()[1],2)+pow(nuvtx.Z()-sp->XYZ()[2],2));
           if (dis<mindis){
             mindis = dis;
             shwvtx.SetXYZ(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
