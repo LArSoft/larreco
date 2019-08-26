@@ -83,6 +83,7 @@ public:
     PointIdEffTest & operator = (PointIdEffTest const &) = delete;
     PointIdEffTest & operator = (PointIdEffTest &&) = delete;
 
+private:
 	virtual void beginRun(const art::Run& run) override;
 
 	virtual void beginJob() override;
@@ -90,7 +91,6 @@ public:
 
     virtual void analyze(art::Event const & e) override;
 
-private:
     void cleanup(void);
 
     void countTruthDep(

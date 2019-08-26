@@ -44,9 +44,6 @@ namespace sppt{
   }
 
   //-------------------------------------------------
-  SpacePointAlg_TimeSort::~SpacePointAlg_TimeSort(){}
-
-  //-------------------------------------------------
   void SpacePointAlg_TimeSort::reconfigure(fhicl::ParameterSet const& p) {
     fTimeDiffMax = p.get< float >("TimeDiffMax");
     fZDiffMax    = p.get< float >("ZDiffMax");
@@ -274,7 +271,7 @@ namespace sppt{
   }//end createSpacePoints
 
   //-------------------------------------------------
-  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec){
+  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec) const {
     std::sort(hitVec.begin(),hitVec.end(),HitTimeComparison);
   }
 

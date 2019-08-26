@@ -50,14 +50,13 @@ class MuonTrackingEff : public art::EDAnalyzer {
 public:
 
     explicit MuonTrackingEff(fhicl::ParameterSet const& pset);
-    virtual ~MuonTrackingEff();
+
+private:
 
     void beginJob();
     void endJob();
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
-
-    void reconfigure(fhicl::ParameterSet const& pset);
 
     void processEff(const art::Event& evt, bool &isFiducial);
 
@@ -72,8 +71,6 @@ public:
     bool insideFV(double vertex[4]);
 
     void doEfficiencies();
-
-private:
 
     // the parameters we'll read from the .fcl
     std::string fMCTruthModuleLabel;
@@ -286,18 +283,9 @@ private:
 
 
 //========================================================================
-MuonTrackingEff::MuonTrackingEff(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+MuonTrackingEff::MuonTrackingEff(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
 {
-    reconfigure(parameterSet);
-}
-//========================================================================
-MuonTrackingEff::~MuonTrackingEff(){
-  //destructor
-}
-//========================================================================
-void MuonTrackingEff::reconfigure(fhicl::ParameterSet const& p){
-
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fTrackModuleLabel    = p.get<std::string>("TrackModuleLabel");
     fMuonPDGCode         = p.get<int>("MuonPDGCode");

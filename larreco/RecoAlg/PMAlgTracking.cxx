@@ -539,7 +539,7 @@ bool pma::PMAlgTracker::reassignHits_1(const std::vector< art::Ptr<recob::Hit> >
 }
 
 double pma::PMAlgTracker::collectSingleViewEnd(pma::Track3D & trk,
-	std::vector< art::Ptr<recob::Hit> > & hits)
+        std::vector< art::Ptr<recob::Hit> > & hits) const
 {
 	size_t idx = 0;
 	while ((idx < trk.size() - 1) && !(trk[idx]->IsEnabled()))
@@ -566,7 +566,7 @@ double pma::PMAlgTracker::collectSingleViewEnd(pma::Track3D & trk,
 }
 
 double pma::PMAlgTracker::collectSingleViewFront(pma::Track3D & trk,
-	std::vector< art::Ptr<recob::Hit> > & hits)
+        std::vector< art::Ptr<recob::Hit> > & hits) const
 {
 	size_t idx = trk.size() - 1;
 	while ((idx > 0) && !(trk[idx]->IsEnabled()))
@@ -619,7 +619,7 @@ bool pma::PMAlgTracker::reassignSingleViewEnds_1(pma::TrkCandidateColl & tracks)
 // ------------------------------------------------------
 
 bool pma::PMAlgTracker::reassignHits_2(const std::vector< art::Ptr<recob::Hit> > & hits,
-	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2)
+        pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2) const
 {
 	pma::Track3D* trk1 = tracks[trk_idx].Track();
 
@@ -668,7 +668,7 @@ bool pma::PMAlgTracker::reassignHits_2(const std::vector< art::Ptr<recob::Hit> >
 	return result;
 }
 
-bool pma::PMAlgTracker::reassignSingleViewEnds_2(pma::TrkCandidateColl & tracks)
+bool pma::PMAlgTracker::reassignSingleViewEnds_2(pma::TrkCandidateColl & tracks) const
 {
 	bool result = false;
 	for (size_t t = 0; t < tracks.size(); t++)
@@ -698,7 +698,7 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	double& dist, double& cos3d, bool& reverseOrder,
 	double distThr, double distThrMin,
 	double distProjThr,
-	double cosThr)
+        double cosThr) const
 {
 	double lmax;
 	double l1 = trk1->Length();
@@ -796,7 +796,7 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	return false;
 }
 
-bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks)
+bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks) const
 {
 	double distThr = 0.25;    // max gap as a fraction of the longer track length
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
@@ -863,20 +863,20 @@ bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks)
 // ------------------------------------------------------
 
 
-void pma::PMAlgTracker::freezeBranchingNodes(pma::TrkCandidateColl & tracks)
+void pma::PMAlgTracker::freezeBranchingNodes(pma::TrkCandidateColl & tracks) const
 {
 	for (auto const & trk : tracks.tracks())
 		for (auto node : trk.Track()->Nodes())
 			if (node->IsBranching()) node->SetFrozen(true);
 }
-void pma::PMAlgTracker::releaseAllNodes(pma::TrkCandidateColl & tracks)
+void pma::PMAlgTracker::releaseAllNodes(pma::TrkCandidateColl & tracks) const
 {
 	for (auto const & trk : tracks.tracks())
 		for (auto node : trk.Track()->Nodes())
 			node->SetFrozen(false);
 }
 
-void pma::PMAlgTracker::mergeCoLinear(pma::tpc_track_map& tracks)
+void pma::PMAlgTracker::mergeCoLinear(pma::tpc_track_map& tracks) const
 {
 	double distThr = 0.25;    // max gap as a fraction of the longer track length
 	double distThrMin = 2.5;  // lower limit of max gap threshold [cm]

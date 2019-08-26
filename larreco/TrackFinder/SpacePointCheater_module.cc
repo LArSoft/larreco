@@ -37,7 +37,6 @@ namespace trkf {
     explicit SpacePointCheater(fhicl::ParameterSet const& pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt) override;
     void endJob() override;
 
@@ -72,7 +71,10 @@ namespace trkf {
     , fNumSpt2(0)
     , fNumSpt3(0)
   {
-    reconfigure(pset);
+    fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
+    fMinHits = pset.get<unsigned int>("MinHits");
+    fClusterAssns = pset.get<bool>("ClusterAssns");
+
     produces<std::vector<art::PtrVector<recob::SpacePoint> > >();
     produces<std::vector<recob::SpacePoint>                  >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
@@ -86,20 +88,6 @@ namespace trkf {
       << "  ClusterModuleLabel = " << fClusterModuleLabel << "\n"
       << "  Minimum Hits per Cluster = " << fMinHits << "\n"
       << "  Cluster associations = " << fClusterAssns;
-  }
-
-  //----------------------------------------------------------------------------
-  void SpacePointCheater::reconfigure(fhicl::ParameterSet const& pset)
-  //
-  // Purpose: Reconfigure method.
-  //
-  // Arguments: pset - Configuration parameters.
-  //
-  {
-    fSptalg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
-    fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
-    fMinHits = pset.get<unsigned int>("MinHits");
-    fClusterAssns = pset.get<bool>("ClusterAssns");
   }
 
   //----------------------------------------------------------------------------

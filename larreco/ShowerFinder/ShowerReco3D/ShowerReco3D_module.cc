@@ -47,10 +47,10 @@ public:
   ShowerReco3D & operator = (ShowerReco3D const &) = delete;
   ShowerReco3D & operator = (ShowerReco3D &&) = delete;
 
+private:
+
   // Required functions.
   void produce(art::Event & e) override;
-
-private:
 
   // Declare member data here.
   bool        fUsePFParticle;

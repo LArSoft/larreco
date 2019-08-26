@@ -30,9 +30,6 @@ namespace cmtool {
     /// Default constructor
     CMatchBookKeeper();
 
-    /// Default destructor
-    virtual ~CMatchBookKeeper(){};
-
     /// Reset method
     void Reset();
 

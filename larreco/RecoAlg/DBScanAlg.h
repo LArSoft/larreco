@@ -33,7 +33,7 @@ namespace cluster{
 
 
     DBScanAlg(fhicl::ParameterSet const& pset);
-    virtual ~DBScanAlg();
+    ~DBScanAlg();
 
     void reconfigure(fhicl::ParameterSet const& p);
     void InitScan(const std::vector< art::Ptr<recob::Hit> >& allhits,

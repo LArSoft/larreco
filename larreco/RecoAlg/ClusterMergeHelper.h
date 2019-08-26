@@ -36,12 +36,6 @@ namespace cluster
 
   public:
 
-    /// Default constructor with fhicl parameters
-    ClusterMergeHelper(){};
-
-    /// Default destructor
-    virtual ~ClusterMergeHelper(){}
-
     /// A method to retrieve Manager
     ::cmtool::CMergeManager& GetManager() { return fMgr; }
 

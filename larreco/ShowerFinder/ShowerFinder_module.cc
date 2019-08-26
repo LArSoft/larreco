@@ -40,16 +40,11 @@
 namespace shwf {
 
   class ShowerFinder : public art::EDProducer {
-
   public:
-
     explicit ShowerFinder(fhicl::ParameterSet const&);
-    virtual ~ShowerFinder();
-
-    void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt);
 
   private:
+    void produce(art::Event& evt);
 
     std::string fVertexModuleLabel;         ///< label of module finding 2D endpoint
     std::string fClusterModuleLabel;        ///< label of module finding clusters
@@ -57,10 +52,6 @@ namespace shwf {
     std::string fVertexStrengthModuleLabel; ///< label of module finding 2D endpoint
     double      fRcone;                     ///< radious of cone for method
     double      fLcone;                     ///< length of the cone
-
-  protected:
-
-
   }; // class ShowerFinder
 
 
@@ -72,22 +63,6 @@ namespace shwf{
   ShowerFinder::ShowerFinder(fhicl::ParameterSet const& pset)  :
     EDProducer{pset}
   {
-    this->reconfigure(pset);
-
-    produces< std::vector<recob::Shower>                >();
-    produces< art::Assns<recob::Shower, recob::Cluster> >();
-    produces< art::Assns<recob::Shower, recob::Hit>     >();
-  }
-
-
-  //-------------------------------------------------
-  ShowerFinder::~ShowerFinder()
-  {
-  }
-
-  //-------------------------------------------------
-  void ShowerFinder::reconfigure(fhicl::ParameterSet const& pset)
-  {
     fVertexModuleLabel        = pset.get<std::string > ("VertexModuleLabel");
     fClusterModuleLabel       = pset.get<std::string > ("ClusterModuleLabel");
     fHoughLineModuleLabel     = pset.get<std::string > ("HoughLineModuleLabel");
@@ -95,8 +70,11 @@ namespace shwf{
     fRcone                    = pset.get<double      > ("Rcone");
     fLcone                    = pset.get<double      > ("Lcone");
 
-    return;
+    produces< std::vector<recob::Shower>                >();
+    produces< art::Assns<recob::Shower, recob::Cluster> >();
+    produces< art::Assns<recob::Shower, recob::Hit>     >();
   }
+
 
   //
   //-------------------------------------------------

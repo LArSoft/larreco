@@ -29,9 +29,6 @@ namespace cmtool {
     /// Default constructor
     CPAlgoPolyArea();
 
-    /// Default destructor
-    virtual ~CPAlgoPolyArea(){};
-
     /**
        Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
@@ -41,11 +38,10 @@ namespace cmtool {
     /// Setter for minimum area
     void SetMinArea(double area) { _area_cut = area; }
 
-  protected:
+  private:
 
     double _area_cut;
   };
 }
 #endif
 /** @} */ // end of doxygen group
-

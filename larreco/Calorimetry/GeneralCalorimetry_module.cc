@@ -33,10 +33,9 @@ namespace calo {
 
       explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
 
-      void reconfigure(fhicl::ParameterSet const& pset);
-      void produce(art::Event& evt);
-
     private:
+
+      void produce(art::Event& evt);
 
       std::string    fTrackModuleLabel; ///< module creating the track objects and assns to hits
       double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service
@@ -73,17 +72,10 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
     }
   }
 
-  this->reconfigure(pset);
+  fTrackModuleLabel = pset.get< std::string >("TrackModuleLabel");
 
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-//------------------------------------------------------------------------------------//
-void calo::GeneralCalorimetry::reconfigure(fhicl::ParameterSet const& pset)
-{
-  fTrackModuleLabel = pset.get< std::string >("TrackModuleLabel");
-  return;
 }
 
 //------------------------------------------------------------------------------------//

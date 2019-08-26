@@ -42,7 +42,6 @@ namespace hit{
 
   private:
     void produce(art::Event& evt) override;
-    void reconfigure(fhicl::ParameterSet const& p);
 
     std::string     fCalDataModuleLabel;
     double          fMinSigInd;     ///<Induction signal height threshold
@@ -61,7 +60,16 @@ namespace hit{
   FFTHitFinder::FFTHitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCalDataModuleLabel = pset.get< std::string  >("CalDataModuleLabel");
+    fMinSigInd          = pset.get< double       >("MinSigInd");
+    fMinSigCol          = pset.get< double       >("MinSigCol");
+    fIndWidth           = pset.get< double       >("IndWidth");
+    fColWidth           = pset.get< double       >("ColWidth");
+    fIndMinWidth        = pset.get< double       >("IndMinWidth");
+    fColMinWidth        = pset.get< double       >("ColMinWidth");
+    fMaxMultiHit        = pset.get< int          >("MaxMultiHit");
+    fAreaMethod         = pset.get< int          >("AreaMethod");
+    fAreaNorms          = pset.get< std::vector< double > >("AreaNorms");
 
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -69,21 +77,6 @@ namespace hit{
     recob::HitCollectionCreator::declare_products(*this);
   }
 
-
-  //-------------------------------------------------
-  void FFTHitFinder::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-    fMinSigInd          = p.get< double       >("MinSigInd");
-    fMinSigCol          = p.get< double       >("MinSigCol");
-    fIndWidth           = p.get< double       >("IndWidth");
-    fColWidth           = p.get< double       >("ColWidth");
-    fIndMinWidth        = p.get< double       >("IndMinWidth");
-    fColMinWidth        = p.get< double       >("ColMinWidth");
-    fMaxMultiHit        = p.get< int          >("MaxMultiHit");
-    fAreaMethod         = p.get< int          >("AreaMethod");
-    fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-  }
 
   //  This algorithm uses the fact that deconvolved signals are very smooth
   //  and looks for hits as areas between local minima that have signal above

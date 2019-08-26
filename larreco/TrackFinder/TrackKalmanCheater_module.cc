@@ -53,7 +53,6 @@ namespace trkf {
     explicit TrackKalmanCheater(fhicl::ParameterSet const & pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const & pset);
     void produce(art::Event & e) override;
     void beginJob() override;
     void endJob() override;
@@ -107,7 +106,15 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
   , fNumEvent(0)
   , fNumTrack(0)
 {
-  reconfigure(pset);
+  fHist = pset.get<bool>("Hist");
+  fUseClusterHits = pset.get<bool>("UseClusterHits");
+  fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
+  fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
+  fMaxTcut = pset.get<double>("MaxTcut");
+  if(fProp != 0)
+    delete fProp;
+  fProp = new PropYZPlane(fMaxTcut, true);
+
   produces<std::vector<recob::Track>                   >();
   produces<std::vector<recob::SpacePoint>              >();
   produces<art::Assns<recob::Track, recob::Hit>        >();
@@ -121,27 +128,6 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
     << "  UseClusterHits = " << fUseClusterHits << "\n"
     << "  HitModuleLabel = " << fHitModuleLabel << "\n"
     << "  ClusterModuleLabel = " << fClusterModuleLabel;
-}
-
-//------------------------------------------------------------------------------
-/// Reconfigure method.
-///
-/// Arguments:
-///
-/// p - Fcl parameter set.
-///
-void trkf::TrackKalmanCheater::reconfigure(fhicl::ParameterSet const & pset)
-{
-  fHist = pset.get<bool>("Hist");
-  fKFAlg.reconfigure(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"));
-  fSpacePointAlg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
-  fUseClusterHits = pset.get<bool>("UseClusterHits");
-  fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
-  fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
-  fMaxTcut = pset.get<double>("MaxTcut");
-  if(fProp != 0)
-    delete fProp;
-  fProp = new PropYZPlane(fMaxTcut, true);
 }
 
 //------------------------------------------------------------------------------

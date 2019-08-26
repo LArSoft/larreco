@@ -31,7 +31,6 @@ namespace trkf {
     //--------------------------------------
 
     SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
-   ~SeedFinderAlgorithm();
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
@@ -43,14 +42,14 @@ namespace trkf {
 
 
     std::vector<std::vector<recob::Seed> > GetSeedsFromSortedHits( std::vector< std::vector<art::PtrVector<recob::Hit> > >  const& SortedHits,
-								   std::vector<std::vector<art::PtrVector<recob::Hit> > >& HitsPerSeed, unsigned int StopAfter=0);
+                                                                   std::vector<std::vector<art::PtrVector<recob::Hit> > >& HitsPerSeed, unsigned int StopAfter=0) const;
                                     // Return a vector of vectors of seeds, one vector for each supplied cluster
                                     //   combination which has sufficient overlap. The second argument returns
                                     //   the hits sorted by combo and by seed
 
 
 
-    std::vector<recob::Seed>    GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const &, std::vector<art::PtrVector<recob::Hit> >&, unsigned int StopAfter=0);
+    std::vector<recob::Seed>    GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const &, std::vector<art::PtrVector<recob::Hit> >&, unsigned int StopAfter=0) const;
                                     // Return a vector of seeds formed from an unstructured collection of hits
 
 
@@ -74,7 +73,7 @@ namespace trkf {
     //----------------------
 
 
-    std::vector<recob::Seed>    FindSeeds( art::PtrVector<recob::Hit> const& HitsFlat, std::vector<art::PtrVector<recob::Hit> >& CataloguedHits, unsigned int StopAfter);
+    std::vector<recob::Seed>    FindSeeds( art::PtrVector<recob::Hit> const& HitsFlat, std::vector<art::PtrVector<recob::Hit> >& CataloguedHits, unsigned int StopAfter) const;
                                     // Find a collection of seeds, based on the supplied set of hits.
                                     //  The second argument returns the hits catalogued by which
                                     //  seed they fell into (if any)
@@ -82,24 +81,24 @@ namespace trkf {
 
 
     recob::Seed                 FindSeedAtEnd(std::vector<recob::SpacePoint> const&, std::vector<char>&, std::vector<int>&,
-					      art::PtrVector<recob::Hit> const& HitsFlat, std::vector< std::vector< std::vector<int> > >& OrgHits);
+                                              art::PtrVector<recob::Hit> const& HitsFlat, std::vector< std::vector< std::vector<int> > >& OrgHits) const;
                                     // Find one seed at high Z from the spacepoint collection given. Latter arguments are
                                     //  for internal book keeping.
 
 
 
-    size_t                      CountHits(std::vector<recob::SpacePoint> const& Points);
+    //    size_t                      CountHits(std::vector<recob::SpacePoint> const& Points);
                                    // Counting the number of hits in each view which are associated with a set of SPs
 
 
 
-    void                        GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>& HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& HitsPerView);
+    void                        GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>& HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& HitsPerView) const;
 
 
     void                        ConsolidateSeed(recob::Seed& TheSeed, art::PtrVector<recob::Hit> const&, std::vector<char>& HitStatus,
-						std::vector< std::vector< std::vector<int> > >& OrgHits, bool Extend);
+                                                std::vector< std::vector< std::vector<int> > >& OrgHits, bool Extend) const;
 
-    void                        GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s);
+    void                        GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s) const;
 
 
     void                        CalculateGeometricalElements();

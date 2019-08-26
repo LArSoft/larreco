@@ -33,13 +33,10 @@ public:
   PrintCalorimetry & operator = (PrintCalorimetry const &) = delete;
   PrintCalorimetry & operator = (PrintCalorimetry &&) = delete;
 
+private:
+
   // Required functions.
   void analyze(art::Event const & e) override;
-
-  // Selected optional functions.
-  void reconfigure(fhicl::ParameterSet const & p) ;
-
-private:
 
   std::string              fTrackModuleLabel;
   std::vector<std::string> fCaloModuleLabels;
@@ -76,12 +73,6 @@ void calo::PrintCalorimetry::analyze(art::Event const & e)
 
   }
 
-}
-
-void calo::PrintCalorimetry::reconfigure(fhicl::ParameterSet const & p)
-{
-  fTrackModuleLabel = p.get<std::string>("TrackModuleLabel");
-  fCaloModuleLabels = p.get< std::vector<std::string> >("CaloModuleLabels");
 }
 
 DEFINE_ART_MODULE(calo::PrintCalorimetry)

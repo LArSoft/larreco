@@ -60,9 +60,9 @@ public:
   TrackProducerFromPFParticle(TrackProducerFromPFParticle &&) = delete;
   TrackProducerFromPFParticle & operator = (TrackProducerFromPFParticle const &) = delete;
   TrackProducerFromPFParticle & operator = (TrackProducerFromPFParticle &&) = delete;
+private:
   // Required functions.
   void produce(art::Event & e) override;
-private:
   std::unique_ptr<trkmkr::TrackMaker> trackMaker_;
   art::InputTag pfpInputTag;
   art::InputTag trkInputTag;

@@ -91,9 +91,9 @@ public:
 	EmTrackMichelId & operator = (EmTrackMichelId const &) = delete;
 	EmTrackMichelId & operator = (EmTrackMichelId &&) = delete;
 
+private:
 	void produce(art::Event & e) override;
 
-private:
 	bool isViewSelected(int view) const;
 
 	size_t fBatchSize;

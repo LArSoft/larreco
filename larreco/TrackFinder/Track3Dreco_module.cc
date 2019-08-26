@@ -53,7 +53,6 @@ namespace trkf {
     explicit Track3Dreco(fhicl::ParameterSet const& pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt) override;
 
     int             ftmatch;             ///< tolerance for time matching (in time samples)
@@ -69,20 +68,16 @@ namespace trkf {
 Track3Dreco::Track3Dreco(fhicl::ParameterSet const& pset)
   : EDProducer{pset}
 {
-  this->reconfigure(pset);
+  fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
+  ftmatch                 = pset.get< int    >("TMatch");
+  fchi2dof                = pset.get< double >("Chi2DOFmax");
+
   produces< std::vector<recob::Track>                        >();
   produces< std::vector<recob::SpacePoint>                   >();
   produces< art::Assns<recob::Track,      recob::Cluster>    >();
   produces< art::Assns<recob::Track,      recob::SpacePoint> >();
   produces< art::Assns<recob::SpacePoint, recob::Hit>        >();
   produces< art::Assns<recob::Track,      recob::Hit>        >();
-}
-
-void Track3Dreco::reconfigure(fhicl::ParameterSet const& pset)
-{
-  fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
-  ftmatch                 = pset.get< int    >("TMatch");
-  fchi2dof                = pset.get< double >("Chi2DOFmax");
 }
 
 //------------------------------------------------------------------------------------//

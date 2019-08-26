@@ -53,15 +53,13 @@
 namespace shwf {
 
   class ShowerReco : public art::EDProducer {
-
   public:
+    explicit ShowerReco(fhicl::ParameterSet const& pset);
 
-    /**METHODS global*/
-    explicit ShowerReco(fhicl::ParameterSet const& pset);/**Constructor*/
-    virtual ~ShowerReco();                               /**Destructor*/
+  private:
+
     void beginJob();
     void beginRun(art::Run& run);
-    void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt);                       /**Actual routine that reconstruct the shower*/
 
      void   GetVertexAndAnglesFromCluster(art::Ptr< recob::Cluster > clust,unsigned int plane); // Get shower vertex and slopes.
@@ -71,8 +69,6 @@ namespace shwf {
     void   LongTransEnergy(unsigned int set, std::vector< art::Ptr<recob::Hit> > hitlist, bool isData=false); //Longtudinal
 
 
-
- private:
 
   void ClearandResizeVectors(unsigned int nPlanes);
 
@@ -188,17 +184,6 @@ namespace shwf {
 ShowerReco::ShowerReco(fhicl::ParameterSet const& pset) :
     EDProducer{pset}
 {
-  this->reconfigure(pset);
-  produces< std::vector<recob::Shower>                >();
-  produces< art::Assns<recob::Shower, recob::Cluster> >();
-  produces< art::Assns<recob::Shower, recob::Hit>     >();
-  produces< std::vector<anab::Calorimetry>              >();
-  produces< art::Assns<recob::Shower, anab::Calorimetry> >();
-}
-
-//------------------------------------------------------------------------------
-void ShowerReco::reconfigure(fhicl::ParameterSet const& pset)
-{
   fClusterModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 //  fVertexCLusterModuleLabel=pset.get<std::string > ("VertexClusterModuleLabel");
   fCaloPSet=pset.get< fhicl::ParameterSet >("CaloAlg");
@@ -207,12 +192,11 @@ void ShowerReco::reconfigure(fhicl::ParameterSet const& pset)
   fcalodEdxlength= pset.get< double >("calodEdxlength");  // cutoff distance for hits saved to the calo object.
   fUseArea= pset.get< bool >("UseArea");
 
-  return;
-}
-
-//------------------------------------------------------------------------------
-ShowerReco::~ShowerReco()
-{
+  produces< std::vector<recob::Shower>                >();
+  produces< art::Assns<recob::Shower, recob::Cluster> >();
+  produces< art::Assns<recob::Shower, recob::Hit>     >();
+  produces< std::vector<anab::Calorimetry>              >();
+  produces< art::Assns<recob::Shower, anab::Calorimetry> >();
 }
 
 // struct SortByWire

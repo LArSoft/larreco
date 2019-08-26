@@ -26,7 +26,6 @@ namespace trkf {
     explicit FeatureTracker(fhicl::ParameterSet const& pset);
 
   private:
-    void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt) override;
 
     // Fcl Attributes.
@@ -89,18 +88,13 @@ namespace trkf {
     fSP(pset.get<fhicl::ParameterSet>("SpacepointPset")),
     fCorner(pset.get<fhicl::ParameterSet>("CornerPset"))
   {
-    reconfigure(pset);
-    produces< std::vector<recob::Seed> >();
-  }
-
-  void FeatureTracker::reconfigure(fhicl::ParameterSet const& pset)
-  {
     fHitModuleLabel    = pset.get<std::string>("HitModuleLabel");
     fLineIntFraction   = pset.get<double>("LineIntFraction");
     fLineIntThreshold  = pset.get<double>("LineIntThreshold");
     fhicl::ParameterSet CornerPset = pset.get<fhicl::ParameterSet>("CornerPset");
     fCalDataModuleLabel = CornerPset.get<std::string>("CalDataModuleLabel");
 
+    produces< std::vector<recob::Seed> >();
   }
 
   void FeatureTracker::produce(art::Event& evt)

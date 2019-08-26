@@ -33,13 +33,10 @@
 namespace shower {
 
   class TCShowerElectronLikelihood : public art::EDAnalyzer {
-
   public:
-
     explicit TCShowerElectronLikelihood(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerElectronLikelihood();
 
-    void reconfigure(fhicl::ParameterSet const& pset);
+  private:
     void beginJob();
     void analyze(const art::Event& evt);
 
@@ -48,9 +45,6 @@ namespace shower {
     void getLongLikelihood();
     void getTranLikelihood();
 
-  protected:
-
-  private:
     void resetProfiles();
 
     std::string fTemplateFile;
@@ -143,17 +137,6 @@ shower::TCShowerElectronLikelihood::TCShowerElectronLikelihood(fhicl::ParameterS
   fShowerModuleLabel        (pset.get< std::string >("ShowerModuleLabel", "tcshower" ) ),
   fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel", "generator") ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
-  this->reconfigure(pset);
-} // TCShowerElectronLikelihood
-
-// -------------------------------------------------
-
-shower::TCShowerElectronLikelihood::~TCShowerElectronLikelihood() {
-} // ~TCShowerElectronLikelihood
-
-// -------------------------------------------------
-
-void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& pset) {
   fTemplateFile           = pset.get< std::string >("TemplateFile");
   cet::search_path sp("FW_SEARCH_PATH");
   if( !sp.find_file(fTemplateFile, fROOTfile) )
@@ -187,8 +170,7 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
   tranProfile_3 = new TH1F("tranProfile_3", "transverse shower profile [2 <= t < 3];dist (cm);Q", TBINS, TMIN, TMAX);;
   tranProfile_4 = new TH1F("tranProfile_4", "transverse shower profile [3 <= t < 4];dist (cm);Q", TBINS, TMIN, TMAX);;
   tranProfile_5 = new TH1F("tranProfile_5", "transverse shower profile [4 <= t < 5];dist (cm);Q", TBINS, TMIN, TMAX);;
-
-} // reconfigure
+} // TCShowerElectronLikelihood
 
 // -------------------------------------------------
 

@@ -50,18 +50,16 @@ namespace cluster {
    *
    */
   class TrajCluster: public art::EDProducer {
-
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
 
-    void reconfigure(fhicl::ParameterSet const & pset) ;
+  private:
     void produce(art::Event & evt) override;
     void beginJob() override;
     void endJob() override;
 
-  private:
 
-    std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
+    tca::TrajClusterAlg fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
     void GetHits(const std::vector<recob::Hit>& inputHits,
                  const geo::TPCID& tpcid, std::vector<std::vector<unsigned int>>& tpcHits);
@@ -136,16 +134,10 @@ namespace cluster {
   } // SortHits
 
   //----------------------------------------------------------------------------
-  void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
+  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+    , fTCAlg{pset.get< fhicl::ParameterSet >("TrajClusterAlg")}
   {
-    // this trick avoids double configuration on construction
-    if (fTCAlg)
-      fTCAlg->reconfigure(pset.get< fhicl::ParameterSet >("TrajClusterAlg"));
-    else {
-      fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
-    }
-
-
     fHitModuleLabel = "NA";
     if(pset.has_key("HitModuleLabel")) fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
     fSliceModuleLabel = "NA";
@@ -162,14 +154,6 @@ namespace cluster {
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
     fSaveAll2DVertices = false;
     if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
-
-  } // TrajCluster::reconfigure()
-
-  //----------------------------------------------------------------------------
-  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
-    : EDProducer{pset}
-  {
-    reconfigure(pset);
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -209,16 +193,16 @@ namespace cluster {
     art::ServiceHandle<art::TFileService const> tfs;
 
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
-    fTCAlg->DefineShTree(showertree);
+    fTCAlg.DefineShTree(showertree);
 //    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
-//    fTCAlg->DefineCRTree(crtree);
+//    fTCAlg.DefineCRTree(crtree);
   }
 
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
   {
-    std::vector<unsigned int> const& fAlgModCount = fTCAlg->GetAlgModCount();
-    std::vector<std::string> const& fAlgBitNames = fTCAlg->GetAlgBitNames();
+    std::vector<unsigned int> const& fAlgModCount = fTCAlg.GetAlgModCount();
+    std::vector<std::string> const& fAlgBitNames = fTCAlg.GetAlgBitNames();
     if(fAlgBitNames.size() != fAlgModCount.size()) return;
     mf::LogVerbatim myprt("TC");
     myprt<<"TrajCluster algorithm counts\n";
@@ -252,12 +236,12 @@ namespace cluster {
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
-    if(!fTCAlg->SetInputHits(*inputHits, evt.run(), evt.event())) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
+    if(!fTCAlg.SetInputHits(*inputHits, evt.run(), evt.event())) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
     
     // get an optional reference to the Slice collection
     auto inputSlices = art::Handle<std::vector<recob::Slice>>();
     if(fSliceModuleLabel != "NA") {
-      fTCAlg->ExpectSlicedHits();
+      fTCAlg.ExpectSlicedHits();
       if(!evt.getByLabel(fSliceModuleLabel, inputSlices)) throw cet::exception("TrajClusterModule")<<"Failed to get a inputSlices";
     } // fSliceModuleLabel specified
 
@@ -265,7 +249,7 @@ namespace cluster {
     auto InputSpts = art::Handle<std::vector<recob::SpacePoint>>();
     if(fSpacePointModuleLabel != "NA") {
       if(!evt.getByLabel(fSpacePointModuleLabel, InputSpts)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
-      fTCAlg->SetInputSpts(*InputSpts);
+      fTCAlg.SetInputSpts(*InputSpts);
       // Size the Hit -> SpacePoint assn vector
       tca::evt.allHitsSptIndex.resize(nInputHits, UINT_MAX);
       art::FindManyP<recob::Hit> hitsFromSpt (InputSpts, evt, fSpacePointHitAssnLabel);
@@ -339,15 +323,15 @@ namespace cluster {
               } // Look for debug hit
             } // iht
           } // tca::tcc.dbgStp
-          fTCAlg->RunTrajClusterAlg(tpcHits, slcIDs[isl]);
+          fTCAlg.RunTrajClusterAlg(tpcHits, slcIDs[isl]);
           // this is only used for MC truth matching
           tpcList.push_back(tpcid.TPC);
         } // isl
       } // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
-      fTCAlg->FinishEvent();
-      if(!evt.isRealData()) fTCAlg->fTM.MatchTruth(tpcList);
-      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event()); 
+      fTCAlg.FinishEvent();
+      if(!evt.isRealData()) fTCAlg.fTM.MatchTruth(tpcList);
+      if(tca::tcc.matchTruth[0] >= 0) fTCAlg.fTM.PrintResults(evt.event());
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // nInputHits > 0
 
@@ -409,7 +393,7 @@ namespace cluster {
     std::vector<slcVxStruct> vx3StrList;
 
     if(nInputHits > 0) {
-      unsigned short nSlices = fTCAlg->GetSlicesSize();
+      unsigned short nSlices = fTCAlg.GetSlicesSize();
       // define a hit collection begin index to pass to CreateAssn for each cluster
       unsigned int hitColBeginIndex = 0;
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
@@ -418,7 +402,7 @@ namespace cluster {
           for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
-        auto& slc = fTCAlg->GetSlice(isl);
+        auto& slc = fTCAlg.GetSlice(isl);
         // See if there was a serious reconstruction failure that made the sub-slice invalid
         if(!slc.isValid) continue;
         // make EndPoint2Ds
@@ -508,7 +492,7 @@ namespace cluster {
                 newIndex[iht] = hitCol.size() - 1;
               } // iht
             } else {
-              fTCAlg->MergeTPHits(tpHits, hitCol, newIndex);
+              fTCAlg.MergeTPHits(tpHits, hitCol, newIndex);
             }
           } // tp
           if(hitCol.empty()) continue;
@@ -636,7 +620,7 @@ namespace cluster {
           for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
-        auto& slc = fTCAlg->GetSlice(isl);
+        auto& slc = fTCAlg.GetSlice(isl);
         // See if there was a serious reconstruction failure that made the slice invalid
         if(!slc.isValid) continue;
         // make PFParticles
@@ -740,7 +724,7 @@ namespace cluster {
         for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if(newIndex[allHitsIndex] != UINT_MAX) continue;
           std::vector<unsigned int> oneHit(1, allHitsIndex);
-          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
+          fTCAlg.MergeTPHits(oneHit, hitCol, newIndex);
           // find out which slice it is in
           bool gotit = false;
           for(size_t isl = 0; isl < slices.size(); ++isl) {
@@ -764,7 +748,7 @@ namespace cluster {
         for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if(newIndex[allHitsIndex] != UINT_MAX) continue;
           std::vector<unsigned int> oneHit(1, allHitsIndex);
-          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
+          fTCAlg.MergeTPHits(oneHit, hitCol, newIndex);
         } // allHitsIndex
       } // recob::Slices
     } // input hits exist
@@ -789,7 +773,7 @@ namespace cluster {
     } // nInputHits > 0
 
     // clear the alg data structures
-    fTCAlg->ClearResults();
+    fTCAlg.ClearResults();
 
     // convert vectors to unique_ptrs
     std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>(std::move(hitCol)));
@@ -889,7 +873,7 @@ namespace cluster {
     // pass a reference to the MCParticle collection to TrajClusterAlg
     auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
     if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to MCParticles\n";
-    fTCAlg->SetMCPHandle(*mcpHandle);
+    fTCAlg.SetMCPHandle(*mcpHandle);
     // size the hit -> MCParticle match vector
     tca::evt.allHitsMCPIndex.resize((*inputHits).size(), UINT_MAX);
     // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC

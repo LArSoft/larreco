@@ -28,7 +28,7 @@ shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset)
   fZIntercept = pset.get<double>("ZIntercept");
 }
 
-double shower::ShowerEnergyAlg::ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane) {
+double shower::ShowerEnergyAlg::ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane) const {
 
   double totalCharge = 0, totalEnergy = 0;
 

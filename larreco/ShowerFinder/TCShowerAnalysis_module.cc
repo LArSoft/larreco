@@ -29,23 +29,16 @@ const int kMaxShowers = 1000;  //maximum number of showers
 namespace shower {
 
   class TCShowerAnalysis : public art::EDAnalyzer {
-
   public:
-
     explicit TCShowerAnalysis(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerAnalysis();
 
-    void reconfigure(fhicl::ParameterSet const& pset);
+  private:
     void beginJob();
     void analyze(const art::Event& evt);
-
-  protected:
 
     void reset();
 
     void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
-
-  private:
 
     TTree* fTree;
     int run;
@@ -88,18 +81,7 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel", "generator")  ),
   fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel", "largeant")  ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
-  this->reconfigure(pset);
 } // TCShowerTemplateMaker
-
-// -------------------------------------------------
-
-shower::TCShowerAnalysis::~TCShowerAnalysis() {
-} // ~TCShowerTemplateMaker
-
-// -------------------------------------------------
-
-void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
-} // reconfigure
 
 // -------------------------------------------------
 

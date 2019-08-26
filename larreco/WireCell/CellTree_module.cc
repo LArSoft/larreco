@@ -56,14 +56,13 @@ class CellTree : public art::EDAnalyzer {
 public:
 
   explicit CellTree(fhicl::ParameterSet const& pset);
-  virtual ~CellTree();
 
-  void beginJob();
+private:
+
   void endJob();
   void beginRun(const art::Run& run);
   void analyze(const art::Event& evt);
 
-  void reconfigure(fhicl::ParameterSet const& pset);
   void initOutput();
   void printEvent();
   void print_vector(ostream& out, vector<double>& v, TString desc, bool end=false);
@@ -89,8 +88,6 @@ public:
   bool DumpMCJSON(int id, ostream& out);
   void DumpMCJSON(ostream& out=cout);
 
-
-private:
 
   // the parameters we'll read from the .fcl
   std::string fRawDigitLabel;
@@ -210,24 +207,12 @@ private:
 
 
 //-----------------------------------------------------------------------
-CellTree::CellTree(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+CellTree::CellTree(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
 {
     dbPDG = new TDatabasePDG();
     entryNo = 0;
 
-    reconfigure(parameterSet);
-    InitProcessMap();
-    initOutput();
-}
-
-//-----------------------------------------------------------------------
-CellTree::~CellTree()
-{
-}
-
-//-----------------------------------------------------------------------
-void CellTree::reconfigure(fhicl::ParameterSet const& p){
     fRawDigitLabel   = p.get<std::string>("RawDigitLabel");
     fCalibLabel      = p.get<std::string>("CalibLabel");
     fOpHitLabel      = p.get<std::string>("OpHitLabel");
@@ -248,6 +233,9 @@ void CellTree::reconfigure(fhicl::ParameterSet const& p){
     fSaveJSON        = p.get<bool>("saveJSON");
     opMultPEThresh   = p.get<float>("opMultPEThresh");
     nRawSamples      = p.get<int>("nRawSamples");
+
+    InitProcessMap();
+    initOutput();
 }
 
 //-----------------------------------------------------------------------
@@ -351,14 +339,6 @@ void CellTree::initOutput()
     }
 
 }
-
-//-----------------------------------------------------------------------
-void CellTree::beginJob()
-{
-
-
-}
-
 
 //-----------------------------------------------------------------------
 void CellTree::endJob()

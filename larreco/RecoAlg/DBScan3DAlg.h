@@ -79,7 +79,6 @@ class DBScan3DAlg {
 
 
     DBScan3DAlg(fhicl::ParameterSet const& pset);
-    virtual ~DBScan3DAlg();
 
     std::vector<point_t> points;
 
@@ -105,7 +104,7 @@ class DBScan3DAlg {
     int spread(unsigned int index,
                epsilon_neighbours_t *seeds,
                unsigned int cluster_id);
-    float dist(point_t *a, point_t *b);
+    float dist(point_t *a, point_t *b) const;
 
 
   }; // class DBScan3DAlg

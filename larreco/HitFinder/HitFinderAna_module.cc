@@ -43,18 +43,13 @@ namespace hit {
 
   /// Base class for creation of raw signals on wires.
   class HitFinderAna : public art::EDAnalyzer {
-
   public:
-
     explicit HitFinderAna(fhicl::ParameterSet const& pset);
-    virtual ~HitFinderAna();
 
+  private:
     /// read/write access to event
     void analyze (const art::Event& evt);
     void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
-
-  private:
 
     std::string            fFFTHitFinderModuleLabel;
     std::string            fLArG4ModuleLabel;
@@ -101,20 +96,10 @@ namespace hit{
   HitFinderAna::HitFinderAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
   {
-    this->reconfigure(pset);
+    fFFTHitFinderModuleLabel = pset.get< std::string >("HitsModuleLabel");
+    fLArG4ModuleLabel        = pset.get< std::string >("LArGeantModuleLabel");
   }
 
-  //-------------------------------------------------
-  HitFinderAna::~HitFinderAna()
-  {
-  }
-
-  void HitFinderAna::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fFFTHitFinderModuleLabel = p.get< std::string >("HitsModuleLabel");
-    fLArG4ModuleLabel        = p.get< std::string >("LArGeantModuleLabel");
-    return;
-  }
   //-------------------------------------------------
   void HitFinderAna::beginJob()
   {

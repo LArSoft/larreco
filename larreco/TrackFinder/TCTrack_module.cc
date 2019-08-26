@@ -35,10 +35,9 @@ namespace trkf {
   public:
     explicit TCTrack(fhicl::ParameterSet const & pset);
 
-    void reconfigure(fhicl::ParameterSet const & pset) ;
-    void produce(art::Event & evt) override;
-
   private:
+
+    void produce(art::Event & evt) override;
 
     SpacePointAlg fSptalg;
 
@@ -49,22 +48,12 @@ namespace trkf {
   }; // class TCTrack
 
   //----------------------------------------------------------------------------
-  void TCTrack::reconfigure(fhicl::ParameterSet const & pset)
-  {
-//    fHitModuleLabel         = pset.get< std::string >("HitModuleLabel");
-    fPFPModuleLabel     = pset.get< std::string >("PFPModuleLabel");
-
-    fSptalg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
-
-  }
-
-  //----------------------------------------------------------------------------
   TCTrack::TCTrack(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
     , fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
   {
-
-    reconfigure(pset);
+//    fHitModuleLabel         = pset.get< std::string >("HitModuleLabel");
+    fPFPModuleLabel     = pset.get< std::string >("PFPModuleLabel");
 
     produces<std::vector<recob::SpacePoint> >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();

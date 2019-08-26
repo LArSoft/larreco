@@ -18,13 +18,9 @@ namespace trkf{
   class LinFitAlg {
     public:
 
-    LinFitAlg();
-
-    virtual ~LinFitAlg();
-
     void LinFit(std::vector<float>& x, std::vector<float>& y,
       std::vector<float>& ey2, float& Intercept, float& Slope,
-      float& InterceptError, float& SlopeError, float& ChiDOF);
+      float& InterceptError, float& SlopeError, float& ChiDOF) const;
 
   }; // class LinFitAlg
 

@@ -28,12 +28,6 @@ namespace cmtool {
 
   public:
 
-    /// Default constructor
-    CMergeHelper(){}
-
-    /// Default destructor
-    virtual ~CMergeHelper(){}
-
     CMergeManager& GetManager(size_t mgr_id);
 
     void SetAnaFile(TFile* fout);

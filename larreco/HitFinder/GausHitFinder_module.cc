@@ -64,7 +64,6 @@ private:
 
     void produce(art::Event& evt) override;
     void beginJob() override;
-    void reconfigure(fhicl::ParameterSet const& p) ;
 
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
 
@@ -103,7 +102,44 @@ private:
 GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
   : EDProducer{pset}
 {
-    this->reconfigure(pset);
+    fCalDataModuleLabel = pset.get< std::string  >("CalDataModuleLabel");
+
+    fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
+
+    fFilterHits         = pset.get< bool >("FilterHits",false);
+
+    if (fFilterHits) {
+        fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
+    }
+
+    FillOutHitParameterVector(pset.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);
+
+    fLongMaxHitsVec    = pset.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
+    fLongPulseWidthVec = pset.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
+    fMaxMultiHit       = pset.get< int             >("MaxMultiHit");
+    fAreaMethod        = pset.get< int             >("AreaMethod");
+    fChi2NDF           = pset.get< double          >("Chi2NDF");
+
+    fPulseHeightCuts   = pset.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0});
+    fPulseWidthCuts    = pset.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0});
+    fPulseRatioCuts    = pset.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20});
+
+    // recover the tool to do the candidate hit finding
+    // Recover the vector of fhicl parameters for the ROI tools
+    const fhicl::ParameterSet& hitFinderTools = pset.get<fhicl::ParameterSet>("HitFinderToolVec");
+
+    fHitFinderToolVec.resize(hitFinderTools.get_pset_names().size());
+
+    for(const std::string& hitFinderTool : hitFinderTools.get_pset_names())
+    {
+        const fhicl::ParameterSet& hitFinderToolParamSet = hitFinderTools.get<fhicl::ParameterSet>(hitFinderTool);
+        size_t                     planeIdx              = hitFinderToolParamSet.get<size_t>("Plane");
+
+        fHitFinderToolVec.at(planeIdx) = art::make_tool<reco_tool::ICandidateHitFinder>(hitFinderToolParamSet);
+    }
+
+    // Recover the peak fitting tool
+    fPeakFitterTool = art::make_tool<reco_tool::IPeakFitter>(pset.get<fhicl::ParameterSet>("PeakFitter"));
 
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -141,57 +177,6 @@ void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 }
 
 
-//-------------------------------------------------
-//-------------------------------------------------
-void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
-{
-    // Implementation of optional member function here.
-    fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-
-    fAllHitsInstanceName = p.get< std::string >("AllHitsInstanceName","");
-
-    fFilterHits         = p.get< bool >("FilterHits",false);
-
-    if (fFilterHits) {
-      if (fHitFilterAlg) { // reconfigure existing algorithm
-        fHitFilterAlg->reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
-      else { // create a new algorithm instance
-        fHitFilterAlg = std::make_unique<HitFilterAlg>(p.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
-    }
-
-    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);
-
-    fLongMaxHitsVec    = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
-    fLongPulseWidthVec = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
-    fMaxMultiHit       = p.get< int             >("MaxMultiHit");
-    fAreaMethod        = p.get< int             >("AreaMethod");
-    fChi2NDF           = p.get< double          >("Chi2NDF");
-
-    fPulseHeightCuts   = p.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0});
-    fPulseWidthCuts    = p.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0});
-    fPulseRatioCuts    = p.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20});
-
-    // recover the tool to do the candidate hit finding
-    // Recover the vector of fhicl parameters for the ROI tools
-    const fhicl::ParameterSet& hitFinderTools = p.get<fhicl::ParameterSet>("HitFinderToolVec");
-
-    fHitFinderToolVec.resize(hitFinderTools.get_pset_names().size());
-
-    for(const std::string& hitFinderTool : hitFinderTools.get_pset_names())
-    {
-        const fhicl::ParameterSet& hitFinderToolParamSet = hitFinderTools.get<fhicl::ParameterSet>(hitFinderTool);
-        size_t                     planeIdx              = hitFinderToolParamSet.get<size_t>("Plane");
-
-        fHitFinderToolVec.at(planeIdx) = art::make_tool<reco_tool::ICandidateHitFinder>(hitFinderToolParamSet);
-    }
-
-    // Recover the peak fitting tool
-    fPeakFitterTool = art::make_tool<reco_tool::IPeakFitter>(p.get<fhicl::ParameterSet>("PeakFitter"));
-
-    return;
-}
 
 //-------------------------------------------------
 //-------------------------------------------------

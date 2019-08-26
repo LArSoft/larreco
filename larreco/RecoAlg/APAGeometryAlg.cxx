@@ -40,11 +40,6 @@ namespace apa{
   }
 
   //----------------------------------------------------------
-  APAGeometryAlg::~APAGeometryAlg()
-  {
-  }
-
-  //----------------------------------------------------------
   void APAGeometryAlg::reconfigure(fhicl::ParameterSet const& /*p*/)
   {
   }
@@ -116,7 +111,7 @@ namespace apa{
   //----------------------------------------------------------
   void APAGeometryAlg::ChannelToAPA( uint32_t chan,
 				     unsigned int & apa,
-				     unsigned int & cryo){
+                                     unsigned int & cryo) const {
 
     cryo  =  chan / (fAPAsPerCryo*fChannelsPerAPA);
 
@@ -130,14 +125,14 @@ namespace apa{
   }
 
   //----------------------------------------------------------
-  unsigned int APAGeometryAlg::ChannelToAPA( uint32_t chan ){
+  unsigned int APAGeometryAlg::ChannelToAPA( uint32_t chan ) const {
 
     return chan / fChannelsPerAPA;
   }
 
 
   //----------------------------------------------------------
-  unsigned int APAGeometryAlg::ChannelsInView( geo::View_t geoview ){
+  unsigned int APAGeometryAlg::ChannelsInView( geo::View_t geoview ) const {
 
     switch(geoview){
     default       :
@@ -157,7 +152,7 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  unsigned int APAGeometryAlg::ChannelsInAPAView( APAView_t apaview ){
+  unsigned int APAGeometryAlg::ChannelsInAPAView( APAView_t apaview ) const {
 
     switch(apaview){
     default  :
@@ -178,7 +173,7 @@ namespace apa{
   //----------------------------------------------------------
   uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview,
 					       unsigned int apa,
-					       unsigned int cryo ){
+                                               unsigned int cryo ) const {
 
 
     switch(geoview){
@@ -196,7 +191,7 @@ namespace apa{
   }
 
   //----------------------------------------------------------
-  uint32_t APAGeometryAlg::FirstChannelInView( uint32_t chan ){
+  uint32_t APAGeometryAlg::FirstChannelInView( uint32_t chan ) const {
 
     geo::View_t geoview = fGeom->View(chan);
     unsigned int apa, cryo;
@@ -207,7 +202,7 @@ namespace apa{
 
   //----------------------------------------------------------
   uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview,
-					       uint32_t chan ){
+                                               uint32_t chan ) const {
 
     unsigned int apa, cryo;
     this->ChannelToAPA( chan, apa, cryo );
@@ -218,7 +213,7 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  APAView_t APAGeometryAlg::APAView( uint32_t chan ){
+  APAView_t APAGeometryAlg::APAView( uint32_t chan ) const{
 
     // it seems trivial to do this for U and V, but this gives a side to
     // geo::kZ, unlike Geometry::View(c), as is often needed in disambiguation
@@ -244,7 +239,7 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  std::vector<geo::WireID> APAGeometryAlg::ChanSegsPerSide(uint32_t chan, unsigned int side){
+  std::vector<geo::WireID> APAGeometryAlg::ChanSegsPerSide(uint32_t chan, unsigned int side) const {
 
     std::vector<geo::WireID> wids = fGeom->ChannelToWire(chan);
     return this->ChanSegsPerSide(wids, side);
@@ -254,7 +249,7 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  std::vector<geo::WireID> APAGeometryAlg::ChanSegsPerSide(std::vector<geo::WireID> wids, unsigned int side)
+  std::vector<geo::WireID> APAGeometryAlg::ChanSegsPerSide(std::vector<geo::WireID> wids, unsigned int side) const
   {
     // Given a vector of wireIDs and an APA side, return
     // the wireIDs the the tpc side where tpc%2 = side
@@ -275,7 +270,7 @@ namespace apa{
 						    uint32_t chan,
 						    unsigned int const plane,
 						    unsigned int const tpc,
-						    unsigned int const cstat   )
+                                                    unsigned int const cstat   ) const
   {
 
     std::vector<geo::WireID> cWids = fGeom->ChannelToWire( chan );
@@ -308,7 +303,7 @@ namespace apa{
   //----------------------------------------------------------
   bool APAGeometryAlg::LineSegChanIntersect( TVector3 xyzStart, TVector3 xyzEnd, uint32_t chan,
 					     std::vector<geo::WireID> & widsCrossed,
-					     bool ExtendLine = true )
+                                             bool ExtendLine = true ) const
   {
 
     // This assumes a smooth wire numbering, and that the line seg is contained in a tpc.
@@ -358,7 +353,7 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  std::vector<double>  APAGeometryAlg::ThreeChanPos( uint32_t u, uint32_t v, uint32_t z )
+  std::vector<double>  APAGeometryAlg::ThreeChanPos( uint32_t u, uint32_t v, uint32_t z ) const
   {
 
     // Say we've associated a U, V, and Z channel -- perhaps by associating hits
@@ -480,7 +475,7 @@ namespace apa{
 
   //----------------------------------------------------------
   bool APAGeometryAlg::APAChannelsIntersect( uint32_t chan1, uint32_t chan2,
-					     std::vector< geo::WireIDIntersection >& IntersectVector )
+                                             std::vector< geo::WireIDIntersection >& IntersectVector ) const
   {
 
 

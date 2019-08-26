@@ -253,28 +253,28 @@ public:
 
 private:
 
-	double collectSingleViewEnd(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits);
-	double collectSingleViewFront(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits);
+    double collectSingleViewEnd(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits) const;
+    double collectSingleViewFront(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits) const;
 
 	bool reassignHits_1(const std::vector< art::Ptr<recob::Hit> > & hits,
 		pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
 	bool reassignSingleViewEnds_1(pma::TrkCandidateColl & tracks); // use clusters
 
 	bool reassignHits_2(const std::vector< art::Ptr<recob::Hit> > & hits,
-		pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
-	bool reassignSingleViewEnds_2(pma::TrkCandidateColl & tracks);
+                        pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2) const;
+    bool reassignSingleViewEnds_2(pma::TrkCandidateColl & tracks) const;
 
 	bool areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		double& dist, double& cos3d, bool& reverseOrder,
 		double distThr, double distThrMin,
 		double distProjThr,
-		double cosThr);
+                double cosThr) const;
 
-	void freezeBranchingNodes(pma::TrkCandidateColl & tracks);
-	void releaseAllNodes(pma::TrkCandidateColl & tracks);
+    void freezeBranchingNodes(pma::TrkCandidateColl & tracks) const;
+    void releaseAllNodes(pma::TrkCandidateColl & tracks) const;
 
-	bool mergeCoLinear(pma::TrkCandidateColl & tracks);
-	void mergeCoLinear(pma::tpc_track_map& tracks);
+    bool mergeCoLinear(pma::TrkCandidateColl & tracks) const;
+    void mergeCoLinear(pma::tpc_track_map& tracks) const;
 
 	double validate(pma::Track3D& trk, unsigned int testView);
 

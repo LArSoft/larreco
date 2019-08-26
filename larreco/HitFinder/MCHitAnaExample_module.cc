@@ -31,10 +31,10 @@ namespace hit {
     explicit MCHitAnaExample(fhicl::ParameterSet const & p);
     virtual ~MCHitAnaExample();
 
+  private:
+
     void analyze(art::Event const & e) override;
 
-
-  private:
 
     //
     // Module names

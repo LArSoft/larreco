@@ -33,11 +33,6 @@ namespace trkf {
     }
 
     //----------------------------------------------------------------------------
-    SeedFinderAlgorithm::~SeedFinderAlgorithm()
-    {
-    }
-
-    //----------------------------------------------------------------------------
     void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
     {
 
@@ -73,7 +68,7 @@ namespace trkf {
     // Given a set of spacepoints, find seeds, and catalogue
     //  spacepoints by the seeds they formed
     //
-    std::vector<recob::Seed> SeedFinderAlgorithm::FindSeeds( art::PtrVector<recob::Hit> const& HitsFlat, std::vector<art::PtrVector<recob::Hit> >& CataloguedHits, unsigned int StopAfter)
+    std::vector<recob::Seed> SeedFinderAlgorithm::FindSeeds( art::PtrVector<recob::Hit> const& HitsFlat, std::vector<art::PtrVector<recob::Hit> >& CataloguedHits, unsigned int StopAfter) const
     {
         // Vector of seeds found to return
         std::vector<recob::Seed>       ReturnVector;
@@ -438,7 +433,7 @@ namespace trkf {
     //
 
     void SeedFinderAlgorithm::ConsolidateSeed(recob::Seed& TheSeed, art::PtrVector<recob::Hit> const& HitsFlat, std::vector<char>& HitStatus,
-                                              std::vector< std::vector< std::vector<int> > >& OrgHits, bool Extend)
+                                              std::vector< std::vector< std::vector<int> > >& OrgHits, bool Extend) const
     {
 
         bool ThrowOutSeed = false;
@@ -718,7 +713,7 @@ namespace trkf {
     //------------------------------------------------------------
 
 
-    void SeedFinderAlgorithm::GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s)
+    void SeedFinderAlgorithm::GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s) const
     {
         const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
         art::ServiceHandle<geo::Geometry const> geom;
@@ -755,7 +750,7 @@ namespace trkf {
     // Try to find one seed at the high Z end of a set of spacepoints
     //
 
-    recob::Seed  SeedFinderAlgorithm::FindSeedAtEnd(std::vector<recob::SpacePoint> const& Points, std::vector<char>& PointStatus, std::vector<int>& PointsInRange, art::PtrVector<recob::Hit> const& HitsFlat, std::vector< std::vector< std::vector<int> > >& OrgHits)
+    recob::Seed  SeedFinderAlgorithm::FindSeedAtEnd(std::vector<recob::SpacePoint> const& Points, std::vector<char>& PointStatus, std::vector<int>& PointsInRange, art::PtrVector<recob::Hit> const& HitsFlat, std::vector< std::vector< std::vector<int> > >& OrgHits) const
     {
         // This pointer will be returned later
         recob::Seed ReturnSeed;
@@ -916,7 +911,7 @@ namespace trkf {
 
     //-----------------------------------------------------------
 
-    void  SeedFinderAlgorithm::GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>&  HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& N)
+    void  SeedFinderAlgorithm::GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>&  HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& N) const
     {
         // Initialize the services we need
         const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -1119,7 +1114,7 @@ namespace trkf {
 
     //-----------------------------------------------
 
-    std::vector<recob::Seed>    SeedFinderAlgorithm::GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const & Hits, std::vector<art::PtrVector<recob::Hit> >& HitCatalogue, unsigned int StopAfter)
+    std::vector<recob::Seed>    SeedFinderAlgorithm::GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const & Hits, std::vector<art::PtrVector<recob::Hit> >& HitCatalogue, unsigned int StopAfter) const
     {
         std::vector<recob::Seed> ReturnVec;
 
@@ -1133,7 +1128,7 @@ namespace trkf {
 
     //---------------------------------------------
 
-    std::vector<std::vector<recob::Seed> > SeedFinderAlgorithm::GetSeedsFromSortedHits(std::vector<std::vector<art::PtrVector<recob::Hit> > >  const& SortedHits, std::vector<std::vector<art::PtrVector<recob::Hit> > >& HitsPerSeed, unsigned int StopAfter)
+    std::vector<std::vector<recob::Seed> > SeedFinderAlgorithm::GetSeedsFromSortedHits(std::vector<std::vector<art::PtrVector<recob::Hit> > >  const& SortedHits, std::vector<std::vector<art::PtrVector<recob::Hit> > >& HitsPerSeed, unsigned int StopAfter) const
     {
 
 

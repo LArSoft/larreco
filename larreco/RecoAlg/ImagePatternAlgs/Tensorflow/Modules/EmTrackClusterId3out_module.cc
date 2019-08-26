@@ -92,9 +92,9 @@ public:
 	EmTrackClusterId & operator = (EmTrackClusterId const &) = delete;
 	EmTrackClusterId & operator = (EmTrackClusterId &&) = delete;
 
+private:
 	void produce(art::Event & e) override;
 
-private:
 	bool isViewSelected(int view) const;
 
         size_t fBatchSize;

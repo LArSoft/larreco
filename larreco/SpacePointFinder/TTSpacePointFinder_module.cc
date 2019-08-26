@@ -33,16 +33,13 @@
 namespace sppt{
 
   class TTSpacePointFinder : public art::EDProducer {
-
   public:
 
     explicit TTSpacePointFinder(fhicl::ParameterSet const& pset);
 
+  private:
     void produce(art::Event& evt);
     void beginRun(art::Run& run);
-    void reconfigure(fhicl::ParameterSet const& p);
-
-  private:
 
     std::string    fHitModuleLabel;     /// Input hit module name
     std::string    fUHitsInstanceLabel; /// Input U hits instance name
@@ -50,9 +47,6 @@ namespace sppt{
     std::string    fYHitsInstanceLabel; /// Input Y hits instance name
 
     SpacePointAlg_TimeSort fSpptAlg;
-
-  protected:
-
   }; // class TTSpacePointFinder
 
   //-------------------------------------------------
@@ -60,20 +54,13 @@ namespace sppt{
     EDProducer{pset},
     fSpptAlg( pset.get< fhicl::ParameterSet >("SpacePointAlgParams") )
   {
-    this->reconfigure(pset);
+    fHitModuleLabel     = pset.get< std::string >("HitModuleLabel","tthit");
+    fUHitsInstanceLabel = pset.get< std::string >("UHitsInstaceLabel","uhits");
+    fVHitsInstanceLabel = pset.get< std::string >("VHitsInstaceLabel","vhits");
+    fYHitsInstanceLabel = pset.get< std::string >("YHitsInstaceLabel","yhits");
+
     produces< std::vector<recob::SpacePoint> >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
-  }
-
-  //-------------------------------------------------
-  void TTSpacePointFinder::reconfigure(fhicl::ParameterSet const& p) {
-    fHitModuleLabel     = p.get< std::string >("HitModuleLabel","tthit");
-    fUHitsInstanceLabel = p.get< std::string >("UHitsInstaceLabel","uhits");
-    fVHitsInstanceLabel = p.get< std::string >("VHitsInstaceLabel","vhits");
-    fYHitsInstanceLabel = p.get< std::string >("YHitsInstaceLabel","yhits");
-
-    fSpptAlg.reconfigure(p.get< fhicl::ParameterSet >("SpacePointAlgParams"));
-
   }
 
   //-------------------------------------------------

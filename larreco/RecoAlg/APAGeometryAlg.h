@@ -35,7 +35,6 @@ namespace apa{
 
     APAGeometryAlg(fhicl::ParameterSet const& pset);
     APAGeometryAlg();
-    virtual ~APAGeometryAlg();
 
     void                 reconfigure(fhicl::ParameterSet const& p);
 
@@ -43,42 +42,42 @@ namespace apa{
 
     bool                 APAChannelsIntersect( uint32_t chan1,
 					       uint32_t chan2,
-					       std::vector< geo::WireIDIntersection > & IntersectVector);
+                                               std::vector< geo::WireIDIntersection > & IntersectVector) const;
                                                        ///< If the channels intersect, get all intersections
 
     bool                 LineSegChanIntersect(     TVector3 xyzStart,
 						   TVector3 xyzEnd,
 						   uint32_t chan,
 						   std::vector< geo::WireID >& widsCrossed,
-						   bool ExtendLine );
+                                                   bool ExtendLine ) const;
                                                        ///< If a line given by start/end points intersects a channel
 
-    std::vector<geo::WireID> ChanSegsPerSide(uint32_t chan, unsigned int side);
-    std::vector<geo::WireID> ChanSegsPerSide(std::vector<geo::WireID> wids, unsigned int side);
+    std::vector<geo::WireID> ChanSegsPerSide(uint32_t chan, unsigned int side) const;
+    std::vector<geo::WireID> ChanSegsPerSide(std::vector<geo::WireID> wids, unsigned int side) const;
 
-    std::vector<double>  ThreeChanPos( uint32_t u, uint32_t v, uint32_t z );
+    std::vector<double>  ThreeChanPos( uint32_t u, uint32_t v, uint32_t z ) const;
                                                        ///< Find the center of the 3 intersections, choose best if multiple
 
     geo::WireID          NearestWireIDOnChan( const double WorldLoc[3],
 					      uint32_t chan,
 					      unsigned int const plane,
 					      unsigned int const tpc=0,
-					      unsigned int const cstat=0);
+                                              unsigned int const cstat=0) const;
 
-    unsigned int         ChannelToAPA(uint32_t chan);  ///< Get number of the APA containing the given channel
+    unsigned int         ChannelToAPA(uint32_t chan) const;  ///< Get number of the APA containing the given channel
     void                 ChannelToAPA(         uint32_t chan,
 				               unsigned int & apa,
-					       unsigned int & cryo);
-    APAView_t            APAView(uint32_t chan);       ///< Get which of the 4 APA views the channel is in
-    unsigned int         ChannelsInView( geo::View_t geoview );
+                                               unsigned int & cryo) const;
+    APAView_t            APAView(uint32_t chan) const;       ///< Get which of the 4 APA views the channel is in
+    unsigned int         ChannelsInView( geo::View_t geoview ) const;
     uint32_t             FirstChannelInView(   geo::View_t geoview,
 					       unsigned int apa,
-					       unsigned int cryo );
+                                               unsigned int cryo ) const;
     uint32_t             FirstChannelInView(   geo::View_t geoview,
-					       uint32_t chan );
-    uint32_t             FirstChannelInView(   uint32_t chan );
-    unsigned int         ChannelsInAPAView( APAView_t apaview );
-    unsigned int         ChannelsPerAPA(){ return fChannelsPerAPA; };
+                                               uint32_t chan ) const;
+    uint32_t             FirstChannelInView(   uint32_t chan ) const;
+    unsigned int         ChannelsInAPAView( APAView_t apaview ) const;
+    unsigned int         ChannelsPerAPA() const { return fChannelsPerAPA; };
 
 
   private:

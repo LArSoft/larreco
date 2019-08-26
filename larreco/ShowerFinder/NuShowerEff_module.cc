@@ -57,6 +57,8 @@ public:
   NuShowerEff & operator = (NuShowerEff const &) = delete;
   NuShowerEff & operator = (NuShowerEff &&) = delete;
 
+private:
+
   // Required functions.
   void analyze(art::Event const & e) override;
 
@@ -67,8 +69,6 @@ public:
   void doEfficiencies();
   bool insideFV(double vertex[4]);
   void reset();
-
-private:
 
   // Declare member data here.
 

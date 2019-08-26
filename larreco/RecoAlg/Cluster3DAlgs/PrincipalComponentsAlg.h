@@ -44,7 +44,7 @@ public:
     /**
      *  @brief  Destructor
      */
-    virtual ~PrincipalComponentsAlg();
+    ~PrincipalComponentsAlg();
 
     /**
      *  @brief a handler for the case where the algorithm control parameters are to be reset

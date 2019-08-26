@@ -56,8 +56,6 @@ public:
     Vertex(const Coords& coords, HalfEdge* half) : fCoords(coords), fHalfEdge(half)
     {}
 
-    ~Vertex() {}
-
     const Coords&   getCoords()   const {return fCoords;}
     const HalfEdge* getHalfEdge() const {return fHalfEdge;}
 
@@ -98,8 +96,6 @@ public:
         fFaceArea(0.),
         fClusterHit3D(clusterHit3D)
     {}
-
-    ~Face() {}
 
     const HalfEdge*           getHalfEdge()     const {return fHalfEdge;}
     const bool                onConvexHull()    const {return fConvexHull;}
@@ -151,8 +147,6 @@ public:
         m_nextHalfEdge(next),
         m_lastHalfEdge(last)
     {}
-
-    ~HalfEdge() {}
 
     Vertex*   getTargetVertex() const {return m_targetVertex;}
     Face*     getFace()         const {return m_face;}

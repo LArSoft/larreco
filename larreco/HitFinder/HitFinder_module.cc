@@ -32,13 +32,12 @@ namespace hit {
       explicit HitFinder(fhicl::ParameterSet const & pset);
 
     private:
-      void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
 
       void endJob() override;
 
       art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
-      std::unique_ptr<CCHitFinderAlg> fCCHFAlg; // define CCHitFinderAlg object
+      CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
 
   }; // hit::HitFinder()
 
@@ -66,8 +65,9 @@ namespace hit {
   //----------------------------------------------------------------------------
   HitFinder::HitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
+    , fCCHFAlg{pset.get<fhicl::ParameterSet>("CCHitFinderAlg")}
   {
-    reconfigure(pset);
+    fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -76,21 +76,6 @@ namespace hit {
     recob::HitCollectionAssociator::declare_products(*this);
 
   } // HitFinder::HitFinder()
-
-
-  //----------------------------------------------------------------------------
-  void HitFinder::reconfigure(fhicl::ParameterSet const & pset)
-  {
-    fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
-
-    // this trick avoids double configuration on construction
-    if (fCCHFAlg)
-      fCCHFAlg->reconfigure(pset.get<fhicl::ParameterSet>("CCHitFinderAlg"));
-    else {
-      fCCHFAlg.reset
-        (new CCHitFinderAlg(pset.get<fhicl::ParameterSet>("CCHitFinderAlg")));
-    }
-  } // HitFinder::reconfigure()
 
 
   //----------------------------------------------------------------------------
@@ -103,11 +88,11 @@ namespace hit {
       = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
-    fCCHFAlg->RunCCHitFinder(*wireVecHandle);
+    fCCHFAlg.RunCCHitFinder(*wireVecHandle);
 
     // extract the result of the algorithm (it's moved)
     std::unique_ptr<std::vector<recob::Hit>> Hits
-      (new std::vector<recob::Hit>(std::move(fCCHFAlg->YieldHits())));
+      (new std::vector<recob::Hit>(std::move(fCCHFAlg.YieldHits())));
 
     mf::LogInfo("HitFinder") << Hits->size() << " hits produced.";
 
@@ -128,7 +113,7 @@ namespace hit {
   void HitFinder::endJob() {
     // print the statistics about fits
     mf::LogInfo log("HitFinder"); // messages are printed on "log" destruction
-    fCCHFAlg->PrintStats(log);
+    fCCHFAlg.PrintStats(log);
   } // HitFinder::endJob()
 
 

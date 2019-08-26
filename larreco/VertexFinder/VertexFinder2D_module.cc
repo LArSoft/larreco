@@ -61,17 +61,12 @@ struct SortByWire {
 namespace vertex {
 
  class VertexFinder2D :  public art::EDProducer {
-
   public:
-
     explicit VertexFinder2D(fhicl::ParameterSet const& pset);
-    void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
-
-
-    void produce(art::Event& evt);
 
   private:
+    void beginJob();
+    void produce(art::Event& evt);
 
     TH1D *dtIC;
 
@@ -87,7 +82,7 @@ namespace vertex{
   VertexFinder2D::VertexFinder2D(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fClusterModuleLabel  = pset.get< std::string >("ClusterModuleLabel");
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
@@ -96,11 +91,6 @@ namespace vertex{
     produces< art::Assns<recob::Vertex, recob::Track> >();
   }
 
-  //---------------------------------------------------------------------------
-  void VertexFinder2D::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fClusterModuleLabel  = p.get< std::string >("ClusterModuleLabel");
-  }
   //-------------------------------------------------------------------------
   void VertexFinder2D::beginJob(){
     // get access to the TFile service

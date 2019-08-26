@@ -56,19 +56,19 @@ public:
   std::vector<std::vector<double>> ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit>> const& hits);
 
   /// Find clusters in the histogram
-  int FindClusters(std::vector<std::vector<double>> const& image, std::vector<std::vector<int>>& allcluster);
+  int FindClusters(std::vector<std::vector<double>> const& image, std::vector<std::vector<int>>& allcluster) const;
 
   /// Find the global wire position
-  int GlobalWire(geo::WireID const& wireID);
+  int GlobalWire(geo::WireID const& wireID) const;
 
   /// Applies Gaussian blur to image
-  std::vector<std::vector<double>> GaussianBlur(std::vector<std::vector<double>> const& image);
+  std::vector<std::vector<double>> GaussianBlur(std::vector<std::vector<double>> const& image) const;
 
   /// Minimum size of cluster to save
   unsigned int GetMinSize() const noexcept { return fMinSize; }
 
   /// Converts a 2D vector in a histogram for the debug pdf
-  TH2F* MakeHistogram(std::vector<std::vector<double>> const& image, TString name);
+  TH2F* MakeHistogram(std::vector<std::vector<double>> const& image, TString name) const;
 
   /// Save the images for debugging
   /// This version takes the final clusters and overlays on the hit map

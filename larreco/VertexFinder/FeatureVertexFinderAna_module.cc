@@ -50,18 +50,14 @@ namespace vertex{
 
 // Base class for creation of verticies
 class FeatureVertexFinderAna: public art::EDAnalyzer{
-
-
 public:
 	explicit FeatureVertexFinderAna(fhicl::ParameterSet const& pset);
-	virtual ~FeatureVertexFinderAna();
 
+private:
 	// providing read write access to the event
 	void analyze (const art::Event& evt);
 	void beginJob();
-	void reconfigure(fhicl::ParameterSet const& p);
 
-private:
 	std::string fLArG4ModuleLabel; //<---LArG4 Module Label
 	std::string fGenieModuleLabel; //<---Genie Module Label
 	std::string fVertexModuleLabel; //<---Vertex Module Label
@@ -146,23 +142,10 @@ private:
 FeatureVertexFinderAna::FeatureVertexFinderAna(fhicl::ParameterSet const& pset)
   : EDAnalyzer(pset)
 {
-  this->reconfigure(pset);
-}
-
-//------------------------------------------------------------------
-FeatureVertexFinderAna::~FeatureVertexFinderAna()
-{
-}
-
-
-//------------------------------------------------------------------
-void FeatureVertexFinderAna::reconfigure(fhicl::ParameterSet const& p)
-{
-	fLArG4ModuleLabel        = p.get< std::string >("LArGeantModuleLabel");
-	fGenieModuleLabel	 = p.get< std::string >("GenieModuleLabel");
-	fVertexModuleLabel       = p.get< std::string >("VertexModuleLabel");
-	fEndPoint2dModuleLabel   = p.get< std::string >("EndPoint2dModuleLabel");
-    	return;
+        fLArG4ModuleLabel        = pset.get< std::string >("LArGeantModuleLabel");
+        fGenieModuleLabel	 = pset.get< std::string >("GenieModuleLabel");
+        fVertexModuleLabel       = pset.get< std::string >("VertexModuleLabel");
+        fEndPoint2dModuleLabel   = pset.get< std::string >("EndPoint2dModuleLabel");
 }
 
 //-------------------------------------------------

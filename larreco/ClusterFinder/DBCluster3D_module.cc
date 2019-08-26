@@ -45,10 +45,10 @@ public:
   DBCluster3D & operator = (DBCluster3D const &) = delete;
   DBCluster3D & operator = (DBCluster3D &&) = delete;
 
+private:
+
   // Required functions.
   void produce(art::Event & e) override;
-
-private:
 
   const art::InputTag fHitModuleLabel;
   const art::InputTag fSpacePointModuleLabel;

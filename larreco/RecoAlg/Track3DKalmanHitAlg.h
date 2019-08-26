@@ -62,7 +62,7 @@ namespace trkf {
       bool fetchPFParticleSeeds(const art::PtrVector<recob::Seed> &pfseeds,
                                 const std::vector<Hits> &pfseedhits,
                                 std::vector<recob::Seed>& seeds,
-                                std::vector<Hits>& hitsperseed);
+                                std::vector<Hits>& hitsperseed) const;
       recob::Seed makeSeed(const Hits& hits) const;
       void growSeedsIntoTracks(const bool pfseed,
                                const std::vector<recob::Seed>& seeds,
@@ -93,7 +93,7 @@ namespace trkf {
       bool extendandsmoothLoop(
                                KGTrack &trg1,
                                unsigned int prefplane,
-                               Hits &trackhits);
+                               Hits &trackhits) const;
       void filterHitsOnKalmanTrack(const KGTrack& trg,
                                    Hits& hits,
                                    Hits& seederhits) const;
@@ -102,7 +102,7 @@ namespace trkf {
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
 
       void fitnupdateMomentum(KGTrack& trg1,
-                              KGTrack& trg2);
+                              KGTrack& trg2) const;
 
    private:
 

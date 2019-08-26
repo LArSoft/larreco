@@ -29,13 +29,8 @@ namespace cluster {
     /// Default constructor
     ClusterParamsAlg();
 
-//    /// Alternative constructor with larlight's hits
-//    ClusterParamsAlg(const std::vector<const ::larlite::hit*>&);
-
     /// Alternative constructor with larutil::PxHit vector
     ClusterParamsAlg(const std::vector<util::PxHit>&);
-
-    ~ClusterParamsAlg(){}
 
     void Initialize();
 

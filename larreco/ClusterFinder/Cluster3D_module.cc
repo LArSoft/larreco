@@ -113,20 +113,13 @@ public:
      */
     Cluster3D(fhicl::ParameterSet const &pset);
 
-    /**
-     *  @brief  Destructor
-     */
-    virtual ~Cluster3D();
+private:
 
     /**
      *  @brief declare the standard art functions that we'll implement in this producer module
      */
     void beginJob();
-    void endJob();
     void produce(art::Event &evt);
-    void reconfigure(fhicl::ParameterSet const &pset);
-
-private:
 
     class ArtOutputHandler
     {
@@ -525,7 +518,18 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     m_pcaSeedFinderAlg(pset.get<fhicl::ParameterSet>("PCASeedFinderAlg")),
     m_parallelHitsAlg(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"))
 {
-    this->reconfigure(pset);
+    m_enableMonitoring     = pset.get<bool       >("EnableMonitoring",         false);
+    m_parallelHitsCosAng   = pset.get<float      >("ParallelHitsCosAng",       0.999);
+    m_parallelHitsTransWid = pset.get<float      >("ParallelHitsTransWid",      25.0);
+    m_pathInstance         = pset.get<std::string>("PathPointsName",          "Path");
+    m_vertexInstance       = pset.get<std::string>("VertexPointsName",      "Vertex");
+    m_extremeInstance      = pset.get<std::string>("ExtremePointsName",    "Extreme");
+
+    m_hit3DBuilderAlg = art::make_tool<lar_cluster3d::IHit3DBuilder>(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg"));
+    m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
+    m_clusterPathAlg  = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
+    m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
 
     // Handle special case of Space Point building outputting a new hit collection
     m_hit3DBuilderAlg->produces(this);
@@ -563,36 +567,6 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-Cluster3D::~Cluster3D()
-{
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
-{
-    m_enableMonitoring     = pset.get<bool       >("EnableMonitoring",         false);
-    m_parallelHitsCosAng   = pset.get<float      >("ParallelHitsCosAng",       0.999);
-    m_parallelHitsTransWid = pset.get<float      >("ParallelHitsTransWid",      25.0);
-    m_pathInstance         = pset.get<std::string>("PathPointsName",          "Path");
-    m_vertexInstance       = pset.get<std::string>("VertexPointsName",      "Vertex");
-    m_extremeInstance      = pset.get<std::string>("ExtremePointsName",    "Extreme");
-
-    m_hit3DBuilderAlg = art::make_tool<lar_cluster3d::IHit3DBuilder>(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg"));
-    m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
-    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
-    m_clusterPathAlg  = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
-    m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
-
-    m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
-    m_skeletonAlg.reconfigure(pset.get<fhicl::ParameterSet>("SkeletonAlg"));
-    m_seedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
-    m_pcaSeedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("PCASeedFinderAlg"));
-    m_parallelHitsAlg.reconfigure(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"));
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
 void Cluster3D::beginJob()
 {
     /**
@@ -603,12 +577,6 @@ void Cluster3D::beginJob()
         this->InitializeMonitoring();
 
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void Cluster3D::endJob()
-{
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

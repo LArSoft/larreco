@@ -88,10 +88,6 @@ namespace cluster
 
     /// Default constructor with fhicl parameters
     ClusterMatchAlg(fhicl::ParameterSet const& pset);
-    //ClusterMatchAlg(fhicl::ParameterSet const& pset, art::ActivityRegistry& reg);
-
-    /// Default destructor
-    virtual ~ClusterMatchAlg(){};
 
     /// Method to report the current configuration
     void ReportConfig() const;

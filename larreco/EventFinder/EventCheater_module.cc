@@ -34,11 +34,9 @@ namespace event {
   public:
     explicit EventCheater(fhicl::ParameterSet const& pset);
 
-    void produce(art::Event& evt);
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-
   private:
+
+    void produce(art::Event& evt);
 
     std::string fCheatedVertexLabel; ///< label for module creating recob::Vertex objects
     std::string fG4ModuleLabel;      ///< label for module running G4 and making particles, etc
@@ -52,18 +50,12 @@ namespace event{
   EventCheater::EventCheater(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
+    fCheatedVertexLabel = pset.get< std::string >("CheatedVertexLabel", "prong" );
+    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
 
     produces< std::vector<recob::Event> >();
     produces< art::Assns<recob::Event, recob::Vertex> >();
     produces< art::Assns<recob::Event, recob::Hit> >();
-  }
-
-  //--------------------------------------------------------------------
-  void EventCheater::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fCheatedVertexLabel = pset.get< std::string >("CheatedVertexLabel", "prong" );
-    fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
   }
 
   //--------------------------------------------------------------------

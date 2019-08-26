@@ -26,11 +26,6 @@ cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
 }
 
 //----------------------------------------------------------
-cluster::DBScan3DAlg::~DBScan3DAlg()
-{
-}
-
-//----------------------------------------------------------
 void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps, art::FindManyP<recob::Hit>& hitFromSp)
 {
 
@@ -209,7 +204,7 @@ int cluster::DBScan3DAlg::spread(unsigned int index,
   return SUCCESS;
 }
 
-float cluster::DBScan3DAlg::dist(point_t *a, point_t *b)
+float cluster::DBScan3DAlg::dist(point_t *a, point_t *b) const
 {
   Double32_t const* a_xyz = a->sp->XYZ();
   Double32_t const* b_xyz = b->sp->XYZ();

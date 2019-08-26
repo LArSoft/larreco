@@ -136,9 +136,9 @@ public:
 	PMAlgTrackMaker & operator = (PMAlgTrackMaker const &) = delete;
 	PMAlgTrackMaker & operator = (PMAlgTrackMaker &&) = delete;
 
+private:
 	void produce(art::Event & e) override;
 
-private:
     // will try to get EM- and track-like values from various lenght MVA vectors
     template <size_t N> bool init(const art::Event & evt, pma::PMAlgTracker & pmalgTracker) const;
 

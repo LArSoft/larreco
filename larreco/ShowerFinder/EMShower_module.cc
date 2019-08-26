@@ -64,10 +64,9 @@ public:
 
   EMShower(fhicl::ParameterSet const& pset);
 
-  void produce(art::Event& evt);
-  void reconfigure(fhicl::ParameterSet const& p);
-
 private:
+  void produce(art::Event& evt);
+
 
   art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fVertexModuleLabel, fCNNEMModuleLabel;
   EMShowerAlg fEMShowerAlg;
@@ -92,7 +91,23 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset) :
   EDProducer{pset},
   fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg"))
 {
-  this->reconfigure(pset);
+  fHitsModuleLabel        = pset.get<art::InputTag>("HitsModuleLabel");
+  fClusterModuleLabel     = pset.get<art::InputTag>("ClusterModuleLabel");
+  fTrackModuleLabel       = pset.get<art::InputTag>("TrackModuleLabel");
+  fPFParticleModuleLabel  = pset.get<art::InputTag>("PFParticleModuleLabel","");
+  fVertexModuleLabel      = pset.get<art::InputTag>("VertexModuleLabel","");
+  fCNNEMModuleLabel       = pset.get<art::InputTag>("CNNEMModuleLabel","");
+  fFindBadPlanes          = pset.get<bool>         ("FindBadPlanes");
+  fSaveNonCompleteShowers = pset.get<bool>         ("SaveNonCompleteShowers");
+  fMakeSpacePoints        = pset.get<bool>         ("MakeSpacePoints");
+  fUseCNNtoIDEMPFP        = pset.get<bool>         ("UseCNNtoIDEMPFP");
+  fUseCNNtoIDEMHit        = pset.get<bool>         ("UseCNNtoIDEMHit");
+  fMinTrackLikeScore      = pset.get<double>       ("MinTrackLikeScore");
+  fShower = pset.get<int>("Shower",-1);
+  fPlane = pset.get<int>("Plane",-1);
+  fDebug = pset.get<int>("Debug",0);
+  fEMShowerAlg.fDebug = fDebug;
+
   produces<std::vector<recob::Shower> >();
   produces<std::vector<recob::SpacePoint> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
@@ -100,25 +115,6 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset) :
   produces<art::Assns<recob::Shower, recob::Track> >();
   produces<art::Assns<recob::Shower, recob::SpacePoint> >();
   produces<art::Assns<recob::SpacePoint, recob::Hit> >();
-}
-
-void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
-  fHitsModuleLabel        = p.get<art::InputTag>("HitsModuleLabel");
-  fClusterModuleLabel     = p.get<art::InputTag>("ClusterModuleLabel");
-  fTrackModuleLabel       = p.get<art::InputTag>("TrackModuleLabel");
-  fPFParticleModuleLabel  = p.get<art::InputTag>("PFParticleModuleLabel","");
-  fVertexModuleLabel      = p.get<art::InputTag>("VertexModuleLabel","");
-  fCNNEMModuleLabel       = p.get<art::InputTag>("CNNEMModuleLabel","");
-  fFindBadPlanes          = p.get<bool>         ("FindBadPlanes");
-  fSaveNonCompleteShowers = p.get<bool>         ("SaveNonCompleteShowers");
-  fMakeSpacePoints        = p.get<bool>         ("MakeSpacePoints");
-  fUseCNNtoIDEMPFP        = p.get<bool>         ("UseCNNtoIDEMPFP");
-  fUseCNNtoIDEMHit        = p.get<bool>         ("UseCNNtoIDEMHit");
-  fMinTrackLikeScore      = p.get<double>       ("MinTrackLikeScore");
-  fShower = p.get<int>("Shower",-1);
-  fPlane = p.get<int>("Plane",-1);
-  fDebug = p.get<int>("Debug",0);
-  fEMShowerAlg.fDebug = fDebug;
 }
 
 void shower::EMShower::produce(art::Event& evt) {

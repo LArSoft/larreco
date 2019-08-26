@@ -19,10 +19,6 @@
 
 namespace trkf{
 
-  TrackTrajectoryAlg::TrackTrajectoryAlg()  { }
-
-  TrackTrajectoryAlg::~TrackTrajectoryAlg() { }
-
   //------------------------------------------------------------------------------
   void TrackTrajectoryAlg::TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
                                            std::array<std::vector<double>,3> trkX,

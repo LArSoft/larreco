@@ -449,12 +449,11 @@ public:
 
   explicit ClusteringValidation(fhicl::ParameterSet const &p);
 
+private:
+
   void analyze(art::Event const &evt);
   void beginJob();
   void endJob();
-  void reconfigure(fhicl::ParameterSet const &p);
-
-private:
 
   // Clusterings to compare and the hits which the clustering was run over
   std::vector<std::string> fClusterModuleLabels;
@@ -473,15 +472,12 @@ private:
 };
 
 ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::ParameterSet const &pset) :  EDAnalyzer(pset) {
-  this->reconfigure(pset);
+  fMinHitsInPlane      = pset.get<int>                      ("MinHitsInPlane");
+  fClusterModuleLabels = pset.get<std::vector<std::string> >("ClusterModuleLabels");
+  fHitsModuleLabel     = pset.get<std::string>              ("HitsModuleLabel");
+
   fCanvas = new TCanvas("fCanvas","",800,600);
   gStyle->SetOptStat(0);
-}
-
-void ClusteringValidation::ClusteringValidation::reconfigure(fhicl::ParameterSet const& p) {
-  fMinHitsInPlane      = p.get<int>                      ("MinHitsInPlane");
-  fClusterModuleLabels = p.get<std::vector<std::string> >("ClusterModuleLabels");
-  fHitsModuleLabel     = p.get<std::string>              ("HitsModuleLabel");
 }
 
 void ClusteringValidation::ClusteringValidation::analyze(art::Event const &evt)

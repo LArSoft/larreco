@@ -36,11 +36,9 @@ public:
 	TrackShowerHits & operator = (TrackShowerHits const &) = delete;
 	TrackShowerHits & operator = (TrackShowerHits &&) = delete;
 
-	void reconfigure(fhicl::ParameterSet const& p);
-
-	void produce(art::Event & e) override;
-
 private:
+
+        void produce(art::Event & e) override;
 
 	cryo_tpc_view_hitmap fHitMap;
 	bool sortHits(const art::Event& evt);
@@ -61,20 +59,12 @@ TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const & p) :
         EDProducer{p},
 	fSegmentation2D(p.get< fhicl::ParameterSet >("Segmentation2DAlg"))
 {
-	this->reconfigure(p);
+        fHitModuleLabel = p.get< std::string >("HitModuleLabel");
+        fHugeShowers = p.get< bool >("FindHugeShowers");
+        fShowersBySeg2D = p.get< bool >("FindMoreShowers");
 
 	produces< std::vector<recob::Cluster> >();
 	produces< art::Assns<recob::Cluster, recob::Hit> >();
-}
-// ------------------------------------------------------
-
-void TrackShowerHits::reconfigure(fhicl::ParameterSet const& pset)
-{
-        fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
-		fHugeShowers = pset.get< bool >("FindHugeShowers");
-		fShowersBySeg2D = pset.get< bool >("FindMoreShowers");
-
-		fSegmentation2D.reconfigure(pset.get< fhicl::ParameterSet >("Segmentation2DAlg"));
 }
 // ------------------------------------------------------
 

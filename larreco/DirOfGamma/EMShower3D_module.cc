@@ -58,14 +58,9 @@ public:
   EMShower3D & operator = (EMShower3D const &) = delete;
   EMShower3D & operator = (EMShower3D &&) = delete;
 
-  void beginJob() override;
-
+private:
   void produce(art::Event & e) override;
 
-  void reconfigure(fhicl::ParameterSet const& p);
-
-
-private:
   	recob::Track ConvertFrom(pma::Track3D& src);
 	recob::Track ConvertFrom2(pma::Track3D& src);
 	recob::Cluster ConvertFrom(const std::vector< art::Ptr<recob::Hit> > & src);
@@ -124,7 +119,8 @@ ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
   , fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg"))
   , fCalorimetryAlg(p.get< fhicl::ParameterSet >("CalorimetryAlg"))
 {
-	reconfigure(p);
+        fCluModuleLabel = p.get< std::string >("ClustersModuleLabel");
+        fTrk3DModuleLabel = p.get< std::string >("Trk3DModuleLabel");
 
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::Vertex> >();
@@ -136,19 +132,6 @@ ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   	produces< art::Assns<recob::Track, recob::Cluster> >();
-}
-
-void ems::EMShower3D::beginJob()
-{
-}
-
-void ems::EMShower3D::reconfigure(fhicl::ParameterSet const & p)
-{
-	fCluModuleLabel = p.get< std::string >("ClustersModuleLabel");
-  	//fProjectionMatchingAlg.reconfigure(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")); // use constructor-time config only
-	fTrk3DModuleLabel = p.get< std::string >("Trk3DModuleLabel");
-
-  return;
 }
 
 recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::Hit> > & src)

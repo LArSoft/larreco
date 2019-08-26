@@ -111,14 +111,14 @@ public:
 
 private:
 
-    size_t outOfDriftWindow(pma::TrkCandidateColl& tracks);
-		size_t fullHeightCrossing(pma::TrkCandidateColl& tracks);
-		size_t fullWidthCrossing(pma::TrkCandidateColl& tracks);
-		size_t fullLengthCrossing(pma::TrkCandidateColl& tracks);
-		size_t fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction);
-		size_t nonBeamT0Tag(pma::TrkCandidateColl& tracks);
-    size_t tagTopFrontBack(pma::TrkCandidateColl& tracks);
-    size_t tagApparentStopper(pma::TrkCandidateColl& tracks);
+    size_t outOfDriftWindow(pma::TrkCandidateColl& tracks) const;
+    size_t fullHeightCrossing(pma::TrkCandidateColl& tracks) const;
+    size_t fullWidthCrossing(pma::TrkCandidateColl& tracks) const;
+    size_t fullLengthCrossing(pma::TrkCandidateColl& tracks) const;
+    size_t fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction) const;
+    size_t nonBeamT0Tag(pma::TrkCandidateColl& tracks) const;
+    size_t tagTopFrontBack(pma::TrkCandidateColl& tracks) const;
+    size_t tagApparentStopper(pma::TrkCandidateColl& tracks) const;
 
     // Convenience functions to see if we have a vertex at the top of the detector
     bool isTopVertex(const TVector3 &pos, double tolerance, short int dirIndx) const;

@@ -36,7 +36,6 @@ namespace hit{
 
   private:
     void produce(art::Event& evt) override;
-    void reconfigure(fhicl::ParameterSet const& p);
 
     std::string    fCalDataModuleLabel; /// Input caldata module name
     float          fMinSigPeakInd;      /// Induction wire signal height threshold at peak
@@ -48,33 +47,19 @@ namespace hit{
 
     float getTotalCharge(const float*,int,float);
 
-  protected:
-
   }; // class TTHitFinder
 
   //-------------------------------------------------
   TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
-    this->reconfigure(pset);
-
-    // let HitCollectionCreator declare that we are going to produce
-    // hits and associations with wires and raw digits
-    recob::HitCollectionCreator::declare_products(*this, "uhits");
-    recob::HitCollectionCreator::declare_products(*this, "vhits");
-    recob::HitCollectionCreator::declare_products(*this, "yhits");
-
-  }
-
-  //-------------------------------------------------
-  void TTHitFinder::reconfigure(fhicl::ParameterSet const& p) {
-    fCalDataModuleLabel = p.get< std::string >("CalDataModuleLabel");
-    fMinSigPeakInd      = p.get< float       >("MinSigPeakInd");
-    fMinSigPeakCol      = p.get< float       >("MinSigPeakCol");
-    fMinSigTailInd      = p.get< float       >("MinSigTailInd",-99); //defaulting to well-below zero
-    fMinSigTailCol      = p.get< float       >("MinSigTailCol",-99); //defaulting to well-below zero
-    fIndWidth           = p.get< int         >("IndWidth", 3); //defaulting to 3
-    fColWidth           = p.get< int         >("ColWidth", 3); //defaulting to 3
+    fCalDataModuleLabel = pset.get< std::string >("CalDataModuleLabel");
+    fMinSigPeakInd      = pset.get< float       >("MinSigPeakInd");
+    fMinSigPeakCol      = pset.get< float       >("MinSigPeakCol");
+    fMinSigTailInd      = pset.get< float       >("MinSigTailInd",-99); //defaulting to well-below zero
+    fMinSigTailCol      = pset.get< float       >("MinSigTailCol",-99); //defaulting to well-below zero
+    fIndWidth           = pset.get< int         >("IndWidth", 3); //defaulting to 3
+    fColWidth           = pset.get< int         >("ColWidth", 3); //defaulting to 3
 
     //enforce a minimum width
     if(fIndWidth<1){
@@ -85,6 +70,12 @@ namespace hit{
       mf::LogWarning("TTHitFinder") << "ColWidth must be 1 at minimum. Resetting width to one time tick";
       fColWidth = 1;
     }
+
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    recob::HitCollectionCreator::declare_products(*this, "uhits");
+    recob::HitCollectionCreator::declare_products(*this, "vhits");
+    recob::HitCollectionCreator::declare_products(*this, "yhits");
 
   }
 

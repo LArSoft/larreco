@@ -62,7 +62,7 @@ public:
 		PMAlgVertexing(fhicl::Table<Config>(pset, {})())
 	{}
 
-	virtual ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
+        ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
 
 	void reset(void) { cleanTracks(); }
 
@@ -92,8 +92,8 @@ private:
 		return false;
 	}
 
-	std::vector< pma::VtxCandidate > firstPassCandidates(void);
-	std::vector< pma::VtxCandidate > secondPassCandidates(void);
+        std::vector< pma::VtxCandidate > firstPassCandidates(void) const;
+        std::vector< pma::VtxCandidate > secondPassCandidates(void) const;
 	size_t makeVertices(std::vector< pma::VtxCandidate >& candidates);
 
 	/// Get dQ/dx sequence to detect various features.

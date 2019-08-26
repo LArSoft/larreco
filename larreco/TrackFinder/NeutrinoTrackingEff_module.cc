@@ -50,22 +50,19 @@ class NeutrinoTrackingEff : public art::EDAnalyzer {
 public:
 
     explicit NeutrinoTrackingEff(fhicl::ParameterSet const& pset);
-    virtual ~NeutrinoTrackingEff();
+
+private:
 
     void beginJob();
     void endJob();
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
     double truthLength( const simb::MCParticle *MCparticle );
     bool insideFV(double vertex[4]);
     void doEfficiencies();
-
-private:
 
     // the parameters we'll read from the .fcl
     std::string fMCTruthModuleLabel;
@@ -186,18 +183,9 @@ private:
 
 
 //========================================================================
-NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& parameterSet)
-    : EDAnalyzer(parameterSet)
+NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& p)
+    : EDAnalyzer(p)
 {
-    reconfigure(parameterSet);
-}
-//========================================================================
-NeutrinoTrackingEff::~NeutrinoTrackingEff(){
-  //destructor
-}
-//========================================================================
-void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
-
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fTrackModuleLabel    = p.get<std::string>("TrackModuleLabel");
     fisNeutrinoInt	 = p.get<bool>("isNeutrinoInt");
@@ -627,7 +615,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     std::vector<art::Ptr<recob::Hit>> tmp_all_trackHits = track_hits.at(0);
     std::vector<art::Ptr<recob::Hit>> all_hits;
     art::Handle<std::vector<recob::Hit>> hithandle;
-    if(event.get(tmp_all_trackHits[0].id(), hithandle))  art::fill_ptr_vector(all_hits, hithandle);
+    auto const pd = event.getProductDescription(tmp_all_trackHits[0].id());
+    if (pd && event.getByLabel(pd->inputTag(), hithandle)) {
+      art::fill_ptr_vector(all_hits, hithandle);
+    }
 
     for(int i=0; i<n_recoTrack; i++) {
        art::Ptr<recob::Track> track = tracklist[i];

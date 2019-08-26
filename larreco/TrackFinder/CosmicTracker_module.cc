@@ -183,14 +183,10 @@ namespace trkf {
 
   class CosmicTracker : public art::EDProducer {
   public:
-
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
 
-    //////////////////////////////////////////////////////////
-    void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt);
-
   private:
+    void produce(art::Event& evt);
 
     cluster::ClusterMatchTQ  fClusterMatch;
     trkf::CosmicTrackerAlg   fCTAlg;
@@ -218,7 +214,13 @@ namespace trkf {
     fClusterMatch(pset.get< fhicl::ParameterSet >("ClusterMatch")),
     fCTAlg(pset.get< fhicl::ParameterSet >("CTAlg"))
   {
-    this->reconfigure(pset);
+    fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
+    fSortDir                = pset.get< std::string >("SortDirection","+z");
+    fStitchTracks           = pset.get< bool   >("StitchTracks");
+    fDisCut                 = pset.get< double >("DisCut");
+    fAngCut                 = pset.get< double >("AngCut");
+    fTrajOnly               = pset.get< bool   >("TrajOnly");
+
     produces< std::vector<recob::Track>                        >();
     produces< std::vector<recob::SpacePoint>                   >();
     produces< art::Assns<recob::Track,      recob::Cluster>    >();
@@ -226,17 +228,6 @@ namespace trkf {
     produces< art::Assns<recob::SpacePoint, recob::Hit>        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
 
-  }
-
-  //-------------------------------------------------
-  void CosmicTracker::reconfigure(fhicl::ParameterSet const& pset)
-  {
-    fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
-    fSortDir                = pset.get< std::string >("SortDirection","+z");
-    fStitchTracks           = pset.get< bool   >("StitchTracks");
-    fDisCut                 = pset.get< double >("DisCut");
-    fAngCut                 = pset.get< double >("AngCut");
-    fTrajOnly               = pset.get< bool   >("TrajOnly");
   }
 
   //------------------------------------------------------------------------------------//
