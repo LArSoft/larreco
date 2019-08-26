@@ -615,7 +615,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     std::vector<art::Ptr<recob::Hit>> tmp_all_trackHits = track_hits.at(0);
     std::vector<art::Ptr<recob::Hit>> all_hits;
     art::Handle<std::vector<recob::Hit>> hithandle;
-    if(event.get(tmp_all_trackHits[0].id(), hithandle))  art::fill_ptr_vector(all_hits, hithandle);
+    auto const pd = event.getProductDescription(tmp_all_trackHits[0].id());
+    if (pd && event.getByLabel(pd->inputTag(), hithandle)) {
+      art::fill_ptr_vector(all_hits, hithandle);
+    }
 
     for(int i=0; i<n_recoTrack; i++) {
        art::Ptr<recob::Track> track = tracklist[i];
