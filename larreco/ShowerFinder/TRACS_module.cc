@@ -31,8 +31,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/ShowerFinder/ShowerTools/IShowerTool.h"
-#include "larreco/ShowerFinder/ShowerElementHolder.hh"
 #include "larreco/ShowerFinder/ShowerProduedPtrsHolder.hh"
+#include "larreco/RecoAlg/ShowerElementHolder.hh"
 
 //Root Includes
 #include "TVector3.h"

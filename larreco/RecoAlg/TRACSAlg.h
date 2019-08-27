@@ -3,7 +3,6 @@
 
 //Framework Includes
 #include "fhiclcpp/ParameterSet.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "art_root_io/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
@@ -18,7 +17,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "larreco/ShowerFinder/ShowerElementHolder.hh"
+#include "larreco/RecoAlg/ShowerElementHolder.hh"
 
 //C++ Includes
 #include <iostream>

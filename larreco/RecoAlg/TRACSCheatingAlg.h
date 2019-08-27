@@ -17,7 +17,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "larreco/ShowerFinder/ShowerElementHolder.hh"
+#include "larreco/RecoAlg/ShowerElementHolder.hh"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "larreco/RecoAlg/TRACSAlg.h"
 

@@ -13,7 +13,7 @@
 //Framework includes
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Principal/Event.h"
-#include "larreco/ShowerFinder/ShowerElementHolder.hh"
+#include "larreco/RecoAlg/ShowerElementHolder.hh"
 
 //C++ Includes 
 #include <iostream> 
@@ -98,7 +98,7 @@ public:
     T product;
     int err = selement_holder.GetElement(Name, product);
     if(err){
-      mf::LogError("ShowerElementHolder") << "Trying to add data product: " << Name << ". This element does not exist in the element holder" << std::endl;
+      mf::LogError("ShowerProduedPtrsHolder") << "Trying to add data product: " << Name << ". This element does not exist in the element holder" << std::endl;
       return;
     }
     showeruniqueptr->push_back(product);
@@ -497,7 +497,7 @@ public:
       std::cout << "Element Name: " << Name << " Instance Name: " << InstanceName <<  " Type: " << Type << std::endl;
       return;
     }
-    mf::LogError("ShowerElementHolder") << "Trying to print Element: " << Name << ". This element does not exist in the element holder" << std::endl;
+    mf::LogError("ShowerProduedPtrsHolder") << "Trying to print Element: " << Name << ". This element does not exist in the element holder" << std::endl;
     return;
   }
 
