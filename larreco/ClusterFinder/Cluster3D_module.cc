@@ -1306,7 +1306,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
 
         double spacePointPos[] = {hitPair.getPosition()[0],hitPair.getPosition()[1],hitPair.getPosition()[2]};
         double spacePointErr[] = {1., 0., 0., 1., 0., 1.};
-        double chisq(-100.);
+        double chisq           = hitPair.getHitChiSquare();
 
         RecobHitVector recobHits;
 
