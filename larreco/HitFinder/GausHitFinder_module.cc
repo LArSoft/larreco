@@ -215,10 +215,10 @@ void GausHitFinder::produce(art::Event& evt)
     // ###############################################
     // this contains the hit collection
     // and its associations to wires and raw digits
-    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName);
+    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, fMakeRawDigitAssns);
 
     // Handle the filtered hits collection...
-    recob::HitCollectionCreator  hcol(*this, evt);
+    recob::HitCollectionCreator  hcol(*this, evt, "", true, fMakeRawDigitAssns);
     recob::HitCollectionCreator* filteredHitCol = 0;
 
     if( fFilterHits ) filteredHitCol = &hcol;
