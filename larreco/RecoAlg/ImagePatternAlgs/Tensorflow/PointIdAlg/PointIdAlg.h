@@ -211,7 +211,9 @@ public:
 		kPi0   = 0x2000000,       // pi0 produced in this vertex
 		kDecay = 0x4000000,       // point of particle decay
 		kConv  = 0x8000000,       // gamma conversion
-		kElectronEnd = 0x10000000 // clear end of an electron
+		kElectronEnd = 0x10000000,// clear end of an electron
+                kElastic     = 0x20000000,// Elastic scattering
+                kInelastic   = 0x40000000 // Inelastic scattering 
 	};
 
     struct Config : public img::DataProviderAlg::Config

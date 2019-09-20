@@ -737,6 +737,27 @@ void nnet::TrainingDataAlg::collectVtxFlags(
       //		<< particle.Process() << " --> " << particle.EndProcess()
       //		<< " " << ekEnd	<< std::endl;
       //}
+      //TY: check elastic/inelastic scattering
+      if (pdg == 321 || pdg == 211 || pdg == 2212){
+        simb::MCTrajectory truetraj = particle.Trajectory();
+        auto thisTrajectoryProcessMap1 =  truetraj.TrajectoryProcesses();
+        if (thisTrajectoryProcessMap1.size()){
+          for(auto const& couple1: thisTrajectoryProcessMap1){
+            if ((truetraj.KeyToProcess(couple1.second)).find("Elastic")!= std::string::npos){
+              auto wd = getProjection(truetraj.at(couple1.first).first, plane);
+              if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo)){
+                wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= nnet::TrainingDataAlg::kElastic;
+              }
+            }
+            if ((truetraj.KeyToProcess(couple1.second)).find("Inelastic")!= std::string::npos){
+              auto wd = getProjection(truetraj.at(couple1.first).first, plane);
+              if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo)){
+                wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= nnet::TrainingDataAlg::kInelastic;
+              }
+            }
+          }
+        }
+      }
     }
 }
 // ------------------------------------------------------
