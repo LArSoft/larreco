@@ -78,7 +78,8 @@ namespace tca {
     "SplitTjCVx",
     "MakePFPTjs",
     "FillGaps3D",
-    "TEP3D"
+    "TEP3D",
+    "TCWork2"
   };
   
   const std::vector<std::string> EndFlagNames {
