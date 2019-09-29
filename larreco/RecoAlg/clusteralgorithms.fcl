@@ -62,7 +62,10 @@ standard_trajclusteralg:
    # 7 min Score
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
-   Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
+   Vertex3DCuts: [0.8, 2., 3.]
+   # 0 dX match cut (cm)
+   # 1 dY and dZ match cut (cm)
+   # 2 max separation btw PFParticle end and 3D vertex
    Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
    # 0 dx (cm) matching cut
    # 1 max number of 3-plane matches for any Tj
