@@ -121,7 +121,8 @@ namespace tca {
     }
     if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
     if(tcc.vtx3DCuts.size() == 2) {
-      tcc.vtx3DCuts.resize(3, 2.);
+      std::cout<<"WARNING: Vertex3DCuts is size 2 but should be size 3, where Vertex3DCuts[2] = max 3D separation (cm) btw a PFP and a 3D vertex. Setting it to 3 cm\n";
+      tcc.vtx3DCuts.resize(3, 3.);
     }
     if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
