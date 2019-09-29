@@ -85,7 +85,7 @@ namespace tca {
     float Z {0};                    // z position
     float ZErr {0.5};                 // z position error
     float Score {0};
-    short Wire {-1};                 // wire number for an incomplete 3D vertex
+    int Wire {-1};                 // wire number for an incomplete 3D vertex
     geo::TPCID TPCID;
     std::vector<int> Vx2ID; // List of 2D vertex IDs in each plane
     int ID {0};          // 0 = obsolete vertex
@@ -435,6 +435,7 @@ namespace tca {
     kMakePFPTjs,
     kFillGaps3D,
     kTEP3D,
+    kTCWork2,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
 
