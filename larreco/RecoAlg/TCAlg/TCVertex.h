@@ -33,6 +33,7 @@ namespace tca {
 //  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
+  void F3Vs(TCSlice& slc);
   void Find3DVertices(TCSlice& slc);
   void CompleteIncomplete3DVertices(TCSlice& slc);
 //  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
