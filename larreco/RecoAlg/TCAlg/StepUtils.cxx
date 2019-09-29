@@ -2604,6 +2604,12 @@ namespace tca {
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"MHOK:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta<<" nPosDelta "<<nPosDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<" driftingAway? "<<driftingAway;
     }
+    
+    // Check high MCSMom trajectories that are drifting away
+    if(tcc.useAlg[kTCWork2] && driftingAway && tj.MCSMom > 100) {
+      // stop stepping if there are single hits, the charge pattern isn't normal and Delta is increasing
+      if(nOneHit == nMasked && nOKChg != nMasked) return false;
+    }
 
     if(!driftingAway) {
       if(nMasked < 8 || nOneHit < 8) return true;
@@ -2835,7 +2841,7 @@ namespace tca {
     // don't bother with really short tjs
     if(tj.Pts.size() < 3) return;
     // BB May 20. Cut was tj.MCSMom < 200
-    if(tj.MCSMom < 100) return;
+    if(!tcc.useAlg[kTCWork2] && tj.MCSMom < 100) return;
 
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
