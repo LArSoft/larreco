@@ -1184,6 +1184,15 @@ namespace tca {
 
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
+    
+    // ensure that angle errors are defined at both ends, ignoring junk Tjs
+    if(!tj.AlgMod[kJunkTj]) {
+      if(endTp0.AngErr == 0.1 && endTp1.AngErr != 0.1) {
+        endTp0.AngErr = endTp1.AngErr;
+      } else if(endTp0.AngErr != 0.1 && endTp1.AngErr == 0.1) {
+        endTp1.AngErr = endTp0.AngErr;
+      }
+    } // not a junk Tj
 
     // Calculate the charge near the end and beginning if necessary. This must be a short
     // trajectory. Find the average using 4 points
@@ -5009,13 +5018,12 @@ namespace tca {
     } // prt3V
     if(prt2V) {
       // print out 2D vertices
-      myprt<<"************ 2D vertices ************\n";
-      myprt<<"     prodID      CTP  wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
+      bool printHeader = true;
       for(size_t isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.vtxs.empty()) continue;
-        for(auto& vx2 : slc.vtxs) Print2V(someText, myprt, vx2);
+        for(auto& vx2 : slc.vtxs) Print2V(someText, myprt, vx2, printHeader);
       } // slc
     } // prt2V
     if(prtT) {
@@ -5183,7 +5191,7 @@ namespace tca {
   } // Print3V
 
   ////////////////////////////////////////////////
-  void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2)
+  void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader)
   {
     // print a 2D vertex on one line
     if(vx2.ID <= 0) return;
@@ -5191,6 +5199,11 @@ namespace tca {
     auto sIndx = GetSliceIndex("2V", vx2.UID);
     if(sIndx.first == USHRT_MAX) return;
     auto& slc = slices[sIndx.first];
+    if(printHeader) {
+      myprt<<"************ 2D vertices ************\n";
+      myprt<<"     prodID    CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
+      printHeader = false;
+    }
 //    myprt<<someText;
     std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(vx2.ID);
     str += "/" + std::to_string(vx2.UID);
