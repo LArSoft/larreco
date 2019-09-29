@@ -1205,6 +1205,199 @@ namespace tca {
   } // SplitTrajCrossingVertices
 
   //////////////////////////////////////
+  void F3Vs(TCSlice& slc) {
+    // (Hopefully) an improvement on Find3DVertices 
+    if(!tcc.useAlg[kTCWork2]) return;
+    if(tcc.vtx3DCuts[0] < 0) return;
+    if(slc.vtxs.size() < 2) return;
+
+    bool prt = (tcc.dbg3V && tcc.dbgSlc);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"Inside F3Vs. dX cut "<<tcc.vtx3DCuts[0];
+    }
+    
+    // IDs of 2D vertices in each plane
+    std::vector<std::vector<int>> pln2VIDs(slc.nPlanes);
+    std::vector<std::vector<double>> vXs(slc.nPlanes);
+    for(auto& vx2 : slc.vtxs) {
+      if(vx2.ID <= 0) continue;
+      geo::PlaneID planeID = DecodeCTP(vx2.CTP);
+      if(planeID.TPC != slc.TPCID.TPC) continue;
+      unsigned short plane = planeID.Plane;
+      pln2VIDs[plane].push_back(vx2.ID);
+      // Convert 2D vertex time error to X error
+      double ticks = vx2.Pos[1] / tcc.unitsPerTick;
+      vXs[plane].push_back(tcc.detprop->ConvertTicksToX(ticks, planeID));
+    } // vx2
+    
+    unsigned short cntInPln = 0;
+    for(auto ids : pln2VIDs) if(!ids.empty()) ++cntInPln;
+    if(cntInPln < slc.nPlanes) return;
+    
+    std::vector<Vtx3Store> v3list;
+    unsigned int cstat = slc.TPCID.Cryostat;
+    unsigned int tpc = slc.TPCID.TPC;
+    
+    constexpr float maxSep = 4;
+    // keep track of the worst complete 3D vertex score. This will be added
+    // to the score of incomplete vertices so that they are considered after
+    // complete vertices
+    float maxCmpScore = 0;
+    for(unsigned short ipl = 0; ipl < slc.nPlanes - 1; ++ipl) {
+      auto& ipl2VIDs = pln2VIDs[ipl];
+      if(ipl2VIDs.empty()) continue;
+      for(unsigned short ii = 0; ii < ipl2VIDs.size(); ++ii) {
+        auto& ivx2 = slc.vtxs[ipl2VIDs[ii] - 1];
+        unsigned int iWire = std::nearbyint(ivx2.Pos[0]);
+        for(unsigned short jpl = ipl + 1; jpl < slc.nPlanes; ++jpl) {
+          auto& jpl2VIDs = pln2VIDs[jpl];
+          if(jpl2VIDs.empty()) continue;
+          for(unsigned short jj = 0; jj < jpl2VIDs.size(); ++jj) {
+            double dx = std::abs(vXs[ipl][ii] - vXs[jpl][jj]);
+            if(dx > tcc.vtx3DCuts[0]) continue;
+            auto& jvx2 = slc.vtxs[jpl2VIDs[jj] - 1];
+            unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
+            double y = -1000, z = -1000;
+            tcc.geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            if(y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
+            // Start a 3D vertex
+            Vtx3Store v3;
+            v3.TPCID = slc.TPCID;
+            v3.X = vXs[ipl][ii];
+            // Use XErr to store dX
+            v3.XErr = dx;
+            v3.Y = y;
+            v3.Z = z;
+            v3.Vx2ID.resize(slc.nPlanes);
+            v3.Vx2ID[ipl] = ivx2.ID;
+            v3.Vx2ID[jpl] = jvx2.ID;
+            if(slc.nPlanes == 2) {
+              // The 3D vertex will be complete in a 2-plane TPC
+              v3.Wire = -1;
+              v3.Score = dx / tcc.wirePitch;
+              v3list.push_back(v3);
+              continue;
+            }
+            bool isComplete = false;
+            unsigned short kpl = 3 - ipl - jpl;
+            float kExpectWire = tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat);
+            // assume it will be an incomplete vertex
+            v3.Wire = std::nearbyint(kExpectWire);
+            std::array<int, 2> wireWindow;
+            std::array<float, 2> timeWindow;
+            wireWindow[0] = kExpectWire - maxSep;
+            wireWindow[1] = kExpectWire + maxSep;
+            float kExpectTick = tcc.detprop->ConvertXToTicks(vXs[ipl][ii], kpl, (int)tpc, (int)cstat) * tcc.unitsPerTick;
+            timeWindow[0] = kExpectTick - maxSep;
+            timeWindow[1] = kExpectTick + maxSep;
+            bool hitsNear;
+            std::vector<unsigned int> closeHits = FindCloseHits(slc, wireWindow, timeWindow, kpl, kAllHits, true, hitsNear);
+            if(prt) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<" Hits near "<<kpl<<":"<<(int)kExpectWire<<":"<<(int)(kExpectTick/tcc.unitsPerTick)<<" = ";
+              for(auto iht : closeHits) myprt<<" "<<PrintHit(slc.slHits[iht]);
+            }
+            if(!hitsNear) continue;
+            // look for matching 2D vertices in kpl
+            auto& kpl2VIDs = pln2VIDs[kpl];
+            for(unsigned int kk = 0; kk < kpl2VIDs.size(); ++kk) {
+              double dx = std::abs(vXs[ipl][ii] - vXs[kpl][kk]);
+              if(dx > tcc.vtx3DCuts[0]) continue;
+              auto& kvx2 = slc.vtxs[kpl2VIDs[kk] - 1];
+              float dw = tcc.wirePitch * std::abs(kvx2.Pos[0] - kExpectWire);
+              if(prt) mf::LogVerbatim("TC")<<"    k2V"<<kvx2.ID<<" dx "<<dx<<" dw "<<dw;
+              if(dw > tcc.vtx3DCuts[1]) continue;
+              // A 3-plane match exists. Clone the incomplete vertex
+              Vtx3Store v3cmp = v3;
+              v3cmp.Vx2ID[kpl] = kvx2.ID;
+              // check for a duplicate
+              bool gotit = false;
+              for(auto& gotV3 : v3list) if(gotV3.Vx2ID == v3cmp.Vx2ID) gotit = true;
+              if(gotit) continue;
+              // add the X error
+              v3cmp.XErr += dx;
+              // find yz
+              unsigned int kWire = std::nearbyint(kvx2.Pos[0]);
+              double y = -1000, z = -1000;
+              tcc.geom->IntersectionPoint(iWire, kWire, ipl, kpl, cstat, tpc, y, z);
+              v3cmp.YErr = std::abs(y - v3.Y);
+              v3cmp.ZErr = std::abs(z - v3.Z);
+              // Construct a rough score from the position differences
+              v3cmp.Score = 0.3 * sqrt(v3cmp.XErr + v3cmp.YErr + v3cmp.ZErr) / tcc.wirePitch;
+              v3cmp.Wire = -1;
+              isComplete = true;
+              if(v3cmp.Score > maxCmpScore) maxCmpScore = v3cmp.Score;
+              if(prt) mf::LogVerbatim("TC")<<"  Match  score "<<v3cmp.Score;
+              v3list.push_back(v3cmp);
+            } // kk
+            if(!isComplete) {
+              // add incomplete vertex? Count number of duplicates
+              bool skipit = false;;
+              for(auto& got3v : v3list) {
+                auto dup = SetIntersection(v3.Vx2ID, got3v.Vx2ID);
+                if(dup.size() == 2) {
+                  skipit = true;
+                  break;
+                }
+              } // got3v
+              if(!skipit) v3list.push_back(v3);
+            }
+          } // jj
+        } // jpl
+      } // ii
+    } // ipl
+
+    if(prt) mf::LogVerbatim("TC")<<" F3Vs found "<<v3list.size()<<" candidates";
+    
+    if(v3list.empty()) return;
+    
+    if(v3list.size() > 1) {
+      // inflate the score of incomplete vertices so they appear later in the sorted list
+      for(auto& v3 : v3list) if(v3.Wire >= 0) v3.Score += maxCmpScore;
+      std::vector<SortEntry> sortVec(v3list.size());
+      for(unsigned short ivx = 0; ivx < v3list.size(); ++ivx) {
+        sortVec[ivx].index = ivx;
+        sortVec[ivx].val = v3list[ivx].Score;
+      } // ivx
+      std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+      // put them into order
+      auto tmp = v3list;
+      for(unsigned short ivx = 0; ivx < v3list.size(); ++ivx) v3list[ivx] = tmp[sortVec[ivx].index];
+    } // v3list.size() > 1)
+    
+    unsigned short ninc = 0;
+    for(auto& v3 : v3list) {
+      // ensure that it is unique
+      bool skipit = false;
+      for(auto v2ID : v3.Vx2ID) if(slc.vtxs[v2ID - 1].Vx3ID > 0) skipit = true;
+      if(skipit) continue;
+      v3.ID = slc.vtx3s.size() + 1;
+      ++evt.global3V_UID;
+      v3.UID = evt.global3V_UID;
+      // make the 2V -> 3V assns
+      for(auto v2ID : v3.Vx2ID) if(v2ID > 0) slc.vtxs[v2ID - 1].Vx3ID = v3.ID;
+      // Over-write with the real score
+      SetVx3Score(slc, v3);
+      slc.vtx3s.push_back(v3);
+      if(slc.nPlanes == 3 && v3.Wire >= 0) ++ninc;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" 3V"<<v3.ID<<" -> ";
+        for(auto v2id : v3.Vx2ID) myprt<<" 2V"<<v2id;
+        myprt<<" wire "<<v3.Wire;
+      } // prt
+    } // v3
+
+    // Try to complete incomplete vertices
+    if(ninc > 0) {
+      CompleteIncomplete3DVerticesInGaps(slc);
+      CompleteIncomplete3DVertices(slc);
+    }
+
+  } // F3Vs
+
+
+  //////////////////////////////////////
   void Find3DVertices(TCSlice& slc)
   {
     // Create 3D vertices from 2D vertices. 3D vertices that are matched
@@ -1213,6 +1406,12 @@ namespace tca {
 
     if(tcc.vtx3DCuts[0] < 0) return;
     if(slc.vtxs.size() < 2) return;
+    
+    if(tcc.useAlg[kTCWork2]) {
+      F3Vs(slc);
+      return;
+    }
+    
     bool newCuts = (tcc.vtx3DCuts.size() > 2);
 
     // create a array/vector of 2D vertex indices in each plane
@@ -1221,6 +1420,7 @@ namespace tca {
       // obsolete vertex
       if(slc.vtxs[ivx].ID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
+      if(planeID.TPC != slc.TPCID.TPC) continue;
       unsigned short plane = planeID.Plane;
       if(plane > 2) continue;
       vIndex[plane].push_back(ivx);
@@ -1234,7 +1434,6 @@ namespace tca {
     bool prt = (tcc.dbg3V && tcc.dbgSlc);
     if(prt) {
       mf::LogVerbatim("TC")<<"Inside Find3DVertices. dX cut "<<tcc.vtx3DCuts[0]<<" thirdPlanedXCut "<<thirdPlanedXCut;
-//      PrintAllTraj("F3DV", slc, USHRT_MAX, slc.tjs.size());
     }
 
     size_t vsize = slc.vtxs.size();
@@ -1247,9 +1446,6 @@ namespace tca {
       if(slc.vtxs[ivx].ID <= 0) continue;
       if(slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
-      if(slc.vtxs[ivx].Pos[0] < -0.4) continue;
-      unsigned int wire = std::nearbyint(slc.vtxs[ivx].Pos[0]);
-      if(!tcc.geom->HasWire(geo::WireID(planeID, wire))) continue;
       // Convert 2D vertex time error to X error
       double ticks = slc.vtxs[ivx].Pos[1] / tcc.unitsPerTick;
       vX[ivx]  = tcc.detprop->ConvertTicksToX(ticks, planeID);
@@ -1262,37 +1458,27 @@ namespace tca {
     unsigned int tpc = slc.TPCID.TPC;
 
     TrajPoint tp;
-    float maxScore = 0;
     constexpr float maxSep = 4;
+    float maxScore = 0;
     // i, j, k indicates 3 different wire planes
     // compare vertices in each view
     for(unsigned short ipl = 0; ipl < 2; ++ipl) {
       for(unsigned short ii = 0; ii < vIndex[ipl].size(); ++ii) {
         unsigned short ivx = vIndex[ipl][ii];
-        if(vX[ivx] < 0) continue;
+        if(vX[ivx] == FLT_MAX) continue;
         auto& ivx2 = slc.vtxs[ivx];
         if(ivx2.Pos[0] < -0.4) continue;
         unsigned int iWire = std::nearbyint(ivx2.Pos[0]);
+        std::cout<<"ipl/ii "<<ipl<<"/"<<ii<<" iWire "<<iWire<<"\n";
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
-            if(vX[jvx] < 0) continue;
+            if(vX[jvx] == FLT_MAX) continue;
             auto& jvx2 = slc.vtxs[jvx];
             if(jvx2.Pos[0] < -0.4) continue;
             unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tcc.vtx3DCuts[0]) continue;
-            // see if this pair is already in the list
-            //bool gotit = false;
-            for(auto& v3t : v3temp) {
-              unsigned short cnt = 0;
-              if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), ivx2.ID) != v3t.Vx2ID.end()) ++cnt;
-              if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), jvx2.ID) != v3t.Vx2ID.end()) ++cnt;
-              if(cnt == slc.nPlanes) {
-                //gotit = true;
-                break;
-              } // cnt == slc.nPlanes
-            } // v3t
             if(prt) {
               mf::LogVerbatim("TC")<<"F3DV: ipl "<<ipl<<" i2V"<<ivx2.ID<<" iX "<<vX[ivx]
               <<" jpl "<<jpl<<" j2V"<<jvx2.ID<<" jvX "<<vX[jvx]<<" W:T "<<(int)jvx2.Pos[0]<<":"<<(int)jvx2.Pos[1]<<" dX "<<dX;
@@ -1304,9 +1490,7 @@ namespace tca {
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             int kWire = -1;
             if(slc.nPlanes > 2) {
-              kWire = (int)(tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5);
-              if(kWire < 0 || (unsigned int)kWire > slc.nWires[kpl]) continue;
-              if(!tcc.geom->HasWire(geo::WireID(cstat, tpc, kpl, kWire))) continue;
+              kWire = tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat);
               std::array<int, 2> wireWindow;
               std::array<float, 2> timeWindow;
               wireWindow[0] = kWire - maxSep;
@@ -1346,12 +1530,22 @@ namespace tca {
             }
             v3d.Score = posError + vxScoreWght;
             v3d.TPCID = slc.TPCID;
+/*
+            // check for a duplicate
+            bool gotit = false;
+            for(auto& v3t : v3temp) {
+              unsigned short cnt = 0;
+              if(std::find(v3t.begin(), v3t.end(), ivx2.ID) != v3t.end()) ++cnt;
+              if(std::find(v3t.begin(), v3t.end(), jvx2.ID) != v3t.end()) ++cnt;
+              if(std::find(v3t.begin(), v3t.end(), kvx2.ID) != v3t.end()) ++cnt;
+            } // v3t
+*/
             // push the incomplete vertex onto the list
             v3temp.push_back(v3d);
 
             if(prt) {
               mf::LogVerbatim myprt("TC");
-              myprt<<"F3DV: 2 Plane match i2V";
+              myprt<<"  2 Plane match i2V";
               myprt<<slc.vtxs[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)slc.vtxs[ivx].Pos[0]<<":"<<(int)slc.vtxs[ivx].Pos[1];
               myprt<<" j2V"<<slc.vtxs[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)slc.vtxs[jvx].Pos[0]<<":"<<(int)slc.vtxs[jvx].Pos[1];
               myprt<<std::fixed<<std::setprecision(3);
@@ -1363,11 +1557,10 @@ namespace tca {
             // look for a 3 plane match
             for(unsigned short kk = 0; kk < vIndex[kpl].size(); ++kk) {
               unsigned short kvx = vIndex[kpl][kk];
-              if(vX[kvx] < 0) continue;
               float dX = std::abs(vX[kvx] - v3d.X);
               // Wire difference error
               float dW = tcc.wirePitch * std::abs(slc.vtxs[kvx].Pos[0] - kWire);
-              if(prt) mf::LogVerbatim("TC")<<" k2V"<<kvx+1<<" dX "<<dX<<" dW "<<dW;
+              if(prt) mf::LogVerbatim("TC")<<"    k2V"<<kvx+1<<" dX "<<dX<<" dW "<<dW;
               if(dX > thirdPlanedXCut) continue;
               if(dW > tcc.vtx3DCuts[1]) continue;
               // put the Y,Z difference in YErr and ZErr
@@ -1556,7 +1749,7 @@ namespace tca {
       auto dir = DirAtEnd(pfp, end);
       double dotp = std::abs(DotProd(vpDir, dir));
       float fom = dotp * sep[end];
-      if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" end "<<end<<" 3V"<<vx3.ID<<" sep "<<sep[end]<<" fom "<<fom;
+      if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" end "<<end<<" 3V"<<vx3.ID<<" sep "<<sep[end]<<" fom "<<fom<<" maxSep "<<maxSep;
       // ignore if separation is too large
       if(sep[end] > maxSep) continue;
       if(fom < foms[end]) {
@@ -2371,14 +2564,16 @@ namespace tca {
       // last call after vertices have been matched to the truth. Use to optimize vtxScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
-      myprt<<" SVx2W 2v"<<vx2.ID;
 /*
+      myprt<<" SVx2W 2v"<<vx2.ID;
       myprt<<" m3Dcnt "<<m3Dcnt;
       myprt<<" PosErr "<<std::fixed<<std::setprecision(2)<<(vx2.PosErr[0] + vx2.PosErr[1]);
       myprt<<" TjChgFrac "<<std::fixed<<std::setprecision(3)<<vx2.TjChgFrac;
       myprt<<" sum "<<std::fixed<<std::setprecision(1)<<sum;
       myprt<<" cnt "<<(int)cnt;
 */
+      bool printHeader = true;
+      Print2V("SVx2S", myprt, vx2, printHeader);
       myprt<<std::fixed<<std::setprecision(1);
       myprt<<" vpeScore "<<vpeScore<<" m3DScore "<<m3DScore;
       myprt<<" cfScore "<<cfScore<<" tjScore "<<tjScore;
