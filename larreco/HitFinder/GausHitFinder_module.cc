@@ -100,7 +100,8 @@ private:
 //-------------------------------------------------
 //-------------------------------------------------
 GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
-  : EDProducer{pset}
+  : EDProducer{pset},
+    fEventCount(0)
 {
     fCalDataModuleLabel  = pset.get< std::string >("CalDataModuleLabel");
     fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
@@ -289,13 +290,6 @@ void GausHitFinder::produce(art::Event& evt)
 
         for(const auto& range : signalROI.get_ranges())
         {
-            // #################################################
-            // ### Getting a vector of signals for this wire ###
-            // #################################################
-            //std::vector<float> signal(wire->Signal());
-
-            const std::vector<float>& signal = range.data();
-
             // ##########################################################
             // ### Making an iterator for the time ticks of this wire ###
             // ##########################################################
@@ -311,8 +305,8 @@ void GausHitFinder::produce(art::Event& evt)
             reco_tool::ICandidateHitFinder::HitCandidateVec      hitCandidateVec;
             reco_tool::ICandidateHitFinder::MergeHitCandidateVec mergedCandidateHitVec;
 
-            fHitFinderToolVec.at(plane)->findHitCandidates(signal, 0, channel, fEventCount, hitCandidateVec);
-            fHitFinderToolVec.at(plane)->MergeHitCandidates(signal, hitCandidateVec, mergedCandidateHitVec);
+            fHitFinderToolVec.at(plane)->findHitCandidates(range, 0, channel, fEventCount, hitCandidateVec);
+            fHitFinderToolVec.at(plane)->MergeHitCandidates(range, hitCandidateVec, mergedCandidateHitVec);
 
             // #######################################################
             // ### Lets loop over the pulses we found on this wire ###
@@ -350,7 +344,7 @@ void GausHitFinder::produce(art::Event& evt)
                 // #######################################################
                 if (mergedCands.size() <= fMaxMultiHit)
                 {
-                    fPeakFitterTool->findPeakParameters(signal, mergedCands, peakParamsVec, chi2PerNDF, NDF);
+                    fPeakFitterTool->findPeakParameters(range.data(), mergedCands, peakParamsVec, chi2PerNDF, NDF);
 
                     // If the chi2 is infinite then there is a real problem so we bail
                     if (!(chi2PerNDF < std::numeric_limits<double>::infinity()))
@@ -392,7 +386,7 @@ void GausHitFinder::produce(art::Event& evt)
                     for(int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++)
                     {
                         // This hit parameters
-                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
+                        double sumADC    = std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
                         double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
                         double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
                         double peakMean  = (firstTick + lastTick) / 2.;
@@ -448,8 +442,8 @@ void GausHitFinder::produce(art::Event& evt)
                     float chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
 
                     // ### limits for getting sums
-                    std::vector<float>::const_iterator sumStartItr = signal.begin() + startT;
-                    std::vector<float>::const_iterator sumEndItr   = signal.begin() + endT;
+                    std::vector<float>::const_iterator sumStartItr = range.begin() + startT;
+                    std::vector<float>::const_iterator sumEndItr   = range.begin() + endT;
 
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
