@@ -1,0 +1,13 @@
+BEGIN_PROLOG
+
+standard_evalvtx:
+{
+  module_type: "EvalVtx"
+
+  TruthLabel: "generator"
+
+  VertexLabels: ["pandora", "quadvtx"]
+}
+
+END_PROLOG
+
