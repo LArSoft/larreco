@@ -44,8 +44,8 @@ physics:
     evalvtx: @local::standard_evalvtx
   }
 
-  ana: [ quadvtx, out1 ]
-  eval: [ evalvtx ]
+  ana: [ quadvtx ]
+  eval: [ evalvtx, out1 ]
 }
 
 physics.analyzers.evalvtx.VertexLabels: ["pandora", "quadvtx"]
