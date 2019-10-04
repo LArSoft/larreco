@@ -28,13 +28,13 @@ public:
 
     void configure(const fhicl::ParameterSet& pset) override;
 
-    void findHitCandidates(const Waveform&,
+    void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            size_t,
                            size_t,
                            size_t,
                            HitCandidateVec&) const override;
 
-    void MergeHitCandidates(const Waveform&,
+    void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                             const HitCandidateVec&,
                             MergeHitCandidateVec&) const override;
 
@@ -163,16 +163,19 @@ void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
     return;
 }
 
-void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
-                                             size_t           roiStartTick,
-                                             size_t           channel,
-                                             size_t           eventCount,
-                                             HitCandidateVec& hitCandidateVec) const
+void CandHitMorphological::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
+                                             size_t                                               roiStartTick,
+                                             size_t                                               channel,
+                                             size_t                                               eventCount,
+                                             HitCandidateVec&                                     hitCandidateVec) const
 {
     // In this case we want to find hit candidates based on the derivative of of the input waveform
     // We get this from our waveform algs too...
     Waveform rawDerivativeVec;
     Waveform derivativeVec;
+    
+    // Recover the actual waveform
+    const Waveform& waveform = dataRange.data();
 
     fWaveformTool->firstDerivative(waveform, rawDerivativeVec);
     fWaveformTool->triangleSmooth(rawDerivativeVec, derivativeVec);
@@ -217,19 +220,18 @@ void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
         if (channel != fLastChannel) fChannelCnt = 0;
 
         // Make a directory for these histograms
-        art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu/ev%04zu/c%1zut%1zuwire_%05zu",plane,eventCount,cryo,tpc,wire));
+        art::TFileDirectory dir = fHistDirectory->mkdir(Form("Event%04zu/c%1zuT%1zuP%1zu/Wire_%05zu",eventCount,cryo,tpc,plane,wire));
 
         size_t waveformSize = waveform.size();
-        int    waveStart    = roiStartTick;
-        int    waveStop     = waveStart + waveformSize;
+        size_t waveStart    = dataRange.begin_index();
 
-        TProfile* waveHist     = dir.make<TProfile>(Form("HWfm_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Waveform",   waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* derivHist    = dir.make<TProfile>(Form("HDer_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Derivative", waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* erosionHist  = dir.make<TProfile>(Form("HEro_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Erosion",    waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* dilationHist = dir.make<TProfile>(Form("HDil_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Dilation",   waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* candHitHist  = dir.make<TProfile>(Form("HCan_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Cand Hits",  waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* maxDerivHist = dir.make<TProfile>(Form("HMax_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Maxima",     waveformSize, waveStart, waveStop, -500., 500.);
-        TProfile* strtStopHist = dir.make<TProfile>(Form("HSSS_%03zu_ctw%01zu-%01zu-%01zu-%05zu",fChannelCnt,cryo,tpc,plane,wire), "Start/Stop", waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* waveHist     = dir.make<TProfile>(Form("HWfm_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Waveform",   waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* derivHist    = dir.make<TProfile>(Form("HDer_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Derivative", waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* erosionHist  = dir.make<TProfile>(Form("HEro_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Erosion",    waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* dilationHist = dir.make<TProfile>(Form("HDil_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Dilation",   waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* candHitHist  = dir.make<TProfile>(Form("HCan_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Cand Hits",  waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* maxDerivHist = dir.make<TProfile>(Form("HMax_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Maxima",     waveformSize, 0, waveformSize, -500., 500.);
+        TProfile* strtStopHist = dir.make<TProfile>(Form("HSSS_%03zu_roiStart-%05zu",fChannelCnt,waveStart), "Start/Stop", waveformSize, 0, waveformSize, -500., 500.);
 
         // Fill wave/derivative
         for(size_t idx = 0; idx < waveform.size(); idx++)
@@ -587,7 +589,7 @@ bool CandHitMorphological::getListOfHitCandidates(Waveform::const_iterator start
 }
 
 
-void CandHitMorphological::MergeHitCandidates(const Waveform&        signalVec,
+void CandHitMorphological::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
                                               const HitCandidateVec& hitCandidateVec,
                                               MergeHitCandidateVec&  mergedHitsVec) const
 {
