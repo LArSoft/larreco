@@ -87,6 +87,7 @@ private:
     int                  fStructuringElement;   //< Window size for morphologcial filter
     bool                 fOutputHistograms;     //< If true will generate summary style histograms
     bool                 fOutputWaveforms;      //< If true will output waveform related info <<< very big output file!
+    float                fFitNSigmaFromCenter;  //< Limit ticks to fit to NSigma from hit center; not applied if zero or negative
 
     art::TFileDirectory* fHistDirectory;
 
@@ -132,6 +133,7 @@ void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
     fStructuringElement  = pset.get< int    >("StructuringElement",  20);
     fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
     fOutputWaveforms     = pset.get< bool   >("OutputWaveforms",     false);
+    fFitNSigmaFromCenter = pset.get< float  >("FitNSigmaFromCenter", 5.);
 
     // Recover the baseline tool
     fWaveformTool = art::make_tool<reco_tool::IWaveformTool> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
@@ -198,6 +200,14 @@ void CandHitMorphological::findHitCandidates(const recob::Wire::RegionsOfInteres
                       roiStartTick,
                       fDilationThreshold,
                       hitCandidateVec);
+
+    // Limit start and stop tick to the neighborhood of the peak
+    if (fFitNSigmaFromCenter>0) {
+      for (auto& hc: hitCandidateVec) {
+        hc.startTick = std::max(hc.startTick, size_t(hc.hitCenter-fFitNSigmaFromCenter*hc.hitSigma));
+        hc.stopTick = std::min(hc.stopTick, size_t(hc.hitCenter+fFitNSigmaFromCenter*hc.hitSigma));
+      }
+    }
 
     // Reset the hit height from the input waveform
     for(auto& hitCandidate : hitCandidateVec)
