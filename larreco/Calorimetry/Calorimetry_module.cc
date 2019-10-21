@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <string>
+#include <optional>
 #include <cmath>
 #include <limits> // std::numeric_limits<>
 
@@ -63,7 +64,7 @@ namespace calo {
    * =======
    * 
    * * `std::vector<anab::Calorimetry>`: collection of calorimetry information,
-   *      per track and per wire plane
+   *      per reconstructed track and per wire plane
    * * `art::Assns<recob::Track, anab::Calorimetry>` association of each track
    *      with its calorimetry information
    * 
@@ -73,11 +74,12 @@ namespace calo {
    * 
    * @note This documentation is grossly incomplete.
    * 
-   * * **NotOnTrackZcut** (real, default: `-100` cm):
-   *     hits associated to all trajectory points whose _z_ coordinate is below
-   *     this value (including electric field distortion correction if enabled)
+   * * **NotOnTrackZcut** (real, optional): if specified, hits associated to all
+   *     trajectory points whose _z_ coordinate is below `NotOnTrackZcut` value
+   *     (including electric field distortion correction if enabled)
    *     are excluded from the calorimetry. The value is specified as absolute
    *     _z_ coordinate in world reference frame, in centimeters.
+   *     The legacy value of this cut was hard coded to `-100.0` cm.
    * 
    * 
    */
@@ -102,7 +104,7 @@ namespace calo {
     bool fUseArea;
     bool fSCE;
     bool fFlipTrack_dQdx; //flip track direction if significant rise of dQ/dx at the track start
-    double fNotOnTrackZcut; ///< Exclude trajectory points with _z_ lower than this [cm]
+    std::optional<double> fNotOnTrackZcut; ///< Exclude trajectory points with _z_ lower than this [cm]
     CalorimetryAlg caloAlg;
 
     int fnsps;
@@ -131,9 +133,12 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
     fUseArea(pset.get< bool >("UseArea") ),
     fSCE(pset.get< bool >("CorrectSCE")),
     fFlipTrack_dQdx(pset.get< bool >("FlipTrack_dQdx",true)),
-    fNotOnTrackZcut(pset.get<double>("NotOnTrackZcut", -100.0)),
     caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
+  
+  if (pset.has_key("NotOnTrackZcut"))
+    fNotOnTrackZcut = pset.get<double>("NotOnTrackZcut");
+  
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
 }
@@ -399,7 +404,7 @@ void calo::Calorimetry::produce(art::Event& evt)
           GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
 
         if (fBadhit) continue;
-	if (xyz3d[2] < fNotOnTrackZcut) continue; //hit not on track
+	if (fNotOnTrackZcut && (xyz3d[2] < fNotOnTrackZcut.value())) continue; //hit not on track
 	if (pitch<=0) pitch = fTrkPitch;
 	if (!pitch) continue;
 
