@@ -10,7 +10,8 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <string>
-#include <math.h>
+#include <cmath>
+#include <limits> // std::numeric_limits<>
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
@@ -55,6 +56,31 @@
 ///calorimetry
 namespace calo {
 
+  /**
+   * @brief Estimates the energy deposited by reconstructed tracks.
+   * 
+   * Output
+   * =======
+   * 
+   * * `std::vector<anab::Calorimetry>`: collection of calorimetry information,
+   *      per track and per wire plane
+   * * `art::Assns<recob::Track, anab::Calorimetry>` association of each track
+   *      with its calorimetry information
+   * 
+   * 
+   * Configuration
+   * ==============
+   * 
+   * @note This documentation is grossly incomplete.
+   * 
+   * * **NotOnTrackZcut** (real, default: `-100` cm):
+   *     hits associated to all trajectory points whose _z_ coordinate is below
+   *     this value (including electric field distortion correction if enabled)
+   *     are excluded from the calorimetry. The value is specified as absolute
+   *     _z_ coordinate in world reference frame, in centimeters.
+   * 
+   * 
+   */
   class Calorimetry : public art::EDProducer {
 
   public:
@@ -76,6 +102,7 @@ namespace calo {
     bool fUseArea;
     bool fSCE;
     bool fFlipTrack_dQdx; //flip track direction if significant rise of dQ/dx at the track start
+    double fNotOnTrackZcut; ///< Exclude trajectory points with _z_ lower than this [cm]
     CalorimetryAlg caloAlg;
 
     int fnsps;
@@ -104,6 +131,7 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
     fUseArea(pset.get< bool >("UseArea") ),
     fSCE(pset.get< bool >("CorrectSCE")),
     fFlipTrack_dQdx(pset.get< bool >("FlipTrack_dQdx",true)),
+    fNotOnTrackZcut(pset.get<double>("NotOnTrackZcut", -100.0)),
     caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
   produces< std::vector<anab::Calorimetry>              >();
@@ -337,9 +365,10 @@ void calo::Calorimetry::produce(art::Event& evt)
               }
 
              //Correct location for SCE
-              auto loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
+              geo::Point_t const loc
+                = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
               geo::Vector_t locOffsets = {0., 0., 0.,};
-              if(sce->EnableCalSpatialSCE()&&fSCE) locOffsets = sce->GetCalPosOffsets(geo::Point_t(loc),vhit[ii]->WireID().TPC);
+              if(sce->EnableCalSpatialSCE()&&fSCE) locOffsets = sce->GetCalPosOffsets(loc,vhit[ii]->WireID().TPC);
               xyz3d[0] = loc.X() - locOffsets.X();
               xyz3d[1] = loc.Y() + locOffsets.Y();
               xyz3d[2] = loc.Z() + locOffsets.Z();
@@ -370,7 +399,7 @@ void calo::Calorimetry::produce(art::Event& evt)
           GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
 
         if (fBadhit) continue;
-	if (xyz3d[2]<-100) continue; //hit not on track
+	if (xyz3d[2] < fNotOnTrackZcut) continue; //hit not on track
 	if (pitch<=0) pitch = fTrkPitch;
 	if (!pitch) continue;
 
@@ -667,9 +696,9 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
     double distancesign = sptsignmap[isp->second];
     //std::cout<<np<<" "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2]<<" "<<(*isp).first<<std::endl;
     if (np==0&&isp->first>30){//hit not on track
-      xyz3d[0] = -1000;
-      xyz3d[1] = -1000;
-      xyz3d[2] = -1000;
+      xyz3d[0] = std::numeric_limits<double>::lowest();
+      xyz3d[1] = std::numeric_limits<double>::lowest();
+      xyz3d[2] = std::numeric_limits<double>::lowest();
       pitch = -1;
       return;
     }
@@ -757,9 +786,9 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
     xyz3d[2] = vz[0];
   }
   else{
-    xyz3d[0] = -1000;
-    xyz3d[1] = -1000;
-    xyz3d[2] = -1000;
+    xyz3d[0] = std::numeric_limits<double>::lowest();
+    xyz3d[1] = std::numeric_limits<double>::lowest();
+    xyz3d[2] = std::numeric_limits<double>::lowest();
     pitch = -1;
     return;
   }
