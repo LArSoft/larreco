@@ -38,6 +38,7 @@ namespace tca {
     // Don't use this if standard vertex reconstruction is disabled
     if(tcc.vtx2DCuts[0] <= 0) return;
     if(!tcc.useAlg[kJunkVx]) return;
+    if(tcc.useAlg[kTCWork2]) return;
     if(slc.tjs.size() < 2) return;
 
     // Look for tjs that are within maxSep of the end of a Tj
@@ -159,9 +160,9 @@ namespace tca {
     bool requireVtxTjChg = true;
     if(tcc.vtx2DCuts[10] == 0 && int(planeID.Plane) < slc.nPlanes - 1) requireVtxTjChg = false;
 
-    bool prt = (tcc.dbg2V && tcc.dbgSlc && debug.Plane == (int)planeID.Plane);
+    bool prt = (tcc.dbg2V && tcc.dbgSlc && inCTP == debug.CTP);
     if(prt) {
-      mf::LogVerbatim("TC")<<"prt set for plane "<<planeID.Plane<<" in Find2DVertices. firstPassCuts? "<<firstPassCuts<<" requireVtxTjChg "<<requireVtxTjChg;
+      mf::LogVerbatim("TC")<<"prt set for CTP "<<inCTP<<" in Find2DVertices. firstPassCuts? "<<firstPassCuts<<" requireVtxTjChg "<<requireVtxTjChg;
       PrintAllTraj("F2DVi", slc, USHRT_MAX, slc.tjs.size());
     }
 
@@ -282,7 +283,6 @@ namespace tca {
           if(tcc.modes[kStepDir]) stepDir = 1;
           short dpt1 = stepDir * (closePt1 - endPt1);
           if(prt) mf::LogVerbatim("TC")<<" endPt1 "<<endPt1<<" closePt1 "<<closePt1<<" dpt1 "<<dpt1<<" doca1 "<<doca1;
-          // BB April 19, 2018: require vertex to be near the end
           if(dpt1 < -1) continue;
           if(slc.tjs[it1].EndPt[1] > 4) {
             if(dpt1 > 3) continue;
@@ -303,8 +303,10 @@ namespace tca {
             // tighter cut for short trajectories
             if(dpt2 > 2) continue;
           }
-          if(prt) mf::LogVerbatim("TC")<<" wint:tint "<<(int)wint<<":"<<(int)(tint/tcc.unitsPerTick);
           bool fixVxPos = false;
+          // fix the vertex position if there is a charge kink here
+          if(tcc.useAlg[kTCWork2] && tj1.EndFlag[end1][kAtKink]) fixVxPos = true;
+          if(prt) mf::LogVerbatim("TC")<<" wint:tint "<<(int)wint<<":"<<(int)(tint/tcc.unitsPerTick)<<" fixVxPos? "<<fixVxPos;
           if(requireVtxTjChg) {
             // ensure that there is a signal between these TPs and the vertex on most of the wires
             bool signalBetween = true;
@@ -584,6 +586,7 @@ namespace tca {
     //
 
     if(!tcc.useAlg[kChkVxTj]) return;
+    if(tcc.useAlg[kTCWork2]) return;
 
     for(unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
       auto& vx2 = slc.vtxs[ivx];
@@ -1086,6 +1089,7 @@ namespace tca {
     // This is kind of self-explanatory...
 
     if(!tcc.useAlg[kSplitTjCVx]) return;
+    if(tcc.useAlg[kTCWork2]) return;
 
     if(slc.vtxs.empty()) return;
     if(slc.tjs.empty()) return;
@@ -2459,7 +2463,7 @@ namespace tca {
     if(vx2.ID == 0) return;
 
     // Don't score vertices from CheckTrajBeginChg, MakeJunkVertices or Neutral vertices. Set to the minimum
-    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11 || vx2.Topo == 12) {
+    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11 || vx2.Topo == 12 || vx2.Topo == 13) {
       vx2.Score = tcc.vtx2DCuts[7] + 0.1;
       auto vtxTjID = GetVtxTjIDs(slc, vx2);
       vx2.TjChgFrac = ChgFracNearPos(slc, vx2.Pos, vtxTjID);
@@ -2560,7 +2564,7 @@ namespace tca {
       tjScore = tcc.vtxScoreWeights[3] * sum;
     }
     vx2.Score = vpeScore + m3DScore + cfScore + tjScore;
-    if(tcc.dbg2V && tcc.dbgSlc && (int)DecodeCTP(vx2.CTP).Plane == debug.Plane) {
+    if(tcc.dbg2V && tcc.dbgSlc && vx2.CTP == debug.CTP) {
       // last call after vertices have been matched to the truth. Use to optimize vtxScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
@@ -2906,10 +2910,9 @@ namespace tca {
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP){
 
     if(!tcc.useAlg[kVtxHitsSwap]) return;
+    if(tcc.useAlg[kTCWork2]) return;
 
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-
-    bool prt = ((tcc.dbg2V &&  debug.Plane == (int)planeID.Plane) || tcc.dbgAlg[kVtxHitsSwap]);
+    bool prt = ((tcc.dbg2V && inCTP == debug.CTP) || tcc.dbgAlg[kVtxHitsSwap]);
     for (unsigned short iv = 0; iv < slc.vtxs.size(); ++iv){
       VtxStore& rvx = slc.vtxs[iv];
       if(rvx.CTP != inCTP) continue;
