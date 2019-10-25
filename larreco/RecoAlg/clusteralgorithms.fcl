@@ -9,7 +9,7 @@ standard_trajclusteralg:
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
-   MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
+   MinPts:    [3, 3, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
    MinMCSMom: [0, 0, 0]   # Minimum MCSMom for each pass
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
