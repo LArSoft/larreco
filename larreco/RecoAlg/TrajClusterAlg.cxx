@@ -124,7 +124,10 @@ namespace tca {
       std::cout<<"WARNING: Vertex3DCuts is size 2 but should be size 3, where Vertex3DCuts[2] = max 3D separation (cm) btw a PFP and a 3D vertex. Setting it to 3 cm\n";
       tcc.vtx3DCuts.resize(3, 3.);
     }
-    if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
+    if(tcc.kinkCuts.size() < 4) {
+      std::cout<<"KinkCuts[3] = (minimum kink likelihood) is not defined. Setting it to 0.95";
+      tcc.kinkCuts.resize(4, 0.95);
+    }
     if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     // dressed muons - change next line
@@ -174,16 +177,13 @@ namespace tca {
         } // ib
         // print some instructions and quit if there was a failure
         if(!tcc.modes[kDebug]) {
+          std::cout<<"DecodeDebugString failed: "<<strng<<"\n";
           DecodeDebugString("instruct");
           exit(1);
         }
       } // DecodeDebugString failed
     } // strng
-/*
-    if(tcc.modes[kDebug] && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0) {
-      debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
-    }
-*/
+    
     for(auto& range : tcc.angleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
@@ -236,23 +236,7 @@ namespace tca {
     // Configure the TMVA reader for the shower parent BDT
     if(fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0) ConfigureMVA(tcc, fMVAShowerParentWeights);
 
-    if(tcc.modes[kDebug]) {
-      std::cout<<"Debug mode: using algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-        if(ib % 15 == 0) std::cout<<"\n";
-        if(tcc.useAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
-      }
-      std::cout<<"\n";
-      std::cout<<"Skipping algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tcc.useAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
-      std::cout<<"\n";
-      if(debug.Slice < 0) {
-        std::cout<<"Debugging in all slices\n";
-      } else {
-        std::cout<<"Debug sub-slice index "<<debug.Slice<<"\n";
-      }
-      if(debug.WorkID < 0) std::cout<<"Debug WorkID "<<debug.WorkID<<"\n";
-    } // debug mode
+    if(tcc.modes[kDebug]) PrintDebugMode();
 
     evt.eventsProcessed = 0;
 
@@ -562,6 +546,7 @@ namespace tca {
               }
             } // dbgStp
             // See if it should be split
+            FindKinks(slc, slc.tjs.size() - 1);
             CheckTrajBeginChg(slc, slc.tjs.size() - 1);
             BraggSplit(slc, slc.tjs.size() - 1);
             break;
@@ -895,6 +880,8 @@ namespace tca {
     // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
 
     if(!tcc.useAlg[kMisdVxTj]) return;
+    // try to do without this function
+    if(tcc.useAlg[kTCWork2]) return;
 
     bool prt = (tcc.dbgStp || tcc.dbg3V || tcc.dbgAlg[kMisdVxTj]);
 
