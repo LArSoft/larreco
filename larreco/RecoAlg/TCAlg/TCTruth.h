@@ -80,7 +80,7 @@ namespace tca {
   public:
 
     MCParticleListUtils(TCSlice& my_slc);
-    void MakeTruTrajPoint(TCSlice& slc, unsigned int MCParticleListIndex, TrajPoint& tp);
+//    void MakeTruTrajPoint(TCSlice& slc, unsigned int MCParticleListIndex, TrajPoint& tp);
     ShowerStruct3D MakeCheatShower(TCSlice& slc, unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
     bool PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy);
     int PrimaryElectronPFPID(TCSlice& slc);
