@@ -99,6 +99,9 @@ namespace tca {
   std::vector<unsigned int> FindCloseHits(TCSlice& slc, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
   float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
+  void FindKinks(TCSlice& slc, unsigned short itj);
+  float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
+                        bool useChg, bool prt);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
   void ReverseTraj(TCSlice& slc, Trajectory& tj);
@@ -198,16 +201,17 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void DumpTj();
+void PrintDebugMode();
   void PrintAll(std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader);
   void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
-  void PrintTrajectory(std::string someText, TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
+  void PrintTrajectory(std::string someText, const TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
   void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
-  void PrintTrajPoint(std::string someText, TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintTrajPoint(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp);
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader);
   void PrintPFPs(std::string someText, TCSlice& slc);
   // Print clusters after calling MakeAllTrajClusters
