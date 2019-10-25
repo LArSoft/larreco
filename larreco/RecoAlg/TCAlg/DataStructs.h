@@ -54,7 +54,7 @@ namespace tca {
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
-    //       12 = BraggSplit
+    //       12 = BraggSplit, 13 = FindKinks
     short Topo {0};
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
@@ -118,6 +118,7 @@ namespace tca {
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     double Ang {0};                // Trajectory angle (-pi, +pi)
     double AngErr {0.1};             // Trajectory angle error
+    float KinkSig {-1};         // kink significance = delta angle / angle error
     float Chg {0};                // Chargetj2pt
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
@@ -137,6 +138,7 @@ namespace tca {
   struct ChgFit {
     Point2_t Pos {{0,0}}; // position origin of the fit
     float Chg;
+    float AveChg;
     float ChgErr;
     float ChgSlp;       // slope relative to the origin
     float ChgSlpErr;
@@ -373,7 +375,7 @@ namespace tca {
     kMaskBadTPs,
     kMichel,
     kDeltaRay,
-    kCTKink,        ///< kink found in CheckTraj
+    kFindKinks,
     kCTStepChk,
     kRvPrp,
     kCHMUH,
