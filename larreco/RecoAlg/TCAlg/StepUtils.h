@@ -20,6 +20,7 @@ namespace tca {
 
   // Main stepping/crawling routine
   void StepAway(TCSlice& slc, Trajectory& tj);
+  bool StopShort(TCSlice& slc, Trajectory& tj, bool prt);
   void SetStrategy(TCSlice& slc, Trajectory& tj);
   void Forecast(TCSlice& slc, Trajectory& tj);
   // Updates the last added trajectory point fit, average hit rms, etc.
@@ -49,7 +50,7 @@ namespace tca {
   // setting inTraj < 0
   void FindUseHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
   // Truncates the trajectory if a soft kink is found in it
-  void FindSoftKink(TCSlice& slc, Trajectory& tj);
+//  void FindSoftKink(TCSlice& slc, Trajectory& tj);
   // Fill gaps in the trajectory
   void FillGaps(TCSlice& slc, Trajectory& tj);
   // Check for many unused hits and try to use them
@@ -69,11 +70,11 @@ namespace tca {
   bool StopIfBadFits(TCSlice& slc, Trajectory& tj);
   // Does a local fit of just-added TPs to identify a kink while stepping.
   // Truncates the vector and returns true if one is found.
+  void GottaKink_v2(TCSlice& slc, Trajectory& tj, unsigned short& killPts);
   void GottaKink(TCSlice& slc, Trajectory& tj, unsigned short& killPts);
-  // Update the parameters at the beginning of the trajectory
-  void FixTrajBegin(TCSlice& slc, Trajectory& tj);
+  // Update the parameters at the start of the trajectory
+  void CheckStart(TCSlice& slc, Trajectory& tj);
   void FixTrajBegin(TCSlice& slc, Trajectory& tj, unsigned short atPt);
-  void FixTrajEnd(TCSlice& slc, Trajectory& tj, unsigned short atPt);
   bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits);
   bool IsGhost(TCSlice& slc, Trajectory& tj);
   void LastEndMerge(TCSlice& slc, CTP_t inCTP);
