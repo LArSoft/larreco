@@ -2786,7 +2786,9 @@ namespace tca {
   ////////////////////////////////////////////////
   void GottaKink_v2(TCSlice& slc, Trajectory& tj, unsigned short& killPts)
   {
-    // An improved(?) version
+    // An improved(?) version of GottaKink. This function trims the points after a kink
+    // if one is found. The killPts variable isn't used and could be eliminated if this
+    // function is found to be better than GottaKink.
     
     killPts = 0;
     if(tcc.kinkCuts[0] < 0) return;
@@ -2802,7 +2804,7 @@ namespace tca {
 //    if(tj.Strategy[kSlowing]) nPtsFit = 3;
 
     // find the point where a kink is expected and fit the points after that point
-    unsigned short kinkPt = USHRT_MAX;
+    unsigned short fitPt = USHRT_MAX;
     unsigned short cnt = 0;
     for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
       unsigned short ipt = tj.EndPt[1] - ii - 1;
@@ -2811,24 +2813,24 @@ namespace tca {
       if(ipt <= tj.EndPt[0] + 2) break;
       if(tj.Pts[ipt].Chg <= 0) continue;
       ++cnt;
-      // Note that the kinkPt is not included in the fits in the kink significance so we need
+      // Note that the fitPt is not included in the fits in the kink significance so we need
       // one more point
       if(cnt > nPtsFit) {
-        kinkPt = ipt;
+        fitPt = ipt;
         break;
       }
     } // ii
-    if(kinkPt == USHRT_MAX) return;
+    if(fitPt == USHRT_MAX) return;
     // don't consider charge here
-    tj.Pts[kinkPt].KinkSig = KinkSignificance(slc, tj, kinkPt, nPtsFit, false, tcc.dbgStp);
+    tj.Pts[fitPt].KinkSig = KinkSignificance(slc, tj, fitPt, nPtsFit, false, tcc.dbgStp);
     
-    bool thisPtHasKink = (tj.Pts[kinkPt].KinkSig > tcc.kinkCuts[3]);
-    bool prevPtHasKink = (tj.Pts[kinkPt - 1].KinkSig > tcc.kinkCuts[3]);
+    bool thisPtHasKink = (tj.Pts[fitPt].KinkSig > tcc.kinkCuts[3]);
+    bool prevPtHasKink = (tj.Pts[fitPt - 1].KinkSig > tcc.kinkCuts[3]);
     if(tcc.dbgStp) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"GottaKink_v2 kinkPt "<<PrintPos(slc, tj.Pts[kinkPt]);
-      myprt<<std::fixed<<std::setprecision(5)<<" KinkSig "<<tj.Pts[kinkPt].KinkSig;
-      myprt<<" prevPt significance "<<tj.Pts[kinkPt - 1].KinkSig;
+      myprt<<"GK2 fitPt "<<fitPt<<" "<<PrintPos(slc, tj.Pts[fitPt]);
+      myprt<<std::fixed<<std::setprecision(5)<<" KinkSig "<<tj.Pts[fitPt].KinkSig;
+      myprt<<" prevPt significance "<<tj.Pts[fitPt - 1].KinkSig;
       if(!thisPtHasKink && !prevPtHasKink) myprt<<" no kink";
       if(thisPtHasKink && !prevPtHasKink) myprt<<" -> Start kink region";
       if(thisPtHasKink && prevPtHasKink) myprt<<" -> Inside kink region";
@@ -2851,22 +2853,36 @@ namespace tca {
 */
     // We have left a kink region. Find the point with the max likelihood and call
     // that the kink point
-    float maxSig = tj.Pts[kinkPt].KinkSig;
-    for(unsigned short ipt = tj.EndPt[1]; ipt > tj.EndPt[0]; --ipt) {
+    float maxSig = tcc.kinkCuts[3];
+    unsigned short kinkRegionLength = 0;
+    unsigned short maxKinkPt = USHRT_MAX;
+    for(unsigned short ipt = fitPt - 1; ipt > tj.EndPt[0]; --ipt) {
       auto& tp = tj.Pts[ipt];
-      if(tp.KinkSig < maxSig) continue;
-      maxSig = tp.KinkSig;
-      kinkPt = ipt;
+      if(tp.KinkSig < 0) continue;
+      if(tp.KinkSig > maxSig) {
+        // track the max significance
+        maxSig = tp.KinkSig;
+        maxKinkPt = ipt;
+      } // tp.KinkSig > maxSig
+      // find the start of the kink region
+      if(tp.KinkSig < tcc.kinkCuts[3]) break;
+      ++kinkRegionLength;
     } // ipt
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK2: kink at "<<PrintPos(slc, tj.Pts[kinkPt])<<std::setprecision(3)<<" maxSig "<<maxSig;
+    if(maxKinkPt == USHRT_MAX) return;
+    // Require that the candidate kink be above the cut threshold for more than one point.
+    // Scale the requirement by the number of points in the fit
+    unsigned short kinkRegionLengthMin = 1 + nPtsFit / 4;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK2:   kink at "<<PrintPos(slc, tj.Pts[maxKinkPt])<<std::setprecision(3)<<" maxSig "<<maxSig<<" kinkRegionLength "<<kinkRegionLength<<" kinkRegionLengthMin "<<kinkRegionLengthMin;
+    if(kinkRegionLength < kinkRegionLengthMin) return;
     // trim the points
-    for(unsigned short ipt = kinkPt + 1; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
+    for(unsigned short ipt = maxKinkPt + 1; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
     SetEndPoints(tj);
     // trim another point if the charge of the last two points is wildly dissimilar
     float lastChg = tj.Pts[tj.EndPt[1]].Chg;
     float prevChg = tj.Pts[tj.EndPt[1] - 1].Chg;
     float chgAsym = std::abs(lastChg - prevChg) / (lastChg + prevChg);
-    if(chgAsym > 0.2) {
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK2: last point "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" chgAsym "<<chgAsym;
+    if(chgAsym > 0.1) {
       UnsetUsedHits(slc, tj.Pts[tj.EndPt[1]]);
       SetEndPoints(tj);
     }
