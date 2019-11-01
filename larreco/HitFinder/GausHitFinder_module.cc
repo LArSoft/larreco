@@ -68,7 +68,6 @@ private:
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
 
     bool                fFilterHits;
-    bool                fMakeRawDigitAssns;
 
     std::string         fCalDataModuleLabel;
     std::string         fAllHitsInstanceName;
@@ -106,7 +105,6 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     fCalDataModuleLabel  = pset.get< std::string >("CalDataModuleLabel");
     fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
     fFilterHits          = pset.get< bool        >("FilterHits",false);
-    fMakeRawDigitAssns   = pset.get< bool        >("MakeRawDigitAssns",true);
 
     if (fFilterHits) {
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
@@ -147,10 +145,10 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     // and one with all hits. The key to doing this will be a non-null
     // instance name for the second collection
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName,true,fMakeRawDigitAssns);
+    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName,true,false); //fMakeRawDigitAssns);
 
     // and now the filtered hits...
-    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(*this,"",true,fMakeRawDigitAssns);
+    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(*this,"",true,false); //fMakeRawDigitAssns);
 
     return;
 } // GausHitFinder::GausHitFinder()
@@ -216,10 +214,10 @@ void GausHitFinder::produce(art::Event& evt)
     // ###############################################
     // this contains the hit collection
     // and its associations to wires and raw digits
-    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, fMakeRawDigitAssns);
+    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, false);
 
     // Handle the filtered hits collection...
-    recob::HitCollectionCreator  hcol(*this, evt, "", true, fMakeRawDigitAssns);
+    recob::HitCollectionCreator  hcol(*this, evt, "", true, false);
     recob::HitCollectionCreator* filteredHitCol = 0;
 
     if( fFilterHits ) filteredHitCol = &hcol;
@@ -230,12 +228,6 @@ void GausHitFinder::produce(art::Event& evt)
     // ##########################################
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
-
-    // #################################################################
-    // ### Reading in the RawDigit associated with these wires, too  ###
-    // #################################################################
-    art::FindOneP<raw::RawDigit> RawDigits
-        (wireVecHandle, evt, fCalDataModuleLabel);
 
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
@@ -472,8 +464,7 @@ void GausHitFinder::produce(art::Event& evt)
                     const recob::Hit hit(hitcreator.move());
 
                     // This loop will store ALL hits
-                    if (fMakeRawDigitAssns) allHitCol.emplace_back(std::move(hit), wire, RawDigits.at(wireIter));
-                    else                    allHitCol.emplace_back(std::move(hit), wire);
+                    allHitCol.emplace_back(std::move(hit), wire);
                     numHits++;
                 } // <---End loop over gaussians
 
@@ -514,10 +505,7 @@ void GausHitFinder::produce(art::Event& evt)
                     // Copy the hits we want to keep to the filtered hit collection
                     for(const auto& filteredHit : filteredHitVec)
                         if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit))
-                        {
-                            if (fMakeRawDigitAssns) filteredHitCol->emplace_back(filteredHit, wire, RawDigits.at(wireIter));
-                            else                    filteredHitCol->emplace_back(filteredHit, wire);
-                        }
+                            filteredHitCol->emplace_back(filteredHit, wire);
                 }
 
                 fChi2->Fill(chi2PerNDF);
