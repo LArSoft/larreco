@@ -47,7 +47,6 @@ gaus_hitfinder:
                                              # will use "long" pulse method to return hit
     AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
                                              # in this case there will be two hit collections, one filtered and one containing all hits
-    MakeRawDigitAssns:    true               # Make RawDigit associations (along with Wire associations) for each hit
 
     # Candididate peak finding done by tool, one tool instantiated per plane (but could be other divisions too)
     HitFinderToolVec:
