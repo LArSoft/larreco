@@ -127,11 +127,11 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset) :
     fMaxIterationsReg(pset.get<int>("MaxIterationsReg")),
     fXHitOffset(pset.get<double>("XHitOffset"))
 {
-  recob::ChargedSpacePointCollectionCreator::produces(*this, "pre");
+  recob::ChargedSpacePointCollectionCreator::produces(producesCollector(), "pre");
   if(fFit){
-    recob::ChargedSpacePointCollectionCreator::produces(*this);
+    recob::ChargedSpacePointCollectionCreator::produces(producesCollector());
     produces<art::Assns<recob::SpacePoint, recob::Hit>>();
-    recob::ChargedSpacePointCollectionCreator::produces(*this, "noreg");
+    recob::ChargedSpacePointCollectionCreator::produces(producesCollector(), "noreg");
   }
 
   fHitReader = art::make_tool<reco3d::IHitReader>(pset.get<fhicl::ParameterSet>("HitReaderTool"));
@@ -438,9 +438,9 @@ void SpacePointSolver::produce(art::Event& evt)
   if(evt.getByLabel(fHitLabel, hits))
     art::fill_ptr_vector(hitlist, hits);
 
-  recob::ChargedSpacePointCollectionCreator spcol_pre(evt, *this, "pre");
-  recob::ChargedSpacePointCollectionCreator spcol_noreg(evt, *this, "noreg");
-  recob::ChargedSpacePointCollectionCreator spcol(evt, *this);
+  auto spcol_pre = recob::ChargedSpacePointCollectionCreator::forPtrs(evt, "pre");
+  auto spcol_noreg = recob::ChargedSpacePointCollectionCreator::forPtrs(evt, "noreg");
+  auto spcol = recob::ChargedSpacePointCollectionCreator::forPtrs(evt);
   auto assns = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
 
   // Skip very small events

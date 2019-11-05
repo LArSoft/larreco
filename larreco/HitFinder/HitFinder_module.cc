@@ -73,7 +73,7 @@ namespace hit {
     // hits and associations with wires and raw digits
     // (with no particular product label);
     // TODO this should be marked as transient when art will implement issue #8018
-    recob::HitCollectionAssociator::declare_products(*this);
+    recob::HitCollectionAssociator::declare_products(producesCollector());
 
   } // HitFinder::HitFinder()
 
@@ -99,7 +99,7 @@ namespace hit {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitCollectionAssociator shcol(*this, evt, fCalDataModuleLabel, true);
+    recob::HitCollectionAssociator shcol(evt, fCalDataModuleLabel, true);
 
     shcol.use_hits(std::move(Hits));
 

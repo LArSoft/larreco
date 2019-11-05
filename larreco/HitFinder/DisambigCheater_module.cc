@@ -69,7 +69,7 @@ namespace hit{
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+    recob::HitCollectionCreator::declare_products(producesCollector());
 
 
     // Space charge can shift true IDE postiion to far-off channels.
@@ -135,7 +135,7 @@ namespace hit{
     // this object contains the hit collection
     // and its associations to wires and raw digits
     // (if the original objects have them):
-    recob::HitCollectionCreator hits(*this, evt, doWireAssns, doRawDigitAssns);
+    recob::HitCollectionCreator hits(evt, doWireAssns, doRawDigitAssns);
 
 
     // find the wireIDs each hit is on

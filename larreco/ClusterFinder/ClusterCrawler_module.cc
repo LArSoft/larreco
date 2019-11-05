@@ -63,7 +63,7 @@ namespace cluster {
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionAssociator::declare_products(*this);
+    recob::HitCollectionAssociator::declare_products(producesCollector());
 
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -96,7 +96,7 @@ namespace cluster {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitCollectionAssociator shcol(*this, evt, fCalDataModuleLabel, true);
+    recob::HitCollectionAssociator shcol(evt, fCalDataModuleLabel, true);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
 

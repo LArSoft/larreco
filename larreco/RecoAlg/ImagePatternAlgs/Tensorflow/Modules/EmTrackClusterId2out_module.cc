@@ -115,7 +115,8 @@ private:
 EmTrackClusterId2out::EmTrackClusterId2out(EmTrackClusterId2out::Parameters const& config) :
         EDProducer{config},
 	fBatchSize(config().BatchSize()),
-	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrack"),
+        fPointIdAlg(config().PointIdAlg()),
+        fMVAWriter(producesCollector(), "emtrack"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),

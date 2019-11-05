@@ -93,7 +93,7 @@ namespace hit {
     //LET HITCOLLECTIONCREATOR DECLARE THAT WE ARE GOING TO PRODUCE
     //HITS AND ASSOCIATIONS TO RAW DIGITS BUT NOT ASSOCIATIONS TO WIRES
     //(WITH NO PARTICULAR PRODUCT LABEL).
-    recob::HitCollectionCreator::declare_products(*this,
+    recob::HitCollectionCreator::declare_products(producesCollector(),
         /*instance_name*/"",
         /*doWireAssns*/false,
         /*doRawDigitAssns*/true);
@@ -121,7 +121,7 @@ namespace hit {
     // ### Making a ptr vector to put on the event ###
     // ###############################################
     // THIS CONTAINS THE HIT COLLECTION AND ITS ASSOCIATIONS TO WIRES AND RAW DIGITS.
-    recob::HitCollectionCreator hcol(*this, evt, false /* doWireAssns */, true /* doRawDigitAssns */);
+    recob::HitCollectionCreator hcol(evt, false /* doWireAssns */, true /* doRawDigitAssns */);
 
     std::vector<float> startTimes;  //STORES TIME OF WINDOW START.
     std::vector<float> maxTimes;    //STORES TIME OF LOCAL MAXIMUM.

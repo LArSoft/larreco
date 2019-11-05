@@ -32,8 +32,6 @@ namespace ShowerRecoTools {
 
       ShowerExampleTool(const fhicl::ParameterSet& pset);
 
-      ~ShowerExampleTool();
-
       //Example Direction Finder
       int CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
           art::Event& Event,
@@ -65,16 +63,8 @@ namespace ShowerRecoTools {
     fPFParticleModuleLabel = pset.get<art::InputTag>("PFParticleModuleLabel","");
   }
 
-  ShowerExampleTool::~ShowerExampleTool()
+  void ShowerExampleTool::InitialiseProducers()
   {
-  }
-
-  void ShowerExampleTool::InitialiseProducers(){
-    if(producerPtr == NULL){
-      mf::LogWarning("ShowerExampleTool") << "The producer ptr has not been set" << std::endl;
-      return;
-    }
-
     //Do you create something and you want to save it the event. Initialsie here. For every event with have a vector of showers so each one has a vertex. This is what we are saving. Make sure to use the name "myvertex" later down the line.
     InitialiseProduct<std::vector<recob::Vertex> >("myvertex");
 
@@ -185,4 +175,3 @@ namespace ShowerRecoTools {
 }
 
 DEFINE_ART_CLASS_TOOL(ShowerRecoTools::ShowerExampleTool)
-

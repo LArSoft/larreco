@@ -13,7 +13,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ProducesCollector.h"
 #include "art/Persistency/Common/PtrMaker.h"
 
 //LArSoft Includes
@@ -38,11 +38,11 @@ namespace ShowerRecoTools{
           ) = 0;
 
       //Function to initialise the producer i.e produces<std::vector<recob::Vertex> >(); commands go here.
-      virtual void InitialiseProducers(){return;}
+      virtual void InitialiseProducers(){}
 
       //Set the point looking back at the producer module show we can make things in the module
-      void SetPtr(art::EDProducer* modulePtr){
-        producerPtr = modulePtr;
+      void SetPtr(art::ProducesCollector* collector){
+        collectorPtr = collector;
       }
 
       //Initialises the unique ptr holder so that the tool can access it behind the scenes.
@@ -58,7 +58,7 @@ namespace ShowerRecoTools{
 
       //ptr to the holder of all the unique ptrs.
       reco::shower::ShowerProduedPtrsHolder* UniquePtrs;
-
+      art::ProducesCollector* collectorPtr;
 
     protected:
 
@@ -98,7 +98,12 @@ namespace ShowerRecoTools{
       //Example: InitialiseProduct<std::vector<recob<vertex>>("MyVertex")
       template <class T>
         void InitialiseProduct(std::string Name, std::string InstanceName=""){
-          producerPtr->produces<T>(InstanceName);
+          if (collectorPtr == nullptr){
+            mf::LogWarning("IShowerTool") << "The art::ProducesCollector ptr has not been set";
+            return;
+          }
+
+          collectorPtr->produces<T>(InstanceName);
           UniquePtrs->SetShowerUniqueProduerPtr(type<T>(),Name,InstanceName);
         }
 
@@ -121,9 +126,6 @@ namespace ShowerRecoTools{
       void PrintPtr(std::string Name){
         UniquePtrs->PrintPtr(Name);
       }
-
-      //Producer ptr
-      art::EDProducer* producerPtr;
 
   };
 }
