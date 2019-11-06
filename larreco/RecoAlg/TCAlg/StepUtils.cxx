@@ -113,6 +113,11 @@ namespace tca {
       tp.Hits.clear();
       tp.UseHit.reset();
       tp.FitChi = 0; tp.Chg = 0;
+      if(tcc.useAlg[kTCWork2]) {
+        tp.Environment.reset();
+        unsigned int wire = std::nearbyint(tp.Pos[0]);
+        if(!evt.goodWire[plane][wire]) tp.Environment[kEnvDeadWire] = true;
+      }
       // append to the trajectory
       tj.Pts.push_back(tp);
       // update the index of the last TP
@@ -164,7 +169,7 @@ namespace tca {
                 SetEndPoints(tj);
                 if(tcc.dbgStp) {
                   mf::LogVerbatim("TC")<<" Added a Last Lonely Hit before breaking ";
-                  PrintTrajPoint("LLH", slc, lastPt, tj.StepDir, tj.Pass, tj.Pts[lastLonelyPoint]);
+                  PrintTP("LLH", slc, lastPt, tj.StepDir, tj.Pass, tj.Pts[lastLonelyPoint]);
                 }
               }
             }
@@ -343,6 +348,7 @@ namespace tca {
     
     // don't use this function during reverse propagation
     if(tj.AlgMod[kRvPrp]) return false;
+    if(!tcc.useAlg[kStopShort]) return false;
     
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     if(npwc > 10) return false;
@@ -375,6 +381,7 @@ namespace tca {
     } // tp
     if(cnt < 3) return false;
     aveChg /= cnt;
+    if(prt) mf::LogVerbatim("TC")<<"  aveChg "<<(int)aveChg<<" last TP AveChg "<<(int)tj.Pts[tj.EndPt[1]].AveChg;
     // Look for a sudden drop in the charge (< 1/2)
     unsigned short firstLoPt = lastHiPt + 1;
     for(unsigned short ipt = lastHiPt + 1; ipt < tj.Pts.size(); ++ipt) {
@@ -383,11 +390,12 @@ namespace tca {
       firstLoPt = ipt;
       break;
     } // ipt
-    if(prt) mf::LogVerbatim("TC")<<"StopShort stops tracking at "<<PrintPos(slc, tj.Pts[firstLoPt]);
+    if(prt) mf::LogVerbatim("TC")<<"    stop tracking at "<<PrintPos(slc, tj.Pts[firstLoPt]);
     // Remove everything from the firstLoPt to the end of the trajectory
     for(unsigned short ipt = firstLoPt; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
     SetEndPoints(tj);
     UpdateTjChgProperties("SS", slc, tj, prt);
+    tj.AlgMod[kStopShort] = true;
     return true;
   } // StopShort
 
@@ -493,7 +501,7 @@ namespace tca {
   } // SetStrategy
 
   //////////////////////////////////////////
-  void Forecast(TCSlice& slc, Trajectory& tj)
+  void Forecast(TCSlice& slc, const Trajectory& tj)
   {
     // Extrapolate the last TP of tj by many steps and return a forecast of what is ahead
     // -1       error or not sure
@@ -534,19 +542,19 @@ namespace tca {
     fctj.CTP = tj.CTP;
     fctj.ID = evt.WorkID;
     // make a local copy of the last point
-    auto tp = tj.Pts[tj.EndPt[1]];
+    auto ltp = tj.Pts[tj.EndPt[1]];
     // Use the hits position instead of the fitted position so that a bad
     // fit doesn't screw up the forecast.
-    float forecastWin0 = std::abs(tp.Pos[1] - tp.HitPos[1]);
+    float forecastWin0 = std::abs(ltp.Pos[1] - ltp.HitPos[1]);
     if(forecastWin0 < 1) forecastWin0 = 1;
-    tp.Pos = tp.HitPos;
-    double stepSize = std::abs(1/tp.Dir[0]);
+    ltp.Pos = ltp.HitPos;
+    double stepSize = std::abs(1/ltp.Dir[0]);
     float window = tcc.showerTag[7] * stepSize;
     if(doPrt) {
       mf::LogVerbatim("TC")<<"Forecast T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc<<" minAveChg "<<(int)minAveChg<<" stepSize "<<std::setprecision(2)<<stepSize<<" window "<<window;
       mf::LogVerbatim("TC")<<" stp ___Pos____  nTPH  Chg ChgPull  Delta  DRMS  chgWid nTkLk nShLk";
     }
-    unsigned short plane = DecodeCTP(tp.CTP).Plane;
+    unsigned short plane = DecodeCTP(ltp.CTP).Plane;
     float totHits = 0;
     fctj.TotChg = 0;
     float maxChg = 0;
@@ -560,42 +568,42 @@ namespace tca {
     unsigned short trimPts = 0;
     for(istp = 0; istp < 1000; ++istp) {
       // move the local TP position by one step in the right direction
-      for(unsigned short iwt = 0; iwt < 2; ++iwt) tp.Pos[iwt] += tp.Dir[iwt] * stepSize;
-      unsigned int wire = std::nearbyint(tp.Pos[0]);
+      for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
+      unsigned int wire = std::nearbyint(ltp.Pos[0]);
       if(wire < slc.firstWire[plane]) break;
       if(wire > slc.lastWire[plane]-1) break;
-      MoveTPToWire(tp, (float)wire);
-      ++tp.Step;
-      if(FindCloseHits(slc, tp, window, kAllHits)) {
+      MoveTPToWire(ltp, (float)wire);
+      ++ltp.Step;
+      if(FindCloseHits(slc, ltp, window, kAllHits)) {
         // Found hits or the wire is dead
         // set all hits used so that we can use DefineHitPos. Note that
         // the hit InTraj is not used or tested in DefineHitPos so this doesn't
         // screw up any assns
-        if(!tp.Environment[kEnvDeadWire]) {
+        if(!ltp.Environment[kEnvDeadWire]) {
           nMissed = 0;
-          tp.UseHit.set();
-          DefineHitPos(slc, tp);
-          fctj.TotChg += tp.Chg;
-          tp.Delta = PointTrajDOCA(slc, tp.HitPos[0], tp.HitPos[1], tp);
-          tp.DeltaRMS = tp.Delta / window;
-          tp.Environment.reset();
-          totHits += tp.Hits.size();
-          if(tp.Chg > maxChg) {
-            maxChg = tp.Chg;
+          ltp.UseHit.set();
+          DefineHitPos(slc, ltp);
+          fctj.TotChg += ltp.Chg;
+          ltp.Delta = PointTrajDOCA(slc, ltp.HitPos[0], ltp.HitPos[1], ltp);
+          ltp.DeltaRMS = ltp.Delta / window;
+          ltp.Environment.reset();
+          totHits += ltp.Hits.size();
+          if(ltp.Chg > maxChg) {
+            maxChg = ltp.Chg;
             maxChgPt = fctj.Pts.size();
           }
           // Note that ChgPull uses the average charge and charge RMS of the
           // trajectory before it entered the forecast envelope
-          tp.ChgPull = (tp.Chg / minAveChg - 1) / tj.ChgRMS;
-          if((tp.ChgPull > 3 && tp.Hits.size() > 1) || tp.ChgPull > 10) {
+          ltp.ChgPull = (ltp.Chg / minAveChg - 1) / tj.ChgRMS;
+          if((ltp.ChgPull > 3 && ltp.Hits.size() > 1) || ltp.ChgPull > 10) {
             ++nShLike;
             // break if it approaches the side of the envelope
-            tp.Environment[kEnvNearShower] = true;
+            ltp.Environment[kEnvNearShower] = true;
             // flag a showerlike TP so it isn't used in the MCSMom calculation
-            tp.HitPosErr2 = 100;
+            ltp.HitPosErr2 = 100;
           } else {
             ++nTkLike;
-            tp.Environment[kEnvNearShower] = false;
+            ltp.Environment[kEnvNearShower] = false;
           }
           if(fctj.Pts.size() > 10) {
             float shFrac = nShLike / (nShLike + nTkLike);
@@ -605,23 +613,23 @@ namespace tca {
             }
           } // fctj.Pts.size() > 6
           // break if it approaches the side of the envelope
-          if(tp.DeltaRMS > 0.8) {
+          if(ltp.DeltaRMS > 0.8) {
             leavesNear = npwc + fctj.Pts.size();
             if(doPrt) mf::LogVerbatim("TC")<<"leaves before end - break";
             leavesBeforeEnd = true;
             break;
           }
-          fctj.Pts.push_back(tp);
+          fctj.Pts.push_back(ltp);
           if(doPrt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<std::setw(4)<<npwc + fctj.Pts.size()<<" "<<PrintPos(slc, tp);
-            myprt<<std::setw(5)<<tp.Hits.size();
-            myprt<<std::setw(5)<<(int)tp.Chg;
+            myprt<<std::setw(4)<<npwc + fctj.Pts.size()<<" "<<PrintPos(slc, ltp);
+            myprt<<std::setw(5)<<ltp.Hits.size();
+            myprt<<std::setw(5)<<(int)ltp.Chg;
             myprt<<std::fixed<<std::setprecision(1);
-            myprt<<std::setw(8)<<tp.ChgPull;
-            myprt<<std::setw(8)<<tp.Delta;
-            myprt<<std::setw(8)<<std::setprecision(2)<<tp.DeltaRMS;
-            myprt<<std::setw(8)<<sqrt(tp.HitPosErr2);
+            myprt<<std::setw(8)<<ltp.ChgPull;
+            myprt<<std::setw(8)<<ltp.Delta;
+            myprt<<std::setw(8)<<std::setprecision(2)<<ltp.DeltaRMS;
+            myprt<<std::setw(8)<<sqrt(ltp.HitPosErr2);
             myprt<<std::setw(6)<<(int)nTkLike;
             myprt<<std::setw(6)<<(int)nShLike;
           } // doPrt
@@ -689,7 +697,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"Forecast T"<<tj.ID<<" tj.AveChg "<<(int)tj.AveChg;
       myprt<<" start "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" cnt "<<fctj.Pts.size()<<" totChg "<<(int)fctj.TotChg;
-      myprt<<" last pos "<<PrintPos(slc, tp);
+      myprt<<" last pos "<<PrintPos(slc, ltp);
       myprt<<" MCSMom "<<tjf.MCSMom;
       myprt<<" outlook "<<std::fixed<<std::setprecision(2)<<tjf.outlook;
       myprt<<" chgSlope "<<std::setprecision(1)<<tjf.chgSlope<<" +/- "<<tjf.chgSlopeErr;
@@ -778,7 +786,7 @@ namespace tca {
       short newMCSMom = MCSMom(slc, tj);
       short minMCSMom = 0.5 * tj.MCSMom;
       if(lastPt > 10 && newMCSMom < minMCSMom) {
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive "<<newMCSMom;
+        if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UT: MCSMom took a nose-dive "<<newMCSMom;
         UnsetUsedHits(slc, lastTP);
         DefineHitPos(slc, lastTP);
         SetEndPoints(tj);
@@ -788,9 +796,8 @@ namespace tca {
       tj.MCSMom = newMCSMom;
     } // npwc > 3
 
-
     if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleCode "<<lastTP.AngleCode<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
+      mf::LogVerbatim("TC")<<"UT: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleCode "<<lastTP.AngleCode<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
     }
 
     UpdateTjChgProperties("UT", slc, tj, tcc.dbgStp);
@@ -802,7 +809,7 @@ namespace tca {
       FitTraj(slc, tj);
       lastTP.FitChi = 0.01;
       lastTP.AngErr = tj.Pts[0].AngErr;
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UpdateTraj: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UT: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
       tj.NeedsUpdate = false;
       SetAngleCode(lastTP);
       return;
@@ -813,7 +820,7 @@ namespace tca {
       lastTP.NTPsFit = 3;
       FitTraj(slc, tj);
       tj.NeedsUpdate = false;
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UpdateTraj: Third traj point fit "<<lastTP.FitChi;
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UT: Third traj point fit "<<lastTP.FitChi;
       SetAngleCode(lastTP);
       return;
     }
@@ -888,7 +895,7 @@ namespace tca {
       }
     }
 
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UpdateTraj: First fit "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" FitChi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit<<" ndead wires "<<ndead<<" tj.MaskedLastTP "<<tj.MaskedLastTP;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"UT: First fit "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" FitChi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit<<" ndead wires "<<ndead<<" tj.MaskedLastTP "<<tj.MaskedLastTP;
       if(tj.MaskedLastTP) {
         UnsetUsedHits(slc, lastTP);
         DefineHitPos(slc, lastTP);
@@ -2370,7 +2377,7 @@ namespace tca {
           DefineHitPos(slc, tj.Pts[mpt]);
           tj.AlgMod[kFillGaps] = true;
           if(tcc.dbgStp) {
-            PrintTrajPoint("FG", slc, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
+            PrintTP("FG", slc, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
             mf::LogVerbatim("TC")<<"Check MCSMom "<<MCSMom(slc, tj);
           }
         } // filled
@@ -3938,7 +3945,10 @@ namespace tca {
             aVtx.ID = slc.vtxs.size() + 1;
             // keep it simple if tp1 and tp2 are very close or if the angle between them
             // is small
-            if(PosSep(tp1.Pos, tp2.Pos) < 3 || dang < 0.1) {
+            if(prt) mf::LogVerbatim("TC")<<"  candidate 2V"<<aVtx.ID<<" dang "<<dang<<" sep "<<PosSep(tp1.Pos, tp2.Pos);
+            bool fix2V = (PosSep(tp1.Pos, tp2.Pos) < 3 || dang < 0.1);
+            if(tcc.useAlg[kTCWork2]) fix2V = (PosSep(tp1.Pos, tp2.Pos) < 3 && dang < 0.1);
+            if(fix2V) {
               aVtx.Pos[0] = 0.5 * (tp1.Pos[0] + tp2.Pos[0]);
               aVtx.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
               aVtx.Stat[kFixed] = true;
