@@ -21,9 +21,9 @@ namespace tca {
   void StitchPFPs();
   void FindSptPFParticles(TCSlice& slc);
   void FindPFParticles(TCSlice& slc);
-  void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec);
+  void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec, unsigned short matVec_Iter);
   void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
-  void ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
+  bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
