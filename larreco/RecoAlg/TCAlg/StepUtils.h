@@ -22,7 +22,7 @@ namespace tca {
   void StepAway(TCSlice& slc, Trajectory& tj);
   bool StopShort(TCSlice& slc, Trajectory& tj, bool prt);
   void SetStrategy(TCSlice& slc, Trajectory& tj);
-  void Forecast(TCSlice& slc, Trajectory& tj);
+  void Forecast(TCSlice& slc, const Trajectory& tj);
   // Updates the last added trajectory point fit, average hit rms, etc.
   void UpdateTraj(TCSlice& slc, Trajectory& tj);
   // Version with a different strategy for tracking high energy electrons
