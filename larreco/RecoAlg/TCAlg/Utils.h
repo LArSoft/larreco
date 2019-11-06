@@ -97,6 +97,7 @@ namespace tca {
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TCSlice& slc, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TCSlice& slc, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
+  unsigned short NearbyCleanPt(TCSlice& slc, const Trajectory& tj, unsigned short nearPt);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
   float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
   void FindKinks(TCSlice& slc, unsigned short itj);
@@ -169,7 +170,8 @@ namespace tca {
   // Tag muon directions using delta proximity
 //  void TagMuonDirections(TCSlice& slc, short debugWorkID);
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
-  void UpdateVxEnvironment(std::string inFcnLabel, TCSlice& slc, VtxStore& vx2, bool prt);
+  void UpdateVxEnvironment(TCSlice& slc);
+  void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt);
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, CTP_t inCTP);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
@@ -201,7 +203,7 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void DumpTj();
-void PrintDebugMode();
+  void PrintDebugMode();
   void PrintAll(std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
@@ -210,8 +212,8 @@ void PrintDebugMode();
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
   void PrintTrajectory(std::string someText, const TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
   void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
-  void PrintHeader(std::string someText);
-  void PrintTrajPoint(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp);
+  void PrintTPHeader(std::string someText);
+  void PrintTP(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp);
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader);
   void PrintPFPs(std::string someText, TCSlice& slc);
   // Print clusters after calling MakeAllTrajClusters

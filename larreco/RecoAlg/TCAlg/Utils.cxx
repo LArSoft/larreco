@@ -257,7 +257,7 @@ namespace tca {
         neutrinoPFP.PDGCode = 14;
         neutrinoPFP.Vx3ID[1] = vx3.ID;
         neutrinoPFP.Vx3ID[0] = vx3.ID;
-        neutrinoPFP.NeedsUpdate = false;
+        neutrinoPFP.Flags[kNeedsUpdate] = false;
         // the rest of this will be defined later
         if(!StorePFP(slc, neutrinoPFP)) return;
       }
@@ -2708,28 +2708,28 @@ namespace tca {
 
     tp.Hits.clear();
     tp.UseHit.reset();
+    if(tcc.useAlg[kTCWork2]) tp.Environment.reset();
     if(!WireHitRangeOK(slc, tp.CTP)) {
       return false;
     }
 
-    geo::PlaneID planeID = DecodeCTP(tp.CTP);
-    unsigned short ipl = planeID.Plane;
     if(tp.Pos[0] < -0.4) return false;
+    unsigned short plane = DecodeCTP(tp.CTP).Plane;
     unsigned int wire = std::nearbyint(tp.Pos[0]);
-    if(wire < slc.firstWire[ipl]) return false;
-    if(wire > slc.lastWire[ipl]-1) return false;
+    if(wire < slc.firstWire[plane]) return false;
+    if(wire > slc.lastWire[plane]-1) return false;
 
     // dead wire
-    if(!evt.goodWire[ipl][wire]) {
+    if(!evt.goodWire[plane][wire]) {
       tp.Environment[kEnvDeadWire] = true;
       return true;
     }
     tp.Environment[kEnvDeadWire] = false;
     // live wire with no hits
-    if(slc.wireHitRange[ipl][wire].first == UINT_MAX) return false;
+    if(slc.wireHitRange[plane][wire].first == UINT_MAX) return false;
     
-    unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
+    unsigned int firstHit = slc.wireHitRange[plane][wire].first;
+    unsigned int lastHit = slc.wireHitRange[plane][wire].second;
 
     float fwire = wire;
     for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
@@ -2751,6 +2751,26 @@ namespace tca {
     return (!tp.Hits.empty());
 
   } // FindCloseHits
+
+  //////////////////////////////////////////
+  unsigned short NearbyCleanPt(TCSlice& slc, const Trajectory& tj, unsigned short end)
+  {
+    // Searches for a TP near the end (or beginnin) that doesn't have the kEnvOverlap bit set
+    // with the intent that a fit of a vertex position using this tj will be minimally 
+    // biased if there are no nearby hits from other tjs. A search is done from the
+    // supplied nearPt moving in the + direction if nearPt == tj.EndPt[0] and moving in
+    // the - direction if nearPt == tj.EndPt[1]
+    if(end > 1) return USHRT_MAX;
+    short dir = 1;
+    if(end == 1) dir = -1;
+    for(short ii = 0; ii < tj.Pts.size(); ++ii) {
+      short ipt = tj.EndPt[end] + dir * ii;
+      if(ipt < 0 || ipt >= tj.Pts.size()) return USHRT_MAX;
+      auto& tp = tj.Pts[ipt];
+      if(!tp.Environment[kEnvOverlap]) return ipt;
+    } // ii
+    return tj.EndPt[end];
+  } // FindCleanPt
 
   //////////////////////////////////////////
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta)
@@ -2794,22 +2814,21 @@ namespace tca {
       lastWire = std::nearbyint(tmp);
     }
 
-    geo::PlaneID planeID = DecodeCTP(tp.CTP);
-    unsigned short ipl = planeID.Plane;
+    unsigned short plane = DecodeCTP(tp.CTP).Plane;
 
-    if(firstWire < slc.firstWire[ipl]) firstWire = slc.firstWire[ipl];
-    if(firstWire > slc.lastWire[ipl]-1) return tmp;
-    if(lastWire < slc.firstWire[ipl]) return tmp;
-    if(lastWire > slc.lastWire[ipl]-1) lastWire = slc.lastWire[ipl]-1;
+    if(firstWire < slc.firstWire[plane]) firstWire = slc.firstWire[plane];
+    if(firstWire > slc.lastWire[plane]-1) return tmp;
+    if(lastWire < slc.firstWire[plane]) return tmp;
+    if(lastWire > slc.lastWire[plane]-1) lastWire = slc.lastWire[plane]-1;
 
     for(unsigned int wire = firstWire; wire <= lastWire; ++wire) {
-      if(slc.wireHitRange[ipl][wire].first == UINT_MAX) continue;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
       MoveTPToWire(tp, (float)wire);
       // Find the tick range at this position
       float minTick = (tp.Pos[1] - maxDelta) / tcc.unitsPerTick;
       float maxTick = (tp.Pos[1] + maxDelta) / tcc.unitsPerTick;
-      unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
-      unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
+      unsigned int firstHit = slc.wireHitRange[plane][wire].first;
+      unsigned int lastHit = slc.wireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
         if(slc.slHits[iht].InTraj <= 0) continue;
         if((unsigned int)slc.slHits[iht].InTraj > slc.tjs.size()) continue;
@@ -3548,12 +3567,7 @@ namespace tca {
     // is changed. The most likely reason for a change is when the tj is attached to a
     // vertex in which case the Environment kEnvOverlap bit may be set by the UpdateVxEnvironment
     // function in which case this function is called.
-    // The kEnvNearShower bit may be set by TagShowerTjs but this doesn't affect the
-    // calculation of the properties of this Tj.tcc.maxPos0 This function simply sets the kEnvUnusedHits bit
-    // for all TPs.
     if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
-
-    std::string fcnLabel = inFcnLabel + ".UpTjProp";
 
     // first (un)set some bits
     for(auto& tp : tj.Pts) {
@@ -3636,6 +3650,7 @@ namespace tca {
         if(arg > 0) tj.ChgRMS = sqrt(arg / (bcnt - 1));
       }
       for(auto& tp : tj.Pts) tp.AveChg = tj.AveChg;
+      if(prt) mf::LogVerbatim("TC")<<inFcnLabel<<".UpdateTjChgProperties: backup sum Set tj.AveChg "<<(int)tj.AveChg<<" ChgRMS "<<tj.ChgRMS;
       return;
     } // low npwc
 
@@ -3672,6 +3687,7 @@ namespace tca {
       rms = defFrac * 0.5 + (1 - defFrac) * rms;
     }
     tj.ChgRMS = rms;
+    if(prt) mf::LogVerbatim("TC")<<inFcnLabel<<".UpdateTjChgProperties: Set tj.AveChg "<<(int)tj.AveChg<<" ChgRMS "<<tj.ChgRMS;
 
     // Update the TP charge pulls.
     // Don't let the calculated charge RMS dominate the default
@@ -3731,17 +3747,35 @@ namespace tca {
   } // UpdateTjChgProperties
 
   /////////////////////////////////////////
-  void UpdateVxEnvironment(std::string inFcnLabel, TCSlice& slc, VtxStore& vx2, bool prt)
+  void UpdateVxEnvironment(TCSlice& slc)
   {
-    // Update the Environment each TP on trajectories near the vertex. This is called when
-    // the Tj has been added to a vertex to identify nearby trajectories that contribute to
-    // the charge on TPs near the vertex.
+    // Set the kEnvOverlap bit true for all TPs that are close to other 
+    // trajectories that are close to vertices. The positions of TPs that
+    // overlap are biased and shouldn't be used in a vertex fit. Also, these
+    // TPs shouldn't be used to calculate dE/dx. The kEnvOverlap bit is first cleared
+    // for ALL TPs and then set for ALL 2D vertices
+    
+    for(auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      for(auto& tp : tj.Pts) tp.Environment[kEnvOverlap] = false;
+    } // tj
+    
+    for(auto& vx : slc.vtxs) {
+      if(vx.ID <= 0) continue;
+      UpdateVxEnvironment(slc, vx, false);
+    } // vx
+    
+  } // UpdateVxEnvironment
+
+  /////////////////////////////////////////
+  void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt)
+  {
+    // Update the Environment each TP on trajectories near the vertex
+    
     if(vx2.ID == 0) return;
     if(vx2.Stat[kOnDeadWire]) return;
 
-    std::string fcnLabel = inFcnLabel + ".UpVxProp";
-
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" UpdateTjEnvironment check Tjs attached to vx2 "<<vx2.ID;
+    if(prt) mf::LogVerbatim("TC")<<"UpdateVxEnvironment check Tjs attached to vx2 "<<vx2.ID;
 
     std::vector<int> tjlist;
     std::vector<unsigned short> tjends;
@@ -3766,7 +3800,7 @@ namespace tca {
     } // tj
     if(tjlist.size() < 2) return;
     if(hiWire < loWire + 1) return;
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" check Tjs on wires in the range "<<loWire<<" to "<<hiWire;
+    if(prt) mf::LogVerbatim("TC")<<" check Tjs on wires in the range "<<loWire<<" to "<<hiWire;
 
     // create a vector of TPs between loWire and hiWire for every tj in the list
     //   wire       TP
@@ -3822,7 +3856,7 @@ namespace tca {
       } // ii
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<fcnLabel<<" T"<<tj.ID;
+        myprt<<" T"<<tj.ID;
         for(auto& tp : tjpt) myprt<<" "<<PrintPos(slc, tp.Pos)<<"_"<<tp.Step<<"_"<<(int)tp.Chg;
       }
       wire_tjpt.push_back(tjpt);
@@ -3854,16 +3888,18 @@ namespace tca {
         unsigned short ipt = wire_tjpt[itj][indx].Step;
         tj.Pts[ipt].Environment[kEnvOverlap] = true;
         tj.NeedsUpdate = true;
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Set kEnvOverlap bit on T"<<tj.ID<<" ipt "<<ipt;
+        if(prt) mf::LogVerbatim("TC")<<" Set kEnvOverlap bit on T"<<tj.ID<<" ipt "<<ipt;
       } // itj
     } // indx
+    
+    vx2.Stat[kVxEnvOK] = true;
 
     // update the charge rms for those tjs whose environment was changed above (or elsewhere)
     for(auto tjid : tjids) {
       auto& tj = slc.tjs[tjid - 1];
       if(!tj.NeedsUpdate) continue;
       if(tj.CTP != vx2.CTP) continue;
-      UpdateTjChgProperties(fcnLabel, slc, tj, prt);
+      UpdateTjChgProperties("UVxE", slc, tj, prt);
     } // tjid
 
   } // UpdateVxEnvironment
@@ -4302,6 +4338,7 @@ namespace tca {
     } // pln
     
     // next define the wireHitRange values. Make one loop through the allHits collection
+    unsigned int nBadWireFix = 0;
     for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
       auto& hit = (*evt.allHits)[iht];
       auto wid = hit.WireID();
@@ -4309,9 +4346,17 @@ namespace tca {
       if(wid.TPC != tpc) continue;
       unsigned short pln = wid.Plane;
       unsigned int wire = wid.Wire;
+      // Check the goodWire status and correct it if it's wrong
+      if(!evt.goodWire[pln][wire]) {
+        evt.goodWire[pln][wire] = true;
+        ++nBadWireFix;
+      } // not goodWire
       if(evt.wireHitRange[pln][wire].first == UINT_MAX) evt.wireHitRange[pln][wire].first = iht;
       evt.wireHitRange[pln][wire].second = iht;
     } // iht
+    if(nBadWireFix > 0 && tcc.modes[kDebug]) {
+      std::cout<<"FillWireHitRange found hits on "<<nBadWireFix<<" wires that were declared not-good by the ChannelStatus service. Fixed it...\n";
+    }
   } // FillWireHitRange
   
   ////////////////////////////////////////////////
@@ -4979,7 +5024,7 @@ namespace tca {
       std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
       std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
-      std::cout<<" 'MVI <MVI>' for detailed debugging of one MatchVecIndex\n";
+      std::cout<<" 'MVI <MVI> <MVI Iteration>' for detailed debugging of one MatchVecIndex\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
       std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
@@ -5022,7 +5067,10 @@ namespace tca {
       tcc.dbgPFP = true;
       tcc.modes[kDebug] = true;
       // Use debug.Hit to identify the matchVec index
-      if(words.size() == 2) debug.MVI = std::stoi(words[1]);
+      if(words.size() > 2) {
+        debug.MVI = std::stoi(words[1]);
+        if(words.size() == 3) debug.MVI_Iter = std::stoi(words[2]);
+      }
       return true;
     } // PFP
     if(words.size() == 2 && words[0] == "Dump") {
@@ -5110,7 +5158,7 @@ namespace tca {
         outfile<<"Dump trajectory T"<<tj.UID<<" WorkID "<<tj.WorkID;
         outfile<<" ChgRMS "<<std::setprecision(2)<<tj.ChgRMS;
         outfile<<"\n";
-        outfile<<"Wire, Chg T"<<tj.UID<<", totChg, Tick, Delta, NTPsFit, Ang, ChiDOF, KinkSig\n";
+        outfile<<"Wire, Chg T"<<tj.UID<<", totChg, Tick, Delta, NTPsFit, Ang, ChiDOF, KinkSig, HitPosErr\n";
         for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
           auto& tp = tj.Pts[ipt];
           outfile<<std::fixed;
@@ -5129,7 +5177,7 @@ namespace tca {
           outfile<<","<<std::setprecision(3)<<tp.Ang;
           outfile<<","<<std::setprecision(2)<<tp.FitChi;
           outfile<<","<<std::setprecision(2)<<tp.KinkSig;
-//          outfile<<","<<std::setprecision(2)<<sqrt(tp.HitPosErr2);
+          outfile<<","<<std::setprecision(2)<<sqrt(tp.HitPosErr2);
           outfile<<"\n";
         } // ipt
         outfile.close();
@@ -5254,6 +5302,7 @@ namespace tca {
           SetMag(dtrDir, 1.);
           auto dang = DeltaAngle(momDir, dtrDir);
           myprt<<" scatter/decay angle "<<std::setprecision(3)<<dang;
+          for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::abs(momDir[xyz] - dtrDir[xyz]);
         } // valid momIndx
         myprt<<"\n";
       } // imcp
@@ -5431,7 +5480,7 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
       if(vx3.Vx2ID[ipl] == 0) continue;
       unsigned short iv2 = vx3.Vx2ID[ipl] - 1;
-      if(slc.vtxs[iv2].Stat[kVtxTruMatch]) ++nTruMatch;
+      if(slc.vtxs[iv2].Stat[kVxTruMatch]) ++nTruMatch;
     } // ipl
     myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
     myprt<<std::setw(6)<<vx3.Primary;
@@ -5506,7 +5555,8 @@ namespace tca {
         myprt<<std::right<<std::setw(6)<<tid;
       } // end
     } // ii
-    // Special flags. Ignore the first flag bit (0 = kVtxTrjTried) which is done for every vertex
+    myprt<<" Stat:";
+    // Special flags. Ignore the first flag bit (0 = kVxTrjTried) which is done for every vertex
     for(unsigned short ib = 1; ib < VtxBitNames.size(); ++ib) if(vx2.Stat[ib]) myprt<<" "<<VtxBitNames[ib];
     myprt<<"\n";
   } // Print2V
@@ -5676,7 +5726,7 @@ namespace tca {
           for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
             if(vx3.Vx2ID[ipl] == 0) continue;
             unsigned short iv2 = vx3.Vx2ID[ipl] - 1;
-            if(slc.vtxs[iv2].Stat[kVtxTruMatch]) ++nTruMatch;
+            if(slc.vtxs[iv2].Stat[kVxTruMatch]) ++nTruMatch;
           } // ipl
           myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
           myprt<<std::setw(6)<<vx3.Primary;
@@ -5746,7 +5796,7 @@ namespace tca {
                 myprt<<std::right<<std::setw(6)<<tid;
               } // end
             } // ii
-            // Special flags. Ignore the first flag bit (0 = kVtxTrjTried) which is done for every vertex
+            // Special flags. Ignore the first flag bit (0 = kVxTrjTried) which is done for every vertex
             for(unsigned short ib = 1; ib < VtxBitNames.size(); ++ib) if(vx2.Stat[ib]) myprt<<" "<<VtxBitNames[ib];
             myprt<<"\n";
           } // iv
@@ -5800,13 +5850,12 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
-        // Print the fraction of points in the first half that are in a shower
+        // Print the fraction of points in the first half that are near a tj
         float frac = 0;
         float cnt = 0;
         unsigned short midPt = 0.5 * (aTj.EndPt[0] + aTj.EndPt[1]);
         for(unsigned short ipt = aTj.EndPt[0]; ipt < midPt; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-//          if(tp.Environment[kEnvNearShower]) ++frac;
           if(tp.Environment[kEnvNearTj]) ++frac;
           ++cnt;
         } // ipt
@@ -5829,12 +5878,11 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
-        // Print the fraction of points in the second half that are NearInShower
+        // Print the fraction of points in the second half that are near a tj
         frac = 0;
         cnt = 0;
         for(unsigned short ipt = midPt; ipt <= aTj.EndPt[1]; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-//          if(tp.Environment[kEnvNearShower]) ++frac;
           if(tp.Environment[kEnvNearTj]) ++frac;
           ++cnt;
         } // ipt
@@ -5884,13 +5932,13 @@ namespace tca {
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
     myprt<<"\n";
 
-    PrintHeader(someText);
+    PrintTPHeader(someText);
     if(ipt == USHRT_MAX) {
       // print all points
-      for(unsigned short ii = 0; ii < aTj.Pts.size(); ++ii) PrintTrajPoint(someText, slc, ii, aTj.StepDir, aTj.Pass, aTj.Pts[ii]);
+      for(unsigned short ii = 0; ii < aTj.Pts.size(); ++ii) PrintTP(someText, slc, ii, aTj.StepDir, aTj.Pass, aTj.Pts[ii]);
     } else {
       // print just one
-      PrintTrajPoint(someText, slc, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
+      PrintTP(someText, slc, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
     }
   } // PrintAllTraj
 
@@ -5901,7 +5949,6 @@ namespace tca {
     // prints one or all trajectory points on tj
 
     int trupdg = 0;
-//    if(tj.mcpListIndex < evt.mcpList.size()) trupdg = evt.mcpList[tj.mcpListIndex]->PdgCode();
 
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
@@ -5921,8 +5968,8 @@ namespace tca {
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
-      PrintHeader(someText);
-      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) PrintTrajPoint(someText, slc, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
+      PrintTPHeader(someText);
+      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) PrintTP(someText, slc, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
       // See if this trajectory is a shower Tj
       if(tj.AlgMod[kShowerTj]) {
         for(unsigned short ic = 0; ic < slc.cots.size(); ++ic) {
@@ -5971,18 +6018,18 @@ namespace tca {
         mf::LogVerbatim("TC")<<"Can't print non-existent traj point "<<tPoint;
         return;
       }
-      PrintTrajPoint(someText, slc, tPoint, tj.StepDir, tj.Pass, tj.Pts[tPoint]);
+      PrintTP(someText, slc, tPoint, tj.StepDir, tj.Pass, tj.Pts[tPoint]);
     }
   } // PrintTrajectory
 
   //////////////////////////////////////////
-  void PrintHeader(std::string someText)
+  void PrintTPHeader(std::string someText)
   {
     mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
-  } // PrintHeader
+  } // PrintTPHeader
 
   ////////////////////////////////////////////////
-  void PrintTrajPoint(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp)
+  void PrintTP(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp)
   {
     mf::LogVerbatim myprt("TC");
     myprt<<someText<<" TRP"<<std::fixed;
@@ -6026,7 +6073,19 @@ namespace tca {
         myprt<<slc.slHits[iht].InTraj;
       } // iht
     }
-  } // PrintTrajPoint
+    // print Environment
+    myprt<<" Env:";
+    for(unsigned short ib = 0; ib < 8; ++ib) {
+      // There aren't any bit names for Environment_t
+      if(!tp.Environment[ib]) continue;
+      if(ib == kEnvDeadWire) myprt<<" DeadWire";
+      if(ib == kEnvNearTj) myprt<<" NearTj";
+      if(ib == kEnvNearShower) myprt<<" NearShower";
+      if(ib == kEnvOverlap) myprt<<" Overlap";
+      if(ib == kEnvUnusedHits) myprt<<" UnusedHits";
+      if(ib == kEnvFlag) myprt<<" Flag";
+    } // ib
+  } // PrintTP
 
   /////////////////////////////////////////
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader)

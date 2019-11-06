@@ -20,7 +20,6 @@ namespace tca {
 
   extern TCEvent evt;
   extern TCConfig tcc;
-//  extern HistStuff hist;
   // vector of hits, tjs, etc in each slice
   extern std::vector<TCSlice> slices;
 
@@ -33,6 +32,8 @@ namespace tca {
 //  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
+  void Reconcile2Vs(TCSlice& slc);
+  bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt);
   void F3Vs(TCSlice& slc);
   void Find3DVertices(TCSlice& slc);
   void CompleteIncomplete3DVertices(TCSlice& slc);
@@ -50,7 +51,7 @@ namespace tca {
   float VertexVertexPull(TCSlice& slc, const Vtx3Store& vx1, const Vtx3Store& vx2);
   float VertexVertexPull(TCSlice& slc, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TCSlice& slc, VtxStore& vx, bool prt);
-  bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint> vxTp, bool prt);
+  bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint>& vxTp, bool prt);
   bool StoreVertex(TCSlice& slc, VtxStore& vx);
   bool ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP);
   void ScoreVertices(TCSlice& slc);

@@ -8,6 +8,10 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TDecompSVD.h"
+#include "TMatrixD.h"
+#include "TVectorD.h"
+
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -360,7 +364,7 @@ namespace tca {
           aVtx.Stat[kOnDeadWire] = vtxOnDeadWire;
           // fix the vertex position if we needed to move it significantly, or if it is on a dead wire
           aVtx.Stat[kFixed] = fixVxPos;
-          aVtx.Stat[kVtxIndPlnNoChg] = !requireVtxTjChg;
+          aVtx.Stat[kVxIndPlnNoChg] = !requireVtxTjChg;
           // try to fit it. We need to give it an ID to do that. Take the next
           // available ID
           unsigned short newVtxID = slc.vtxs.size() + 1;
@@ -565,7 +569,7 @@ namespace tca {
     oVx.NTraj = fitpts.size();
     // Update the score and the charge fraction
     SetVx2Score(slc, oVx);
-    oVx.Stat[kVtxMerged] = true;
+    oVx.Stat[kVxMerged] = true;
     oVx.Stat[kFixed] = false;
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1189,7 +1193,7 @@ namespace tca {
 
         if(prt)  {
           mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw T"<<slc.tjs[itj].ID<<" and 2V"<<vx2.ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<slc.vtxs[iv].CTP;
-          PrintTrajPoint("STCV", slc, closePt, 1, slc.tjs[itj].Pass, slc.tjs[itj].Pts[closePt]);
+          PrintTP("STCV", slc, closePt, 1, slc.tjs[itj].Pass, slc.tjs[itj].Pts[closePt]);
         }
         // ensure that the closest point is not near an end
         if(closePt < slc.tjs[itj].EndPt[0] + 3) continue;
@@ -1209,6 +1213,341 @@ namespace tca {
   } // SplitTrajCrossingVertices
 
   //////////////////////////////////////
+  void Reconcile2Vs(TCSlice& slc)
+  {
+    // This function is called before Find3DVertices to identify (and possibly reconcile)
+    // Tj and 2V inconsistencies using 2D and 3D(?) information
+    if(!tcc.useAlg[kTCWork2]) return;
+    if(!tcc.useAlg[kReconcile2Vs]) return;
+    if(slc.vtxs.empty()) return;
+
+    bool prt = (tcc.dbg2V && tcc.dbgSlc);
+    
+    // clusters of 2Vs
+    std::vector<std::vector<int>> vx2Cls;
+    
+    // iterate over planes
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      // look for 2D vertices that are close to each other
+      vx2Cls.clear();
+      for(unsigned short ii = 0; ii < slc.vtxs.size() - 1; ++ii) {
+        auto& i2v = slc.vtxs[ii];
+        if(i2v.ID <= 0) continue;
+        if(DecodeCTP(i2v.CTP).Plane != plane) continue;
+        for(unsigned short jj = ii + 1; jj < slc.vtxs.size(); ++jj) {
+          auto& j2v = slc.vtxs[jj];
+          if(j2v.ID <= 0) continue;
+          if(DecodeCTP(j2v.CTP).Plane != plane) continue;
+          // make rough separation cuts
+          float dp0 = std::abs(i2v.Pos[0] - j2v.Pos[0]);
+          if(dp0 > 10) continue;
+          float dp1 = std::abs(i2v.Pos[1] - j2v.Pos[1]);
+          if(dp1 > 10) continue;
+          // do a more careful look
+          float err = i2v.PosErr[0];
+          if(j2v.PosErr[0] > err) err = j2v.PosErr[0];
+          float dp0Sig = dp0 / err;
+          if(dp0Sig > 4) continue;
+          err = i2v.PosErr[1];
+          if(j2v.PosErr[1] > err) err = j2v.PosErr[1];
+          float dp1Sig = dp1 / err;
+          if(dp1Sig > 4) continue;
+          // Look for one of the 2V IDs in a cluster
+          bool gotit = false;
+          for(auto& vx2cls : vx2Cls) {
+            bool goti = (std::find(vx2cls.begin(), vx2cls.end(), i2v.ID) != vx2cls.end());
+            bool gotj = (std::find(vx2cls.begin(), vx2cls.end(), j2v.ID) != vx2cls.end());
+            if(goti && gotj) {
+              gotit = true;
+              break;
+            } else if(goti) {
+              vx2cls.push_back(j2v.ID);
+              gotit = true;
+              break;
+            } else if(gotj) {
+              gotit = true;
+              vx2cls.push_back(i2v.ID);
+              break;
+            }
+          } // vx2cls
+          if(!gotit) {
+            // start a new cluster with this pair
+            std::vector<int> cls(2);
+            cls[0] = i2v.ID;
+            cls[1] = j2v.ID;
+            vx2Cls.push_back(cls);
+          } // !gotit
+        } // jj
+      } // ii
+      if(vx2Cls.empty()) continue;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"2V clusters in plane "<<plane;
+        for(auto& vx2cls : vx2Cls) {
+          myprt<<"\n";
+          for(auto vx2id : vx2cls) myprt<<" 2V"<<vx2id;
+        } // vx2cls
+      } // prt
+      for(auto& vx2cls : vx2Cls) {
+        Reconcile2VTs(slc, vx2cls, prt);
+      } // vx2cls
+    } // plane
+    
+  } // Reconcile2Vs
+
+  //////////////////////////////////////
+  bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt)
+  {
+    // The 2D vertices IDs in vx2cls were clustered by the calling function. This function
+    // checks the T -> 2V assns and possibly changes it. It returns true if an assn is changed
+    // or if a vertex in vx2cls is made obsolete, necessitating a change to the list of 2V
+    // clusters
+    if(vx2cls.size() < 2) return false;
+    
+    // Form a list of all Tjs associated with this 2V cluster
+    std::vector<int> t2vList;
+
+    CTP_t inCTP;
+    for(auto vx2id : vx2cls) {
+      auto& vx2 = slc.vtxs[vx2id - 1];
+      inCTP = vx2.CTP;
+      // vertex clobbered? If so, vertex clustering needs to be re-done
+      if(vx2.ID <= 0) return true;
+      auto tlist = GetAssns(slc, "2V", vx2.ID, "T");
+      for(auto tid : tlist) if(std::find(t2vList.begin(), t2vList.end(), tid) == t2vList.end()) t2vList.push_back(tid);
+    } // vx2id
+    if(t2vList.size() < 3) return false;
+    
+    // Sum the T -> 2V pulls
+    float sumPulls = 0;
+    float cnt = 0;
+    for(auto tid : t2vList) {
+      auto& tj = slc.tjs[tid - 1];
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] <= 0) continue;
+        if(std::find(vx2cls.begin(), vx2cls.end(), tj.VtxID[end]) == vx2cls.end()) continue;
+        auto& vx = slc.vtxs[tj.VtxID[end] - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+        unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+        if(fitPt == USHRT_MAX) return false;
+        auto& tp = tj.Pts[tj.EndPt[fitPt]];
+        sumPulls += TrajPointVertexPull(slc, tp, vx);
+        ++cnt;
+      } // end
+    } // tid
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"R2VTs: cluster:";
+      for(auto vid : vx2cls) myprt<<" 2V"<<vid;
+      myprt<<" ->";
+      for(auto tid : t2vList) myprt<<" T"<<tid;
+      myprt<<" sumPulls "<<std::setprecision(2)<<sumPulls<<" cnt "<<cnt;
+    } // prt
+    
+    // try to fit all Tjs to one vertex. Find the average position of all of the
+    // vertices. This will be used to find the end of the Tjs that are closest to the
+    // presumed single vertex
+    VtxStore oneVx;
+    oneVx.CTP = inCTP;
+    for(auto vid : vx2cls) {
+      auto& vx = slc.vtxs[vid - 1];
+      oneVx.Pos[0] += vx.Pos[0];
+      oneVx.Pos[1] += vx.Pos[2];
+    } // vid
+    oneVx.Pos[0] /= vx2cls.size();
+    oneVx.Pos[1] /= vx2cls.size();
+    std::vector<TrajPoint> oneVxTPs(t2vList.size());
+    for(unsigned short itj = 0; itj < t2vList.size(); ++itj) {
+      auto& tj = slc.tjs[t2vList[itj] - 1];
+      unsigned short nearEnd = 1 - FarEnd(slc, tj, oneVx.Pos);
+      unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+      if(fitPt == USHRT_MAX) return false;
+      oneVxTPs[itj] = tj.Pts[fitPt];
+      // inflate the TP angle angle error if a TP without an overlap wasn't found
+      if(oneVxTPs[itj].Environment[kEnvOverlap]) oneVxTPs[itj].AngErr *= 4;
+      oneVxTPs[itj].Step = tj.ID;
+    } // ii
+    if(!FitVertex(slc, oneVx, oneVxTPs, prt)) {
+      std::cout<<"R2VTPs oneVx fit failed \n";
+      return false;
+    }
+    
+    if(oneVx.ChiDOF < 3) {
+      // Update the position of the first 2V in the list
+      auto& vx = slc.vtxs[vx2cls[0] - 1];
+      vx.Pos = oneVx.Pos;
+      vx.PosErr = oneVx.PosErr;
+      vx.NTraj = t2vList.size();
+      vx.ChiDOF = oneVx.ChiDOF;
+      vx.Topo = 14;
+      for(unsigned short ivx = 1; ivx < vx2cls.size(); ++ivx) {
+        auto& vx = slc.vtxs[vx2cls[ivx] - 1];
+        MakeVertexObsolete("R2VTPs", slc, vx, true);
+      } // ivx
+      // now attach the trajectories
+      for(auto tid : t2vList) {
+        auto& tj = slc.tjs[tid - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+        tj.VtxID[nearEnd] = vx.ID;
+      } // tid
+      return true;
+    } // oneVx.ChiDOF < 3
+    std::cout<<"Reconcile2VTs code hasn't been tested\n";
+/*
+    // construct an alternate 2V -> T assn
+    //   ivx       vector of itj
+    std::vector<std::vector<unsigned short>> vxToT(vx2cls.size());
+    for(unsigned short itj = 0; itj < t2vList.size(); ++itj) {
+      auto& tj = slc.tjs[t2vList[itj] - 1];
+      float bestPull = tcc.vtx2DCuts[3];
+      unsigned short bestIvx = USHRT_MAX;
+      for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+        auto& vx = slc.vtxs[vx2cls[ivx] - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+        unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+        if(fitPt == USHRT_MAX) return false;
+        auto& tp = tj.Pts[fitPt];
+        float pull = TrajPointVertexPull(slc, tp, vx);
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<" T"<<tj.ID<<" -> 2V"<<vx.ID<<" pull "<<std::setprecision(2)<<pull;
+        } // prt
+        if(pull > bestPull) continue;
+        bestPull = pull;
+        bestIvx = ivx;
+      } // ivx
+      if(bestIvx == USHRT_MAX) continue;
+      vxToT[bestIvx].push_back(itj);
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" T"<<tj.ID<<" VtxID "<<tj.VtxID[0]<<" "<<tj.VtxID[1];
+        myprt<<" best 2V"<<vx2cls[bestIvx]<<" pull "<<std::setprecision(2)<<bestPull;
+      } // prt
+    } // itj
+    
+    // Look for a 2V with only one 2V -> T assn and try to attach it to a different 2V that
+    // has slightly higher (but still acceptable) pull
+    for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+      auto& tassn = vxToT[ivx];
+      // deal with this case later
+      if(tassn.empty()) continue;
+      if(tassn.size() > 1) continue;
+      std::cout<<" 2V"<<vx2cls[ivx]<<" only one T"<<t2vList[tassn[0]];
+      auto& vx = slc.vtxs[vx2cls[ivx] - 1];
+      auto& tj = slc.tjs[t2vList[tassn[0]] - 1];
+      unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+      unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+      if(fitPt == USHRT_MAX) return false;
+      auto& tp = tj.Pts[fitPt];
+      float bestPull = TrajPointVertexPull(slc, tp, vx);
+      std::cout<<" bestPull "<<bestPull;
+      std::cout<<"\n";
+      float secondBestPull = tcc.vtx2DCuts[3];
+      unsigned short secondBestIvx = USHRT_MAX;
+      unsigned short secondBestEnd = 0;
+      for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+//        std::cout<<" chk T"<<tj.ID<<" -> alt 2V"<<vx2cls[ivx];
+        auto& altVx = slc.vtxs[vx2cls[ivx] - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, altVx.Pos);
+        auto& tp = tj.Pts[tj.EndPt[nearEnd]];
+        float pull = TrajPointVertexPull(slc, tp, altVx);
+//        std::cout<<" pull "<<pull<<"\n";
+        if(pull > bestPull && pull < secondBestPull) {
+          secondBestPull = pull;
+          secondBestIvx = ivx;
+          secondBestEnd = nearEnd;
+        }
+      } // itj
+      if(secondBestIvx == USHRT_MAX) {
+        std::cout<<"R2VTs: >>>>> 2V"<<vx2cls[ivx]<<" has only one tj: T"<<t2vList[tassn[0]];
+        std::cout<<" but it matches badly to any other vertex. Deal with it\n";
+        continue;
+      }
+      // Move the assn
+      vxToT[secondBestIvx].push_back(tassn[0]);
+      tassn.clear();
+    } // ivx
+    
+    // Sum the T -> 2V pulls for the alternate set of assns
+    float altSumPulls = 0;
+    float altCnt = 0;
+    for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+      auto& tassn = vxToT[ivx];
+      if(tassn.size() < 2) continue;
+      auto& vx = slc.vtxs[vx2cls[ivx] - 1];
+      for(unsigned short ii = 0; ii < tassn.size(); ++ii) {
+        auto& tj = slc.tjs[t2vList[tassn[ii]] - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+        unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+        if(fitPt == USHRT_MAX) return false;
+        auto& tp = tj.Pts[fitPt];
+        float pull = TrajPointVertexPull(slc, tp, vx);
+        altSumPulls += pull;
+        ++altCnt;
+      } // ii
+    } // ivx
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<" Alternate T -> 2V assns. altSumPulls "<<altSumPulls<<" altCnt "<<altCnt;
+      for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+        myprt<<"\n 2V"<<vx2cls[ivx]<<" ->";
+        auto& tassn = vxToT[ivx];
+        for(unsigned short ii = 0; ii < tassn.size(); ++ii) {
+          myprt<<" T"<<t2vList[tassn[ii]];
+        } // ii
+      } // ivx
+    } // prt
+    
+    // The alternate is worse so give up
+    if(altSumPulls > sumPulls) return false;
+    
+    // next do a vertex fit on each of the vertices in the clusters to get improved (maybe) vertex
+    // positions
+    altSumPulls = 0;
+    // a temp vector of TPs that will be used in the vertex fit
+    std::vector<TrajPoint> vxTPs;
+    // a temp vector of 2Vs that use the alternate assns
+    std::vector<VtxStore> alt2Vs(vx2cls.size());
+    for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
+      auto& tassn = vxToT[ivx];
+      if(tassn.size() < 2) continue;
+      auto& vx = slc.vtxs[vx2cls[ivx] - 1];
+      // copy the vertex to get the common stuff; CTP, etc
+      alt2Vs[ivx] = vx;
+      vxTPs.resize(tassn.size());
+      for(unsigned short ii = 0; ii < tassn.size(); ++ii) {
+        // make a copy of the appropriate end TP
+        auto& tj = slc.tjs[t2vList[tassn[ii]] - 1];
+        unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
+        unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
+        if(fitPt == USHRT_MAX) return false;
+        mf::LogVerbatim("TC")<<"chk 2V"<<vx.ID<<" T"<<tj.ID<<" nearEnd "<<nearEnd<<" EndPt "<<tj.EndPt[nearEnd]<<" fitPt "<<fitPt;
+        vxTPs[ii] = tj.Pts[fitPt];
+        // stash the ID in step to aid in debugging
+        vxTPs[ii].Step = tj.ID;
+        // inflate the angle errors for Tjs with few fitted points
+        if(vxTPs[ii].NTPsFit < 4) vxTPs[ii].AngErr *= 4;
+        PrintTP("vxTP", slc, tj.EndPt[nearEnd], ii, 0, vxTPs[ii]);
+      } // ii
+      if(!FitVertex(slc, alt2Vs[ivx], vxTPs, prt)) {
+        std::cout<<"R2VTPs fit failed \n";
+        return false;
+      }
+      std::cout<<"alt fit "<<ivx<<" 2V"<<alt2Vs[ivx].ID<<" vxTPs size "<<vxTPs.size();
+      std::cout<<" ChiDOF "<<alt2Vs[ivx].ChiDOF<<" NTraj "<<alt2Vs[ivx].NTraj;
+      std::cout<<"\n";
+      // sum the pulls
+      altSumPulls += alt2Vs[ivx].ChiDOF * alt2Vs[ivx].NTraj;
+    } // ivx
+    if(prt) mf::LogVerbatim("TC")<<" altSumPulls "<<altSumPulls<<" sumPulls "<<sumPulls;
+*/
+    return false;
+    
+  } // Reconcile2VTs
+
+//////////////////////////////////////
   void F3Vs(TCSlice& slc) {
     // (Hopefully) an improvement on Find3DVertices 
     if(!tcc.useAlg[kTCWork2]) return;
@@ -1399,7 +1738,6 @@ namespace tca {
     }
 
   } // F3Vs
-
 
   //////////////////////////////////////
   void Find3DVertices(TCSlice& slc)
@@ -1843,7 +2181,9 @@ namespace tca {
       // Pad the separation a bit so we don't get zero
       float fom = TrajPointVertexPull(slc, tp, vx) * (sep[end] + 1);
       if(fom > bestFOM) continue;
-      if(prt) mf::LogVerbatim("TC")<<"AATTV: T"<<tj.ID<<" 2V"<<vx.ID<<" FOM "<<fom<<" cut "<<bestFOM;
+      if(prt) {
+        mf::LogVerbatim("TC")<<"AATTV: T"<<tj.ID<<" 2V"<<vx.ID<<" Topo "<<vx.Topo<<" FOM "<<fom<<" cut "<<bestFOM;
+      }
       bestTj = itj;
       bestFOM = fom;
     } // tj
@@ -2128,6 +2468,61 @@ namespace tca {
   } // FitVertex
 
   /////////////////////////////////////////
+  bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint>& vxTPs, bool prt)
+  {
+    // Version with LSQ fit. Each TP position (P0,P1) and slope S are fit to a vertex
+    // at position (V0, V1), using the equation P1 = V1 + (P0 - V0) * S. This is put
+    // in the form A * V = b. V is found using V = (A^T * A)^-1 * A^T * b. This is
+    // usually done using the TDecompSVD Solve method but here we do it step-wise to
+    // get access to the covariance matrix (A^T * A)^-1. The pull between the TP position
+    // and the vertex position is stored in tp.Delta
+    
+    if(vxTPs.size() < 2) return false;
+    
+    unsigned short npts = vxTPs.size();
+    TMatrixD A(npts, 2);
+    TVectorD b(npts);
+    for(unsigned short itj = 0; itj < vxTPs.size(); ++itj) {
+      auto& tp = vxTPs[itj];
+      double dtdw = tp.Dir[1] / tp.Dir[0];
+      double wt = 1 / (tp.AngErr * tp.AngErr);
+      A(itj, 0) = -dtdw * wt;
+      A(itj, 1) = 1. * wt;
+      b(itj) = (tp.Pos[1] - tp.Pos[0] * dtdw) * wt;
+    } // itj
+
+    TMatrixD AT(2, npts); 
+    AT.Transpose(A);
+    TMatrixD ATA = AT * A;
+    double *det = 0;
+    ATA.Invert(det);
+    TVectorD vxPos = ATA * AT * b;
+    vx.PosErr[0] = sqrt(ATA[0][0]);
+    vx.PosErr[1] = sqrt(ATA[1][1]);
+    vx.Pos[0] = vxPos[0];
+    vx.Pos[1] = vxPos[1];
+    
+    // Calculate Chisq
+    vx.ChiDOF = 0;
+    if(vxTPs.size() > 2) {
+      for(auto& tp : vxTPs) {
+        // highjack TP Delta for the vertex pull
+        tp.Delta = TrajPointVertexPull(slc, tp, vx);
+        vx.ChiDOF += tp.Delta;
+      } // itj
+      vx.ChiDOF /= (float)(vxTPs.size() - 2);
+    } // vxTPs.size() > 2
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"Note: TP - 2V pull is stored in TP.Delta";
+      PrintTPHeader("FV");
+      for(auto& tp : vxTPs) PrintTP("FV", slc, 0, 1, 1, tp);
+    }
+
+    return true;
+  } // FitVertex
+/*
+  /////////////////////////////////////////
   bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint> vxTp, bool prt)
   {
     // Variant of FitVertex that fits the passed trajectory points to a vertex position but doesn't
@@ -2151,8 +2546,8 @@ namespace tca {
     if(vxTp.size() < 2) return false;
 
     if(prt) {
-      PrintHeader("FV");
-      for(auto& tp : vxTp) PrintTrajPoint("FV", slc, 0, 1, 1, tp);
+      PrintTPHeader("FV");
+      for(auto& tp : vxTp) PrintTP("FV", slc, 0, 1, 1, tp);
     }
 
     // Find trajectory intersections pair-wise tweaking the angle and position(?) within
@@ -2232,18 +2627,6 @@ namespace tca {
     if(vxP1rms < 0.5) vxP1rms = 0.5;
 
     if(prt) mf::LogVerbatim("TC")<<"FitVertex 2V"<<vx.ID<<" CTP "<<vx.CTP<<" NTraj "<<vx.NTraj<<" in "<<std::fixed<<std::setprecision(1)<<vx.Pos[0]<<":"<<vx.Pos[1]/tcc.unitsPerTick<<" out wire "<<vxP0<<" +/- "<<vxP0rms<<" ticks "<<vxP1/tcc.unitsPerTick<<"+/-"<<vxP1rms/tcc.unitsPerTick;
-
-    // apply Vertex2DCuts if this isn't a neutral vertex (which is expected to have very large
-    // errors)
-    if(vx.Topo != 11) {
-      float inflate = 1;
-      if(vx.Stat[kOnDeadWire]) inflate = 1.5;
-      if(vxP0rms > inflate * tcc.vtx2DCuts[4] || vxP1rms > inflate * tcc.vtx2DCuts[4]) {
-        if(prt) mf::LogVerbatim("TC")<<" fit failed. Max allowed position error "<<inflate * tcc.vtx2DCuts[4];
-        return false;
-      }
-    } // not a neutral vertex
-
     vx.Pos[0] = vxP0;
     vx.PosErr[0] = vxP0rms;
     vx.Pos[1] = vxP1;
@@ -2251,10 +2634,11 @@ namespace tca {
 
     // Calculate chisq
     vx.ChiDOF = 0;
+    if(vxTp.size() == 2) return true;
     for(unsigned short itj = 0; itj < vxTp.size(); ++itj) {
       vx.ChiDOF += TrajPointVertexPull(slc, vxTp[itj], vx);
     } // itj
-    vx.ChiDOF /= (float)vxTp.size();
+    vx.ChiDOF /= (float)(vxTp.size() - 2);
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2268,7 +2652,7 @@ namespace tca {
     return true;
 
   } // FitVertex
-
+*/
   //////////////////////////////////////////
   bool ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP)
   {
@@ -2430,7 +2814,7 @@ namespace tca {
   void SetVx3Score(TCSlice& slc, Vtx3Store& vx3)
   {
     // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined
-    // by Vertex2DCuts
+    // by vtx2DCuts
 
     if(vx3.ID == 0) return;
 
@@ -2729,7 +3113,7 @@ namespace tca {
       for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         if(vx3.Vx2ID[plane] > 0) {
           auto& vx2 = slc.vtxs[vx3.Vx2ID[plane] - 1];
-          if(vx2.Stat[kVtxIndPlnNoChg]) indPlnNoChgVtx = true;
+          if(vx2.Stat[kVxIndPlnNoChg]) indPlnNoChgVtx = true;
           continue;
         }
         mPlane = plane;

@@ -290,7 +290,9 @@ namespace tca {
       ReconstructAllTraj(slc, inCTP);
       if(!slc.isValid) return;
     } // plane
-
+    // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
+    // 2D and 3D(?) information
+    Reconcile2Vs(slc);
     Find3DVertices(slc);
     // Look for incomplete 3D vertices that won't be recovered because there are
     // missing trajectories in a plane
@@ -663,8 +665,13 @@ namespace tca {
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
       AttachAnyTrajToVertex(slc, ivx, tcc.dbgStp || tcc.dbg2V);
-      UpdateVxEnvironment("RAT", slc, vx2, false);
     } // ivx
+
+    // Set the kEnvOverlap bit true for all TPs that are close to other 
+    // trajectories that are close to vertices. The positions of TPs that
+    // overlap are biased and shouldn't be used in a vertex fit. Also, these
+    // TPs shouldn't be used to calculate dE/dx
+    UpdateVxEnvironment(slc);
 
     // Check the Tj <-> vtx associations and define the vertex quality
     if(!ChkVtxAssociations(slc, inCTP)) {
