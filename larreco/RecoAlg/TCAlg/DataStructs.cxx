@@ -13,6 +13,12 @@ namespace tca {
   std::vector<TrajPoint> seeds;
 
   const std::vector<std::string> AlgBitNames {
+    "FillGaps3D",
+    "Kink3D",
+    "TEP3D",
+    "Junk3D",
+    "RTPs3D",
+    "Mat3D",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
@@ -61,7 +67,6 @@ namespace tca {
     "ChkChgAsym",
     "FTBRvProp",
     "StopAtTj",
-    "Mat3D",
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
@@ -77,8 +82,8 @@ namespace tca {
     "CompleteShower",
     "SplitTjCVx",
     "MakePFPTjs",
-    "FillGaps3D",
-    "TEP3D",
+    "StopShort",
+    "Reconcile2Vs",
     "TCWork2"
   };
   
@@ -93,13 +98,14 @@ namespace tca {
   };
 
   const std::vector<std::string> VtxBitNames {
-    "VtxTrjTried",
+    "VxTrjTried",
     "Fixed",
     "OnDeadWire",
     "HiVx3Score",
-    "VtxTruMatch",
-    "VtxMerged",
-    "VtxIndPlnNoChg"
+    "VxTruMatch",
+    "VxMerged",
+    "VxIndPlnNoChg",
+    "VxEnvOK"
   };
 
   const std::vector<std::string> StrategyBitNames {
