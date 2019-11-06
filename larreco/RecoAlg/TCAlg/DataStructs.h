@@ -54,7 +54,7 @@ namespace tca {
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
-    //       12 = BraggSplit, 13 = FindKinks
+    //       12 = BraggSplit, 13 = FindKinks, 14 = Reconcile2VTs
     short Topo {0};
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
@@ -70,10 +70,11 @@ namespace tca {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kHiVx3Score,      ///< matched to a high-score 3D vertex
-    kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
-    kVtxMerged,
-    kVtxIndPlnNoChg,  ///< vertex quality is suspect - No requirement made on chg btw it and the Tj
-    kVtxBitSize     ///< don't mess with this line
+    kVxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
+    kVxMerged,
+    kVxIndPlnNoChg,  ///< vertex quality is suspect - No requirement made on chg btw it and the Tj
+    kVxEnvOK,      ///<  the environment near the vertex was checked - See UpdateVxEnvironment
+    kVxBitSize     ///< don't mess with this line
   } VtxBit_t;
 
   /// struct of temporary 3D vertices
@@ -231,6 +232,8 @@ namespace tca {
     float Count {0};                    // Set to 0 if matching failed
   };
 
+  constexpr unsigned int pAlgModSize = 6; // alignment for CTP sub-items - TPC
+
   struct PFPStruct {
     std::vector<int> TjIDs;             // used to reference Tjs within a slice
     std::vector<int> TjUIDs;             // used to reference Tjs in any slice
@@ -251,12 +254,15 @@ namespace tca {
     int ID {0};
     int UID {0};              // unique global ID
     unsigned short MVI;       // matVec index for detailed debugging
+    std::bitset<8> Flags;     //< see PFPFlags_t
     std::array<std::bitset<8>, 2> EndFlag {};  // Uses the same enum as Trajectory EndFlag
-    bool Primary;             // PFParticle is attached to a primary vertex
-    bool NeedsUpdate {true};    // Set true if the Update function needs to be called
-    bool CanSection {true}; // Set false if re-sectioning is a bad idea
-    bool IsJunk {false};    // Has a good 3D match to the Tjs but is short and fails Sectioning
+    std::bitset<pAlgModSize> AlgMod;   //< Allocate the first set of bits in AlgBit_t for 3D algs
   };
+
+  typedef enum {
+    kCanSection,
+    kNeedsUpdate,
+  } PFPFlags_t;
 
   struct ShowerPoint {
     Point2_t Pos;       // Hit Position in the normal coordinate system
@@ -371,6 +377,12 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
+    kFillGaps3D,  // 3D algorithms for PFPs (bitset size limited to 8 bits)
+    kKink3D,
+    kTEP3D,
+    kJunk3D,
+    kRTPs3D,
+    kMat3D,       // 2D algorithms for Tjs here and below
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -419,7 +431,6 @@ namespace tca {
     kChkChgAsym,
     kFTBRvProp,
     kStopAtTj,
-    kMat3D,
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
@@ -435,8 +446,8 @@ namespace tca {
     kCompleteShower,
     kSplitTjCVx,
     kMakePFPTjs,
-    kFillGaps3D,
-    kTEP3D,
+    kStopShort,
+    kReconcile2Vs,
     kTCWork2,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
