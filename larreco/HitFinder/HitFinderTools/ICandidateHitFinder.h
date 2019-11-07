@@ -13,6 +13,7 @@
 #define ICandidateHitFinder_H
 
 #include "fhiclcpp/ParameterSet.h"
+#include "lardataobj/RecoBase/Wire.h"
 
 namespace reco_tool
 {
@@ -44,13 +45,13 @@ namespace reco_tool
         using Waveform = std::vector<float>;
 
         // Search for candidate hits on the input waveform
-        virtual void findHitCandidates(const Waveform&,                     // Waveform to analyze
-                                       size_t,                              // waveform start tick
-                                       size_t,                              // channel #
-                                       size_t,                              // Event count (for histograms)
-                                       HitCandidateVec&) const = 0;         // output candidate hits
+        virtual void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&, // Waveform (with range info) to analyze
+                                       size_t,                                               // waveform start tick
+                                       size_t,                                               // channel #
+                                       size_t,                                               // Event count (for histograms)
+                                       HitCandidateVec&) const = 0;                          // output candidate hits
 
-        virtual void MergeHitCandidates(const Waveform&,
+        virtual void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                                         const HitCandidateVec&,
                                         MergeHitCandidateVec&) const = 0;
     };

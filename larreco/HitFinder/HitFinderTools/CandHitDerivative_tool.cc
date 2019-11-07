@@ -28,13 +28,13 @@ public:
 
     void configure(const fhicl::ParameterSet& pset) override;
 
-    void findHitCandidates(const Waveform&,
+    void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            size_t,
                            size_t,
                            size_t,
                            HitCandidateVec&) const override;
 
-    void MergeHitCandidates(const Waveform&,
+    void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                             const HitCandidateVec&,
                             MergeHitCandidateVec&) const override;
 
@@ -124,16 +124,19 @@ void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
     return;
 }
 
-void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
-                                          size_t           roiStartTick,
-                                          size_t           channel,
-                                          size_t           eventCount,
-                                          HitCandidateVec& hitCandidateVec) const
+void CandHitDerivative::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
+                                          size_t                                               roiStartTick,
+                                          size_t                                               channel,
+                                          size_t                                               eventCount,
+                                          HitCandidateVec&                                     hitCandidateVec) const
 {
     // In this case we want to find hit candidates based on the derivative of of the input waveform
     // We get this from our waveform algs too...
     Waveform rawDerivativeVec;
     Waveform derivativeVec;
+    
+    // Recover the actual waveform
+    const Waveform& waveform = dataRange.data();
 
     fWaveformTool->firstDerivative(waveform, rawDerivativeVec);
     fWaveformTool->triangleSmooth(rawDerivativeVec, derivativeVec);
@@ -296,9 +299,9 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
     return;
 }
 
-void CandHitDerivative::MergeHitCandidates(const Waveform&        signalVec,
-                                           const HitCandidateVec& hitCandidateVec,
-                                           MergeHitCandidateVec&  mergedHitsVec) const
+void CandHitDerivative::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
+                                           const HitCandidateVec&                               hitCandidateVec,
+                                           MergeHitCandidateVec&                                mergedHitsVec) const
 {
     // If nothing on the input end then nothing to do
     if (hitCandidateVec.empty()) return;
