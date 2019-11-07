@@ -68,7 +68,6 @@ private:
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
 
     bool                fFilterHits;
-    bool                fMakeRawDigitAssns;
 
     std::string         fCalDataModuleLabel;
     std::string         fAllHitsInstanceName;
@@ -100,12 +99,12 @@ private:
 //-------------------------------------------------
 //-------------------------------------------------
 GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
-  : EDProducer{pset}
+  : EDProducer{pset},
+    fEventCount(0)
 {
     fCalDataModuleLabel  = pset.get< std::string >("CalDataModuleLabel");
     fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
     fFilterHits          = pset.get< bool        >("FilterHits",false);
-    fMakeRawDigitAssns   = pset.get< bool        >("MakeRawDigitAssns",true);
 
     if (fFilterHits) {
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
@@ -146,10 +145,10 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     // and one with all hits. The key to doing this will be a non-null
     // instance name for the second collection
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName,true,fMakeRawDigitAssns);
+    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName,true,false); //fMakeRawDigitAssns);
 
     // and now the filtered hits...
-    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(*this,"",true,fMakeRawDigitAssns);
+    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(*this,"",true,false); //fMakeRawDigitAssns);
 
     return;
 } // GausHitFinder::GausHitFinder()
@@ -215,10 +214,10 @@ void GausHitFinder::produce(art::Event& evt)
     // ###############################################
     // this contains the hit collection
     // and its associations to wires and raw digits
-    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, fMakeRawDigitAssns);
+    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, false);
 
     // Handle the filtered hits collection...
-    recob::HitCollectionCreator  hcol(*this, evt, "", true, fMakeRawDigitAssns);
+    recob::HitCollectionCreator  hcol(*this, evt, "", true, false);
     recob::HitCollectionCreator* filteredHitCol = 0;
 
     if( fFilterHits ) filteredHitCol = &hcol;
@@ -229,12 +228,6 @@ void GausHitFinder::produce(art::Event& evt)
     // ##########################################
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
-
-    // #################################################################
-    // ### Reading in the RawDigit associated with these wires, too  ###
-    // #################################################################
-    art::FindOneP<raw::RawDigit> RawDigits
-        (wireVecHandle, evt, fCalDataModuleLabel);
 
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
@@ -289,13 +282,6 @@ void GausHitFinder::produce(art::Event& evt)
 
         for(const auto& range : signalROI.get_ranges())
         {
-            // #################################################
-            // ### Getting a vector of signals for this wire ###
-            // #################################################
-            //std::vector<float> signal(wire->Signal());
-
-            const std::vector<float>& signal = range.data();
-
             // ##########################################################
             // ### Making an iterator for the time ticks of this wire ###
             // ##########################################################
@@ -311,8 +297,8 @@ void GausHitFinder::produce(art::Event& evt)
             reco_tool::ICandidateHitFinder::HitCandidateVec      hitCandidateVec;
             reco_tool::ICandidateHitFinder::MergeHitCandidateVec mergedCandidateHitVec;
 
-            fHitFinderToolVec.at(plane)->findHitCandidates(signal, 0, channel, fEventCount, hitCandidateVec);
-            fHitFinderToolVec.at(plane)->MergeHitCandidates(signal, hitCandidateVec, mergedCandidateHitVec);
+            fHitFinderToolVec.at(plane)->findHitCandidates(range, 0, channel, fEventCount, hitCandidateVec);
+            fHitFinderToolVec.at(plane)->MergeHitCandidates(range, hitCandidateVec, mergedCandidateHitVec);
 
             // #######################################################
             // ### Lets loop over the pulses we found on this wire ###
@@ -350,7 +336,7 @@ void GausHitFinder::produce(art::Event& evt)
                 // #######################################################
                 if (mergedCands.size() <= fMaxMultiHit)
                 {
-                    fPeakFitterTool->findPeakParameters(signal, mergedCands, peakParamsVec, chi2PerNDF, NDF);
+                    fPeakFitterTool->findPeakParameters(range.data(), mergedCands, peakParamsVec, chi2PerNDF, NDF);
 
                     // If the chi2 is infinite then there is a real problem so we bail
                     if (!(chi2PerNDF < std::numeric_limits<double>::infinity()))
@@ -392,7 +378,7 @@ void GausHitFinder::produce(art::Event& evt)
                     for(int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++)
                     {
                         // This hit parameters
-                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
+                        double sumADC    = std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
                         double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
                         double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
                         double peakMean  = (firstTick + lastTick) / 2.;
@@ -448,8 +434,8 @@ void GausHitFinder::produce(art::Event& evt)
                     float chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
 
                     // ### limits for getting sums
-                    std::vector<float>::const_iterator sumStartItr = signal.begin() + startT;
-                    std::vector<float>::const_iterator sumEndItr   = signal.begin() + endT;
+                    std::vector<float>::const_iterator sumStartItr = range.begin() + startT;
+                    std::vector<float>::const_iterator sumEndItr   = range.begin() + endT;
 
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
@@ -478,8 +464,7 @@ void GausHitFinder::produce(art::Event& evt)
                     const recob::Hit hit(hitcreator.move());
 
                     // This loop will store ALL hits
-                    if (fMakeRawDigitAssns) allHitCol.emplace_back(std::move(hit), wire, RawDigits.at(wireIter));
-                    else                    allHitCol.emplace_back(std::move(hit), wire);
+                    allHitCol.emplace_back(std::move(hit), wire);
                     numHits++;
                 } // <---End loop over gaussians
 
@@ -520,10 +505,7 @@ void GausHitFinder::produce(art::Event& evt)
                     // Copy the hits we want to keep to the filtered hit collection
                     for(const auto& filteredHit : filteredHitVec)
                         if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit))
-                        {
-                            if (fMakeRawDigitAssns) filteredHitCol->emplace_back(filteredHit, wire, RawDigits.at(wireIter));
-                            else                    filteredHitCol->emplace_back(filteredHit, wire);
-                        }
+                            filteredHitCol->emplace_back(filteredHit, wire);
                 }
 
                 fChi2->Fill(chi2PerNDF);

@@ -43,12 +43,7 @@ if(OPENMP_FOUND)
   endif()
 endif(OPENMP_FOUND)
 
-add_library (gshf_MarqFitAlg STATIC MarqFitAlg.cxx)
-set_property(TARGET gshf_MarqFitAlg PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-art_make(TOOL_LIBRARIES ${hitfinder_tool_lib_list} gshf_MarqFitAlg
-        )
-
+art_make(TOOL_LIBRARIES ${hitfinder_tool_lib_list} )
 
 install_headers()
 install_source()

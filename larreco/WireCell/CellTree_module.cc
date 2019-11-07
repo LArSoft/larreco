@@ -97,6 +97,7 @@ private:
   std::string fTriggerLabel;
   std::string fSimEnergyDepositLabel;
   std::vector<std::string> fSpacePointLabels;
+  std::string fSimChannelLabel;
   std::string fOutFileName;
   std::string mcOption;
   int nRawSamples;
@@ -220,6 +221,7 @@ CellTree::CellTree(fhicl::ParameterSet const& p)
     fTriggerLabel    = p.get<std::string>("TriggerLabel");
     fSimEnergyDepositLabel = p.get<std::string>("SimEnergyDepositLabel");
     fSpacePointLabels= p.get<std::vector<std::string> >("SpacePointLabels");
+    fSimChannelLabel      = p.get<std::string>("SimChannelLabel");
     fOutFileName     = p.get<std::string>("outFile");
     mcOption        = p.get<std::string>("mcOption");
     fSaveMCTrackPoints = p.get<bool>("saveMCTrackPoints");
@@ -611,7 +613,12 @@ void CellTree::processOpHit( const art::Event& event)
 void CellTree::processSimChannel( const art::Event& event )
 {
     art::Handle< std::vector<sim::SimChannel> > simChannelHandle;
-    event.getByLabel("largeant", simChannelHandle);
+    // event.getByLabel("largeant", simChannelHandle);
+    if (! event.getByLabel(fSimChannelLabel, simChannelHandle)) {
+        cout << "WARNING: no label " << fSimChannelLabel << endl;
+        return;
+    }
+
     // cout << "total simChannel: " << (*simChannelHandle).size() << endl;
     fSIMIDE_size = 0;
     for ( auto const& channel : (*simChannelHandle) ) {

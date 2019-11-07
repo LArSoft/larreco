@@ -19,6 +19,7 @@ standard_celltree:
   OpFlashLabel    : "opflash"
   TriggerLabel    : "daq"
   SpacePointLabels: ["trackkalmanhit","wirecell"]
+  SimChannelLabel : "largeant"
   SimEnergyDepositLabel  : "largeant:TPCActive"
   mcOption        : "all"
   opMultPEThresh  : 5
