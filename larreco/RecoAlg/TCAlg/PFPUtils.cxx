@@ -385,7 +385,6 @@ namespace tca {
         auto& tj = slc.tjs[ms.TjIDs[itj] - 1];
         for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) if(tj.Pts[ipt].InPFP == 0) ++npts;
       } // tjID
-      int pdgCode = PDGCodeVote(slc, ms.TjIDs);
       // Create a vector of PFPs for this match so that we can split it later on if a kink is found
       std::vector<PFPStruct> pfpVec(1);
       pfpVec[0] = CreatePFP(slc);
@@ -502,7 +501,6 @@ namespace tca {
         if(foundMVI) {
           PrintTP3Ds("RS", slc, pfpVec[0], -1);
         }
-        pfpVec[0].PDGCode = pdgCode;
         // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
         // inserts new TP3Ds if there are hits in the gaps. This search is only done in a
         // plane if the projection of the pfp results in a large angle where 2D reconstruction
@@ -515,6 +513,7 @@ namespace tca {
         // Look for mis-placed 2D and 3D vertices
         ReconcileVertices(slc, pfpVec[0], foundMVI);
         FilldEdx(slc, pfp);
+        pfp.PDGCode = PDGCodeVote(slc, pfp);
         if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
         if(!StorePFP(slc, pfp)) {
           std::cout<<"MPFP: StorePFP failed\n";
