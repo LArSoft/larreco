@@ -3993,7 +3993,7 @@ namespace tca {
             slc.tjs[it2].VtxID[end2] = aVtx.ID;
             // save the position
             // do a fit
-            if(!aVtx.Stat[kFixed] && !FitVertex(slc, aVtx, tcc.dbgMrg)) {
+            if(!aVtx.Stat[kFixed] && !FitVertex(slc, aVtx, prt)) {
               // back out
               slc.tjs[it1].VtxID[end1] = 0;
               slc.tjs[it2].VtxID[end2] = 0;

@@ -8,7 +8,6 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TDecompSVD.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 
@@ -1292,6 +1291,16 @@ namespace tca {
         Reconcile2VTs(slc, vx2cls, prt);
       } // vx2cls
     } // plane
+
+    // See if any of the vertices have been altered. If so the environment near them,
+    // specifically tagging overlapping trajectories, should be re-done
+    bool VxEnvironmentNeedsUpdate = false;
+    for(auto& vx : slc.vtxs) {
+      if(vx.ID <= 0) continue;
+      if(!vx.Stat[kVxEnvOK]) VxEnvironmentNeedsUpdate = true;
+    } // vx
+    
+    if(VxEnvironmentNeedsUpdate) UpdateVxEnvironment(slc);
     
   } // Reconcile2Vs
 
@@ -1381,6 +1390,9 @@ namespace tca {
       vx.NTraj = t2vList.size();
       vx.ChiDOF = oneVx.ChiDOF;
       vx.Topo = 14;
+      // Set a flag that the environment near this vertex (and all other vertices in this slice)
+      // should be revisited
+      vx.Stat[kVxEnvOK] = false;
       for(unsigned short ivx = 1; ivx < vx2cls.size(); ++ivx) {
         auto& vx = slc.vtxs[vx2cls[ivx] - 1];
         MakeVertexObsolete("R2VTPs", slc, vx, true);

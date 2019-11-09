@@ -49,7 +49,7 @@ namespace tca {
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
-  void MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  bool MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
@@ -61,7 +61,8 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TCSlice& slc, PFPStruct& pfp);
-  float dEdx(TCSlice& slc, TP3D& tp3d);
+  float dEdx(TCSlice& slc, const TP3D& tp3d);
+  void Average_dEdX(TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms);
   TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex);
   TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tjPt);
   bool SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);

@@ -37,7 +37,8 @@ namespace tca {
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
-  int PDGCodeVote(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
+  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
+  int PDGCodeVote(TCSlice& slc, const std::vector<int>& tjIDs);
   unsigned short NumDeltaRays(TCSlice& slc, const Trajectory& tj);
   unsigned short NumDeltaRays(TCSlice& slc, std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj);

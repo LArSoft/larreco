@@ -398,7 +398,22 @@ namespace tca {
   } // MaxChargeAsymmetry
 
   /////////////////////////////////////////
-  int PDGCodeVote(TCSlice& slc, std::vector<int>& tjIDs, bool prt)
+  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
+  {
+    // returns a vote using PDG code assignments from Tjs or pfp dE/dx if available
+    int vote = PDGCodeVote(slc, pfp.TjIDs);
+    // try to do better if dE/dx is available
+    float dEdXAve = 0;
+    float dEdXRms = 0;
+    Average_dEdX(slc, pfp, dEdXAve, dEdXRms);
+    // looks like a proton if dE/dx is high
+    if(dEdXAve > 3.) return 2212;
+    return vote;
+
+  } // PDGCodeVote
+
+  /////////////////////////////////////////
+  int PDGCodeVote(TCSlice& slc, const std::vector<int>& tjIDs)
   {
     // Returns the most likely PDGCode for the set of Tjs provided
     // The PDG codes are:
@@ -413,16 +428,11 @@ namespace tca {
 
     std::array<unsigned short, 5> cnts;
     cnts.fill(0);
-    // Count Bragg peaks. This assumes that the Tjs are in order...
-//    std::array<unsigned short, 2> stopCnt {{0, 0}};
     float maxLen = 0;
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)slc.tjs.size()) continue;
       auto& tj = slc.tjs[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
-      // count InShower Tjs with PDGCode not set (yet)
-//      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
-//      for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid

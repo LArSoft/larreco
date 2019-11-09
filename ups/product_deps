@@ -7,7 +7,7 @@ fcldir product_dir job
 fwdir  product_dir config_data
 #
 product         version
-arsim		v08_15_00
+larsim		v08_15_00
 eigen		v3_3_4a
 tensorflow      v1_3_0e		-	optional
 
