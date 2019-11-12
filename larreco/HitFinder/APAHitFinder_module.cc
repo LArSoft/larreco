@@ -59,7 +59,7 @@ APAHitFinder::APAHitFinder(fhicl::ParameterSet const& pset)
   // let HitCollectionCreator declare that we are going to produce
   // hits and associations with wires and raw digits
   // (with no particular product label)
-  recob::HitCollectionCreator::declare_products(*this);
+  recob::HitCollectionCreator::declare_products(producesCollector());
 }
 
 
@@ -68,7 +68,7 @@ void APAHitFinder::produce(art::Event& evt)
 {
   // this object contains the hit collection
   // and its associations to wires and raw digits:
-  recob::HitCollectionCreator hcol(*this, evt);
+  recob::HitCollectionCreator hcol(evt);
 
   art::Handle< std::vector<recob::Hit> > ChannelHits;
   evt.getByLabel(fChanHitLabel, ChannelHits);

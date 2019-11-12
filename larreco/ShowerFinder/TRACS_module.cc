@@ -129,7 +129,7 @@ reco::shower::TRACS::TRACS(fhicl::ParameterSet const& pset) :
   std::vector<std::string> SetupTools;
   for(unsigned int i=0; i<fShowerTools.size(); ++i){ 
     if(std::find(SetupTools.begin(), SetupTools.end(), fShowerToolNames[i]) != SetupTools.end()){continue;}
-    fShowerTools[i]->SetPtr(this);
+    fShowerTools[i]->SetPtr(&producesCollector());
     fShowerTools[i]->InitaliseProducerPtr(uniqueproducerPtrs);
     fShowerTools[i]->InitialiseProducers();
     SetupTools.push_back(fShowerToolNames[i]);

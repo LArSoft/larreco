@@ -86,7 +86,7 @@ namespace cluster {
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
+    recob::HitCollectionAssociator::declare_products(producesCollector(),"",fDoWireAssns,fDoRawDigitAssns);
 
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -115,7 +115,7 @@ namespace cluster {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel, fDoWireAssns, fDoRawDigitAssns);
+    recob::HitRefinerAssociator shcol(evt, fHitFinderLabel, fDoWireAssns, fDoRawDigitAssns);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;

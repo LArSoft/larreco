@@ -158,7 +158,7 @@ namespace cluster {
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
+    recob::HitCollectionAssociator::declare_products(producesCollector(),"",fDoWireAssns,fDoRawDigitAssns);
 
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -787,11 +787,11 @@ namespace cluster {
 
     // move the cluster collection and the associations into the event:
     if(fHitModuleLabel != "NA") {
-      recob::HitRefinerAssociator shcol(*this, evt, fHitModuleLabel, fDoWireAssns, fDoRawDigitAssns);
+      recob::HitRefinerAssociator shcol(evt, fHitModuleLabel, fDoWireAssns, fDoRawDigitAssns);
       shcol.use_hits(std::move(hcol));
       shcol.put_into(evt);
     } else {
-      recob::HitRefinerAssociator shcol(*this, evt, fSliceModuleLabel, fDoWireAssns, fDoRawDigitAssns);
+      recob::HitRefinerAssociator shcol(evt, fSliceModuleLabel, fDoWireAssns, fDoRawDigitAssns);
       shcol.use_hits(std::move(hcol));
       shcol.put_into(evt);
     }

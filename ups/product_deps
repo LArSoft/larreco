@@ -11,7 +11,7 @@ larsim		v08_15_02
 eigen		v3_3_4a
 tensorflow      v1_3_0e		-	optional
 
-cetbuildtools	v7_13_02	-	only_for_build
+cetbuildtools	v7_14_00	-	only_for_build
 end_product_list
 
 qualifier     larsim         tensorflow     eigen
