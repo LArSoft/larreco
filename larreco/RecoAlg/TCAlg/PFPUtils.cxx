@@ -226,7 +226,7 @@ namespace tca {
       // require a triple match
       if(sptAssn[0] == INT_MAX || sptAssn[1] == INT_MAX || sptAssn[2] == INT_MAX) continue;
       // look for this triplet in matVec
-      unsigned short indx = 0;
+      std::size_t indx = 0;
       for(indx = 0; indx < matVec.size(); ++indx) if(matVec[indx].TjIDs == sptAssn) break;
       if(indx == matVec.size()) {
         ms.TjIDs = sptAssn;
@@ -531,7 +531,7 @@ namespace tca {
       } // ii
       if(mcpIndex == UINT_MAX) continue;
       // look for it in the list
-      unsigned short indx = 0;
+      std::size_t indx = 0;
       for(indx = 0; indx < mcpi_cnt.size(); ++indx) if(mcpi_cnt[indx].first == mcpIndex) break;
       // not found so add it
       if(indx == mcpi_cnt.size()) mcpi_cnt.push_back(std::make_pair(mcpIndex, 0));
@@ -960,7 +960,7 @@ namespace tca {
         // swap the order so that the == operator works correctly
         if(tIDs[0] > tIDs[1]) std::swap(tIDs[0], tIDs[1]);
         // look for it in the list
-        unsigned short indx = 0;
+	std::size_t indx = 0;
         for(indx = 0; indx < mtIDs.size(); ++indx) if(tIDs == mtIDs[indx]) break;
         if(indx == mtIDs.size()) {
           // not found so add it to mtIDs and add another element to mCnt
@@ -1649,11 +1649,11 @@ namespace tca {
       if(pWork.NeedsUpdate) {
         // trim the points
         // find the first good point
-        unsigned short firstGood = 0;
+	std::size_t firstGood = 0;
         for(firstGood = 0; firstGood < pWork.TP3Ds.size(); ++firstGood) if(validPt[firstGood]) break;
         if(firstGood == pWork.TP3Ds.size()) break;
         // and the last good point
-        unsigned short lastGood = pWork.TP3Ds.size();
+	std::size_t lastGood = pWork.TP3Ds.size();
         for(lastGood = pWork.TP3Ds.size() - 1; lastGood > 0; --lastGood) if(validPt[lastGood]) break;
         ++lastGood;
         if(firstGood == 0 && lastGood == pWork.TP3Ds.size()) break;
@@ -1698,8 +1698,8 @@ namespace tca {
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
       // check the start
-      unsigned short fromPt = 0;
-      unsigned short toPt;
+      std::size_t fromPt = 0;
+      std::size_t toPt;
       unsigned short nWires = 0, nAdd = 0;
       for(toPt = 0; toPt < pWork.TP3Ds.size(); ++toPt) if(pWork.TP3Ds[toPt].CTP == inCTP) break;
       if(toPt > 5) {
@@ -1867,7 +1867,7 @@ namespace tca {
     // inserts the tp3d into the section defined by tp3d.SFIndex
     if(tp3d.SFIndex >= pfp.SectionFits.size()) return USHRT_MAX;
     // Find the first occurrence of this SFIndex
-    unsigned short ipt = 0;
+    std::size_t ipt = 0;
     for(ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) if(tp3d.SFIndex == pfp.TP3Ds[ipt].SFIndex) break;
     if(ipt == pfp.TP3Ds.size()) return USHRT_MAX;
     // next see if we can insert it so that re-sorting of this section isn't required
