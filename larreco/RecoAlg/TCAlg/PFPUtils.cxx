@@ -72,7 +72,7 @@ namespace tca {
     std::vector<std::vector<int>> stLists;
     for(unsigned short sl1 = 0; sl1 < slices.size() - 1; ++sl1) {
       auto& slc1 = slices[sl1];
-      for(unsigned short sl2 = sl1 + 1; sl2 < slices.size(); ++sl2) {
+      for(std::size_t sl2 = sl1 + 1; sl2 < slices.size(); ++sl2) {
         auto& slc2 = slices[sl2];
         // look for PFParticles in the same recob::Slice
         if(slc1.ID != slc2.ID) continue;
@@ -209,7 +209,7 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg <= 0) continue;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
           if(!tp.UseHit[ii]) continue;
           unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
           if(evt.allHitsSptIndex[ahi] > nspts) continue;
@@ -237,7 +237,7 @@ namespace tca {
     
     // sort by decreasing count
     std::vector<SortEntry> sortVec;
-    for(unsigned short indx = 0; indx < matVec.size(); ++indx) {
+    for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
       auto& ms = matVec[indx];
       // count the number of TPs in all Tjs
       float tpCnt = 0;
@@ -255,7 +255,7 @@ namespace tca {
     } // ii
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
     std::vector<MatchStruct> tmp(sortVec.size());
-    for(unsigned short indx = 0; indx < sortVec.size(); ++indx) tmp[indx] = matVec[sortVec[indx].index];
+    for(std::size_t indx = 0; indx < sortVec.size(); ++indx) tmp[indx] = matVec[sortVec[indx].index];
     matVec = tmp;
     tmp.resize(0);
     sortVec.resize(0);
@@ -379,7 +379,7 @@ namespace tca {
       // skip this match if any of the trajectories is already matched or merged or killed
       bool skipit = false;
       float npts = 0;
-      for(unsigned short itj = 0; itj < ms.TjIDs.size(); ++itj) {
+      for(std::size_t itj = 0; itj < ms.TjIDs.size(); ++itj) {
         auto& tj = slc.tjs[ms.TjIDs[itj] - 1];
         if(tj.AlgMod[kMat3D] || tj.AlgMod[kKilled]) skipit = true;
         npts += NumPtsWithCharge(slc, tj, false);
@@ -492,7 +492,7 @@ namespace tca {
       if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
       if(!StorePFP(slc, pfp)) continue;
       // clobber later entries that have these Tjs
-      for(unsigned short jndx = indx + 1; jndx < matVec.size(); ++jndx) {
+      for(std::size_t jndx = indx + 1; jndx < matVec.size(); ++jndx) {
         for(auto tid : pfp.TjIDs) {
           auto& jms = matVec[jndx];
           if(jms.Count <= 0) continue;
@@ -523,7 +523,7 @@ namespace tca {
       }
       unsigned int mcpIndex = UINT_MAX;
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
         if(!tp.UseHit[ii]) continue;
         unsigned ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
         mcpIndex = evt.allHitsMCPIndex[ahi];
@@ -557,7 +557,7 @@ namespace tca {
     
     // make a list of Tjs that have TPs in this pfp
     std::vector<int> tList;
-    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+    for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(tp3d.IsBad) continue;
       if(tp3d.TjID <= 0) continue;
@@ -658,7 +658,7 @@ namespace tca {
     std::vector<int> TinP;
     for(auto& pfp : slc.pfps) {
       if(pfp.ID <= 0) continue;
-      for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+      for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
         auto& tp3d = pfp.TP3Ds[ipt];
         if(tp3d.TjID <= 0) continue;
         if(std::find(TinP.begin(), TinP.end(), tp3d.TjID) == TinP.end()) TinP.push_back(tp3d.TjID);
@@ -869,7 +869,7 @@ namespace tca {
     if(mCnt.empty()) return;
     
     std::vector<SortEntry> sortVec;
-    for(unsigned short indx = 0; indx < mCnt.size(); ++indx) {
+    for(std::size_t indx = 0; indx < mCnt.size(); ++indx) {
       auto& tIDs = mtIDs[indx];
       // count the number of TPs in all Tjs
       float tpCnt = 0;
@@ -890,7 +890,7 @@ namespace tca {
 
     matVec.resize(sortVec.size());
     
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
+    for(std::size_t ii = 0; ii < sortVec.size(); ++ii) {
       unsigned short indx = sortVec[ii].index;
       auto& ms = matVec[ii];
       ms.Count = mCnt[indx];
@@ -982,7 +982,7 @@ namespace tca {
     if(mCnt.empty()) return;
     
     std::vector<SortEntry> sortVec;
-    for(unsigned short indx = 0; indx < mCnt.size(); ++indx) {
+    for(std::size_t indx = 0; indx < mCnt.size(); ++indx) {
       auto& tIDs = mtIDs[indx];
       // count the number of TPs in all Tjs
       float tpCnt = 0;
@@ -1003,7 +1003,7 @@ namespace tca {
     
     matVec.resize(sortVec.size());
     
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
+    for(std::size_t ii = 0; ii < sortVec.size(); ++ii) {
       unsigned short indx = sortVec[ii].index;
       auto& ms = matVec[ii];
       ms.Count = mCnt[indx];
@@ -1020,7 +1020,7 @@ namespace tca {
     // false if there was a serious error indicating that the pfp should be abandoned
     if(pfp.TP3Ds.empty() || pfp.SectionFits.empty()) return false;
     
-    for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
+    for(std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
       auto& sf = pfp.SectionFits[sfi];
       if(!sf.NeedsUpdate) continue;
       if(!FitSection(slc, pfp, sfi)) return false;
@@ -1171,7 +1171,7 @@ namespace tca {
           // not enough points so this is the last section
           lastSection = true;
           // assign the remaining points to the last section
-          for(unsigned short ipt = nextFromPt; ipt < pfp.TP3Ds.size(); ++ipt) pfp.TP3Ds[ipt].SFIndex = sfIndex;
+          for(std::size_t ipt = nextFromPt; ipt < pfp.TP3Ds.size(); ++ipt) pfp.TP3Ds[ipt].SFIndex = sfIndex;
         } 
       } // !lastSection
       // Do a final fit and update the points. Don't worry about a poor ChiDOF
@@ -1300,7 +1300,7 @@ namespace tca {
     if(dir == 0) return USHRT_MAX;
     
     std::vector<unsigned short> cntInPln(slc.nPlanes);
-    for(unsigned short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
+    for(std::size_t ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
       unsigned short ipt = fromPt + ii;
       if(dir < 0) ipt = fromPt - ii;
       if(ipt >= pfp.TP3Ds.size()) break;
@@ -1325,7 +1325,7 @@ namespace tca {
     fromPt = USHRT_MAX;
     npts = 0;
     // Note that no test is made for not-good TP3Ds here since that would give a wrong npts count
-    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+    for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(tp3d.SFIndex < sfIndex) continue;
       if(tp3d.SFIndex > sfIndex) break;
@@ -1610,7 +1610,7 @@ namespace tca {
       // create a vector of valid points
       std::vector<bool> validPt(pWork.TP3Ds.size(), true);
       // inspect end 0
-      for(unsigned short ipt = 0; ipt < pWork.TP3Ds.size(); ++ipt) {
+      for(std::size_t ipt = 0; ipt < pWork.TP3Ds.size(); ++ipt) {
         auto& tp3d = pWork.TP3Ds[ipt];
         if(!tp3d.IsGood) continue;
         unsigned short cnt = 0;
@@ -1916,7 +1916,7 @@ namespace tca {
     float prevAlong = 0;
     bool first = true;
     bool needsSort = false;
-    for(unsigned short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
+    for(std::size_t ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
       auto& tp3d = pfp.TP3Ds[ii];
       if(tp3d.SFIndex != sfIndex) continue;
       if(first) {
@@ -1939,11 +1939,11 @@ namespace tca {
     }    
     // see if the points are not-contiguous
     bool contiguous = true;
-    for(unsigned short ipt = 1; ipt < indx.size(); ++ipt) {
+    for(std::size_t ipt = 1; ipt < indx.size(); ++ipt) {
       if(indx[ipt] != indx[ipt - 1] + 1) {
         contiguous = false;
         std::cout<<"SortSection: MVI "<<pfp.MVI<<" Points aren't contiguous in sfi "<<sfIndex<< " ipt "<<ipt<<". print and quit\n";
-        for(unsigned short ipt = 1; ipt < pfp.TP3Ds.size(); ++ipt) {
+        for(std::size_t ipt = 1; ipt < pfp.TP3Ds.size(); ++ipt) {
           auto& tp3d = pfp.TP3Ds[ipt];
           std::cout<<ipt<<" sfi "<<tp3d.SFIndex<<" along "<<tp3d.along<<" good? "<<tp3d.IsGood<<"\n";
         } // tp3d
@@ -1954,12 +1954,12 @@ namespace tca {
     }
     
     std::vector<SortEntry> sortVec(temp.size());
-    for(unsigned short ii = 0; ii < temp.size(); ++ii) {
+    for(std::size_t ii = 0; ii < temp.size(); ++ii) {
       sortVec[ii].index = ii;
       sortVec[ii].val = temp[ii].along;
     } // ipt
     std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
-    for(unsigned short ii = 0; ii < temp.size(); ++ii) {
+    for(std::size_t ii = 0; ii < temp.size(); ++ii) {
       // overwrite the tp3d
       auto& tp3d = pfp.TP3Ds[indx[ii]];
       tp3d = temp[sortVec[ii].index];
@@ -1999,7 +1999,7 @@ namespace tca {
     // reverse the PFParticle
     std::reverse(pfp.TP3Ds.begin(), pfp.TP3Ds.end());
     std::reverse(pfp.SectionFits.begin(), pfp.SectionFits.end());
-    for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
+    for(std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
       auto& sf = pfp.SectionFits[sfi];
       // flip the direction vector
       for(unsigned short xyz = 0; xyz < 3; ++xyz) sf.Dir[xyz] *= -1;
@@ -2160,7 +2160,7 @@ namespace tca {
       std::vector<float> cnt(slc.nPlanes);
       short dir = 1 - 2 * end;
       auto endPos = PosAtEnd(pfp, end);
-      for(unsigned short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
+      for(std::size_t ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
         unsigned short ipt;
         if(dir > 0) {
           ipt = ii;
@@ -2198,7 +2198,7 @@ namespace tca {
     double time = 0;
     geo::PlaneID plnID;
     auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+    for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
       if(!tp.UseHit[ii]) continue;
       auto& hit = (*evt.allHits)[slc.slHits[tp.Hits[ii]].allHitsIndex];
       dQ += hit.Integral();
@@ -2249,7 +2249,7 @@ namespace tca {
     // a more careful treatment for long-pulse hits
     if(tp2.AngleCode > 1) {
       std::vector<unsigned int> hitMultiplet;
-      for(unsigned short ii = 0; ii < tp2.Hits.size(); ++ii) {
+      for(std::size_t ii = 0; ii < tp2.Hits.size(); ++ii) {
         if(!tp2.UseHit[ii]) continue;
         GetHitMultiplet(slc, tp2.Hits[ii], hitMultiplet);
         if(hitMultiplet.size() > 1) break;
@@ -2282,7 +2282,7 @@ namespace tca {
     } else {
       // Find the section center that is closest to this point in the wire coordinate
       float best = 1E6;
-      for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
+      for(std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
         auto& sf = pfp.SectionFits[sfi];
         float sfWire = tcc.geom->WireCoordinate(sf.Pos[1], sf.Pos[2], plnID);
         float sep = std::abs(sfWire - tp3d.Wire);
@@ -2773,7 +2773,7 @@ namespace tca {
     if(sfIndex >= pfp.SectionFits.size()) return false;
     
     bool first = true;
-    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+    for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(tp3d.SFIndex < sfIndex) continue;
       if(first) {
@@ -2805,7 +2805,7 @@ namespace tca {
     // look for a mcp match
     if(evt.allHitsMCPIndex.empty()) return UINT_MAX;
     auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+    for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
       if(!tp.UseHit[ii]) continue;
       unsigned ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
       return evt.allHitsMCPIndex[ahi];
@@ -2824,7 +2824,7 @@ namespace tca {
     myprt<<" NeedsUpdate? "<<pfp.NeedsUpdate<<"\n";
     if(!pfp.SectionFits.empty()) {
       myprt<<someText<<"  SFI ________Pos________   ________Dir_______ _____EndPos________ ChiDOF  NPts NeedsUpdate?\n";
-      for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
+      for(std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
         myprt<<someText<<std::setw(4)<<sfi;
         auto& sf = pfp.SectionFits[sfi];
         myprt<<std::fixed<<std::setprecision(1);
