@@ -70,7 +70,7 @@ namespace tca {
 
     // lists of pfp UIDs to stitch
     std::vector<std::vector<int>> stLists;
-    for(unsigned short sl1 = 0; sl1 < slices.size() - 1; ++sl1) {
+    for(std::size_t sl1 = 0; sl1 < slices.size() - 1; ++sl1) {
       auto& slc1 = slices[sl1];
       for(std::size_t sl2 = sl1 + 1; sl2 < slices.size(); ++sl2) {
         auto& slc2 = slices[sl2];
@@ -798,7 +798,7 @@ namespace tca {
     // a list of those Tjs
     std::vector<unsigned short> tMaxed;
     
-    for(unsigned int ipt = 0; ipt < slc.mallTraj.size() - 1; ++ipt) {
+    for(std::size_t ipt = 0; ipt < slc.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = slc.mallTraj[ipt];
       // see if we hit the maxCnt limit
       if(std::find(tMaxed.begin(), tMaxed.end(), iTjPt.id) != tMaxed.end()) continue;
@@ -807,7 +807,7 @@ namespace tca {
       unsigned int iWire = itp.Pos[0];
       tIDs[iPlane] = iTjPt.id;
       bool hitMaxCnt = false;
-      for(unsigned int jpt = ipt + 1; jpt < slc.mallTraj.size() - 1; ++jpt) {
+      for(std::size_t jpt = ipt + 1; jpt < slc.mallTraj.size() - 1; ++jpt) {
         auto& jTjPt = slc.mallTraj[jpt];
         // ensure that the planes are different
         if(jTjPt.plane == iTjPt.plane) continue;
@@ -923,7 +923,7 @@ namespace tca {
     // a list of those Tjs
     std::vector<unsigned short> tMaxed;
     
-    for(unsigned int ipt = 0; ipt < slc.mallTraj.size() - 1; ++ipt) {
+    for(std::size_t ipt = 0; ipt < slc.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = slc.mallTraj[ipt];
       // see if we hit the maxCnt limit
       if(std::find(tMaxed.begin(), tMaxed.end(), iTjPt.id) != tMaxed.end()) continue;
@@ -931,7 +931,7 @@ namespace tca {
       unsigned short iPlane = iTjPt.plane;
       unsigned int iWire = itp.Pos[0];
       bool hitMaxCnt = false;
-      for(unsigned int jpt = ipt + 1; jpt < slc.mallTraj.size() - 1; ++jpt) {
+      for(std::size_t jpt = ipt + 1; jpt < slc.mallTraj.size() - 1; ++jpt) {
         auto& jTjPt = slc.mallTraj[jpt];
         // ensure that the planes are different
         if(jTjPt.plane == iTjPt.plane) continue;
@@ -1195,7 +1195,7 @@ namespace tca {
       unsigned short badSFI = pfp.SectionFits.size() - 1;
       // remove it
       pfp.SectionFits.pop_back();
-      for(unsigned short ipt = pfp.TP3Ds.size() - 1; ipt > 0; --ipt) {
+      for(std::size_t ipt = pfp.TP3Ds.size() - 1; ipt > 0; --ipt) {
         auto& tp3d = pfp.TP3Ds[ipt];
         if(tp3d.SFIndex < badSFI) break;
         --tp3d.SFIndex;
@@ -1204,7 +1204,7 @@ namespace tca {
     } // bad last SF
     
     // Ensure that the points at the end are in the last section
-    for(unsigned short ipt = pfp.TP3Ds.size() - 1; ipt > 0; --ipt) {
+    for(std::size_t ipt = pfp.TP3Ds.size() - 1; ipt > 0; --ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(tp3d.SFIndex < pfp.SectionFits.size()) break;
       tp3d.SFIndex = pfp.SectionFits.size() - 1;
@@ -1631,7 +1631,7 @@ namespace tca {
         pWork.NeedsUpdate = true;
       } // ipt
       // inspect the other end
-      for(unsigned short ipt = pWork.TP3Ds.size() - 1; ipt > 0; --ipt) {
+      for(std::size_t ipt = pWork.TP3Ds.size() - 1; ipt > 0; --ipt) {
         auto& tp3d = pWork.TP3Ds[ipt];
         if(!tp3d.IsGood) continue;
         unsigned short cnt = 0;
@@ -1881,7 +1881,7 @@ namespace tca {
       pfp.NeedsUpdate = true;
       return pfp.TP3Ds.size() - 1;
     } else {
-      for(unsigned short iipt = ipt; iipt < pfp.TP3Ds.size() - 1; ++iipt) {
+      for(std::size_t iipt = ipt; iipt < pfp.TP3Ds.size() - 1; ++iipt) {
         // break out if the next point is in a different section
         if(pfp.TP3Ds[iipt + 1].SFIndex != tp3d.SFIndex) break;
         if(tp3d.along > pfp.TP3Ds[iipt].along && tp3d.along < pfp.TP3Ds[iipt + 1].along) {
