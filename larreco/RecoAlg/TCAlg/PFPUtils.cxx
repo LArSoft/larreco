@@ -264,7 +264,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"MVI  Count  Tjs\n";
-      for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
+      for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
         auto& ms = matVec[indx];
         myprt<<std::setw(5)<<indx<<std::setw(6)<<(int)ms.Count;
         for(auto tid : ms.TjIDs) myprt<<" T"<<tid;
@@ -327,7 +327,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"MVI  Count  Tjs\n";
-        for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
+        for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
           auto& ms = matVec[indx];
           myprt<<std::setw(5)<<indx<<std::setw(6)<<(int)ms.Count;
           for(auto tid : ms.TjIDs) myprt<<" T"<<tid;
@@ -367,7 +367,7 @@ namespace tca {
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
 
     // create a PFParticle for each valid match combination
-    for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
+    for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
       // tone down the level of printing in ReSection
       bool foundMVI = (tcc.dbgPFP && indx == debug.MVI);
       auto& ms = matVec[indx];
@@ -824,7 +824,7 @@ namespace tca {
         ijPos[0] = itp.Pos[0];
         if(!tcc.geom->IntersectionPoint(iWire, jWire, iPlane, jPlane, cstat, tpc, ijPos[1], ijPos[2])) continue;
         tIDs[jPlane] = jTjPt.id;
-        for(unsigned int kpt = jpt + 1; kpt < slc.mallTraj.size(); ++kpt) {
+        for(std::size_t kpt = jpt + 1; kpt < slc.mallTraj.size(); ++kpt) {
           auto& kTjPt = slc.mallTraj[kpt];
           // ensure that the planes are different
           if(kTjPt.plane == iTjPt.plane || kTjPt.plane == jTjPt.plane) continue;
@@ -2060,7 +2060,7 @@ namespace tca {
     
     // sort by increasing x
     std::vector<SortEntry> sortVec(slc.mallTraj.size());
-    for(unsigned int ipt = 0; ipt < slc.mallTraj.size(); ++ipt) {
+    for(std::size_t ipt = 0; ipt < slc.mallTraj.size(); ++ipt) {
       // populate the sort vector
       sortVec[ipt].index = ipt;
       sortVec[ipt].val = slc.mallTraj[ipt].xlo;
@@ -2069,7 +2069,7 @@ namespace tca {
     std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
     // put slc.mallTraj into sorted order
     auto tallTraj = slc.mallTraj;
-    for(unsigned int ii = 0; ii < sortVec.size(); ++ii) slc.mallTraj[ii] = tallTraj[sortVec[ii].index];
+    for(std::size_t ii = 0; ii < sortVec.size(); ++ii) slc.mallTraj[ii] = tallTraj[sortVec[ii].index];
     
   } // FillmAllTraj
 
