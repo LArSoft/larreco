@@ -845,7 +845,7 @@ namespace tca {
           // we have a match
           tIDs[kPlane] = kTjPt.id;
           // look for it in the list
-          unsigned short indx = 0;
+	  std::size_t indx = 0;
           for(indx = 0; indx < mtIDs.size(); ++indx) if(tIDs == mtIDs[indx]) break;
           if(indx == mtIDs.size()) {
             // not found so add it to mtIDs and add another element to mCnt
