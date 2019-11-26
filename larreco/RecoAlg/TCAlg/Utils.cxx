@@ -46,7 +46,7 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
 
-  // dressed muons - new function
+  // dressed muons
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt)
   {
     // Creates a "halo trajectory" around a muon tj consisting of hits and trajectories
@@ -447,7 +447,7 @@ namespace tca {
 
     return codeList[codeIndex];
   } // PDGCodeVote
-
+/*
   /////////////////////////////////////////
   unsigned short NumDeltaRays(TCSlice& slc, const Trajectory& tj)
   {
@@ -475,7 +475,7 @@ namespace tca {
     } // tj
     return cnt;
   } // NumDeltaRays
-
+*/
   /////////////////////////////////////////
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj)
   {
@@ -1182,7 +1182,7 @@ namespace tca {
   {
 
     if(tj.NeedsUpdate) {
-      std::cout<<"StoreTraj: Trajectory "<<tj.ID<<" needs an update. Doing it... \n";
+//      std::cout<<"StoreTraj: Trajectory "<<tj.ID<<" needs an update. Doing it... \n";
       UpdateTjChgProperties("ST", slc, tj, false);
     }
     
@@ -1960,13 +1960,14 @@ namespace tca {
   } // SignalAtTpInSlc
 
   /////////////////////////////////////////
-  bool SignalAtTp(const TrajPoint& tp)
+  bool SignalAtTp(TrajPoint& tp)
   {
     // returns true if there is a hit near tp.Pos by searching through the full hit collection (if there
     // are multiple slices) or through the last slice (if there is only one slice)
     
+    tp.Environment[kEnvNearSrcHit] = false;
+
     // just check the hits in the last slice
-    //if(evt.expectSlicedHits) {  -- fix per Bruce Baller
     if(evt.wireHitRange.empty()) {
       const auto& slc = slices[slices.size() - 1];
       return SignalAtTpInSlc(slc, tp);
@@ -1980,8 +1981,6 @@ namespace tca {
     // assume there is a signal on a dead wire
     if(!evt.goodWire[pln][wire]) return true;
     
-    // no signal here if there are no hits on this wire
-    if(evt.wireHitRange[pln][wire].first == UINT_MAX) return false;
     // check the proximity of all of the hits in the range
     float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
     float tickRange = 0;
@@ -1992,6 +1991,10 @@ namespace tca {
     }
     float loTpTick = projTick - tickRange;
     float hiTpTick = projTick + tickRange;
+    
+    // no signal here if there are no hits on this wire
+    if(evt.wireHitRange[pln][wire].first == UINT_MAX) return false;
+    
     for(unsigned int iht = evt.wireHitRange[pln][wire].first; iht <= evt.wireHitRange[pln][wire].second; ++iht) {
       auto& hit = (*evt.allHits)[iht];
       // We wouldn't need to make this check if hits were sorted
@@ -2007,8 +2010,47 @@ namespace tca {
         if(loTpTick < hiHitTick) return true;
       }
     } // iht
+    // No hit was found near projTick. Search through the source hits collection
+    // (if it is defined) for a hit that may have been removed by disambiguation
+    // Use the srcHit collection if it is available
+    if(tcc.useAlg[kTCWork2] && evt.srcHits != NULL) {
+      if(NearbySrcHit(planeID, wire, loTpTick, hiTpTick)) {
+        tp.Environment[kEnvNearSrcHit] = true;
+        return true;
+      } // NearbySrcHit
+    } // TCWork2
     return false;
   } // SignalAtTp
+
+  //////////////////////////////////////////
+  bool NearbySrcHit(geo::PlaneID plnID, unsigned int wire, float loTick, float hiTick)
+  {
+    // Look for a hit on wid in the srcHits collection that has a tick in the range. This
+    // is a DUNE-specific function in which hit disambiguation is done in the U and V planes
+    if(evt.srcHits == NULL) return false;
+    unsigned int pln = plnID.Plane;
+    if(pln == 2) return false;
+    
+    unsigned int cstat = plnID.Cryostat;
+    unsigned int tpc = plnID.TPC;
+    // get a valid range of hits to search
+    if(evt.tpcSrcHitRange[tpc].first >= (*evt.srcHits).size()) return false;
+    if(evt.tpcSrcHitRange[tpc].second >= (*evt.srcHits).size()) return false;
+    raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
+    float atTick = 0.5 * (loTick + hiTick);
+    for(unsigned int iht = evt.tpcSrcHitRange[tpc].first; iht <= evt.tpcSrcHitRange[tpc].second; ++iht) {
+      auto& hit = (*evt.srcHits)[iht];
+      if(hit.Channel() != chan) continue;
+      if(atTick < hit.PeakTime()) {
+        float loHitTick = hit.PeakTime() - 3 * hit.RMS();
+        if(hiTick > loHitTick) return true;
+      } else {
+        float hiHitTick = hit.PeakTime() + 3 * hit.RMS();
+        if(loTick < hiHitTick) return true;
+      }
+    } // iht
+    return false;
+ } // NearbySrcHit
 
   //////////////////////////////////////////
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp){
@@ -2086,9 +2128,6 @@ namespace tca {
     // resurrecting the trajectory later (RestoreObsoleteTrajectory)
     if(itj > slc.tjs.size() - 1) return;
     int killTjID = slc.tjs[itj].ID;
-    if(killTjID == 1) {
-      std::cout<<"stop here\n";
-    }
     for(auto& hit : slc.slHits) if(hit.InTraj == killTjID) hit.InTraj = 0;
     slc.tjs[itj].AlgMod[kKilled] = true;
   } // MakeTrajectoryObsolete
@@ -2575,6 +2614,28 @@ namespace tca {
   } // TwoTPAngle
 
   ////////////////////////////////////////////////
+  std::vector<unsigned int> PutHitsInVector(TCSlice& slc, PFPStruct const& pfp, HitStatus_t hitRequest)
+  {
+    // Put hits with the assn P -> TP3D -> TP -> Hit into a vector
+    std::vector<unsigned int> hitVec;
+    if(pfp.TP3Ds.empty()) return hitVec;
+    
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.IsBad) continue;
+      if(tp3d.TjID <= 0) continue;
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
+        bool useit = (hitRequest == kAllHits);
+        if(tp.UseHit[ii] && hitRequest == kUsedHits) useit = true;
+        if(!tp.UseHit[ii] && hitRequest == kUnusedHits) useit = true;
+        if(useit) hitVec.push_back(iht);
+      }
+    } // tp3d
+    return hitVec;
+  } // PutHitsInVector
+
+  ////////////////////////////////////////////////
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest)
   {
     // Put hits (which are indexed into slHits) in each trajectory point into a flat vector
@@ -2972,18 +3033,12 @@ namespace tca {
     short fitDir = 1;
     TrajPoint tpPos;
     FitTraj(slc, tj, kinkPt, nPtsFit, fitDir, tpPos);
-    if(tpPos.FitChi > 10) {
-      if(prt) mf::LogVerbatim("TC")<<" KL: poor tpPos FitChi "<<tpPos.FitChi;
-      return -1;
-    }
+    if(tpPos.FitChi > 10) return -1;
     // repeat the trajectory fit on the - side
     fitDir = -1;
     TrajPoint tpNeg;
     FitTraj(slc, tj, kinkPt, nPtsFit, fitDir, tpNeg);
-    if(tpNeg.FitChi > 10) {
-      if(prt) mf::LogVerbatim("TC")<<" KL: poor tpNeg FitChi "<<tpNeg.FitChi;
-      return -1;
-    }
+    if(tpNeg.FitChi > 10) return -1;
     double angErr = tpNeg.AngErr;
     if(tpPos.AngErr > angErr) angErr = tpPos.AngErr;
     angErr *= tFactor;
@@ -3440,12 +3495,60 @@ namespace tca {
   } // TjDeltaRMS
 
   /////////////////////////////////////////
+  void SetTPEnvironment(TCSlice& slc, CTP_t inCTP)
+  {
+    // This function is called after tj reconstruction is completed to set TP Environment
+    // bits that are dependent on reconstruction, just kEnvNearMuon for now. This bit is
+    // set for all TPs that are within 5 wire-equivalents of a muon
+    
+    std::array<int, 2> wireWindow;
+    Point2_t timeWindow;
+    unsigned short plane = DecodeCTP(inCTP).Plane;
+    // 
+    float delta = 5;
+
+    for(auto& mutj : slc.tjs) {
+      if(mutj.AlgMod[kKilled]) continue;
+      if(mutj.CTP != inCTP) continue;
+      if(mutj.PDGCode != 13) continue;
+      unsigned short nnear = 0;
+      for(unsigned short ipt = mutj.EndPt[0]; ipt <= mutj.EndPt[1]; ++ipt) {
+        auto& tp = mutj.Pts[ipt];
+        wireWindow[0] = tp.Pos[0];
+        wireWindow[1] = tp.Pos[0];
+        timeWindow[0] = tp.Pos[1] - delta;
+        timeWindow[1] = tp.Pos[1] + delta;
+        // get a list of all hits in this region
+        bool hitsNear;
+        auto closeHits = FindCloseHits(slc, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+        if(closeHits.empty()) continue;
+        for(auto iht : closeHits) {
+          auto inTraj = slc.slHits[iht].InTraj;
+          if(inTraj <= 0) continue;
+          if(inTraj == mutj.ID) continue;
+          auto& dtj = slc.tjs[inTraj - 1];
+          if(dtj.PDGCode == 13) continue;
+          for(unsigned short jpt = dtj.EndPt[0]; jpt <= dtj.EndPt[1]; ++jpt) {
+            auto& dtp = dtj.Pts[jpt];
+            if(std::find(dtp.Hits.begin(), dtp.Hits.end(), iht) == dtp.Hits.end()) continue;
+            dtp.Environment[kEnvNearMuon] = true;
+            ++nnear;
+          } // jpt
+        } // iht
+      } // ipt
+    } // mutj
+  } // SetTPEnvironment
+
+/* BB Nov 12, 2019 This function is replaced by SetTPEnvironment
+  /////////////////////////////////////////
   void TagDeltaRays(TCSlice& slc, const CTP_t& inCTP)
   {
     // DeltaRayTag vector elements
     // [0] = max separation of both endpoints from a muon
     // [1] = minimum MCSMom
     // [2] = maximum MCSMom
+    
+    std::cout<<"inside TagDeltaRays "<<tcc.useAlg[kDeltaRay]<<" "<<tcc.deltaRayTag[0]<<" size "<<tcc.deltaRayTag.size()<<"\n";
 
     if(!tcc.useAlg[kDeltaRay]) return;
     if(tcc.deltaRayTag[0] < 0) return;
@@ -3529,46 +3632,6 @@ namespace tca {
     } // itj
 
   } // TagDeltaRays
-
-/* The value of using this function should be considered
-  /////////////////////////////////////////
-  void TagMuonDirections(TCSlice& slc, short debugWorkID)
-  {
-    // Determine muon directions delta-ray proximity to muon trajectories
-
-    if(tcc.muonTag[0] < 0) return;
-
-    unsigned short minLen = tcc.muonTag[3];
-
-    for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-      Trajectory& muTj = slc.tjs[itj];
-      if(muTj.AlgMod[kKilled]) continue;
-      if(prt) {
-        mf::LogVerbatim("TC")<<"TagMuonDirection: Muon "<<muTj.CTP<<" "<<PrintPos(slc, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(slc, muTj.Pts[muTj.EndPt[1]]);
-      }
-      if(muTj.PDGCode != 13) continue;
-      // look for delta ray trajectories and count the number of times that
-      unsigned short nPos = 0;
-      unsigned short nNeg = 0;
-      for(auto& dtj : slc.tjs) {
-        if(dtj.AlgMod[kKilled]) continue;
-        if(dtj.ParentID != muTj.ID) continue;
-        if(dtj.EndPt[1] - dtj.EndPt[0] > minLen) continue;
-        if(dtj.StepDir > 0) {
-          ++nPos;
-        } else {
-          ++nNeg;
-        }
-      } // dtj
-      if(nPos == nNeg) continue;
-      if(nPos > nNeg) {
-        if(muTj.StepDir < 0) ReverseTraj(slc, muTj);
-      } else {
-        if(muTj.StepDir > 0) ReverseTraj(slc, muTj);
-      }
-//      muTj.AlgMod[kSetDir] = true;
-    } // itj
-  } // TagMuonDirections
 */
   /////////////////////////////////////////
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt)
@@ -3586,11 +3649,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         if(tp.UseHit[ii]) continue;
         unsigned int iht = tp.Hits[ii];
-        if(slc.slHits[iht].InTraj == 0) {
-          tp.Environment[kEnvUnusedHits] = true;
-        } else {
-          tp.Environment[kEnvNearTj] = true;
-        }
+        if(slc.slHits[iht].InTraj == 0) tp.Environment[kEnvUnusedHits] = true;
       } // ii
     } // tp
 
@@ -5103,7 +5162,8 @@ namespace tca {
     } // words.size() == 3 && words[0] == "WorkID"
     if(words.size() == 3 && words[0] == "Reco" && words[1] == "TPC") {
       tcc.recoTPC = std::stoi(words[2]);
-      std::cout<<"Reconstructing TPC "<<tcc.recoTPC<<"\n";
+      tcc.modes[kDebug] = true;
+      std::cout<<"Reconstructing only in TPC "<<tcc.recoTPC<<"\n";
       return true;
     }
     if(words.size() == 3) {
@@ -5443,15 +5503,15 @@ namespace tca {
     if(!pfp.TjIDs.empty()) {
       if(pfp.TjUIDs.empty()) {
         // print Tjs in one TPC
-        for(auto tjid : pfp.TjIDs) myprt<<" T"<<slc.tjs[tjid - 1].UID;
+        for(auto tjid : pfp.TjIDs) myprt<<" TU"<<slc.tjs[tjid - 1].UID;
       } else {
         // print Tjs in all TPCs (if this is called after FinishEvent)
-        for(auto tjuid : pfp.TjUIDs) myprt<<" T"<<tjuid;
+        for(auto tjuid : pfp.TjUIDs) myprt<<" TU"<<tjuid;
       }
     } // TjIDs exist
     if(!pfp.DtrUIDs.empty()) {
       myprt<<" dtrs";
-      for(auto dtruid : pfp.DtrUIDs) myprt<<" P"<<dtruid;
+      for(auto dtruid : pfp.DtrUIDs) myprt<<" PU"<<dtruid;
     } // dtr ids exist
     myprt<<"\n";
   } // PrintP
@@ -5464,9 +5524,9 @@ namespace tca {
     auto sIndx = GetSliceIndex("3V", vx3.UID);
     if(sIndx.first == USHRT_MAX) return;
     auto& slc = slices[sIndx.first];
-//    myprt<<someText;
-    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(vx3.ID);
-    str += "/" + std::to_string(vx3.UID);
+//    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(vx3.ID);
+//    str += "/" + std::to_string(vx3.UID);
+    std::string str = "3V" + std::to_string(vx3.ID) + "/3VU" + std::to_string(vx3.UID);
     myprt<<std::right<<std::setw(12)<<std::fixed<<str;
     myprt<<std::setprecision(1);
     myprt<<std::right<<std::setw(7)<<vx3.TPCID.Cryostat;
@@ -5479,7 +5539,7 @@ namespace tca {
     myprt<<std::right<<std::setw(5)<<vx3.ZErr;
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id > 0) {
-        str = "2V" + std::to_string(slc.vtxs[vx2id - 1].UID);
+        str = "2VU" + std::to_string(slc.vtxs[vx2id - 1].UID);
         myprt<<std::right<<std::setw(5)<<str;
       } else {
         myprt<<"   --";
@@ -5517,7 +5577,7 @@ namespace tca {
       auto vxtjs = GetAssns(slc, "3V", vx3.ID, "T");
       for(auto tjid : vxtjs) {
         auto& tj = slc.tjs[tjid - 1];
-        myprt<<" T"<<tj.UID;
+        myprt<<" TU"<<tj.UID;
       }
     } // vx3.Wire != -2
     myprt<<"\n";
@@ -5537,8 +5597,9 @@ namespace tca {
       myprt<<"     prodID    CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
       printHeader = false;
     }
-    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(vx2.ID);
-    str += "/" + std::to_string(vx2.UID);
+//    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(vx2.ID);
+//    str += "/" + std::to_string(vx2.UID);
+    std::string str = "2V" + std::to_string(vx2.ID) + "/2VU" + std::to_string(vx2.UID);
     myprt<<std::right<<std::setw(12)<<std::fixed<<str;
     myprt<<std::right<<std::setw(6)<<vx2.CTP;
     myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[0]);
@@ -5561,7 +5622,7 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] != (short)vx2.ID) continue;
-        std::string tid = " T" + std::to_string(tj.UID) + "_" + std::to_string(end);
+        std::string tid = " TU" + std::to_string(tj.UID) + "_" + std::to_string(end);
         myprt<<std::right<<std::setw(6)<<tid;
       } // end
     } // ii
@@ -5599,7 +5660,7 @@ namespace tca {
     } // plane
     for(auto cid : ss3.CotIDs) {
       auto& ss = slc.cots[cid - 1];
-      str = "2S" + std::to_string(ss.UID);
+      str = "2SU" + std::to_string(ss.UID);
       myprt<<std::setw(5)<<str;
     } // ci
     if(ss3.NeedsUpdate) myprt<<" *** Needs update";
@@ -5616,15 +5677,16 @@ namespace tca {
       myprt<<"************ Trajectories ************\n";
       myprt<<"Tj AngleCode-EndFlag decoder (EF): <AngleCode> + <reason for stopping>";
       myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory)\n";
-      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG eLike  Par Pri NuPar  E*P mcpIndex  WorkID \n";
+      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom __Vtx__  PDG eLike  Par Pri NuPar  E*P mcpIndex  WorkID \n";
       printHeader = false;
     }
     auto sIndx = GetSliceIndex("T", tj.UID);
     if(sIndx.first == USHRT_MAX) return;
     auto& slc = slices[sIndx.first];
-//    myprt<<someText;
-    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(tj.ID);
-    str += "/" + std::to_string(tj.UID);
+//    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(tj.ID);
+//    str += "/" + std::to_string(tj.UID);
+    // 
+    std::string str = "T" + std::to_string(tj.ID) + "/TU" + std::to_string(tj.UID);
     myprt<<std::fixed<<std::setw(12)<<str;
     myprt<<std::setw(6)<<tj.CTP;
     myprt<<std::setw(5)<<tj.Pass;
@@ -5676,7 +5738,7 @@ namespace tca {
     myprt<<std::setw(7)<<std::setprecision(1)<<tj.TotChg/1000;
     myprt<<std::setw(7)<<std::setprecision(2)<<tj.ChgRMS;
     myprt<<std::setw(5)<<tj.MCSMom;
-    myprt<<std::setw(4)<<tj.StepDir;
+//    myprt<<std::setw(4)<<tj.StepDir;
     int vxid = 0;
     if(tj.VtxID[0] > 0) vxid = slc.vtxs[tj.VtxID[0]-1].UID;
     myprt<<std::setw(4)<<vxid;
@@ -5826,7 +5888,7 @@ namespace tca {
       myprt<<"Tj AngleCode-EndFlag (EF) decoder: <AngleCode> + <reason for stopping>";
       myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory)\n";
       std::vector<unsigned int> tmp;
-      myprt<<someText<<"   UID   CTP Pass  Pts     W:T      Ang EF AveQ fnTj     W:T      Ang EF AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<"   UID   CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < slc.tjs.size(); ++ii) {
         auto& aTj = slc.tjs[ii];
         if(debug.CTP != UINT_MAX && aTj.CTP != debug.CTP) continue;
@@ -5860,6 +5922,7 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
+/*
         // Print the fraction of points in the first half that are near a tj
         float frac = 0;
         float cnt = 0;
@@ -5871,6 +5934,7 @@ namespace tca {
         } // ipt
         if(cnt > 0) frac /= cnt;
         myprt<<std::setw(5)<<std::setprecision(1)<<frac;
+*/
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tcc.unitsPerTick;
@@ -5888,6 +5952,7 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
+/*
         // Print the fraction of points in the second half that are near a tj
         frac = 0;
         cnt = 0;
@@ -5898,10 +5963,6 @@ namespace tca {
         } // ipt
         if(cnt > 0) frac /= cnt;
         myprt<<std::setw(5)<<std::setprecision(1)<<frac;
-/*
-        prec = 1;
-        if(aTj.dEdx[1] > 99) prec = 0;
-        myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[1];
 */
         myprt<<std::setw(7)<<std::setprecision(1)<<aTj.TotChg/1000;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
@@ -5958,24 +6019,22 @@ namespace tca {
   {
     // prints one or all trajectory points on tj
 
-    int trupdg = 0;
-
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
-        myprt<<" AlgMod names:";
+        myprt<<" AlgMods:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"slc.tjs: UID "<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"slcID "<<slc.ID<<" T"<<tj.ID<<" uT"<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" VtxID "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
-        myprt<<" AlgMod names:";
+        myprt<<" AlgMods:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintTPHeader(someText);
@@ -6080,19 +6139,21 @@ namespace tca {
         } else {
           myprt<<"x";
         }
-        myprt<<slc.slHits[iht].InTraj;
+        myprt<<"T"<<slc.slHits[iht].InTraj;
       } // iht
+      if(tp.InPFP > 0) myprt<<" inP"<<tp.InPFP;
     }
     // print Environment
-    myprt<<" Env:";
+    if(tp.Environment.any()) myprt<<" Env:";
     for(unsigned short ib = 0; ib < 8; ++ib) {
       // There aren't any bit names for Environment_t
       if(!tp.Environment[ib]) continue;
       if(ib == kEnvDeadWire) myprt<<" DeadWire";
-      if(ib == kEnvNearTj) myprt<<" NearTj";
+      if(ib == kEnvNearMuon) myprt<<" NearMuon";
       if(ib == kEnvNearShower) myprt<<" NearShower";
       if(ib == kEnvOverlap) myprt<<" Overlap";
       if(ib == kEnvUnusedHits) myprt<<" UnusedHits";
+      if(ib == kEnvNearSrcHit) myprt<<" NearSrcHit";
       if(ib == kEnvFlag) myprt<<" Flag";
     } // ib
   } // PrintTP
