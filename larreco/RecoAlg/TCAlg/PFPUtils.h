@@ -19,14 +19,17 @@ namespace geo { struct TPCID; }
 namespace tca {
 
   void StitchPFPs();
-  void FindSptPFParticles(TCSlice& slc);
   void FindPFParticles(TCSlice& slc);
   void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec, unsigned short matVec_Iter);
   void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
   bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
+  void FillWireIntersections(TCSlice& slc);
+  bool TCIntersectionPoint(unsigned int wir1, unsigned int wir2, unsigned int pln1, unsigned int pln2, 
+                           float& y, float& z);
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
+  bool SptInTPC(const std::array<unsigned int, 3>& sptHits, unsigned int tpc);
   void Match2Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
