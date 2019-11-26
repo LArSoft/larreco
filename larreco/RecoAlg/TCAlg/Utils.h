@@ -39,8 +39,6 @@ namespace tca {
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
   int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
   int PDGCodeVote(TCSlice& slc, const std::vector<int>& tjIDs);
-  unsigned short NumDeltaRays(TCSlice& slc, const Trajectory& tj);
-  unsigned short NumDeltaRays(TCSlice& slc, std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj);
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
   int PrimaryUID(TCSlice& slc, const PFPStruct& pfp);
@@ -73,7 +71,8 @@ namespace tca {
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTpInSlc(const TCSlice& slc, const TrajPoint& tp);
-  bool SignalAtTp(const TrajPoint& tp);
+  bool SignalAtTp(TrajPoint& tp);
+  bool NearbySrcHit(geo::PlaneID plnID, unsigned int wire, float loTick, float hiTick);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
@@ -130,6 +129,7 @@ namespace tca {
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   void TagJunkTj(TCSlice& slc, Trajectory& tj, bool prt);
+  std::vector<unsigned int> PutHitsInVector(TCSlice& slc, PFPStruct const& pfp, HitStatus_t hitRequest);
   // Put hits in each trajectory point into a flat vector.
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest);
   // returns true if a hit is associated with more than one point
@@ -164,12 +164,11 @@ namespace tca {
   // Calculate MCS theta RMS over the entire length. Returns MCS angle for 1 WSE unit
   float MCSThetaRMS(TCSlice& slc, Trajectory& tj);
   void TjDeltaRMS(TCSlice& slc, Trajectory& tj, unsigned short firstPt, unsigned short lastPt, double& rms, unsigned short& cnt);
+  void SetTPEnvironment(TCSlice& slc, CTP_t inCTP);
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TCSlice& slc, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TCSlice& slc, const CTP_t& inCTP);
-  // Tag muon directions using delta proximity
-//  void TagMuonDirections(TCSlice& slc, short debugWorkID);
+//  void TagDeltaRays(TCSlice& slc, const CTP_t& inCTP);
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(TCSlice& slc);
   void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt);
