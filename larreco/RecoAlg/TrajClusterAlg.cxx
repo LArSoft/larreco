@@ -202,8 +202,6 @@ namespace tca {
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
 
     // turn off the special algs
-    // A lightly tested algorithm that should only be turned on for testing
-    tcc.useAlg[kStopAtTj] = false;
     // Do an exhaustive (and slow) check of the hit -> trajectory associations
     tcc.useAlg[kChkInTraj] = false;
 
@@ -267,22 +265,40 @@ namespace tca {
   } // SetInputHits
 
   ////////////////////////////////////////////////
+  void TrajClusterAlg::SetSourceHits(std::vector<recob::Hit> const& srcHits)
+  {
+    evt.srcHits = &srcHits;
+    evt.tpcSrcHitRange.resize(tcc.geom->NTPC());
+    for(auto& thr : evt.tpcSrcHitRange) thr = {UINT_MAX, UINT_MAX};
+    for(unsigned int iht = 0; iht < (*evt.srcHits).size(); ++iht) {
+      auto& hit = (*evt.srcHits)[iht];
+      unsigned int tpc = hit.WireID().TPC;
+      if(tpc >= evt.tpcSrcHitRange.size()) return; 
+      if(evt.tpcSrcHitRange[tpc].first == UINT_MAX) evt.tpcSrcHitRange[tpc].first = iht;
+      evt.tpcSrcHitRange[tpc].second = iht;
+    } // iht
+  } // SetSourceHits
+
+  ////////////////////////////////////////////////
   void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
     // Reconstruct everything using the hits in a slice
 
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
-    if(tcc.recoSlice > 0) {
-      if(sliceID != tcc.recoSlice) return;
-    }
+    if(tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
     
-    if(!CreateSlice(hitsInSlice, sliceID)) {
-//      std::cout<<"CreateSlice failed\n";
-      return;
-    }
+    if(!CreateSlice(hitsInSlice, sliceID)) return;
+    
+    seeds.resize(0);
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
+    // special debug mode reconstruction
+    if(tcc.recoTPC > 0 && (short)slc.TPCID.TPC != tcc.recoTPC) {
+      slices.pop_back();
+      return;
+    }
+    
     if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -308,9 +324,6 @@ namespace tca {
       }
     } // plane
     if(tcc.match3DCuts[0] > 0) {
-      // First try to use SpacePoints (if they were loaded)
-      FindSptPFParticles(slc);
-      // Then try using wire intersections of un-matched TPs
       FindPFParticles(slc);
       DefinePFPParents(slc, false);
 /*
@@ -364,7 +377,6 @@ namespace tca {
     if(slc.firstWire[plane] > slc.nWires[plane]) return;
     unsigned int nwires = slc.lastWire[plane] - slc.firstWire[plane] - 1;
     if(nwires > slc.nWires[plane]) return;
-    seeds.resize(0);
 
     // Make several passes through the hits with user-specified cuts for each
     // pass. In general these are to not reconstruct large angle trajectories on
@@ -588,9 +600,9 @@ namespace tca {
         work.AlgMod[kRvPrp] = true;
         work.Pts.push_back(tp);
         // stop stepping if we hit another tj (the one that created this seed TP)
-        tcc.useAlg[kStopAtTj] = true;
+//        tcc.useAlg[kStopAtTj] = true;
         StepAway(slc, work);
-        tcc.useAlg[kStopAtTj] = false;
+//        tcc.useAlg[kStopAtTj] = false;
         CheckTraj(slc, work);
         // check for a major failure
         if(!slc.isValid) {
@@ -614,7 +626,7 @@ namespace tca {
        seeds.resize(0);
 
        // Tag delta rays before merging and making vertices
-       TagDeltaRays(slc, inCTP);
+//       TagDeltaRays(slc, inCTP);
        // Try to merge trajectories before making vertices
        
        bool lastPass = (pass == tcc.minPtsFit.size() - 1);
@@ -637,7 +649,7 @@ namespace tca {
     
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
-    TagDeltaRays(slc, inCTP);
+//    TagDeltaRays(slc, inCTP);
     // dressed muons with halo trajectories
     if(tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
       for(auto& tj : slc.tjs) {
@@ -648,7 +660,9 @@ namespace tca {
     } // dressed muons
 
     // Tag ShowerLike Tjs
-    if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);    
+    if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
+    // Set TP Environment bits
+    SetTPEnvironment(slc, inCTP);
     Find2DVertices(slc, inCTP, USHRT_MAX);
     SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
@@ -1186,7 +1200,7 @@ namespace tca {
     unsigned int cnt = 0;
     std::vector<unsigned int> nHitsInPln;
     for(auto iht : hitsInSlice) {
-      if(iht > (*evt.allHits).size() - 1) return false;
+      if(iht >= (*evt.allHits).size()) return false;
       auto& hit = (*evt.allHits)[iht];
       if(first) {
         cstat = hit.WireID().Cryostat;
@@ -1268,6 +1282,13 @@ namespace tca {
     if(nht > 0) frac = nhtUsed / nht;
     std::cout<<"FinishEvent "<<evt.event<<" nht "<<nht<<" fracUsed "<<std::fixed<<std::setprecision(2)<<frac;
     std::cout<<" ntj "<<ntj<<" npfp "<<npfp<<"\n";
+    
+    // Match to truth before stitching between TPCs
+    if(evt.mcpHandle) {
+      TruthMatcher tm;
+      tm.MatchTruth();
+      if(tcc.matchTruth[0] >= 0) tm.PrintResults(evt.event);
+    }
 
     StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here
