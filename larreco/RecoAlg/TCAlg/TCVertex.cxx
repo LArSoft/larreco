@@ -1339,7 +1339,7 @@ namespace tca {
         unsigned short nearEnd = 1 - FarEnd(slc, tj, vx.Pos);
         unsigned short fitPt = NearbyCleanPt(slc, tj, nearEnd);
         if(fitPt == USHRT_MAX) return false;
-        auto& tp = tj.Pts[tj.EndPt[fitPt]];
+        auto& tp = tj.Pts[fitPt];
         sumPulls += TrajPointVertexPull(slc, tp, vx);
         ++cnt;
       } // end
@@ -1377,10 +1377,7 @@ namespace tca {
       if(oneVxTPs[itj].Environment[kEnvOverlap]) oneVxTPs[itj].AngErr *= 4;
       oneVxTPs[itj].Step = tj.ID;
     } // ii
-    if(!FitVertex(slc, oneVx, oneVxTPs, prt)) {
-      std::cout<<"R2VTPs oneVx fit failed \n";
-      return false;
-    }
+    if(!FitVertex(slc, oneVx, oneVxTPs, prt)) return false;
     
     if(oneVx.ChiDOF < 3) {
       // Update the position of the first 2V in the list
@@ -1823,7 +1820,6 @@ namespace tca {
         auto& ivx2 = slc.vtxs[ivx];
         if(ivx2.Pos[0] < -0.4) continue;
         unsigned int iWire = std::nearbyint(ivx2.Pos[0]);
-        std::cout<<"ipl/ii "<<ipl<<"/"<<ii<<" iWire "<<iWire<<"\n";
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
@@ -2490,6 +2486,11 @@ namespace tca {
     // and the vertex position is stored in tp.Delta
     
     if(vxTPs.size() < 2) return false;
+    if(vxTPs.size() == 2) {
+      // TODO: side-step a matrix inversion problem for now
+      vx.ChiDOF = 0.;
+      return true;
+    }
     
     unsigned short npts = vxTPs.size();
     TMatrixD A(npts, 2);
@@ -2508,6 +2509,7 @@ namespace tca {
     TMatrixD ATA = AT * A;
     double *det = 0;
     ATA.Invert(det);
+    if(det == NULL) return false;
     TVectorD vxPos = ATA * AT * b;
     vx.PosErr[0] = sqrt(ATA[0][0]);
     vx.PosErr[1] = sqrt(ATA[1][1]);
