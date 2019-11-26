@@ -237,6 +237,14 @@ namespace cluster {
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
     if(!fTCAlg.SetInputHits(*inputHits, evt.run(), evt.event())) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
+    // Try to determine the source of the hit collection using the assumption that it was
+    // derived from gaushit. If this is successful, pass the handle to TrajClusterAlg to
+    // recover hits that were incorrectly removed by disambiguation (DUNE)
+    if(fHitModuleLabel != "gaushit") {
+      auto sourceHits = art::Handle<std::vector<recob::Hit>>();
+      art::InputTag sourceModuleLabel("gaushit");
+      if(evt.getByLabel(sourceModuleLabel, sourceHits)) fTCAlg.SetSourceHits(*sourceHits);
+    } // look for gaushit collection
     
     // get an optional reference to the Slice collection
     auto inputSlices = art::Handle<std::vector<recob::Slice>>();
@@ -249,14 +257,22 @@ namespace cluster {
     auto InputSpts = art::Handle<std::vector<recob::SpacePoint>>();
     if(fSpacePointModuleLabel != "NA") {
       if(!evt.getByLabel(fSpacePointModuleLabel, InputSpts)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
+      tca::evt.sptHits.resize((*InputSpts).size(), {{UINT_MAX, UINT_MAX, UINT_MAX}});
+      art::FindManyP<recob::Hit> hitsFromSpt(InputSpts, evt, fSpacePointHitAssnLabel);
+      // TrajClusterAlg doesn't use the SpacePoint positions (only the assns to hits) but pass it
+      // anyway in case it is useful
       fTCAlg.SetInputSpts(*InputSpts);
-      // Size the Hit -> SpacePoint assn vector
-      tca::evt.allHitsSptIndex.resize(nInputHits, UINT_MAX);
-      art::FindManyP<recob::Hit> hitsFromSpt (InputSpts, evt, fSpacePointHitAssnLabel);
       if(!hitsFromSpt.isValid()) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoint -> Hit assns\n";
+      // ensure that the assn is to the inputHit collection
+      auto& firstHit = hitsFromSpt.at(0)[0];
+      if(firstHit.id() != inputHits.id()) throw cet::exception("TrajClusterModule")<<"The SpacePoint -> Hit assn doesn't reference the input hit collection\n";
+      tca::evt.sptHits.resize((*InputSpts).size(), {{UINT_MAX, UINT_MAX, UINT_MAX}});
       for(unsigned int isp = 0; isp < (*InputSpts).size(); ++isp) {
         auto &hits = hitsFromSpt.at(isp);
-        for(auto& hit : hits) tca::evt.allHitsSptIndex[hit.key()] = isp;
+        for(unsigned short iht = 0; iht < hits.size(); ++iht) {
+          unsigned short plane = hits[iht]->WireID().Plane;
+          tca::evt.sptHits[isp][plane] = hits[iht].key();
+        } // iht
       } // isp
     } // fSpacePointModuleLabel specified
     
@@ -265,11 +281,9 @@ namespace cluster {
     
     if(nInputHits > 0) {
       auto const* geom = lar::providerFrom<geo::Geometry>();
-      // a list of TPCs that will be considered when comparing with MC
-      std::vector<unsigned int> tpcList;
       for(const auto& tpcid : geom->IterateTPCIDs()) {
-        // only reconstruct hits in a user-selected TPC in debug mode
-        if(tca::tcc.modes[tca::kDebug] && tca::tcc.recoTPC >= 0 && (short)tpcid.TPC != tca::tcc.recoTPC) continue;
+        // ignore protoDUNE dummy TPCs
+        if(geom->TPC(tpcid).DriftDistance() < 25.0) continue;
         // a vector for the subset of hits in each slice in a TPC
         //    slice      hits in this tpc
         std::vector<std::vector<unsigned int>> sltpcHits;
@@ -324,14 +338,10 @@ namespace cluster {
             } // iht
           } // tca::tcc.dbgStp
           fTCAlg.RunTrajClusterAlg(tpcHits, slcIDs[isl]);
-          // this is only used for MC truth matching
-          tpcList.push_back(tpcid.TPC);
         } // isl
       } // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg.FinishEvent();
-      if(!evt.isRealData()) fTCAlg.fTM.MatchTruth(tpcList);
-      if(tca::tcc.matchTruth[0] >= 0) fTCAlg.fTM.PrintResults(evt.event());
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // nInputHits > 0
 
