@@ -35,20 +35,19 @@ namespace tca {
       Prim_TSum = 0;
       Prim_EPTSum = 0;
       PFP_Cnt = 0;
-      nBadEP = 0;
-      nLongInPln = 0;
-      nLongMCP = 0;
-      nGoodLongMCP = 0;
+      nBadT = 0;
+      nBadP = 0;
    }
 
     void Initialize();
-    void MatchTruth(std::vector<unsigned int>& tpcList);
-    void MatchAndSum(std::vector<unsigned int>& tpcList);
+    void MatchTruth();
+    void MatchTAndSum();
+    void MatchPAndSum();
     void PrintResults(int eventNum) const;
-    bool CanReconstruct(std::vector<unsigned int> mcpHits, unsigned short nDimensions, const geo::TPCID& inTPCID);
-    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
-    void StudyElectrons(TCSlice& slc, const HistStuff& hist);
-    void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
+    // these are left here as example studies
+//    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
+//    void StudyElectrons(TCSlice& slc, const HistStuff& hist);
+//    void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
 
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
     std::array<short, 5> EPCnts {{0}};
@@ -63,10 +62,8 @@ namespace tca {
     float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
     float PFP_Cnt;                 // Count of ALL PFParticles
 
-    unsigned short nBadEP;      // Number of MCParticles that have >= MatchTruth[3] hits in a plane  && EP < MatchTruth[2]
-    unsigned short nLongInPln;   // Number of MCParticles that have >= MatchTruth[3] hits in a plane
-    unsigned short nLongMCP;   // Number of MCParticles that have >= MatchTruth[3] hits
-    unsigned short nGoodLongMCP;   // Number of MCParticles that have >= 2 * MatchTruth[3] hits with EP > 0.8
+    float nBadT;    // Number of reconstructed Tjs with a bad EP
+    float nBadP;    // Number of reconstructed pfps with a bad EP
 
     // Counts of:
     // [0] = the number of true vertices that are reconstructable (> 0 primary MCParticles)
