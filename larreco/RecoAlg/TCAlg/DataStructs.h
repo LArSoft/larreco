@@ -17,6 +17,7 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 
 namespace TMVA { class Reader; }
 namespace calo { class CalorimetryAlg; }
@@ -95,6 +96,22 @@ namespace tca {
     bool Neutrino {false};
   };
 
+  // The (y,z) position of a valid wire intersection of two wires on two planes +
+  // + the (y,z) position variation for a one wire change in pln1 and pln2
+  struct TCWireIntersection {
+    unsigned short pln1;
+    unsigned short pln2;
+    float wir1;
+    float wir2;
+    double y;
+    double z;
+    double dydw1;
+    double dzdw1;
+    double dydw2;
+    double dzdw2;
+    unsigned int tpc;
+  };
+
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
   struct Tj2Pt{
@@ -126,13 +143,13 @@ namespace tca {
     float Delta {0};              // Deviation between trajectory and hits (WSE)
     float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
     float FitChi {0};             // Chi/DOF of the fit
-    unsigned int InPFP {0};     // ID of the PFParticle that owns this TP
+    int InPFP {0};     // ID of the PFParticle that owns this TP
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
-    std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
+    std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment
   };
 
   // struct filled by FitChg
@@ -430,7 +447,6 @@ namespace tca {
     kChkStopEP,
     kChkChgAsym,
     kFTBRvProp,
-    kStopAtTj,
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
@@ -474,10 +490,11 @@ namespace tca {
   // Environment near a trajectory point
   typedef enum {
     kEnvDeadWire,
-    kEnvNearTj,
+    kEnvNearMuon,
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits,
+    kEnvNearSrcHit,  ///< TP is near a hit in the srcHit collection but no allHit hit exists (DUNE disambiguation error)
     kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
 
@@ -575,21 +592,24 @@ namespace tca {
   struct TCEvent {
     geo::TPCID TPCID;
     std::vector<recob::Hit> const* allHits = nullptr;
-    std::vector<unsigned int> tpcHits;  ///< 
-    //  hit Range for the full hit collection in the current TPCID
+    std::vector<recob::Hit> const* srcHits = nullptr;
+    //  hit Range for the allHits collection in the current TPCID
     //   plane      wire             firstHit, lastHit
     std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange; 
+    // hit range for the srcHits collection
+    std::vector<std::pair<unsigned int, unsigned int>> tpcSrcHitRange;
     // list of good wires in the current TPCID
     std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
+    std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
-    std::vector<unsigned int> allHitsSptIndex;              ///< index of matched hits into sptHandle vector
     unsigned int event;
     unsigned int run;
     unsigned int subRun;
     unsigned int eventsProcessed;
     std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
+    std::vector<TCWireIntersection> wireIntersections;
     int WorkID;
     int globalT_UID;
     int globalP_UID;
