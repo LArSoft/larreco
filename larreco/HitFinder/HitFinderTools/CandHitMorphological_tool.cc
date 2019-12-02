@@ -204,7 +204,8 @@ void CandHitMorphological::findHitCandidates(const recob::Wire::RegionsOfInteres
     // Limit start and stop tick to the neighborhood of the peak
     if (fFitNSigmaFromCenter>0) {
       for (auto& hc: hitCandidateVec) {
-        hc.startTick = std::max(hc.startTick, size_t(hc.hitCenter-fFitNSigmaFromCenter*hc.hitSigma));
+	auto startCand = hc.hitCenter-fFitNSigmaFromCenter*hc.hitSigma;
+        if (startCand>=0) hc.startTick = std::max(hc.startTick, size_t(startCand));
         hc.stopTick = std::min(hc.stopTick, size_t(hc.hitCenter+fFitNSigmaFromCenter*hc.hitSigma));
       }
     }
