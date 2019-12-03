@@ -130,7 +130,7 @@ standard_tracs_shower: {
     module_type: "TRACS"
 
     ShowerFinderTools: [
-         @local::showerstartposition,
+         @local::showerpfpvertexstartposition,
          @local::showerpcadirection,
          @local::showerlinearenergy,
          @local::shower3Dtrackhitfinder, 
@@ -142,6 +142,13 @@ standard_tracs_shower: {
     SecondInteration:           false
     AllowPartialShowers:        false
     Verbose:                    false
+    
+    ShowerStartPositionLabel: "ShowerStartPosition"
+    ShowerDirectionLabel:     "ShowerDirection"
+    ShowerEnergyLabel:        "ShowerEnergy"
+    ShowerLengthLabel:        "ShowerLength"
+    ShowerdEdxLabel:          "ShowerdEdx"
+    ShowerBestPlaneLabel:     "ShowerBestPlane"
 }
 
 
