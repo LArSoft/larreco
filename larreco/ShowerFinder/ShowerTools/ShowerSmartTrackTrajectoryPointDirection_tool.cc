@@ -58,16 +58,25 @@ namespace ShowerRecoTools {
                                 //from start position to the trajectory points
                                 //use the angle between the the points themselves
     float fAngleCut;
+    
+    std::string fInitialTrackInputLabel;
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionOuputLabel;
   };
 
 
-  ShowerSmartTrackTrajectoryPointDirection::ShowerSmartTrackTrajectoryPointDirection(const fhicl::ParameterSet& pset)
+  ShowerSmartTrackTrajectoryPointDirection::ShowerSmartTrackTrajectoryPointDirection(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fUsePandoraVertex(pset.get<bool>("UsePandoraVertex")),
+    fAllowDynamicSliding(pset.get<bool>("AllowDynamicSliding")),
+    fUsePositionInfo(pset.get<bool>("UsePositionInfo")),
+    fUseStartPos(pset.get<bool>("UseStartPos")),
+    fAngleCut(pset.get<float>("AngleCut")),
+    fInitialTrackInputLabel(pset.get<std::string>("InitialTrackInputLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fShowerDirectionOuputLabel(pset.get<std::string>("ShowerDirectionOuputLabel"))
+    
   {
-    fUsePandoraVertex         = pset.get<bool>("UsePandoraVertex");
-    fAllowDynamicSliding      = pset.get<bool>("AllowDynamicSliding");
-    fUseStartPos              = pset.get<bool>("UseStartPos");
-    fUsePositionInfo          = pset.get<bool>("UsePositionInfo");
-    fAngleCut                 = pset.get<float>("AngleCut");
   }
 
   ShowerSmartTrackTrajectoryPointDirection::~ShowerSmartTrackTrajectoryPointDirection()
@@ -77,13 +86,13 @@ namespace ShowerRecoTools {
   int ShowerSmartTrackTrajectoryPointDirection::CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle, art::Event& Event, reco::shower::ShowerElementHolder& ShowerEleHolder){
 
     //Check the Track has been defined
-    if(!ShowerEleHolder.CheckElement("InitialTrack")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackInputLabel)){
       mf::LogError("ShowerSmartTrackTrajectoryPointDirection")
 	<< "Initial track not set"<< std::endl;
       return 1;
     }
     recob::Track InitialTrack;
-    ShowerEleHolder.GetElement("InitialTrack",InitialTrack);
+    ShowerEleHolder.GetElement(fInitialTrackInputLabel,InitialTrack);
 
     //Smartly choose the which trajectory point to look at by ignoring the smush of hits at the vertex.
     if(InitialTrack.NumberTrajectoryPoints() == 1){
@@ -102,13 +111,13 @@ namespace ShowerRecoTools {
 
       if(fUsePandoraVertex){
         //Check the Track has been defined
-        if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+        if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
           mf::LogError("ShowerSmartTrackTrajectoryPointDirection")
 	    << "Shower start position not set"<< std::endl;
           return 1;
         }
         TVector3 StartPosition_vec = {-999,-999,-999};
-        ShowerEleHolder.GetElement("ShowerStartPosition",StartPosition_vec);
+        ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,StartPosition_vec);
         StartPosition.SetCoordinates(StartPosition_vec.X(),StartPosition_vec.Y(),StartPosition_vec.Z());
       }
       else{
@@ -289,8 +298,7 @@ namespace ShowerRecoTools {
     //Set the direction.
     TVector3 Direction = {Direction_vec.X(), Direction_vec.Y(),Direction_vec.Z()};
     TVector3 DirectionErr = {-999,-999,-999};
-    ShowerEleHolder.SetElement(Direction,DirectionErr,"ShowerDirection");
-
+    ShowerEleHolder.SetElement(Direction,DirectionErr,fShowerDirectionOuputLabel);
     return 0;
   }
 }

@@ -20,6 +20,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "larreco/RecoAlg/ShowerElementHolder.hh"
 #include "larreco/ShowerFinder/ShowerProduedPtrsHolder.hh"
+#include "larreco/RecoAlg/TRACSAlg.h"
 
 //C++ Includes
 #include <string>
@@ -29,6 +30,10 @@ namespace ShowerRecoTools{
 
     public:
 
+      IShowerTool(const fhicl::ParameterSet& pset) : 
+        fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg")),
+        fRunEventDisplay(pset.get<bool>("EnableEventDisplay")) {};
+
       virtual ~IShowerTool() noexcept = default;
 
       //Generic Elemnt Finder. Used to calculate thing about the shower.
@@ -36,6 +41,23 @@ namespace ShowerRecoTools{
           art::Event& Event,
           reco::shower::ShowerElementHolder& ShowerEleHolder
           ) = 0;
+
+
+      //Main function that runs the shower tool.  This includes running the derived function
+      //that calculates the shower element and also runs the event display if requested
+      int RunShowerTool(const art::Ptr<recob::PFParticle>& pfparticle,
+			art::Event& Event,
+			reco::shower::ShowerElementHolder& ShowerEleHolder,
+			std::string evd_display_name_append=""
+			){
+	
+        int calculation_status = CalculateElement(pfparticle, Event, ShowerEleHolder);
+        if (calculation_status != 0) return calculation_status;
+        if (fRunEventDisplay){
+          IShowerTool::GetTRACSAlg().DebugEVD(pfparticle,Event,ShowerEleHolder,evd_display_name_append);
+        } 
+        return calculation_status;
+      }
 
       //Function to initialise the producer i.e produces<std::vector<recob::Vertex> >(); commands go here.
       virtual void InitialiseProducers(){}
@@ -54,10 +76,20 @@ namespace ShowerRecoTools{
       virtual int  AddAssociations(art::Event& Event,
           reco::shower::ShowerElementHolder& ShowerEleHolder){return 0;}
 
+    protected:
+      const shower::TRACSAlg& GetTRACSAlg() { return fTRACSAlg; };
+
     private:
 
       //ptr to the holder of all the unique ptrs.
       reco::shower::ShowerProduedPtrsHolder* UniquePtrs;
+
+      //Algorithm functions
+      shower::TRACSAlg fTRACSAlg;
+
+      //Flags
+      bool fRunEventDisplay;
+
       art::ProducesCollector* collectorPtr;
 
     protected:
@@ -97,15 +129,17 @@ namespace ShowerRecoTools{
       //Function so that the user can add products to the art event. This will set up the unique ptrs and the ptr makers required.
       //Example: InitialiseProduct<std::vector<recob<vertex>>("MyVertex")
       template <class T>
-        void InitialiseProduct(std::string Name, std::string InstanceName=""){
-          if (collectorPtr == nullptr){
-            mf::LogWarning("IShowerTool") << "The art::ProducesCollector ptr has not been set";
-            return;
-          }
+	void InitialiseProduct(std::string Name, std::string InstanceName=""){
+	
+	if (collectorPtr == nullptr){
+	  mf::LogWarning("IShowerTool") << "The art::ProducesCollector ptr has not been set";
+	  return;
+	}
+	
+	collectorPtr->produces<T>(InstanceName);
+	UniquePtrs->SetShowerUniqueProduerPtr(type<T>(),Name,InstanceName);
+      }
 
-          collectorPtr->produces<T>(InstanceName);
-          UniquePtrs->SetShowerUniqueProduerPtr(type<T>(),Name,InstanceName);
-        }
 
       //Function so that the user can add assocations to the event.
       //Example: AddSingle<art::Assn<recob::Vertex,recob::shower>((art::Ptr<recob::Vertex>) Vertex, (art::Prt<recob::shower>) Shower), "myassn")
