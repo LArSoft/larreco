@@ -119,7 +119,7 @@ namespace ShowerRecoTools {
       bool          fUseShowerDirection;
       bool          fChargeWeighted;
       bool          fForwardHitsOnly;
-      bool          fScaleWithEnergy;
+      //bool          fScaleWithEnergy; // unused
       float         fMaxResidualDiff;
       float         fMaxAverageResidual;
       int           fStartFitSize;
