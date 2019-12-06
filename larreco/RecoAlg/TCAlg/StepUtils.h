@@ -86,8 +86,8 @@ namespace tca {
   // Check the Michel electron topology, lastGoodPt is the last point of muon
   bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt);
   // TY: Split high charge hits near the trajectory end
-  void ChkHiChgHits(TCSlice& slc, CTP_t inCTP);
-  void SplitHiChgHits(TCSlice& slc, Trajectory& tj);
+//  void ChkHiChgHits(TCSlice& slc, CTP_t inCTP);
+//  void SplitHiChgHits(TCSlice& slc, Trajectory& tj);
   // Make a junk trajectory using the list of hits in tHits
   bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits);
 } // namespace tca

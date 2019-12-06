@@ -234,8 +234,6 @@ namespace tca {
     // Configure the TMVA reader for the shower parent BDT
     if(fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0) ConfigureMVA(tcc, fMVAShowerParentWeights);
 
-    if(tcc.modes[kDebug]) PrintDebugMode();
-
     evt.eventsProcessed = 0;
 
   } // reconfigure
@@ -252,6 +250,7 @@ namespace tca {
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
+    evt.spcChg = lar::providerFrom<spacecharge::SpaceChargeService>();
     evt.WorkID = 0;
     evt.globalT_UID = 0;
     evt.global2V_UID = 0;
@@ -261,6 +260,9 @@ namespace tca {
     evt.global3S_UID = 0;
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
+    
+    if(tcc.modes[kDebug]) PrintDebugMode();
+    
     return AnalyzeHits();
   } // SetInputHits
 
@@ -304,7 +306,10 @@ namespace tca {
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
-      if(!slc.isValid) return;
+      if(!slc.isValid) {
+        std::cout<<"Found invalid slice\n";
+        return;
+      }
     } // plane
     // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
     // 2D and 3D(?) information
@@ -435,6 +440,7 @@ namespace tca {
             iHitsInMultiplet[0] = iht;
           } else {
             GetHitMultiplet(slc, iht, iHitsInMultiplet);
+            if(iHitsInMultiplet.empty()) continue;
             // ignore very high multiplicities
             if(iHitsInMultiplet.size() > 4) continue;
           }
@@ -468,6 +474,7 @@ namespace tca {
               jHitsInMultiplet[0] = jht;
             } else {
               GetHitMultiplet(slc, jht, jHitsInMultiplet);
+              if(jHitsInMultiplet.empty()) continue;
               // ignore very high multiplicities
               if(jHitsInMultiplet.size() > 4) continue;
             }
@@ -499,7 +506,8 @@ namespace tca {
               continue;
             }
             // check for a large angle crawl
-            if(work.Pts[0].AngleCode > tcc.maxAngleCode[work.Pass]) {
+            // BB This check should be made after more points are added
+            if(!tcc.useAlg[kTCWork2] && work.Pts[0].AngleCode > tcc.maxAngleCode[work.Pass]) {
               if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: Wrong angle code "<<work.Pts[0].AngleCode<<" for this pass "<<work.Pass;
               ReleaseHits(slc, work);
               continue;
@@ -559,8 +567,6 @@ namespace tca {
                 return;
               }
             } // dbgStp
-            // See if it should be split
-            FindKinks(slc, slc.tjs.size() - 1);
             CheckTrajBeginChg(slc, slc.tjs.size() - 1);
             BraggSplit(slc, slc.tjs.size() - 1);
             break;
@@ -599,10 +605,7 @@ namespace tca {
         // don't allow yet another reverse propagation
         work.AlgMod[kRvPrp] = true;
         work.Pts.push_back(tp);
-        // stop stepping if we hit another tj (the one that created this seed TP)
-//        tcc.useAlg[kStopAtTj] = true;
         StepAway(slc, work);
-//        tcc.useAlg[kStopAtTj] = false;
         CheckTraj(slc, work);
         // check for a major failure
         if(!slc.isValid) {
@@ -638,7 +641,7 @@ namespace tca {
          return;
        }
        // TY: Split high charge hits near the trajectory end
-       ChkHiChgHits(slc, inCTP);
+//       ChkHiChgHits(slc, inCTP);
        
        Find2DVertices(slc, inCTP, pass);
 
@@ -727,16 +730,13 @@ namespace tca {
       unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
-      if(ifirsthit > slc.slHits.size() || ilasthit > slc.slHits.size()) {
-        std::cout<<"FJT: bad hit range wire "<<iwire<<" "<<ifirsthit<<" "<<ilasthit<<" size "<<slc.slHits.size()<<" inCTP "<<inCTP<<"\n";
-        return;
-      }
       for(unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
         tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
         GetHitMultiplet(slc, iht, iHits);
+        if(iHits.empty()) continue;
         for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
           auto& jslHit = slc.slHits[jht];
           if(jslHit.InTraj != 0) continue;
@@ -744,6 +744,7 @@ namespace tca {
           if(HitSep2(slc, iht, jht) > tcc.JTMaxHitSep2) continue;
           std::vector<unsigned int> jHits;
           GetHitMultiplet(slc, jht, jHits);
+          if(jHits.empty()) continue;
           // check for hit overlap consistency
           if(!TrajHitsOK(slc, iHits, jHits)) continue;
           tHits.clear();
@@ -1247,17 +1248,11 @@ namespace tca {
     // Stitch PFParticles between TPCs
 
     // define the PFP TjUIDs vector before calling StitchPFPs
-    unsigned short npfp = 0;
-    unsigned short ntj = 0;
-    float nht = 0;
-    float nhtUsed = 0;
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
-      nht += slc.slHits.size();
       MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
-        ++npfp;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
         for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
           // do a sanity check while we are here
@@ -1270,18 +1265,7 @@ namespace tca {
           pfp.TjUIDs[ii] = tj.UID;
         } // ii
       } // pfp
-      // temp
-      for(auto& tj : slc.tjs) {
-        if(tj.AlgMod[kKilled]) continue;
-        ++ntj;
-        auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
-        nhtUsed += tjhits.size();
-      } // tj
     } // slc
-    float frac = -1;
-    if(nht > 0) frac = nhtUsed / nht;
-    std::cout<<"FinishEvent "<<evt.event<<" nht "<<nht<<" fracUsed "<<std::fixed<<std::setprecision(2)<<frac;
-    std::cout<<" ntj "<<ntj<<" npfp "<<npfp<<"\n";
     
     // Match to truth before stitching between TPCs
     if(evt.mcpHandle) {

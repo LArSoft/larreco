@@ -2861,7 +2861,7 @@ namespace tca {
     if(vx2.ID == 0) return;
 
     // Don't score vertices from CheckTrajBeginChg, MakeJunkVertices or Neutral vertices. Set to the minimum
-    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11 || vx2.Topo == 12 || vx2.Topo == 13) {
+    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11 || vx2.Topo == 12) {
       vx2.Score = tcc.vtx2DCuts[7] + 0.1;
       auto vtxTjID = GetVtxTjIDs(slc, vx2);
       vx2.TjChgFrac = ChgFracNearPos(slc, vx2.Pos, vtxTjID);

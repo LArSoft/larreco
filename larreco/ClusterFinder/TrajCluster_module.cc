@@ -900,19 +900,21 @@ namespace cluster {
     art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
+    unsigned int indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       auto& p = (*ipart).second;
       int trackID = p->TrackId();
       const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       int KE = 1000 * (p->E() - p->Mass());
-      if(!anySource && theTruth->Origin() != origin) continue;
-      if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
-        std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
+//      if(!anySource && theTruth->Origin() != origin) continue;
+      if(tca::tcc.matchTruth[1] > 1 && KE > 1) {
+        std::cout<<"TCM: indx "<<indx<<" TrackId "<<trackID<<" Origin "<<theTruth->Origin()
         <<" pdg "<<p->PdgCode()
         <<std::setw(7)<<KE
-        <<" "<<p->Process()
+        <<" MeV "<<p->Process()
         <<"\n";
       }
+      ++indx;
     } // ipart
     std::vector<art::Ptr<simb::MCParticle>> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
@@ -941,7 +943,7 @@ namespace cluster {
         tca::evt.allHitsMCPIndex[iht] = indx;
         break;
       } // indx
-    } // iht
+   } // iht
   } // FillMCPList
   //----------------------------------------------------------------------------
   DEFINE_ART_MODULE(TrajCluster)

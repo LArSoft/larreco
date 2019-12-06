@@ -27,11 +27,13 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+//#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 
 namespace tca {
 
@@ -380,26 +382,16 @@ namespace tca {
         // See if it possible to reconstruct in more than one section
         pfp.Flags[kCanSection] = CanSection(slc, pfp);
            // Do a fit in multiple sections if the initial fit is poor
-           if(pfpVec[0].SectionFits[0].ChiDOF < tcc.match3DCuts[5]) {
+           if(pfp.SectionFits[0].ChiDOF < tcc.match3DCuts[5]) {
           // Good fit with one section
-          pfpVec[0].Flags[kNeedsUpdate] = false;
-        } else if(pfpVec[0].Flags[kCanSection]) {
-          if(!ReSection(slc, pfpVec[0], foundMVI)) continue;
-          KillBadPoints(slc, pfpVec[0], tcc.match3DCuts[4], foundMVI);
+          pfp.Flags[kNeedsUpdate] = false;
+        } else if(pfp.Flags[kCanSection]) {
+          if(!ReSection(slc, pfp, foundMVI)) continue;
+          KillBadPoints(slc, pfp, tcc.match3DCuts[4], foundMVI);
           // Try to remove bad points if there was a ReSection problem
-/*
-          if(pfpVec[0].SectionFits.size() == 1 && pfpVec[0].SectionFits[0].ChiDOF > tcc.match3DCuts[5] && !pfpVec[0].AlgMod[kJunk3D]) {
-            KillBadPoints(slc, pfpVec[0], tcc.match3DCuts[4], foundMVI);
-            // try again
-            if(pfpVec[0].Flags[kNeedsUpdate]) {
-              pfpVec[0].Flags[kCanSection] = true;
-              ReSection(slc, pfpVec[0], foundMVI);
-            }
-          } // ReSection problem
-*/
         } // CanSection
         if(foundMVI) {
-          PrintTP3Ds("RS", slc, pfpVec[0], -1);
+          PrintTP3Ds("RS", slc, pfp, -1);
         }
         // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
         // inserts new TP3Ds if there are hits in the gaps. This search is only done in a
@@ -407,13 +399,25 @@ namespace tca {
         // is likely to be poor - not true for TCWork2
         FillGaps3D(slc, pfp, foundMVI);
         // Trim points from the ends until there is a 3D point where there is a signal in at least two planes
-        TrimEndPts(slc, pfpVec[0], foundMVI);
+        TrimEndPts(slc, pfp, foundMVI);
         // Check the TP3D -> TP assn, resolve conflicts and set TP -> InPFP
         if(!ReconcileTPs(slc, pfp, foundMVI)) continue;
         // Look for mis-placed 2D and 3D vertices
-        ReconcileVertices(slc, pfpVec[0], foundMVI);
+        ReconcileVertices(slc, pfp, foundMVI);
+        // Set isGood
+        for(auto& tp3d : pfp.TP3Ds) {
+          if(tp3d.IsBad) {
+            std::cout<<"Found IsBad tp3d. Missed clean-up\n";
+            continue;
+          }
+          auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+          if(tp.Environment[kEnvOverlap]) tp3d.IsGood = false;
+        } // tp3d
         FilldEdx(slc, pfp);
         pfp.PDGCode = PDGCodeVote(slc, pfp);
+        if(pfp.PDGCode < 0) {
+          std::cout<<"PDGCodeVote failed on P"<<pfp.ID<<"\n";
+        }
         if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
         if(!StorePFP(slc, pfp)) {
           std::cout<<"MPFP: StorePFP failed\n";
@@ -526,10 +530,10 @@ namespace tca {
       float npwc = NumPtsWithCharge(slc, tj, false);
       if(tjtpcnt.second > 0.8 * npwc) nTjIDs.push_back(tjtpcnt.first);
     } // tjtpcnt
-    // TODO: is this really a failure?
     if(prt) {
       mf::LogVerbatim("TC")<<"RTPs3D: P"<<pfp.ID<<" nTjIDs "<<nTjIDs.size();
     }
+    // TODO: is this really a failure?
     if(nTjIDs.size() < 2) {
       return false;
     }
@@ -563,17 +567,7 @@ namespace tca {
         if(tp.InPFP > 0) {
           // an assn exists. Set the overlap bit and check consistency
           tp.Environment[kEnvOverlap] = true;
-/*
-          auto& oldp = slc.pfps[tp.InPFP - 1];
-          // find the TP3D index
-          unsigned short otp = 0;
-          for(otp = 0; otp < oldp.TP3Ds.size(); ++otp) {
-            auto& otp3d = oldp.TP3Ds[otp];
-            if(otp3d.TjID == tp3d.TjID && otp3d.TPIndex == tp3d.TPIndex) break;
-          }
-          auto& otp3d = oldp.TP3Ds[otp];
-*/
-          // keep the old assn and remove the new one
+          // keep the previous assn (since it was created earlier and is more credible) and remove the new one
           tp3d.IsBad = true;
           tp3d.IsGood = false;
           tp.InPFP = 0;
@@ -2115,14 +2109,18 @@ namespace tca {
     unsigned int lastWire = 0;
 
     unsigned short inSF = USHRT_MAX;
+    unsigned short pln = DecodeCTP(inCTP).Plane;
     for(auto& tp3d : pfp.TP3Ds) {
       unsigned int wire = std::nearbyint(tp3d.Wire);
+      if(wire >= slc.nWires[pln]) wire = slc.nWires[pln];
       if(tp3d.CTP == inCTP) {
         wiresUsed.push_back(wire);
         if(wire > lastWire) lastWire = wire;
       }
       if(tp3d.SFIndex == inSF) continue;
-      sfTPs.push_back(MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP));
+      auto tp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP);
+      if(tp.Pos[0] < 0) return;
+      sfTPs.push_back(tp);
       inSF = tp3d.SFIndex;
     } // tp3d
     // reverse the vector if necessary so the wires will be in increasing order
@@ -2142,11 +2140,6 @@ namespace tca {
       auto& fromTP = sfTPs[subr];
       unsigned int toWire = lastWire;
       if(subr < sfTPs.size() - 1) toWire = std::nearbyint(sfTPs[subr+1].Pos[0]);
-/*
-      auto& toTP = sfTPs[subr + 1];
-      fromTP.Dir = PointDirection(fromTP.Pos, toTP.Pos);
-      fromTP.Ang = atan2(fromTP.Dir[1], fromTP.Dir[0]);
-*/
       SetAngleCode(fromTP);
       unsigned int fromWire = std::nearbyint(fromTP.Pos[0]);
 //      unsigned int toWire = std::nearbyint(toTP.Pos[0]);
@@ -2156,7 +2149,7 @@ namespace tca {
         if(std::find(wiresUsed.begin(), wiresUsed.end(), wire) != wiresUsed.end()) continue;
         MoveTPToWire(fromTP, (float)wire);
         if(!FindCloseHits(slc, fromTP, window, kUsedHits)) continue;
-        if(fromTP.Environment[kEnvDeadWire]) continue;
+        if(fromTP.Environment[kEnvNotGoodWire]) continue;
         float bestPull = maxPull;
         TP3D bestTP3D;
         for(auto iht : fromTP.Hits) {
@@ -2290,10 +2283,6 @@ namespace tca {
       if(indx[ipt] != indx[ipt - 1] + 1) {
         contiguous = false;
         std::cout<<"SortSection: MVI "<<pfp.MVI<<" Points aren't contiguous in sfi "<<sfIndex<< " ipt "<<ipt<<". print and quit\n";
-        for(unsigned short ipt = 1; ipt < pfp.TP3Ds.size(); ++ipt) {
-          auto& tp3d = pfp.TP3Ds[ipt];
-          std::cout<<ipt<<" sfi "<<tp3d.SFIndex<<" along "<<tp3d.along<<" good? "<<tp3d.IsGood<<"\n";
-        } // tp3d
       } // not contiguous
     } // ipt
     if(!contiguous) {
@@ -2574,7 +2563,7 @@ namespace tca {
     if(arg < 0) return;
     dEdXRms = sqrt(arg) / (cnt - 1);
     // don't return a too-small rms
-    double minRms = 0.15 * dEdXAve;
+    double minRms = 0.05 * dEdXAve;
     if(dEdXRms < minRms) dEdXRms = minRms;
   } // Average_dEdX
 
@@ -2850,7 +2839,6 @@ namespace tca {
       if(pfp.ID == 0) continue;
       // skip a neutrino PFParticle
       if(pfp.PDGCode == 12 || pfp.PDGCode == 14 || pfp.PDGCode == 22) continue;
-      pfp.PDGCode = PDGCodeVote(slc, pfp);
       // Define a PFP parent if there are two or more Tjs that are daughters of
       // Tjs that are used by the same PFParticle
       int pfpParentID = INT_MAX;
@@ -2941,6 +2929,23 @@ namespace tca {
     } else {
       pos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
     }
+
+    if(evt.spcChg && evt.spcChg->EnableCorrSCE()) {
+      const spacecharge::SpaceCharge* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
+      if(!sce) std::cout<<"sce is not defined\n";
+      // make a space charge correction
+      geo::Point_t tmp(pos[0], pos[1], pos[2]);
+      std::cout<<"tmp "<<tmp.X()<<" "<<tmp.Y()<<" "<<tmp.Z()<<"\n";
+//      auto posOffsets = evt.spcChg->GetPosOffsets(geo::Point_t(pos[0], pos[1], pos[2]));
+      geo::Point_t posOffsets {0, 0, 0};
+      if(sce && sce->EnableCorrSCE()) posOffsets = sce->GetPosOffsets(tmp);
+      posOffsets.SetX(-posOffsets.X());
+      std::cout<<"IFV SCE offsets "<<posOffsets.X()<<" "<<posOffsets.Y()<<" "<<posOffsets.Z()<<"\n";
+      pos[0] += posOffsets.X();
+      pos[1] += posOffsets.Y();
+      pos[2] += posOffsets.Z();
+    }
+
     return (pos[0] > slc.xLo + abit && pos[0] < slc.xHi - abit && 
             pos[1] > slc.yLo + abit && pos[1] < slc.yHi - abit &&
             pos[2] > slc.zLo + abit && pos[2] < slc.zHi - abit);
@@ -3206,6 +3211,82 @@ namespace tca {
     } // ii
     return UINT_MAX;
   } // FindMCPIndex
+
+
+  /////////////////////////////////////////
+  int TruePDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
+  {
+    // returns a vote of the true PDG code. This function can be used before truth matching
+    // has been done, i.e. when pfp.mcpIndex hasn't been defined yet
+    if(evt.allHitsMCPIndex.empty()) return -1;
+    std::vector<std::pair<unsigned int, unsigned short>> mcpiCnt;
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.IsBad) continue;
+      auto mcpi = FindMCPIndex(slc, tp3d);
+      if(mcpi == UINT_MAX) continue;
+      unsigned short indx = 0;
+      for(indx = 0; indx < mcpiCnt.size(); ++indx) if(mcpiCnt[indx].first == mcpi) break;
+      if(indx == mcpiCnt.size()) mcpiCnt.push_back(std::make_pair(mcpi, 0));
+      ++mcpiCnt[indx].second;
+    } // tp3d
+    std::pair<unsigned int, unsigned short> maxCnt = std::make_pair(UINT_MAX, 0);
+    for(auto tmp : mcpiCnt) if(tmp.second > maxCnt.second) maxCnt = tmp;
+    if(maxCnt.first >= evt.allHitsMCPIndex.size()) return -1;
+    auto& mcp = (*evt.mcpHandle)[maxCnt.first];
+    return abs(mcp.PdgCode());
+    
+  } // TruePDGCodeVote
+
+  /////////////////////////////////////////
+  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
+  {
+    // returns a vote using PDG code assignments from dE/dx. A PDGCode of -1 is
+    // returned if there was a failure and returns 0 if no decision can be made
+    if(pfp.TP3Ds.empty()) return -1;
+    
+    // try to do better using dE/dx 
+    float dEdXAve = 0;
+    float dEdXRms = 0;
+    Average_dEdX(slc, pfp, dEdXAve, dEdXRms);
+    if(dEdXAve < 0) return 0;
+    // looks like a proton if dE/dx is high and the rms is low
+    dEdXRms /= dEdXAve;
+    float length = Length(pfp);
+    float mcsmom = 0;
+    float chgrms = 0;
+    float cnt = 0;
+    for(auto tjid : pfp.TjIDs) {
+      auto& tj = slc.tjs[tjid - 1];
+      float el = ElectronLikelihood(slc, tj);
+      if(el <= 0) continue;
+      mcsmom +=  MCSMom(slc, tj);
+      chgrms += tj.ChgRMS;
+      ++cnt;
+    } // tjid
+    if(cnt < 2) return 0;
+    mcsmom /= cnt;
+    chgrms /= cnt;
+    int vote = 0;
+    // call anything longer than 150 cm a muon
+    if(length > 150) vote = 13;
+    // or shorter with low dE/dx and really straight
+    if(vote == 0 && length > 50 && dEdXAve < 2.5 && mcsmom > 500) vote = 13;
+    // protons have high dE/dx, high MCSMom and low charge rms
+    if(vote == 0 && dEdXAve > 3.0 && mcsmom > 200 && chgrms < 0.4) vote = 2212;
+    // electrons have low MCSMom and large charge RMS
+    if(vote == 0 && mcsmom < 50 && chgrms > 0.4) vote = 11;
+    int truVote = TruePDGCodeVote(slc, pfp);
+    if(vote > 0 && vote != truVote) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"true PDGCode "<<truVote<<" P"<<pfp.ID<<" MVI "<<pfp.MVI;
+      myprt<<std::fixed<<std::setprecision(3);
+      myprt<<" dE/dx "<<dEdXAve<<" rms "<<dEdXRms<<" MCSMom "<<(int)mcsmom;
+      myprt<<" chgrms "<<chgrms;
+      myprt<<" length "<<(int)length;
+      myprt<<" -> evote "<<vote;
+    }
+    return vote;
+  } // PDGCodeVote
 
   ////////////////////////////////////////////////
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts)

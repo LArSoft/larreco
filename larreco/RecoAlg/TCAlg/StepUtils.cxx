@@ -118,7 +118,7 @@ namespace tca {
       if(tcc.useAlg[kTCWork2]) {
         tp.Environment.reset();
         unsigned int wire = std::nearbyint(tp.Pos[0]);
-        if(!evt.goodWire[plane][wire]) tp.Environment[kEnvDeadWire] = true;
+        if(!evt.goodWire[plane][wire]) tp.Environment[kEnvNotGoodWire] = true;
       }
       // append to the trajectory
       tj.Pts.push_back(tp);
@@ -414,6 +414,11 @@ namespace tca {
     }
 
     float npwc = NumPtsWithCharge(slc, tj, false);
+    // Keep using the StiffMu strategy if the tj is long and MCSMom is high
+    if(tcc.useAlg[kTCWork2] && tj.Strategy[kStiffMu] && tj.MCSMom > 800 && npwc > 200) {
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Keep using the StiffMu strategy";
+      return;
+    }
     bool tkLike = (tjf.outlook < 1.5);
     // A showering-electron-like trajectory
     bool chgIncreasing = (tjf.chgSlope > 0);
@@ -580,7 +585,7 @@ namespace tca {
         // set all hits used so that we can use DefineHitPos. Note that
         // the hit InTraj is not used or tested in DefineHitPos so this doesn't
         // screw up any assns
-        if(!ltp.Environment[kEnvDeadWire]) {
+        if(!ltp.Environment[kEnvNotGoodWire]) {
           nMissed = 0;
           ltp.UseHit.set();
           DefineHitPos(slc, ltp);
@@ -1594,26 +1599,27 @@ namespace tca {
   ////////////////////////////////////////////////
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex)
   {
+    // This function attempts to return a list of hits in the current slice that are close to the
+    // hit specified by theHit and that are similar to it. If theHit is a high-pulseheight hit (aka imTall)
+    // and has an RMS similar to a hit on a small angle trajectory (aka Narrow) and is embedded in a series of
+    // nearby low-pulseheight wide hits, the hit multiplet will consist of the single Tall and Narrow hit. On the
+    // other hand, if theHit references a short and not-narrow hit, all of the hits in the series of nearby
+    // hits will be returned. The localIndex is the index of theHit in hitsInMultiplet and shouldn't be
+    // confused with the recob::Hit LocalIndex
     hitsInMultiplet.clear();
     localIndex = 0;
-    if(theHit > slc.slHits.size() - 1) return;
+    // check for flagrant errors
+    if(theHit >= slc.slHits.size()) return;
     if(slc.slHits[theHit].InTraj == INT_MAX) return;
+    if(slc.slHits[theHit].allHitsIndex >= (*evt.allHits).size()) return;
+
+    hitsInMultiplet.resize(1);
+    hitsInMultiplet[0] = theHit;
+    localIndex = 0;
     
     auto& hit = (*evt.allHits)[slc.slHits[theHit].allHitsIndex];
     unsigned int theWire = hit.WireID().Wire;
     unsigned short ipl = hit.WireID().Plane;
-    // use the hit finder determination of a multiplet for long pulse hits if
-    // we aren't using a sliced hits collection
-    if(LongPulseHit(hit) && !evt.expectSlicedHits) {
-      localIndex = hit.LocalIndex();
-      unsigned int firstHit = theHit - localIndex;
-      hitsInMultiplet.resize(hit.Multiplicity());
-      std::iota(hitsInMultiplet.begin(), hitsInMultiplet.end(), firstHit);
-      return;
-    } // longPulseHit
-    
-    hitsInMultiplet.resize(1);
-    hitsInMultiplet[0] = theHit;
 
     float theTime = hit.PeakTime();
     float theRMS = hit.RMS();
@@ -1678,13 +1684,15 @@ namespace tca {
       theTime = hit.PeakTime();
     } // iht
     if(hitsInMultiplet.size() == 1) return;
-
+    
+/* this truncation should be done by the calling function. It wouldn't make sense to do this
+   if the calling function is FindJunkTraj.
     if(hitsInMultiplet.size() > 16) {
       // Found > 16 hits in a multiplet which would be bad for UseHit. Truncate it
       hitsInMultiplet.resize(16);
       return;
     }
-
+*/
     // Don't make a multiplet that includes a tall narrow hit with short fat hits
     if(nNarrow == hitsInMultiplet.size()) return;
     if(nNarrow == 0) return;
@@ -1711,7 +1719,13 @@ namespace tca {
         hitsInMultiplet.erase(hitsInMultiplet.begin() + killMe);
       } // slc.slHits[imTall].RMS < narrowHitCut
     } // narrow / tall test
-
+    
+    // ensure that the localIndex is correct
+    for(localIndex = 0; localIndex < hitsInMultiplet.size(); ++localIndex) {
+      if(hitsInMultiplet[localIndex] == theHit) return;
+    } // localIndex
+    std::cout<<"GHM: we shouldn't have gotten here...\n";
+    
   } // GetHitMultiplet
 
 
@@ -2896,7 +2910,7 @@ namespace tca {
     if(maxKinkPt == USHRT_MAX) return;
     // Require that the candidate kink be above the cut threshold for more than one point.
     // Scale the requirement by the number of points in the fit
-    unsigned short kinkRegionLengthMin = 1 + nPtsFit / 4;
+    unsigned short kinkRegionLengthMin = 1 + nPtsFit / 5;
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK2:   kink at "<<PrintPos(slc, tj.Pts[maxKinkPt])<<std::setprecision(3)<<" maxSig "<<maxSig<<" kinkRegionLength "<<kinkRegionLength<<" kinkRegionLengthMin "<<kinkRegionLengthMin;
     if(kinkRegionLength < kinkRegionLengthMin) return;
     // trim the points
@@ -3575,11 +3589,6 @@ namespace tca {
         if(sep21 < sep20) end2 = 1;
         // don't merge if there is a kink
         if(tj1.EndFlag[end1][kAtKink] || tj2.EndFlag[end2][kAtKink]) continue;
-        // don't merge if there is a vertex between them created by FindKinks
-        if(tj1.VtxID[end1] > 0 && tj2.VtxID[end2] == tj1.VtxID[end1]) {
-          auto& vx2 = slc.vtxs[tj1.VtxID[end1] - 1];
-          if(vx2.Topo == 13) continue;
-        }
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<"LEM: T"<<tj1.ID<<"_"<<PrintPos(slc, tp1);
@@ -3893,8 +3902,6 @@ namespace tca {
               doMerge = (hitFrac > tcc.qualityCuts[0]);
             } else {
               // don't merge if the gap between them is longer than the length of the shortest Tj
-//              float len1 = TrajLength(slc.tjs[it1]);
-//              float len2 = TrajLength(slc.tjs[it2]);
               if(len1 < len2) {
                 if(sep > len1) doMerge = false;
               } else {
@@ -3909,24 +3916,27 @@ namespace tca {
           tjlist[1] = slc.tjs[it2].ID;
           float chgFrac = ChgFracNearPos(slc, tp1.Pos, tjlist);
           if(doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
-
-          if(tcc.useAlg[kTCWork2]) {
-            // don't merge if a kink exists and the tjs are not too long 
-            if(doMerge && (tj1.EndFlag[end1][kAtKink] || tj2.EndFlag[end2][kAtKink])) {
-              if(len1 < 40 && len2 < 40) doMerge = false;
-            }
-          } else {
-            // don't merge if a Bragg peak exists. A vertex should be made instead (or not)
-            if(doMerge && (tj1.EndFlag[end1][kBragg] || tj2.EndFlag[end2][kBragg])) doMerge = false;
-         }
           
           // Check the MCSMom asymmetry and don't merge if it is higher than the user-specified cut
           float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
           if(doMerge && momAsym > tcc.vtx2DCuts[9]) doMerge = false;
 
+          if(tcc.useAlg[kTCWork2]) {
+            if(doMerge && (tj1.EndFlag[end1][kAtKink] || tj2.EndFlag[end2][kAtKink])) {
+              // don't merge if a kink exists and the tjs are not too long 
+              if(len1 < 40 && len2 < 40) doMerge = false;
+              // Kink on one + Bragg at other end of the other
+              if(tj1.EndFlag[end1][kAtKink] && tj2.EndFlag[1-end2][kBragg]) doMerge = false;
+              if(tj1.EndFlag[1-end1][kBragg] && tj2.EndFlag[end2][kAtKink]) doMerge = false;
+            }
+          } else {
+            // don't merge if a Bragg peak exists. A vertex should be made instead (or not)
+            if(doMerge && (tj1.EndFlag[end1][kBragg] || tj2.EndFlag[end2][kBragg])) doMerge = false;
+          }
+
           if(prt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<"EM: T"<<slc.tjs[it1].ID<<"_"<<end1<<" - T"<<slc.tjs[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(slc, tp1)<<"-"<<PrintPos(slc, tp2);
+            myprt<<"  EM: T"<<slc.tjs[it1].ID<<"_"<<end1<<" - T"<<slc.tjs[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(slc, tp1)<<"-"<<PrintPos(slc, tp2);
 //            myprt<<" ShowerLike? "<<slc.tjs[it1].AlgMod[kShowerLike]<<" "<<slc.tjs[it2].AlgMod[kShowerLike];
             myprt<<" FOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
             myprt<<" DOCA "<<std::setprecision(1)<<bestDOCA;
@@ -4309,7 +4319,8 @@ namespace tca {
       return false;
     }
   }
-
+/* BB These functions don't handle the UIDs correctly and sometimes create bogus trajectories
+   Turn them off for now
   ////////////////////////////////////////////////
   void ChkHiChgHits(TCSlice& slc, CTP_t inCTP)
   {
@@ -4428,7 +4439,7 @@ namespace tca {
       }
     }
   }
-
+*/
   //////////////////////////////////////////
   bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits)
   {

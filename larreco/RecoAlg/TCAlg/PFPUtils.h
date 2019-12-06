@@ -88,6 +88,8 @@ namespace tca {
   bool SectionStartEnd(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& startPt, unsigned short& endPt);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
   unsigned int FindMCPIndex(TCSlice& slc, TP3D tp3d);
+  int TruePDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
+  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
 } // namespace tca
 

@@ -13,6 +13,8 @@
 #include <vector>
 
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+
 namespace geo { struct TPCID; }
 namespace tca { struct HistStuff; }
 
@@ -27,14 +29,9 @@ namespace tca {
       EPCnts.fill(0);
       TSums.fill(0.0);
       EPTSums.fill(0.0);
-      TruVxCounts.fill(0);
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
-      MCP_PFP_Cnt = 0;
-      Prim_TSum = 0;
-      Prim_EPTSum = 0;
-      PFP_Cnt = 0;
       nBadT = 0;
       nBadP = 0;
    }
@@ -42,7 +39,7 @@ namespace tca {
     void Initialize();
     void MatchTruth();
     void MatchTAndSum();
-    void MatchPAndSum();
+//    void MatchPAndSum();
     void PrintResults(int eventNum) const;
     // these are left here as example studies
 //    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
@@ -57,19 +54,10 @@ namespace tca {
     float MCP_TSum;                // T sum of MCParticles that should be reconstructed in 3D
     float MCP_EPTSum;              // E*P weighted T sum of MCParticles that ARE reconstructed in 3D
     float MCP_Cnt;                 // Count of MCParticles that should be reconstructed in 3D
-    float MCP_PFP_Cnt;             // Count of MCParticles that are matched to a PFParticle
-    float Prim_TSum;               // T sum of Primary MCParticles that should be reconstructed in 3D
-    float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
-    float PFP_Cnt;                 // Count of ALL PFParticles
 
     float nBadT;    // Number of reconstructed Tjs with a bad EP
     float nBadP;    // Number of reconstructed pfps with a bad EP
 
-    // Counts of:
-    // [0] = the number of true vertices that are reconstructable (> 0 primary MCParticles)
-    // [1] = [0] + a vertex was reconstructed within 1 cm of the true vertex position
-    // [2] = [1] + the vertex is attached to a neutrino PFParticle
-    std::array<unsigned short, 3> TruVxCounts;
   }; // TruthMatcher class
 
   class MCParticleListUtils
@@ -77,7 +65,6 @@ namespace tca {
   public:
 
     MCParticleListUtils(TCSlice& my_slc);
-//    void MakeTruTrajPoint(TCSlice& slc, unsigned int MCParticleListIndex, TrajPoint& tp);
     ShowerStruct3D MakeCheatShower(TCSlice& slc, unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
     bool PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy);
     int PrimaryElectronPFPID(TCSlice& slc);

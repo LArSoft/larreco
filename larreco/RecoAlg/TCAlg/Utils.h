@@ -37,7 +37,6 @@ namespace tca {
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
-  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
   int PDGCodeVote(TCSlice& slc, const std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj);
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
@@ -100,7 +99,6 @@ namespace tca {
   unsigned short NearbyCleanPt(TCSlice& slc, const Trajectory& tj, unsigned short nearPt);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
   float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
-  void FindKinks(TCSlice& slc, unsigned short itj);
   float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
                         bool useChg, bool prt);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);

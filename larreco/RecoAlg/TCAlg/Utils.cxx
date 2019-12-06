@@ -398,21 +398,6 @@ namespace tca {
   } // MaxChargeAsymmetry
 
   /////////////////////////////////////////
-  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
-  {
-    // returns a vote using PDG code assignments from Tjs or pfp dE/dx if available
-    int vote = PDGCodeVote(slc, pfp.TjIDs);
-    // try to do better if dE/dx is available
-    float dEdXAve = 0;
-    float dEdXRms = 0;
-    Average_dEdX(slc, pfp, dEdXAve, dEdXRms);
-    // looks like a proton if dE/dx is high
-    if(dEdXAve > 3.) return 2212;
-    return vote;
-
-  } // PDGCodeVote
-
-  /////////////////////////////////////////
   int PDGCodeVote(TCSlice& slc, const std::vector<int>& tjIDs)
   {
     // Returns the most likely PDGCode for the set of Tjs provided
@@ -447,36 +432,8 @@ namespace tca {
 
     return codeList[codeIndex];
   } // PDGCodeVote
-/*
-  /////////////////////////////////////////
-  unsigned short NumDeltaRays(TCSlice& slc, const Trajectory& tj)
-  {
-    // returns the number of delta rays that have this tj as a parent
-    unsigned short cnt = 0;
-    for(auto& dtj : slc.tjs) {
-      if(dtj.AlgMod[kKilled] || dtj.AlgMod[kHaloTj]) continue;
-      if(!dtj.AlgMod[kDeltaRay]) continue;
-      if(dtj.ParentID == tj.ID) ++cnt;
-    } // tj
-    return cnt;
-  } // NumDeltaRays
 
-  /////////////////////////////////////////
-  unsigned short NumDeltaRays(TCSlice& slc, std::vector<int>& tjIDs)
-  {
-    // Count the number of delta-rays that have a Tj in the list of TjIDs as a parent.
-    if(tjIDs.empty()) return 0;
-    if(tjIDs[0] <= 0 || tjIDs[0] > (int)slc.tjs.size()) return 0;
-    unsigned short cnt = 0;
-    for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
-      if(!tj.AlgMod[kDeltaRay]) continue;
-      if(std::find(tjIDs.begin(), tjIDs.end(), tj.ParentID) != tjIDs.end()) ++cnt;
-    } // tj
-    return cnt;
-  } // NumDeltaRays
-*/
-  /////////////////////////////////////////
+/////////////////////////////////////////
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj)
   {
     // Returns the ID of the grandparent of this tj that is a primary tj that is attached
@@ -1181,10 +1138,15 @@ namespace tca {
   bool StoreTraj(TCSlice& slc, Trajectory& tj)
   {
 
-    if(tj.NeedsUpdate) {
-//      std::cout<<"StoreTraj: Trajectory "<<tj.ID<<" needs an update. Doing it... \n";
-      UpdateTjChgProperties("ST", slc, tj, false);
-    }
+    // check for errors
+    for(auto& tp : tj.Pts) {
+      if(tp.Hits.size() > 16) {
+        std::cout<<"StoreTraj: Too many hits in a TP in T"<<tj.ID<<"\n";
+        return false;
+      }
+    } // tp
+    
+    if(tj.NeedsUpdate) UpdateTjChgProperties("ST", slc, tj, false);
     
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tj);
@@ -1257,6 +1219,7 @@ namespace tca {
             std::cout<<"StoreTraj: work ID "<<tj.ID<<" fail hit "<<iht<<" "<<PrintHit(slc.slHits[iht]);
             std::cout<<" algs ";
             for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
+            std::cout<<" event "<<evt.event;
             std::cout<<"\n";
             ReleaseHits(slc, tj);
             return false;
@@ -1642,6 +1605,8 @@ namespace tca {
     short minPts = fQualityCuts[1];
     if(minPts < 1) return;
     if(npwc < minPts) return;
+    // don't consider short Tjs
+    if(tcc.useAlg[kTCWork2] && npwc < 8) return;
 
     // handle short tjs
     if(npwc == minPts + 1) {
@@ -1686,6 +1651,7 @@ namespace tca {
       if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj >= minPts - 1) break;
     } // lastPt
 
+    if(prt) mf::LogVerbatim("TC")<<" lastPt "<<lastPt<<" "<<tj.EndPt[1]<<"\n";
     // trim the last point if it just after a dead wire.
     if(tj.Pts[lastPt].Pos[0] > -0.4) {
       unsigned int prevWire = std::nearbyint(tj.Pts[lastPt].Pos[0]);
@@ -1852,6 +1818,7 @@ namespace tca {
 
     float sum;
     float cvI = HitsPosTick(slc, iHitsInMultiplet, sum, kAllHits);
+    if(cvI < 0) return false;
     float minI = 1E6;
     float maxI = 0;
     for(auto& iht : iHitsInMultiplet) {
@@ -1865,6 +1832,7 @@ namespace tca {
     }
 
     float cvJ = HitsPosTick(slc, jHitsInMultiplet, sum, kAllHits);
+    if(cvJ < 0) return false;
     float minJ = 1E6;
     float maxJ = 0;
     for(auto& jht : jHitsInMultiplet) {
@@ -2792,10 +2760,10 @@ namespace tca {
 
     // dead wire
     if(!evt.goodWire[plane][wire]) {
-      tp.Environment[kEnvDeadWire] = true;
+      tp.Environment[kEnvNotGoodWire] = true;
       return true;
     }
-    tp.Environment[kEnvDeadWire] = false;
+    tp.Environment[kEnvNotGoodWire] = false;
     // live wire with no hits
     if(slc.wireHitRange[plane][wire].first == UINT_MAX) return false;
     
@@ -2915,85 +2883,6 @@ namespace tca {
     return tmp;
 
   } // FindCloseTjs
-
-  ////////////////////////////////////////////////
-  void FindKinks(TCSlice& slc, unsigned short itj)
-  {
-    // Finds kinks that are somewhat below threshold
-    
-    if(!tcc.useAlg[kFindKinks]) return;
-    if(itj >= slc.tjs.size()) return;
-/*
-    auto& tj = slc.tjs[itj];
-    
-    bool prt = (tcc.dbg2V || tj.WorkID == debug.WorkID);
-    unsigned short nptsFit = tcc.kinkCuts[2];
-    unsigned short npwc = NumPtsWithCharge(slc, tj, false);
-    if(npwc < 2 * nptsFit) return;
-    double minLikelihood = tcc.kinkCuts[3];
-    double maxLikelihood = minLikelihood;
-    unsigned short nPtsFit = tcc.kinkCuts[2];
-    unsigned short kinkPt = USHRT_MAX;
-    // significance for each point
-    std::vector<float> kinkCDF(tj.Pts.size(), -1);
-    for(unsigned short ipt = tj.EndPt[1]; ipt > tj.EndPt[0]; --ipt) {
-      // don't check if it has already been done
-//      if(tj.Pts[ipt].KinkLike >= 0) continue;
-      bool chgKink;
-      double kl = KinkSig(slc, tj, ipt, nPtsFit, chgKink, false);
-      kinkCDF[ipt] = kl;
-      tj.Pts[ipt].KinkLike = kl;
-      if(kl < maxLikelihood) continue;
-      maxLikelihood = kl;
-      kinkPt = ipt;
-    } // ipt
-    if(kinkPt == USHRT_MAX) return;
-    if(prt) mf::LogVerbatim("TC")<<"FK: found a kink in T"<<tj.ID;
-    bool kinkLike = (kinkCDF[0] > minLikelihood);
-    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
-      if(kinkCDF[ipt] > minLikelihood) {
-        if(!kinkLike) {
-          std::cout<<"start T"<<tj.ID;
-          kinkLike = true;
-        }
-        std::cout<<" "<<PrintPos(slc, tj.Pts[ipt])<<" "<<std::fixed<<std::setprecision(4)<<kinkCDF[ipt];
-      } else {
-        if(kinkLike) {
-          std::cout<<"  end "<<PrintPos(slc, tj.Pts[ipt]);
-          std::cout<<" "<<std::fixed<<std::setprecision(4)<<kinkCDF[ipt]<<"\n";
-          kinkLike = false;
-        }
-      } // else
-    } // ipt
-
-    // create a 2D vertex at the kink point
-    VtxStore aVtx;
-    aVtx.Pos = tj.Pts[kinkPt].Pos;
-    aVtx.NTraj = 2;
-    aVtx.Pass = tj.Pass;
-    aVtx.Topo = 13;
-    aVtx.ChiDOF = 0;
-    aVtx.CTP = tj.CTP;
-    aVtx.ID = slc.vtxs.size() + 1;
-    if(prt) mf::LogVerbatim("TC")<<"FK: found a kink in T"<<tj.ID<<". Split it and make new 2V"<<aVtx.ID;
-    // This may be a soft kink but the position is well known so don't try allow fitting the position
-    aVtx.Stat[kFixed] = true;
-    if(!StoreVertex(slc, aVtx)) return;
-    unsigned short ivx = slc.vtxs.size() - 1;
-    if(!SplitTraj(slc, itj, kinkPt, ivx, prt)) {
-      if(prt) mf::LogVerbatim("TC")<<"FK: SplitTraj failed";
-      MakeVertexObsolete("FK", slc, slc.vtxs[ivx], prt);
-      return;
-    }
-    tj.AlgMod[kFindKinks] = true;
-    SetVx2Score(slc);
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      bool printHeader = true;
-      Print2V("FK", myprt, slc.vtxs.back(), printHeader);
-    }
-*/
-  } // FindKinks
 
   ////////////////////////////////////////////////
   float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
@@ -3995,7 +3884,7 @@ namespace tca {
     // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
     // error if the position is on a dead wire. The projection of the direction vector in CTP is stored in tp.Delta.
     TrajPoint tp;
-    tp.Pos = {{0,0}};
+    tp.Pos = {{-1,0}};
     tp.Dir = {{0,1}};
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
@@ -4199,6 +4088,10 @@ namespace tca {
     sum = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
+      if(iht >= slc.slHits.size()) {
+        std::cout<<"stop here\n";
+        return -1;
+      }
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && slc.slHits[iht].InTraj > 0) useit = true;
       if(hitRequest == kUnusedHits && slc.slHits[iht].InTraj == 0) useit = true;
@@ -4208,7 +4101,7 @@ namespace tca {
       pos += chg * hit.PeakTime();
       sum += chg;
     } // ii
-    if(sum == 0) return 0;
+    if(sum <= 0) return -1;
     return pos / sum;
   } // HitsPosTick
 
@@ -4263,7 +4156,7 @@ namespace tca {
       return;
     }
 
-    if(tj.Strategy[kStiffEl]) {
+    if(tj.Strategy[kStiffEl] && ElectronLikelihood(slc, tj) > tcc.showerTag[6]) {
       tj.PDGCode = 111;
       return;
     }
@@ -4417,6 +4310,7 @@ namespace tca {
       unsigned int wire = wid.Wire;
       // Check the goodWire status and correct it if it's wrong
       if(!evt.goodWire[pln][wire]) {
+        std::cout<<"Fix "<<pln<<":"<<wire<<"\n";
         evt.goodWire[pln][wire] = true;
         ++nBadWireFix;
       } // not goodWire
@@ -5277,6 +5171,11 @@ namespace tca {
     std::cout<<" Slice=";
     if(debug.Slice == -1) { std::cout<<"All"; } else { std::cout<<debug.Slice; }
     std::cout<<"\n";
+    if(evt.spcChg) {
+      std::cout<<"SpaceChargeService enabled? "<<evt.spcChg->EnableCorrSCE()<<"\n";
+    } else {
+      std::cout<<"SpaceChargeService not defined\n";
+    }
     std::cout<<"*** tcc.dbg modes:";
     if(tcc.dbgSlc) std::cout<<" dbgSlc";
     if(tcc.dbgStp) std::cout<<" dbgStp";
@@ -5436,7 +5335,7 @@ namespace tca {
     if(pfp.ID <= 0) return;
     if(printHeader) {
       myprt<<"************ PFParticles ************\n";
-      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS _______eDir______ ____edEdx_____   MCS  Len nTP3 nSec SLk? PDG mcpIndx Par E*P\n";
+      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS ____edEdx_____  MVI MCSMom  Len nTP3 nSec SLk? PDG mcpIndx Par E*P\n";
       printHeader = false;
     } // printHeader
     auto sIndx = GetSliceIndex("P", pfp.UID);
@@ -5462,11 +5361,14 @@ namespace tca {
       } else {
         myprt<<"  O";
       }
-      myprt<<std::fixed<<std::right<<std::setprecision(2);
-      auto dir = DirAtEnd(pfp, end);
-      myprt<<std::setw(6)<<dir[0];
-      myprt<<std::setw(6)<<dir[1];
-      myprt<<std::setw(6)<<dir[2];
+      // only print the starting direction
+      if(end == 0) {
+        myprt<<std::fixed<<std::right<<std::setprecision(2);
+        auto dir = DirAtEnd(pfp, end);
+        myprt<<std::setw(6)<<dir[0];
+        myprt<<std::setw(6)<<dir[1];
+        myprt<<std::setw(6)<<dir[2];
+      } // end == 0
       for(auto& dedx : pfp.dEdx[end]) {
         if(dedx < 50) {
           myprt<<std::setw(5)<<std::setprecision(1)<<dedx;
@@ -5480,6 +5382,7 @@ namespace tca {
         }
       }
     } // startend
+    myprt<<std::setw(6)<<pfp.MVI;
     // global stuff
     myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     float length = Length(pfp);
@@ -5490,7 +5393,7 @@ namespace tca {
     }
     myprt<<std::setw(5)<<pfp.TP3Ds.size();
     myprt<<std::setw(5)<<pfp.SectionFits.size();
-    myprt<<std::setw(3)<<IsShowerLike(slc, pfp.TjIDs);
+    myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.mcpIndex == UINT_MAX) {
       myprt<<"      --";
@@ -6094,7 +5997,12 @@ namespace tca {
   //////////////////////////////////////////
   void PrintTPHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
+//    mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
+    if(evt.mcpHandle) {
+      mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig mcpIndex Hits ";
+    } else {
+      mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
+    }
   } // PrintTPHeader
 
   ////////////////////////////////////////////////
@@ -6107,10 +6015,12 @@ namespace tca {
     myprt<<std::setw(6)<<tp.CTP;
     myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
+/*
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tcc.unitsPerTick; // W:T
     if(tp.Pos[1] < 10) { myprt<<"  "; }
     if(tp.Pos[1] < 100) { myprt<<" "; }
     if(tp.Pos[1] < 1000) { myprt<<" "; }
+*/
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
@@ -6129,6 +6039,28 @@ namespace tca {
       // don't print too many hits (e.g. from a shower Tj)
       myprt<<" "<<tp.Hits.size()<<" shower hits";
     } else {
+      // try to determine the mcpIndex
+      unsigned int mcpIndex = UINT_MAX;
+      unsigned short totCnt = 0;
+      unsigned short matCnt = 0;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        unsigned int ahi = slc.slHits[iht].allHitsIndex;
+        ++totCnt;
+        unsigned int mcpi = evt.allHitsMCPIndex[ahi];
+        if(mcpIndex == UINT_MAX) mcpIndex = mcpi;
+        if(mcpIndex == mcpi) ++matCnt;
+      } // ii
+      if(mcpIndex == UINT_MAX) {
+        myprt<<std::setw(9)<<"--";
+      } else {
+        if(matCnt == totCnt) {
+          myprt<<std::setw(9)<<mcpIndex;
+        } else {
+          myprt<<std::setw(9)<<"mixed";
+        }
+      }
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -6148,7 +6080,7 @@ namespace tca {
     for(unsigned short ib = 0; ib < 8; ++ib) {
       // There aren't any bit names for Environment_t
       if(!tp.Environment[ib]) continue;
-      if(ib == kEnvDeadWire) myprt<<" DeadWire";
+      if(ib == kEnvNotGoodWire) myprt<<" NotGood";
       if(ib == kEnvNearMuon) myprt<<" NearMuon";
       if(ib == kEnvNearShower) myprt<<" NearShower";
       if(ib == kEnvOverlap) myprt<<" Overlap";

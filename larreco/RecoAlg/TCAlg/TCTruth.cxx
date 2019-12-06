@@ -26,8 +26,8 @@ namespace tca {
     EPCnts.fill(0);
     TSums.fill(0.0);
     EPTSums.fill(0.0);
-    TruVxCounts.fill(0);
     nBadT = 0;
+    nBadP = 0;
   } // Initialize
 
   //////////////////////////////////////////
@@ -45,8 +45,29 @@ namespace tca {
     if(evt.allHitsMCPIndex.size() != (*evt.allHits).size()) return;
 
     MatchTAndSum();
-    MatchPAndSum();
-
+    
+    // Set the PFP mcpIndex and EP
+    for(auto& slc : slices) {
+      for(auto& pfp : slc.pfps) {
+        if(pfp.ID <= 0) continue;
+        float hitCnt = 0;
+        float EPSum = 0;
+        unsigned int mcpIndex = UINT_MAX;
+        for(auto tid : pfp.TjIDs) {
+          if(tid <= 0) continue;
+          auto& tj = slc.tjs[tid - 1];
+          if(tj.mcpIndex == UINT_MAX) continue;
+          float npwc = NumPtsWithCharge(slc, tj, false);
+          hitCnt += npwc;
+          EPSum += npwc * tj.EffPur;
+          if(mcpIndex == UINT_MAX) mcpIndex = tj.mcpIndex;
+        } // tid
+        if(hitCnt < 3) continue;
+        pfp.mcpIndex = mcpIndex;
+        pfp.EffPur = EPSum / hitCnt;
+      } // pfp
+    } // slc
+    
   } // MatchTruth
 
   ////////////////////////////////////////////////
@@ -61,7 +82,7 @@ namespace tca {
       if(std::find(tpcList.end(), tpcList.end(), tpc) == tpcList.end()) tpcList.push_back(tpc);
     } // slc
     if(tpcList.empty()) return;
-
+    
     // Hit -> T unique ID in all slices
     std::vector<int> inTUID((*evt.allHits).size(), 0);
     for(auto& slc : slices) {
@@ -71,7 +92,7 @@ namespace tca {
         inTUID[slh.allHitsIndex] = tj.UID;
       }
     } // slc
-    
+
     for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
       // ignore protoDUNE dummy TPCs
       if(tcc.geom->TPC(tpcid).DriftDistance() < 25.0) continue;
@@ -129,7 +150,8 @@ namespace tca {
           if(slcIndex.first == USHRT_MAX) continue;
           auto& slc = slices[slcIndex.first];
           auto& tj = slc.tjs[slcIndex.second];
-          float npwc = NumPtsWithCharge(slc, tj, false);
+          auto tHits = PutTrajHitsInVector(tj, kUsedHits);
+          float npwc = tHits.size();
           float eff = big.second / mCnt[indx].second;
           float pur = big.second / npwc;
           tj.EffPur = eff * pur;
@@ -174,7 +196,7 @@ namespace tca {
     } // tpcid
   } // MatchTAndSum
 
-
+/* This doesn't provide any new information since MakePFPTjs makes trajectories PFParticles
   ////////////////////////////////////////////////
   void TruthMatcher::MatchPAndSum()
   {
@@ -258,7 +280,6 @@ namespace tca {
         unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
         if(pdgIndex > 4) continue;
         ++MCP_Cnt;
-        MCP_TSum += TMeV;
         int pdg = abs(mcp.PdgCode());
         // find the tj with the highest match count
         std::pair<int, float> big = std::make_pair(0, 0);
@@ -276,7 +297,7 @@ namespace tca {
         float pur = big.second / npwc;
         pfp.EffPur = eff * pur;
         pfp.mcpIndex = mCnt[indx].first;
-        EPTSums[pdgIndex] += TMeV * pfp.EffPur;
+//        if(pdg == 2212) std::cout<<"Proton PU"<<pfp.UID<<" EP "<<pfp.EffPur<<" T = "<<(int)TMeV<<" ntru "<<(int)mCnt[indx].second<<"\n";
         // print BadEP ignoring electrons
         if(pfp.EffPur < 0.8 && pdgIndex > 0) {
           ++nBadP;
@@ -298,7 +319,7 @@ namespace tca {
     } // tpcid
 
   } // MatchPAndSum
-
+*/
 ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
   {
@@ -330,16 +351,34 @@ namespace tca {
       float ep = MCP_EPTSum / MCP_TSum;
       myprt<<" MCP cnt "<<(int)MCP_Cnt<<" PFP EP "<<std::fixed<<std::setprecision(2)<<ep;
     }
-    if(Prim_TSum > 0) {
-      float ep = Prim_EPTSum / Prim_TSum;
-      myprt<<" PrimPFP "<<std::fixed<<std::setprecision(2)<<ep;
+    if(tcc.useAlg[kTCWork2]) { myprt<<" +TCWork2"; } else { myprt<<" -TCWork2"; }
+    if(tcc.match3DCuts[0] > 0) { myprt<<" +Mat3D"; } else { myprt<<" -Mat3D"; }
+    // Count of hits used in reconstruction + matched to MCParticles
+    float nhit = 0;
+    float nrec = 0;
+    float nmat = 0;
+    float nmatrec = 0;
+    for(auto& slc : slices) {
+      nhit += slc.slHits.size();
+      for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
+        if(slc.slHits[iht].InTraj > 0) ++nrec;
+        unsigned int ahi = slc.slHits[iht].allHitsIndex;
+        if(evt.allHitsMCPIndex[ahi] != UINT_MAX) {
+          ++nmat;
+          if(slc.slHits[iht].InTraj > 0) ++nmatrec;
+        }
+      } // iht
+    } // slc
+//    std::cout<<"MT: nhits "<<(int)nhit;
+    if(nhit > 0) {
+//      std::cout<<" MC matched "<<nmat/nhit;
+//      std::cout<<" reconstructed "<<nrec/nhit;
+//      std::cout<<" MC matched && reconstructed "<<nmatrec/nhit;
+      myprt<<std::fixed<<std::setprecision(3);
+      myprt<<" "<<nmatrec/nhit<<" (MC matched && used hits)/("<<(int)nhit<<" hits) ";
     }
-    if(TruVxCounts[1] > 0) {
-      // True vertex is reconstructable
-      float frac = (float)TruVxCounts[2] / (float)TruVxCounts[1];
-      myprt<<" NuVx correct "<<std::fixed<<std::setprecision(2)<<frac;
-    }
-    myprt<<" nBadP "<<(int)nBadP;
+//    std::cout<<"\n";
+//    myprt<<" nBadP "<<(int)nBadP;
 
   } // PrintResults
 

@@ -23,7 +23,6 @@ namespace tca {
     "MaskBadTPs",
     "Michel",
     "DeltaRay",
-    "FindKinks",
     "CTStepChk",
     "RvPrp",
     "CHMUH",

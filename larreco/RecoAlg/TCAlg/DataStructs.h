@@ -17,7 +17,7 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 namespace TMVA { class Reader; }
 namespace calo { class CalorimetryAlg; }
@@ -55,7 +55,7 @@ namespace tca {
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
-    //       12 = BraggSplit, 13 = FindKinks, 14 = Reconcile2VTs
+    //       12 = BraggSplit, 13 = Not Used, 14 = Reconcile2VTs
     short Topo {0};
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
@@ -404,7 +404,6 @@ namespace tca {
     kMaskBadTPs,
     kMichel,
     kDeltaRay,
-    kFindKinks,
     kCTStepChk,
     kRvPrp,
     kCHMUH,
@@ -489,7 +488,7 @@ namespace tca {
 
   // Environment near a trajectory point
   typedef enum {
-    kEnvDeadWire,
+    kEnvNotGoodWire,
     kEnvNearMuon,
     kEnvNearShower,
     kEnvOverlap,
@@ -602,6 +601,7 @@ namespace tca {
     std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
+    const spacecharge::SpaceCharge* spcChg = nullptr;
     std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
