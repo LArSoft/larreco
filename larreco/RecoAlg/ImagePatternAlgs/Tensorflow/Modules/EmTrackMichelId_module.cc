@@ -115,7 +115,8 @@ private:
 EmTrackMichelId::EmTrackMichelId(EmTrackMichelId::Parameters const& config) :
         EDProducer{config},
 	fBatchSize(config().BatchSize()),
-	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrkmichel"),
+        fPointIdAlg(config().PointIdAlg()),
+        fMVAWriter(producesCollector(), "emtrkmichel"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),

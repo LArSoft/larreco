@@ -532,7 +532,7 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
 
     // Handle special case of Space Point building outputting a new hit collection
-    m_hit3DBuilderAlg->produces(this);
+    m_hit3DBuilderAlg->produces(producesCollector());
 
     produces< std::vector<recob::PCAxis>>();
     produces< std::vector<recob::PFParticle>>();
@@ -604,7 +604,7 @@ void Cluster3D::produce(art::Event &evt)
     std::unique_ptr< reco::HitPairList > hitPairList(new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
 
     // Call the algorithm that builds 3D hits and stores the hit collection
-    m_hit3DBuilderAlg->Hit3DBuilder(*this, evt, *hitPairList, clusterHitToArtPtrMap);
+    m_hit3DBuilderAlg->Hit3DBuilder(evt, *hitPairList, clusterHitToArtPtrMap);
 
     // Call the main workhorse algorithm for building the local version of candidate 3D clusters
     m_clusterAlg->Cluster3DHits(*hitPairList, clusterParametersList);

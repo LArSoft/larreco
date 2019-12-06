@@ -93,7 +93,7 @@ public:
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::EDProducer*) override;
+    virtual void produces(art::ProducesCollector&) override;
 
     virtual void configure(const fhicl::ParameterSet&) override;
 
@@ -103,7 +103,7 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
+    virtual void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
@@ -291,13 +291,11 @@ StandardHit3DBuilder::~StandardHit3DBuilder()
 {
 }
 
-void StandardHit3DBuilder::produces(art::EDProducer* producer)
+void StandardHit3DBuilder::produces(art::ProducesCollector& collector)
 {
-    producer->produces< std::vector<recob::Hit>>();
-    producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
-    producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
-
-    return;
+    collector.produces< std::vector<recob::Hit>>();
+    collector.produces< art::Assns<recob::Wire,   recob::Hit>>();
+    collector.produces< art::Assns<raw::RawDigit, recob::Hit>>();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -435,7 +433,7 @@ struct HitPairClusterOrder
     }
 };
 
-void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& clusterHitToArtPtrMap)
+void StandardHit3DBuilder::Hit3DBuilder(art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& clusterHitToArtPtrMap)
 {
     // Clear the internal data structures
     m_clusterHit2DMasterList.clear();

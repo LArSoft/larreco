@@ -41,8 +41,6 @@ namespace ShowerRecoTools{
 
     ShowerPMATrackFinder(const fhicl::ParameterSet& pset);
 
-    ~ShowerPMATrackFinder();
-
     //Generic Track Finder
     int CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
 			 art::Event& Event,
@@ -65,27 +63,29 @@ namespace ShowerRecoTools{
 
     //fcl paramters
     float fMinTrajectoryPoints; //Minimum number of trajectory points returned from the fit to decide the track is good.
+    std::string fInitialTrackLengthOutputLabel;
+    std::string fInitialTrackOutputLabel;
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionInputLabel;
+    std::string fInitialTrackHitsInputLabel;
   };
 
 
-  ShowerPMATrackFinder::ShowerPMATrackFinder(const fhicl::ParameterSet& pset)
-    :fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
-  {
-    fMinTrajectoryPoints            = pset.get<float>                     ("MinTrajectoryPoints");
-  }
-
-  ShowerPMATrackFinder::~ShowerPMATrackFinder()
+  ShowerPMATrackFinder::ShowerPMATrackFinder(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")),
+    fMinTrajectoryPoints(pset.get<float>("MinTrajectoryPoints")),
+    fInitialTrackLengthOutputLabel(pset.get<std::string>("InitialTrackLengthOutputLabel")),
+    fInitialTrackOutputLabel(pset.get<std::string>("InitialTrackOutputLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fShowerDirectionInputLabel(pset.get<std::string>("ShowerDirectionInputLabel")),
+    fInitialTrackHitsInputLabel(pset.get<std::string>("InitialTrackHitsInputLabel"))
   {
   }
 
   void ShowerPMATrackFinder::InitialiseProducers(){
-    if(producerPtr == NULL){
-      mf::LogWarning("ShowerPMATrackFinder") << "The producer ptr has not been set" << std::endl;
-      return;
-    }
-
     //Set up the recob::Track and the Assns so they can be put in the event
-    InitialiseProduct<std::vector<recob::Track> >("InitialTrack");
+    InitialiseProduct<std::vector<recob::Track> >(fInitialTrackOutputLabel);
     InitialiseProduct<art::Assns<recob::Shower, recob::Track > >("ShowerTrackAssn");
     InitialiseProduct<art::Assns<recob::Track, recob::Hit > >("ShowerTrackHitAssn");
 
@@ -97,28 +97,28 @@ namespace ShowerRecoTools{
       art::Event& Event, reco::shower::ShowerElementHolder& ShowerEleHolder){
 
     //This is all based on the shower vertex being known. If it is not lets not do the track
-    if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+    if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
       mf::LogError("ShowerPMATrackFinder") << "Start position not set, returning "<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("ShowerDirection")){
+    if(!ShowerEleHolder.CheckElement(fShowerDirectionInputLabel)){
       mf::LogError("ShowerPMATrackFinder") << "Direction not set, returning "<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("InitialTrackHits")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackHitsInputLabel)){
       mf::LogError("ShowerPMATrackFinder") << "Initial track hits are not set, returning "<< std::endl;
       return 1;
     }
 
 
     TVector3 ShowerStartPosition = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerStartPosition",ShowerStartPosition);
+    ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,ShowerStartPosition);
 
     TVector3 ShowerDirection     = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerDirection",ShowerDirection);
+    ShowerEleHolder.GetElement(fShowerDirectionInputLabel,ShowerDirection);
 
     std::vector<art::Ptr<recob::Hit> > InitialTrackHits;
-    ShowerEleHolder.GetElement("InitialTrackHits",InitialTrackHits);
+    ShowerEleHolder.GetElement(fInitialTrackHitsInputLabel,InitialTrackHits);
 
     //Get the hits in term of planes.
     std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit> > > plane_trackhits;
@@ -252,13 +252,13 @@ namespace ShowerRecoTools{
 				      util::kBogusI, util::kBogusF, util::kBogusI,
 				      recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), pfparticle.key());
     
-    ShowerEleHolder.SetElement(track,"InitialTrack");
+    ShowerEleHolder.SetElement(track,fInitialTrackOutputLabel);
 
     TVector3 Start = {track.Start().X(), track.Start().Y(), track.Start().Z()};
     TVector3 End   = {track.End().X(), track.End().Y(),track.End().Z()};
     float tracklength = (Start-End).Mag();
 
-    ShowerEleHolder.SetElement(tracklength,"InitialTrackLength");
+    ShowerEleHolder.SetElement(tracklength,fInitialTrackLengthOutputLabel);
 
     return 0;
   }
@@ -269,21 +269,21 @@ namespace ShowerRecoTools{
       ){
 
     //Check the track has been set
-    if(!ShowerEleHolder.CheckElement("InitialTrack")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackOutputLabel)){
       mf::LogError("ShowerPMATrackFinderAddAssn") << "Track not set so the assocation can not be made  "<< std::endl;
       return 1;
     }
 
     //Get the size of the ptr as it is.
-    int trackptrsize = GetVectorPtrSize("InitialTrack");
+    int trackptrsize = GetVectorPtrSize(fInitialTrackOutputLabel);
 
-    const art::Ptr<recob::Track> trackptr = GetProducedElementPtr<recob::Track>("InitialTrack", ShowerEleHolder,trackptrsize-1);
+    const art::Ptr<recob::Track> trackptr = GetProducedElementPtr<recob::Track>(fInitialTrackOutputLabel, ShowerEleHolder,trackptrsize-1);
     const art::Ptr<recob::Shower> showerptr = GetProducedElementPtr<recob::Shower>("shower", ShowerEleHolder);
 
     AddSingle<art::Assns<recob::Shower, recob::Track> >(showerptr,trackptr,"ShowerTrackAssn");
 
     std::vector<art::Ptr<recob::Hit> > TrackHits;
-    ShowerEleHolder.GetElement("InitialTrackHits",TrackHits);
+    ShowerEleHolder.GetElement(fInitialTrackHitsInputLabel,TrackHits);
 
     for(auto const& TrackHit: TrackHits){
       AddSingle<art::Assns<recob::Track, recob::Hit> >(trackptr,TrackHit,"ShowerTrackHitAssn");

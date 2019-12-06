@@ -18,7 +18,6 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/Simulation/SimChannel.h"
-#include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -49,7 +48,7 @@ namespace hit{
           art::Ptr<recob::Hit> const& hit,
           geo::WireID const& wid,
           art::Ptr<recob::Wire> const& wire,
-          art::Ptr<raw::RawDigit> const& rawdigits,
+          //art::Ptr<raw::RawDigit> const& rawdigits,
           recob::HitCollectionCreator& hcol
           );
 
@@ -69,7 +68,7 @@ namespace hit{
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+    recob::HitCollectionCreator::declare_products(producesCollector(), "", true, false);
 
 
     // Space charge can shift true IDE postiion to far-off channels.
@@ -125,9 +124,10 @@ namespace hit{
 
     // also get the associated wires and raw digits;
     // we assume they have been created by the same module as the hits
-    art::FindOneP<raw::RawDigit> ChannelHitRawDigits
-      (ChanHits, evt, fChanHitLabel);
-    const bool doRawDigitAssns = ChannelHitRawDigits.isValid();
+//    art::FindOneP<raw::RawDigit> ChannelHitRawDigits
+//      (ChanHits, evt, fChanHitLabel);
+//    const bool doRawDigitAssns = ChannelHitRawDigits.isValid();
+    const bool doRawDigitAssns = false;
 
     art::FindOneP<recob::Wire> ChannelHitWires(ChanHits, evt, fChanHitLabel);
     const bool doWireAssns = ChannelHitWires.isValid();
@@ -135,7 +135,7 @@ namespace hit{
     // this object contains the hit collection
     // and its associations to wires and raw digits
     // (if the original objects have them):
-    recob::HitCollectionCreator hits(*this, evt, doWireAssns, doRawDigitAssns);
+    recob::HitCollectionCreator hits(evt, doWireAssns, doRawDigitAssns);
 
 
     // find the wireIDs each hit is on
@@ -148,12 +148,12 @@ namespace hit{
       // get the objects associated with this hit
       art::Ptr<recob::Wire> wire;
       if (doWireAssns) wire = ChannelHitWires.at(h);
-      art::Ptr<raw::RawDigit> rawdigits;
-      if (doRawDigitAssns) rawdigits = ChannelHitRawDigits.at(h);
+//      art::Ptr<raw::RawDigit> rawdigits;
+//      if (doRawDigitAssns) rawdigits = ChannelHitRawDigits.at(h);
 
       // the trivial Z hits
       if(ChHits[h]->View()==geo::kZ){
-        this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, rawdigits, hits);
+        this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, hits);
         continue;
       }
 
@@ -163,11 +163,11 @@ namespace hit{
       /// \todo: Decide how to handle the hits with multiple-wid activity. For now, randomly choose.
       std::pair<double,double> ChanTime(ChHits[h]->Channel()*1., ChHits[h]->PeakTime()*1.);
       if( fHitToWids[ChanTime].size() == 1 )
-        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, rawdigits, hits);
+        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits);
       else if( fHitToWids[ChanTime].size() == 0 )
         fFalseChanHits++;
       else if( fHitToWids[ChanTime].size() > 1 )
-        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, rawdigits, hits); // same thing for now
+        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits); // same thing for now
 
     } // for
 
@@ -182,7 +182,7 @@ namespace hit{
   //-------------------------------------------------
   void DisambigCheater::MakeDisambigHit(
       art::Ptr<recob::Hit> const& original_hit, geo::WireID const& wid,
-      art::Ptr<recob::Wire> const& wire, art::Ptr<raw::RawDigit> const& rawdigits,
+      art::Ptr<recob::Wire> const& wire,// art::Ptr<raw::RawDigit> const& rawdigits,
       recob::HitCollectionCreator& hcol
       )
   {
@@ -194,7 +194,7 @@ namespace hit{
 
     // create a hit copy of the original one, but with a different wire ID
     recob::HitCreator hit(*original_hit, wid);
-    hcol.emplace_back(hit.move(), wire, rawdigits);
+    hcol.emplace_back(hit.move(), wire);
 
   }
 

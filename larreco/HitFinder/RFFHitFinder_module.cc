@@ -57,7 +57,7 @@ namespace hit{
     fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
   {
     //calls the produces stuff for me!
-    recob::HitCollectionCreator::declare_products(*this);
+    recob::HitCollectionCreator::declare_products(producesCollector());
   }
 
   void RFFHitFinder::produce(art::Event & e)
@@ -70,7 +70,7 @@ namespace hit{
     std::unique_ptr< std::vector<recob::Hit> > hitCollection(new std::vector<recob::Hit>);
     fAlg.Run(*wireHandle,*hitCollection,*geoHandle);
 
-    recob::HitCollectionAssociator hcol(*this,e,fWireModuleLabel,true);
+    recob::HitCollectionAssociator hcol(e,fWireModuleLabel,true);
     hcol.use_hits(std::move(hitCollection));
     hcol.put_into(e);
 

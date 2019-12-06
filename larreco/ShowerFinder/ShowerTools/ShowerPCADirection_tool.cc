@@ -25,7 +25,6 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "larreco/RecoAlg/TRACSAlg.h"
 
 //C++ Includes
 #include <iostream>
@@ -62,9 +61,6 @@ namespace ShowerRecoTools {
 			      TVector3& ShowerCentre, 
 			      TVector3& Direction);
     
-    //Algorithm functions
-    shower::TRACSAlg fTRACSAlg;
-    
     //Services
     detinfo::DetectorProperties const* fDetProp;
     
@@ -74,17 +70,24 @@ namespace ShowerRecoTools {
     bool fUseStartPosition;  //If we use the start position the drection of the
                              //PCA vector is decided as (Shower Centre - Shower Start Position). 
     bool fChargeWeighted;    //Should the PCA axis be charge weighted.
+
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionOutputLabel; 
+    std::string fShowerCentreOutputLabel;
+
   };
   
-
-  ShowerPCADirection::ShowerPCADirection(const fhicl::ParameterSet& pset)
-    : fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg")),
-      fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+  ShowerPCADirection::ShowerPCADirection(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel","")),
+    fNSegments(pset.get<float>("NSegments")),
+    fUseStartPosition(pset.get<bool>("UseStartPosition")),
+    fChargeWeighted(pset.get<bool>("ChargeWeighted")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fShowerDirectionOutputLabel(pset.get<std::string>("ShowerDirectionOutputLabel")),
+    fShowerCentreOutputLabel(pset.get<std::string>("ShowerCentreOutputLabel"))
   {
-    fPFParticleModuleLabel  = pset.get<art::InputTag>("PFParticleModuleLabel","");
-    fNSegments              = pset.get<float>        ("NSegments");
-    fUseStartPosition       = pset.get<bool>         ("UseStartPosition");
-    fChargeWeighted         = pset.get<bool>         ("ChargeWeighted");
   }
 
   ShowerPCADirection::~ShowerPCADirection()
@@ -130,15 +133,19 @@ namespace ShowerRecoTools {
     TVector3 ShowerCentre;
     TVector3 Eigenvector = ShowerPCAVector(spacePoints_pfp,fmh,ShowerCentre);
 
+    //Save the shower the center for downstream tools
+    TVector3 ShowerCentreErr = {-999,-999,-999};
+    ShowerEleHolder.SetElement(ShowerCentre,ShowerCentreErr,fShowerCentreOutputLabel);
+
     //Check if we are pointing the correct direction or not, First try the start position
     if(fUseStartPosition){
-      if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+      if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
         throw cet::exception("ShowerPCADirection") << "fUseStartPosition is true but start position is not set. Stopping.";
         return 1;
       }
       //Get the General direction as the vector between the start position and the centre
       TVector3 StartPositionVec = {-999, -999, -999};
-      ShowerEleHolder.GetElement("ShowerStartPosition",StartPositionVec);
+      ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,StartPositionVec);
 
       // Calculate the general direction of the shower
       TVector3 GeneralDir = (ShowerCentre - StartPositionVec).Unit();
@@ -155,9 +162,7 @@ namespace ShowerRecoTools {
 
       //To do
       TVector3 EigenvectorErr = {-999,-999,-999};
-
-      ShowerEleHolder.SetElement(Eigenvector,EigenvectorErr,"ShowerDirection");
-
+      ShowerEleHolder.SetElement(Eigenvector,EigenvectorErr,fShowerDirectionOutputLabel);
       return 0;
     }
 
@@ -173,8 +178,7 @@ namespace ShowerRecoTools {
     //To do
     TVector3 EigenvectorErr = {-999,-999,-999};
     
-    ShowerEleHolder.SetElement(Eigenvector,EigenvectorErr,"ShowerDirection");
-
+    ShowerEleHolder.SetElement(Eigenvector,EigenvectorErr,fShowerDirectionOutputLabel);
     return 0;
   }
 
@@ -183,11 +187,11 @@ namespace ShowerRecoTools {
       TVector3& ShowerCentre, TVector3& Direction){
 
     //Order the spacepoints
-    fTRACSAlg.OrderShowerSpacePoints(sps,ShowerCentre,Direction);
+    IShowerTool::GetTRACSAlg().OrderShowerSpacePoints(sps,ShowerCentre,Direction);
 
     //Get the length of the shower.
-    TVector3 firstpoint = fTRACSAlg.SpacePointPosition(sps[0]);
-    TVector3 lastpoint  = fTRACSAlg.SpacePointPosition(sps[sps.size()-1]);
+    TVector3 firstpoint = IShowerTool::GetTRACSAlg().SpacePointPosition(sps[0]);
+    TVector3 lastpoint  = IShowerTool::GetTRACSAlg().SpacePointPosition(sps[sps.size()-1]);
 
     double length = (firstpoint-lastpoint).Mag();
     double segmentsize = length/fNSegments;
@@ -198,7 +202,7 @@ namespace ShowerRecoTools {
     for(auto const& sp: sps){
 
       //Get the position of the spacepoint
-      TVector3 pos = fTRACSAlg.SpacePointPosition(sp) - ShowerCentre;
+      TVector3 pos = IShowerTool::GetTRACSAlg().SpacePointPosition(sp) - ShowerCentre;
 
       //Get the the projected length
       double len = pos.Dot(Direction);
@@ -244,12 +248,12 @@ namespace ShowerRecoTools {
     float TotalCharge = 0;
 
     //Get the Shower Centre
-    ShowerCentre = fTRACSAlg.ShowerCentre(sps, fmh, TotalCharge);
+    ShowerCentre = IShowerTool::GetTRACSAlg().ShowerCentre(sps, fmh, TotalCharge);
 
     //Normalise the spacepoints, charge weight and add to the PCA.
     for(auto& sp: sps){
 
-      TVector3 sp_position = fTRACSAlg.SpacePointPosition(sp);
+      TVector3 sp_position = IShowerTool::GetTRACSAlg().SpacePointPosition(sp);
 
       float wht = 1;
 
@@ -259,10 +263,10 @@ namespace ShowerRecoTools {
       if(fChargeWeighted){
 
         //Get the charge.
-        float Charge = fTRACSAlg.SpacePointCharge(sp,fmh);
+        float Charge = IShowerTool::GetTRACSAlg().SpacePointCharge(sp,fmh);
 
         //Get the time of the spacepoint
-        float Time = fTRACSAlg.SpacePointTime(sp,fmh);
+        float Time = IShowerTool::GetTRACSAlg().SpacePointTime(sp,fmh);
 
         //Correct for the lifetime at the moment.
         Charge *= TMath::Exp((fDetProp->SamplingRate() * Time ) / (fDetProp->ElectronLifetime()*1e3));

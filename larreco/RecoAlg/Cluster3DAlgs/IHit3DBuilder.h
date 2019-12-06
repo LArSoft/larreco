@@ -21,7 +21,7 @@
 
 namespace art
 {
-    class EDProducer;
+    class ProducesCollector;
 }
 
 namespace lar_cluster3d
@@ -41,7 +41,7 @@ public:
      *  @brief The space point building should output the hit collection
      *         for those hits which combine to form space points - a nice noise filter!
      */
-    virtual void produces(art::EDProducer*) = 0;
+    virtual void produces(art::ProducesCollector&) = 0;
 
     /**
      *  @brief Interface for configuring the particular algorithm tool
@@ -61,7 +61,7 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) = 0;
+    virtual void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) = 0;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing

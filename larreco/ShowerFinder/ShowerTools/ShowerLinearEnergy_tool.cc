@@ -65,30 +65,32 @@ namespace ShowerRecoTools {
     
     art::InputTag fPFParticleModuleLabel;
 
+    std::string   fShowerEnergyOutputLabel;
+
     //Services
     detinfo::DetectorProperties const* detprop = nullptr;
     art::ServiceHandle<geo::Geometry> fGeom;
     
   };
 
-
-  ShowerLinearEnergy::ShowerLinearEnergy(const fhicl::ParameterSet& pset):
+  ShowerLinearEnergy::ShowerLinearEnergy(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fUGradient(pset.get<double>("UGradient")),
+    fUIntercept(pset.get<double>("UIntercept")),
+    fVGradient(pset.get<double>("VGradient")),
+    fVIntercept(pset.get<double>("VIntercept")),
+    fZGradient(pset.get<double>("ZGradient")),
+    fZIntercept(pset.get<double>("ZIntercept")),
+    fXGradient(pset.get<double>("XGradient")),
+    fXIntercept(pset.get<double>("XIntercept")),
+    fYGradient(pset.get<double>("YGradient")),
+    fYIntercept(pset.get<double>("YIntercept")),
+    f3DGradient(pset.get<double>("ThreeDGradient")),
+    f3DIntercept(pset.get<double>("ThreeDIntercept")),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel","")),
+    fShowerEnergyOutputLabel(pset.get<std::string>("ShowerEnergyOutputLabel")),
     detprop(lar::providerFrom<detinfo::DetectorPropertiesService>())
   {
-    fPFParticleModuleLabel  = pset.get<art::InputTag>("PFParticleModuleLabel","");
-
-    fUGradient   = pset.get<double>("UGradient");
-    fUIntercept  = pset.get<double>("UIntercept");
-    fVGradient   = pset.get<double>("VGradient");
-    fVIntercept  = pset.get<double>("VIntercept");
-    fZGradient   = pset.get<double>("ZGradient");
-    fZIntercept  = pset.get<double>("ZIntercept");
-    fXGradient   = pset.get<double>("XGradient");
-    fXIntercept  = pset.get<double>("XIntercept");
-    fYGradient   = pset.get<double>("YGradient");
-    fYIntercept  = pset.get<double>("YIntercept");
-    f3DGradient  = pset.get<double>("ThreeDGradient");
-    f3DIntercept = pset.get<double>("ThreeDIntercept");
   }
 
   ShowerLinearEnergy::~ShowerLinearEnergy()
@@ -178,7 +180,8 @@ namespace ShowerRecoTools {
     //TODO
     std::vector<double> EnergyError = {-999,-999,-999};
 
-    ShowerEleHolder.SetElement(ShowerLinearEnergy,EnergyError,"ShowerEnergy");
+    ShowerEleHolder.SetElement(ShowerLinearEnergy,EnergyError,fShowerEnergyOutputLabel);
+
     return 0;
   }
 

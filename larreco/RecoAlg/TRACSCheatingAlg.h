@@ -64,5 +64,10 @@ class shower::TRACSCheatingAlg {
     art::ServiceHandle<cheat::ParticleInventoryService> particleInventory;
     art::ServiceHandle<art::TFileService>   tfs;
 
+
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionInputLabel;
+    std::string fInitialTrackSpacePointsInputLabel;
+
 };
 #endif
