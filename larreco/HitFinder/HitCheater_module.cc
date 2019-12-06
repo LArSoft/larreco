@@ -89,7 +89,7 @@ hit::HitCheater::HitCheater(fhicl::ParameterSet const & p)
   // let HitCollectionCreator declare that we are going to produce
   // hits and associations with wires and raw digits
   // (with no particular product label)
-  recob::HitCollectionCreator::declare_products(*this);
+   recob::HitCollectionCreator::declare_products(producesCollector());
 }
 
 //-------------------------------------------------------------------
@@ -97,7 +97,7 @@ void hit::HitCheater::produce(art::Event & e)
 {
   // this object contains the hit collection
   // and its associations to wires and raw digits:
-  recob::HitCollectionCreator hits(*this, e);
+  recob::HitCollectionCreator hits(e);
 
   // Read in the wire List object(s).
   art::InputTag WireInputTag(fWireModuleLabel, fCalDataProductInstanceName);

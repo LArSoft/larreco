@@ -145,10 +145,10 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     // and one with all hits. The key to doing this will be a non-null
     // instance name for the second collection
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName,true,false); //fMakeRawDigitAssns);
+    recob::HitCollectionCreator::declare_products(producesCollector(),fAllHitsInstanceName,true,false); //fMakeRawDigitAssns);
 
     // and now the filtered hits...
-    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(*this,"",true,false); //fMakeRawDigitAssns);
+    if (fAllHitsInstanceName != "") recob::HitCollectionCreator::declare_products(producesCollector(),"",true,false); //fMakeRawDigitAssns);
 
     return;
 } // GausHitFinder::GausHitFinder()
@@ -214,10 +214,10 @@ void GausHitFinder::produce(art::Event& evt)
     // ###############################################
     // this contains the hit collection
     // and its associations to wires and raw digits
-    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName, true, false);
+    recob::HitCollectionCreator allHitCol(evt, fAllHitsInstanceName, true, false);
 
     // Handle the filtered hits collection...
-    recob::HitCollectionCreator  hcol(*this, evt, "", true, false);
+    recob::HitCollectionCreator  hcol(evt, "", true, false);
     recob::HitCollectionCreator* filteredHitCol = 0;
 
     if( fFilterHits ) filteredHitCol = &hcol;

@@ -49,34 +49,39 @@ namespace ShowerRecoTools{
     std::vector<art::Ptr<recob::SpacePoint> > FindTrackSpacePoints(std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
 								   TVector3& showerStartPosition,TVector3& showerDirection);
     
-    //Algorithms
-    shower::TRACSAlg       fTRACSAlg;
     
     //Fcl paramters
     float fMaxProjectionDist;    //Maximum projection along shower direction.
-                                 //length of cylinder
     float fMaxPerpendicularDist; //Maximum perpendicular distance, radius of cylinder
     bool  fForwardHitsOnly;      //Only take hits downstream of shower vertex 
                                  //(projection>0)
-    bool  fDebugEVD;             //Make Debug Event Display
     bool  fAllowDyanmicLength;   //Use the initial track length instead of the 
                                  //fMaxProjectionDist
     
     art::InputTag fPFParticleModuleLabel;
     
+    std::string fInitialTrackLengthInputLabel;
+    std::string fShowerEnergyInputLabel;
+    std::string fShowerStartPositionInputLabel;
+    std::string fInitialTrackHitsOuputLabel;
+    std::string fInitialTrackSpacePointsOutputLabel;
+    std::string fShowerDirectionInputLabel;
   };
 
 
-  Shower3DTrackHitFinder::Shower3DTrackHitFinder(const fhicl::ParameterSet& pset)
-    : fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg"))
+  Shower3DTrackHitFinder::Shower3DTrackHitFinder(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fMaxProjectionDist(pset.get<float>("MaxProjectionDist")),
+    fMaxPerpendicularDist(pset.get<float>("MaxPerpendicularDist")),
+    fForwardHitsOnly(pset.get<bool>("ForwardHitsOnly")),
+    fAllowDyanmicLength(pset.get<bool>("AllowDyanmicLength")),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel")),
+    fInitialTrackLengthInputLabel(pset.get<std::string>("InitialTrackLengthInputLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fInitialTrackHitsOuputLabel(pset.get<std::string>("InitialTrackHitsOuputLabel")),
+    fInitialTrackSpacePointsOutputLabel(pset.get<std::string>("InitialTrackSpacePointsOutputLabel")),
+    fShowerDirectionInputLabel(pset.get<std::string>("ShowerDirectionInputLabel"))
   {
-    fPFParticleModuleLabel = pset.get<art::InputTag> ("PFParticleModuleLabel");
-
-    fMaxProjectionDist     = pset.get<float> ("MaxProjectionDist");
-    fMaxPerpendicularDist  = pset.get<float> ("MaxPerpendicularDist");
-    fForwardHitsOnly       = pset.get<bool>  ("ForwardHitsOnly");
-    fDebugEVD              = pset.get<bool>  ("DebugEVD");
-    fAllowDyanmicLength    = pset.get<bool>  ("AllowDyanmicLength");
   }
 
   Shower3DTrackHitFinder::~Shower3DTrackHitFinder()
@@ -86,16 +91,17 @@ namespace ShowerRecoTools{
   int Shower3DTrackHitFinder::CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
 					       art::Event& Event, 
 					       reco::shower::ShowerElementHolder& ShowerEleHolder){
+    
 
     //If we want to use a dynamic length value on a second iteraction get theta value now
     if(fAllowDyanmicLength){
-      if(ShowerEleHolder.CheckElement("InitialTrackLength")){
-        ShowerEleHolder.GetElement("InitialTrackLength",fMaxProjectionDist);
+      if(ShowerEleHolder.CheckElement(fInitialTrackLengthInputLabel)){
+        ShowerEleHolder.GetElement(fInitialTrackLengthInputLabel,fMaxProjectionDist);
       }
     }
 
     //This is all based on the shower vertex being known. If it is not lets not do the track
-    if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+    if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
       mf::LogError("Shower3DTrackHitFinder") << "Start position not set, returning "<< std::endl;
       return 1;
     }
@@ -105,10 +111,10 @@ namespace ShowerRecoTools{
     }
 
     TVector3 ShowerStartPosition = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerStartPosition",ShowerStartPosition);
+    ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,ShowerStartPosition);
 
     TVector3 ShowerDirection     = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerDirection",ShowerDirection);
+    ShowerEleHolder.GetElement(fShowerDirectionInputLabel,ShowerDirection);
 
     // Get the assocated pfParicle Handle
     art::Handle<std::vector<recob::PFParticle> > pfpHandle;
@@ -148,7 +154,7 @@ namespace ShowerRecoTools{
     }
 
     // Order the spacepoints
-    fTRACSAlg.OrderShowerSpacePoints(spacePoints,ShowerStartPosition,ShowerDirection);
+    IShowerTool::GetTRACSAlg().OrderShowerSpacePoints(spacePoints,ShowerStartPosition,ShowerDirection);
 
     // Get only the space points from the track
     std::vector<art::Ptr<recob::SpacePoint> > trackSpacePoints;
@@ -161,12 +167,8 @@ namespace ShowerRecoTools{
       trackHits.push_back(hit);
     }
 
-    ShowerEleHolder.SetElement(trackHits, "InitialTrackHits");
-    ShowerEleHolder.SetElement(trackSpacePoints,"InitialTrackSpacePoints");
-
-    if (fDebugEVD){
-      fTRACSAlg.DebugEVD(pfparticle,Event,ShowerEleHolder);
-    }
+    ShowerEleHolder.SetElement(trackHits, fInitialTrackHitsOuputLabel);
+    ShowerEleHolder.SetElement(trackSpacePoints,fInitialTrackSpacePointsOutputLabel);
 
     return 0;
   }
@@ -181,9 +183,9 @@ namespace ShowerRecoTools{
     for (auto spacePoint : spacePoints){
       // Calculate the projection along direction and perpendicular distance
       // from "axis" of shower
-      double proj = fTRACSAlg.SpacePointProjection(spacePoint,
+      double proj = IShowerTool::GetTRACSAlg().SpacePointProjection(spacePoint,
           showerStartPosition, showerDirection);
-      double perp = fTRACSAlg.SpacePointPerpendiular(spacePoint,
+      double perp = IShowerTool::GetTRACSAlg().SpacePointPerpendiular(spacePoint,
           showerStartPosition, showerDirection, proj);
 
       if (fForwardHitsOnly){

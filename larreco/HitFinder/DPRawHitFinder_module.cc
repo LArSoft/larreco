@@ -212,7 +212,7 @@ DPRawHitFinder::DPRawHitFinder(fhicl::ParameterSet const& pset) :
 	fNewHitsTag(
 	    pset.get<std::string>("module_label"), "",
 	    art::ServiceHandle<art::TriggerNamesService const>()->getProcessName()),
-	fHitParamWriter(this)
+        fHitParamWriter(producesCollector())
 {
     fLogLevel                    = pset.get< int >("LogLevel");
     fCalDataModuleLabel          = pset.get< std::string  >("CalDataModuleLabel");
@@ -250,7 +250,7 @@ DPRawHitFinder::DPRawHitFinder(fhicl::ParameterSet const& pset) :
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+    recob::HitCollectionCreator::declare_products(producesCollector());
 
     // declare that data products with feature vectors describing
     // hits is going to be produced
@@ -313,7 +313,7 @@ void DPRawHitFinder::produce(art::Event& evt)
   // ###############################################
   // this contains the hit collection
   // and its associations to wires and raw digits
-  recob::HitCollectionCreator hcol(*this, evt);
+  recob::HitCollectionCreator hcol(evt);
 
   // start collection of fit parameters, initialize metadata describing it
   auto hitID = fHitParamWriter.initOutputs<recob::Hit>(fNewHitsTag, { "t0", "tau1", "tau2", "ampl" });

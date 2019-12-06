@@ -56,7 +56,6 @@ namespace ShowerRecoTools{
     //Servcies and Algorithms
     art::ServiceHandle<geo::Geometry> fGeom;
     calo::CalorimetryAlg fCalorimetryAlg;
-    shower::TRACSAlg fTRACSAlg;
     detinfo::DetectorProperties const* fDetProp;
 
     //fcl parameters
@@ -74,23 +73,35 @@ namespace ShowerRecoTools{
     bool fUseMedian;        //Use the median value as the dEdx rather than the mean.
     bool fCutStartPosition; //Remove hits using MinDistCutOff from the vertex as well. 
     art::InputTag fPFParticleModuleLabel;
- 
+    
+    std::string fShowerStartPositionInputLabel;
+    std::string fInitialTrackSpacePointsInputLabel;
+    std::string fInitialTrackInputLabel;
+    std::string fShowerdEdxOuputLabel;
+    std::string fShowerBestPlaneOutputLabel;
+    std::string fShowerdEdxVecOuputLabel;
   };
 
 
   ShowerSlidingStandardCalodEdx::ShowerSlidingStandardCalodEdx(const fhicl::ParameterSet& pset):
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
     fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-    fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg")),
-    fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+    fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
+    fMinAngleToWire(pset.get<float>("MinAngleToWire")),
+    fShapingTime(pset.get<float>("ShapingTime")),
+    fMinDistCutOff(pset.get<float>("MinDistCutOff")),
+    fMaxDist(pset.get<float>("MaxDist")),
+    fdEdxTrackLength(pset.get<float>("dEdxTrackLength")),
+    fUseMedian(pset.get<bool>("UseMedian")),
+    fCutStartPosition(pset.get<bool>("CutStartPosition")),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fInitialTrackSpacePointsInputLabel(pset.get<std::string>("InitialTrackSpacePointsInputLabel")),
+    fInitialTrackInputLabel(pset.get<std::string>("InitialTrackInputLabel")),
+    fShowerdEdxOuputLabel(pset.get<std::string>("ShowerdEdxOuputLabel")),
+    fShowerBestPlaneOutputLabel(pset.get<std::string>("ShowerBestPlaneOutputLabel")),
+    fShowerdEdxVecOuputLabel(pset.get<std::string>("ShowerdEdxVecOuputLabel"))
   {
-    fMinDistCutOff         = pset.get<float>("MinDistCutOff");
-    fMaxDist               = pset.get<float>("MaxDist");
-    fMinAngleToWire        = pset.get<float>("MinAngleToWire");
-    fShapingTime           = pset.get<float>("ShapingTime");
-    fdEdxTrackLength       = pset.get<float>("dEdxTrackLength");
-    fUseMedian             = pset.get<bool> ("UseMedian");
-    fCutStartPosition      = pset.get<bool> ("CutStartPosition");
-    fPFParticleModuleLabel = pset.get<art::InputTag>("PFParticleModuleLabel");
   }
 
   ShowerSlidingStandardCalodEdx::~ShowerSlidingStandardCalodEdx()
@@ -103,22 +114,22 @@ namespace ShowerRecoTools{
 
 
     // Shower dEdx calculation
-    if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+    if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
       mf::LogError("ShowerSlidingStandardCalodEdx") << "Start position not set, returning "<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("InitialTrackSpacePoints")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackSpacePointsInputLabel)){
       mf::LogError("ShowerSlidingStandardCalodEdx") << "Initial Track Spacepoints is not set returning"<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("InitialTrack")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackInputLabel)){
       mf::LogError("ShowerSlidingStandardCalodEdx") << "Initial Track is not set"<< std::endl;
       return 1;
     }
 
     //Get the initial track hits
     std::vector<art::Ptr<recob::SpacePoint> > tracksps;
-    ShowerEleHolder.GetElement("InitialTrackSpacePoints",tracksps);
+    ShowerEleHolder.GetElement(fInitialTrackSpacePointsInputLabel,tracksps);
 
     if(tracksps.size() == 0){
       mf::LogWarning("ShowerSlidingStandardCalodEdx") << "no spacepointsin the initial track" << std::endl;
@@ -143,12 +154,12 @@ namespace ShowerRecoTools{
 
     //Only consider hits in the same tpcs as the vertex.
     TVector3 ShowerStartPosition = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerStartPosition",ShowerStartPosition);
+    ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,ShowerStartPosition);
     geo::TPCID vtxTPC = fGeom->FindTPCAtPosition(ShowerStartPosition);
 
     //Get the initial track
     recob::Track InitialTrack;
-    ShowerEleHolder.GetElement("InitialTrack",InitialTrack);
+    ShowerEleHolder.GetElement(fInitialTrackInputLabel,InitialTrack);
 
     //Don't care that I could use a vector.
     std::map<int,std::vector<double > > dEdx_vec;
@@ -179,7 +190,7 @@ namespace ShowerRecoTools{
       if (TPC !=vtxTPC){continue;}
 
       //Ignore spacepoints within a few wires of the vertex.
-      double dist_from_start = (fTRACSAlg.SpacePointPosition(sp) - ShowerStartPosition).Mag();
+      double dist_from_start = (IShowerTool::GetTRACSAlg().SpacePointPosition(sp) - ShowerStartPosition).Mag();
 
       if(fCutStartPosition){
         if(dist_from_start < fMinDistCutOff*wirepitch){continue;}
@@ -201,7 +212,7 @@ namespace ShowerRecoTools{
         if(flags.isSet(recob::TrajectoryPointFlagTraits::NoPoint))
         {continue;}
 
-        TVector3 pos = fTRACSAlg.SpacePointPosition(sp) - TrajPosition;
+        TVector3 pos = IShowerTool::GetTRACSAlg().SpacePointPosition(sp) - TrajPosition;
 
         if(pos.Mag() < MinDist && pos.Mag()< fMaxDist*wirepitch){
           MinDist = pos.Mag();
@@ -303,9 +314,9 @@ namespace ShowerRecoTools{
     }
 
     //Need to sort out errors sensibly.
-    ShowerEleHolder.SetElement(dEdx_val,dEdx_valErr,"ShowerdEdx");
-    ShowerEleHolder.SetElement(best_plane,"ShowerBestPlane");
-
+    ShowerEleHolder.SetElement(dEdx_val,dEdx_valErr,fShowerdEdxOuputLabel);
+    ShowerEleHolder.SetElement(best_plane,fShowerBestPlaneOutputLabel);
+    ShowerEleHolder.SetElement(dEdx_vec,fShowerdEdxVecOuputLabel);
 
     return 0;
   }

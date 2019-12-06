@@ -54,9 +54,6 @@ namespace ShowerRecoTools{
     Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y,
 		      const Double_t *w,  Double_t *parm);
     
-    // ALgorithms   
-    shower::TRACSAlg       fTRACSAlg;
-
     //fcl parameters
     unsigned int               fNfitpass;           //Number of time to fit the straight
                                                     //line the hits.
@@ -67,20 +64,27 @@ namespace ShowerRecoTools{
     bool                       fApplyChargeWeight;  //Apply charge weighting to the fit.
     art::InputTag              fPFParticleModuleLabel;
     art::InputTag              fHitsModuleLabel;
+    std::string                fShowerStartPositionInputLabel;
+    std::string                fShowerDirectionInputLabel;
+    std::string                fInitialTrackHitsOutputLabel;
+    std::string                fInitialTrackSpacePointsOutputLabel;
   };
   
 
   Shower2DLinearRegressionTrackHitFinder::Shower2DLinearRegressionTrackHitFinder(
-      const fhicl::ParameterSet& pset)
-    : fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg"))
+      const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fNfitpass(pset.get<unsigned int>("Nfitpass")),
+    fNfithits(pset.get<std::vector<unsigned int> >("Nfithits")),
+    fToler(pset.get<std::vector<double> >("Toler")),
+    fApplyChargeWeight(pset.get<bool>("ApplyChargeWeight")),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel")),
+    fHitsModuleLabel(pset.get<art::InputTag>("HitsModuleLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPositionInputLabel")),
+    fShowerDirectionInputLabel(pset.get<std::string>("ShowerDirectionInputLabel")),
+    fInitialTrackHitsOutputLabel(pset.get<std::string>("InitialTrackHitsOutputLabel")),
+    fInitialTrackSpacePointsOutputLabel(pset.get<std::string>("InitialTrackSpacePointsOutputLabel"))
   {
-    fApplyChargeWeight      = pset.get<bool>                      ("ApplyChargeWeight");
-    fNfitpass               = pset.get<unsigned int>              ("Nfitpass");
-    fNfithits               = pset.get<std::vector<unsigned int> >("Nfithits");
-    fToler                  = pset.get<std::vector<double> >      ("Toler");
-    fPFParticleModuleLabel  = pset.get<art::InputTag>             ("PFParticleModuleLabel");
-    fHitsModuleLabel        = pset.get<art::InputTag>             ("HitsModuleLabel");
-
     if (fNfitpass!=fNfithits.size() ||
         fNfitpass!=fToler.size()) {
       throw art::Exception(art::errors::Configuration)
@@ -96,22 +100,22 @@ namespace ShowerRecoTools{
       art::Event& Event, reco::shower::ShowerElementHolder& ShowerEleHolder){
 
     //This is all based on the shower vertex being known. If it is not lets not do the track
-    if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+    if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
       mf::LogError("Shower2DLinearRegressionTrackHitFinder")
         << "Start position not set, returning "<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("ShowerDirection")){
+    if(!ShowerEleHolder.CheckElement(fShowerDirectionInputLabel)){
       mf::LogError("Shower2DLinearRegressionTrackHitFinder")
         << "Direction not set, returning "<< std::endl;
       return 1;
     }
 
     TVector3 ShowerStartPosition = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerStartPosition",ShowerStartPosition);
+    ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,ShowerStartPosition);
 
     TVector3 ShowerDirection     = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerDirection",ShowerDirection);
+    ShowerEleHolder.GetElement(fShowerDirectionInputLabel,ShowerDirection);
 
     // Get the assocated pfParicle vertex PFParticles
     art::Handle<std::vector<recob::PFParticle> > pfpHandle;
@@ -166,7 +170,7 @@ namespace ShowerRecoTools{
       std::vector<art::Ptr<recob::Hit> > hits = cluster.second;
 
       //Order the hits
-      fTRACSAlg.OrderShowerHits(hits,ShowerStartPosition,ShowerDirection);
+      IShowerTool::GetTRACSAlg().OrderShowerHits(hits,ShowerStartPosition,ShowerDirection);
 
       //Find the initial track hits
       std::vector<art::Ptr<recob::Hit> > trackhits = FindInitialTrackHits(hits);
@@ -175,7 +179,7 @@ namespace ShowerRecoTools{
     }
 
     //Holders for the initial track values.
-    ShowerEleHolder.SetElement(InitialTrackHits, "InitialTrackHits");
+    ShowerEleHolder.SetElement(InitialTrackHits, fInitialTrackHitsOutputLabel);
 
     //Get the associated spacepoints
     //Get the hits
@@ -202,8 +206,7 @@ namespace ShowerRecoTools{
         intitaltrack_sp.push_back(sp);
       }
     }
-    ShowerEleHolder.SetElement(intitaltrack_sp, "InitialTrackSpacePoints");
-
+    ShowerEleHolder.SetElement(intitaltrack_sp, fInitialTrackSpacePointsOutputLabel);
     return 0;
   }
 
@@ -226,7 +229,7 @@ namespace ShowerRecoTools{
 
         //Not sure I am a fan of doing things in wire tick space. What if id doesn't not iterate properly or the
         //two planes in each TPC are not symmetric.
-        TVector2 coord = fTRACSAlg.HitCoordinates(hit);
+        TVector2 coord = IShowerTool::GetTRACSAlg().HitCoordinates(hit);
 
         if (i==0||(std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<fToler[i-1])||fitok==1){
           ++nhits;

@@ -56,14 +56,22 @@ namespace ShowerRecoTools {
                             //above.  
                             //((Position of traj point + 1) - (Position of traj point).
     int  fTrajPoint;        //Trajectory point to get the direction from.   
+
+    std::string fInitialTrackInputLabel;
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionOutputLabel;
   };
 
 
-  ShowerTrackTrajectoryPointDirection::ShowerTrackTrajectoryPointDirection(const fhicl::ParameterSet& pset)
+  ShowerTrackTrajectoryPointDirection::ShowerTrackTrajectoryPointDirection(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fUsePandoraVertex(pset.get<bool>("UsePandoraVertex")),
+    fUsePositonInfo(pset.get<bool>("UsePositonInfo")),
+    fTrajPoint(pset.get<int>("TrajPoint")),
+    fInitialTrackInputLabel(pset.get<std::string>("InitialTrackInputLabel")),
+    fShowerStartPositionInputLabel(pset.get<std::string>("ShowerStartPosition")),
+    fShowerDirectionOutputLabel(pset.get<std::string>("ShowerDirection"))
   {
-    fUsePandoraVertex         = pset.get<bool>("UsePandoraVertex");
-    fUsePositonInfo           = pset.get<bool>("UsePositonInfo");
-    fTrajPoint                = pset.get<int>("TrajPoint");
   }
 
   ShowerTrackTrajectoryPointDirection::~ShowerTrackTrajectoryPointDirection()
@@ -76,12 +84,12 @@ namespace ShowerRecoTools {
 							    reco::shower::ShowerElementHolder& ShowerEleHolder){
 
     //Check the Track has been defined
-    if(!ShowerEleHolder.CheckElement("InitialTrack")){
+    if(!ShowerEleHolder.CheckElement(fInitialTrackInputLabel)){
       mf::LogError("ShowerTrackTrajectoryPointDirection") << "Initial track not set"<< std::endl;
       return 1;
     }
     recob::Track InitialTrack;
-    ShowerEleHolder.GetElement("InitialTrack",InitialTrack);
+    ShowerEleHolder.GetElement(fInitialTrackInputLabel,InitialTrack);
 
     if((int)InitialTrack.NumberTrajectoryPoints()-1 < fTrajPoint){
       mf::LogError("ShowerTrackTrajectoryPointDirection") << "Less that fTrajPoint trajectory points, bailing."<< std::endl;
@@ -104,12 +112,12 @@ namespace ShowerRecoTools {
       geo::Point_t StartPosition;
       if(fUsePandoraVertex){
         //Check the Track has been defined
-        if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+        if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
           mf::LogError("ShowerTrackTrajectoryPointDirection") << "Shower start position not set"<< std::endl;
           return 1;
         }
         TVector3 StartPosition_vec = {-999,-999,-999};
-        ShowerEleHolder.GetElement("ShowerStartPosition",StartPosition_vec);
+        ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,StartPosition_vec);
         StartPosition.SetCoordinates(StartPosition_vec.X(),StartPosition_vec.Y(),StartPosition_vec.Z());
       }
       else{
@@ -126,7 +134,7 @@ namespace ShowerRecoTools {
 
     TVector3 Direction = {Direction_vec.X(), Direction_vec.Y(),Direction_vec.Z()};
     TVector3 DirectionErr = {-999,-999,-999};
-    ShowerEleHolder.SetElement(Direction,DirectionErr,"ShowerDirection");
+    ShowerEleHolder.SetElement(Direction,DirectionErr,fShowerDirectionOutputLabel);
     return 0;
   }
 }

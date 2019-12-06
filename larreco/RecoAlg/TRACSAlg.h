@@ -23,6 +23,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 //Root Includes
 #include "TVector3.h"
@@ -33,6 +34,8 @@
 #include "TPolyMarker3D.h"
 #include "TPolyLine3D.h"
 #include "TString.h"
+#include "TH3F.h"
+#include "TStyle.h"
 
 namespace shower {
   class TRACSAlg;
@@ -50,6 +53,10 @@ class shower::TRACSAlg {
     void OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint> >& showerspcs,
         TVector3 const& vertex, TVector3 const& direction) const;
 
+    void OrderShowerSpacePoints( std::vector<art::Ptr<recob::SpacePoint> >&
+				 showersps, TVector3 const& vertex) const;
+
+    TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> > const& showersps) const;
 
     TVector3 ShowerCentre(std::vector<art::Ptr<recob::SpacePoint> > const& showersps,
         art::FindManyP<recob::Hit> const& fmh, float& totalCharge) const;
@@ -59,6 +66,11 @@ class shower::TRACSAlg {
         art::FindManyP<recob::Hit> const& fmh) const;
 
     TVector3 SpacePointPosition(art::Ptr<recob::SpacePoint> const& sp) const;
+
+    double DistanceBetweenSpacePoints(art::Ptr<recob::SpacePoint> const& sp_a, art::Ptr<recob::SpacePoint> const& sp_b) const;
+
+    double TotalCorrectedCharge(std::vector<art::Ptr<recob::SpacePoint> > const& sps, art::FindManyP<recob::Hit> const& fmh) const;
+
 
     double SpacePointCharge(art::Ptr<recob::SpacePoint> const& sp, art::FindManyP<recob::Hit> const& fmh) const;
 
@@ -75,7 +87,8 @@ class shower::TRACSAlg {
 
     void DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
         art::Event const& Event,
-        reco::shower::ShowerElementHolder& ShowerEleHolder) const;
+        reco::shower::ShowerElementHolder& ShowerEleHolder,
+        std::string evd_disp_name_append="") const;
 
   private:
 
@@ -85,6 +98,11 @@ class shower::TRACSAlg {
     detinfo::DetectorProperties const*      fDetProp = nullptr;
     art::ServiceHandle<geo::Geometry const> fGeom;
     art::ServiceHandle<art::TFileService>   tfs;
+
+    std::string fInitialTrackInputLabel;
+    std::string fShowerStartPositionInputLabel;
+    std::string fShowerDirectionInputLabel;
+    std::string fInitialTrackSpacePointsInputLabel;
 
 };
 

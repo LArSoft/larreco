@@ -6,7 +6,7 @@
  */
 
 // Framework Includes
-#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ProducesCollector.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
@@ -71,7 +71,7 @@ public:
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::EDProducer*) override;
+    virtual void produces(art::ProducesCollector&) override;
 
     void configure(const fhicl::ParameterSet&) override;
 
@@ -81,7 +81,7 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void Hit3DBuilder(art::EDProducer&, art::Event &evt, reco::HitPairList& hitPairList, RecobHitToPtrMap&) override;
+    void Hit3DBuilder(art::Event &evt, reco::HitPairList& hitPairList, RecobHitToPtrMap&) override;
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
@@ -149,12 +149,12 @@ SpacePointHit3DBuilder::~SpacePointHit3DBuilder()
 {
 }
 
-void SpacePointHit3DBuilder::produces(art::EDProducer* producer)
+void SpacePointHit3DBuilder::produces(art::ProducesCollector& collector)
 {
-    producer->produces< std::vector<recob::Hit>>();
+    collector.produces< std::vector<recob::Hit>>();
 
-    if (fDoWireAssns)     producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
-    if (fDoRawDigitAssns) producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    if (fDoWireAssns)     collector.produces< art::Assns<recob::Wire,   recob::Hit>>();
+    if (fDoRawDigitAssns) collector.produces< art::Assns<raw::RawDigit, recob::Hit>>();
 
     return;
 }
@@ -219,7 +219,7 @@ void SpacePointHit3DBuilder::clear()
     return;
 }
 
-void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& recobHitToArtPtrMap)
+void SpacePointHit3DBuilder::Hit3DBuilder(art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& recobHitToArtPtrMap)
 {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
@@ -238,7 +238,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
     if (!hitSpacePointAssnsHandle.isValid()) return;
 
     // Get a hit refiner for the output hit collection
-    recob::HitRefinerAssociator hitRefiner(prod, evt, fHitProducerLabel, fDoWireAssns, fDoRawDigitAssns);
+    recob::HitRefinerAssociator hitRefiner(evt, fHitProducerLabel, fDoWireAssns, fDoRawDigitAssns);
 
     // We need to spin through the associations first to build a map between the SpacePoints and
     // the WireID associated to the collection plane... where for APA style TPCs this will be

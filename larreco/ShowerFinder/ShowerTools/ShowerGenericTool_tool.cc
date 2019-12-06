@@ -47,7 +47,8 @@ namespace ShowerRecoTools {
   };
 
 
-  ShowerGenericTool::ShowerGenericTool(const fhicl::ParameterSet& pset)
+  ShowerGenericTool::ShowerGenericTool(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools"))
   {
   }
 
@@ -56,10 +57,6 @@ namespace ShowerRecoTools {
   }
 
   void ShowerGenericTool::InitialiseProducers(){
-    if(producerPtr == NULL){
-      mf::LogWarning("ShowerGenericTool") << "The producer ptr has not been set" << std::endl;
-      return;
-    }
   }
 
   int ShowerGenericTool::CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,

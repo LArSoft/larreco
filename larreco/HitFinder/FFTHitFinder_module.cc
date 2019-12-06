@@ -74,7 +74,7 @@ namespace hit{
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+    recob::HitCollectionCreator::declare_products(producesCollector());
   }
 
 
@@ -87,7 +87,7 @@ namespace hit{
 
     // this object contains the hit collection
     // and its associations to wires and raw digits:
-    recob::HitCollectionCreator hcol(*this, evt);
+    recob::HitCollectionCreator hcol(evt);
 
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
