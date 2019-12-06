@@ -16,7 +16,10 @@
 #include <algorithm>
 
 // Eigen
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include <Eigen/Dense>
+#pragma GCC diagnostic pop
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace reco

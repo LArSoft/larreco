@@ -342,7 +342,7 @@ trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &
          try {
             seedHitVec = seedHitAssns.at(seedIdx);
          }
-         catch(art::Exception x) {
+         catch(art::Exception const&) {
             seedHitVec.clear();
          }
          kalman_input.seedhits.emplace_back();

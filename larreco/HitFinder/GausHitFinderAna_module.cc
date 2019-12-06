@@ -329,7 +329,7 @@ namespace hit{
           trackides = bt_serv->HitToTrackIDEs(hitPoint);
           xyz = bt_serv->HitToXYZ(hitPoint);
           }
-       catch(cet::exception e)
+       catch(cet::exception const&)
           {mf::LogWarning("GausHitFinderAna") << "BackTrackerService Failed";
            continue;}
 

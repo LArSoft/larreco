@@ -1757,7 +1757,7 @@ namespace cluster{
     try {
       fit = fitter.FitParameters();
     }
-    catch (std::range_error) { // oops...
+    catch (std::range_error const&) { // oops...
       // this is actually unexpected, since the only reason for the fit to fail
       // would be a singular fit matrix, that should be pretty much impossible
       // given that the bin coordinates are well behaved and there are at least
