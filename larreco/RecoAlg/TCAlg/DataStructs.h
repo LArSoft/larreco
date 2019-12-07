@@ -17,7 +17,6 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 namespace TMVA { class Reader; }
 namespace calo { class CalorimetryAlg; }
@@ -601,7 +600,6 @@ namespace tca {
     std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
-    const spacecharge::SpaceCharge* spcChg = nullptr;
     std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;

@@ -190,124 +190,15 @@ namespace tca {
 
   } // StitchPFPs
 
-<<<<<<< HEAD
-/////////////////////////////////////////
-=======
-  /////////////////////////////////////////
-  void FindSptPFParticles(TCSlice& slc)
-  {
-    // Find 3D Tj matches using SpacePoints
-    if(!evt.sptHandle) return;
-    // ensure that allHitsSptIndex was sized correctly
-    if(evt.allHitsSptIndex.size() != (*evt.allHits).size()) return;
-    // This code will choke if there are too many spts
-    if(evt.allHitsSptIndex.size() > INT_MAX) return;
 
-    // Create a list of spt -> Tjs in three planes
-    std::vector<std::vector<int>> sptAssns;
-    sptAssns.resize((*evt.sptHandle).size(), std::vector<int>(3, INT_MAX));
-
-    unsigned int nspts = (*evt.sptHandle).size() - 1;
-    for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
-      unsigned short plane = DecodeCTP(tj.CTP).Plane;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-          if(evt.allHitsSptIndex[ahi] > nspts) continue;
-          sptAssns[evt.allHitsSptIndex[ahi]][plane] = tj.ID;
-        } // ii
-      } // ipt
-    } // tj
-
-    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
-
-    std::vector<MatchStruct> matVec;
-    MatchStruct ms;
-    for(auto& sptAssn : sptAssns) {
-      // require a triple match
-      if(sptAssn[0] == INT_MAX || sptAssn[1] == INT_MAX || sptAssn[2] == INT_MAX) continue;
-      // look for this triplet in matVec
-      std::size_t indx = 0;
-      for(indx = 0; indx < matVec.size(); ++indx) if(matVec[indx].TjIDs == sptAssn) break;
-      if(indx == matVec.size()) {
-        ms.TjIDs = sptAssn;
-        matVec.push_back(ms);
-      }
-      ++matVec[indx].Count;
-    } // isp
-
-    // sort by decreasing count
-    std::vector<SortEntry> sortVec;
-    for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
-      auto& ms = matVec[indx];
-      // count the number of TPs in all Tjs
-      float tpCnt = 0;
-      for(auto tid : ms.TjIDs) {
-        auto& tj = slc.tjs[tid - 1];
-        tpCnt += NumPtsWithCharge(slc, tj, false);
-      } // tid
-      float frac = ms.Count / tpCnt;
-      // ignore matches with a very low match fraction
-      if(frac < 0.01) continue;
-      SortEntry se;
-      se.index = indx;
-      se.val = matVec[indx].Count;
-      sortVec.push_back(se);
-    } // ii
-    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
-    std::vector<MatchStruct> tmp(sortVec.size());
-    for(std::size_t indx = 0; indx < sortVec.size(); ++indx) tmp[indx] = matVec[sortVec[indx].index];
-    matVec = tmp;
-    tmp.resize(0);
-    sortVec.resize(0);
-
-    if(matVec.empty()) return;
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"MVI  Count  Tjs\n";
-      for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
-        auto& ms = matVec[indx];
-        myprt<<std::setw(5)<<indx<<std::setw(6)<<(int)ms.Count;
-        for(auto tid : ms.TjIDs) myprt<<" T"<<tid;
-        // count the number of TPs in all Tjs
-        float tpCnt = 0;
-        for(auto tid : ms.TjIDs) {
-          auto& tj = slc.tjs[tid - 1];
-          tpCnt += NumPtsWithCharge(slc, tj, false);
-        } // tid
-        float frac = ms.Count / tpCnt;
-        myprt<<" matFrac "<<std::fixed<<std::setprecision(3)<<frac;
-        myprt<<"\n";
-      } // indx
-    } // prt
-
-    MakePFParticles(slc, matVec);
-
-    // a last debug print
-    if(tcc.dbgPFP && debug.MVI != UINT_MAX) {
-      for(auto& pfp : slc.pfps) if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FSPFP", slc, pfp, -1);
-    } // last debug print
-
-
-  } // FindSptPFParticles
-
-  /////////////////////////////////////////
->>>>>>> develop
-  void FindPFParticles(TCSlice& slc)
+void FindPFParticles(TCSlice& slc)
   {
     // Match Tjs in 3D and create PFParticles
 
     if(tcc.match3DCuts[0] <= 0) return;
 
-<<<<<<< HEAD
     FillWireIntersections(slc);
     
-=======
->>>>>>> develop
     // clear the TP -> P assn Tjs so that all are considered
     for(auto& tj : slc.tjs) {
       for(auto& tp : tj.Pts) tp.InPFP = 0;
@@ -317,19 +208,12 @@ namespace tca {
 
     // Match these points in 3D
     std::vector<MatchStruct> matVec;
-<<<<<<< HEAD
     
     // iterate twice (at most), looking for 3-plane matches in long tjs in 3-plane TPCs on the
     // first iteration, 3-plane matches in short tjs on the second iteration.
     // and 2-plane matches + dead regions in 3-plane TPCs on the last iteration
     slc.mallTraj.clear();
     
-=======
-
-    // iterate twice (at most), looking for 3-plane matches in 3-plane TPCs on the
-    // first iteration and 2-plane matches + dead regions in 3-plane TPCs on the second
-
->>>>>>> develop
     unsigned short maxNit = 2;
     if(slc.nPlanes == 2) maxNit = 1;
     if(std::nearbyint(tcc.match3DCuts[2]) == 0) maxNit = 1;
@@ -347,13 +231,8 @@ namespace tca {
       if(matVec.empty()) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-<<<<<<< HEAD
         myprt<<"nit "<<nit<<" MVI  Count  Tjs\n";
         for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
-=======
-        myprt<<"MVI  Count  Tjs\n";
-        for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
->>>>>>> develop
           auto& ms = matVec[indx];
           myprt<<std::setw(5)<<indx<<std::setw(6)<<(int)ms.Count;
           for(auto tid : ms.TjIDs) myprt<<" T"<<tid;
@@ -370,17 +249,9 @@ namespace tca {
       } // prt
       MakePFParticles(slc, matVec, nit);
     } // nit
-<<<<<<< HEAD
     // reconcile TP -> P assns in all pfps in this slice
 //    ReconcileTPs(slc);
     
-=======
-
-
-    // reconcile TP -> P assns in all pfps in this slice
-    ReconcileTPs(slc);
-
->>>>>>> develop
     // a last debug print
     if(tcc.dbgPFP && debug.MVI != UINT_MAX) {
       for(auto& pfp : slc.pfps) if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
@@ -399,12 +270,8 @@ namespace tca {
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
 
     // create a PFParticle for each valid match combination
-<<<<<<< HEAD
     // define a glabal matVec index for debugging
     for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
-=======
-    for(std::size_t indx = 0; indx < matVec.size(); ++indx) {
->>>>>>> develop
       // tone down the level of printing in ReSection
       bool foundMVI = (tcc.dbgPFP && indx == debug.MVI && matVec_Iter == debug.MVI_Iter);
       if(foundMVI) prt = true;
@@ -467,7 +334,6 @@ namespace tca {
       if(foundMVI) {
         PrintTP3Ds("FF", slc, pfpVec[0], -1);
       }
-<<<<<<< HEAD
       // Pass the pfp vector to SplitAtKinks which may produce pfpVec[1]
       SplitAtKinks(slc, pfpVec, foundMVI);
       bool success = true;
@@ -575,30 +441,6 @@ namespace tca {
         }
       } // ip (iterate over split pfps)
     } // indx (iterate over matchVec entries)
-=======
-      // Look for mis-placed 2D and 3D vertices
-      ReconcileVertices(slc, pfp, prt);
-      // set the end flag bits
-      geo::TPCID tpcid;
-      for(unsigned short end = 0; end < 2; ++end) {
-        // first set them all to 0
-        pfp.EndFlag[end].reset();
-        auto pos = PosAtEnd(pfp, end);
-        if(!InsideTPC(pos, tpcid)) pfp.EndFlag[end][kOutFV] = true;
-      } // end
-      FilldEdx(slc, pfp);
-      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
-      if(!StorePFP(slc, pfp)) continue;
-      // clobber later entries that have these Tjs
-      for(std::size_t jndx = indx + 1; jndx < matVec.size(); ++jndx) {
-        for(auto tid : pfp.TjIDs) {
-          auto& jms = matVec[jndx];
-          if(jms.Count <= 0) continue;
-          if(std::find(jms.TjIDs.begin(), jms.TjIDs.end(), tid) != jms.TjIDs.end()) jms.Count = 0;
-        } // tid
-      } // jndx
-    } // indx
->>>>>>> develop
     slc.mallTraj.resize(0);
     
   } // MakePFParticles
@@ -649,7 +491,6 @@ namespace tca {
   ////////////////////////////////////////////////
   bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
-<<<<<<< HEAD
     // Reconcile TP -> P assns before the pfp is stored. The TP3D -> TP is defined but
     // the TP -> P assn may not have been done. This function overwrites the TjIDs
     // vector to be the list of Tjs that contribute > 80% of their TPs to this pfp.
@@ -662,31 +503,6 @@ namespace tca {
     
     //                  Tj ID, TP count
     std::vector<std::pair<int, float>> tjTPCnt;
-=======
-    // Reconcile TP -> P assns before the pfp is stored. The assn isn't yet defined
-    // by TP.InPFP
-    if(pfp.TjIDs.empty()) return;
-    if(pfp.TP3Ds.empty()) return;
-    if(pfp.ID <= 0) return;
-
-    // make a list of Tjs that have TPs in this pfp
-    std::vector<int> tList;
-    for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
-      auto& tp3d = pfp.TP3Ds[ipt];
-      if(tp3d.IsBad) continue;
-      if(tp3d.TjID <= 0) continue;
-      if(std::find(tList.begin(), tList.end(), tp3d.TjID) == tList.end()) tList.push_back(tp3d.TjID);
-    } // ipt
-
-    // unset the general purpose flag for all of the TPs
-    for(auto tid : tList) {
-      auto& tj = slc.tjs[tid - 1];
-      for(auto& tp : tj.Pts) tp.Environment[kEnvFlag] = false;
-    } // tid
-
-    // set the flag for TPs that have an assn but may be declared not-good. This will
-    // prevent adding the TP again
->>>>>>> develop
     for(auto& tp3d : pfp.TP3Ds) {
       if(tp3d.IsBad) continue;
       if(tp3d.TjID <= 0) {
@@ -708,7 +524,7 @@ namespace tca {
       tp.InPFP = pfp.ID;
     } // tp3d
 
-<<<<<<< HEAD
+//<<<<<<< HEAD
     std::vector<int> nTjIDs;
     for(auto& tjtpcnt : tjTPCnt) {
       auto& tj = slc.tjs[tjtpcnt.first - 1];
@@ -725,7 +541,8 @@ namespace tca {
     pfp.TjIDs = nTjIDs;
     
     return true;
-=======
+/*
+    =======
     // make a working copy of the pfp in case something goes wrong
     auto pWork = pfp;
 
@@ -790,6 +607,7 @@ namespace tca {
     if(Update(slc, pWork, prt)) pfp = pWork;
 
 >>>>>>> develop
+*/
   } // ReconcileTPs
 
   ////////////////////////////////////////////////
@@ -917,7 +735,7 @@ namespace tca {
     } // pfp
   } // MakePFPTjs
 
-<<<<<<< HEAD
+//<<<<<<< HEAD
   /////////////////////////////////////////
   void FillWireIntersections(TCSlice& slc)
   {
@@ -1104,23 +922,12 @@ namespace tca {
     
   } // SptInTPC
   
-=======
->>>>>>> develop
   /////////////////////////////////////////
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec)
   {
     // A simpler and faster version of MatchPlanes that only creates three plane matches
-<<<<<<< HEAD
     
     if(slc.nPlanes != 3) return;
-=======
-
-    if(slc.mallTraj.empty()) return;
-    if(slc.nPlanes != 3) return;
-
-    int cstat = slc.TPCID.Cryostat;
-    int tpc = slc.TPCID.TPC;
->>>>>>> develop
 
     // use SpacePoint -> Hit -> TP assns?
     if(!evt.sptHits.empty()) {
@@ -1188,7 +995,7 @@ namespace tca {
           // we have a match
           tIDs[kPlane] = kTjPt.id;
           // look for it in the list
-	  std::size_t indx = 0;
+          unsigned int indx = 0;
           for(indx = 0; indx < mtIDs.size(); ++indx) if(tIDs == mtIDs[indx]) break;
           if(indx == mtIDs.size()) {
             // not found so add it to mtIDs and add another element to mCnt
@@ -1382,13 +1189,7 @@ namespace tca {
         SetSection(slc, pfp, tp3d);
       } // bad SFIndex
     } // tp3d
-<<<<<<< HEAD
-    
     pfp.Flags[kNeedsUpdate] = false;
-=======
-
-    pfp.NeedsUpdate = false;
->>>>>>> develop
     return true;
   } // Update
 
@@ -1720,7 +1521,7 @@ namespace tca {
 /////////////////////////////////////////
   SectionFit FitTP3Ds(TCSlice& slc, const std::vector<TP3D>& tp3ds, unsigned short fromPt, short fitDir, unsigned short nPtsFit)
   {
-<<<<<<< HEAD
+//<<<<<<< HEAD
     // fits the points and returns the fit results in a SectionFit struct. This function assumes that the
     // vector of TP3Ds exists in the slc.TPCID
     
@@ -1731,16 +1532,6 @@ namespace tca {
     if(fitDir ==  1 && fromPt + nPtsFit >tp3ds.size()) return sf;
     if(fitDir == -1 && fromPt < 3) return sf;
     
-=======
-    // Fit those points in the pfp.TP3Ds vector references by tpList to a line. This function returns chiDOF but
-    // doesn't update the TP3Ds unless sfIndex refers to a valid SectionFit in the pfp.
-    // No check is made to ensure that the TP3D SFIndex variable is compatible with sfIndex
-
-    chiDOF = 999;
-    if(nptsAll < 5) return false;
-    if(fromPt + nptsAll > pfp.TP3Ds.size()) return false;
-
->>>>>>> develop
     // put the offset, cosine-like and sine-like components in a vector
     std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -1778,19 +1569,10 @@ namespace tca {
     if(enufInPlane < 2) return sf;
 
     x0 /= (double)npts;
-<<<<<<< HEAD
-        
-    TMatrixD A(npts, nvars);
-    // vector holding the Wire number
-    TVectorD w(npts);
-        
-=======
 
     TMatrixD A(npts, nvars);
     // vector holding the Wire number
     TVectorD w(npts);
-
->>>>>>> develop
     unsigned short cnt = 0;
     double weight = 1;
     for(short ii = 0; ii < nPtsFit; ++ii) {
@@ -1816,11 +1598,6 @@ namespace tca {
     // TODO: The direction is reversed for some reason
     norm *= -1;
 
-<<<<<<< HEAD
-=======
-    // make a local SectionFit
-    SectionFit sf;
->>>>>>> develop
     sf.Dir[0] = 1 / norm;
     sf.Dir[1] = tVec[2] / norm;
     sf.Dir[2] = tVec[3] / norm;
@@ -1934,7 +1711,7 @@ namespace tca {
     pfp.SectionFits[sfIndex].NeedsUpdate = false;
     return true;
 
-<<<<<<< HEAD
+//<<<<<<< HEAD
   } // FitTP3Ds
 
   /////////////////////////////////////////
@@ -2051,6 +1828,8 @@ namespace tca {
     if(p2.SectionFits.size() != 1 || !p2.TP3Ds.empty()) return false;    
     // ensure that p1 is updated
     if(p1.Flags[kNeedsUpdate] && !Update(slc, p1, prt)) return false;
+    std::cout<<"Split is fubar\n";
+/*
     // determine if the TP -> P assn has been made
     bool doTPAssns = false;
     auto& tp3d0 = p1.TP3Ds[0];
@@ -2066,15 +1845,15 @@ namespace tca {
     p1.TjIDs.clear();
     for(auto& tp3d : p1.TP3Ds) {
       if(std::find(p1.TjIDs.begin(), p1.TjIDs.end(), tp3d.TjID) == p1.TjIDs.end()) p1.TjIDs.push_back(tp3d.TjID);
-=======
+//=======
     sf.ChiDOF /= (float)(npts - 4);
 
     // update the SectionFit
     if(doUpdate) {
       pfp.SectionFits[sfIndex] = sf;
       pfp.SectionFits[sfIndex].NeedsUpdate = false;
->>>>>>> develop
-    }
+//>>>>>>> develop
+    } // doUpdate
     if(!ReSection(slc, p1, prt)) return false;
     if(!ReSection(slc, p2, prt)) return false;
     // Correct the TP -> P2 assn 
@@ -2087,16 +1866,17 @@ namespace tca {
         }
         tp.InPFP = p2.ID;
       } // tp3d
-    }
+    } // doTPAssns
     mf::LogVerbatim("TC")<<"Split: P"<<p1.ID<<" -> P"<<p2.ID;
     return true;
 <<<<<<< HEAD
-    
+*/
+    return false;
   } // Split
-=======
+//=======
 
-  } // FitTP3Ds
->>>>>>> develop
+//  } // FitTP3Ds
+//>>>>>>> develop
 
   /////////////////////////////////////////
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt)
@@ -2111,15 +1891,9 @@ namespace tca {
 
     if(tcc.vtx3DCuts.size() < 3) return;
     if(pfp.TP3Ds.empty()) return;
-<<<<<<< HEAD
     if(pfp.Flags[kJunk3D]) return;
     
     // first make a list of all Tjs 
-=======
-    if(pfp.IsJunk) return;
-
-    // first make a list of all Tjs
->>>>>>> develop
     std::vector<int> tjList;
     for(auto& tp3d : pfp.TP3Ds) {
       if(!tp3d.IsGood) continue;
@@ -2206,20 +1980,10 @@ namespace tca {
     // don't trim shower-like pfps
 //    if(IsShowerLike(slc, pfp.TjIDs)) return;
     if(pfp.Flags[kJunk3D]) return;
-    // don't trim if the pfp failed in ReSection
-<<<<<<< HEAD
-//    if(!pfp.Flags[kCanSection]) return;
     
     auto pWork = pfp;
     
     pWork.Flags[kNeedsUpdate] = false;
-=======
-//    if(!pfp.CanSection) return;
-
-    auto pWork = pfp;
-
-    pWork.NeedsUpdate = false;
->>>>>>> develop
     for(unsigned short nit = 0; nit < 2; ++nit) {
       // create a vector of valid points
       std::vector<bool> validPt(pWork.TP3Ds.size(), true);
@@ -2298,20 +2062,13 @@ namespace tca {
     if(pfp.TP3Ds.empty()) return;
     if(pfp.SectionFits.empty()) return;
     if(!tcc.useAlg[kFillGaps3D]) return;
-<<<<<<< HEAD
     if(pfp.Flags[kJunk3D]) return;
     
     // Only print APIR details if MVI is set
-=======
-    if(pfp.IsJunk) return;
-
-    // Only print APIR debug if MVI is set
->>>>>>> develop
     bool foundMVI = (tcc.dbgPFP && pfp.MVI == debug.MVI);
 
     // make a copy in case something goes wrong
     auto pWork = pfp;
-<<<<<<< HEAD
     
     if(tcc.useAlg[kTCWork2]) {
       unsigned short nPtsAdded = 0;
@@ -2333,9 +2090,6 @@ namespace tca {
       return;
     } // TCWork2
     
-=======
-
->>>>>>> develop
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
       // check the start
@@ -2359,15 +2113,11 @@ namespace tca {
         AddPointsInRange(slc, pWork, fromPt, toPt, inCTP, tcc.match3DCuts[4], nWires, nAdd, foundMVI);
       }
     } // plane
-<<<<<<< HEAD
         
     if(pWork.Flags[kNeedsUpdate] && !Update(slc, pWork, prt)) {
       mf::LogVerbatim("TC")<<"  Update failed after adding points. Restored P"<<pfp.ID;
       return;
     }
-=======
-
->>>>>>> develop
     pfp = pWork;
 
   } // FillGaps3D
@@ -2413,18 +2163,13 @@ namespace tca {
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt)
   {
     // Try to insert 2D trajectory points into the 3D trajectory point vector pfp.TP3Ds.
-<<<<<<< HEAD
     // This function inserts new TP3Ds and sets the NeedsUpdate flags true. 
-=======
-    // This function inserts new TP3Ds and sets the NeedsUpdate flags true.
->>>>>>> develop
     // The calling function should call Update
     // Note that maxPull is used for the charge pull as well as the position pull
     nWires = 0;
     nAdd = 0;
     if(fromPt > toPt) return;
     if(toPt >= pfp.TP3Ds.size()) toPt = pfp.TP3Ds.size() - 1;
-<<<<<<< HEAD
     
     // Find the average dE/dx so we can apply a generous min/max dE/dx cut
     float dEdXAve = 0;
@@ -2436,8 +2181,8 @@ namespace tca {
       if(dEdxMin < 0.5) dEdxMin = 0.5;
       dEdxMax = dEdXAve + maxPull * dEdXRms;
       if(dEdxMax > 50.) dEdxMax = 50.;
-=======
-
+    } // dEdXAve > 0.5
+/*
     // Make a TP in this plane using the fromPt 3D position. This code assumes that the
     // fromPt and toPt 3D positions are in the same section or alternatively that the
     // fits aren't too dissimilar if they are in different sections. We will move this
@@ -2457,7 +2202,8 @@ namespace tca {
       std::swap(tp, toTP);
 >>>>>>> develop
     }
-//    if(prt) std::cout<<"APIR: dEdxAve "<<dEdXAve<<" fractional rms "<<dEdXRms/dEdXAve<<"\n";
+*/
+    //    if(prt) std::cout<<"APIR: dEdxAve "<<dEdXAve<<" fractional rms "<<dEdXRms/dEdXAve<<"\n";
     
     // Split the range into sub-ranges; one for each SectionFit and make 2D TPs at the
     // start of each sub-range. 
@@ -2641,13 +2387,6 @@ namespace tca {
       if(indx[ipt] != indx[ipt - 1] + 1) {
         contiguous = false;
         std::cout<<"SortSection: MVI "<<pfp.MVI<<" Points aren't contiguous in sfi "<<sfIndex<< " ipt "<<ipt<<". print and quit\n";
-<<<<<<< HEAD
-=======
-        for(std::size_t ipt = 1; ipt < pfp.TP3Ds.size(); ++ipt) {
-          auto& tp3d = pfp.TP3Ds[ipt];
-          std::cout<<ipt<<" sfi "<<tp3d.SFIndex<<" along "<<tp3d.along<<" good? "<<tp3d.IsGood<<"\n";
-        } // tp3d
->>>>>>> develop
       } // not contiguous
     } // ipt
     if(!contiguous) {
@@ -3294,28 +3033,8 @@ namespace tca {
     } else {
       pos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
     }
-<<<<<<< HEAD
-
-    if(evt.spcChg && evt.spcChg->EnableCorrSCE()) {
-      const spacecharge::SpaceCharge* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
-      if(!sce) std::cout<<"sce is not defined\n";
-      // make a space charge correction
-      geo::Point_t tmp(pos[0], pos[1], pos[2]);
-      std::cout<<"tmp "<<tmp.X()<<" "<<tmp.Y()<<" "<<tmp.Z()<<"\n";
-//      auto posOffsets = evt.spcChg->GetPosOffsets(geo::Point_t(pos[0], pos[1], pos[2]));
-      geo::Point_t posOffsets {0, 0, 0};
-      if(sce && sce->EnableCorrSCE()) posOffsets = sce->GetPosOffsets(tmp);
-      posOffsets.SetX(-posOffsets.X());
-      std::cout<<"IFV SCE offsets "<<posOffsets.X()<<" "<<posOffsets.Y()<<" "<<posOffsets.Z()<<"\n";
-      pos[0] += posOffsets.X();
-      pos[1] += posOffsets.Y();
-      pos[2] += posOffsets.Z();
-    }
-
-    return (pos[0] > slc.xLo + abit && pos[0] < slc.xHi - abit && 
-=======
+    
     return (pos[0] > slc.xLo + abit && pos[0] < slc.xHi - abit &&
->>>>>>> develop
             pos[1] > slc.yLo + abit && pos[1] < slc.yHi - abit &&
             pos[2] > slc.zLo + abit && pos[2] < slc.zHi - abit);
 
@@ -3728,8 +3447,6 @@ namespace tca {
         auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
         myprt<<" "<<SignalAtTp(tp);
       } // plane
-<<<<<<< HEAD
-      
       double dang = -1, dangSig = -1;
       KinkFit(slc, pfp, ipt, tcc.kinkCuts[4], dang, dangSig);
       myprt<<std::setw(7)<<std::setprecision(3)<<dang;
@@ -3742,9 +3459,6 @@ namespace tca {
       } else {
         myprt<<" UNDEFINED";
       }
-=======
-
->>>>>>> develop
       unsigned int mcpIndex = FindMCPIndex(slc, tp3d);
       if(mcpIndex != UINT_MAX) myprt<<" "<<mcpIndex;
       myprt<<"\n";

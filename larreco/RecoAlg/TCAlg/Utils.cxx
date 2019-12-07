@@ -5171,11 +5171,6 @@ namespace tca {
     std::cout<<" Slice=";
     if(debug.Slice == -1) { std::cout<<"All"; } else { std::cout<<debug.Slice; }
     std::cout<<"\n";
-    if(evt.spcChg) {
-      std::cout<<"SpaceChargeService enabled? "<<evt.spcChg->EnableCorrSCE()<<"\n";
-    } else {
-      std::cout<<"SpaceChargeService not defined\n";
-    }
     std::cout<<"*** tcc.dbg modes:";
     if(tcc.dbgSlc) std::cout<<" dbgSlc";
     if(tcc.dbgStp) std::cout<<" dbgStp";

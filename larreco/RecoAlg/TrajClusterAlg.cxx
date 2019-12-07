@@ -250,7 +250,6 @@ namespace tca {
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
-    evt.spcChg = lar::providerFrom<spacecharge::SpaceChargeService>();
     evt.WorkID = 0;
     evt.globalT_UID = 0;
     evt.global2V_UID = 0;
