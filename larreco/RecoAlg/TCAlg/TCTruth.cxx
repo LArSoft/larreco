@@ -168,8 +168,8 @@ namespace tca {
             if(pdg == 321) particleName = "Kaon";
             if(pdg == 2212) particleName = "Proton";
             mf::LogVerbatim myprt("TC");
-            myprt<<"BadT"<<tj.ID<<" TU"<<tj.UID<<" tpc "<<tpc;
-            myprt<<" pln "<<plane<<" slice index "<<slcIndex.first;
+            myprt<<"badT"<<tj.ID<<" TU"<<tj.UID<<" tpc "<<tpc;
+            myprt<<" slice index "<<slcIndex.first;
             myprt<<" -> mcp "<<tj.mcpIndex<<" with mCnt = "<<(int)mCnt[indx].second;
             myprt<<" "<<particleName<<" T = "<<(int)TMeV<<" MeV";
             myprt<<" EP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
@@ -187,9 +187,11 @@ namespace tca {
               lastHit = iht;
             } // iht
             auto& fhit = (*evt.allHits)[firstHit];
-            myprt<<" Hit range "<<fhit.WireID().Wire<<":"<<(int)fhit.PeakTime();
+            myprt<<" Hit range "<<fhit.WireID().Plane<<":"<<fhit.WireID().Wire<<":"<<(int)fhit.PeakTime();
             auto& lhit = (*evt.allHits)[lastHit];
-            myprt<<" - "<<lhit.WireID().Wire<<":"<<(int)lhit.PeakTime();
+            myprt<<" - "<<lhit.WireID().Plane<<":"<<lhit.WireID().Wire<<":"<<(int)lhit.PeakTime();
+            myprt<<" evts Processed "<<evt.eventsProcessed;
+            myprt<<" Evt "<<evt.event;
           } // Poor EP
         } // indx
       } // plane
@@ -337,49 +339,30 @@ namespace tca {
       if(pdgIndex == 3) myprt<<" K";
       if(pdgIndex == 4) myprt<<" P";
       float ave = EPTSums[pdgIndex] / (float)TSums[pdgIndex];
-      myprt<<" "<<std::fixed<<std::setprecision(2)<<ave;
-//      myprt<<" "<<EPCnts[pdgIndex];
+      myprt<<" "<<std::fixed<<std::setprecision(3)<<ave;
       if(pdgIndex > 0) {
         sum  += TSums[pdgIndex];
         sumt += EPTSums[pdgIndex];
       }
     } // pdgIndex
-    if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
+    if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(3)<<sumt / sum;
     myprt<<" nBadT "<<(int)nBadT;
     if(MCP_TSum > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
-      myprt<<" MCP cnt "<<(int)MCP_Cnt<<" PFP EP "<<std::fixed<<std::setprecision(2)<<ep;
+      myprt<<" MCP cnt "<<(int)MCP_Cnt<<" PFP EP "<<std::fixed<<std::setprecision(3)<<ep;
     }
-    if(tcc.useAlg[kTCWork2]) { myprt<<" +TCWork2"; } else { myprt<<" -TCWork2"; }
+    if(tcc.useAlg[kGKv2]) { myprt<<" +GKv2"; } else { myprt<<" -GKv2"; }
     if(tcc.match3DCuts[0] > 0) { myprt<<" +Mat3D"; } else { myprt<<" -Mat3D"; }
-    // Count of hits used in reconstruction + matched to MCParticles
-    float nhit = 0;
-    float nrec = 0;
-    float nmat = 0;
-    float nmatrec = 0;
-    for(auto& slc : slices) {
-      nhit += slc.slHits.size();
-      for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
-        if(slc.slHits[iht].InTraj > 0) ++nrec;
-        unsigned int ahi = slc.slHits[iht].allHitsIndex;
-        if(evt.allHitsMCPIndex[ahi] != UINT_MAX) {
-          ++nmat;
-          if(slc.slHits[iht].InTraj > 0) ++nmatrec;
-        }
-      } // iht
-    } // slc
-//    std::cout<<"MT: nhits "<<(int)nhit;
-    if(nhit > 0) {
-//      std::cout<<" MC matched "<<nmat/nhit;
-//      std::cout<<" reconstructed "<<nrec/nhit;
-//      std::cout<<" MC matched && reconstructed "<<nmatrec/nhit;
-      myprt<<std::fixed<<std::setprecision(3);
-      myprt<<" "<<nmatrec/nhit<<" (MC matched && used hits)/("<<(int)nhit<<" hits) ";
-    }
-//    std::cout<<"\n";
-//    myprt<<" nBadP "<<(int)nBadP;
-
+    myprt<<" MCP Cnt:";
+    for(unsigned short pdgIndex = 0; pdgIndex < TSums.size(); ++pdgIndex) {
+      if(pdgIndex == 0) myprt<<" El";
+      if(pdgIndex == 1) myprt<<" Mu";
+      if(pdgIndex == 2) myprt<<" Pi";
+      if(pdgIndex == 3) myprt<<" K";
+      if(pdgIndex == 4) myprt<<" P";
+      myprt<<" "<<EPCnts[pdgIndex];
+    } // pdgIndex
   } // PrintResults
 
 /* This code was used to develop the TMVA showerParentReader. The MakeCheatShower function needs

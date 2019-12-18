@@ -60,6 +60,7 @@ namespace cluster {
 
 
     tca::TrajClusterAlg fTCAlg; // define TrajClusterAlg object
+    tca::TruthMatcher fTM;
     TTree* showertree;
     void GetHits(const std::vector<recob::Hit>& inputHits,
                  const geo::TPCID& tpcid, std::vector<std::vector<unsigned int>>& tpcHits);
@@ -194,6 +195,7 @@ namespace cluster {
 
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg.DefineShTree(showertree);
+    fTM.Initialize();
 //    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
 //    fTCAlg.DefineCRTree(crtree);
   }
@@ -275,10 +277,10 @@ namespace cluster {
         } // iht
       } // isp
     } // fSpacePointModuleLabel specified
-    
+
     // load MCParticles?
     if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0) FillMCPList(evt, fHitTruthModuleLabel, inputHits);
-    
+
     if(nInputHits > 0) {
       auto const* geom = lar::providerFrom<geo::Geometry>();
       for(const auto& tpcid : geom->IterateTPCIDs()) {
@@ -301,6 +303,7 @@ namespace cluster {
         if(sltpcHits.empty()) continue;
         for(unsigned short isl = 0; isl < sltpcHits.size(); ++isl) {
           auto& tpcHits = sltpcHits[isl];
+          // only reconstruct slices with MC-matched hits?
           // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
           // This assumes that hits with larger LocalIndex are at larger Tick.
           std::vector<HitLoc> sortVec(tpcHits.size());
@@ -341,7 +344,7 @@ namespace cluster {
         } // isl
       } // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
-      fTCAlg.FinishEvent();
+      fTCAlg.FinishEvent(fTM);
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // nInputHits > 0
 
@@ -832,16 +835,19 @@ namespace cluster {
                             const geo::TPCID& tpcid, 
                             std::vector<std::vector<unsigned int>>& tpcHits)
   {
-    // Put hits in this TPC into a single "slice"
+    // Put hits in this TPC into a single "slice", unless a special debugging mode is specified to
+    // only reconstruct hits that are MC-matched
+    bool recoOnlyMCMatchedHits = false;
+    if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0 && !tca::evt.allHitsMCPIndex.empty()) recoOnlyMCMatchedHits = true;
     unsigned int tpc = tpcid.TPC;
     tpcHits.resize(1);
-    for(unsigned int iht = 0; iht < inputHits.size(); ++iht) {
+    for(size_t iht = 0; iht < inputHits.size(); ++iht) {
+      if(recoOnlyMCMatchedHits && tca::evt.allHitsMCPIndex[iht] == UINT_MAX) continue;
       auto& hit = inputHits[iht];
       if(hit.WireID().TPC == tpc) tpcHits[0].push_back(iht);
     }
   } // GetHits
 
-  
   ////////////////////////////////////////////////
   void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits, 
                             const geo::TPCID& tpcid,
@@ -894,8 +900,6 @@ namespace cluster {
     simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
     // or save them all
     bool anySource = (origin == simb::kUnknown);
-    // only reconstruct slices that have hits matched to the desired MC origin?
-//    if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
     // get the assns
     art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -903,10 +907,12 @@ namespace cluster {
     unsigned int indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       auto& p = (*ipart).second;
+      // don't print non-physical particles
+      if(p->PdgCode() > 3000) continue;
       int trackID = p->TrackId();
       const art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       int KE = 1000 * (p->E() - p->Mass());
-//      if(!anySource && theTruth->Origin() != origin) continue;
+      if(!anySource && theTruth->Origin() != origin) continue;
       if(tca::tcc.matchTruth[1] > 1 && KE > 1) {
         std::cout<<"TCM: indx "<<indx<<" TrackId "<<trackID<<" Origin "<<theTruth->Origin()
         <<" pdg "<<p->PdgCode()
@@ -918,7 +924,7 @@ namespace cluster {
     } // ipart
     std::vector<art::Ptr<simb::MCParticle>> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-    for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+    for(size_t iht = 0; iht < (*inputHits).size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
       try{ particles_per_hit.get(iht, particle_vec, match_vec); }
       catch(...) {

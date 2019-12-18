@@ -26,22 +26,17 @@ namespace tca {
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
   void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
-  void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
-  void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
 //  void FindHamBragg(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
   void Reconcile2Vs(TCSlice& slc);
   bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt);
-  void F3Vs(TCSlice& slc);
+//  void F3Vs(TCSlice& slc);
   void Find3DVertices(TCSlice& slc);
   void CompleteIncomplete3DVertices(TCSlice& slc);
-//  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
-  // Improve hit assignments near vertex
-  void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP);
-
+  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp);
   bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt);
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt);

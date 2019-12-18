@@ -260,7 +260,7 @@ namespace tca {
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
     
-    if(tcc.modes[kDebug]) PrintDebugMode();
+    if(tcc.modes[kDebug] && evt.eventsProcessed == 0) PrintDebugMode();
     
     return AnalyzeHits();
   } // SetInputHits
@@ -316,7 +316,7 @@ namespace tca {
     Find3DVertices(slc);
     // Look for incomplete 3D vertices that won't be recovered because there are
     // missing trajectories in a plane
-    FindMissedVxTjs(slc);
+//    FindMissedVxTjs(slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
     // TODO: decide how to print debug output
@@ -504,13 +504,6 @@ namespace tca {
               if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: StartTraj failed";
               continue;
             }
-            // check for a large angle crawl
-            // BB This check should be made after more points are added
-            if(!tcc.useAlg[kTCWork2] && work.Pts[0].AngleCode > tcc.maxAngleCode[work.Pass]) {
-              if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: Wrong angle code "<<work.Pts[0].AngleCode<<" for this pass "<<work.Pass;
-              ReleaseHits(slc, work);
-              continue;
-            }
             work.Pts[0].DeltaRMS = tcc.hitErrFac * tcc.unitsPerTick * hitsRMSTick;
             // don't include the charge of iht since it will be low if this
             // is a starting/ending track
@@ -666,7 +659,6 @@ namespace tca {
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
     Find2DVertices(slc, inCTP, USHRT_MAX);
-    SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
     // check for a major failure
@@ -695,7 +687,7 @@ namespace tca {
     }
 
     // TY: Improve hit assignments near vertex
-    VtxHitsSwap(slc, inCTP);
+//    VtxHitsSwap(slc, inCTP);
 
   } // ReconstructAllTraj
 
@@ -894,15 +886,13 @@ namespace tca {
     } // tj
 
   } // ChkInTraj
-
+/*
   //////////////////////////////////////////
   void TrajClusterAlg::FindMissedVxTjs(TCSlice& slc)
   {
     // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
 
     if(!tcc.useAlg[kMisdVxTj]) return;
-    // try to do without this function
-    if(tcc.useAlg[kTCWork2]) return;
 
     bool prt = (tcc.dbgStp || tcc.dbg3V || tcc.dbgAlg[kMisdVxTj]);
 
@@ -958,7 +948,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane;
     } // iv3
   } // FindMissedVxTjs
-
+*/
   //////////////////////////////////////////
   void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
                                    std::vector<unsigned int>& newHitAssns) const
@@ -1241,7 +1231,7 @@ namespace tca {
   } // CreateSlice
 
   /////////////////////////////////////////
-  void TrajClusterAlg::FinishEvent()
+  void TrajClusterAlg::FinishEvent(TruthMatcher& tm)
   {
     // final steps that involve correlations between slices
     // Stitch PFParticles between TPCs
@@ -1268,7 +1258,6 @@ namespace tca {
     
     // Match to truth before stitching between TPCs
     if(evt.mcpHandle) {
-      TruthMatcher tm;
       tm.MatchTruth();
       if(tcc.matchTruth[0] >= 0) tm.PrintResults(evt.event);
     }

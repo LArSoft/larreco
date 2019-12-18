@@ -394,6 +394,7 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kFillGaps3D,  // 3D algorithms for PFPs (bitset size limited to 8 bits)
+    kGKv2,
     kKink3D,
     kTEP3D,
     kJunk3D,
@@ -419,6 +420,7 @@ namespace tca {
     kMerge,
     kLastEndMerge,
     kTEP,
+    kTHCEP,
     kCHMEH,
     kFillGaps,
     kUseGhostHits,
@@ -433,7 +435,6 @@ namespace tca {
     kUUH,
     kVtxTj,
     kChkVxTj,
-    kMisdVxTj,
     kPhoton,
     kHaloTj,
     kNoFitToVx,
@@ -462,7 +463,6 @@ namespace tca {
     kMakePFPTjs,
     kStopShort,
     kReconcile2Vs,
-    kTCWork2,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
 

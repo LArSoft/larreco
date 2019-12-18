@@ -70,7 +70,7 @@ namespace tca {
   bool StopIfBadFits(TCSlice& slc, Trajectory& tj);
   // Does a local fit of just-added TPs to identify a kink while stepping.
   // Truncates the vector and returns true if one is found.
-  void GottaKink_v2(TCSlice& slc, Trajectory& tj, unsigned short& killPts);
+  bool GottaKink_v2(TCSlice& slc, Trajectory& tj, bool doTrim);
   void GottaKink(TCSlice& slc, Trajectory& tj, unsigned short& killPts);
   // Update the parameters at the start of the trajectory
   void CheckStart(TCSlice& slc, Trajectory& tj);

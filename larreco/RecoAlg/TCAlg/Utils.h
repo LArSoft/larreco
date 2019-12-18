@@ -61,6 +61,7 @@ namespace tca {
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
+  void TrimHiChgEndPts(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
   bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction);
@@ -204,7 +205,7 @@ namespace tca {
   void PrintDebugMode();
   void PrintAll(std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
-  void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
+  void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3, bool& printHeader);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader);
   void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
@@ -212,6 +213,7 @@ namespace tca {
   void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintTPHeader(std::string someText);
   void PrintTP(std::string someText, const TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, const TrajPoint& tp);
+  std::string TPEnvString(const TrajPoint& tp);
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader);
   void PrintPFPs(std::string someText, TCSlice& slc);
   // Print clusters after calling MakeAllTrajClusters

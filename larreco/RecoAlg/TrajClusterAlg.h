@@ -50,7 +50,7 @@ namespace tca {
     void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
-    void FinishEvent();
+    void FinishEvent(TruthMatcher& tm);
 
 
     void DefineShTree(TTree* t);
@@ -89,7 +89,6 @@ namespace tca {
     void FindJunkTraj(TCSlice& slc, CTP_t inCTP);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText, TCSlice& slc);
-    void FindMissedVxTjs(TCSlice& slc);
 
   }; // class TrajClusterAlg
 

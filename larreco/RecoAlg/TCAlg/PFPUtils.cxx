@@ -301,8 +301,8 @@ void FindPFParticles(TCSlice& slc)
       }
       // fit all the points to get the general direction
       if(!FitSection(slc, pfpVec[0], 0)) continue;
-      if(pfpVec[0].SectionFits[0].ChiDOF > 200) {
-//        std::cout<<"Found a crazy high ChiDOF P"<<pfpVec[0].ID<<" "<<pfpVec[0].SectionFits[0].ChiDOF<<"\n";
+      if(pfpVec[0].SectionFits[0].ChiDOF > 500) {
+        if(foundMVI) mf::LogVerbatim("TC")<<" crazy high ChiDOF P"<<pfpVec[0].ID<<" "<<pfpVec[0].SectionFits[0].ChiDOF<<"\n";
         continue;
       }
       // sort the points by the distance along the general direction vector
@@ -424,18 +424,6 @@ void FindPFParticles(TCSlice& slc)
           success = false;
           break;
         }
-        // Oct30, 2019. It seems like a bad idea to reject a tj match combination if only
-        // a few TPs were matched prior to this point. 
-        if(!tcc.useAlg[kTCWork2]) {
-          // clobber later entries that have these Tjs
-          for(unsigned short jndx = indx + 1; jndx < matVec.size(); ++jndx) {
-            for(auto tid : pfp.TjIDs) {
-              auto& jms = matVec[jndx];
-              if(jms.Count <= 0) continue;
-              if(std::find(jms.TjIDs.begin(), jms.TjIDs.end(), tid) != jms.TjIDs.end()) jms.Count = 0;
-            } // tid
-          } // jndx        
-        } // !tcc.useAlg[kTCWork2]
         if(!success) {
           std::cout<<"MPFP: Failed to split and store PFPs. Write some recovery code\n";
         }
@@ -1211,7 +1199,9 @@ void FindPFParticles(TCSlice& slc)
 
     prt = (pfp.MVI == debug.MVI);
 
-    constexpr float chiLow = 0.5;
+    // try to keep ChiDOF between chiLo and chiHi
+    float chiLo = 0.5 * tcc.match3DCuts[5];
+    float chiHi = 1.5 * tcc.match3DCuts[5];
 
     // clobber the old sections if more than one exists
     if(pfp.SectionFits.size() > 1) {
@@ -1263,13 +1253,17 @@ void FindPFParticles(TCSlice& slc)
         // Decide how many points to add or subtract after doing the fit
         unsigned short nPtsNext = nPts;
         if(!FitTP3Ds(slc, pfp, fromPt, nPts, USHRT_MAX, chiDOF)) {
-//          std::cout<<"RS: MVI "<<pfp.MVI<<" sfi/nit/npts "<<sfIndex<<"/"<<nit<<"/"<<nPts<<" fit failed\n";
           nPtsNext += 1.5 * nPtsToAdd;
-        } else if(chiDOF < chiLow) {
+        } else if(chiDOF < chiLo) {
           // low chiDOF
-          nPtsNext += nPtsToAdd;
+          if(nHiChi > 2) {
+            // declare it close enough if several attempts were made
+            nPtsNext = 0;
+          } else {
+            nPtsNext += nPtsToAdd;
+          } // nHiChi < 2
           nHiChi = 0;
-        } else if(chiDOF > tcc.match3DCuts[5]) {
+        } else if(chiDOF > chiHi) {
           // high chiDOF
           ++nHiChi;
           if(nHiChi == 1 && chiDOFPrev > tcc.match3DCuts[5]) {
@@ -1296,7 +1290,9 @@ void FindPFParticles(TCSlice& slc)
           myprt<<" RS: P"<<pfp.ID<<" sfi/nit/npts "<<sfIndex<<"/"<<nit<<"/"<<nPts;
           myprt<<std::fixed<<std::setprecision(1)<<" chiDOF "<<chiDOF;
           myprt<<" fromPt "<<fromPt;
-          myprt<<" nPtsNext "<<nPtsNext<<" lastSection? "<<lastSection;
+          myprt<<" nPtsNext "<<nPtsNext;
+          myprt<<" nHiChi "<<nHiChi;
+          myprt<<" lastSection? "<<lastSection;
         }
         if(nPtsNext == 0) break;
         // see if this is the last section
@@ -2070,26 +2066,21 @@ void FindPFParticles(TCSlice& slc)
     // make a copy in case something goes wrong
     auto pWork = pfp;
     
-    if(tcc.useAlg[kTCWork2]) {
-      unsigned short nPtsAdded = 0;
-      unsigned short fromPt = 0;
-      unsigned short toPt = pWork.TP3Ds.size();
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
-        unsigned short nWires, nAdd;
-        AddPointsInRange(slc, pWork, fromPt, toPt, inCTP, tcc.match3DCuts[4], nWires, nAdd, foundMVI);
-        if(pWork.Flags[kNeedsUpdate]) Update(slc, pWork, prt);
-        nPtsAdded += nAdd;
-      } // plane
-      if(prt) mf::LogVerbatim("TC")<<"FG3D P"<<pWork.ID<<" added "<<nPtsAdded<<" points";
-      if(pWork.Flags[kNeedsUpdate] && !Update(slc, pWork, prt)) {
-//        mf::LogVerbatim("TC")<<"  Update failed after adding points. Restored P"<<pfp.ID;
-        return;
-      }
-      pfp = pWork;
-      return;
-    } // TCWork2
-    
+    unsigned short nPtsAdded = 0;
+    unsigned short fromPt = 0;
+    unsigned short toPt = pWork.TP3Ds.size();
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
+      unsigned short nWires, nAdd;
+      AddPointsInRange(slc, pWork, fromPt, toPt, inCTP, tcc.match3DCuts[4], nWires, nAdd, foundMVI);
+      if(pWork.Flags[kNeedsUpdate]) Update(slc, pWork, prt);
+      nPtsAdded += nAdd;
+    } // plane
+    if(prt) mf::LogVerbatim("TC")<<"FG3D P"<<pWork.ID<<" added "<<nPtsAdded<<" points";
+    if(pWork.Flags[kNeedsUpdate] && !Update(slc, pWork, prt)) return;
+    pfp = pWork;
+    return;
+/*
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
       // check the start
@@ -2119,7 +2110,7 @@ void FindPFParticles(TCSlice& slc)
       return;
     }
     pfp = pWork;
-
+*/
   } // FillGaps3D
 
   /////////////////////////////////////////
@@ -2182,75 +2173,64 @@ void FindPFParticles(TCSlice& slc)
       dEdxMax = dEdXAve + maxPull * dEdXRms;
       if(dEdxMax > 50.) dEdxMax = 50.;
     } // dEdXAve > 0.5
-/*
-    // Make a TP in this plane using the fromPt 3D position. This code assumes that the
-    // fromPt and toPt 3D positions are in the same section or alternatively that the
-    // fits aren't too dissimilar if they are in different sections. We will move this
-    // tp along the trajectory direction in this CTP
-    auto tp = MakeBareTP(slc, pfp.TP3Ds[fromPt].Pos, pfp.TP3Ds[fromPt].Dir, inCTP);
-    unsigned short plane = DecodeCTP(inCTP).Plane;
-    if(tp.Pos[0] < 0.) MoveTPToWire(tp, 0.);
-    if(tp.Pos[0] > slc.nWires[plane]) MoveTPToWire(tp, (float)slc.nWires[plane]);
-    // and another using the toPt 3D position
-    auto toTP = MakeBareTP(slc, pfp.TP3Ds[toPt].Pos, pfp.TP3Ds[toPt].Dir, inCTP);
-    if(toTP.Pos[0] < 0.) MoveTPToWire(toTP, 0.);
-    if(toTP.Pos[0] > slc.nWires[plane]) MoveTPToWire(toTP, (float)slc.nWires[plane]);
-    // We now have two 2D points that may have been found using 3D -> 2D positions, perhaps in
-    // different Sections. Use fromTP which has direction information to decide which wires
-    // to consider
-    if(toTP.Pos[0] < tp.Pos[0]) {
-      std::swap(tp, toTP);
->>>>>>> develop
-    }
-*/
-    //    if(prt) std::cout<<"APIR: dEdxAve "<<dEdXAve<<" fractional rms "<<dEdXRms/dEdXAve<<"\n";
     
     // Split the range into sub-ranges; one for each SectionFit and make 2D TPs at the
     // start of each sub-range. 
     std::vector<TrajPoint> sfTPs;
-    // form a list of wires that already have TPs in this CTP
-    std::vector<unsigned int> wiresUsed;
-    unsigned int lastWire = 0;
+    // form a list of TPs that are used in this CTP
+    std::vector<std::pair<int, unsigned short>> tpUsed;
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.CTP != inCTP) continue;
+      tpUsed.push_back(std::make_pair(tp3d.TjID, tp3d.TPIndex));
+    } // tp3d
+    unsigned int toWire = 0;
+    unsigned int fromWire = UINT_MAX;
 
     unsigned short inSF = USHRT_MAX;
     unsigned short pln = DecodeCTP(inCTP).Plane;
-    for(auto& tp3d : pfp.TP3Ds) {
-      unsigned int wire = std::nearbyint(tp3d.Wire);
-      if(wire >= slc.nWires[pln]) wire = slc.nWires[pln];
+    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+      auto& tp3d = pfp.TP3Ds[ipt];
+      // Skip if not the last point and we already found a point in this SectionFit
+      if(ipt < pfp.TP3Ds.size() - 1 && tp3d.SFIndex == inSF) continue;
+      unsigned int wire;
       if(tp3d.CTP == inCTP) {
-        wiresUsed.push_back(wire);
-        if(wire > lastWire) lastWire = wire;
+        // Found the first tp3d in a new SectionFit and it is in the right CTP
+        auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+        sfTPs.push_back(tp);
+        wire = std::nearbyint(tp.Pos[0]);
+      } else {
+        // Found the first tp3d in a new SectionFit and it is in a different CTP.
+        // Make a TP in the right CTP
+        auto tp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP);
+        wire = std::nearbyint(tp.Pos[0]);
+        if(wire >= slc.nWires[pln]) break;
+        sfTPs.push_back(tp);
       }
-      if(tp3d.SFIndex == inSF) continue;
-      auto tp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP);
-      if(tp.Pos[0] < 0) return;
-      sfTPs.push_back(tp);
+      if(wire < fromWire) fromWire = wire;
+      if(wire > toWire) toWire = wire;
       inSF = tp3d.SFIndex;
     } // tp3d
+    if(sfTPs.empty()) return;
     // reverse the vector if necessary so the wires will be in increasing order
     if(sfTPs.size() > 1 && sfTPs[0].Pos[0] > sfTPs.back().Pos[0]) {
       std::reverse(sfTPs.begin(), sfTPs.end());
     }
-    // ensure the end positions are valid
-    if(sfTPs[0].Pos[0] < 0) MoveTPToWire(sfTPs[0], 0);
-    unsigned short plane = DecodeCTP(inCTP).Plane;
-    if(sfTPs.back().Pos[0] > slc.nWires[plane]) MoveTPToWire(sfTPs.back(), (float)slc.nWires[plane]);
 
     // set a generous search window in WSE units
-    float window = 5;
+    float window = 50;
+    
+    if(prt) mf::LogVerbatim("TC")<<"APIR: inCTP "<<inCTP<<" fromWire "<<fromWire<<" toWire "<<toWire;
     
     // iterate over the sub-ranges
     for(unsigned short subr = 0; subr < sfTPs.size(); ++subr) {
       auto& fromTP = sfTPs[subr];
-      unsigned int toWire = lastWire;
-      if(subr < sfTPs.size() - 1) toWire = std::nearbyint(sfTPs[subr+1].Pos[0]);
+      unsigned int toWireInSF = toWire;
+      if(subr < sfTPs.size() - 1) toWireInSF = std::nearbyint(sfTPs[subr+1].Pos[0]);
       SetAngleCode(fromTP);
       unsigned int fromWire = std::nearbyint(fromTP.Pos[0]);
-//      unsigned int toWire = std::nearbyint(toTP.Pos[0]);
       if(fromWire > toWire) continue;
-      if(prt) mf::LogVerbatim("TC")<<" inCTP "<<inCTP<<" subr "<<subr<<" fromWire "<<fromWire<<" toWire "<<toWire;
-      for(unsigned int wire = fromWire; wire < toWire; ++wire) {
-        if(std::find(wiresUsed.begin(), wiresUsed.end(), wire) != wiresUsed.end()) continue;
+      if(prt) mf::LogVerbatim("TC")<<" inCTP "<<inCTP<<" subr "<<subr<<" fromWire "<<fromWire<<" toWireInSF "<<toWireInSF;
+      for(unsigned int wire = fromWire; wire <= toWireInSF; ++wire) {
         MoveTPToWire(fromTP, (float)wire);
         if(!FindCloseHits(slc, fromTP, window, kUsedHits)) continue;
         if(fromTP.Environment[kEnvNotGoodWire]) continue;
@@ -2268,6 +2248,10 @@ void FindPFParticles(TCSlice& slc)
             if(std::find(utp.Hits.begin(), utp.Hits.end(), iht) != utp.Hits.end()) break;
           } // ipt
           if(tpIndex > utj.EndPt[1]) continue;
+          // see if it is already used in this pfp
+          std::pair<int, unsigned short> tppr = std::make_pair(utj.ID, tpIndex);
+          if(std::find(tpUsed.begin(), tpUsed.end(), tppr) != tpUsed.end()) continue;
+          tpUsed.push_back(tppr);
           auto& utp = utj.Pts[tpIndex];
           // see if it is used in a different PFP
           if(utp.InPFP > 0) continue;
@@ -2824,6 +2808,7 @@ void FindPFParticles(TCSlice& slc)
     // Ensure that all PFParticles have a start vertex. It is possible for
     // PFParticles to be attached to a 3D vertex that is later killed.
     if(!slc.isValid) return;
+    if(slc.pfps.empty()) return;
 
     for(auto& pfp : slc.pfps) {
       if(pfp.ID == 0) continue;
@@ -3363,6 +3348,7 @@ void FindPFParticles(TCSlice& slc)
     if(vote == 0 && dEdXAve > 3.0 && mcsmom > 200 && chgrms < 0.4) vote = 2212;
     // electrons have low MCSMom and large charge RMS
     if(vote == 0 && mcsmom < 50 && chgrms > 0.4) vote = 11;
+/*
     int truVote = TruePDGCodeVote(slc, pfp);
     if(vote > 0 && vote != truVote) {
       mf::LogVerbatim myprt("TC");
@@ -3373,6 +3359,7 @@ void FindPFParticles(TCSlice& slc)
       myprt<<" length "<<(int)length;
       myprt<<" -> evote "<<vote;
     }
+*/
     return vote;
   } // PDGCodeVote
 
@@ -3420,7 +3407,7 @@ void FindPFParticles(TCSlice& slc)
     } // SectionFits
     if(printPts < 0) {
       // print the head if we print all points
-      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull GB?  Path along dE/dx Signal? KnkSig T_ipt_P:W:T     MCPIndex\n";
+      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull GB?   Path  along dE/dx Signal? Knk3D  Knk2D     MCPIndex T_ipt_P:W:T\n";
     }
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
@@ -3452,15 +3439,15 @@ void FindPFParticles(TCSlice& slc)
       myprt<<std::setw(7)<<std::setprecision(3)<<dang;
       // print the 2D TP kink significance
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-      myprt<<std::setw(7)<<std::setprecision(2)<<tp.KinkSig * dang;
+      myprt<<std::setw(7)<<std::setprecision(2)<<tp.KinkSig;
+      unsigned int mcpIndex = FindMCPIndex(slc, tp3d);
+      if(mcpIndex != UINT_MAX) myprt<<std::setw(10)<<mcpIndex;
       if(tp3d.TjID > 0) {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-        myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp);
+        myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp)<<" "<<TPEnvString(tp);
       } else {
         myprt<<" UNDEFINED";
       }
-      unsigned int mcpIndex = FindMCPIndex(slc, tp3d);
-      if(mcpIndex != UINT_MAX) myprt<<" "<<mcpIndex;
       myprt<<"\n";
     } // ipt
   } // PrintTP3Ds

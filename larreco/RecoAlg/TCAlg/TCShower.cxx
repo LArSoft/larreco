@@ -3622,8 +3622,6 @@ namespace tca {
 
     if(tcc.showerTag[0] <= 0) return;
     if(slc.tjs.size() > 20000) return;
-    // evaluate different cuts
-    bool newCuts = (tcc.showerTag[0] > 2);
     float typicalChgRMS = 0.5 * (tcc.chargeCuts[1] + tcc.chargeCuts[2]);
 
     bool prt = (tcc.dbgSlc && tcc.dbg2S && inCTP == debug.CTP);
@@ -3642,23 +3640,17 @@ namespace tca {
       for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) skipit = true;
       if(skipit) continue;
       short npwc = NumPtsWithCharge(slc, tj, false);
-      if(newCuts) {
-        // evaluate different cuts
-        // Don't expect any (primary) electron to be reconstructed as a single trajectory for
-        // more than ~2 radiation lengths ~ 30 cm for uB ~ 100 wires
-        if(npwc > 100) continue;
-        // allow short Tjs.
-        if(npwc > 5) {
-          // Increase the MCSMom cut if the Tj is long and the charge RMS is high to reduce sensitivity
-          // to the fcl configuration. A primary electron may be reconstructed as one long Tj with large
-          // charge rms and possibly high MCSMom or as several nearby shorter Tjs with lower charge rms
-          float momCut = tcc.showerTag[1];
-          if(tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
-          if(tj.MCSMom > momCut) continue;
-        }
-      } else {
-        if(npwc < 3) continue;
-        if(npwc > 4 && tj.MCSMom > tcc.showerTag[1]) continue;
+      // Don't expect any (primary) electron to be reconstructed as a single trajectory for
+      // more than ~2 radiation lengths ~ 30 cm for uB ~ 100 wires
+      if(npwc > 100) continue;
+      // allow short Tjs.
+      if(npwc > 5) {
+        // Increase the MCSMom cut if the Tj is long and the charge RMS is high to reduce sensitivity
+        // to the fcl configuration. A primary electron may be reconstructed as one long Tj with large
+        // charge rms and possibly high MCSMom or as several nearby shorter Tjs with lower charge rms
+        float momCut = tcc.showerTag[1];
+        if(tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
+        if(tj.MCSMom > momCut) continue;
       }
       tjids.push_back(tj.ID);
     } // tj
@@ -3667,7 +3659,6 @@ namespace tca {
 
     for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
       Trajectory& tj1 = slc.tjs[tjids[it1] - 1];
-      float len1 = PosSep(tj1.Pts[tj1.EndPt[1]].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
       for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
         Trajectory& tj2 = slc.tjs[tjids[it2] - 1];
         unsigned short ipt1, ipt2;
@@ -3676,14 +3667,6 @@ namespace tca {
         TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, doca, false);
         if(doca == tcc.showerTag[2]) continue;
         // make tighter cuts for user-defined short Tjs
-        float len2 = PosSep(tj2.Pts[tj2.EndPt[1]].Pos, tj2.Pts[tj2.EndPt[0]].Pos);
-        if(!newCuts) {
-          if(len1 < len2 && len1 < doca) {
-            if(len1 < doca) continue;
-          } else {
-            if(len2 < doca) continue;
-          }
-        } // !newCuts
         // found a close pair. See if one of these is in an existing cluster of Tjs
         bool inlist = false;
         for(unsigned short it = 0; it < tjLists.size(); ++it) {
@@ -3710,16 +3693,25 @@ namespace tca {
     if(tjLists.empty()) return;
 
     // mark them all as ShowerLike Tjs
-    unsigned short nsh = 0;
     for(auto& tjl : tjLists) {
-      nsh += tjl.size();
+      // ignore small clusters
+      if(tjl.size() < 3) continue;
       for(auto& tjID : tjl) {
         auto& tj = slc.tjs[tjID - 1];
         tj.AlgMod[kShowerLike] = true;
       } // tjid
     } // tjl
 
-    if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs vertices in CTP "<<inCTP;
+    if(prt) {
+      unsigned short nsh = 0;
+      for(auto& tjl : tjLists) {
+        for(auto& tjID : tjl) {
+          auto& tj = slc.tjs[tjID - 1];
+          if(tj.AlgMod[kShowerLike]) ++nsh;
+        } // tjid
+      } // tjl
+      mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs vertices in CTP "<<inCTP;
+    } // prt
   } // TagShowerLike
 
   ////////////////////////////////////////////////

@@ -14,6 +14,7 @@ namespace tca {
 
   const std::vector<std::string> AlgBitNames {
     "FillGaps3D",
+    "GKv2",
     "Kink3D",
     "TEP3D",
     "Junk3D",
@@ -39,6 +40,7 @@ namespace tca {
     "Merge",
     "LastEndMerge",
     "TEP",
+    "THCEP",
     "CHMEH",
     "FillGaps",
     "UseGhostHits",
@@ -53,7 +55,6 @@ namespace tca {
     "UUH",
     "VtxTj",
     "ChkVxTj",
-    "MisdVxTj",
     "Photon",
     "HaloTj",
     "NoFitToVx",
@@ -81,8 +82,7 @@ namespace tca {
     "SplitTjCVx",
     "MakePFPTjs",
     "StopShort",
-    "Reconcile2Vs",
-    "TCWork2"
+    "Reconcile2Vs"
   };
   
   const std::vector<std::string> EndFlagNames {
