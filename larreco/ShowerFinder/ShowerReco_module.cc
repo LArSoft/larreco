@@ -644,7 +644,7 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
 
 	//std::cout << ":::::: found x,y,z vertex " << wires_cross << " " << xyz_vertex_fit[0] << " " << y << " " << z << " " << wires_cross << std::endl;
     }
-    catch(cet::exception e) {
+    catch(cet::exception const& e) {
       mf::LogWarning("ShowerReco") << "caught exception \n" << e;
       xyz_vertex_fit[1]=0;
       xyz_vertex_fit[2]=0;

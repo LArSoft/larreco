@@ -375,11 +375,6 @@ void DPRawHitFinder::produce(art::Event& evt)
         // #################################################
         const std::vector<float>& signal = range.data();
 
-        // ##########################################################
-        // ### Making an iterator for the time ticks of this wire ###
-        // ##########################################################
-        std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
-
         // ROI start time
         raw::TDCtick_t roiFirstBinTick = range.begin_index();
         MergedTimeWidVec mergedVec;

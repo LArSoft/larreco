@@ -135,7 +135,8 @@ void PlotSpacePoints::Plot3D(const std::vector<recob::SpacePoint>& pts,
       for(const recob::SpacePoint& p: pts){
         const double* xyz = p.XYZ();
 
-        double x, y;
+        double x{};
+        double y{};
         if(phase == 0){
           x = cos(ang)*xyz[1]+sin(ang)*xyz[2];
           y = xyz[0];
