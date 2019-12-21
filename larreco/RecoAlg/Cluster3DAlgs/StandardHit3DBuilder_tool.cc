@@ -62,7 +62,7 @@ struct Hit2DSetCompare
 using HitVector                   = std::vector<const reco::ClusterHit2D*>;
 using PlaneToHitVectorMap         = std::map<geo::PlaneID, HitVector>;
 using TPCToPlaneToHitVectorMap    = std::map<geo::TPCID, PlaneToHitVectorMap>;
-using Hit2DList                   = std::list<const reco::ClusterHit2D>;
+using Hit2DList                   = std::list<reco::ClusterHit2D>;
 using Hit2DSet                    = std::set<const reco::ClusterHit2D*, Hit2DSetCompare>;
 using WireToHitSetMap             = std::map<unsigned int, Hit2DSet>;
 using PlaneToWireToHitSetMap      = std::map<geo::PlaneID, WireToHitSetMap>;

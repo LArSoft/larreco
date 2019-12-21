@@ -282,11 +282,6 @@ void GausHitFinder::produce(art::Event& evt)
 
         for(const auto& range : signalROI.get_ranges())
         {
-            // ##########################################################
-            // ### Making an iterator for the time ticks of this wire ###
-            // ##########################################################
-            std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
-
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
 

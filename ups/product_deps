@@ -1,13 +1,13 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v08_24_00
+parent	larreco	v08_25_01
 defaultqual	e17
 #
 fcldir product_dir job
 fwdir  product_dir config_data
 #
 product         version
-larsim		v08_16_03
+larsim		v08_17_01
 eigen		v3_3_5
 tensorflow      v1_3_0e		-	optional
 
@@ -15,12 +15,20 @@ cetbuildtools	v7_14_00	-	only_for_build
 end_product_list
 
 qualifier     larsim         tensorflow     eigen
+e19:py3:debug e19:py3:debug  e19:py3:debug  -nq-
+e19:py3:prof  e19:py3:prof   e19:py3:prof   -nq-
+e19:debug     e19:debug      e19:debug      -nq-
+e19:prof      e19:prof       e19:prof       -nq-
 e17:py3:debug e17:py3:debug  e17:py3:debug  -nq-
 e17:py3:prof  e17:py3:prof   e17:py3:prof   -nq-
-c2:py3:debug  c2:py3:debug   c2:py3:debug   -nq-
-c2:py3:prof   c2:py3:prof    c2:py3:prof    -nq-
 e17:debug     e17:debug      e17:debug      -nq-
 e17:prof      e17:prof       e17:prof       -nq-
+c7:py3:debug  c7:py3:debug   c7:py3:debug   -nq-
+c7:py3:prof   c7:py3:prof    c7:py3:prof    -nq-
+c7:debug      c7:debug       c7:debug       -nq-
+c7:prof       c7:prof        c7:prof        -nq-
+c2:py3:debug  c2:py3:debug   c2:py3:debug   -nq-
+c2:py3:prof   c2:py3:prof    c2:py3:prof    -nq-
 c2:debug      c2:debug       c2:debug       -nq-
 c2:prof       c2:prof        c2:prof        -nq-
 end_qualifier_list

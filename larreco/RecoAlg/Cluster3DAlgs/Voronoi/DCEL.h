@@ -16,7 +16,17 @@
 #include <algorithm>
 
 // Eigen
+#ifdef __clang__
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include <Eigen/Dense>
+#ifdef __clang__
+#else
+#pragma GCC diagnostic pop
+#endif
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace reco
