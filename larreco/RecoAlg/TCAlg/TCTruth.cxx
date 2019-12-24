@@ -4,6 +4,7 @@
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+
 #include "nusimdata/SimulationBase/MCParticle.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -28,6 +29,8 @@ namespace tca {
     EPTSums.fill(0.0);
     nBadT = 0;
     nBadP = 0;
+    art::ServiceHandle<art::TFileService const> tfs;
+    hist.CreateHists(tfs);
   } // Initialize
 
   //////////////////////////////////////////
@@ -137,6 +140,7 @@ namespace tca {
           float TMeV = 1000 * (mcp.E() - mcp.Mass());
           unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
           if(pdgIndex > 4) continue;
+          hist.fTruT[pdgIndex]->Fill(TMeV);
           TSums[pdgIndex] += TMeV;
           ++EPCnts[pdgIndex];
           int pdg = abs(mcp.PdgCode());
@@ -153,7 +157,9 @@ namespace tca {
           auto tHits = PutTrajHitsInVector(tj, kUsedHits);
           float npwc = tHits.size();
           float eff = big.second / mCnt[indx].second;
+          hist.fEff_T[pdgIndex]->Fill(TMeV, eff);
           float pur = big.second / npwc;
+          hist.fPur_T[pdgIndex]->Fill(TMeV, pur);
           tj.EffPur = eff * pur;
           tj.mcpIndex = mCnt[indx].first;
           EPTSums[pdgIndex] += TMeV * tj.EffPur;
@@ -198,131 +204,7 @@ namespace tca {
     } // tpcid
   } // MatchTAndSum
 
-/* This doesn't provide any new information since MakePFPTjs makes trajectories PFParticles
   ////////////////////////////////////////////////
-  void TruthMatcher::MatchPAndSum()
-  {
-    // match pfps in all tpcs that were reconstructed and sum. This is similar to MatchTAndSum
-    // except there is no iteration over planes
-    
-    // create a list of TPCs that were reconstructed
-    std::vector<unsigned int> tpcList;
-    for(auto& slc : slices) {
-      unsigned int tpc = slc.TPCID.TPC;
-      if(std::find(tpcList.end(), tpcList.end(), tpc) == tpcList.end()) tpcList.push_back(tpc);
-    } // slc
-    if(tpcList.empty()) return;
-
-    // Hit -> P unique ID in all slices
-    std::vector<int> inPUID((*evt.allHits).size(), 0);
-    // No sense trying to match to pfps if none exist
-    bool matchPFPs = false;
-    for(auto& slc : slices) {
-      if(std::find(tpcList.begin(), tpcList.end(), slc.TPCID.TPC) == tpcList.end()) continue;
-      // need to iterate through all TPs to get the tj -> TP -> hit -> PFP assn
-      for(auto& tj : slc.tjs) {
-        if(!slc.pfps.empty()) matchPFPs = true;
-        if(tj.AlgMod[kKilled]) continue;
-        // no sense looking if it wasn't 3D-matched
-        if(!tj.AlgMod[kMat3D]) continue;
-        for(auto& tp : tj.Pts) {
-          if(tp.Chg <= 0) continue;
-          if(tp.InPFP <= 0) continue;
-          auto& pfp = slc.pfps[tp.InPFP - 1];
-          for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-            if(!tp.UseHit[ii]) continue;
-            unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-            inPUID[ahi] = pfp.UID;
-          } // ii
-        } // tp
-      } // tj
-    } // slc
-    if(!matchPFPs) return;
-    
-    // iterate over tpcs
-    for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
-      // ignore protoDUNE dummy TPCs
-      if(tcc.geom->TPC(tpcid).DriftDistance() < 25.0) continue;
-      unsigned int tpc = tpcid.TPC;
-      if(std::find(tpcList.begin(), tpcList.end(), tpc) == tpcList.end()) continue;
-      // form a list of MCParticles in this TPC and the hit count
-      std::vector<std::pair<unsigned int, float>> mCnt;
-      // and lists of pfp UIDs that use these hits
-      std::vector<std::vector<std::pair<int, float>>> mpCnt;
-      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
-        // require that it is MC-matched
-        if(evt.allHitsMCPIndex[iht] == UINT_MAX) continue;
-        // require that it resides in this tpc and plane
-        auto& hit = (*evt.allHits)[iht];
-        if(hit.WireID().TPC != tpc) continue;
-        unsigned int mcpi = evt.allHitsMCPIndex[iht];
-        // find the mCnt entry
-        unsigned short indx = 0;
-        for(indx = 0; indx < mCnt.size(); ++indx) if(mcpi == mCnt[indx].first) break;
-        if(indx == mCnt.size()) {
-          mCnt.push_back(std::make_pair(mcpi, 0));
-          mpCnt.resize(mCnt.size());
-        }
-        ++mCnt[indx].second;
-        // see if it is used in a pfp
-        if(inPUID[iht] <= 0) continue;
-        // find the mpCnt entry
-        unsigned short pindx = 0;
-        for(pindx = 0; pindx < mpCnt[indx].size(); ++pindx) if(mpCnt[indx][pindx].first == inPUID[iht]) break;
-        if(pindx == mpCnt[indx].size()) mpCnt[indx].push_back(std::make_pair(inPUID[iht], 0));
-        ++mpCnt[indx][pindx].second;
-      } // iht
-      if(mCnt.empty()) continue;
-      for(unsigned short indx = 0; indx < mCnt.size(); ++indx) {
-        // require at least 3 hits per plane x 2 planes to reconstruct
-        if(mCnt[indx].second < 6) continue;
-        // get a reference to the MCParticle and ensure that it is one we want to track
-        auto& mcp = (*evt.mcpHandle)[mCnt[indx].first];
-        float TMeV = 1000 * (mcp.E() - mcp.Mass());
-        unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
-        if(pdgIndex > 4) continue;
-        ++MCP_Cnt;
-        int pdg = abs(mcp.PdgCode());
-        // find the tj with the highest match count
-        std::pair<int, float> big = std::make_pair(0, 0);
-        for(unsigned short pindx = 0; pindx < mpCnt[indx].size(); ++pindx) {
-          if(mpCnt[indx][pindx].second > big.second) big = mpCnt[indx][pindx];
-        } // pindx
-        if(big.first == 0) continue;
-        auto slcIndex = GetSliceIndex("P", big.first);
-        if(slcIndex.first == USHRT_MAX) continue;
-        auto& slc = slices[slcIndex.first];
-        auto& pfp = slc.pfps[slcIndex.second];
-        // assume that all IsBad points have been removed
-        float npwc = pfp.TP3Ds.size();
-        float eff = big.second / mCnt[indx].second;
-        float pur = big.second / npwc;
-        pfp.EffPur = eff * pur;
-        pfp.mcpIndex = mCnt[indx].first;
-//        if(pdg == 2212) std::cout<<"Proton PU"<<pfp.UID<<" EP "<<pfp.EffPur<<" T = "<<(int)TMeV<<" ntru "<<(int)mCnt[indx].second<<"\n";
-        // print BadEP ignoring electrons
-        if(pfp.EffPur < 0.8 && pdgIndex > 0) {
-          ++nBadP;
-          std::string particleName = "Other";
-          if(pdg == 11) particleName = "Electron";
-          if(pdg == 22) particleName = "Photon";
-          if(pdg == 13) particleName = "Muon";
-          if(pdg == 211) particleName = "Pion";
-          if(pdg == 321) particleName = "Kaon";
-          if(pdg == 2212) particleName = "Proton";
-          mf::LogVerbatim myprt("TC");
-          myprt<<"BadP"<<pfp.ID<<" PU"<<pfp.UID<<" tpc "<<tpc;
-          myprt<<" slice index "<<slcIndex.first;
-          myprt<<" -> mcp "<<pfp.mcpIndex<<" with mCnt = "<<(int)mCnt[indx].second;
-          myprt<<" "<<particleName<<" T = "<<(int)TMeV<<" MeV";
-          myprt<<" EP "<<std::fixed<<std::setprecision(2)<<pfp.EffPur;
-        } // Poor EP
-      } // indx
-    } // tpcid
-
-  } // MatchPAndSum
-*/
-////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
   {
     // Print performance metrics for each selected event

@@ -29,6 +29,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCHist.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 
 //root includes

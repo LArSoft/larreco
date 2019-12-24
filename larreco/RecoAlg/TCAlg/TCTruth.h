@@ -14,6 +14,7 @@
 
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/TCHist.h"
 
 namespace geo { struct TPCID; }
 namespace tca { struct HistStuff; }
@@ -39,7 +40,6 @@ namespace tca {
     void Initialize();
     void MatchTruth();
     void MatchTAndSum();
-//    void MatchPAndSum();
     void PrintResults(int eventNum) const;
     // these are left here as example studies
 //    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
@@ -57,6 +57,8 @@ namespace tca {
 
     float nBadT;    // Number of reconstructed Tjs with a bad EP
     float nBadP;    // Number of reconstructed pfps with a bad EP
+
+    HistStuff hist;
 
   }; // TruthMatcher class
 

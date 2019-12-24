@@ -9,6 +9,11 @@
 #ifndef TRAJCLUSTERALGHISTSTRUCT_H
 #define TRAJCLUSTERALGHISTSTRUCT_H
 
+#include "art_root_io/TFileService.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "TH1F.h"
+#include "TProfile.h"
+
 namespace art { class TFileService; }
 class TH1F;
 class TH2F;
@@ -17,8 +22,15 @@ class TProfile;
 namespace tca {
 
   struct HistStuff {
-    void CreateHists(art::TFileService& tfs);
+    void CreateHists(art::ServiceHandle<art::TFileService const>& tfs);
 
+    // True kinetic energy (MeV)
+    TH1F *fTruT[5];
+    TProfile* fEff_T[5];
+    TProfile* fPur_T[5];
+    
+
+/*
     // study electrons
     TH1F *fChgRMS[5];
     TH1F *fMomAsym[5];
@@ -33,8 +45,6 @@ namespace tca {
 
     TH1F *fUnMatchedHitFrac;
 
-    // True kinetic energy (MeV)
-    TH1F *fTruT[5];
 
     TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
@@ -76,11 +86,11 @@ namespace tca {
 
     TH1F* fEff;
     TH1F* fPur;
-
+*/
 //    TTree* fShowerParentSig;
 //    TTree* fShowerParentBkg;
 
-    float fShEnergy, fPfpEnergy, fMCSMom, fPfpLen, fSep, fDang1, fDang2, fChgFrac, fAlong, fTrans, fInShwrProb;
+//    float fShEnergy, fPfpEnergy, fMCSMom, fPfpLen, fSep, fDang1, fDang2, fChgFrac, fAlong, fTrans, fInShwrProb;
 
   };
 } // namespace tca
