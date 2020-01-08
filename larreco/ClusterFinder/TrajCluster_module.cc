@@ -304,6 +304,7 @@ namespace cluster {
         if(sltpcHits.empty()) continue;
         for(unsigned short isl = 0; isl < sltpcHits.size(); ++isl) {
           auto& tpcHits = sltpcHits[isl];
+          if(tpcHits.empty()) continue;
           // only reconstruct slices with MC-matched hits?
           // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
           // This assumes that hits with larger LocalIndex are at larger Tick.

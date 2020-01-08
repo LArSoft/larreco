@@ -234,7 +234,6 @@ namespace tca {
       float ep = MCP_EPTSum / MCP_TSum;
       myprt<<" MCP cnt "<<(int)MCP_Cnt<<" PFP EP "<<std::fixed<<std::setprecision(3)<<ep;
     }
-    if(tcc.useAlg[kGKv2]) { myprt<<" +GKv2"; } else { myprt<<" -GKv2"; }
     if(tcc.match3DCuts[0] > 0) { myprt<<" +Mat3D"; } else { myprt<<" -Mat3D"; }
     myprt<<" MCP Cnt:";
     for(unsigned short pdgIndex = 0; pdgIndex < TSums.size(); ++pdgIndex) {

@@ -50,19 +50,22 @@ namespace tca {
   void SetAngleCode(TrajPoint& tp);
   unsigned short AngleRange(float angle);
   void FitTraj(TCSlice& slc, Trajectory& tj);
-  void FitTraj(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
+  void FitTraj(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, 
+               short fitDir, TrajPoint& tpFit);
   float TjDirFOM(TCSlice& slc, const Trajectory& tj, bool prt);
-//  void WatchHit(std::string someText, TCSlice& slc);
   unsigned short GetPFPIndex(TCSlice& slc, int tjID);
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
-  void FitChg(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, ChgFit& chgFit);
+  void FitPar(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, 
+              short fitDir, ParFit& pFit, unsigned short usePar);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
+  void ChkEndKinks(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimHiChgEndPts(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
+  void ChkMissedKink(TCSlice& slc, Trajectory& tj, bool prt);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
   bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction);
   bool SignalBetween(TCSlice& slc, TrajPoint tp, float toPos0, const float& MinWireSignalFraction);
@@ -100,6 +103,7 @@ namespace tca {
   unsigned short NearbyCleanPt(TCSlice& slc, const Trajectory& tj, unsigned short nearPt);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
   float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
+  float KinkSignificance(TCSlice& slc, Trajectory& tj1, unsigned short end1, Trajectory& tj2, unsigned short end2, unsigned short nPtsFit, bool useChg, bool prt);
   float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
                         bool useChg, bool prt);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);

@@ -49,8 +49,6 @@ namespace tca {
   // fit, charge, etc. This is done by setting UseHit true and
   // setting inTraj < 0
   void FindUseHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-  // Truncates the trajectory if a soft kink is found in it
-//  void FindSoftKink(TCSlice& slc, Trajectory& tj);
   // Fill gaps in the trajectory
   void FillGaps(TCSlice& slc, Trajectory& tj);
   // Check for many unused hits and try to use them
@@ -70,11 +68,11 @@ namespace tca {
   bool StopIfBadFits(TCSlice& slc, Trajectory& tj);
   // Does a local fit of just-added TPs to identify a kink while stepping.
   // Truncates the vector and returns true if one is found.
-  bool GottaKink_v2(TCSlice& slc, Trajectory& tj, bool doTrim);
-  void GottaKink(TCSlice& slc, Trajectory& tj, unsigned short& killPts);
-  // Update the parameters at the start of the trajectory
-  void CheckStart(TCSlice& slc, Trajectory& tj);
-  void FixTrajBegin(TCSlice& slc, Trajectory& tj, unsigned short atPt);
+  bool GottaKink(TCSlice& slc, Trajectory& tj, bool doTrim);
+  // Check the parameters at the start of the trajectory
+  void ChkBegin(TCSlice& slc, Trajectory& tj);
+  // Fix the parameters at the start of the trajectory
+  void FixBegin(TCSlice& slc, Trajectory& tj, unsigned short atPt);
   bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits);
   bool IsGhost(TCSlice& slc, Trajectory& tj);
   void LastEndMerge(TCSlice& slc, CTP_t inCTP);

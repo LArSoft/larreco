@@ -151,14 +151,14 @@ namespace tca {
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment
   };
 
-  // struct filled by FitChg
-  struct ChgFit {
+  // struct filled by FitPar which fits TP Chg, Delta, etc
+  struct ParFit {
     Point2_t Pos {{0,0}}; // position origin of the fit
-    float Chg;
-    float AveChg;
-    float ChgErr;
-    float ChgSlp;       // slope relative to the origin
-    float ChgSlpErr;
+    float Par0;
+    float AvePar;
+    float ParErr;
+    float ParSlp;       // slope relative to the origin
+    float ParSlpErr;
     float ChiDOF;
     unsigned short nPtsFit;
   };
@@ -394,7 +394,6 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kFillGaps3D,  // 3D algorithms for PFPs (bitset size limited to 8 bits)
-    kGKv2,
     kKink3D,
     kTEP3D,
     kJunk3D,
@@ -410,7 +409,6 @@ namespace tca {
     kSplit,
     kComp3DVx,
     kComp3DVxIG,
-    kHED, // High End Delta
     kHamBragg,
     kHamVx,
     kHamVx2,
@@ -421,6 +419,7 @@ namespace tca {
     kLastEndMerge,
     kTEP,
     kTHCEP,
+    kCEK,
     kCHMEH,
     kFillGaps,
     kUseGhostHits,
@@ -441,9 +440,9 @@ namespace tca {
     kVxMerge,
     kVxNeutral,
     kNoKinkChk,
-    kSoftKink,
     kChkStop,
     kChkStopEP,
+    kEndKink,
     kChkChgAsym,
     kFTBRvProp,
     kTjHiVx3Score,
@@ -463,6 +462,7 @@ namespace tca {
     kMakePFPTjs,
     kStopShort,
     kReconcile2Vs,
+    kFTBMod,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
 
@@ -521,12 +521,12 @@ namespace tca {
     std::vector<float> vtx3DCuts;   ///< 2D vtx -> 3D vtx matching cuts
     std::vector<float> vtxScoreWeights;
     std::vector<float> neutralVxCuts;
-    std::vector<short> deltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
-    std::vector<short> muonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<short> deltaRayTag; 
+    std::vector<short> muonTag; 
     std::vector<float> electronTag;
-    std::vector<float> chkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
-    std::vector<float> showerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
-    std::vector<float> kinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
+    std::vector<float> chkStopCuts; ///< Bragg peak finder configuration
+    std::vector<float> showerTag; ///< shower-like trajectory tagging + shower reconstruction
+    std::vector<float> kinkCuts; ///< kink finder algorithm 
     std::vector<float> match3DCuts;  ///< 3D matching cuts
     std::vector<float> matchTruth;     ///< Match to MC truth
     std::vector<float> chargeCuts;

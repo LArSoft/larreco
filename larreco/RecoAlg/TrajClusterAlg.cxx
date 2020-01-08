@@ -82,7 +82,7 @@ namespace tca {
     tcc.maxChi               = pset.get< float >("MaxChi", 10);
     tcc.chargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
     tcc.multHitSep           = pset.get< float >("MultHitSep", 2.5);
-    tcc.kinkCuts             = pset.get< std::vector<float >>("KinkCuts", {0.4, 1.5, 4});
+    tcc.kinkCuts = pset.get< std::vector<float>>("KinkCuts");
     tcc.qualityCuts          = pset.get< std::vector<float >>("QualityCuts", {0.8, 3});
     tcc.maxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     tcc.maxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
@@ -125,10 +125,14 @@ namespace tca {
       tcc.vtx3DCuts.resize(3, 3.);
     }
     if(tcc.kinkCuts.size() < 4) {
-      std::cout<<"KinkCuts[3] = (minimum kink likelihood) is not defined. Setting it to 0.95";
-      tcc.kinkCuts.resize(4, 0.95);
+      throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 3\n 0 = Number of points to fit at the end of the trajectory\n 1 = Minimum kink significance\n 2 = Use charge in significance calculation? (yes if > 0)\n 3 = 3D kink fit length (cm). \nYou are using an out-of-date specification?\n";
     }
-    if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
+    // throw an exception if the user appears to be using an old version of KinkCuts where
+    // KinkCuts[0] was a kink angle cut
+    if(tcc.kinkCuts[0] > 0 && tcc.kinkCuts[0] < 1.) {
+      throw art::Exception(art::errors::Configuration)<<"Are you using an out-of-date specification for KinkCuts? KinkCuts[0] is the number of points to fit.\n";
+    }
+    
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     // dressed muons - change next line
     if(tcc.muonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging\n 4 = dress muon window size (optional)";
@@ -553,7 +557,7 @@ namespace tca {
             if(!StoreTraj(slc, work)) continue;
             if(tcc.dbgStp) {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
-              mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
+              PrintTrajectory("RAT", slc, tj, USHRT_MAX);
               if(!InTrajOK(slc, "RAT")) {
                 std::cout<<"RAT: InTrajOK major failure. "<<tj.ID<<"\n";
                 return;

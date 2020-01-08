@@ -554,7 +554,7 @@ namespace tca {
       unsigned short end = tjpt.AngleCode;
       auto& tj = slc.tjs[tjpt.Hits[0] - 1];
       if(tj.VtxID[end] != 0) {
-        std::cout<<"MWV: coding error. tj "<<tj.ID<<" end "<<end<<" VtxID "<<tj.VtxID[end]<<" != 0\n";
+//        std::cout<<"MWV: coding error. tj "<<tj.ID<<" end "<<end<<" VtxID "<<tj.VtxID[end]<<" != 0\n";
         return false;
       }
       tj.VtxID[end] = oVxID;

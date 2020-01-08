@@ -14,7 +14,6 @@ namespace tca {
 
   const std::vector<std::string> AlgBitNames {
     "FillGaps3D",
-    "GKv2",
     "Kink3D",
     "TEP3D",
     "Junk3D",
@@ -30,7 +29,6 @@ namespace tca {
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
-    "HED",
     "HamBragg",
     "HamVx",
     "HamVx2",
@@ -40,7 +38,8 @@ namespace tca {
     "Merge",
     "LastEndMerge",
     "TEP",
-    "THCEP",
+    "THCEP", // TrimHiChgEndPoints
+    "CEK", // CheckEndKink
     "CHMEH",
     "FillGaps",
     "UseGhostHits",
@@ -61,9 +60,9 @@ namespace tca {
     "VxMerge",
     "VxNeutral",
     "NoKinkChk",
-    "SoftKink",
     "ChkStop",
     "ChkStopEP",
+    "kEndKink",
     "ChkChgAsym",
     "FTBRvProp",
     "TjHiVx3Score",
@@ -82,7 +81,8 @@ namespace tca {
     "SplitTjCVx",
     "MakePFPTjs",
     "StopShort",
-    "Reconcile2Vs"
+    "Reconcile2Vs",
+    "FTBMod"
   };
   
   const std::vector<std::string> EndFlagNames {
