@@ -138,10 +138,12 @@ namespace tca {
           // get a reference to the MCParticle and ensure that it is one we want to track
           auto& mcp = (*evt.mcpHandle)[mCnt[indx].first];
           float TMeV = 1000 * (mcp.E() - mcp.Mass());
+          // don't weight entries by T
+          float wght = 1;
           unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
           if(pdgIndex > 4) continue;
           hist.fTruT[pdgIndex]->Fill(TMeV);
-          TSums[pdgIndex] += TMeV;
+          TSums[pdgIndex] += wght;
           ++EPCnts[pdgIndex];
           int pdg = abs(mcp.PdgCode());
           // find the tj with the highest match count
@@ -162,7 +164,7 @@ namespace tca {
           hist.fPur_T[pdgIndex]->Fill(TMeV, pur);
           tj.EffPur = eff * pur;
           tj.mcpIndex = mCnt[indx].first;
-          EPTSums[pdgIndex] += TMeV * tj.EffPur;
+          EPTSums[pdgIndex] += wght * tj.EffPur;
           // print BadEP ignoring electrons
           if(tj.EffPur < tcc.matchTruth[2] && (float)mCnt[indx].second > tcc.matchTruth[3] && pdgIndex > 0) {
             ++nBadT;
