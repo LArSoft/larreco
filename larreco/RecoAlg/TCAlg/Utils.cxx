@@ -3053,10 +3053,6 @@ namespace tca {
     } // ipt
     tj.EndPt[0] = 0;
     tj.EndPt[1] = tj.Pts.size() - 1;
-    
-    if(tj1.ID == 26 && tj2.ID == 29) {
-      std::cout<<"stop here\n";
-    }
     return KinkSignificance(slc, tj, nPtsFit, nPtsFit, useChg, prt);
   } // KinkSignificance
 
@@ -4250,10 +4246,6 @@ namespace tca {
     sum = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
-      if(iht >= slc.slHits.size()) {
-        std::cout<<"stop here\n";
-        return -1;
-      }
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && slc.slHits[iht].InTraj > 0) useit = true;
       if(hitRequest == kUnusedHits && slc.slHits[iht].InTraj == 0) useit = true;
