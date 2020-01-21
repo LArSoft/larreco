@@ -115,6 +115,16 @@ standard_cluster3d:
   ParallelHitsAlg:        @local::standard_cluster3dparallelhitsseedfinderalg
 }
 
+standard_clusteranaV2:
+{
+  module_type:              "ClusterAnaV2"
+  HitsModuleLabel:          "hitpdune"
+  HitTruthModuleLabel:      "mchitmatch"
+  ClusterModuleLabels:      [ "trajcluster" ]
+  TruthOrigin:              4 # [0 (anything) 1(nu), 2(cosmic), 3(SN nu), 4(SingleParticle)]
+  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
+}
+
 standard_clusterana:
 { 
  module_type:              "ClusterAna"
