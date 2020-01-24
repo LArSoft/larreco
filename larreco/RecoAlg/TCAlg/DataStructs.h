@@ -175,7 +175,6 @@ namespace tca {
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     float DirFOM {0.5};         ///< confidence level that the Tj points are ordered correctly using  charge pattern
     short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
-    float EffPur {0};                     ///< Efficiency * Purity
     Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
@@ -186,7 +185,6 @@ namespace tca {
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
-    unsigned int mcpIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
@@ -264,8 +262,6 @@ namespace tca {
     std::vector<int> DtrUIDs;
     size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
-    float EffPur {0};                     ///< Efficiency * Purity
-    unsigned int mcpIndex {UINT_MAX};
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
@@ -528,7 +524,7 @@ namespace tca {
     std::vector<float> showerTag; ///< shower-like trajectory tagging + shower reconstruction
     std::vector<float> kinkCuts; ///< kink finder algorithm 
     std::vector<float> match3DCuts;  ///< 3D matching cuts
-    std::vector<float> matchTruth;     ///< Match to MC truth
+//    std::vector<float> matchTruth;     ///< Match to MC truth
     std::vector<float> chargeCuts;
     std::vector<float> qualityCuts; ///< Min points/wire, min consecutive pts after a gap
     std::vector<float> pfpStitchCuts;      ///< cuts for stitching between TPCs
@@ -601,7 +597,6 @@ namespace tca {
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
     std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
-    std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
     unsigned int run;
     unsigned int subRun;

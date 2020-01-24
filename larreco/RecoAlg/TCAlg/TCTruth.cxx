@@ -24,6 +24,8 @@ namespace tca {
   void TruthMatcher::Initialize()
   {
      // Initialize the variables used to calculate Efficiency * Purity (aka EP) for matching to truth
+    std::cout<<"TruthMatcher::Initialize isn't functional anymore\n";
+/*
     EPCnts.fill(0);
     TSums.fill(0.0);
     EPTSums.fill(0.0);
@@ -31,6 +33,7 @@ namespace tca {
     nBadP = 0;
     art::ServiceHandle<art::TFileService const> tfs;
     hist.CreateHists(tfs);
+*/
   } // Initialize
 
   //////////////////////////////////////////
@@ -40,6 +43,9 @@ namespace tca {
     // calculate reconstruction efficiency and purity. This function should only be
     // called once per event after reconstruction has been done in all slices
 
+    std::cout<<"TruthMatcher::MatchTruth isn't functional anymore\n";
+/*
+    
     // check for a serious error
     if(!evt.mcpHandle) return;
     // and no MCParticles
@@ -70,9 +76,9 @@ namespace tca {
         pfp.EffPur = EPSum / hitCnt;
       } // pfp
     } // slc
-    
+*/
   } // MatchTruth
-
+/*
   ////////////////////////////////////////////////
   void TruthMatcher::MatchTAndSum()
   {
@@ -247,161 +253,5 @@ namespace tca {
       myprt<<" "<<EPCnts[pdgIndex];
     } // pdgIndex
   } // PrintResults
-
-/* This code was used to develop the TMVA showerParentReader. The MakeCheatShower function needs
-   to be re-written if this function is used in the future
-   //////////////////////////////////////////
-   void TruthMatcher::StudyShowerParents(TCSlice& slc, HistStuff& hist)
-   {
-   // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
-   if(slc.pfps.empty()) return;
-   if(slc.mcpList.empty()) return;
-
-   // Look for truth pfp primary electron
-   Point3_t primVx {{-666.0, -666.0, -666.0}};
-   // the primary should be the first one in the list as selected in GetHitCollection
-   auto& primMCP = slc.mcpList[0];
-   primVx[0] = primMCP->Vx();
-   primVx[1] = primMCP->Vy();
-   primVx[2] = primMCP->Vz();
-   geo::Vector_t posOffsets;
-   auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
-   posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
-   posOffsets.SetX(-posOffsets.X());
-   primVx[0] += posOffsets.X();
-   primVx[1] += posOffsets.Y();
-   primVx[2] += posOffsets.Z();
-   geo::TPCID inTPCID;
-   // ignore if the primary isn't inside a TPC
-   if(!InsideTPC(primVx, inTPCID)) return;
-   // or if it is inside the wrong tpc
-   if(inTPCID != slc.TPCID) return;
-
-   std::string fcnLabel = "SSP";
-   // Create a truth shower for each primary electron
-   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-   MCParticleListUtils mcpu{slc};
-   for(unsigned int part = 0; part < slc.mcpList.size(); ++part) {
-   auto& mcp = slc.mcpList[part];
-   // require electron or photon
-   if(abs(mcp->PdgCode()) != 11 && abs(mcp->PdgCode()) != 111) continue;
-   int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-   // require that it is primary
-   if(mcp->TrackId() != eveID) continue;
-   int truPFP = 0;
-   auto ss3 = mcpu.MakeCheatShower(slc, part, primVx, truPFP);
-   if(ss3.ID == 0) continue;
-   if(truPFP == 0) continue;
-   if(!StoreShower(fcnLabel, slc, ss3)) {
-   std::cout<<"Failed to store 3S"<<ss3.ID<<"\n";
-   break;
-   } // store failed
-   // now fill the TTree
-   float ss3Energy = ShowerEnergy(ss3);
-   for(auto& pfp : slc.pfps) {
-   if(pfp.TPCID != ss3.TPCID) continue;
-   // ignore neutrinos
-   if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
-   // ignore shower pfps
-   if(pfp.PDGCode == 1111) continue;
-   float pfpEnergy = 0;
-   float minEnergy = 1E6;
-   for(auto tid : pfp.TjIDs) {
-   auto& tj = slc.tjs[tid - 1];
-   float energy = ChgToMeV(tj.TotChg);
-   pfpEnergy += energy;
-   if(energy < minEnergy) minEnergy = energy;
-   }
-   pfpEnergy -= minEnergy;
-   pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
-   // find the end that is farthest away
-   unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
-   auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
-   // take the absolute value in case the shower direction isn't well known
-   float costh1 = std::abs(DotProd(pToS, ss3.Dir));
-   float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
-   // distance^2 between the pfp end and the shower start, charge center, and shower end
-   float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
-   float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
-   float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
-   //        mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
-   // find the end of the shower closest to the pfp
-   unsigned short shEnd = 0;
-   if(distToEnd2 < distToStart2) shEnd = 1;
-   if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
-   if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
-   //      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
-   Point2_t alongTrans;
-   // find the longitudinal and transverse components of the pfp start point relative to the
-   // shower center
-   FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
-   //      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
-   hist.fSep = sqrt(distToChgPos2);
-   hist.fShEnergy = ss3Energy;
-   hist.fPfpEnergy = pfpEnergy;
-   hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
-   hist.fMCSMom = MCSMom(slc, pfp.TjIDs);
-   hist.fDang1 = acos(costh1);
-   hist.fDang2 = acos(costh2);
-   hist.fChgFrac = 0;
-   float chgFrac = 0;
-   float totSep = 0;
-   // find the charge fraction btw the pfp start and the point that is
-   // half the distance to the charge center in each plane
-   for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-   CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-   int ssid = 0;
-   for(auto cid : ss3.CotIDs) {
-   auto& ss = slc.cots[cid - 1];
-   if(ss.CTP != inCTP) continue;
-   ssid = ss.ID;
-   break;
-   } // cid
-   if(ssid == 0) continue;
-   auto tpFrom = MakeBareTP(slc, pfp.XYZ[pEnd], pToS, inCTP);
-   auto& ss = slc.cots[ssid - 1];
-   auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
-   float sep = PosSep(tpFrom.Pos, stp1.Pos);
-   float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
-   float cf = ChgFracBetween(slc, tpFrom, toPos, false);
-   // weight by the separation in the plane
-   totSep += sep;
-   chgFrac += sep * cf;
-   } // plane
-   if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
-   hist.fAlong = alongTrans[0];
-   hist.fTrans = alongTrans[1];
-   hist.fInShwrProb = InShowerProbLong(ss3Energy, -hist.fSep);
-   bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fInShwrProb < 0.05);
-   if(pfp.ID == truPFP && isBad) {
-   mf::LogVerbatim myprt("TC");
-   myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
-   myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
-   myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
-   myprt<<" fInShwrProb "<<hist.fInShwrProb;
-   myprt<<" EventsProcessed "<<evt.eventsProcessed;
-   }
-   if(pfp.ID == truPFP) {
-   hist.fShowerParentSig->Fill();
-   } else {
-   hist.fShowerParentBkg->Fill();
-   }
-   } // pfp
-   } // part
-   //    PrintShowers(fcnLabel, tjs);
-   //    Print2DShowers(fcnLabel, slc, USHRT_MAX, false);
-   // kill the cheat showers
-   for(auto& ss3 : slc.showers) {
-   if(ss3.ID == 0) continue;
-   if(!ss3.Cheat) continue;
-   for(auto cid : ss3.CotIDs) {
-   auto& ss = slc.cots[cid - 1];
-   ss.ID = 0;
-   auto& stj = slc.tjs[ss.ShowerTjID - 1];
-   stj.AlgMod[kKilled] = true;
-   } // cid
-   ss3.ID = 0;
-   } // ss3
-   } // StudyShowerParents
-   */
+*/
 } // namespace tca

@@ -18,7 +18,7 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
-#include "larreco/RecoAlg/TCAlg/TCTruth.h"
+//#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"                         // for tcc
 #include "nusimdata/SimulationBase/MCParticle.h"
 
@@ -5126,11 +5126,12 @@ namespace tca {
       std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
       std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
-      std::cout<<" 'MVI <MVI> <MVI Iteration>' for detailed debugging of one MatchVecIndex\n";
+      std::cout<<" 'MVI <MVI> <MVI Iteration>' for detailed debugging of one PFP MatchVecIndex\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
       std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
-      std::cout<<" 'Reco <ID>' to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
+      std::cout<<" 'Reco TPC <TPC>' to only reconstruct hits in the specified TPC\n";
+      std::cout<<" 'Reco Slice <ID>' to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
       std::cout<<" 'SubSlice <sub-slice index>' where <slice index> restricts output to the specified sub-slice index\n";
       std::cout<<" 'Stitch' to debug PFParticle stitching between TPCs\n";
       std::cout<<" 'Sum' or 'Summary' to print a debug summary report\n";
@@ -5201,6 +5202,11 @@ namespace tca {
       std::cout<<"Reconstructing only in TPC "<<tcc.recoTPC<<"\n";
       return true;
     }
+    if(words.size() == 3 && words[0] == "Reco" && words[1] == "Slice") {
+      tcc.recoSlice = std::stoi(words[1]);
+      std::cout<<"Reconstructing Slice "<<tcc.recoSlice<<"\n";
+      return true;
+    }
     if(words.size() == 3) {
       // configure for uB, LArIAT, etc
       debug.Cryostat = 0;
@@ -5234,11 +5240,6 @@ namespace tca {
     // Slice could apply to several debug options.
     if(words.size() == 2 && words[0] == "SubSlice") {
       debug.Slice = std::stoi(words[1]);
-      return true;
-    }
-    if(words.size() == 2 && words[0] == "Reco") {
-      tcc.recoSlice = std::stoi(words[1]);
-      std::cout<<"Reconstructing Slice "<<tcc.recoSlice<<"\n";
       return true;
     }
     return false;
@@ -5375,45 +5376,6 @@ namespace tca {
     } // slc
     mf::LogVerbatim myprt("TC");
     myprt<<"Debug report from caller "<<someText<<"\n";
-    if(!evt.allHitsMCPIndex.empty()) {
-      art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-      TruthMatcher tm;
-      myprt<<"************  MCParticles  ************\n";
-      myprt<<" mcpindx  PDG    KE   nHits Process\n";
-      for(unsigned int imcp = 0; imcp < (*evt.mcpHandle).size(); ++imcp) {
-        auto& mcp = (*evt.mcpHandle)[imcp];
-        int pdg = abs(mcp.PdgCode());
-        if(pdg > 3000) continue;
-        float TMeV = 1000 * (mcp.E() - mcp.Mass());
-        if(TMeV < 10) continue;
-        // See if there are MC-matched hits in any cryostat, TPC, plane
-        unsigned short nht = 0;
-        for(unsigned int iht = 0; iht < evt.allHitsMCPIndex.size(); ++iht) if(evt.allHitsMCPIndex[iht] == imcp) ++nht;
-        if(nht == 0) continue;
-        myprt<<std::setw(8)<<imcp;
-        myprt<<std::setw(5)<<pdg;
-        myprt<<std::setw(6)<<(int)TMeV;
-        myprt<<std::setw(7)<<nht;
-        myprt<<" "<<mcp.Process();
-        // look for a daughter and print the decay/scatter angle
-        myprt<<" Mother = "<<mcp.Mother();
-        unsigned int momIndx = UINT_MAX;
-        for(momIndx = 0; momIndx < (*evt.mcpHandle).size(); ++momIndx) {
-          if((*evt.mcpHandle)[momIndx].TrackId() == mcp.Mother()) break;
-        } // momIndx
-        if(momIndx < (*evt.mcpHandle).size()) {
-          auto& momcp = (*evt.mcpHandle)[momIndx];
-          Vector3_t momDir = {{ momcp.Px(), momcp.Py(), momcp.Pz()}};
-          SetMag(momDir, 1.);
-          Vector3_t dtrDir = {{ mcp.Px(), mcp.Py(), mcp.Pz()}};
-          SetMag(dtrDir, 1.);
-          auto dang = DeltaAngle(momDir, dtrDir);
-          myprt<<" scatter/decay angle "<<std::setprecision(3)<<dang;
-          for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::abs(momDir[xyz] - dtrDir[xyz]);
-        } // valid momIndx
-        myprt<<"\n";
-      } // imcp
-    } // mcpList not empty
     myprt<<" 'prodID' = <sliceID>:<subSliceIndex>:<productID>/<productUID>\n";
     if(prtS3) {
       myprt<<"************ Showers ************\n";
@@ -5471,7 +5433,7 @@ namespace tca {
     if(pfp.ID <= 0) return;
     if(printHeader) {
       myprt<<"************ PFParticles ************\n";
-      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS ____edEdx_____  MVI MCSMom  Len nTP3 nSec SLk? PDG mcpIndx Par E*P\n";
+      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS ____edEdx_____  MVI MCSMom  Len nTP3 nSec SLk? PDG  Par \n";
       printHeader = false;
     } // printHeader
     auto sIndx = GetSliceIndex("P", pfp.UID);
@@ -5531,14 +5493,7 @@ namespace tca {
     myprt<<std::setw(5)<<pfp.SectionFits.size();
     myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
-    if(pfp.mcpIndex == UINT_MAX) {
-      myprt<<"      --";
-    } else {
-      myprt<<std::setw(8)<<pfp.mcpIndex;
-    }
     myprt<<std::setw(4)<<pfp.ParentUID;
-//    myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
-    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
       if(pfp.TjUIDs.empty()) {
         // print Tjs in one TPC
@@ -5717,7 +5672,7 @@ namespace tca {
       myprt<<"************ Trajectories ************\n";
       myprt<<"Tj AngleCode-EndFlag decoder (EF): <AngleCode> + <reason for stopping>";
       myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory)\n";
-      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom __Vtx__  PDG eLike  Par Pri NuPar  E*P mcpIndex  WorkID \n";
+      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom __Vtx__  PDG eLike  Par Pri NuPar   WorkID \n";
       printHeader = false;
     }
     auto sIndx = GetSliceIndex("T", tj.UID);
@@ -5791,12 +5746,6 @@ namespace tca {
     myprt<<std::setw(5)<<tj.ParentID;
     myprt<<std::setw(5)<<PrimaryID(slc, tj);
     myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, tj);
-    myprt<<std::setw(6)<<std::setprecision(2)<<tj.EffPur;
-    if(tj.mcpIndex == UINT_MAX) {
-      myprt<<"    --";
-    } else {
-      myprt<<std::setw(6)<<tj.mcpIndex;
-    }
     myprt<<std::setw(7)<<tj.WorkID;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
     for(unsigned short ib = 0; ib < StrategyBitNames.size(); ++ib) if(tj.Strategy[ib]) myprt<<" "<<StrategyBitNames[ib];
@@ -5928,7 +5877,7 @@ namespace tca {
       myprt<<"Tj AngleCode-EndFlag (EF) decoder: <AngleCode> + <reason for stopping>";
       myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory)\n";
       std::vector<unsigned int> tmp;
-      myprt<<someText<<"   UID   CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<"   UID   CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar   WorkID \n";
       for(unsigned short ii = 0; ii < slc.tjs.size(); ++ii) {
         auto& aTj = slc.tjs[ii];
         if(debug.CTP != UINT_MAX && aTj.CTP != debug.CTP) continue;
@@ -5962,19 +5911,6 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
-/*
-        // Print the fraction of points in the first half that are near a tj
-        float frac = 0;
-        float cnt = 0;
-        unsigned short midPt = 0.5 * (aTj.EndPt[0] + aTj.EndPt[1]);
-        for(unsigned short ipt = aTj.EndPt[0]; ipt < midPt; ++ipt) {
-          auto& tp = aTj.Pts[ipt];
-          if(tp.Environment[kEnvNearTj]) ++frac;
-          ++cnt;
-        } // ipt
-        if(cnt > 0) frac /= cnt;
-        myprt<<std::setw(5)<<std::setprecision(1)<<frac;
-*/
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tcc.unitsPerTick;
@@ -5992,18 +5928,6 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
-/*
-        // Print the fraction of points in the second half that are near a tj
-        frac = 0;
-        cnt = 0;
-        for(unsigned short ipt = midPt; ipt <= aTj.EndPt[1]; ++ipt) {
-          auto& tp = aTj.Pts[ipt];
-          if(tp.Environment[kEnvNearTj]) ++frac;
-          ++cnt;
-        } // ipt
-        if(cnt > 0) frac /= cnt;
-        myprt<<std::setw(5)<<std::setprecision(1)<<frac;
-*/
         myprt<<std::setw(7)<<std::setprecision(1)<<aTj.TotChg/1000;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
@@ -6015,18 +5939,6 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.ParentID;
         myprt<<std::setw(5)<<PrimaryID(slc, aTj);
         myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, aTj);
-        int truKE = 0;
-        int pdg = 0;
-/*
-        if(aTj.mcpListIndex < evt.mcpList.size()) {
-          auto& mcp = evt.mcpList[aTj.mcpListIndex];
-          truKE = 1000 * (mcp->E() - mcp->Mass());
-          pdg = mcp->PdgCode();
-        }
-*/
-        myprt<<std::setw(6)<<pdg;
-        myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
-        myprt<<std::setw(5)<<truKE;
         myprt<<std::setw(7)<<aTj.WorkID;
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
@@ -6052,7 +5964,6 @@ namespace tca {
       PrintTP(someText, slc, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
     }
   } // PrintAllTraj
-
 
   //////////////////////////////////////////
   void PrintTrajectory(std::string someText, const TCSlice& slc, const Trajectory& tj, unsigned short tPoint)
@@ -6136,7 +6047,7 @@ namespace tca {
   {
 //    mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
     if(evt.mcpHandle) {
-      mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig mcpIndex Hits ";
+      mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
     } else {
       mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF KinkSig  Hits ";
     }
@@ -6152,12 +6063,6 @@ namespace tca {
     myprt<<std::setw(6)<<tp.CTP;
     myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
-/*
-    myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tcc.unitsPerTick; // W:T
-    if(tp.Pos[1] < 10) { myprt<<"  "; }
-    if(tp.Pos[1] < 100) { myprt<<" "; }
-    if(tp.Pos[1] < 1000) { myprt<<" "; }
-*/
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
@@ -6176,28 +6081,6 @@ namespace tca {
       // don't print too many hits (e.g. from a shower Tj)
       myprt<<" "<<tp.Hits.size()<<" shower hits";
     } else {
-      // try to determine the mcpIndex
-      unsigned int mcpIndex = UINT_MAX;
-      unsigned short totCnt = 0;
-      unsigned short matCnt = 0;
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int iht = tp.Hits[ii];
-        unsigned int ahi = slc.slHits[iht].allHitsIndex;
-        ++totCnt;
-        unsigned int mcpi = evt.allHitsMCPIndex[ahi];
-        if(mcpIndex == UINT_MAX) mcpIndex = mcpi;
-        if(mcpIndex == mcpi) ++matCnt;
-      } // ii
-      if(mcpIndex == UINT_MAX) {
-        myprt<<std::setw(9)<<"--";
-      } else {
-        if(matCnt == totCnt) {
-          myprt<<std::setw(9)<<mcpIndex;
-        } else {
-          myprt<<std::setw(9)<<"mixed";
-        }
-      }
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -6241,7 +6124,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ EF _______sDir______ ____sdEdx_____ eVx  ________ePos_______ EF _______eDir______ ____edEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ EF _______sDir______ ____sdEdx_____ eVx  ________ePos_______ EF _______eDir______ ____edEdx____   Len nTp3 MCSMom ShLike? PDG Par Prim\n";
     }
     myprt<<someText;
     std::string pid = "P" + std::to_string(pfp.ID);
@@ -6278,7 +6161,6 @@ namespace tca {
       }
     } // startend
     // global stuff
-//    myprt<<std::setw(5)<<pfp.BestPlane;
     float length = Length(pfp);
     if(length < 100) {
       myprt<<std::setw(5)<<std::setprecision(1)<<length;
@@ -6289,17 +6171,9 @@ namespace tca {
     myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
-/*
-    if(pfp.mcpListIndex < evt.mcpList.size()) {
-      myprt<<std::setw(8)<<pfp.mcpListIndex;
-    } else {
-      myprt<<"      NA";
-    }
-*/
     myprt<<"      NA";
     myprt<<std::setw(4)<<pfp.ParentUID;
     myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
-    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
       for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
     }

@@ -18,7 +18,12 @@ standard_trajclusteralg:
    AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
-   KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit
+#   KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit << OLD
+   KinkCuts: [ 8, 15, 1, 10 ] # << NEW
+   # 0 Number of points to fit at the end of the trajectory
+   # 1 Minimum kink significance
+   # 2 Use charge in significance calculation? (yes if > 0)
+   # 3 3D kink fit length (cm) 
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    VLAStepSize: 1.5         # Step size for Very Large Angle trajectories
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
@@ -45,13 +50,13 @@ standard_trajclusteralg:
    SaveShowerTree: false
    SaveCRTree: false
    TagCosmics: false
-   ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
+   ChkStopCuts: [10, 8, 1.5] # [Min chg slope, nFitPts, Chg fit ChiDOF cut]
    VertexScoreWeights: [1, 2, 10, 2]
     # 0 = Vertex error weight
     # 1 = 3D match weight
     # 2 = Charge fraction of vertex Tjs near the vertex weight
     # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
-   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8] # << NEW increase min Score
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj
@@ -66,15 +71,19 @@ standard_trajclusteralg:
    # 0 dX match cut (cm)
    # 1 dY and dZ match cut (cm)
    # 2 max separation btw PFParticle end and 3D vertex
-   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
+   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5, 1] 
    # 0 dx (cm) matching cut
    # 1 max number of 3-plane matches for any Tj
-   # 2 Attempt 2-view match with 3rd plane dead wire requirement? (0 = no)
+   # 2 Attempt 2-view match?
    # 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
    # 4 max pull for adding/rejecting TP3Ds in sections
    # 5 suggested max ChiDOF for a SectionFit
-   SkipAlgs: [ "SplitTjCVx", "JunkVx", "ChkVxTj", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
-   MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
+   # 6 > 0 Don't match muon shower tjs
+   PFPStitchCuts: [ 0.02, 3, 2 ]
+   # 0 = matching angle resolution (radians)
+   # 1 = matching position resolution (cm)
+   # 2 = max angle-position figure of merit
+   SkipAlgs: [ ]   # List of algs that should not be used
    DebugConfig: []
 }
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc

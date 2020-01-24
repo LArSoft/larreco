@@ -96,7 +96,10 @@ namespace tca {
     std::string fMVAShowerParentWeights = "NA";
     pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);
     tcc.chkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
-    tcc.matchTruth        = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
+    if(pset.has_key("MatchTruth")) {
+      std::cout<<"MatchTruth is not used. Use ClusterAnaV2 or DebugConfig to configure\n";
+    }
+//    tcc.matchTruth        = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
     tcc.vtx2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
@@ -1235,7 +1238,7 @@ namespace tca {
   } // CreateSlice
 
   /////////////////////////////////////////
-  void TrajClusterAlg::FinishEvent(TruthMatcher& tm)
+  void TrajClusterAlg::FinishEvent()
   {
     // final steps that involve correlations between slices
     // Stitch PFParticles between TPCs
@@ -1259,12 +1262,6 @@ namespace tca {
         } // ii
       } // pfp
     } // slc
-    
-    // Match to truth before stitching between TPCs
-    if(evt.mcpHandle) {
-      tm.MatchTruth();
-      if(tcc.matchTruth[0] >= 0) tm.PrintResults(evt.event);
-    }
 
     StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here

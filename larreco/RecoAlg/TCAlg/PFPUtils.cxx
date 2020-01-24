@@ -433,48 +433,6 @@ void FindPFParticles(TCSlice& slc)
     
   } // MakePFParticles
 
-  ////////////////////////////////////////////////
-  void ChkPFPMC(TCSlice& slc, PFPStruct& pfp)
-  {
-    // This function is used to decide what ChiDOF cut should be made to reject
-    // invalid 3D matches
-    if(evt.allHitsMCPIndex.empty()) return;
-    if(pfp.SectionFits.size() != 1 || pfp.TP3Ds.empty()) {
-      std::cout<<"ChkPFPMC: Something wrong with P"<<pfp.ID<<"\n";
-      return;
-    }
-
-    // mcpIndex and count
-    std::vector<std::pair<unsigned int, unsigned short>> mcpi_cnt;
-    for(auto& tp3d : pfp.TP3Ds) {
-      if(tp3d.TjID <= 0) {
-        std::cout<<"oops\n";
-        exit(1);
-      }
-      unsigned int mcpIndex = UINT_MAX;
-      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-      for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-        mcpIndex = evt.allHitsMCPIndex[ahi];
-        break;
-      } // ii
-      if(mcpIndex == UINT_MAX) continue;
-      // look for it in the list
-      std::size_t indx = 0;
-      for(indx = 0; indx < mcpi_cnt.size(); ++indx) if(mcpi_cnt[indx].first == mcpIndex) break;
-      // not found so add it
-      if(indx == mcpi_cnt.size()) mcpi_cnt.push_back(std::make_pair(mcpIndex, 0));
-      ++mcpi_cnt[indx].second;
-    } // tp3d
-    auto& sf = pfp.SectionFits[0];
-    std::cout<<"ChkPFPMC: P"<<pfp.ID;
-    std::cout<<std::setprecision(1)<<" ChiDOF "<<sf.ChiDOF;
-    std::cout<<" MCP_cnt";
-    for(auto mc : mcpi_cnt) std::cout<<" "<<mc.first<<"_"<<mc.second;
-    std::cout<<"\n";
-
-  } // ChkPFPMC
 
   ////////////////////////////////////////////////
   bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt)
@@ -1997,8 +1955,6 @@ void FindPFParticles(TCSlice& slc)
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<"TEP: P"<<pWork.ID<<" nit "<<nit<<" trim TP3D "<<tp3d.TjID<<"_"<<tp3d.TPIndex;
-          unsigned int mcp = FindMCPIndex(slc, tp3d);
-          if(mcp != UINT_MAX) myprt<<" mcp "<<mcp;
         } // prt
         validPt[ipt] = false;
         pWork.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
@@ -2276,8 +2232,6 @@ void FindPFParticles(TCSlice& slc)
             myprt<<"APIR: P"<<pfp.ID<<" added TP "<<PrintPos(slc, tp);
             myprt<<" pull "<<std::fixed<<std::setprecision(2)<<bestPull;
             myprt<<" dx "<<bestTP3D.TPX - bestTP3D.Pos[0]<<" in section "<<bestTP3D.SFIndex;
-            auto mcpi = FindMCPIndex(slc, bestTP3D);
-            if(mcpi != UINT_MAX) myprt<<" mcpIndex "<<mcpi;
           }
           if(InsertTP3D(pfp, bestTP3D) == USHRT_MAX) {
             std::cout<<"APIR: InsertTP3D failed\n";
@@ -3271,45 +3225,6 @@ void FindPFParticles(TCSlice& slc)
     return 0;
   } // FarEnd
 
-  ////////////////////////////////////////////////
-  unsigned int FindMCPIndex(TCSlice& slc, TP3D tp3d)
-  {
-    // look for a mcp match
-    if(evt.allHitsMCPIndex.empty()) return UINT_MAX;
-    auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-    for(std::size_t ii = 0; ii < tp.Hits.size(); ++ii) {
-      if(!tp.UseHit[ii]) continue;
-      unsigned ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-      return evt.allHitsMCPIndex[ahi];
-    } // ii
-    return UINT_MAX;
-  } // FindMCPIndex
-
-
-  /////////////////////////////////////////
-  int TruePDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
-  {
-    // returns a vote of the true PDG code. This function can be used before truth matching
-    // has been done, i.e. when pfp.mcpIndex hasn't been defined yet
-    if(evt.allHitsMCPIndex.empty()) return -1;
-    std::vector<std::pair<unsigned int, unsigned short>> mcpiCnt;
-    for(auto& tp3d : pfp.TP3Ds) {
-      if(tp3d.IsBad) continue;
-      auto mcpi = FindMCPIndex(slc, tp3d);
-      if(mcpi == UINT_MAX) continue;
-      unsigned short indx = 0;
-      for(indx = 0; indx < mcpiCnt.size(); ++indx) if(mcpiCnt[indx].first == mcpi) break;
-      if(indx == mcpiCnt.size()) mcpiCnt.push_back(std::make_pair(mcpi, 0));
-      ++mcpiCnt[indx].second;
-    } // tp3d
-    std::pair<unsigned int, unsigned short> maxCnt = std::make_pair(UINT_MAX, 0);
-    for(auto tmp : mcpiCnt) if(tmp.second > maxCnt.second) maxCnt = tmp;
-    if(maxCnt.first >= evt.allHitsMCPIndex.size()) return -1;
-    auto& mcp = (*evt.mcpHandle)[maxCnt.first];
-    return abs(mcp.PdgCode());
-    
-  } // TruePDGCodeVote
-
   /////////////////////////////////////////
   int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
   {
@@ -3407,7 +3322,7 @@ void FindPFParticles(TCSlice& slc)
     } // SectionFits
     if(printPts < 0) {
       // print the head if we print all points
-      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull GB?   Path  along dE/dx Signal? Knk3D  Knk2D     MCPIndex T_ipt_P:W:T\n";
+      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull GB?   Path  along dE/dx Signal? Knk3D  Knk2D     T_ipt_P:W:T\n";
     }
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
@@ -3440,8 +3355,6 @@ void FindPFParticles(TCSlice& slc)
       // print the 2D TP kink significance
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       myprt<<std::setw(7)<<std::setprecision(2)<<tp.KinkSig;
-      unsigned int mcpIndex = FindMCPIndex(slc, tp3d);
-      if(mcpIndex != UINT_MAX) myprt<<std::setw(10)<<mcpIndex;
       if(tp3d.TjID > 0) {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp)<<" "<<TPEnvString(tp);

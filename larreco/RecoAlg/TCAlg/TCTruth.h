@@ -41,10 +41,6 @@ namespace tca {
     void MatchTruth();
     void MatchTAndSum();
     void PrintResults(int eventNum) const;
-    // these are left here as example studies
-//    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
-//    void StudyElectrons(TCSlice& slc, const HistStuff& hist);
-//    void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
 
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
     std::array<short, 5> EPCnts {{0}};
@@ -61,7 +57,7 @@ namespace tca {
     HistStuff hist;
 
   }; // TruthMatcher class
-
+/*
   class MCParticleListUtils
   {
   public:
@@ -77,7 +73,7 @@ namespace tca {
     unsigned int GetMCPListIndex(TCSlice& slc, const ShowerStruct& ss, unsigned short& nTruHits);
 
   }; // MCParticleListUtils class
-
+*/
 
 } // namespace tca
 

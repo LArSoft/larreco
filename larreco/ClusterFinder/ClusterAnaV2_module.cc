@@ -59,10 +59,12 @@ private:
   simb::Origin_t fTruthOrigin;
   std::vector<int> fSkipPDGCodes;
   short fPrintLevel;
-  float fPrintBadEP;
+  short fInTPC;
+  float fBadEP;
 
   // count of EP entries for electrons(0), muons(1), pions(2), kaons(3), protons(4)
   unsigned int fEventCnt {0};
+  unsigned int fNBadEP {0};
   std::array<float, 5> Cnts {{0}};
   std::array<float, 5> EPSums {{0}};
   // same for Efficiency
@@ -71,6 +73,7 @@ private:
   std::array<float, 5> PSums {{0}};
   
   bool fCompareProductIDs {true};     ///< compare Hit and Cluster-> Hit art product IDs on the first event
+  bool fFirstPrint {true};
 
 };
 
@@ -96,7 +99,8 @@ cluster::ClusterAnaV2::ClusterAnaV2(fhicl::ParameterSet const& pset)
     fTruthOrigin = (simb::Origin_t)tmp;
     fPrintLevel = pset.get<short>("PrintLevel", 0);
     if(pset.has_key("SkipPDGCodes")) fSkipPDGCodes = pset.get<std::vector<int>>("SkipPDGCodes");
-    fPrintBadEP = pset.get<float>("PrintBadEP", 0.5);
+    fBadEP = pset.get<float>("BadEP", 0.);
+    fInTPC = pset.get<short>("InTPC", -1);
     // do some initialization
     Cnts.fill(0.);
     EPSums.fill(0.);
@@ -118,6 +122,11 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   // get a reference to the MCParticles
   auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
   if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("ClusterAnaV2")<<"Failed to get a handle to MCParticles using largeant\n";
+  
+  if(fFirstPrint) {
+    mf::LogVerbatim("ClusterAna")<<"Reconstructed cluster hit range format is TPC:Plane:Wire:Tick";
+    fFirstPrint = false;
+  }
 
   // decide whether to consider cluster -> hit -> MCParticle for any MCParticle origin or for
   // a specific user-specified origin
@@ -168,6 +177,8 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   for(auto& hr : hitRange) hr = std::make_pair(UINT_MAX, UINT_MAX);
   for(size_t iht = 0; iht < (*inputHits).size(); ++iht) {
     auto& hit = (*inputHits)[iht];
+    // only consider hits in a single TPC?
+    if(fInTPC >= 0 && hit.WireID().TPC != fInTPC) continue;
     auto tides = bt_serv->HitToTrackIDEs(hit);
     if(tides.empty()) continue;
     bool gottaMatch = false;
@@ -324,7 +335,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
           if(fPrintLevel > 0) {
             mf::LogVerbatim myprt("ClusterAna");
             myprt<<"TPC:"<<tpc<<" Plane:"<<plane<<" mcpi "<<mcpi<<" PDG Code "<<pdgCode;
-            myprt<<" Failed to reconstruct. Truth-matched hits range from TPC:Plane:Wire:Tick ";
+            myprt<<" Failed to reconstruct. Truth-matched cluster range from ";
             // print out the range of truth-matched hits
             unsigned int firstHitIndex = UINT_MAX;
             unsigned int lastHitIndex = UINT_MAX;
@@ -385,7 +396,8 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
         EPSums[pIndx] += ep;
         ESums[pIndx] += eff;
         PSums[pIndx] += pur;
-        bool hasBadEP = (ep < fPrintBadEP);
+        bool hasBadEP = (ep < fBadEP);
+        if(hasBadEP) ++fNBadEP;
         if(fPrintLevel > 0 || hasBadEP) {
           mf::LogVerbatim myprt("ClusterAna");
           myprt<<"TPC:"<<tpc<<" Plane:"<<plane;
@@ -407,7 +419,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
           myprt<<" pur "<<pur;
           auto& fHit = (*inputHits)[firstHitIndex];
           auto& lHit = (*inputHits)[lastHitIndex];
-          myprt<<" from TPC:Plane:Wire:Tick ";
+          myprt<<" from ";
           myprt<<fHit.WireID().TPC<<":"<<fHit.WireID().Plane<<":"<<fHit.WireID().Wire<<":"<<(int)fHit.PeakTime();
           myprt<<" to ";
           myprt<<lHit.WireID().TPC<<":"<<lHit.WireID().Plane<<":"<<lHit.WireID().Wire<<":"<<(int)lHit.PeakTime();
@@ -430,7 +442,13 @@ void cluster::ClusterAnaV2::endJob()
   } else {
     myprt<<" events using TrackModuleLabel: "<<fTrackModuleLabel.label();
   }
-  myprt<<" Origin: "<<fTruthOrigin<<"\n";
+  myprt<<" Origin: "<<fTruthOrigin;
+  if(fInTPC >= 0) {
+    myprt<<" in TPC "<<fInTPC;
+  } else {
+    myprt<<" in all TPCs";
+  }
+  myprt<<"\n";
   float cnts = 0;
   float sumEP = 0;
   float sumE = 0;
@@ -462,6 +480,7 @@ void cluster::ClusterAnaV2::endJob()
   myprt<<" Ave Eff "<<sumE/cnts;
   myprt<<" Ave Pur "<<sumP/cnts;
   myprt<<" Ave EP "<<sumEP/cnts;
+  myprt<<" nBadEP "<<fNBadEP;
   myprt<<"\n";
   myprt<<" Cnts";
   for(unsigned short pIndx = 0; pIndx < 5; ++pIndx) {

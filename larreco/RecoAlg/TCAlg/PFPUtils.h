@@ -21,7 +21,6 @@ namespace tca {
   void StitchPFPs();
   void FindPFParticles(TCSlice& slc);
   void MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec, unsigned short matVec_Iter);
-  void ChkPFPMC(TCSlice& slc, PFPStruct& pfp);
   bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
@@ -87,7 +86,6 @@ namespace tca {
   float Length(const PFPStruct& pfp);
   bool SectionStartEnd(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& startPt, unsigned short& endPt);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
-  unsigned int FindMCPIndex(TCSlice& slc, TP3D tp3d);
   int TruePDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
   int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
