@@ -302,8 +302,8 @@ namespace cluster{
     double no_of_clusters=0;
     double total_no_hits_in_clusters=0;
     //unsigned int plane=0;
-    art::Ptr<raw::RawDigit > _rawdigit;
-    art::Ptr<raw::RawDigit > _rawdigit2;
+    //art::Ptr<raw::RawDigit > _rawdigit; // unused
+    //art::Ptr<raw::RawDigit > _rawdigit2; // unused
     std::vector<int> vec_pdg;
     std::vector<int> vec_trackid,vec_trackid_mother, vec_trackid_mother_en;
     std::vector<int> all_trackids;
