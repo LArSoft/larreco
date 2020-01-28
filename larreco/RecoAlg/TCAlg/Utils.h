@@ -50,14 +50,14 @@ namespace tca {
   void SetAngleCode(TrajPoint& tp);
   unsigned short AngleRange(float angle);
   void FitTraj(TCSlice& slc, Trajectory& tj);
-  void FitTraj(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, 
+  void FitTraj(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts,
                short fitDir, TrajPoint& tpFit);
   float TjDirFOM(TCSlice& slc, const Trajectory& tj, bool prt);
   unsigned short GetPFPIndex(TCSlice& slc, int tjID);
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
-  void FitPar(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, 
+  void FitPar(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts,
               short fitDir, ParFit& pFit, unsigned short usePar);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
@@ -104,7 +104,7 @@ namespace tca {
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
   float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
   float KinkSignificance(TCSlice& slc, Trajectory& tj1, unsigned short end1, Trajectory& tj2, unsigned short end2, unsigned short nPtsFit, bool useChg, bool prt);
-  float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
+  float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit,
                         bool useChg, bool prt);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
@@ -230,7 +230,7 @@ namespace tca {
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
   std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
   std::string PrintEndFlag(const PFPStruct& pfp, unsigned short end);
-  
+
   ////////////////////////////////////////////////
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)

@@ -84,7 +84,7 @@ namespace tca {
     "Reconcile2Vs",
     "FTBMod"
   };
-  
+
   const std::vector<std::string> EndFlagNames {
     "Signal",
     "AtKink",

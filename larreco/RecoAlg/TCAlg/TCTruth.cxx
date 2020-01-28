@@ -45,7 +45,7 @@ namespace tca {
 
     std::cout<<"TruthMatcher::MatchTruth isn't functional anymore\n";
 /*
-    
+
     // check for a serious error
     if(!evt.mcpHandle) return;
     // and no MCParticles
@@ -54,7 +54,7 @@ namespace tca {
     if(evt.allHitsMCPIndex.size() != (*evt.allHits).size()) return;
 
     MatchTAndSum();
-    
+
     // Set the PFP mcpIndex and EP
     for(auto& slc : slices) {
       for(auto& pfp : slc.pfps) {
@@ -83,7 +83,7 @@ namespace tca {
   void TruthMatcher::MatchTAndSum()
   {
     // match tjs in all tpcs that were reconstructed and sum
-    
+
     // create a list of TPCs that were reconstructed
     std::vector<unsigned int> tpcList;
     for(auto& slc : slices) {
@@ -91,7 +91,7 @@ namespace tca {
       if(std::find(tpcList.end(), tpcList.end(), tpc) == tpcList.end()) tpcList.push_back(tpc);
     } // slc
     if(tpcList.empty()) return;
-    
+
     // Hit -> T unique ID in all slices
     std::vector<int> inTUID((*evt.allHits).size(), 0);
     for(auto& slc : slices) {

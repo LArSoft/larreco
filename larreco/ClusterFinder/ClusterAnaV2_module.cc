@@ -50,7 +50,7 @@ public:
   void analyze(art::Event const& e) override;
 
 private:
-  
+
   void endJob() override;
 
   art::InputTag fHitModuleLabel;
@@ -71,7 +71,7 @@ private:
   std::array<float, 5> ESums {{0}};
   // and for Purity
   std::array<float, 5> PSums {{0}};
-  
+
   bool fCompareProductIDs {true};     ///< compare Hit and Cluster-> Hit art product IDs on the first event
   bool fFirstPrint {true};
 
@@ -113,7 +113,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
 {
   // Match hits to MCParticles, then consider reconstructed hits in each TPC and plane
   // to calculate Efficiency, Purity and Efficiency * Purity (aka EP).
-  
+
   ++fEventCnt;
   auto const* geom = lar::providerFrom<geo::Geometry>();
   auto inputHits = art::Handle<std::vector<recob::Hit>>();
@@ -122,7 +122,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   // get a reference to the MCParticles
   auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
   if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("ClusterAnaV2")<<"Failed to get a handle to MCParticles using largeant\n";
-  
+
   if(fFirstPrint) {
     mf::LogVerbatim("ClusterAna")<<"Reconstructed cluster hit range format is TPC:Plane:Wire:Tick";
     fFirstPrint = false;
@@ -131,11 +131,11 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   // decide whether to consider cluster -> hit -> MCParticle for any MCParticle origin or for
   // a specific user-specified origin
   bool anySource = (fTruthOrigin == simb::kUnknown);
-  
+
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   sim::ParticleList const& plist = pi_serv->ParticleList();
-  
+
   // make a list of Hit -> MCParticle assns in all TPCs. The first step is
   // to make a list of Geant TrackIDs whose origin was requested by the user
   std::vector<int> trackIDs;
@@ -205,7 +205,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     if(hitRange[tpc].first == UINT_MAX) hitRange[tpc].first = iht;
     hitRange[tpc].second = iht;
   } // iht
-  
+
   // fill a vector of hits indices from all clusters or all tracks
   std::vector<std::vector<unsigned int>> recoHits;
   // and a companion vector of indices into the cluster or track collection
@@ -253,7 +253,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     std::cout<<"recoHits is empty. Does this make sense with "<<(*inputHits).size()<<" hits?";
     return;
   }
-  
+
   if(fPrintLevel > 1) mf::LogVerbatim("ClusterAnaV2")<<"loaded "<<recoHits.size()<<" recoHits collections";
 
   for(const auto& tpcid : geom->IterateTPCIDs()) {
@@ -262,7 +262,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     // iterate over planes
     for(unsigned short plane = 0; plane < geom->Nplanes(); ++plane) {
       unsigned int tpcHitCnt = 0;
-      // create a list of (MCParticle index, matched hit count> pairs 
+      // create a list of (MCParticle index, matched hit count> pairs
       //  mcParticle  plane
       std::vector<std::pair<unsigned int, float>> mcpCnt;
       // count MCParticle, Cluster/Track hit counts - size matched to mcpCnt
@@ -309,7 +309,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
             continue;
           }
           unsigned short cIndx = 0;
-          for(cIndx = 0; cIndx < mcpClsCnt[mIndx].size(); ++cIndx) 
+          for(cIndx = 0; cIndx < mcpClsCnt[mIndx].size(); ++cIndx)
             if(mcpClsCnt[mIndx][cIndx].first == ii) break;
           if(cIndx == mcpClsCnt[mIndx].size()) mcpClsCnt[mIndx].push_back(std::make_pair(ii, 0));
           ++mcpClsCnt[mIndx][cIndx].second;
@@ -388,7 +388,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
           lastHitIndex = iht;
           ++nRecoHitsInPlane;
         } // iht
-        if((*inputHits)[firstHitIndex].WireID().Wire > 
+        if((*inputHits)[firstHitIndex].WireID().Wire >
            (*inputHits)[lastHitIndex].WireID().Wire) std::swap(firstHitIndex, lastHitIndex);
         float pur = big.second / nRecoHitsInPlane;
         ++Cnts[pIndx];
@@ -428,7 +428,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       } // mIndx
     } // plane
   } // tpcid
-  
+
 } // analyze
 
 ////////////////////////////////////////////////

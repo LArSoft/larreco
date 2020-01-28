@@ -198,7 +198,7 @@ void FindPFParticles(TCSlice& slc)
     if(tcc.match3DCuts[0] <= 0) return;
 
     FillWireIntersections(slc);
-    
+
     // clear the TP -> P assn Tjs so that all are considered
     for(auto& tj : slc.tjs) {
       for(auto& tp : tj.Pts) tp.InPFP = 0;
@@ -208,12 +208,12 @@ void FindPFParticles(TCSlice& slc)
 
     // Match these points in 3D
     std::vector<MatchStruct> matVec;
-    
+
     // iterate twice (at most), looking for 3-plane matches in long tjs in 3-plane TPCs on the
     // first iteration, 3-plane matches in short tjs on the second iteration.
     // and 2-plane matches + dead regions in 3-plane TPCs on the last iteration
     slc.mallTraj.clear();
-    
+
     unsigned short maxNit = 2;
     if(slc.nPlanes == 2) maxNit = 1;
     if(std::nearbyint(tcc.match3DCuts[2]) == 0) maxNit = 1;
@@ -251,7 +251,7 @@ void FindPFParticles(TCSlice& slc)
     } // nit
     // reconcile TP -> P assns in all pfps in this slice
 //    ReconcileTPs(slc);
-    
+
     // a last debug print
     if(tcc.dbgPFP && debug.MVI != UINT_MAX) {
       for(auto& pfp : slc.pfps) if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
@@ -430,7 +430,7 @@ void FindPFParticles(TCSlice& slc)
       } // ip (iterate over split pfps)
     } // indx (iterate over matchVec entries)
     slc.mallTraj.resize(0);
-    
+
   } // MakePFParticles
 
 
@@ -441,12 +441,12 @@ void FindPFParticles(TCSlice& slc)
     // the TP -> P assn may not have been done. This function overwrites the TjIDs
     // vector to be the list of Tjs that contribute > 80% of their TPs to this pfp.
     // This function returns true if the assns are consistent.
-    
+
     if(!tcc.useAlg[kRTPs3D]) return true;
     if(pfp.TjIDs.empty()) return false;
     if(pfp.TP3Ds.empty()) return false;
     if(pfp.ID <= 0) return false;
-    
+
     //                  Tj ID, TP count
     std::vector<std::pair<int, float>> tjTPCnt;
     for(auto& tp3d : pfp.TP3Ds) {
@@ -485,7 +485,7 @@ void FindPFParticles(TCSlice& slc)
       return false;
     }
     pfp.TjIDs = nTjIDs;
-    
+
     return true;
 /*
     =======
@@ -686,12 +686,12 @@ void FindPFParticles(TCSlice& slc)
   void FillWireIntersections(TCSlice& slc)
   {
     // Find wire intersections and put them in evt.wireIntersections
-    
+
     // see if anything needs to be done
     if(!evt.wireIntersections.empty() && evt.wireIntersections[0].tpc == slc.TPCID.TPC) return;
-    
+
     evt.wireIntersections.clear();
-    
+
     unsigned int cstat = slc.TPCID.Cryostat;
     unsigned int tpc = slc.TPCID.TPC;
     // find the minMax number of wires in each plane of the TPC
@@ -699,7 +699,7 @@ void FindPFParticles(TCSlice& slc)
     for(auto nw : slc.nWires) if(nw < maxWire) maxWire = nw;
     // Start looking for intersections in the middle
     unsigned int firstWire = maxWire / 2;
-    
+
     // find a valid wire intersection in all plane combinations
     std::vector<std::pair<unsigned short, unsigned short>> pln1pln2;
     for(unsigned short pln1 = 0; pln1 < slc.nPlanes - 1; ++pln1) {
@@ -743,14 +743,14 @@ void FindPFParticles(TCSlice& slc)
     // float precision. The (y,z) position is only used to match TPs between planes - not for 3D fitting
     if(evt.wireIntersections.empty()) return false;
     if(pln1 == pln2) return false;
-    
+
     bool swap = false;
     if(pln1 > pln2) {
       std::swap(pln1, pln2);
       std::swap(wir1, wir2);
       swap = true;
     }
-    
+
     for(auto& wi : evt.wireIntersections) {
       if(wi.pln1 != pln1) continue;
       if(wi.pln2 != pln2) continue;
@@ -763,17 +763,17 @@ void FindPFParticles(TCSlice& slc)
     } // wi
     return false;
   } // TCIntersectionPoint
-  
+
   /////////////////////////////////////////
   void Match3PlanesSpt(TCSlice& slc, std::vector<MatchStruct>& matVec)
   {
     // fill matVec using SpacePoint -> Hit -> TP -> tj assns
     if(evt.sptHits.empty()) return;
-    
+
     // create a local vector of allHit -> Tj assns and populate it
     std::vector<int> inTraj((*evt.allHits).size(), 0);
     for(auto& tch : slc.slHits) inTraj[tch.allHitsIndex] = tch.InTraj;
-    
+
     // the TJ IDs for one match
     std::array<int, 3> tIDs;
     // vector for matched Tjs
@@ -785,7 +785,7 @@ void FindPFParticles(TCSlice& slc)
     if(tcc.match3DCuts[1] < (float)USHRT_MAX) maxCnt = (unsigned short)tcc.match3DCuts[1];
     // a list of those Tjs
     std::vector<unsigned short> tMaxed;
-    
+
     unsigned int tpc = slc.TPCID.TPC;
 
     for(auto& sptHits : evt.sptHits) {
@@ -819,7 +819,7 @@ void FindPFParticles(TCSlice& slc)
       } // hit maxCnt
       ++cnt;
     } // sptHit
-    
+
     std::vector<SortEntry> sortVec;
     for(unsigned short indx = 0; indx < mCnt.size(); ++indx) {
       auto& tIDs = mtIDs[indx];
@@ -841,7 +841,7 @@ void FindPFParticles(TCSlice& slc)
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
 
     matVec.resize(sortVec.size());
-    
+
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
       unsigned short indx = sortVec[ii].index;
       auto& ms = matVec[ii];
@@ -849,7 +849,7 @@ void FindPFParticles(TCSlice& slc)
       ms.TjIDs.resize(3);
       for(unsigned short plane = 0; plane < 3; ++plane) ms.TjIDs[plane] = mtIDs[indx][plane];
     } // indx
-    
+
   } // Match3PlanesSpt
 
   /////////////////////////////////////////
@@ -857,7 +857,7 @@ void FindPFParticles(TCSlice& slc)
   {
     // returns true if a hit referenced in sptHits resides in the requested tpc. We assume
     // that if one does, then all of them do
-    
+
     unsigned int ahi = UINT_MAX;
     for(auto ii : sptHits) if(ii != UINT_MAX) { ahi = ii; break; }
     if(ahi >= (*evt.allHits).size()) return false;
@@ -865,14 +865,14 @@ void FindPFParticles(TCSlice& slc)
     auto& hit = (*evt.allHits)[ahi];
     if(hit.WireID().TPC == tpc) return true;
     return false;
-    
+
   } // SptInTPC
-  
+
   /////////////////////////////////////////
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec)
   {
     // A simpler and faster version of MatchPlanes that only creates three plane matches
-    
+
     if(slc.nPlanes != 3) return;
 
     // use SpacePoint -> Hit -> TP assns?
@@ -1000,7 +1000,7 @@ void FindPFParticles(TCSlice& slc)
   void Match2Planes(TCSlice& slc, std::vector<MatchStruct>& matVec)
   {
     // A simpler faster version of MatchPlanes that only creates two plane matches
-    
+
     matVec.clear();
     if(slc.mallTraj.empty()) return;
 
@@ -1478,14 +1478,14 @@ void FindPFParticles(TCSlice& slc)
 //<<<<<<< HEAD
     // fits the points and returns the fit results in a SectionFit struct. This function assumes that the
     // vector of TP3Ds exists in the slc.TPCID
-    
+
     SectionFit sf;
     sf.ChiDOF = 999;
     if(nPtsFit < 5) return sf;
     if(!(fitDir == -1 || fitDir == 1)) return sf;
     if(fitDir ==  1 && fromPt + nPtsFit >tp3ds.size()) return sf;
     if(fitDir == -1 && fromPt < 3) return sf;
-    
+
     // put the offset, cosine-like and sine-like components in a vector
     std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -1548,7 +1548,7 @@ void FindPFParticles(TCSlice& slc)
     TVectorD tVec = svd.Solve(w, ok);
     if(!ok) return sf;
     double norm = sqrt(1 + tVec[2] * tVec[2] + tVec[3] * tVec[3]);
-    
+
     // TODO: The direction is reversed for some reason
     norm *= -1;
 
@@ -1559,18 +1559,18 @@ void FindPFParticles(TCSlice& slc)
     sf.Pos[1] = tVec[0];
     sf.Pos[2] = tVec[1];
     sf.NPts = npts;
-    
+
     // Calculate errors from sigma * (A^T * A)^(-1) where sigma is the
     // error on the wire number (= 1)
     // TODO: is this an expensive calculation?
-    TMatrixD AT(nvars, npts); 
+    TMatrixD AT(nvars, npts);
     AT.Transpose(A);
     TMatrixD ATA = AT * A;
     double *det = 0;
     ATA.Invert(det);
     sf.DirErr[1] = -sqrt(ATA[2][2]) / norm;
     sf.DirErr[2] = -sqrt(ATA[3][3]) / norm;
-    
+
     // calculate ChiDOF
     sf.ChiDOF = 0;
     // project this 3D vector into a TP in every plane
@@ -1610,17 +1610,17 @@ void FindPFParticles(TCSlice& slc)
   bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short nPtsFit, unsigned short sfIndex, float& chiDOF)
   {
     // Fit points in the pfp.TP3Ds vector fromPt. This function returns chiDOF but
-    // doesn't update the TP3Ds unless sfIndex refers to a valid SectionFit in the pfp. 
+    // doesn't update the TP3Ds unless sfIndex refers to a valid SectionFit in the pfp.
     // No check is made to ensure that the TP3D SFIndex variable is compatible with sfIndex
-    
+
     chiDOF = 999;
     if(nPtsFit < 5) return false;
     if(fromPt + nPtsFit > pfp.TP3Ds.size()) return false;
-    
+
     auto sf = FitTP3Ds(slc, pfp.TP3Ds, fromPt, 1, nPtsFit);
     chiDOF = sf.ChiDOF;
     if(chiDOF > 900) return false;
-    
+
     // don't update the pfp?
     if(sfIndex >= pfp.SectionFits.size()) return true;
 
@@ -1673,12 +1673,12 @@ void FindPFParticles(TCSlice& slc)
   {
     // calculates a kink angle at the point atPt in the pfp TP3Ds vector by doing a fit
     // of points within fitLen distance on both sides of that point
-        
+
     dang = -1;
     dangSig = 0;
     if(atPt < 4) return;
     if(atPt > pfp.TP3Ds.size() - 5) return;
-    
+
     auto& atPos = pfp.TP3Ds[atPt].Pos;
     double fLen2 = fitLen * fitLen;
     unsigned short nPtsMinus = 0;
@@ -1701,7 +1701,7 @@ void FindPFParticles(TCSlice& slc)
       }
     } // ipt
     if(!gotenuf) return;
-    
+
     auto fitMinus = FitTP3Ds(slc, pfp.TP3Ds, atPt - 1, -1, nPtsMinus);
     if(fitMinus.ChiDOF > 10) return;
     auto fitPlus = FitTP3Ds(slc, pfp.TP3Ds, atPt + 1, 1, nPtsMinus);
@@ -1733,7 +1733,7 @@ void FindPFParticles(TCSlice& slc)
   {
     // Looks for a kink in pfpVec[0]. If one is found, the pfp is split and the
     // second one is put in pfpVec[1]
-    
+
     if(tcc.useAlg[kKink3D]) return;
     if(tcc.kinkCuts.size() < 5) return;
     if(pfpVec.size() != 1) return;
@@ -1779,7 +1779,7 @@ void FindPFParticles(TCSlice& slc)
     if(p1.TP3Ds.size() < 4) return false;
     if(atPt > p1.TP3Ds.size() - 3) return false;
     // ensure that p2 was created properly
-    if(p2.SectionFits.size() != 1 || !p2.TP3Ds.empty()) return false;    
+    if(p2.SectionFits.size() != 1 || !p2.TP3Ds.empty()) return false;
     // ensure that p1 is updated
     if(p1.Flags[kNeedsUpdate] && !Update(slc, p1, prt)) return false;
     std::cout<<"Split is fubar\n";
@@ -1810,7 +1810,7 @@ void FindPFParticles(TCSlice& slc)
     } // doUpdate
     if(!ReSection(slc, p1, prt)) return false;
     if(!ReSection(slc, p2, prt)) return false;
-    // Correct the TP -> P2 assn 
+    // Correct the TP -> P2 assn
     if(doTPAssns) {
       for(auto& tp3d : p2.TP3Ds) {
         if(tp3d.TjID <= 0) continue;
@@ -1846,8 +1846,8 @@ void FindPFParticles(TCSlice& slc)
     if(tcc.vtx3DCuts.size() < 3) return;
     if(pfp.TP3Ds.empty()) return;
     if(pfp.Flags[kJunk3D]) return;
-    
-    // first make a list of all Tjs 
+
+    // first make a list of all Tjs
     std::vector<int> tjList;
     for(auto& tp3d : pfp.TP3Ds) {
       if(!tp3d.IsGood) continue;
@@ -1934,9 +1934,9 @@ void FindPFParticles(TCSlice& slc)
     // don't trim shower-like pfps
 //    if(IsShowerLike(slc, pfp.TjIDs)) return;
     if(pfp.Flags[kJunk3D]) return;
-    
+
     auto pWork = pfp;
-    
+
     pWork.Flags[kNeedsUpdate] = false;
     for(unsigned short nit = 0; nit < 2; ++nit) {
       // create a vector of valid points
@@ -2015,13 +2015,13 @@ void FindPFParticles(TCSlice& slc)
     if(pfp.SectionFits.empty()) return;
     if(!tcc.useAlg[kFillGaps3D]) return;
     if(pfp.Flags[kJunk3D]) return;
-    
+
     // Only print APIR details if MVI is set
     bool foundMVI = (tcc.dbgPFP && pfp.MVI == debug.MVI);
 
     // make a copy in case something goes wrong
     auto pWork = pfp;
-    
+
     unsigned short nPtsAdded = 0;
     unsigned short fromPt = 0;
     unsigned short toPt = pWork.TP3Ds.size();
@@ -2060,7 +2060,7 @@ void FindPFParticles(TCSlice& slc)
         AddPointsInRange(slc, pWork, fromPt, toPt, inCTP, tcc.match3DCuts[4], nWires, nAdd, foundMVI);
       }
     } // plane
-        
+
     if(pWork.Flags[kNeedsUpdate] && !Update(slc, pWork, prt)) {
       mf::LogVerbatim("TC")<<"  Update failed after adding points. Restored P"<<pfp.ID;
       return;
@@ -2110,14 +2110,14 @@ void FindPFParticles(TCSlice& slc)
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt)
   {
     // Try to insert 2D trajectory points into the 3D trajectory point vector pfp.TP3Ds.
-    // This function inserts new TP3Ds and sets the NeedsUpdate flags true. 
+    // This function inserts new TP3Ds and sets the NeedsUpdate flags true.
     // The calling function should call Update
     // Note that maxPull is used for the charge pull as well as the position pull
     nWires = 0;
     nAdd = 0;
     if(fromPt > toPt) return;
     if(toPt >= pfp.TP3Ds.size()) toPt = pfp.TP3Ds.size() - 1;
-    
+
     // Find the average dE/dx so we can apply a generous min/max dE/dx cut
     float dEdXAve = 0;
     float dEdXRms = 0;
@@ -2129,9 +2129,9 @@ void FindPFParticles(TCSlice& slc)
       dEdxMax = dEdXAve + maxPull * dEdXRms;
       if(dEdxMax > 50.) dEdxMax = 50.;
     } // dEdXAve > 0.5
-    
+
     // Split the range into sub-ranges; one for each SectionFit and make 2D TPs at the
-    // start of each sub-range. 
+    // start of each sub-range.
     std::vector<TrajPoint> sfTPs;
     // form a list of TPs that are used in this CTP
     std::vector<std::pair<int, unsigned short>> tpUsed;
@@ -2174,9 +2174,9 @@ void FindPFParticles(TCSlice& slc)
 
     // set a generous search window in WSE units
     float window = 50;
-    
+
     if(prt) mf::LogVerbatim("TC")<<"APIR: inCTP "<<inCTP<<" fromWire "<<fromWire<<" toWire "<<toWire;
-    
+
     // iterate over the sub-ranges
     for(unsigned short subr = 0; subr < sfTPs.size(); ++subr) {
       auto& fromTP = sfTPs[subr];
@@ -2412,7 +2412,7 @@ void FindPFParticles(TCSlice& slc)
     slc.mallTraj.clear();
     Tj2Pt tj2pt;
     unsigned short cnt = 0;
-    
+
     // try to reduce CPU time by not attempting to match tjs that are near muons
     bool muFuzzCut = (tcc.match3DCuts.size() > 6 && tcc.match3DCuts[6] > 0);
 
@@ -2585,7 +2585,7 @@ void FindPFParticles(TCSlice& slc)
     // just those at the ends ala FilldEdx
     dEdXAve = -1.;
     dEdXRms = -1.;
-    
+
     double sum = 0;
     double sum2 = 0;
     double cnt = 0;
@@ -2618,7 +2618,7 @@ void FindPFParticles(TCSlice& slc)
 
     auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
     if(tp.Environment[kEnvOverlap]) return 0;
-    
+
     double dQ = 0.;
     double time = 0;
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -2972,7 +2972,7 @@ void FindPFParticles(TCSlice& slc)
     } else {
       pos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
     }
-    
+
     return (pos[0] > slc.xLo + abit && pos[0] < slc.xHi - abit &&
             pos[1] > slc.yLo + abit && pos[1] < slc.yHi - abit &&
             pos[2] > slc.zLo + abit && pos[2] < slc.zHi - abit);
@@ -3231,8 +3231,8 @@ void FindPFParticles(TCSlice& slc)
     // returns a vote using PDG code assignments from dE/dx. A PDGCode of -1 is
     // returned if there was a failure and returns 0 if no decision can be made
     if(pfp.TP3Ds.empty()) return -1;
-    
-    // try to do better using dE/dx 
+
+    // try to do better using dE/dx
     float dEdXAve = 0;
     float dEdXRms = 0;
     Average_dEdX(slc, pfp, dEdXAve, dEdXRms);

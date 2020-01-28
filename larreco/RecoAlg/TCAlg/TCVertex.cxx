@@ -153,9 +153,9 @@ namespace tca {
 
     if(tcc.vtx2DCuts[0] <= 0) return;
     if(slc.tjs.size() < 2) return;
-    
+
     bool firstPassCuts = (pass == 0);
-    
+
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
     // require charge between the vertex and the tj start points?
@@ -702,11 +702,11 @@ namespace tca {
     // The cuts on T1 and T2 are less restrictive than those in
     // FindHammerVertices and FindHammerVertices2
     if(!tcc.useAlg[kHamBragg]) return;
-    
+
     bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamBragg]);
     constexpr float docaCut = 10;
     if(prt) mf::LogVerbatim("TC")<<"Inside HamBragg inCTP "<<inCTP<<" docaCUT "<<docaCut;
-    
+
     for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
       if(slc.tjs[it1].CTP != inCTP) continue;
       if(slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
@@ -790,7 +790,7 @@ namespace tca {
         break;
       } // it2
     } // it1
-    
+
   } // FindHamBragg
 */
   //////////////////////////////////////////
@@ -1101,10 +1101,10 @@ namespace tca {
     if(slc.vtxs.empty()) return;
 
     bool prt = (tcc.dbg2V && tcc.dbgSlc);
-    
+
     // clusters of 2Vs
     std::vector<std::vector<int>> vx2Cls;
-    
+
     // iterate over planes
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       // look for 2D vertices that are close to each other
@@ -1179,9 +1179,9 @@ namespace tca {
       if(vx.ID <= 0) continue;
       if(!vx.Stat[kVxEnvOK]) VxEnvironmentNeedsUpdate = true;
     } // vx
-    
+
     if(VxEnvironmentNeedsUpdate) UpdateVxEnvironment(slc);
-    
+
   } // Reconcile2Vs
 
   //////////////////////////////////////
@@ -1192,7 +1192,7 @@ namespace tca {
     // or if a vertex in vx2cls is made obsolete, necessitating a change to the list of 2V
     // clusters
     if(vx2cls.size() < 2) return false;
-    
+
     // Form a list of all Tjs associated with this 2V cluster
     std::vector<int> t2vList;
 
@@ -1206,7 +1206,7 @@ namespace tca {
       for(auto tid : tlist) if(std::find(t2vList.begin(), t2vList.end(), tid) == t2vList.end()) t2vList.push_back(tid);
     } // vx2id
     if(t2vList.size() < 3) return false;
-    
+
     // Sum the T -> 2V pulls
     float sumPulls = 0;
     float cnt = 0;
@@ -1224,7 +1224,7 @@ namespace tca {
         ++cnt;
       } // end
     } // tid
-    
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"R2VTs: cluster:";
@@ -1233,7 +1233,7 @@ namespace tca {
       for(auto tid : t2vList) myprt<<" T"<<tid;
       myprt<<" sumPulls "<<std::setprecision(2)<<sumPulls<<" cnt "<<cnt;
     } // prt
-    
+
     // try to fit all Tjs to one vertex. Find the average position of all of the
     // vertices. This will be used to find the end of the Tjs that are closest to the
     // presumed single vertex
@@ -1258,7 +1258,7 @@ namespace tca {
       oneVxTPs[itj].Step = tj.ID;
     } // ii
     if(!FitVertex(slc, oneVx, oneVxTPs, prt)) return false;
-    
+
     if(oneVx.ChiDOF < 3) {
       // Update the position of the first 2V in the list
       auto& vx = slc.vtxs[vx2cls[0] - 1];
@@ -1314,7 +1314,7 @@ namespace tca {
         myprt<<" best 2V"<<vx2cls[bestIvx]<<" pull "<<std::setprecision(2)<<bestPull;
       } // prt
     } // itj
-    
+
     // Look for a 2V with only one 2V -> T assn and try to attach it to a different 2V that
     // has slightly higher (but still acceptable) pull
     for(unsigned short ivx = 0; ivx < vx2cls.size(); ++ivx) {
@@ -1357,7 +1357,7 @@ namespace tca {
       vxToT[secondBestIvx].push_back(tassn[0]);
       tassn.clear();
     } // ivx
-    
+
     // Sum the T -> 2V pulls for the alternate set of assns
     float altSumPulls = 0;
     float altCnt = 0;
@@ -1376,7 +1376,7 @@ namespace tca {
         ++altCnt;
       } // ii
     } // ivx
-    
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<" Alternate T -> 2V assns. altSumPulls "<<altSumPulls<<" altCnt "<<altCnt;
@@ -1388,10 +1388,10 @@ namespace tca {
         } // ii
       } // ivx
     } // prt
-    
+
     // The alternate is worse so give up
     if(altSumPulls > sumPulls) return false;
-    
+
     // next do a vertex fit on each of the vertices in the clusters to get improved (maybe) vertex
     // positions
     altSumPulls = 0;
@@ -1433,12 +1433,12 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<" altSumPulls "<<altSumPulls<<" sumPulls "<<sumPulls;
 */
     return false;
-    
+
   } // Reconcile2VTs
 /*
 //////////////////////////////////////
   void F3Vs(TCSlice& slc) {
-    // (Hopefully) an improvement on Find3DVertices 
+    // (Hopefully) an improvement on Find3DVertices
     if(!tcc.useAlg[kTCWork2]) return;
     if(tcc.vtx3DCuts[0] < 0) return;
     if(slc.vtxs.size() < 2) return;
@@ -1447,7 +1447,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim("TC")<<"Inside F3Vs. dX cut "<<tcc.vtx3DCuts[0];
     }
-    
+
     // IDs of 2D vertices in each plane
     std::vector<std::vector<int>> pln2VIDs(slc.nPlanes);
     std::vector<std::vector<double>> vXs(slc.nPlanes);
@@ -1461,7 +1461,7 @@ namespace tca {
       double ticks = vx2.Pos[1] / tcc.unitsPerTick;
       vXs[plane].push_back(tcc.detprop->ConvertTicksToX(ticks, planeID));
     } // vx2
-    
+
     unsigned short cntInPln = 0;
     for(auto ids : pln2VIDs) if(!ids.empty()) ++cntInPln;
     if(prt) {
@@ -1470,11 +1470,11 @@ namespace tca {
       for(auto ids : pln2VIDs) myprt<<" "<<ids.size();
     }
     if(cntInPln < slc.nPlanes) return;
-    
+
     std::vector<Vtx3Store> v3list;
     unsigned int cstat = slc.TPCID.Cryostat;
     unsigned int tpc = slc.TPCID.TPC;
-    
+
     constexpr float maxSep = 4;
     // keep track of the worst complete 3D vertex score. This will be added
     // to the score of incomplete vertices so that they are considered after
@@ -1588,9 +1588,9 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim("TC")<<" F3Vs found "<<v3list.size()<<" candidates";
     }
-    
+
     if(v3list.empty()) return;
-    
+
     if(v3list.size() > 1) {
       // inflate the score of incomplete vertices so they appear later in the sorted list
       for(auto& v3 : v3list) if(v3.Wire >= 0) v3.Score += maxCmpScore;
@@ -1604,7 +1604,7 @@ namespace tca {
       auto tmp = v3list;
       for(unsigned short ivx = 0; ivx < v3list.size(); ++ivx) v3list[ivx] = tmp[sortVec[ivx].index];
     } // v3list.size() > 1)
-    
+
     unsigned short ninc = 0;
     for(auto& v3 : v3list) {
       // ensure that it is unique
@@ -1956,19 +1956,19 @@ namespace tca {
     // Attaches to any 3D vertex but doesn't require consistency with
     // PFP -> Tj -> 2V -> 3V assns
     if(pfp.ID <= 0) return false;
-    
+
 //    if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
-    
+
     float pLen = Length(pfp);
     if(pLen == 0) return false;
-    
+
     // save the old assignents and clear them
     //    auto oldVx3ID = pfp.Vx3ID;
     for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
     std::array<Point3_t, 2> endPos;
     endPos[0] = PosAtEnd(pfp, 0);
     endPos[1] = PosAtEnd(pfp, 1);
-    
+
     std::array<float, 2> foms {{100., 100.}};
     std::array<int, 2> vtxs {{0}};
     for(auto& vx3 : slc.vtx3s) {
@@ -1993,7 +1993,7 @@ namespace tca {
       if(fom < foms[end]) {
         foms[end] = fom;
         vtxs[end] = vx3.ID;
-      } 
+      }
     } // vx3
     bool bingo = false;
     for(unsigned short end = 0; end < 2; ++end) {
@@ -2004,7 +2004,7 @@ namespace tca {
     } // end
     return bingo;
   } // AttachToAnyVertex
-  
+
   //////////////////////////////////////////
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt)
   {
@@ -2014,7 +2014,7 @@ namespace tca {
     auto& tj = slc.tjs[tjID - 1];
     if(tj.AlgMod[kKilled]) return false;
     if(tcc.vtx2DCuts[0] <= 0) return false;
-    
+
     unsigned short bestVx = USHRT_MAX;
     // Construct a FOM = (TP-Vtx pull) * (TP-Vtx sep + 1) * (Vtx Score).
     // The +1 keeps FOM from being 0
@@ -2055,7 +2055,7 @@ namespace tca {
     VtxStore& vx = slc.vtxs[ivx];
     // Hammer vertices should be isolated and clean
     if(vx.Topo == 5 || vx.Topo == 6) return false;
-    
+
     unsigned short bestTj = USHRT_MAX;
     // Construct a FOM = (TP-Vtx pull) * (TP-Vtx sep + 1).
     // The +1 keeps FOM from being 0
@@ -2165,7 +2165,7 @@ namespace tca {
     // be poorly reconstructed. It is better to have them associated with the vertex
     // than not.
     if(tjShort) pullCut *= 2;
-    
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"ATTV: 2V"<<vx.ID;
@@ -2206,7 +2206,7 @@ namespace tca {
     // restore the fixed flag
     vx.Stat[kFixed] = fixedBit;
     return true;
-    
+
   } // AttachTrajToVertex
 
   /////////////////////////////////////////
@@ -2283,10 +2283,10 @@ namespace tca {
 //      mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<slc.vtxs.size() + 1;
       return false;
     }
-    
+
     ++evt.global2V_UID;
     vx.UID = evt.global2V_UID;
-    
+
     unsigned short nvxtj = 0;
     unsigned short nok = 0;
     for(auto& tj : slc.tjs) {
@@ -2372,14 +2372,14 @@ namespace tca {
     // usually done using the TDecompSVD Solve method but here we do it step-wise to
     // get access to the covariance matrix (A^T * A)^-1. The pull between the TP position
     // and the vertex position is stored in tp.Delta
-    
+
     if(vxTPs.size() < 2) return false;
     if(vxTPs.size() == 2) {
       // TODO: side-step a matrix inversion problem for now
       vx.ChiDOF = 0.;
       return true;
     }
-    
+
     unsigned short npts = vxTPs.size();
     TMatrixD A(npts, 2);
     TVectorD b(npts);
@@ -2392,7 +2392,7 @@ namespace tca {
       b(itj) = (tp.Pos[1] - tp.Pos[0] * dtdw) * wt;
     } // itj
 
-    TMatrixD AT(2, npts); 
+    TMatrixD AT(2, npts);
     AT.Transpose(A);
     TMatrixD ATA = AT * A;
     double *det = 0;
@@ -2403,7 +2403,7 @@ namespace tca {
     vx.PosErr[1] = sqrt(ATA[1][1]);
     vx.Pos[0] = vxPos[0];
     vx.Pos[1] = vxPos[1];
-    
+
     // Calculate Chisq
     vx.ChiDOF = 0;
     if(vxTPs.size() > 2) {
@@ -2414,7 +2414,7 @@ namespace tca {
       } // itj
       vx.ChiDOF /= (float)(vxTPs.size() - 2);
     } // vxTPs.size() > 2
-    
+
     if(prt) {
       mf::LogVerbatim("TC")<<"Note: TP - 2V pull is stored in TP.Delta";
       PrintTPHeader("FV");

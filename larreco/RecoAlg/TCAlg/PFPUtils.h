@@ -25,7 +25,7 @@ namespace tca {
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
   void FillWireIntersections(TCSlice& slc);
-  bool TCIntersectionPoint(unsigned int wir1, unsigned int wir2, unsigned int pln1, unsigned int pln2, 
+  bool TCIntersectionPoint(unsigned int wir1, unsigned int wir2, unsigned int pln1, unsigned int pln2,
                            float& y, float& z);
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
   bool SptInTPC(const std::array<unsigned int, 3>& sptHits, unsigned int tpc);
@@ -47,7 +47,7 @@ namespace tca {
   void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ValidTwoPlaneMatch(TCSlice& slc, PFPStruct& pfp);
-  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, 
+  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt,
                         CTP_t inCTP, float maxPull, unsigned short& nWires, unsigned short& nAdd, bool prt);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);

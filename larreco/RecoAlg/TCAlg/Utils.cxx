@@ -253,7 +253,7 @@ namespace tca {
         sf.Pos[1] = vx3.Y;
         sf.Pos[2] = vx3.Z;
         sf.Dir[2] = 1;
-        // This may be set to 12 later on if a primary shower is reconstructed 
+        // This may be set to 12 later on if a primary shower is reconstructed
         neutrinoPFP.PDGCode = 14;
         neutrinoPFP.Vx3ID[1] = vx3.ID;
         neutrinoPFP.Vx3ID[0] = vx3.ID;
@@ -529,7 +529,7 @@ namespace tca {
   /////////////////////////////////////////
   float PointPull(TCSlice& slc, Point2_t pos, float chg, const Trajectory& tj)
   {
-    // returns the combined position and charge pull for the charge at pos 
+    // returns the combined position and charge pull for the charge at pos
     // relative to the Tj closest to that point using a loose requirement on position separation.
     if(tj.AlgMod[kKilled]) return 100;
     if(tj.AveChg <= 0) return 100;
@@ -558,7 +558,7 @@ namespace tca {
     // return a simple average
     return 0.5 * (posPull + chgPull);
   } // PointPull
-  
+
   /////////////////////////////////////////
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt)
   {
@@ -1145,9 +1145,9 @@ namespace tca {
         return false;
       }
     } // tp
-    
+
     if(tj.NeedsUpdate) UpdateTjChgProperties("ST", slc, tj, false);
-    
+
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tj);
 
@@ -1161,7 +1161,7 @@ namespace tca {
 
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
-    
+
     // ensure that angle errors are defined at both ends, ignoring junk Tjs
     if(!tj.AlgMod[kJunkTj]) {
       if(endTp0.AngErr == 0.1 && endTp1.AngErr != 0.1) {
@@ -1274,7 +1274,7 @@ namespace tca {
   {
     // Fit a TP parameter, like Chg or Delta, to a line using the points starting at originPT.
     // Currently supported values of usePar are Chg (1) and Delta (2)
-    
+
     pFit.ChiDOF = 999;
     pFit.AvePar = 0.;
     if(originPt > tj.Pts.size() - 1) return;
@@ -1608,13 +1608,13 @@ namespace tca {
   void ChkEndKink(TCSlice& slc, Trajectory& tj, bool prt)
   {
     // Trim points at the end if the TP deltas are increasing, indicating a
-    // kink at the end that failed detection 
+    // kink at the end that failed detection
     if(!tcc.useAlg[kCEK]) return;
     // don't consider long electrons
     if(tj.PDGCode == 111) return;
-    
+
     prt = true;
-        
+
     // look for a consistent increase in Delta in the last points on the trajectory
     unsigned short nPtsFit = tcc.kinkCuts[0];
     ParFit deltaFit;
@@ -1622,9 +1622,9 @@ namespace tca {
     if(deltaFit.ChiDOF > 100) return;
     float sig = std::abs(deltaFit.ParSlp) / deltaFit.ParSlpErr;
     if(sig < 20) return;
-    
+
 //    re-write this function
-    
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"CEK: T"<<tj.ID;
@@ -1639,7 +1639,7 @@ namespace tca {
         myprt<<"  "<<PrintPos(slc, tp)<<" Delta "<<tp.Delta<<" nTPsFit "<<tp.NTPsFit<<"\n";
       } // ipt
     } // prt
-    
+
   } // ChkEndKink
 */
   //////////////////////////////////////////
@@ -1654,11 +1654,11 @@ namespace tca {
     if(npwc < 50) return;
     // that don't have a Bragg peak
     if(tj.EndFlag[1][kBragg]) return;
-    
+
     // only look at the last points that would have not been considered by GottaKink
     unsigned short nPtsMax = tcc.kinkCuts[2];
     if(nPtsMax > 8) nPtsMax = 8;
-    
+
     // count the number of high charge points and the number of
     // OK charge points near the end
     unsigned short cntTot = 0;
@@ -1696,7 +1696,7 @@ namespace tca {
     if(!tcc.useAlg[kTEP]) return;
     if(tj.PDGCode == 111) return;
     if(tj.EndFlag[1][kAtKink]) return;
-    
+
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     short minPts = fQualityCuts[1];
     if(minPts < 1) return;
@@ -1787,13 +1787,13 @@ namespace tca {
     if(!tcc.useAlg[kEndKink]) return;
     if(tj.PDGCode == 111) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 6) return;
-    
+
     if(!prt) return;
 
     if(prt) mf::LogVerbatim("TC")<<"CEK: Inside ChkEndKinks T"<<tj.ID;
-    
+
     unsigned short nPtsFit = tcc.kinkCuts[0];
-    
+
     while(nPtsFit > 2) {
       for(unsigned short ipt = tj.EndPt[0] + nPtsFit; ipt < tj.EndPt[1] - nPtsFit; ++ipt) {
         auto& tp = tj.Pts[ipt];
@@ -1804,7 +1804,7 @@ namespace tca {
       } // ii
       --nPtsFit;
     } // nPtsFit
-    
+
 
   } // ChkEndKinks
 
@@ -2017,7 +2017,7 @@ namespace tca {
   bool SignalAtTpInSlc(const TCSlice& slc, const TrajPoint& tp)
   {
     // Version of SignalAtTP that only checks the hit collection in the current slice
-    
+
     if(tp.Pos[0] < -0.4) return false;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned short pln = planeID.Plane;
@@ -2056,7 +2056,7 @@ namespace tca {
   {
     // returns true if there is a hit near tp.Pos by searching through the full hit collection (if there
     // are multiple slices) or through the last slice (if there is only one slice)
-    
+
     tp.Environment[kEnvNearSrcHit] = false;
 
     // just check the hits in the last slice
@@ -2064,7 +2064,7 @@ namespace tca {
       const auto& slc = slices[slices.size() - 1];
       return SignalAtTpInSlc(slc, tp);
     }
-    
+
     if(tp.Pos[0] < -0.4) return false;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned short pln = planeID.Plane;
@@ -2072,7 +2072,7 @@ namespace tca {
     if(wire > evt.goodWire[pln].size() - 1) return false;
     // assume there is a signal on a dead wire
     if(!evt.goodWire[pln][wire]) return true;
-    
+
     // check the proximity of all of the hits in the range
     float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
     float tickRange = 0;
@@ -2083,10 +2083,10 @@ namespace tca {
     }
     float loTpTick = projTick - tickRange;
     float hiTpTick = projTick + tickRange;
-    
+
     // no signal here if there are no hits on this wire
     if(evt.wireHitRange[pln][wire].first == UINT_MAX) return false;
-    
+
     for(unsigned int iht = evt.wireHitRange[pln][wire].first; iht <= evt.wireHitRange[pln][wire].second; ++iht) {
       auto& hit = (*evt.allHits)[iht];
       // We wouldn't need to make this check if hits were sorted
@@ -2122,7 +2122,7 @@ namespace tca {
     if(evt.srcHits == NULL) return false;
     unsigned int pln = plnID.Plane;
     if(pln == 2) return false;
-    
+
     unsigned int cstat = plnID.Cryostat;
     unsigned int tpc = plnID.TPC;
     // get a valid range of hits to search
@@ -2711,7 +2711,7 @@ namespace tca {
     // Put hits with the assn P -> TP3D -> TP -> Hit into a vector
     std::vector<unsigned int> hitVec;
     if(pfp.TP3Ds.empty()) return hitVec;
-    
+
     for(auto& tp3d : pfp.TP3Ds) {
       if(tp3d.IsBad) continue;
       if(tp3d.TjID <= 0) continue;
@@ -2890,7 +2890,7 @@ namespace tca {
     tp.Environment[kEnvNotGoodWire] = false;
     // live wire with no hits
     if(slc.wireHitRange[plane][wire].first == UINT_MAX) return false;
-    
+
     unsigned int firstHit = slc.wireHitRange[plane][wire].first;
     unsigned int lastHit = slc.wireHitRange[plane][wire].second;
 
@@ -2919,7 +2919,7 @@ namespace tca {
   unsigned short NearbyCleanPt(TCSlice& slc, const Trajectory& tj, unsigned short end)
   {
     // Searches for a TP near the end (or beginnin) that doesn't have the kEnvOverlap bit set
-    // with the intent that a fit of a vertex position using this tj will be minimally 
+    // with the intent that a fit of a vertex position using this tj will be minimally
     // biased if there are no nearby hits from other tjs. A search is done from the
     // supplied nearPt moving in the + direction if nearPt == tj.EndPt[0] and moving in
     // the - direction if nearPt == tj.EndPt[1]
@@ -3013,10 +3013,10 @@ namespace tca {
   {
     // returns the significance of a potential kink between the ends of two trajectories. This
     // is used when deciding to either merge trajectories or make a vertex between them
-    
+
     if(tj1.CTP != tj2.CTP) return -1;
     if(end1 > 1 || end2 > 1) return -1;
-    
+
     // construct a temporary trajectory to allow using the standard KinkSignificance function.
     // The first nPtsFit points are comprised of TPs from tj1 and the last nPtsFits points are from tj2
     Trajectory tj;
@@ -3057,24 +3057,24 @@ namespace tca {
   } // KinkSignificance
 
   ////////////////////////////////////////////////
-  float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit, 
+  float KinkSignificance(TCSlice& slc, Trajectory& tj, unsigned short kinkPt, unsigned short nPtsFit,
                         bool useChg, bool prt)
   {
     // returns a kink significance in the trajectory at the presumed kink point kinkPt
     // using angle and (optional) charge asymmetry. The returned value is negative if there is insufficient
     // information.
-    // 
+    //
     // Check the limits
     if(kinkPt < tj.EndPt[0] + 2) return -1;
     if(kinkPt > tj.EndPt[1] - 2) return -1;
-    
+
     // This function requires knowledge of the DOF of the line fit
     if(nPtsFit < 3) return -1;
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     // need enough points to do a fit on each sideof the presumed kink point
     if(npwc < 2 * nPtsFit + 1) return -1;
 
-    // The hit charge uncertainty is 0.12 - 0.15 (neglecting 2ndry interactions) for hadrons. 
+    // The hit charge uncertainty is 0.12 - 0.15 (neglecting 2ndry interactions) for hadrons.
     // This translates into an error on the charge
     // asymmetry of about 0.07, or about 0.6 * the charge uncertainty
     double chgRMS = 0.07;
@@ -3083,7 +3083,7 @@ namespace tca {
     // This will increase the angle and charge error rms by 1.3 (1.05) when nPtsFit = 3 (8)
     double tFactor = 1 + 0.3 / double(nPtsFit - 2);
     chgRMS *= tFactor;
-    
+
     // Fit the trajectory direction on the + side
     short fitDir = 1;
     TrajPoint tpPos;
@@ -3161,7 +3161,7 @@ namespace tca {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
     if(tj.EndFlag[0][kBragg] || tj.EndFlag[1][kBragg]) return 0;
-    
+
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
     unsigned short cnt;
@@ -3547,11 +3547,11 @@ namespace tca {
     // This function is called after tj reconstruction is completed to set TP Environment
     // bits that are dependent on reconstruction, just kEnvNearMuon for now. This bit is
     // set for all TPs that are within 5 wire-equivalents of a muon
-    
+
     std::array<int, 2> wireWindow;
     Point2_t timeWindow;
     unsigned short plane = DecodeCTP(inCTP).Plane;
-    // 
+    //
     float delta = 5;
 
     for(auto& mutj : slc.tjs) {
@@ -3594,7 +3594,7 @@ namespace tca {
     // [0] = max separation of both endpoints from a muon
     // [1] = minimum MCSMom
     // [2] = maximum MCSMom
-    
+
     std::cout<<"inside TagDeltaRays "<<tcc.useAlg[kDeltaRay]<<" "<<tcc.deltaRayTag[0]<<" size "<<tcc.deltaRayTag.size()<<"\n";
 
     if(!tcc.useAlg[kDeltaRay]) return;
@@ -3865,29 +3865,29 @@ namespace tca {
   /////////////////////////////////////////
   void UpdateVxEnvironment(TCSlice& slc)
   {
-    // Set the kEnvOverlap bit true for all TPs that are close to other 
+    // Set the kEnvOverlap bit true for all TPs that are close to other
     // trajectories that are close to vertices. The positions of TPs that
     // overlap are biased and shouldn't be used in a vertex fit. Also, these
     // TPs shouldn't be used to calculate dE/dx. The kEnvOverlap bit is first cleared
     // for ALL TPs and then set for ALL 2D vertices
-    
+
     for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled]) continue;
       for(auto& tp : tj.Pts) tp.Environment[kEnvOverlap] = false;
     } // tj
-    
+
     for(auto& vx : slc.vtxs) {
       if(vx.ID <= 0) continue;
       UpdateVxEnvironment(slc, vx, false);
     } // vx
-    
+
   } // UpdateVxEnvironment
 
   /////////////////////////////////////////
   void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt)
   {
     // Update the Environment each TP on trajectories near the vertex
-    
+
     if(vx2.ID == 0) return;
     if(vx2.Stat[kOnDeadWire]) return;
 
@@ -4007,7 +4007,7 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<" Set kEnvOverlap bit on T"<<tj.ID<<" ipt "<<ipt;
       } // itj
     } // indx
-    
+
     vx2.Stat[kVxEnvOK] = true;
 
     // update the charge rms for those tjs whose environment was changed above (or elsewhere)
@@ -4019,7 +4019,7 @@ namespace tca {
     } // tjid
 
   } // UpdateVxEnvironment
-  
+
   /////////////////////////////////////////
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, CTP_t inCTP)
   {
@@ -4029,7 +4029,7 @@ namespace tca {
     tp.Dir = {{0,1}};
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
-    
+
     tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
     tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
     return tp;
@@ -4052,7 +4052,7 @@ namespace tca {
 
     // now find the direction if dir is defined
     if(dir[0] == 0 && dir[1] == 0 && dir[2] == 0) return tp;
-    
+
     // Make a point at the origin and one 100 units away
     Point3_t ori3 = {{0.0, 0.0, 0.0}};
     Point3_t pos3 = {{100 * dir[0], 100 * dir[1], 100 * dir[2]}};
@@ -4084,12 +4084,12 @@ namespace tca {
     double sn = tcc.geom->WireCoordinate(0, 1, planeID) - w0;
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
-    
+
     // Stasb dt/dWire in DeltaRMS. This is used in PFPUtils/FitSection to find the
     // distance along a 3D line given the wire number in a plane
     tp.DeltaRMS = 100 / (pos2[0] - ori2[0]);
     return tp;
-    
+
   } // MakeBareTP
 
   /////////////////////////////////////////
@@ -4406,11 +4406,11 @@ namespace tca {
     // Defines the local vector of dead wires and the low-high range of hits in each wire in
     // the TPCID in TCEvent. Note that there is no requirement that the allHits collection is sorted. Care should
     // be taken when looping over hits using this range - see SignalAtTp
-    
+
     // see if this function was called in the current TPCID. There is nothing that needs to
     // be done if that is the case
     if(inTPCID == evt.TPCID) return;
-    
+
     evt.TPCID = inTPCID;
     unsigned short nplanes = tcc.geom->Nplanes(inTPCID);
     unsigned int cstat = inTPCID.Cryostat;
@@ -4435,11 +4435,11 @@ namespace tca {
         evt.goodWire[pln].resize(nwires, true);
       } // pln
     } // don't use channelStatus
-    
+
     // there is no need to define evt.wireHitRange if the hit collection is not sliced. The function
     // SignalAtTP will then use the (smaller) slc.WireHitRange instead of evt.wireHitRange
     if(!evt.expectSlicedHits) return;
-    
+
     // define the size of evt.wireHitRange
     evt.wireHitRange.resize(nplanes);
     for(unsigned short pln = 0; pln < nplanes; ++pln) {
@@ -4447,7 +4447,7 @@ namespace tca {
       evt.wireHitRange[pln].resize(nwires);
       for(unsigned int wire = 0; wire < nwires; ++wire) evt.wireHitRange[pln][wire] = {UINT_MAX, UINT_MAX};
     } // pln
-    
+
     // next define the wireHitRange values. Make one loop through the allHits collection
     unsigned int nBadWireFix = 0;
     for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
@@ -4470,7 +4470,7 @@ namespace tca {
       std::cout<<"FillWireHitRange found hits on "<<nBadWireFix<<" wires that were declared not-good by the ChannelStatus service. Fixed it...\n";
     }
   } // FillWireHitRange
-  
+
   ////////////////////////////////////////////////
   bool FillWireHitRange(TCSlice& slc)
   {
@@ -4508,10 +4508,10 @@ namespace tca {
     tcc.maxPos0.resize(nplanes);
     tcc.maxPos1.resize(nplanes);
     evt.aveHitRMS.resize(nplanes, nplanes);
-    
+
     std::pair<unsigned int, unsigned int> flag;
     flag.first = UINT_MAX; flag.second = UINT_MAX;
-    
+
     // Calculate tcc.unitsPerTick, the scale factor to convert a tick into
     // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1.
     // Strictly speaking this factor should be calculated for each plane to handle the
@@ -4683,7 +4683,7 @@ namespace tca {
         return false;
       }
     }
-    
+
     if(tj1.EndFlag[1][kBragg]) {
       if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of trajectory T"<<tj1.ID<<" with a Bragg peak. Not merging\n";
       return false;
@@ -4740,7 +4740,7 @@ namespace tca {
     // re-define the end points
     SetEndPoints(tj1);
     tj1.EndFlag[1] = tj2.EndFlag[1];
-    
+
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(slc, tj1, doPrt)) return false;
     if(tj2.VtxID[1] > 0) {
@@ -4774,7 +4774,7 @@ namespace tca {
     // try to attach it to a vertex
     AttachAnyVertexToTraj(slc, newTjID, doPrt);
     return true;
-    
+
   } // MergeAndStore
 
   ////////////////////////////////////////////////
@@ -5680,7 +5680,7 @@ namespace tca {
     auto& slc = slices[sIndx.first];
 //    std::string str = std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(tj.ID);
 //    str += "/" + std::to_string(tj.UID);
-    // 
+    //
     std::string str = "T" + std::to_string(tj.ID) + "/TU" + std::to_string(tj.UID);
     myprt<<std::fixed<<std::setw(12)<<str;
     myprt<<std::setw(6)<<tj.CTP;

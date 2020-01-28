@@ -1969,7 +1969,7 @@ namespace tca {
           // Add the tj but don't update yet
           if(!AddTj(fcnLabel, slc, tjid, ss, false, prt)) return false;
         } // parent not in ss
-        // Don't define it to be the parent if it is short and the pfp projection in this plane is low 
+        // Don't define it to be the parent if it is short and the pfp projection in this plane is low
         auto pos = PosAtEnd(pfp, 0);
         auto dir = DirAtEnd(pfp, 0);
         auto tp = MakeBareTP(slc, pos, dir, tj.CTP);
@@ -3340,7 +3340,7 @@ namespace tca {
     // to the same high-score vertex, etc
 
     slc.dontCluster.clear();
-    
+
     std::cout<<"DefineDontCluster doesn't work...\n";
 /*
     DontClusterStruct dc;
@@ -3427,7 +3427,7 @@ namespace tca {
     // Version 2 of TagShowerLike to try to improve the separation between close showers, e.g. from pi-zeros
     tjLists.clear();
     if(tcc.showerTag[0] <= 0) return;
-    
+
     std::cout<<"FindCots doesn't work\n";
 /*
 
@@ -4393,10 +4393,10 @@ namespace tca {
 
     // set the 2S -> 3S assns
     for(auto cid : ss3.CotIDs) slc.cots[cid - 1].SS3ID = ss3.ID;
-    
+
     ++evt.global3S_UID;
     ss3.UID = evt.global3S_UID;
-    
+
    slc.showers.push_back(ss3);
     return true;
 
@@ -4439,10 +4439,10 @@ namespace tca {
       tj.AlgMod[kShwrParent] = false;
       if(tj.ID == ss.ParentID) tj.AlgMod[kShwrParent] = true;
     } // tjID
-    
+
     ++evt.global2S_UID;
     ss.UID = evt.global2S_UID;
-    
+
     slc.cots.push_back(ss);
     return true;
 

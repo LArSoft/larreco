@@ -135,7 +135,7 @@ namespace tca {
     if(tcc.kinkCuts[0] > 0 && tcc.kinkCuts[0] < 1.) {
       throw art::Exception(art::errors::Configuration)<<"Are you using an out-of-date specification for KinkCuts? KinkCuts[0] is the number of points to fit.\n";
     }
-    
+
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     // dressed muons - change next line
     if(tcc.muonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging\n 4 = dress muon window size (optional)";
@@ -151,7 +151,7 @@ namespace tca {
       tcc.showerTag[12] = -1;
     }
     if(tcc.match3DCuts.size() < 6) throw art::Exception(art::errors::Configuration)<<"Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to fit in each PFP section\n 4 = max pull for accepting TP3Ds in sections\n 5 = max ChiDOF for a SectionFit";
-    
+
     // check the angle ranges and convert from degrees to radians
     if(tcc.angleRanges.back() < 90) {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
@@ -190,7 +190,7 @@ namespace tca {
         }
       } // DecodeDebugString failed
     } // strng
-    
+
     for(auto& range : tcc.angleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
@@ -202,9 +202,9 @@ namespace tca {
     fAlgModCount.resize(kAlgBitSize);
 
     if(kFlagBitSize != EndFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != EndFlagNames size "<<EndFlagNames.size();
-    
+
     if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of EndFlag to at least "<<kFlagBitSize;
-    
+
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
 
@@ -266,9 +266,9 @@ namespace tca {
     evt.global3S_UID = 0;
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
-    
+
     if(tcc.modes[kDebug] && evt.eventsProcessed == 0) PrintDebugMode();
-    
+
     return AnalyzeHits();
   } // SetInputHits
 
@@ -281,7 +281,7 @@ namespace tca {
     for(unsigned int iht = 0; iht < (*evt.srcHits).size(); ++iht) {
       auto& hit = (*evt.srcHits)[iht];
       unsigned int tpc = hit.WireID().TPC;
-      if(tpc >= evt.tpcSrcHitRange.size()) return; 
+      if(tpc >= evt.tpcSrcHitRange.size()) return;
       if(evt.tpcSrcHitRange[tpc].first == UINT_MAX) evt.tpcSrcHitRange[tpc].first = iht;
       evt.tpcSrcHitRange[tpc].second = iht;
     } // iht
@@ -295,9 +295,9 @@ namespace tca {
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
     if(tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
-    
+
     if(!CreateSlice(hitsInSlice, sliceID)) return;
-    
+
     seeds.resize(0);
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
@@ -306,7 +306,7 @@ namespace tca {
       slices.pop_back();
       return;
     }
-    
+
     if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -376,7 +376,7 @@ namespace tca {
 
     // clear vectors that are not needed later
     slc.mallTraj.resize(0);
-    
+
   } // RunTrajClusterAlg
 
   ////////////////////////////////////////////////
@@ -630,7 +630,7 @@ namespace tca {
        // Tag delta rays before merging and making vertices
 //       TagDeltaRays(slc, inCTP);
        // Try to merge trajectories before making vertices
-       
+
        bool lastPass = (pass == tcc.minPtsFit.size() - 1);
        // don't use lastPass cuts if we will use LastEndMerge
        if(tcc.useAlg[kLastEndMerge]) lastPass = false;
@@ -641,14 +641,14 @@ namespace tca {
        }
        // TY: Split high charge hits near the trajectory end
 //       ChkHiChgHits(slc, inCTP);
-       
+
        Find2DVertices(slc, inCTP, pass);
 
     } // pass
-    
+
     // Last attempt to merge long straight Tjs that failed the EndMerge cuts
     LastEndMerge(slc, inCTP);
-    
+
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
 //    TagDeltaRays(slc, inCTP);
@@ -673,7 +673,7 @@ namespace tca {
       std::cout<<"RAT: MakeJunkVertices major failure\n";
       return;
     }
-    
+
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
       auto& vx2 = slc.vtxs[ivx];
@@ -682,7 +682,7 @@ namespace tca {
       AttachAnyTrajToVertex(slc, ivx, tcc.dbgStp || tcc.dbg2V);
     } // ivx
 
-    // Set the kEnvOverlap bit true for all TPs that are close to other 
+    // Set the kEnvOverlap bit true for all TPs that are close to other
     // trajectories that are close to vertices. The positions of TPs that
     // overlap are biased and shouldn't be used in a vertex fit. Also, these
     // TPs shouldn't be used to calculate dE/dx

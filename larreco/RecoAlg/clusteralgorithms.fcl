@@ -23,7 +23,7 @@ standard_trajclusteralg:
    # 0 Number of points to fit at the end of the trajectory
    # 1 Minimum kink significance
    # 2 Use charge in significance calculation? (yes if > 0)
-   # 3 3D kink fit length (cm) 
+   # 3 3D kink fit length (cm)
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    VLAStepSize: 1.5         # Step size for Very Large Angle trajectories
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
@@ -71,7 +71,7 @@ standard_trajclusteralg:
    # 0 dX match cut (cm)
    # 1 dY and dZ match cut (cm)
    # 2 max separation btw PFParticle end and 3D vertex
-   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5, 1] 
+   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5, 1]
    # 0 dx (cm) matching cut
    # 1 max number of 3-plane matches for any Tj
    # 2 Attempt 2-view match?
@@ -172,7 +172,7 @@ standard_houghbasealg:
   ThetaZeroOutRange:        0
   HitsPerCluster:           1
   MissedHits:               1    # Was set to 0
-  MissedHitsDistance:       2.0  # 
+  MissedHitsDistance:       2.0  #
   MissedHitsToLineSize:     0.25    # Was set to 0
 }
 
@@ -200,9 +200,9 @@ standard_cornerfinderalg:
   Conversion_bins_per_input_x:	1
   Conversion_bins_per_input_y:	1
   Derivative_method: 		"Sobel" #Noble
-  Derivative_neighborhood:	1 
-  Derivative_BlurFunc:	"NotImplemented" 
-  Derivative_BlurNeighborhood:	5 
+  Derivative_neighborhood:	1
+  Derivative_BlurFunc:	"NotImplemented"
+  Derivative_BlurNeighborhood:	5
   CornerScore_Noble_epsilon:    1e-5
   CornerScore_Harris_kappa:     0.05
   CornerScore_neighborhood:	1
@@ -211,7 +211,7 @@ standard_cornerfinderalg:
   MaxSuppress_threshold:	1000
   Integral_bin_threshold:       5
   Integral_fraction_threshold:  0.95
-  
+
 
 }
 
@@ -220,18 +220,18 @@ standard_dbscanalg:
   eps:    1.0
   epstwo: 1.5
   minPts: 2
-  Method: 0   # 0 -- naive findNeighbor implemention                     
-              # 1 -- findNeigbors with R*-tree                           
-              # 2 -- DBScan from the paper with R*-tree                  
-  Metric: 3   # Which RegionQuery distance metric to use.                
-              # **ONLY APPLIES** if Method is 1 or 2.                    
-              #                                                          
-	      # 0 -- rectangle (no bad channels) **not implemented**     
-	      # 1 -- Manhattan distance (only uses eps, no bad channels) 
-              #                                  **not implemented**     
-	      # 2 -- Eliptical (no bad channels) **not implemented**     
-	      # 3 -- findNeighbors-alike: Elliptical and bad             
-              #                           channel aware (not working)    
+  Method: 0   # 0 -- naive findNeighbor implemention
+              # 1 -- findNeigbors with R*-tree
+              # 2 -- DBScan from the paper with R*-tree
+  Metric: 3   # Which RegionQuery distance metric to use.
+              # **ONLY APPLIES** if Method is 1 or 2.
+              #
+	      # 0 -- rectangle (no bad channels) **not implemented**
+	      # 1 -- Manhattan distance (only uses eps, no bad channels)
+              #                                  **not implemented**
+	      # 2 -- Eliptical (no bad channels) **not implemented**
+	      # 3 -- findNeighbors-alike: Elliptical and bad
+              #                           channel aware (not working)
 }
 
 standard_dbscan3dalg:
@@ -245,12 +245,12 @@ standard_dbscan3dalg:
 standard_tcshoweralg:
 {
     CalorimetryAlg: @local::standard_calorimetryalgmc
-    ProjectionMatchingAlg:    @local::standard_projectionmatchingalg 
+    ProjectionMatchingAlg:    @local::standard_projectionmatchingalg
 }
 
 standard_fuzzyclusteralg:
 {
-  RunHough:       true    # Turns on and off the Hough line finder, useful for diagnostics 
+  RunHough:       true    # Turns on and off the Hough line finder, useful for diagnostics
   NumberTimeBoundaries:             3	# Number of boundaries in ticks for the drift window to be divided up to make the Hough line finder easier on memory
   NumberWireBoundaries:             3	# Number of boundaries in wires for the drift window to be divided up to make the Hough line finder easier on memory
   GenerateHoughLinesOnly:       false # Show only the results of the Hough line finder, hits not in a line will not be clustered
@@ -260,24 +260,24 @@ standard_fuzzyclusteralg:
     MinHits:              5
     NumAngleCells:        10800
     SaveAccumulator:          0
-    RhoResolutionFactor:      5     
+    RhoResolutionFactor:      5
     MaxSlope:                 80.0 # 80 was working fine previously
     RhoZeroOutRange:          0
     ThetaZeroOutRange:        0
     HitsPerCluster:           1
     MissedHits:               1    # Was set to 0
-    MissedHitsDistance:       1.0  # 
+    MissedHitsDistance:       1.0  #
     MissedHitsToLineSize:     0.5    # Was set to 0
   }
   DBScanAlg:                @local::standard_dbscanalg
   DoFuzzyRemnantMerge:      true # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
   FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
-  
+
   DoTrackClusterMerge:     true # Turns on merging of track-like Hough lines (0-off, 1-on)
   ChargeAsymAngleCut:        0.1 # Cut on product of charge asymmetry and the square of the sin of angle between slopes of lines, only for track-like
   SigmaChargeAsymAngleCut:   1.0  # Cut on product of charge sigma asymmetry and the sin of angle between slopes of lines, only for track-like
   TrackClusterMergeCutoff: 5.0 # The maximum distance between track-like Hough line endpoints before they can be merged,
-  
+
   DoShowerClusterMerge:     true # Turns on merging of shower-like Hough line (0-off, 1-on)
   ShowerClusterMergeAngle: 30    # The maximum angle between slopes of shower-like lines to be merged,
   ShowerClusterMergeCutoff:  7.5 # The maximum distance between shower-like line endpoints before they can be merged,
@@ -286,8 +286,8 @@ standard_fuzzyclusteralg:
   ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
   ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
   ShowerLikenessCut:       10    # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
-  MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
-  VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
+  MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen
+  VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines
 }
 
 standard_clusterparamsalg:
@@ -297,7 +297,7 @@ standard_clusterparamsalg:
   SelectBoxSizePerp:              3      #distance perpendicular to axis
   ForceRightGoing:        	  false
   MinHitListSize:		  40
-  fOutlierRadius:		  5 
+  fOutlierRadius:		  5
   #HoughBaseAlg.NumAngleCells:       3000
   #HoughBaseAlg.RhoResolutionFactor:       4
   #HoughBaseAlg.MaxLines:       100
@@ -350,18 +350,18 @@ standard_dbscanalg_fast.eps:    1.25
 standard_dbscanalg_fast.epstwo: 1.75
 standard_dbscanalg_fast.Method: 2
 
-jp250L_dbscanalg:                  @local::standard_dbscanalg      
+jp250L_dbscanalg:                  @local::standard_dbscanalg
 jp250L_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
-jp250L_houghbasealg:               @local::standard_houghbasealg   
+jp250L_houghbasealg:               @local::standard_houghbasealg
 jp250L_houghbasealg.MaxLines:      15
 jp250L_houghbasealg.MinHits:       3
 jp250L_houghbasealg.NumAngleCells: 5000
 jp250L_houghbasealg.MaxDistance:   5.0
 jp250L_endpointalg:                @local::standard_endpointalg
 
-bo_dbscanalg:                   @local::standard_dbscanalg      
+bo_dbscanalg:                   @local::standard_dbscanalg
 bo_fuzzyclusteralg:             @local::standard_fuzzyclusteralg
-bo_houghbasealg:                @local::standard_houghbasealg   
+bo_houghbasealg:                @local::standard_houghbasealg
 bo_houghbasealg.MaxLines:       15
 bo_houghbasealg.MinHits:        3
 bo_houghbasealg.NumAngleCells:  5000
@@ -384,11 +384,11 @@ bo_clustercrawleralg.FindVertices: [ false ]
 bo_clustercrawleralg.HitErrFac: 1.
 bo_clustermatchtq:             @local::standard_clustermatchtq
 
-argoneut_dbscanalg:                  @local::standard_dbscanalg       
+argoneut_dbscanalg:                  @local::standard_dbscanalg
 argoneut_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
-argoneut_houghbasealg:               @local::standard_houghbasealg   
-argoneut_houghbasealg.MaxLines:      15                              
-argoneut_houghbasealg.MinHits:       3                               
+argoneut_houghbasealg:               @local::standard_houghbasealg
+argoneut_houghbasealg.MaxLines:      15
+argoneut_houghbasealg.MinHits:       3
 argoneut_houghbasealg.NumAngleCells: 5000
 argoneut_houghbasealg.MaxDistance:   5.0
 argoneut_endpointalg:                @local::standard_endpointalg
@@ -405,15 +405,15 @@ argoneut_clustermatchtq:             @local::standard_clustermatchtq
 argoneut_clustermatchtq.KSCut:              0.5
 
 
-microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
-microboone_endpointalg:                       @local::standard_endpointalg    
-microboone_houghbasealg:                      @local::standard_houghbasealg   
+microboone_dbscanalg:                         @local::standard_dbscanalg_fast
+microboone_endpointalg:                       @local::standard_endpointalg
+microboone_houghbasealg:                      @local::standard_houghbasealg
 microboone_houghbasealg.MaxLines:             20
 microboone_houghbasealg.MaxDistance:          1.0
 microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_houghbasealg.DoHoughLineMerge:     1
-microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg
 microboone_fuzzyclusteralg.Threshold          : -20.0
 microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
@@ -437,9 +437,9 @@ dune35t_dbscanalg.eps:    2.0
 dune35t_dbscanalg.epstwo: 2.0
 dune35t_houghbasealg: @local::standard_houghbasealg
 #dune35t_houghbasealg.DoHoughLineMerge:     1
-dune35t_endpointalg:  @local::standard_endpointalg 
-dune35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
-dune35t_fuzzyclusteralg.HoughBaseAlg:      @local::dune35t_houghbasealg 
+dune35t_endpointalg:  @local::standard_endpointalg
+dune35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg
+dune35t_fuzzyclusteralg.HoughBaseAlg:      @local::dune35t_houghbasealg
 #dune35t_fuzzyclusteralg.Threshold:         -50.0
 dune35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 dune35t_clustermatchtq:                    @local::standard_clustermatchtq
@@ -447,9 +447,9 @@ dune35t_clustermatchtq.KSCut:              0.7
 
 dunefd_dbscanalg:    @local::standard_dbscanalg_fast
 dunefd_houghbasealg: @local::standard_houghbasealg
-dunefd_endpointalg:  @local::standard_endpointalg 
-dunefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
-dunefd_fuzzyclusteralg.HoughBaseAlg:      @local::dunefd_houghbasealg 
+dunefd_endpointalg:  @local::standard_endpointalg
+dunefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg
+dunefd_fuzzyclusteralg.HoughBaseAlg:      @local::dunefd_houghbasealg
 dunefd_clustercrawleralg:                 @local::standard_clustercrawleralg
 dunefd_clustermatchtq:                    @local::standard_clustermatchtq
 dunefd_clustermatchtq.KSCut:              0.7

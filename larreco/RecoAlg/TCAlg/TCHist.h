@@ -28,7 +28,7 @@ namespace tca {
     TH1F *fTruT[5];
     TProfile* fEff_T[5];
     TProfile* fPur_T[5];
-    
+
 
 /*
     // study electrons

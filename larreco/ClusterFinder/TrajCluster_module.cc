@@ -64,7 +64,7 @@ namespace cluster {
     TTree* showertree;
     void GetHits(const std::vector<recob::Hit>& inputHits,
                  const geo::TPCID& tpcid, std::vector<std::vector<unsigned int>>& tpcHits);
-    void GetHits(const std::vector<recob::Hit>& inputHits, 
+    void GetHits(const std::vector<recob::Hit>& inputHits,
                  const geo::TPCID& tpcid,
                  const std::vector<recob::Slice>& inputSlices,
                  art::FindManyP<recob::Hit>& hitFromSlc,
@@ -77,7 +77,7 @@ namespace cluster {
     art::InputTag fSpacePointModuleLabel;
     art::InputTag fSpacePointHitAssnLabel;
 
-    unsigned int fMaxSliceHits;    
+    unsigned int fMaxSliceHits;
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
     bool fSaveAll2DVertices;
@@ -226,7 +226,7 @@ namespace cluster {
     std::vector<art::Ptr<recob::Slice>> slices;
     std::vector<int> slcIDs;
     unsigned int nInputHits = 0;
-    
+
     // get a reference to the Hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
@@ -240,7 +240,7 @@ namespace cluster {
       art::InputTag sourceModuleLabel("gaushit");
       if(evt.getByLabel(sourceModuleLabel, sourceHits)) fTCAlg.SetSourceHits(*sourceHits);
     } // look for gaushit collection
-    
+
     // get an optional reference to the Slice collection
     auto inputSlices = art::Handle<std::vector<recob::Slice>>();
     if(fSliceModuleLabel != "NA") {
@@ -582,7 +582,7 @@ namespace cluster {
             } // vx2str
           } // end
         } // tj (aka cluster)
-        
+
         // make Showers
         for(auto& ss3 : slc.showers) {
           if(ss3.ID <= 0) continue;
@@ -822,8 +822,8 @@ namespace cluster {
   } // TrajCluster::produce()
 
   ////////////////////////////////////////////////
-  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits, 
-                            const geo::TPCID& tpcid, 
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
+                            const geo::TPCID& tpcid,
                             std::vector<std::vector<unsigned int>>& tpcHits)
   {
     // Put hits in this TPC into a single "slice", unless a special debugging mode is specified to
@@ -837,7 +837,7 @@ namespace cluster {
   } // GetHits
 
   ////////////////////////////////////////////////
-  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits, 
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
                             const geo::TPCID& tpcid,
                             const std::vector<recob::Slice>& inputSlices,
                             art::FindManyP<recob::Hit>& hitFromSlc,
@@ -850,7 +850,7 @@ namespace cluster {
     if(!hitFromSlc.isValid()) return;
 
     unsigned int tpc = tpcid.TPC;
-    
+
     for(size_t isl = 0; isl < inputSlices.size(); ++isl) {
       auto& hit_in_slc = hitFromSlc.at(isl);
       if(hit_in_slc.size() < 3) continue;

@@ -212,7 +212,7 @@ namespace tca {
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
   };
-  
+
   struct SectionFit {
     Point3_t Pos   {{ -10.0, 0.0, 0.0 }};      ///< center position of this section
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
@@ -479,7 +479,7 @@ namespace tca {
     kOutFV,
     kNoFitVx,
     kFlagBitSize     ///< don't mess with this line
-  } EndFlag_t; 
+  } EndFlag_t;
 
   // Environment near a trajectory point
   typedef enum {
@@ -517,12 +517,12 @@ namespace tca {
     std::vector<float> vtx3DCuts;   ///< 2D vtx -> 3D vtx matching cuts
     std::vector<float> vtxScoreWeights;
     std::vector<float> neutralVxCuts;
-    std::vector<short> deltaRayTag; 
-    std::vector<short> muonTag; 
+    std::vector<short> deltaRayTag;
+    std::vector<short> muonTag;
     std::vector<float> electronTag;
     std::vector<float> chkStopCuts; ///< Bragg peak finder configuration
     std::vector<float> showerTag; ///< shower-like trajectory tagging + shower reconstruction
-    std::vector<float> kinkCuts; ///< kink finder algorithm 
+    std::vector<float> kinkCuts; ///< kink finder algorithm
     std::vector<float> match3DCuts;  ///< 3D matching cuts
 //    std::vector<float> matchTruth;     ///< Match to MC truth
     std::vector<float> chargeCuts;
@@ -589,7 +589,7 @@ namespace tca {
     std::vector<recob::Hit> const* srcHits = nullptr;
     //  hit Range for the allHits collection in the current TPCID
     //   plane      wire             firstHit, lastHit
-    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange; 
+    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange;
     // hit range for the srcHits collection
     std::vector<std::pair<unsigned int, unsigned int>> tpcSrcHitRange;
     // list of good wires in the current TPCID
