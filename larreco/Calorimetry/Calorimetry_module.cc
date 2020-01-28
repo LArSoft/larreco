@@ -382,7 +382,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               const geo::Vector_t& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
-                pitch = geom->WirePitch(0)/cosgamma;        
+                pitch = geom->WirePitch(vhit[ii]->View())/cosgamma;
               
               }
               else{
