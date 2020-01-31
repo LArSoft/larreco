@@ -29,34 +29,6 @@ namespace  tca {
     fPur_T[3] = tfs->make<TProfile>("Pur_T_Ka","Pur vs T(MeV) - Kaons", 20, 0, 1000);
     fPur_T[4] = tfs->make<TProfile>("Pur_T_Pr","Pur vs T(MeV) - Protons", 20, 0, 1000);
 
-
-/* TTree used to develop the TMVA showerParentReader
-    fShowerParentSig = tfs->make<TTree>("shwr_parent_tree_sig", "shwr_parent_tree_sig");
-    fShowerParentSig->Branch("fShEnergy", &fShEnergy, "fShEnergy/F");
-    fShowerParentSig->Branch("fPfpEnergy", &fPfpEnergy, "fPfpEnergy/F");
-    fShowerParentSig->Branch("fMCSMom", &fMCSMom, "fMCSMom/F");
-    fShowerParentSig->Branch("fPfpLen", &fPfpLen, "fPfpLen/F");
-    fShowerParentSig->Branch("fSep", &fSep, "fSep/F");
-    fShowerParentSig->Branch("fDang1", &fDang1, "fDang1/F");
-    fShowerParentSig->Branch("fDang2", &fDang2, "fDang2/F");
-    fShowerParentSig->Branch("fChgFrac", &fChgFrac, "fChgFrac/F");
-    fShowerParentSig->Branch("fAlong", &fAlong, "fAlong/F");
-    fShowerParentSig->Branch("fTrans", &fTrans, "fTrans/F");
-    fShowerParentSig->Branch("fInShwrProb", &fInShwrProb, "fInShwrProb/F");
-
-    fShowerParentBkg = tfs->make<TTree>("shwr_parent_tree_bkg", "shwr_parent_tree_bkg");
-    fShowerParentBkg->Branch("fShEnergy", &fShEnergy, "fShEnergy/F");
-    fShowerParentBkg->Branch("fPfpEnergy", &fPfpEnergy, "fPfpEnergy/F");
-    fShowerParentBkg->Branch("fMCSMom", &fMCSMom, "fMCSMom/F");
-    fShowerParentBkg->Branch("fPfpLen", &fPfpLen, "fPfpLen/F");
-    fShowerParentBkg->Branch("fSep", &fSep, "fSep/F");
-    fShowerParentBkg->Branch("fDang1", &fDang1, "fDang1/F");
-    fShowerParentBkg->Branch("fDang2", &fDang2, "fDang2/F");
-    fShowerParentBkg->Branch("fChgFrac", &fChgFrac, "fChgFrac/F");
-    fShowerParentBkg->Branch("fAlong", &fAlong, "fAlong/F");
-    fShowerParentBkg->Branch("fTrans", &fTrans, "fTrans/F");
-    fShowerParentBkg->Branch("fInShwrProb", &fInShwrProb, "fInShwrProb/F");
-*/
   }
 
 

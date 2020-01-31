@@ -99,7 +99,6 @@ namespace tca {
     if(pset.has_key("MatchTruth")) {
       std::cout<<"MatchTruth is not used. Use ClusterAnaV2 or DebugConfig to configure\n";
     }
-//    tcc.matchTruth        = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
     tcc.vtx2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
@@ -321,12 +320,8 @@ namespace tca {
     // 2D and 3D(?) information
     Reconcile2Vs(slc);
     Find3DVertices(slc);
-    // Look for incomplete 3D vertices that won't be recovered because there are
-    // missing trajectories in a plane
-//    FindMissedVxTjs(slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
-    // TODO: decide how to print debug output
     DefineTjParents(slc, false);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -337,14 +332,6 @@ namespace tca {
     if(tcc.match3DCuts[0] > 0) {
       FindPFParticles(slc);
       DefinePFPParents(slc, false);
-/*
-       if(tcc.modes[kTagCosmics]) {
-       for(auto& pfp : slc.pfps) {
-       if(pfp.ID == 0) continue;
-       SaveCRInfo(slc, pfp, prt, fIsRealData);
-       } // pfp
-       } // TagCosmics
-*/
     } // 3D matching requested
       KillPoorVertices(slc);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
@@ -364,8 +351,6 @@ namespace tca {
 
     // dump a trajectory?
     if(tcc.modes[kDebug] && tcc.dbgDump) DumpTj();
-
-//    if (tcc.modes[kSaveCRTree]) crtree->Fill();
 
     Finish3DShowers(slc);
 
@@ -627,20 +612,11 @@ namespace tca {
 
        seeds.resize(0);
 
-       // Tag delta rays before merging and making vertices
-//       TagDeltaRays(slc, inCTP);
-       // Try to merge trajectories before making vertices
-
        bool lastPass = (pass == tcc.minPtsFit.size() - 1);
        // don't use lastPass cuts if we will use LastEndMerge
        if(tcc.useAlg[kLastEndMerge]) lastPass = false;
        EndMerge(slc, inCTP, lastPass);
-       if(!slc.isValid) {
-         std::cout<<"RAT: EndMerge major failure\n";
-         return;
-       }
-       // TY: Split high charge hits near the trajectory end
-//       ChkHiChgHits(slc, inCTP);
+       if(!slc.isValid) return;
 
        Find2DVertices(slc, inCTP, pass);
 
@@ -651,7 +627,6 @@ namespace tca {
 
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
-//    TagDeltaRays(slc, inCTP);
     // dressed muons with halo trajectories
     if(tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
       for(auto& tj : slc.tjs) {
@@ -692,9 +667,6 @@ namespace tca {
     if(!ChkVtxAssociations(slc, inCTP)) {
       std::cout<<"RAT: ChkVtxAssociations found an error. Events processed "<<evt.eventsProcessed<<" WorkID "<<evt.WorkID<<"\n";
     }
-
-    // TY: Improve hit assignments near vertex
-//    VtxHitsSwap(slc, inCTP);
 
   } // ReconstructAllTraj
 
@@ -754,7 +726,6 @@ namespace tca {
           if(iwire != 0) { loWire = iwire - 1; } else { loWire = 0; }
           unsigned int hiWire = jwire + 1;
           if(hiWire > slc.nWires[plane]) break;
-//          if(jwire < slc.nWires[plane] - 3) { hiWire = jwire + 2; } else { hiWire = slc.nWires[plane] - 1; }
           unsigned short nit = 0;
           while(nit < 100) {
             bool hitsAdded = false;
@@ -893,69 +864,7 @@ namespace tca {
     } // tj
 
   } // ChkInTraj
-/*
-  //////////////////////////////////////////
-  void TrajClusterAlg::FindMissedVxTjs(TCSlice& slc)
-  {
-    // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
 
-    if(!tcc.useAlg[kMisdVxTj]) return;
-
-    bool prt = (tcc.dbgStp || tcc.dbg3V || tcc.dbgAlg[kMisdVxTj]);
-
-    float maxdoca = 6;
-    for(unsigned short iv3 = 0; iv3 < slc.vtx3s.size(); ++iv3) {
-      Vtx3Store& vx3 = slc.vtx3s[iv3];
-      // ignore obsolete vertices
-      if(vx3.ID == 0) continue;
-      // check for a completed 3D vertex
-      if(vx3.Wire < 0) continue;
-      unsigned short mPlane = USHRT_MAX;
-      unsigned short ntj_1stPlane = USHRT_MAX;
-      unsigned short ntj_2ndPlane = USHRT_MAX;
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        if(vx3.Vx2ID[plane] > 0) {
-          auto& vx2 = slc.vtxs[vx3.Vx2ID[plane] - 1];
-          if(ntj_1stPlane == USHRT_MAX) {
-            ntj_1stPlane = vx2.NTraj;
-          } else {
-            ntj_2ndPlane = vx2.NTraj;
-          }
-          continue;
-        }
-        mPlane = plane;
-      } // plane
-      if(mPlane == USHRT_MAX) continue;
-      CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
-      // X position of the purported missing vertex
-      // A TP for the missing 2D vertex
-      TrajPoint tp;
-      tp.Pos[0] = vx3.Wire;
-      tp.Pos[1] = tcc.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tcc.unitsPerTick;
-      std::vector<int> tjIDs;
-      std::vector<unsigned short> tj2Pts;
-      for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-        auto& tj = slc.tjs[itj];
-        if(tj.CTP != mCTP) continue;
-        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
-        if(tj.Pts.size() < 6) continue;
-        if(tj.AlgMod[kComp3DVx]) continue;
-        float doca = maxdoca;
-        // find the closest distance between the vertex and the trajectory
-        unsigned short closePt = 0;
-        TrajPointTrajDOCA(slc, tp, tj, closePt, doca);
-        if(closePt > tj.EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"MisdVxTj: 3V"<<vx3.ID<<" candidate T"<<slc.tjs[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
-        tjIDs.push_back(tj.ID);
-        tj2Pts.push_back(closePt);
-      } // itj
-      // handle the case where there are one or more TJs with TPs near the ends
-      // that make a vertex (a failure by Find2DVertices)
-      if(tjIDs.empty()) continue;
-      if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane;
-    } // iv3
-  } // FindMissedVxTjs
-*/
   //////////////////////////////////////////
   void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
                                    std::vector<unsigned int>& newHitAssns) const
@@ -1167,19 +1076,7 @@ namespace tca {
     showertree->Branch("nPlanes", &stv.nPlanes);
 
   } // end DefineShTree
-/*
-  /////////////////////////////////////////
-  void TrajClusterAlg::DefineCRTree(TTree *t){
-    crtree = t;
-    crtree->Branch("run", &evt.run, "run/I");
-    crtree->Branch("subrun", &evt.subRun, "subrun/I");
-    crtree->Branch("event", &evt.event, "event/I");
-    crtree->Branch("cr_origin", &slc.crt.cr_origin);
-    crtree->Branch("cr_pfpxmin", &slc.crt.cr_pfpxmin);
-    crtree->Branch("cr_pfpxmax", &slc.crt.cr_pfpxmax);
-    crtree->Branch("cr_pfpyzmindis", &slc.crt.cr_pfpyzmindis);
-  }
-*/
+
   /////////////////////////////////////////
   bool TrajClusterAlg::CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
@@ -1264,7 +1161,6 @@ namespace tca {
     } // slc
 
     StitchPFPs();
-    // TODO: Try to make a neutrino PFParticle here
     // Ensure that all PFParticles have a start vertex
     for(auto& slc : slices) PFPVertexCheck(slc);
   } // FinishEvent

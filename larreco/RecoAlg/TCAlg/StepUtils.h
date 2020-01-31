@@ -54,9 +54,6 @@ namespace tca {
   // Check for many unused hits and try to use them
   void CheckHiMultUnusedHits(TCSlice& slc, Trajectory& tj);
   void CheckHiMultEndHits(TCSlice& slc, Trajectory& tj);
-  // Check for high values of Delta at the beginning of the trajectory
-//  void HiEndDelta(TCSlice& slc, Trajectory& tj);
-
   // Estimate the Delta RMS of the TPs on the end of tj.
   void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj);
   void MaskBadTPs(TCSlice& slc, Trajectory& tj, float const& maxChi);
@@ -83,9 +80,6 @@ namespace tca {
   void ChkStop(TCSlice& slc, Trajectory& tj);
   // Check the Michel electron topology, lastGoodPt is the last point of muon
   bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt);
-  // TY: Split high charge hits near the trajectory end
-//  void ChkHiChgHits(TCSlice& slc, CTP_t inCTP);
-//  void SplitHiChgHits(TCSlice& slc, Trajectory& tj);
   // Make a junk trajectory using the list of hits in tHits
   bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits);
 } // namespace tca

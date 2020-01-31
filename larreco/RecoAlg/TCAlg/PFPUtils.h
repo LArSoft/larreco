@@ -72,7 +72,6 @@ namespace tca {
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
-//  void DefinePFPParentsTestBeam(TCSlice& slc, bool prt);
   bool StorePFP(TCSlice& slc, PFPStruct& pfp);
   bool InsideFV(TCSlice& slc, PFPStruct& pfp, unsigned short end);
   bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID);

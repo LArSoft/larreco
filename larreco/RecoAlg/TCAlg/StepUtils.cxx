@@ -249,7 +249,6 @@ namespace tca {
       }
       // We have added a TP with hits
       // check for a kink. Stop crawling if one is found
-//      GottaKink(slc, tj, killPts);
       GottaKink(slc, tj, true);
       if(tj.EndFlag[1][kAtKink]) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"   stop at kink";
@@ -273,40 +272,6 @@ namespace tca {
           PrintTrajectory("SC", slc, tj, lastPt);
         }
       } // tcc.dbgStp
-/*
-      // print the local tp unless we have killing to do
-      if(killPts == 0) {
-        if(tcc.dbgStp) {
-          if(tj.AlgMod[kRvPrp]) {
-            PrintTrajectory("RP", slc, tj, lastPt);
-          } else {
-            PrintTrajectory("SC", slc, tj, lastPt);
-          }
-        }
-      } else {
-        MaskTrajEndPoints(slc, tj, killPts);
-        if(!tj.IsGood) return;
-        unsigned int onWire = (float)(std::nearbyint(tj.Pts[lastPt].Pos[0]));
-        float nSteps = (float)(step - tj.Pts[lastPt - killPts].Step);
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<"TRP   killing "<<killPts<<" after "<<nSteps<<" steps from prev TP.  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
-        // move the position
-        tj.Pts[lastPt].Pos[0] += nSteps * tj.Pts[lastPt].Dir[0];
-        tj.Pts[lastPt].Pos[1] += nSteps * tj.Pts[lastPt].Dir[1];
-        if(tj.Pts[lastPt].AngleCode == 0) {
-          // put the TP at the wire position prior to the move
-          float dw = onWire - tj.Pts[lastPt].Pos[0];
-          tj.Pts[lastPt].Pos[0] = onWire;
-          tj.Pts[lastPt].Pos[1] += dw * tj.Pts[lastPt].Dir[1] / tj.Pts[lastPt].Dir[0];
-        }
-        // check the MCSMom after we going
-        if(tj.Pts.size() > 20 && tj.Pass < tcc.minMCSMom.size() && tj.MCSMom < tcc.minMCSMom[tj.Pass]) break;
-        // copy to the local trajectory point
-        ltp.Pos = tj.Pts[lastPt].Pos;
-        ltp.Dir = tj.Pts[lastPt].Dir;
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<"  New ltp.Pos     "<<ltp.Pos[0]<<" "<<ltp.Pos[1]<<" ticks "<<(int)ltp.Pos[1]/tcc.unitsPerTick;
-        if(!keepGoing) break;
-      }
-*/
     } // step
 
     SetPDGCode(slc, tj);
@@ -696,7 +661,6 @@ namespace tca {
     FitTraj(slc, tj);
     UpdateTjChgProperties("UET", slc, tj, tcc.dbgStp);
     UpdateDeltaRMS(slc, tj);
-//    SetAngleCode(lastTP);
     tj.MCSMom = MCSMom(slc, tj);
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"UpdateStiffEl: lastPt "<<tj.EndPt[1]<<" Delta "<<lastTP.Delta<<" AngleCode "<<lastTP.AngleCode<<" FitChi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit<<" MCSMom "<<tj.MCSMom;
@@ -1243,22 +1207,8 @@ namespace tca {
 
     // reset UseHit and assume that none of these hits will be used (yet)
     tp.UseHit.reset();
-/*
-    if(tcc.useAlg[kStopAtTj]) {
-      // don't continue if we have run into another trajectory and there are no available hits
-      unsigned short nAvailable = 0;
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        auto& tcHit = slc.slHits[tp.Hits[ii]];
-        if(tcHit.InTraj == 0) ++nAvailable;
-      } // ii
-      if(nAvailable == 0) {
-        tj.EndFlag[1][kAtTj] = true;
-        return;
-      }
-    } // stop at Tj
-*/
-    // decide which of these hits should be used in the fit. Use a generous maximum delta
-    // and require a charge check if we'not just starting out
+   // decide which of these hits should be used in the fit. Use a generous maximum delta
+    // and require a charge check if we're not just starting out
     bool useChg = true;
     if(tj.Strategy[kStiffEl] || tj.Strategy[kSlowing]) useChg = false;
     FindUseHits(slc, tj, ipt, 10, useChg);
@@ -1356,43 +1306,6 @@ namespace tca {
     if(tp.Hits.size() > 16) tp.Hits.resize(16);
 
     tp.UseHit.reset();
-/*
-    if(tcc.useAlg[kStopAtTj]) {
-      // don't continue if we have run into another trajectory that has a similar angle
-      unsigned short nAvailable = 0;
-      unsigned int otherTjHit = INT_MAX;
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        auto& tcHit = slc.slHits[tp.Hits[ii]];
-        if(tcHit.InTraj == SHRT_MAX) continue;
-        if(tcHit.InTraj > 0) {
-          otherTjHit = tp.Hits[ii];
-          continue;
-        }
-        ++nAvailable;
-      } // ii
-      if(nAvailable == 0 && otherTjHit != UINT_MAX) {
-        // get the trajectory index
-        unsigned short otherTj = slc.slHits[otherTjHit].InTraj - 1;
-        Trajectory& otj = slc.tjs[otherTj];
-        // find out what point the hit is in
-        unsigned short atPt = USHRT_MAX;
-        for(unsigned short ipt = 0; ipt < otj.Pts.size(); ++ipt) {
-          for(auto& iht : otj.Pts[ipt].Hits) {
-            if(iht == otherTjHit) {
-              atPt = ipt;
-              break;
-            } // iht == otherTjHit
-          } // iht
-          if(atPt != USHRT_MAX) break;
-        } // ipt
-        if(atPt != USHRT_MAX && DeltaAngle(tp.Ang, otj.Pts[atPt].Ang) < 0.1) {
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a VLA merge candidate trajectory "<<otj.ID<<". Set EndFlag[kAtTj] and stop stepping";
-          tj.EndFlag[1][kAtTj] = true;
-          return;
-        } // atPt is valid
-      } // nAvailable == 0 &&
-    } // stop at Tj
-*/
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       unsigned int iht = tp.Hits[ii];
       if(slc.slHits[iht].InTraj != 0) continue;
@@ -1440,7 +1353,6 @@ namespace tca {
     unsigned short ipl = planeID.Plane;
     while(nextWire > slc.firstWire[ipl] && nextWire < slc.lastWire[ipl]) {
       if(evt.goodWire[ipl][nextWire]) break;
-//      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
       nextWire -= tj.StepDir;
     }
     if(nextWire == slc.lastWire[ipl] - 1) return;
@@ -1501,10 +1413,6 @@ namespace tca {
     // TODO: Maybe UpdateTjChgProperties should be called here
     // re-check the ends
     ChkStop(slc, tj);
-    if(prt) {
-      mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
-//      if(tj.Pts.size() < 50) PrintTrajectory("RP", slc, tj, USHRT_MAX);
-    }
 
   } // ReversePropagate
 
@@ -1604,14 +1512,6 @@ namespace tca {
     } // iht
     if(hitsInMultiplet.size() == 1) return;
 
-/* this truncation should be done by the calling function. It wouldn't make sense to do this
-   if the calling function is FindJunkTraj.
-    if(hitsInMultiplet.size() > 16) {
-      // Found > 16 hits in a multiplet which would be bad for UseHit. Truncate it
-      hitsInMultiplet.resize(16);
-      return;
-    }
-*/
     // Don't make a multiplet that includes a tall narrow hit with short fat hits
     if(nNarrow == hitsInMultiplet.size()) return;
     if(nNarrow == 0) return;
@@ -1643,7 +1543,6 @@ namespace tca {
     for(localIndex = 0; localIndex < hitsInMultiplet.size(); ++localIndex) {
       if(hitsInMultiplet[localIndex] == theHit) return;
     } // localIndex
-    std::cout<<"GHM: we shouldn't have gotten here...\n";
 
   } // GetHitMultiplet
 
@@ -1790,14 +1689,8 @@ namespace tca {
       if(!tp.UseHit[ii]) continue;
       ++nused;
       iht = tp.Hits[ii];
-      if(iht >= slc.slHits.size()) {
-        std::cout<<"DefineHitPos: Invalid slHits index "<<iht<<" size "<<slc.slHits.size()<<"\n";
-        return;
-      }
-      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) {
-        std::cout<<"DefineHitPos: Invalid allHits index\n";
-        return;
-      }
+      if(iht >= slc.slHits.size()) return;
+      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) return;
     }
     if(nused == 0) return;
 
@@ -1913,14 +1806,8 @@ namespace tca {
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       tp.UseHit[ii] = false;
       unsigned int iht = tp.Hits[ii];
-      if(iht >= slc.slHits.size()) {
-        std::cout<<"FUH: Invalid slHits index "<<iht<<" size "<<slc.slHits.size()<<"\n";
-        continue;
-      }
-      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) {
-        std::cout<<"FUH: Invalid allHitsIndex index "<<slc.slHits[iht].allHitsIndex<<" size "<<(*evt.allHits).size()<<"\n";
-        continue;
-      }
+      if(iht >= slc.slHits.size()) continue;
+      if(slc.slHits[iht].allHitsIndex >= (*evt.allHits).size()) continue;
       delta = PointTrajDOCA(slc, iht, tp);
       if(delta < bestDelta) bestDelta = delta;
       if(slc.slHits[iht].InTraj > 0) {
@@ -2414,14 +2301,6 @@ namespace tca {
         return;
       }
       GottaKink(slc, tj, true);
-/*
-      GottaKink(slc, tj, killPts);
-      if(killPts > 0) {
-        MaskTrajEndPoints(slc, tj, killPts);
-        if(!tj.IsGood) return;
-        break;
-      }
-*/
       if(tcc.dbgStp) PrintTrajectory("CHMUH", slc, tj, ipt);
     } // ipt
     // if we made it here it must be OK
@@ -2702,9 +2581,6 @@ namespace tca {
     // Set nPtsFit for slowing tjs to the last TP NTPsFit
     if(tj.Strategy[kSlowing]) nPtsFit = tj.Pts[tj.EndPt[1]].NTPsFit;
     if(npwc < 2 * nPtsFit) return false;
-    // return true if a kink is found on a long muon (that might instead be a pion) but
-    // don't set the stop-at-kink end flag
-//    if(tj.Strategy[kStiffMu] && npwc > 200) return false;
 
     bool useCharge = (tcc.kinkCuts[2] > 0);
 
@@ -3642,10 +3518,6 @@ namespace tca {
             myprt<<" doVtx? "<<doVtx;
           }
 
-          if(doMerge && doVtx) {
-            std::cout<<"EM: bad logic T"<<slc.tjs[it1].ID<<"_"<<end1<<" - T"<<slc.tjs[it2].ID<<"_"<<end2<<"\n";
-          }
-
           if(bestDOCA > docaCut) continue;
 
           if(doMerge) {
@@ -3731,13 +3603,6 @@ namespace tca {
             aVtx.Topo = end1 + end2;
             tj1.AlgMod[kMerge] = true;
             tj2.AlgMod[kMerge] = true;
-/* this is the wrong place to attempt this
-            // Set pion-like PDGCodes
-            if(!tj1.Strategy[kStiffEl] && !tj2.Strategy[kStiffEl]) {
-              if(tj1.EndFlag[end1][kBragg] && !tj2.EndFlag[end2][kBragg]) tj1.PDGCode = 211;
-              if(tj2.EndFlag[end2][kBragg] && !tj1.EndFlag[end1][kBragg]) tj2.PDGCode = 211;
-            }
-*/
             if(!StoreVertex(slc, aVtx)) continue;
             SetVx2Score(slc);
             if(prt) {
@@ -3780,7 +3645,6 @@ namespace tca {
       } // it1
     } // iterate
 
-//    ChkVxTjs(slc, inCTP, tcc.dbgMrg);
   } // EndMerge
 
   //////////////////////////////////////////
@@ -3917,7 +3781,6 @@ namespace tca {
         // Assume 20% point-to-point charge fluctuations
         chgErr = 0.2 * tp.Chg;
         if(!Fit2D(2, inPt, chgErr, outVec, outVecErr, chiDOF)) break;
-//        if(tcc.dbgStp) mf::LogVerbatim("TC")<<ipt<<"  "<<PrintPos(slc, tp.Pos)<<" "<<inPt[0]<<" Chg "<<(int)tp.Chg;
         ++cnt;
         if(cnt == nPtsToCheck) break;
       } // ii
@@ -4019,9 +3882,6 @@ namespace tca {
       } // ii
       if(prt) std::cout<<"MakeJunkTraj found debug hit\n";
     } // tcc.dbgAlg[kJunkTj]
-
-    // BIG TEMP
-//    if(!prt) return false;
 
     // Start the trajectory using the first and last hits to
     // define a starting direction. Use the last pass settings

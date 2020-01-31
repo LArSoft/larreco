@@ -189,8 +189,6 @@ namespace cluster {
 
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg.DefineShTree(showertree);
-//    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
-//    fTCAlg.DefineCRTree(crtree);
   }
 
   //----------------------------------------------------------------------------
@@ -651,10 +649,7 @@ namespace cluster {
           for(auto tuid : pfp.TjUIDs) {
             unsigned int clsIndex = 0;
             for(clsIndex = 0; clsIndex < clsCol.size(); ++clsIndex) if(abs(clsCol[clsIndex].ID()) == tuid) break;
-            if(clsIndex == clsCol.size()) {
-              std::cout<<"TrajCluster module invalid P"<<pfp.UID<<" -> T"<<tuid<<" -> cluster index \n";
-              continue;
-            }
+            if(clsIndex == clsCol.size()) continue;
             clsIndices.push_back(clsIndex);
           } // tjid
           if(!util::CreateAssn(*this, evt, *pfp_cls_assn, pfpCol.size()-1, clsIndices.begin(), clsIndices.end()))
