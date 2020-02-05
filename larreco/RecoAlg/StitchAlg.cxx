@@ -74,7 +74,6 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
       // Neither end of track1 is yet matched:
       bool head(false);
       bool tail(false);
-      std::vector<art::Ptr <recob::Track> >::iterator ith, itt;
 
       for(int jj = ii+1; jj < ntrack; ++jj) {
 	art::Ptr<recob::Track> ptrack2(ftListHandle, jj);

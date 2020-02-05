@@ -70,6 +70,10 @@ standard_tracsalg:
 UseCollectionOnly: false #Only use the collection charge infromation.
 HitModuleLabel:        "linecluster"
 PFParticleModuleLabel: "pandora"
+InitialTrackInputLabel: "InitialTrack"
+ShowerStartPositionInputLabel: "ShowerStartPosition"
+ShowerDirectionInputLabel: "ShowerDirection"
+InitialTrackSpacePointsInputLabel: "InitialTrackSpacePoints"
 }
 
 standard_tracscheatingalg:
@@ -77,6 +81,9 @@ standard_tracscheatingalg:
 TRACSAlg:              @local::standard_tracsalg
 HitModuleLabel:        "linecluster"
 PFParticleModuleLabel: "pandora"
+ShowerStartPositionInputLabel: "ShowerStartPosition"
+ShowerDirectionInputLabel: "ShowerDirection"
+InitialTrackSpacePointsInputLabel: "InitialTrackSpacePoints"
 }
 
 

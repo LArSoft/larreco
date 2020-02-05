@@ -5,6 +5,9 @@ shower::TRACSCheatingAlg::TRACSCheatingAlg(const fhicl::ParameterSet& pset):
 {
   fPFParticleModuleLabel = pset.get<art::InputTag> ("PFParticleModuleLabel");
   fHitModuleLabel        = pset.get<art::InputTag> ("HitModuleLabel");
+  fShowerStartPositionInputLabel = pset.get<std::string>("ShowerStartPositionInputFile");
+  fShowerDirectionInputLabel     = pset.get<std::string>("ShowerDirectionInputFile");
+  fInitialTrackSpacePointsInputLabel = pset.get<std::string>("InitialTrackSpacePointsInputLabel");
 }
 
 std::map<int,const simb::MCParticle*>  shower::TRACSCheatingAlg::GetTrueParticleMap() const {
@@ -65,8 +68,6 @@ void shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticl
   TString canvasName = Form("canvas_%i_%i_%i_%i",run,subRun,event,PFPID);
   TCanvas* canvas = tfs->make<TCanvas>(canvasName, canvasName);
 
-  std::cout << "canvasName: " << canvasName << std::endl;
-
   // Initialise variables
   float x;
   float y;
@@ -105,15 +106,15 @@ void shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticl
   }
 
 
-  if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+  if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel)){
     mf::LogError("Shower3DTrackFinder") << "Start position not set, returning "<< std::endl;
     return;
   }
-  if(!ShowerEleHolder.CheckElement("ShowerDirection")){
+  if(!ShowerEleHolder.CheckElement(fShowerDirectionInputLabel)){
     mf::LogError("Shower3DTrackFinder") << "Direction not set, returning "<< std::endl;
     return;
   }
-  if(!ShowerEleHolder.CheckElement("InitialTrackSpacePoints")){
+  if(!ShowerEleHolder.CheckElement(fInitialTrackSpacePointsInputLabel)){
     mf::LogError("Shower3DTrackFinder") << "TrackSpacePoints not set, returning "<< std::endl;
     return;
   }
@@ -123,9 +124,9 @@ void shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticl
   TVector3 showerDirection = {-999,-999,-999};
   std::vector<art::Ptr<recob::SpacePoint> > trackSpacePoints;
 
-  ShowerEleHolder.GetElement("ShowerStartPosition",showerStartPosition);
-  ShowerEleHolder.GetElement("ShowerDirection", showerDirection);
-  ShowerEleHolder.GetElement("InitialTrackSpacePoints",trackSpacePoints);
+  ShowerEleHolder.GetElement(fShowerStartPositionInputLabel,showerStartPosition);
+  ShowerEleHolder.GetElement(fShowerDirectionInputLabel, showerDirection);
+  ShowerEleHolder.GetElement(fInitialTrackSpacePointsInputLabel,trackSpacePoints);
 
   // Create 3D point at vertex, chosed to be origin for ease of use of display
   double startXYZ[3] = {0,0,0};

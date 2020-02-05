@@ -22,13 +22,13 @@ public:
 
     void configure(const fhicl::ParameterSet& pset) override;
 
-    void findHitCandidates(const std::vector<float>&,
+    void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            size_t,
                            size_t,
                            size_t,
                            HitCandidateVec&) const override;
 
-    void MergeHitCandidates(const std::vector<float>&,
+    void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                             const HitCandidateVec&,
                             MergeHitCandidateVec&) const override;
 
@@ -67,12 +67,15 @@ void CandHitStandard::configure(const fhicl::ParameterSet& pset)
     return;
 }
 
-void CandHitStandard::findHitCandidates(const std::vector<float>& waveform,
-                                        size_t                    roiStartTick,
-                                        size_t                    channel,
-                                        size_t                    eventCount,
-                                        HitCandidateVec&          hitCandidateVec) const
+void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
+                                        size_t                                               roiStartTick,
+                                        size_t                                               channel,
+                                        size_t                                               eventCount,
+                                        HitCandidateVec&                                     hitCandidateVec) const
 {
+    // Recover the actual waveform
+    const Waveform& waveform = dataRange.data();
+    
     // Recover the plane index for this method
     std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
     size_t                   plane = wids[0].Plane;
@@ -157,13 +160,13 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
     return;
 }
 
-void CandHitStandard::MergeHitCandidates(const std::vector<float>& signalVec,
-                                         const HitCandidateVec&    hitCandidateVec,
-                                         MergeHitCandidateVec&     mergedHitsVec) const
+void CandHitStandard::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
+                                         const HitCandidateVec&                               hitCandidateVec,
+                                         MergeHitCandidateVec&                                mergedHitsVec) const
 {
     // If no hits then nothing to do here
     if (hitCandidateVec.empty()) return;
-
+    
     // The idea is to group hits that "touch" so they can be part of common fit, those that
     // don't "touch" are fit independently. So here we build the output vector to achieve that
     HitCandidateVec groupedHitVec;

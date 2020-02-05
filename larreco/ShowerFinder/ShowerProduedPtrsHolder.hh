@@ -305,13 +305,21 @@ public:
   //Initialise the a unique ptr in the map. This will be added to the event.
   template <class T>
   int SetShowerUniqueProduerPtr(type<T>, std::string Name, std::string Instance=""){
-      //Add to the assns
-      if(showerassnPtrs.find(Name) != showerassnPtrs.end()){
-	throw cet::exception("ShowerProduedPtrsHolder") << "Trying to set ptr: " << Name << ". Instance already exists" << std::endl;
-	return 1;
-      }
-      showerassnPtrs[Name] = std::unique_ptr<reco::shower::ShowerUniqueAssnPtr<T> >(new reco::shower::ShowerUniqueAssnPtr<T>(Instance));
-      return 0;
+
+    //Add to the assns
+    if(showerassnPtrs.find(Name) != showerassnPtrs.end()){
+      mf::LogWarning("ShowerProduedPtrsHolder") << "Trying to set Element: " << Name << ". This element has already been set. Please check." << std::endl;
+      return 1;
+    }
+    
+    //Check the same type has not already been set.
+    if(!CheckForMultipleTypes(type<T>(), Name, Instance)){
+      throw cet::exception("ShowerProduedPtrsHolder") << "Trying to set multiple objects with same type with no instance name or same instance name" << std::endl;
+      return 1;
+    }
+    
+    showerassnPtrs[Name] = std::unique_ptr<reco::shower::ShowerUniqueAssnPtr<T> >(new reco::shower::ShowerUniqueAssnPtr<T>(Instance));
+    return 0;
   }
   
   //Set the unique ptr. The unique ptr will be filled into the event.
@@ -320,11 +328,19 @@ public:
 
     //Then add the products
     if(showerproductPtrs.find(Name) != showerproductPtrs.end()){
-      throw cet::exception("ShowerProduedPtrsHolder") << "Trying to set ptr: " << Name << ". Instance already exists" << std::endl;
+      mf::LogWarning("ShowerProduedPtrsHolder") << "Trying to set Element: " << Name << ". This element has already been set. Please check." << std::endl;
       return 1;
     }
+
+    //Check the same type has not already been set.
+    if(!CheckForMultipleTypes(type<std::vector<T> >(), Name, Instance)){
+      throw cet::exception("ShowerProduedPtrsHolder") << "Trying to set multiple objects with same type with no instance name or same instance name" << std::endl;
+      return 1;
+    }
+
     if(showerPtrMakers.find(Name) != showerPtrMakers.end()){
       throw cet::exception("ShowerProduedPtrsHolder") << "PtrMaker already exist. It should not be set again" << std::endl;
+      return 1;
     }
     showerPtrMakers[Name]   = std::unique_ptr<reco::shower::ShowerPtrMaker<T> >(new reco::shower::ShowerPtrMaker<T>(Instance));
     showerproductPtrs[Name] = std::unique_ptr<reco::shower::ShowerUniqueProductPtr<std::vector<T > > >(new reco::shower::ShowerUniqueProductPtr<std::vector<T> >(Instance));
@@ -572,6 +588,36 @@ public:
 
 
 private:
+
+  //Function to check that a data product does not already exist with the same instance name 
+  template <class T>
+  bool CheckForMultipleTypes(type<T>, std::string Name, std::string Instance){
+    
+    //Check the a product of the same does not exist without a different instance name 
+    for(auto const& assn: showerassnPtrs){
+      reco::shower::ShowerUniqueAssnPtr<T>* assnptr = dynamic_cast<reco::shower::ShowerUniqueAssnPtr<T> *>(assn.second.get());
+      if(assnptr != NULL){ 
+	if(assnptr->GetInstanceName() == Instance){return false;}
+      }
+    }
+    return true;
+  }
+
+    //Function to check that a data product does not already exist with the same instance name 
+  template <class T>
+  bool CheckForMultipleTypes(type<std::vector<T> >, std::string Name, std::string Instance){
+    
+    //Check the a product of the same does not exist without a different instance name 
+    for(auto const& product: showerproductPtrs){
+      reco::shower::ShowerUniqueProductPtr<std::vector<T > >* prod = dynamic_cast<reco::shower::ShowerUniqueProductPtr<std::vector<T> > *>(product.second.get());
+      if(prod != NULL){
+	if(prod->GetInstanceName() == Instance){return false;}
+      }
+    }
+    return true;
+  }
+
+    
 
   //Holder of the data objects of type std::vector<T> that will be saved in the events.
   std::map<std::string,std::unique_ptr<reco::shower::ShowerUniqueProduerPtrBase > > showerproductPtrs;

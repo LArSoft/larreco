@@ -57,15 +57,27 @@ namespace ShowerRecoTools {
       bool fDebugEVD;
       art::InputTag fPFParticleModuleLabel;
       art::InputTag fHitModuleLabel;
+
+      std::string fTrueParticleIntputLabel;
+      std::string fShowerStartPositionInputTag;
+      std::string fShowerDirectionInputTag;
+      std::string fInitialTrackHitsOutputLabel;
+      std::string fInitialTrackSpacePointsOutputLabel;
   };
 
 
-  ShowerTrackFinderCheater::ShowerTrackFinderCheater(const fhicl::ParameterSet& pset)
-    : fTRACSCheatingAlg(pset.get<fhicl::ParameterSet>("TRACSCheatingAlg"))
+  ShowerTrackFinderCheater::ShowerTrackFinderCheater(const fhicl::ParameterSet& pset) :
+    IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools")),
+    fTRACSCheatingAlg(pset.get<fhicl::ParameterSet>("TRACSCheatingAlg")),
+    fDebugEVD(pset.get<bool>("DebugEVD")),
+    fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel","")),
+    fHitModuleLabel(pset.get<art::InputTag>("HitModuleLabel")),
+    fTrueParticleIntputLabel(pset.get<std::string>("TrueParticleIntputLabel")),
+    fShowerStartPositionInputTag(pset.get<std::string>("ShowerStartPositionInputTag")),
+    fShowerDirectionInputTag(pset.get<std::string>("ShowerDirectionInputTag")),
+    fInitialTrackHitsOutputLabel(pset.get<std::string>("InitialTrackHitsOutputLabel")),
+    fInitialTrackSpacePointsOutputLabel(pset.get<std::string>("InitialTrackSpacePointsOutputLabel"))
   {
-    fDebugEVD              = pset.get<bool>          ("DebugEVD");
-    fHitModuleLabel        = pset.get<art::InputTag> ("HitModuleLabel");
-    fPFParticleModuleLabel = pset.get<art::InputTag> ("PFParticleModuleLabel","");
   }
 
   ShowerTrackFinderCheater::~ShowerTrackFinderCheater()
@@ -85,8 +97,8 @@ namespace ShowerRecoTools {
       return 1;
     }
 
-    if (ShowerEleHolder.CheckElement("TrueParticle")){
-      ShowerEleHolder.GetElement("TrueParticle",trueParticle);
+    if (ShowerEleHolder.CheckElement(fTrueParticleIntputLabel)){
+      ShowerEleHolder.GetElement(fTrueParticleIntputLabel,trueParticle);
     } else {
 
       //Could store these in the shower element holder and just calculate once?
@@ -125,20 +137,20 @@ namespace ShowerRecoTools {
     }
 
     //This is all based on the shower vertex being known. If it is not lets not do the track
-    if(!ShowerEleHolder.CheckElement("ShowerStartPosition")){
+    if(!ShowerEleHolder.CheckElement(fShowerStartPositionInputTag)){
       mf::LogError("ShowerTrackFinderCheater") << "Start position not set, returning "<< std::endl;
       return 1;
     }
-    if(!ShowerEleHolder.CheckElement("ShowerDirection")){
+    if(!ShowerEleHolder.CheckElement(fShowerDirectionInputTag)){
       mf::LogError("ShowerTrackFinderCheater") << "Direction not set, returning "<< std::endl;
       return 1;
     }
 
     TVector3 ShowerStartPosition = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerStartPosition",ShowerStartPosition);
+    ShowerEleHolder.GetElement(fShowerStartPositionInputTag,ShowerStartPosition);
 
     TVector3 ShowerDirection     = {-999,-999,-999};
-    ShowerEleHolder.GetElement("ShowerDirection",ShowerDirection);
+    ShowerEleHolder.GetElement(fShowerDirectionInputTag,ShowerDirection);
 
     art::Handle<std::vector<recob::Hit> > hitHandle;
     std::vector<art::Ptr<recob::Hit> > hits;
@@ -168,8 +180,8 @@ namespace ShowerRecoTools {
       }
     }
 
-    ShowerEleHolder.SetElement(trackHits, "InitialTrackHits");
-    ShowerEleHolder.SetElement(trackSpacePoints,"InitialTrackSpacePoints");
+    ShowerEleHolder.SetElement(trackHits, fInitialTrackHitsOutputLabel);
+    ShowerEleHolder.SetElement(trackSpacePoints,fInitialTrackSpacePointsOutputLabel);
 
     if (fDebugEVD){
       fTRACSCheatingAlg.CheatDebugEVD(trueParticle, Event, ShowerEleHolder, pfparticle);
