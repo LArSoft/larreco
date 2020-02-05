@@ -41,7 +41,7 @@ namespace quad
 struct Pt2D
 {
   Pt2D(double _x, double _z, int _view, double _energy) : x(_x), z(_z), view(_view), energy(_energy) {}
-    
+
   bool operator<(const Pt2D& p) const {return z < p.z;}
 
   double x, z;

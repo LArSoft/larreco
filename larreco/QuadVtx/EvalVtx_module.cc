@@ -111,7 +111,7 @@ void EvalVtx::analyze(const art::Event& evt)
   art::Handle<std::vector<simb::MCTruth>> truths;
   evt.getByLabel(fTruthLabel, truths);
   if(truths->empty()) return;
-  
+
   const simb::MCParticle& nu = (*truths)[0].GetNeutrino().Nu();
 
   gEvt = evt.event();
