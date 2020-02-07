@@ -26,7 +26,7 @@ namespace quad
 
     std::vector<float> map;
 
-  protected:
+  private:
     // The rounding functions in std:: are surprisingly slow
     inline int fast_floor(double x) const {return int(x+100000)-100000;}
   };

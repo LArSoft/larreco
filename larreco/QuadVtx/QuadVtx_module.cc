@@ -69,7 +69,7 @@ public:
   void beginJob() override;
   void produce(art::Event& evt) override;
 
-protected:
+private:
   bool FindVtx(const std::vector<recob::Hit>& hits,
                TVector3& vtx,
                int evt) const;

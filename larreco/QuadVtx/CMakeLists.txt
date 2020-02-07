@@ -13,9 +13,11 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILE_SUPPORT}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${MF_MESSAGELOGGER}
-           ${ROOT_BASIC_LIB_LIST}
            ${ROOT_CORE}
            ${ROOT_HIST}
+           ${ROOT_MATRIX}
+           ${ROOT_PHYSICS}
+           ${ROOT_TREE}
         )
 
 install_headers()

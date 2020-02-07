@@ -25,7 +25,7 @@ public:
 
   void analyze(const art::Event& evt) override;
 
-protected:
+private:
   std::string fTruthLabel;
   std::vector<std::string> fVertexLabels;
 
@@ -122,6 +122,11 @@ void EvalVtx::analyze(const art::Event& evt)
   gTrueZ = nu.Vz();
 
   for(unsigned int i = 0; i < fVertexLabels.size(); ++i){
+    // NB - vertices returned by these functions can be invalid (default
+    // constructed) in case no vertex exists. We stil have to write them, since
+    // another algorithm may have made a valid vertex for this
+    // event. Downstream plotting code should be aware and treat (0,0,0)
+    // vertices specially.
     const recob::Vertex vtx = (fVertexLabels[i] == "pandora") ? GetVtxByAssns(fVertexLabels[i], evt) : GetFirstVertex(fVertexLabels[i], evt);
     const recob::Vertex::Point_t reco_vtx = vtx.position();
 
