@@ -15,12 +15,6 @@
 
 #include "TTree.h"
 
-namespace{
-  int gEvt;
-  double gTrueX, gTrueY, gTrueZ;
-  std::vector<double> gRecoX, gRecoY, gRecoZ;
-}
-
 namespace quad
 {
 
@@ -36,6 +30,11 @@ protected:
   std::vector<std::string> fVertexLabels;
 
   TTree* fTree;
+
+  // For use in filling the TTree
+  int gEvt;
+  double gTrueX, gTrueY, gTrueZ;
+  std::vector<double> gRecoX, gRecoY, gRecoZ;
 };
 
 DEFINE_ART_MODULE(EvalVtx)
@@ -70,12 +69,11 @@ EvalVtx::EvalVtx(const fhicl::ParameterSet& pset) :
 // ---------------------------------------------------------------------------
 recob::Vertex GetFirstVertex(const std::string& label, const art::Event& evt)
 {
-  art::Handle<std::vector<recob::Vertex>> vtxs;
-  evt.getByLabel(label, vtxs);
+  const auto& vtxs = *evt.getValidHandle<std::vector<recob::Vertex>>(label);
 
-  if(vtxs->empty()) return recob::Vertex();
+  if(vtxs.empty()) return recob::Vertex();
 
-  return (*vtxs)[0];
+  return vtxs[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -94,11 +92,15 @@ recob::Vertex GetVtxByAssns(const std::string& label, const art::Event& evt)
   for(unsigned int i = 0; i < parts->size(); ++i){
     const int pdg = abs((*parts)[i].PdgCode());
     if(pdg == 12 || pdg == 14 || pdg == 16){
-      const std::vector<art::Ptr<recob::Vertex>> vtxs = fm.at(i);
+      const std::vector<art::Ptr<recob::Vertex>>& vtxs = fm.at(i);
       if(vtxs.size() == 1) return *vtxs[0];
 
-      if(vtxs.empty()) std::cout << "Warning: vertex list empty!" << std::endl;
-      if(!vtxs.empty()) std::cout << "Warning: " << vtxs.size() << " vertices for daughter?" << std::endl;
+      if(vtxs.empty()){
+        std::cout << "Warning: vertex list empty!" << std::endl;
+      }
+      else{
+        std::cout << "Warning: " << vtxs.size() << " vertices for daughter?" << std::endl;
+      }
     }
   }
 
@@ -108,11 +110,10 @@ recob::Vertex GetVtxByAssns(const std::string& label, const art::Event& evt)
 // ---------------------------------------------------------------------------
 void EvalVtx::analyze(const art::Event& evt)
 {
-  art::Handle<std::vector<simb::MCTruth>> truths;
-  evt.getByLabel(fTruthLabel, truths);
-  if(truths->empty()) return;
+  const auto& truths = *evt.getValidHandle<std::vector<simb::MCTruth>>(fTruthLabel);
+  if(truths.empty()) return;
 
-  const simb::MCParticle& nu = (*truths)[0].GetNeutrino().Nu();
+  const simb::MCParticle& nu = truths[0].GetNeutrino().Nu();
 
   gEvt = evt.event();
 

@@ -1,14 +1,8 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-art_make(BASENAME_ONLY
-         LIB_LIBRARIES
-           larcorealg_Geometry
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+art_make(LIB_LIBRARIES
            ${ROOT_CORE}
            ${ROOT_HIST}
-           ${ROOT_PHYSICS}
-           canvas
-           cetlib_except
          MODULE_LIBRARIES
            larcorealg_Geometry
            lardataobj_RecoBase
@@ -16,9 +10,9 @@ art_make(BASENAME_ONLY
            nusimdata_SimulationBase
            lardata_ArtDataHelper
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_ROOT_IO_TFILEDIRECTORY}
            ${ART_ROOT_IO_TFILE_SUPPORT}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${MF_MESSAGELOGGER}
            ${ROOT_BASIC_LIB_LIST}
            ${ROOT_CORE}
            ${ROOT_HIST}

@@ -5,6 +5,7 @@
 // C/C++ standard libraries
 #include <string>
 #include <iostream>
+#include <random>
 
 // framework libraries
 #include "fhiclcpp/ParameterSet.h"
@@ -15,6 +16,7 @@
 #include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "cetlib/pow.h"
 
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
@@ -26,13 +28,6 @@
 #include "TH2.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
-
-// Private functions for this file
-namespace
-{
-  template<class T> inline T sqr(T x){return x*x;}
-  template<class T> inline T cube(T x){return x*x*x;}
-}
 
 namespace quad
 {
@@ -57,9 +52,10 @@ struct Line2D
     : m((b.x-a.x)/(b.z-a.z)), c(b.x-m*b.z),// w(a.energy * b.energy),
       minz(std::min(a.z, b.z)), maxz(std::max(a.z, b.z))
   {
+    assert(a.z != b.z); // no vertical lines
   }
 
-  inline bool operator<(const Line2D& l) const {return m < l.m;}
+  bool operator<(const Line2D& l) const {return m < l.m;}
 
   float m, c, /*w,*/ minz, maxz;
 };
@@ -72,7 +68,6 @@ public:
 
   void beginJob() override;
   void produce(art::Event& evt) override;
-  void endJob() override;
 
 protected:
   bool FindVtx(const std::vector<recob::Hit>& hits,
@@ -106,11 +101,6 @@ void QuadVtx::beginJob()
 }
 
 // ---------------------------------------------------------------------------
-void QuadVtx::endJob()
-{
-}
-
-// ---------------------------------------------------------------------------
 // x = m*z+c. z1 and z2 are the two intercepts in case of returning true
 bool IntersectsCircle(float m, float c,
                       float z0, float x0,
@@ -121,11 +111,11 @@ bool IntersectsCircle(float m, float c,
   c += m*z0 - x0;
 
   // z^2 + (m*z+c)^2 = R^2
-  const float A = 1+sqr(m);
+  const float A = 1+cet::square(m);
   const float B = 2*m*c;
-  const float C = sqr(c)-sqr(R);
+  const float C = cet::square(c)-cet::square(R);
 
-  double desc = sqr(B)-4*A*C;
+  double desc = cet::square(B)-4*A*C;
 
   if(desc < 0) return false;
 
@@ -146,7 +136,7 @@ void LinesFromPoints(const std::vector<Pt2D>& pts,
                      std::vector<Line2D>& lines,
                      float z0 = 0, float x0 = 0, float R = -1)
 {
-  const size_t kMaxLines = 10*1000*1000; // This is 150MB of lines...
+  constexpr size_t kMaxLines = 10*1000*1000; // This is 150MB of lines...
 
   const size_t product = (pts.size()*(pts.size()-1))/2;
   const int stride = product / kMaxLines + 1;
@@ -167,7 +157,7 @@ void LinesFromPoints(const std::vector<Pt2D>& pts,
              l.maxz > z1 && l.maxz > z2) continue;
         }
 
-        lines.push_back(l);
+        lines.push_back(std::move(l));
         if(lines.size() == kMaxLines) goto end; // break out of 3 loops
       }
     }
@@ -177,7 +167,7 @@ void LinesFromPoints(const std::vector<Pt2D>& pts,
 
   lines.shrink_to_fit();
 
-  std::cout << "Made " << lines.size() << " lines using stride " << stride << " to fit under cap of " << kMaxLines << std::endl;
+  mf::LogInfo() << "Made " << lines.size() << " lines using stride " << stride << " to fit under cap of " << kMaxLines << std::endl;
 
   // Lines are required to be sorted by gradient for a later optimization
   std::sort(lines.begin(), lines.end());
@@ -186,16 +176,16 @@ void LinesFromPoints(const std::vector<Pt2D>& pts,
 // ---------------------------------------------------------------------------
 inline bool CloseAngles(float ma, float mb)
 {
-  const float cosCrit = cos(10*3.14159/180.);
+  const float cosCrit = cos(10*M_PI/180.);
   const float dot = 1+ma*mb; // (1, ma)*(1, mb)
-  return sqr(dot) > (1+sqr(ma))*(1+sqr(mb))*sqr(cosCrit);
+  return cet::square(dot) > (1+cet::square(ma))*(1+cet::square(mb))*cet::square(cosCrit);
 }
 
 // ---------------------------------------------------------------------------
 void MapFromLines(const std::vector<Line2D>& lines, HeatMap& hm)
 {
   // This maximum is driven by runtime
-  const size_t kMaxPts = 10*1000*1000;
+  constexpr size_t kMaxPts = 10*1000*1000;
 
   unsigned int j0 = 0;
   unsigned int jmax = 0;
@@ -215,9 +205,9 @@ void MapFromLines(const std::vector<Line2D>& lines, HeatMap& hm)
   const size_t product = (lines.size()*(lines.size()-1))/2;
   const int stride = npts / kMaxPts + 1;
 
-  std::cout << "Combining lines to points with stride " << stride << std::endl;
+  mf::LogInfo() << "Combining lines to points with stride " << stride << std::endl;
 
-  std::cout << npts << " cf " << product << " ie " << double(npts)/product << std::endl;
+  mf::LogInfo() << npts << " cf " << product << " ie " << double(npts)/product << std::endl;
 
   j0 = 0;
   jmax = 0;
@@ -252,7 +242,7 @@ void MapFromLines(const std::vector<Line2D>& lines, HeatMap& hm)
 // ---------------------------------------------------------------------------
 // Assumes that all three maps have the same vertical stride
 TVector3 FindPeak3D(const std::vector<HeatMap>& hs,
-                    const std::vector<TVector3>& dirs) throw()
+                    const std::vector<TVector3>& dirs) noexcept
 {
   assert(hs.size() == 3);
   assert(dirs.size() == 3);
@@ -381,9 +371,11 @@ void GetPts2D(const std::vector<recob::Hit>& hits,
 
   dirs = {dirZ, dirU, dirV};
 
+  std::default_random_engine gen;
+
   // In case we need to sub-sample they should be shuffled
   for(int view = 0; view < 3; ++view){
-    std::random_shuffle(pts[view].begin(), pts[view].end());
+    std::shuffle(pts[view].begin(), pts[view].end(), gen);
   }
 }
 
@@ -408,16 +400,16 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
     }
   }
 
-  float minx = +1e9;
-  float maxx = -1e9;
-  float minz[3] = {+1e9, +1e9, +1e9};
-  float maxz[3] = {-1e9, -1e9, -1e9};
+  double minx = +1e9;
+  double maxx = -1e9;
+  double minz[3] = {+1e9, +1e9, +1e9};
+  double maxz[3] = {-1e9, -1e9, -1e9};
   for(int view = 0; view < 3; ++view){
     for(const Pt2D& p: pts[view]){
-      minx = std::min(minx, float(p.x));
-      maxx = std::max(maxx, float(p.x));
-      minz[view] = std::min(minz[view], float(p.z));
-      maxz[view] = std::max(maxz[view], float(p.z));
+      minx = std::min(minx, p.x);
+      maxx = std::max(maxx, p.x);
+      minz[view] = std::min(minz[view], p.z);
+      maxz[view] = std::max(maxz[view], p.z);
     }
   }
 
@@ -443,10 +435,6 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
   std::vector<HeatMap> hms;
   hms.reserve(3);
   for(int view = 0; view < 3; ++view){
-    // Approximately cm bins
-    hms.emplace_back(maxz[view]-minz[view], minz[view], maxz[view],
-                     maxx-minx, minx, maxx);
-
     if(pts[view].empty()) return false;
 
     std::vector<Line2D> lines;
@@ -454,6 +442,9 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
 
     if(lines.empty()) return false;
 
+    // Approximately cm bins
+    hms.emplace_back(maxz[view]-minz[view], minz[view], maxz[view],
+                     maxx-minx, minx, maxx);
     MapFromLines(lines, hms.back());
   } // end for view
 

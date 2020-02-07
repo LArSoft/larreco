@@ -5,8 +5,8 @@
 namespace quad
 {
   // -------------------------------------------------------------------------
-  HeatMap::HeatMap(int _Nz, float _minz, float _maxz,
-                   int _Nx, float _minx, float _maxx)
+  HeatMap::HeatMap(int _Nz, double _minz, double _maxz,
+                   int _Nx, double _minx, double _maxx)
     : minz(_minz), minx(_minx), maxz(_maxz), maxx(_maxx), Nx(_Nx), Nz(_Nz),
       map(Nz*Nx, 0)
   {
