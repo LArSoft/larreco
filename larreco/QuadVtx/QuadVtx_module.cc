@@ -25,7 +25,7 @@
 #include "larcore/Geometry/Geometry.h"
 
 #include "TGraph.h"
-#include "TH2.h"
+#include "TH2F.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 
@@ -72,7 +72,7 @@ public:
 protected:
   bool FindVtx(const std::vector<recob::Hit>& hits,
                TVector3& vtx,
-               art::TFileDirectory* evt_dir) const;
+               int evt) const;
 
   std::string fHitLabel;
 
@@ -381,8 +381,8 @@ void GetPts2D(const std::vector<recob::Hit>& hits,
 
 // ---------------------------------------------------------------------------
 bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
-                       TVector3& vtx,
-                       art::TFileDirectory* evt_dir) const
+                      TVector3& vtx,
+                      int evt) const
 {
   if(hits.empty()) return false;
 
@@ -390,15 +390,6 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
   std::vector<TVector3> dirs;
 
   GetPts2D(hits, pts, dirs, geom, detprop);
-
-  std::vector<art::TFileDirectory> view_dirs;
-  if(evt_dir){
-    for(int view = 0; view < 3; ++view){
-      view_dirs.push_back(evt_dir->mkdir(TString::Format("view%d", view).Data()));
-      TGraph* gpts = view_dirs.back().makeAndRegister<TGraph>("hits", "");
-      for(const Pt2D& p: pts[view]) gpts->SetPoint(gpts->GetN(), p.z, p.x);
-    }
-  }
 
   double minx = +1e9;
   double maxx = -1e9;
@@ -448,15 +439,10 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
     MapFromLines(lines, hms.back());
   } // end for view
 
-  if(evt_dir){
-    for(int view = 0; view < 3; ++view){
-      view_dirs[view].makeAndRegister<TH2F>("hmap", "", *hms[view].AsTH2());
-    }
-  }
-
   vtx = FindPeak3D(hms, dirs);
 
-  hms.clear();
+  std::vector<HeatMap> hms_zoom;
+  hms_zoom.reserve(3);
   for(int view = 0; view < 3; ++view){
     const double x0 = vtx.X();
     const double z0 = vtx.Dot(dirs[view]);
@@ -467,21 +453,30 @@ bool QuadVtx::FindVtx(const std::vector<recob::Hit>& hits,
     if(lines.empty()) return false; // How does this happen??
 
     // mm granularity
-    hms.emplace_back(50, z0-2.5, z0+2.5,
-                     50, x0-2.5, x0+2.5);
+    hms_zoom.emplace_back(50, z0-2.5, z0+2.5,
+                          50, x0-2.5, x0+2.5);
 
-    MapFromLines(lines, hms.back());
+    MapFromLines(lines, hms_zoom.back());
   }
 
-  vtx = FindPeak3D(hms, dirs);
+  vtx = FindPeak3D(hms_zoom, dirs);
 
-  if(evt_dir){
+  if(fSavePlots){
+    art::TFileDirectory evt_dir = art::ServiceHandle<art::TFileService>()->mkdir(TString::Format("evt%d", evt).Data());
+
     for(int view = 0; view < 3; ++view){
-      view_dirs[view].makeAndRegister<TH2F>("hmap_zoom", "", *hms[view].AsTH2());
+      art::TFileDirectory view_dir = evt_dir.mkdir(TString::Format("view%d", view).Data());
+
+      TGraph* gpts = view_dir.makeAndRegister<TGraph>("hits", "");
+      for(const Pt2D& p: pts[view]) gpts->SetPoint(gpts->GetN(), p.z, p.x);
+
+      view_dir.makeAndRegister<TH2F>("hmap", "", *hms[view].AsTH2());
+
+      view_dir.makeAndRegister<TH2F>("hmap_zoom", "", *hms_zoom[view].AsTH2());
 
       const double x = vtx.X();
       const double z = vtx.Dot(dirs[view]);
-      view_dirs[view].makeAndRegister<TGraph>("vtx3d", "", 1, &z, &x);
+      view_dir.makeAndRegister<TGraph>("vtx3d", "", 1, &z, &x);
     } // end for view
   } // end if saving plots
 
@@ -496,18 +491,14 @@ void QuadVtx::produce(art::Event& evt)
   art::Handle<std::vector<recob::Hit>> hits;
   evt.getByLabel(fHitLabel, hits);
 
-  art::TFileDirectory* evt_dir = fSavePlots ? new art::TFileDirectory(art::ServiceHandle<art::TFileService>()->mkdir(TString::Format("evt%d", evt.event()).Data())) : 0;
-
   TVector3 vtx;
-  if(FindVtx(*hits, vtx, evt_dir)){
+  if(FindVtx(*hits, vtx, evt.event())){
     vtxcol->emplace_back(recob::Vertex::Point_t(vtx.X(), vtx.Y(), vtx.Z()),
                          recob::Vertex::SMatrixSym33(),
                          0, 0);
   }
 
   evt.put(std::move(vtxcol));
-
-  delete evt_dir;
 }
 
 } // end namespace quad
