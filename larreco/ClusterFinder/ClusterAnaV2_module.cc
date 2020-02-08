@@ -74,31 +74,25 @@ private:
 
   bool fCompareProductIDs {true};     ///< compare Hit and Cluster-> Hit art product IDs on the first event
   bool fFirstPrint {true};
-
 };
 
 
-cluster::ClusterAnaV2::ClusterAnaV2(fhicl::ParameterSet const& pset)
-  : EDAnalyzer{pset}
-  {
-    fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
-    bool validModuleLabel = false;
-    fClusterModuleLabel = "NA";
-    fTrackModuleLabel = "NA";
-    if(pset.has_key("ClusterModuleLabel")) {
-      fClusterModuleLabel = pset.get<art::InputTag>("ClusterModuleLabel");
-      validModuleLabel = true;
-    }
-    if(!validModuleLabel && pset.has_key("TrackModuleLabel")) {
-      fTrackModuleLabel = pset.get<art::InputTag>("TrackModuleLabel", "NA");
-      validModuleLabel = true;
-    }
-    if(!validModuleLabel) throw cet::exception("ClusterAnaV2")<<"You must specify either a ClusterModuleLabel OR a TrackModuleLabel\n;";
-    // origin = 0 (anything), 1(nu), 2(cosmics), 3(SN nu), 4(SingleParticle)
-    int tmp = pset.get<int>("TruthOrigin", 0);
-    fTruthOrigin = (simb::Origin_t)tmp;
-    fPrintLevel = pset.get<short>("PrintLevel", 0);
-    if(pset.has_key("SkipPDGCodes")) fSkipPDGCodes = pset.get<std::vector<int>>("SkipPDGCodes");
+cluster::ClusterAnaV2::ClusterAnaV2(fhicl::ParameterSet const& pset) : EDAnalyzer{pset}
+{
+  fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
+  bool validModuleLabel = false;
+  fClusterModuleLabel = "NA";
+  fTrackModuleLabel = "NA";
+  fClusterModuleLabel = pset.get<art::InputTag>("ClusterModuleLabel", "NA");
+  if(fClusterModuleLabel != "NA") validModuleLabel = true;
+  fTrackModuleLabel = pset.get<art::InputTag>("TrackModuleLabel", "NA");
+  if(validModuleLabel && fTrackModuleLabel != "NA") throw cet::exception("ClusterAnaV2")<<"You must specify either a ClusterModuleLabel OR a TrackModuleLabel\n";
+  if(!validModuleLabel && fTrackModuleLabel != "NA") validModuleLabel = true;
+  // origin = 0 (anything), 1(nu), 2(cosmics), 3(SN nu), 4(SingleParticle)
+  int tmp = pset.get<int>("TruthOrigin", 0);
+  fTruthOrigin = (simb::Origin_t)tmp;
+  fPrintLevel = pset.get<short>("PrintLevel", 0);
+  if(pset.has_key("SkipPDGCodes")) fSkipPDGCodes = pset.get<std::vector<int>>("SkipPDGCodes");
     fBadEP = pset.get<float>("BadEP", 0.);
     fInTPC = pset.get<short>("InTPC", -1);
     // do some initialization
@@ -106,7 +100,7 @@ cluster::ClusterAnaV2::ClusterAnaV2(fhicl::ParameterSet const& pset)
     EPSums.fill(0.);
     ESums.fill(0.);
     PSums.fill(0.);
-  } // ClusterAnaV2 constructor
+    } // ClusterAnaV2 constructor
 
 ////////////////////////////////////////////////
 void cluster::ClusterAnaV2::analyze(art::Event const& evt)
@@ -135,6 +129,8 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   sim::ParticleList const& plist = pi_serv->ParticleList();
+  
+  bool firstPrt = true;
 
   // make a list of Hit -> MCParticle assns in all TPCs. The first step is
   // to make a list of Geant TrackIDs whose origin was requested by the user
@@ -334,8 +330,13 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
           ++Cnts[pIndx];
           if(fPrintLevel > 0) {
             mf::LogVerbatim myprt("ClusterAna");
-            myprt<<"TPC:"<<tpc<<" Plane:"<<plane<<" mcpi "<<mcpi<<" PDG Code "<<pdgCode;
-            myprt<<" Failed to reconstruct. Truth-matched cluster range from ";
+            if(firstPrt) {
+              myprt<<"Run: "<<evt.run();
+              myprt<<" Event: "<<evt.event()<<"\n";
+              firstPrt = false;
+            }
+            myprt<<" MCPI "<<mcpi<<" PDG Code "<<pdgCode;
+            myprt<<" Failed to reconstruct in plane "<<plane<<". Truth-matched hit range from ";
             // print out the range of truth-matched hits
             unsigned int firstHitIndex = UINT_MAX;
             unsigned int lastHitIndex = UINT_MAX;
@@ -355,7 +356,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
             myprt<<" to ";
            myprt<<lHit.WireID().TPC<<":"<<lHit.WireID().Plane<<":"<<lHit.WireID().Wire;
            myprt<<(int)lHit.PeakTime();
-           myprt<<" <- really BadEP!";
+           myprt<<" <- EP = 0!";
          } // fPrintLevel > 0
           continue;
         } // (mcpClsCnt[mIndx].empty()
@@ -400,8 +401,12 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
         if(hasBadEP) ++fNBadEP;
         if(fPrintLevel > 0 || hasBadEP) {
           mf::LogVerbatim myprt("ClusterAna");
-          myprt<<"TPC:"<<tpc<<" Plane:"<<plane;
-          myprt<<" mcpi "<<mcpi;
+          if(firstPrt) {
+            myprt<<"Run: "<<evt.run();
+            myprt<<" Event: "<<evt.event()<<"\n";
+            firstPrt = false;
+          }
+          myprt<<" MCPI "<<mcpi;
           int TMeV = 1000 * (mcp.E() - mcp.Mass());
           myprt<<" T "<<TMeV<<" MeV";
           if(inputClusters.isValid()) {
