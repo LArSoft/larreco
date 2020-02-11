@@ -1,0 +1,51 @@
+#include "services_dune.fcl"
+
+#include "QuadVtx.fcl"
+#include "EvalVtx.fcl"
+
+process_name: QuadVtx
+
+source:
+{
+  module_type: RootInput
+}
+
+services:
+{
+  TFileService: { fileName: "quadvtx_hist.root" }
+  TimeTracker:       {}
+
+  @table::dunefd_services
+}
+
+# We don't use these, they potentially slow things down, and PhotonBackTracker
+# spams the output, so remove them from the standard services.
+services.BackTrackerService: @erase
+services.PhotonBackTrackerService: @erase
+
+outputs:
+{
+  out1:
+  {
+    module_type: RootOutput
+    fileName:    "vtx.root"
+  }
+}
+
+physics:
+{
+  producers:
+  {
+    quadvtx: @local::standard_quadvtx
+  }
+
+  analyzers:
+  {
+    evalvtx: @local::standard_evalvtx
+  }
+
+  ana: [ quadvtx ]
+  eval: [ evalvtx, out1 ]
+}
+
+physics.analyzers.evalvtx.VertexLabels: ["pandora", "quadvtx"]
