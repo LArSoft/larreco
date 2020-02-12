@@ -28,6 +28,7 @@
 #include <string>
 #include <memory> // std::unique_ptr()
 #include <utility> // std::move()
+#include <vector>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -52,6 +53,10 @@
 // ROOT Includes
 #include "TH1F.h"
 #include "TMath.h"
+
+#include "tbb/tbb.h"
+#include "tbb/blocked_range.h"
+#include "tbb/concurrent_vector.h"
 
 namespace hit{
 class GausHitFinder : public art::EDProducer {
@@ -200,6 +205,9 @@ void GausHitFinder::produce(art::Event& evt)
 
     TH1::AddDirectory(kFALSE);
 
+
+
+
     // Instantiate and Reset a stop watch
     //TStopwatch StopWatch;
     //StopWatch.Reset();
@@ -221,6 +229,17 @@ void GausHitFinder::produce(art::Event& evt)
     recob::HitCollectionCreator* filteredHitCol = 0;
 
     if( fFilterHits ) filteredHitCol = &hcol;
+
+    //store in a thread safe way
+    struct hitstruct
+    {
+      recob::Hit hit_tbb;
+      art::Ptr<recob::Wire> wire_tbb;
+    };
+
+    tbb::concurrent_vector<struct hitstruct> hitstruct_vec;
+    tbb::concurrent_vector<struct hitstruct> filthitstruct_vec;
+
 //    if (fAllHitsInstanceName != "") filteredHitCol = &hcol;
 
     // ##########################################
@@ -229,8 +248,7 @@ void GausHitFinder::produce(art::Event& evt)
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
 
-    // Channel Number
-    raw::ChannelID_t channel = raw::InvalidChannelID;
+
 
     //#################################################
     //###    Set the charge determination method    ###
@@ -253,15 +271,19 @@ void GausHitFinder::produce(art::Event& evt)
     //##############################
     //### Looping over the wires ###
     //##############################
-    for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
-    {
-        // ####################################
+    //for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
+    //{
+    tbb::parallel_for(static_cast<std::size_t>(0),wireVecHandle->size(),
+		      [&](size_t& wireIter){//size_t wireIter, art::Handle<std::vector<recob::Wire>> wireVecHandle){
+
+	// ####################################
         // ### Getting this particular wire ###
         // ####################################
         art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
 
         // --- Setting Channel Number and Signal type ---
-        channel = wire->Channel();
+
+	raw::ChannelID_t channel = wire->Channel();
 
         // get the WireID for this hit
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
@@ -340,7 +362,7 @@ void GausHitFinder::produce(art::Event& evt)
                         NDF        = 2;
                     }
 
-                    fFirstChi2->Fill(chi2PerNDF);
+                    //fFirstChi2->Fill(chi2PerNDF);
                 }
 
                 // #######################################################
@@ -458,8 +480,13 @@ void GausHitFinder::produce(art::Event& evt)
 
                     const recob::Hit hit(hitcreator.move());
 
+		    hitstruct hitstruct_local;
+		    hitstruct_local.hit_tbb=std::move(hit);
+		    hitstruct_local.wire_tbb=wire;
+
                     // This loop will store ALL hits
-                    allHitCol.emplace_back(std::move(hit), wire);
+		    hitstruct_vec.push_back(hitstruct_local);
+
                     numHits++;
                 } // <---End loop over gaussians
 
@@ -499,18 +526,30 @@ void GausHitFinder::produce(art::Event& evt)
 
                     // Copy the hits we want to keep to the filtered hit collection
                     for(const auto& filteredHit : filteredHitVec)
-                        if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit))
-                            filteredHitCol->emplace_back(filteredHit, wire);
-                }
+		      if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit)){
+			hitstruct filthitstruct_local;
+			filthitstruct_local.hit_tbb=filteredHit;
+			filthitstruct_local.wire_tbb=wire;
+			filthitstruct_vec.push_back(filthitstruct_local);
+		      }
 
-                fChi2->Fill(chi2PerNDF);
-
-            }//<---End loop over merged candidate hits
+		//                fChi2->Fill(chi2PerNDF);
+		}
+	    }//<---End loop over merged candidate hits
 
         } //<---End looping over ROI's
 
-   }//<---End looping over all the wires
+     }//<---End looping over all the wires
+    );//end tbb parallel for
 
+    for(size_t i=0; i<hitstruct_vec.size(); i++){
+      allHitCol.emplace_back(hitstruct_vec[i].hit_tbb, hitstruct_vec[i].wire_tbb);
+    }
+
+
+    for(size_t j=0; j<filthitstruct_vec.size(); j++){
+      filteredHitCol->emplace_back(filthitstruct_vec[j].hit_tbb, filthitstruct_vec[j].wire_tbb);
+    }
 
     //==================================================================================================
     // End of the event -- move the hit collection and the associations into the event

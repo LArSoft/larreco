@@ -22,9 +22,10 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Framework_Services_System_TriggerNamesService_service
            ${MF_MESSAGELOGGER}
-           ROOT::Hist
-           ROOT::MathCore
-           ROOT::Physics
+           ${ROOT_HIST}
+           ${ROOT_MATHCORE}
+           ${ROOT_PHYSICS}
+           ${TBB}
          )
 
 install_headers()
