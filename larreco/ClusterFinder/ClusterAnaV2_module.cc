@@ -59,7 +59,7 @@ private:
   simb::Origin_t fTruthOrigin;
   std::vector<int> fSkipPDGCodes;
   short fPrintLevel;
-  short fInTPC;
+  unsigned int fInTPC;
   float fBadEP;
 
   // count of EP entries for electrons(0), muons(1), pions(2), kaons(3), protons(4)
@@ -71,9 +71,16 @@ private:
   std::array<float, 5> ESums {{0}};
   // and for Purity
   std::array<float, 5> PSums {{0}};
+  
+  art::Handle<std::vector<recob::Hit>> fHitHandle;
+  std::vector<unsigned int> fHitMCPIndex;
 
   bool fCompareProductIDs {true};     ///< compare Hit and Cluster-> Hit art product IDs on the first event
   bool fFirstPrint {true};
+  
+  void FirstLastHitInPlane(unsigned int tpc, unsigned int plane, unsigned int mcpi, unsigned int& firstHitIndex, unsigned int& lastHitIndex);
+  std::string HitLocation(unsigned int iht);
+
 };
 
 
@@ -94,7 +101,7 @@ cluster::ClusterAnaV2::ClusterAnaV2(fhicl::ParameterSet const& pset) : EDAnalyze
   fPrintLevel = pset.get<short>("PrintLevel", 0);
   if(pset.has_key("SkipPDGCodes")) fSkipPDGCodes = pset.get<std::vector<int>>("SkipPDGCodes");
     fBadEP = pset.get<float>("BadEP", 0.);
-    fInTPC = pset.get<short>("InTPC", -1);
+    fInTPC = pset.get<unsigned int>("InTPC", UINT_MAX);
     // do some initialization
     Cnts.fill(0.);
     EPSums.fill(0.);
@@ -110,15 +117,14 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
 
   ++fEventCnt;
   auto const* geom = lar::providerFrom<geo::Geometry>();
-  auto inputHits = art::Handle<std::vector<recob::Hit>>();
-  if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("ClusterAnaV2")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
-//  unsigned int nInputHits = (*inputHits).size();
+//  auto hitsHandle = art::Handle<std::vector<recob::Hit>>();
+  if(!evt.getByLabel(fHitModuleLabel, fHitHandle)) throw cet::exception("ClusterAnaV2")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
   // get a reference to the MCParticles
   auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
   if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("ClusterAnaV2")<<"Failed to get a handle to MCParticles using largeant\n";
 
   if(fFirstPrint) {
-    mf::LogVerbatim("ClusterAna")<<"Reconstructed cluster hit range format is TPC:Plane:Wire:Tick";
+    mf::LogVerbatim("ClusterAna")<<"Hit location format is TPC:Plane:Wire:Tick";
     fFirstPrint = false;
   }
 
@@ -149,13 +155,13 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     trackIDs.push_back(part->TrackId());
     if(fPrintLevel > 3) {
       mf::LogVerbatim myprt("ClusterAna");
-      myprt<<"TrackId "<<std::setw(8)<<part->TrackId();
       unsigned int mcpi = UINT_MAX;
       for(mcpi = 0; mcpi < (*mcpHandle).size(); ++mcpi) {
         auto& mcp = (*mcpHandle)[mcpi];
         if(mcp.TrackId() == part->TrackId()) break;
       } // indx
-      myprt<<" mcpi "<<std::setw(8)<<mcpi;
+      myprt<<"MCPI "<<std::setw(6)<<mcpi;
+      myprt<<" TrackId "<<std::setw(8)<<part->TrackId();
       myprt<<" pdg "<<std::setw(8)<<pdg;
       myprt<<" origin "<<theTruth->Origin();
       myprt<<" T = "<<(int)TMeV<<" MeV "<<part->Process();
@@ -166,15 +172,16 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     return;
   }
   // next construct a companion vector of MCParticle indices indexed to the full hit collection
-  std::vector<unsigned int> hitMCPIndex((*inputHits).size(), UINT_MAX);
+  fHitMCPIndex.resize((*fHitHandle).size(), UINT_MAX);
   // Make a list of the <first, last> MC-matched hit in each TPC. This will be used
   // to only iterate through the range of hits that are interesting
   std::vector<std::pair<unsigned int, unsigned int>> hitRange(geom->NTPC() + 1);
   for(auto& hr : hitRange) hr = std::make_pair(UINT_MAX, UINT_MAX);
-  for(size_t iht = 0; iht < (*inputHits).size(); ++iht) {
-    auto& hit = (*inputHits)[iht];
+  unsigned short cnt = 0;
+  for(size_t iht = 0; iht < (*fHitHandle).size(); ++iht) {
+    auto& hit = (*fHitHandle)[iht];
     // only consider hits in a single TPC?
-    if(fInTPC >= 0 && hit.WireID().TPC != fInTPC) continue;
+    if(fInTPC != UINT_MAX && hit.WireID().TPC != fInTPC) continue;
     auto tides = bt_serv->HitToTrackIDEs(hit);
     if(tides.empty()) continue;
     bool gottaMatch = false;
@@ -188,7 +195,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       for(unsigned int mcpi = 0; mcpi < (*mcpHandle).size(); ++mcpi) {
         auto& mcp = (*mcpHandle)[mcpi];
         if(mcp.TrackId() != trackID) continue;
-        hitMCPIndex[iht] = mcpi;
+        fHitMCPIndex[iht] = mcpi;
         break;
       } // indx
       gottaMatch = true;
@@ -198,6 +205,10 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     // populate hitRange
     unsigned short tpc = hit.WireID().TPC;
     if(tpc >= hitRange.size()) throw cet::exception("ClusterAnaV2")<<"Invalid hit TPC\n";
+    if(fHitMCPIndex[iht] == 121 && hit.WireID().Plane == 0) {
+      ++cnt;
+      std::cout<<"hit "<<HitLocation(iht)<<" cnt "<<cnt<<"\n";
+    }
     if(hitRange[tpc].first == UINT_MAX) hitRange[tpc].first = iht;
     hitRange[tpc].second = iht;
   } // iht
@@ -219,7 +230,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       std::vector<art::Ptr<recob::Hit>> cluhits = hitsFromCls.at(icl);
       if(cluhits.empty()) continue;
       if(fCompareProductIDs) {
-        if(cluhits[0].id() != inputHits.id()) throw cet::exception("ClusterAnaV2")<<"Hits associated with ClusterModuleLabel are in a different collection than HitModuleLabel.\n";
+        if(cluhits[0].id() != fHitHandle.id()) throw cet::exception("ClusterAnaV2")<<"Hits associated with ClusterModuleLabel are in a different collection than HitModuleLabel.\n";
         fCompareProductIDs = false;
       } // fCompareProductIDs
       recoIndex.push_back(icl);
@@ -236,7 +247,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       std::vector<art::Ptr<recob::Hit>> trkhits = hitsFromTrk.at(itk);
       if(trkhits.empty()) continue;
       if(fCompareProductIDs) {
-        if(trkhits[0].id() != inputHits.id()) throw cet::exception("ClusterAnaV2")<<"Hits associated with TrackModuleLabel are in a different collection than HitModuleLabel.\n";
+        if(trkhits[0].id() != fHitHandle.id()) throw cet::exception("ClusterAnaV2")<<"Hits associated with TrackModuleLabel are in a different collection than HitModuleLabel.\n";
         fCompareProductIDs = false;
       } // fCompareProductIDs
       recoIndex.push_back(itk);
@@ -246,7 +257,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
     } // icl
   }// get hits from tracks
   if(recoHits.empty()) {
-    std::cout<<"recoHits is empty. Does this make sense with "<<(*inputHits).size()<<" hits?";
+    std::cout<<"recoHits is empty. Does this make sense with "<<(*fHitHandle).size()<<" hits?";
     return;
   }
 
@@ -265,12 +276,12 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       std::vector<std::vector<std::pair<unsigned int, float>>> mcpClsCnt;
       for(unsigned int iht = hitRange[tpc].first; iht <= hitRange[tpc].second; ++iht) {
         // ignore unmatched or not-requested-origin hits
-        if(hitMCPIndex[iht] == UINT_MAX) continue;
-        auto& hit = (*inputHits)[iht];
+        if(fHitMCPIndex[iht] == UINT_MAX) continue;
+        auto& hit = (*fHitHandle)[iht];
         if(hit.WireID().TPC != tpc) continue;
         if(hit.WireID().Plane != plane) continue;
         ++tpcHitCnt;
-        unsigned int mcpi = hitMCPIndex[iht];
+        unsigned int mcpi = fHitMCPIndex[iht];
         unsigned short mIndx = 0;
         for(mIndx = 0; mIndx < mcpCnt.size(); ++mIndx) if(mcpCnt[mIndx].first == mcpi) break;
         if(mIndx == mcpCnt.size()) {
@@ -283,25 +294,25 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
       } // iht
       // ignore TPCs/planes with few MC-matched hits
       if(tpcHitCnt < 3) continue;
-      if(fPrintLevel > 1) mf::LogVerbatim("ClusterAna")<<"TPC:"<<tpc<<" Plane:"<<plane<<" has "<<tpcHitCnt<<" MC-matched hits";
+      if(fPrintLevel > 2) mf::LogVerbatim("ClusterAna")<<"TPC:"<<tpc<<" Plane:"<<plane<<" has "<<tpcHitCnt<<" MC-matched hits";
       // next iterate over all clusters/tracks and count mc-matched hits that are in this TPC/plane
       for(unsigned int ii = 0; ii < recoHits.size(); ++ii) {
         float nRecoHitsInPlane = 0;
         float nRecoMatHitsInPlane = 0;
         for(auto iht : recoHits[ii]) {
-          auto& hit = (*inputHits)[iht];
+          auto& hit = (*fHitHandle)[iht];
           if(hit.WireID().TPC != tpc) continue;
           if(hit.WireID().Plane != plane) continue;
           ++nRecoHitsInPlane;
-          if(hitMCPIndex[iht] == UINT_MAX) continue;
+          if(fHitMCPIndex[iht] == UINT_MAX) continue;
           ++nRecoMatHitsInPlane;
-          unsigned int mcpi = hitMCPIndex[iht];
+          unsigned int mcpi = fHitMCPIndex[iht];
           // find the MCParticle index in mcpCnt and use it to count the match entry
           // in mcpClsCnt
           unsigned short mIndx = 0;
           for(mIndx = 0; mIndx < mcpCnt.size(); ++mIndx) if(mcpCnt[mIndx].first == mcpi) break;
           if(mIndx == mcpCnt.size()) {
-            std::cout<<"Logic error: hitMCPIndex = "<<hitMCPIndex[iht]<<" is valid but isn't in the list of MCParticles to use. Please send email to baller@fnal.gov.\n";
+            std::cout<<"Logic error: fHitMCPIndex = "<<fHitMCPIndex[iht]<<" is valid but isn't in the list of MCParticles to use. Please send email to baller@fnal.gov.\n";
             continue;
           }
           unsigned short cIndx = 0;
@@ -335,28 +346,23 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
               myprt<<" Event: "<<evt.event()<<"\n";
               firstPrt = false;
             }
-            myprt<<" MCPI "<<mcpi<<" PDG Code "<<pdgCode;
-            myprt<<" Failed to reconstruct in plane "<<plane<<". Truth-matched hit range from ";
+            myprt<<" MCPI "<<mcpi;
+            int TMeV = 1000 * (mcp.E() - mcp.Mass());
+            myprt<<" "<<TMeV<<" MeV";
+            if(pdgCode == 11) myprt<<" El";
+            if(pdgCode == 13) myprt<<" Mu";
+            if(pdgCode == 211) myprt<<" Pi";
+            if(pdgCode == 311) myprt<<" Ka";
+            if(pdgCode == 2212) myprt<<" Pr";
             // print out the range of truth-matched hits
             unsigned int firstHitIndex = UINT_MAX;
             unsigned int lastHitIndex = UINT_MAX;
-            for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
-              if(hitMCPIndex[iht] != mcpi) continue;
-              auto& hit = (*inputHits)[iht];
-              if(hit.WireID().TPC != tpc) continue;
-              if(hit.WireID().Plane != plane) continue;
-              if(firstHitIndex == UINT_MAX) firstHitIndex = iht;
-              lastHitIndex = iht;
-            } // iht
-            if((*inputHits)[firstHitIndex].WireID().Wire > (*inputHits)[lastHitIndex].WireID().Wire) std::swap(firstHitIndex, lastHitIndex);
-            auto& fHit = (*inputHits)[firstHitIndex];
-            myprt<<fHit.WireID().TPC<<":"<<fHit.WireID().Plane<<":"<<fHit.WireID().Wire;
-            myprt<<(int)fHit.PeakTime();
-            auto& lHit = (*inputHits)[lastHitIndex];
+            FirstLastHitInPlane(tpc, plane, mcpi, firstHitIndex, lastHitIndex);
+            myprt<<" Failed to reconstruct. Truth-matched hit range from ";
+            myprt<<HitLocation(firstHitIndex);
             myprt<<" to ";
-           myprt<<lHit.WireID().TPC<<":"<<lHit.WireID().Plane<<":"<<lHit.WireID().Wire;
-           myprt<<(int)lHit.PeakTime();
-           myprt<<" <- EP = 0!";
+            myprt<<HitLocation(lastHitIndex);
+            myprt<<" <- EP = 0!";
          } // fPrintLevel > 0
           continue;
         } // (mcpClsCnt[mIndx].empty()
@@ -366,7 +372,7 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
           if(mcc.second > big.second) big = mcc;
         } // cIndx
         if(big.first == UINT_MAX) {
-          if(fPrintLevel > 1) {
+          if(fPrintLevel > 2) {
             mf::LogVerbatim myprt("ClusterAna");
             unsigned int mcpi = mcpCnt[mIndx].first;
             auto& mcp = (*mcpHandle)[mcpi];
@@ -379,18 +385,21 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
         float eff = big.second / mcpCnt[mIndx].second;
         float nRecoHitsInPlane = 0;
         // define some variables to print the range of the cluster/track
-        unsigned int firstHitIndex = UINT_MAX;
-        unsigned int lastHitIndex = UINT_MAX;
+        unsigned int firstRecoHitIndex = UINT_MAX;
+        unsigned int lastRecoHitIndex = UINT_MAX;
         for(auto iht : recoHits[ii]) {
-          auto& hit = (*inputHits)[iht];
+          auto& hit = (*fHitHandle)[iht];
           if(hit.WireID().TPC != tpc) continue;
           if(hit.WireID().Plane != plane) continue;
-          if(firstHitIndex == UINT_MAX) firstHitIndex = iht;
-          lastHitIndex = iht;
           ++nRecoHitsInPlane;
+          if(firstRecoHitIndex == UINT_MAX) {
+            firstRecoHitIndex = iht;
+            lastRecoHitIndex = iht;
+          }
+          unsigned int wire = (*fHitHandle)[iht].WireID().Wire;
+          if(wire < (*fHitHandle)[firstRecoHitIndex].WireID().Wire) firstRecoHitIndex = iht;
+          if(wire > (*fHitHandle)[lastRecoHitIndex].WireID().Wire) lastRecoHitIndex = iht;
         } // iht
-        if((*inputHits)[firstHitIndex].WireID().Wire >
-           (*inputHits)[lastHitIndex].WireID().Wire) std::swap(firstHitIndex, lastHitIndex);
         float pur = big.second / nRecoHitsInPlane;
         ++Cnts[pIndx];
         float ep = eff * pur;
@@ -399,35 +408,51 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
         PSums[pIndx] += pur;
         bool hasBadEP = (ep < fBadEP);
         if(hasBadEP) ++fNBadEP;
-        if(fPrintLevel > 0 || hasBadEP) {
+        bool prt = (fPrintLevel > 0 && hasBadEP) || (fPrintLevel > 1);
+        if(prt) {
           mf::LogVerbatim myprt("ClusterAna");
           if(firstPrt) {
             myprt<<"Run: "<<evt.run();
             myprt<<" Event: "<<evt.event()<<"\n";
             firstPrt = false;
           }
-          myprt<<" MCPI "<<mcpi;
+          myprt<<" MCPI "<<std::setw(5)<<mcpi;
           int TMeV = 1000 * (mcp.E() - mcp.Mass());
-          myprt<<" T "<<TMeV<<" MeV";
+          if(TMeV < 1000) {
+            myprt<<" "<<std::setw(4)<<TMeV<<" MeV";
+          } else {
+            myprt<<" "<<std::setw(4)<<TMeV/1000<<" GeV";
+          }
+          if(pdgCode == 11) myprt<<" El";
+          if(pdgCode == 13) myprt<<" Mu";
+          if(pdgCode == 211) myprt<<" Pi";
+          if(pdgCode == 311) myprt<<" Ka";
+          if(pdgCode == 2212) myprt<<" Pr";
+          myprt<<" nMCPHits "<<std::setw(4)<<mcpCnt[mIndx].second;
+          unsigned int firstTruHitIndex = UINT_MAX;
+          unsigned int lastTruHitIndex = UINT_MAX;
+          FirstLastHitInPlane(tpc, plane, mcpi, firstTruHitIndex, lastTruHitIndex);
+          myprt<<" from ";
+          myprt<<HitLocation(firstTruHitIndex);
+          myprt<<" to ";
+          myprt<<HitLocation(lastTruHitIndex);
           if(inputClusters.isValid()) {
             // print cluster info
             auto& cls = (*inputClusters)[recoIndex[ii]];
-            myprt<<" cls ID "<<cls.ID();
+            myprt<<" -> cls ID "<<std::setw(4)<<cls.ID();
           } else if(inputTracks.isValid()) {
             // print track info
             auto& trk = (*inputTracks)[recoIndex[ii]];
-            myprt<<" trk ID "<<trk.ID();
+            myprt<<" -> trk ID "<<std::setw(4)<<trk.ID();
           }
-          myprt<<" nMCPHits "<<mcpCnt[mIndx].second;
-          myprt<<" nRecoHitsInPlane "<<nRecoHitsInPlane<<" nMCPRecoHits "<<big.second;
+          myprt<<" from ";
+          myprt<<HitLocation(firstRecoHitIndex);
+          myprt<<" to ";
+          myprt<<HitLocation(lastRecoHitIndex);
+          myprt<<" nRecoHits "<<std::setw(4)<<nRecoHitsInPlane;
+          myprt<<" nMCPRecoHits "<<std::setw(4)<<big.second;
           myprt<<" eff "<<std::fixed<<std::setprecision(2)<<eff;
           myprt<<" pur "<<pur;
-          auto& fHit = (*inputHits)[firstHitIndex];
-          auto& lHit = (*inputHits)[lastHitIndex];
-          myprt<<" from ";
-          myprt<<fHit.WireID().TPC<<":"<<fHit.WireID().Plane<<":"<<fHit.WireID().Wire<<":"<<(int)fHit.PeakTime();
-          myprt<<" to ";
-          myprt<<lHit.WireID().TPC<<":"<<lHit.WireID().Plane<<":"<<lHit.WireID().Wire<<":"<<(int)lHit.PeakTime();
           if(hasBadEP) myprt<<" <- BadEP";
         } // fPrintLevel > 1
       } // mIndx
@@ -435,6 +460,37 @@ void cluster::ClusterAnaV2::analyze(art::Event const& evt)
   } // tpcid
 
 } // analyze
+
+////////////////////////////////////////////////
+std::string cluster::ClusterAnaV2::HitLocation(unsigned int iht)
+{
+  // Put the hit location into a compact human-readable format
+  if(iht >= (*fHitHandle).size()) return "NA";
+  auto& hit = (*fHitHandle)[iht];
+  return std::to_string(hit.WireID().TPC) + ":" + std::to_string(hit.WireID().Plane) + ":" + std::to_string(hit.WireID().Wire) + ":" + std::to_string((int)hit.PeakTime());
+} // HitLocation
+
+////////////////////////////////////////////////
+void cluster::ClusterAnaV2::FirstLastHitInPlane(unsigned int tpc, unsigned int plane, unsigned int mcpi, unsigned int& firstHitIndex, unsigned int& lastHitIndex)
+{
+  // Returns the index of the first hit (lowest wire number) and last hit (highest wire number)
+  // matched to the MCParticle indexed by mcpi in the requested tpc, plane
+  firstHitIndex = UINT_MAX;
+  lastHitIndex = UINT_MAX;
+  for(unsigned int iht = 0; iht < (*fHitHandle).size(); ++iht) {
+    if(fHitMCPIndex[iht] != mcpi) continue;
+    auto& hit = (*fHitHandle)[iht];
+    if(hit.WireID().TPC != tpc) continue;
+    if(hit.WireID().Plane != plane) continue;
+    if(firstHitIndex == UINT_MAX) {
+      firstHitIndex = iht;
+      lastHitIndex = iht;
+    }
+    unsigned int wire = (*fHitHandle)[iht].WireID().Wire;
+    if(wire < (*fHitHandle)[firstHitIndex].WireID().Wire) firstHitIndex = iht;
+    if(wire > (*fHitHandle)[lastHitIndex].WireID().Wire) lastHitIndex = iht;
+  } // iht
+} // FirstLastHitInPlane
 
 ////////////////////////////////////////////////
 void cluster::ClusterAnaV2::endJob()
@@ -448,7 +504,7 @@ void cluster::ClusterAnaV2::endJob()
     myprt<<" events using TrackModuleLabel: "<<fTrackModuleLabel.label();
   }
   myprt<<" Origin: "<<fTruthOrigin;
-  if(fInTPC >= 0) {
+  if(fInTPC != UINT_MAX) {
     myprt<<" in TPC "<<fInTPC;
   } else {
     myprt<<" in all TPCs";

@@ -22,7 +22,6 @@ namespace fhicl { class ParameterSet; }
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-//#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
@@ -43,7 +42,6 @@ namespace tca {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
-    void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);
     void SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
     void SetSourceHits(std::vector<recob::Hit> const& srcHits);

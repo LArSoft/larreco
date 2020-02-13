@@ -40,7 +40,6 @@ namespace tca {
     unsigned int index;
     float val;
   };
-  // TODO: Fix the sorting mess
   bool valDecreasings (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
@@ -329,9 +328,6 @@ void FindPFParticles(TCSlice& slc)
       if(foundMVI) {
         PrintTP3Ds("FF", slc, pfpVec[0], -1);
       }
-      // Pass the pfp vector to SplitAtKinks which may produce pfpVec[1]
-      // TODO: Evaluate the need for this function
-//      SplitAtKinks(slc, pfpVec, foundMVI);
       bool success = true;
       for(unsigned short ip = 0; ip < pfpVec.size(); ++ip) {
         auto& pfp = pfpVec[ip];
@@ -415,9 +411,7 @@ void FindPFParticles(TCSlice& slc)
       } // ip (iterate over split pfps)
     } // indx (iterate over matchVec entries)
     slc.mallTraj.resize(0);
-
   } // MakePFParticles
-
 
   ////////////////////////////////////////////////
   bool ReconcileTPs(TCSlice& slc, PFPStruct& pfp, bool prt)
@@ -501,7 +495,6 @@ void FindPFParticles(TCSlice& slc)
         } // tp.InPFP > 0
       } // ipt
     } // pfp
-
   } // ReconcileTPs
 
   /////////////////////////////////////////
@@ -1001,7 +994,7 @@ void FindPFParticles(TCSlice& slc)
   } // Match2Planes
 
   /////////////////////////////////////////
-  bool Update(TCSlice& slc, PFPStruct& pfp, bool prt)
+  bool Update(const TCSlice& slc, PFPStruct& pfp, bool prt)
   {
     // This function only updates SectionFits that need to be re-sorted or re-fit. It returns
     // false if there was a serious error indicating that the pfp should be abandoned
@@ -1024,7 +1017,7 @@ void FindPFParticles(TCSlice& slc)
   } // Update
 
   /////////////////////////////////////////
-  bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt)
+  bool ReSection(const TCSlice& slc, PFPStruct& pfp, bool prt)
   {
     // Re-fit the TP3Ds in sections and add/remove sections to keep ChiDOF of each section close to 1.
     // This function only fails when there is a serious error, otherwise if reasonable fits cannot be
@@ -1207,7 +1200,7 @@ void FindPFParticles(TCSlice& slc)
   } // resection
 
   /////////////////////////////////////////
-  void CountBadPoints(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt)
+  void CountBadPoints(const TCSlice& slc, const PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, unsigned short& nBadPts, unsigned short& firstBadPt)
   {
     // Count the number of points whose pull exceeds tcc.match3DCuts[4]
     firstBadPt = USHRT_MAX;
@@ -1261,7 +1254,7 @@ void FindPFParticles(TCSlice& slc)
   } // KillBadPoints
 
   /////////////////////////////////////////
-  bool CanSection(TCSlice& slc, PFPStruct& pfp)
+  bool CanSection(const TCSlice& slc, const PFPStruct& pfp)
   {
     // analyze the TP3D vector to determine if it can be reconstructed in 3D in more than one section with
     // the requirement that there are at least 3 points in two planes
@@ -1275,7 +1268,7 @@ void FindPFParticles(TCSlice& slc)
   } // CanSection
 
   /////////////////////////////////////////
-  unsigned short Find3DRecoRange(TCSlice& slc, const PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir)
+  unsigned short Find3DRecoRange(const TCSlice& slc, const PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir)
   {
     // Scans the TP3Ds vector starting at fromPt until it finds min2DPts in two planes. It returns
     // with the index of that point (+1) in the TP3Ds vector. The dir variable defines the scan direction in
@@ -1302,7 +1295,7 @@ void FindPFParticles(TCSlice& slc)
   } // Find3DRecoRange
 
   /////////////////////////////////////////
-  void GetRange(PFPStruct& pfp, unsigned short sfIndex, unsigned short& fromPt, unsigned short& npts)
+  void GetRange(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& fromPt, unsigned short& npts)
   {
     fromPt = USHRT_MAX;
     if(sfIndex >= pfp.SectionFits.size()) return;
@@ -1320,7 +1313,7 @@ void FindPFParticles(TCSlice& slc)
   } // GetRange
 
   /////////////////////////////////////////
-  bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex)
+  bool FitSection(const TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex)
   {
     // Fits the TP3D points in the selected section to a 3D line with the origin at the center of
     // the section
@@ -1346,7 +1339,7 @@ void FindPFParticles(TCSlice& slc)
   } // FitSection
 
 /////////////////////////////////////////
-  SectionFit FitTP3Ds(TCSlice& slc, const std::vector<TP3D>& tp3ds, unsigned short fromPt, short fitDir, unsigned short nPtsFit)
+  SectionFit FitTP3Ds(const TCSlice& slc, const std::vector<TP3D>& tp3ds, unsigned short fromPt, short fitDir, unsigned short nPtsFit)
   {
     // fits the points and returns the fit results in a SectionFit struct. This function assumes that the
     // vector of TP3Ds exists in the slc.TPCID
@@ -1477,7 +1470,7 @@ void FindPFParticles(TCSlice& slc)
   } // FitTP3Ds
 
   /////////////////////////////////////////
-  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short nPtsFit, unsigned short sfIndex, float& chiDOF)
+  bool FitTP3Ds(const TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short nPtsFit, unsigned short sfIndex, float& chiDOF)
   {
     // Fit points in the pfp.TP3Ds vector fromPt. This function returns chiDOF but
     // doesn't update the TP3Ds unless sfIndex refers to a valid SectionFit in the pfp.
@@ -1535,7 +1528,7 @@ void FindPFParticles(TCSlice& slc)
   } // FitTP3Ds
 
   /////////////////////////////////////////
-  void KinkFit(TCSlice& slc, const PFPStruct& pfp, unsigned short atPt, double fitLen, double& dang, double& dangSig)
+  void KinkFit(const TCSlice& slc, const PFPStruct& pfp, unsigned short atPt, double fitLen, double& dang, double& dangSig)
   {
     // calculates a kink angle at the point atPt in the pfp TP3Ds vector by doing a fit
     // of points within fitLen distance on both sides of that point
@@ -1586,7 +1579,7 @@ void FindPFParticles(TCSlice& slc)
   } // KinkFit
 
   /////////////////////////////////////////
-  void SplitAtKinks(TCSlice& slc, std::vector<PFPStruct>& pfpVec, bool prt)
+  void SplitAtKinks(const TCSlice& slc, std::vector<PFPStruct>& pfpVec, bool prt)
   {
     // Looks for a kink in pfpVec[0]. If one is found, the pfp is split and the
     // second one is put in pfpVec[1]
@@ -1624,11 +1617,10 @@ void FindPFParticles(TCSlice& slc)
     p2.ID = pfpVec[0].ID + 1;
     if(!Split(slc, p1, atPt, p2, prt)) return;
     pfpVec.push_back(p2);
-
   } // SplitAtKinks
 
   /////////////////////////////////////////
-  bool Split(TCSlice& slc, PFPStruct& p1, unsigned short atPt, PFPStruct& p2, bool prt)
+  bool Split(const TCSlice& slc, PFPStruct& p1, unsigned short atPt, PFPStruct& p2, bool prt)
   {
     // Splits pfp p1 at the specified point atPt of the TP3Ds vector.
     // Points < atPt are kept in p1. Points >= atPt are moved to p2. This
@@ -1724,7 +1716,6 @@ void FindPFParticles(TCSlice& slc)
       if(std::find(vx3List.begin(), vx3List.end(), pfp.Vx3ID[end]) != vx3List.end()) continue;
     } // end
     if(neutrinoVxEnd < 2 && neutrinoVxEnd != 0) Reverse(slc, pfp);
-
     return;
   } // ReconcileVertices
 
@@ -1799,11 +1790,8 @@ void FindPFParticles(TCSlice& slc)
         if(!Update(slc, pWork, prt)) return;
       }
     } // nit
-
     if(pWork.Flags[kNeedsUpdate]) Update(slc, pWork, prt);
-
     pfp = pWork;
-
   } // TrimEndPts
 
   /////////////////////////////////////////
@@ -1843,7 +1831,7 @@ void FindPFParticles(TCSlice& slc)
   } // FillGaps3D
 
   /////////////////////////////////////////
-  bool ValidTwoPlaneMatch(TCSlice& slc, PFPStruct& pfp)
+  bool ValidTwoPlaneMatch(const TCSlice& slc, const PFPStruct& pfp)
   {
     // This function checks the third plane in the PFP when only two Tjs are 3D-matched to
     // ensure that the reason for the lack of a 3rd plane match is that it is in a dead region.
@@ -2227,23 +2215,6 @@ void FindPFParticles(TCSlice& slc)
 
   } // FillmAllTraj
 
-  /////////////////////////////////////////
-  bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj)
-  {
-    // returns true if tj with tjID shares a high-score 3D vertex with any
-    // tj in pfp.TjIDs
-    for(unsigned short end = 0; end < 2; ++end) {
-      if(tj.VtxID[end] == 0) continue;
-      auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
-      if(!vx2.Stat[kHiVx3Score]) continue;
-      std::vector<int> vtjlist = GetVtxTjIDs(slc, vx2);
-      auto shared = SetIntersection(vtjlist, pfp.TjIDs);
-      if(!shared.empty()) return true;
-    } // end
-    return false;
-  } // SharesHighScoreVx
-
-
   ////////////////////////////////////////////////
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2)
   {
@@ -2292,7 +2263,7 @@ void FindPFParticles(TCSlice& slc)
   } // SetMag
 
   /////////////////////////////////////////
-  void FilldEdx(TCSlice& slc, PFPStruct& pfp)
+  void FilldEdx(const TCSlice& slc, PFPStruct& pfp)
   {
     // Fills dE/dx variables in the pfp struct
 
@@ -2341,7 +2312,7 @@ void FindPFParticles(TCSlice& slc)
   } // FilldEdx
 
   /////////////////////////////////////////
-  void Average_dEdX(TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms)
+  void Average_dEdX(const TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms)
   {
     // Return a simple average of dE/dx and rms using ALL points in all planes, not
     // just those at the ends ala FilldEdx
@@ -2372,7 +2343,7 @@ void FindPFParticles(TCSlice& slc)
   } // Average_dEdX
 
   /////////////////////////////////////////
-  float dEdx(TCSlice& slc, const TP3D& tp3d)
+  float dEdx(const TCSlice& slc, const TP3D& tp3d)
   {
     if(!tp3d.IsGood) return 0;
     if(tp3d.TjID > (int)slc.slHits.size()) return 0;
@@ -2403,7 +2374,7 @@ void FindPFParticles(TCSlice& slc)
   } // dEdx
 
   ////////////////////////////////////////////////
-  TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tpIndex)
+  TP3D CreateTP3D(const TCSlice& slc, int tjID, unsigned short tpIndex)
   {
     // create a TP3D with a single TP. Note that the SectionFit in which it
     // should be placed and the 3D position can't be determined until the the TP3D is
@@ -2446,7 +2417,7 @@ void FindPFParticles(TCSlice& slc)
   } // CreateTP3D
 
   /////////////////////////////////////////
-  bool SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d)
+  bool SetSection(const TCSlice& slc, PFPStruct& pfp, TP3D& tp3d)
   {
     // Determine which SectionFit this tp3d should reside in, then calculate
     // the 3D position and the distance from the center of the SectionFit
@@ -2486,7 +2457,7 @@ void FindPFParticles(TCSlice& slc)
   } // SetSection
 
   ////////////////////////////////////////////////
-  float PointPull(const PFPStruct& pfp, TP3D& tp3d)
+  float PointPull(const PFPStruct& pfp, const TP3D& tp3d)
   {
     // returns the pull that the tp3d will cause in the pfp section fit. This
     // currently only uses position but eventually will include charge
@@ -2494,7 +2465,7 @@ void FindPFParticles(TCSlice& slc)
   } // PointPull
 
   ////////////////////////////////////////////////
-  PFPStruct CreatePFP(TCSlice& slc)
+  PFPStruct CreatePFP(const TCSlice& slc)
   {
     // The calling function should define the size of pfp.TjIDs
     PFPStruct pfp;
@@ -2685,9 +2656,7 @@ void FindPFParticles(TCSlice& slc)
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       if(tp.InPFP != pfp.ID) ++nNotSet;
     } // tp3d
-    if(nNotSet > 0) {
-      std::cout<<"StorePFP Warning: "<<nNotSet<<" TP3Ds have incorrect InPFP\n";
-    } // nNotSet > 0
+    if(nNotSet > 0) return false;
     // check the ID and correct it if it is wrong
     if(pfp.ID != (int)slc.pfps.size() + 1) pfp.ID = slc.pfps.size() + 1;
     ++evt.globalP_UID;
@@ -2704,7 +2673,7 @@ void FindPFParticles(TCSlice& slc)
   } // StorePFP
 
   ////////////////////////////////////////////////
-  bool InsideFV(TCSlice& slc, PFPStruct& pfp, unsigned short end)
+  bool InsideFV(const TCSlice& slc, const PFPStruct& pfp, unsigned short end)
   {
     // returns true if the end of the pfp is inside the fiducial volume of the TPC
     if(pfp.ID <= 0) return false;
@@ -2841,7 +2810,7 @@ void FindPFParticles(TCSlice& slc)
   } // LineLineIntersect
 
   ////////////////////////////////////////////////
-  float ChgFracBetween(TCSlice& slc, Point3_t pos1, Point3_t pos2)
+  float ChgFracBetween(const TCSlice& slc, Point3_t pos1, Point3_t pos2)
   {
     // Step between pos1 and pos2 and find the fraction of the points that have nearby hits
     // in each plane. This function returns -1 if something is fishy, but this doesn't mean
@@ -2866,11 +2835,10 @@ void FindPFParticles(TCSlice& slc)
     } // step
     if(cnt == 0) return -1;
     return sum / cnt;
-
   } // ChgFracBetween
 
   ////////////////////////////////////////////////
-  float ChgFracNearEnd(TCSlice& slc, PFPStruct& pfp, unsigned short end)
+  float ChgFracNearEnd(const TCSlice& slc, const PFPStruct& pfp, unsigned short end)
   {
     // returns the charge fraction near the end of the pfp. Note that this function
     // assumes that there is only one Tj in a plane.
@@ -2966,7 +2934,7 @@ void FindPFParticles(TCSlice& slc)
   } // SectionStartEnd
 
   ////////////////////////////////////////////////
-  unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos)
+  unsigned short FarEnd(const TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos)
   {
     // Returns the end (0 or 1) of the pfp that is furthest away from the position pos
     if(pfp.ID == 0) return 0;
@@ -2978,7 +2946,7 @@ void FindPFParticles(TCSlice& slc)
   } // FarEnd
 
   /////////////////////////////////////////
-  int PDGCodeVote(TCSlice& slc, const PFPStruct& pfp)
+  int PDGCodeVote(const TCSlice& slc, const PFPStruct& pfp)
   {
     // returns a vote using PDG code assignments from dE/dx. A PDGCode of -1 is
     // returned if there was a failure and returns 0 if no decision can be made
@@ -3019,7 +2987,7 @@ void FindPFParticles(TCSlice& slc)
   } // PDGCodeVote
 
   ////////////////////////////////////////////////
-  void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts)
+  void PrintTP3Ds(std::string someText, const TCSlice& slc, const PFPStruct& pfp, short printPts)
   {
     if(pfp.TP3Ds.empty()) return;
     mf::LogVerbatim myprt("TC");

@@ -173,7 +173,6 @@ namespace tca {
     float AveChg {0};                   ///< Calculated using ALL hits
     float TotChg {0};                   ///< Total including an estimate for dead wires
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
-    float DirFOM {0.5};         ///< confidence level that the Tj points are ordered correctly using  charge pattern
     short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
@@ -594,7 +593,6 @@ namespace tca {
     std::vector<std::pair<unsigned int, unsigned int>> tpcSrcHitRange;
     // list of good wires in the current TPCID
     std::vector<std::vector<bool>> goodWire;
-    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
     std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
     unsigned int event;

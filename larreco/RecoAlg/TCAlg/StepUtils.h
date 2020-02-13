@@ -36,12 +36,12 @@ namespace tca {
   void AddLAHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
   // Step through TPs starting at the end and moving to the beginning
   void ReversePropagate(TCSlice& slc, Trajectory& tj);
-  void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
-  void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
   // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
-  float HitTimeErr(TCSlice& slc, const unsigned int iht);
+  float HitTimeErr(const TCSlice& slc, const unsigned int iht);
   // Estimates the error^2 of the time using all hits in hitVec
-  float HitsTimeErr2(TCSlice& slc, const std::vector<unsigned int>& hitVec);
+  float HitsTimeErr2(const TCSlice& slc, const std::vector<unsigned int>& hitVec);
   // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
   void ChkStopEndPts(TCSlice& slc, Trajectory& tj, bool prt);
   void DefineHitPos(TCSlice& slc, TrajPoint& tp);

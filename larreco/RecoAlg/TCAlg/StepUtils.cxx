@@ -28,7 +28,6 @@ struct SortEntry{
 };
 
 bool valsDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
-//bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
 
@@ -1335,6 +1334,7 @@ namespace tca {
 
     bool prt = (tcc.dbgStp || tcc.dbgAlg[kRvPrp]);
 
+    // this function requires the first TP be included in the trajectory.
     if(tj.EndPt[0] > 0) {
       tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin() + tj.EndPt[0]);
       SetEndPoints(tj);
@@ -1344,7 +1344,7 @@ namespace tca {
 
     short stepDir = tj.StepDir;
 
-    // find the wire on which EndPt resides
+    // find the wire on which the first TP resides
     unsigned int wire0 = std::nearbyint(tj.Pts[0].Pos[0]);
     unsigned int nextWire = wire0 - tj.StepDir;
 
@@ -1360,14 +1360,14 @@ namespace tca {
     TrajPoint tp = tj.Pts[0];
     // strip off the hits
     tp.Hits.clear(); tp.UseHit.reset();
-    // move it to the next wire
+    // move it to the next wire (in the opposite direction of the step direction)
     MoveTPToWire(tp, (float)nextWire);
     // find close unused hits near this position
     float maxDelta = 10 * tj.Pts[tj.EndPt[1]].DeltaRMS;
     if(!FindCloseHits(slc, tp, maxDelta, kUnusedHits)) return;
     if(prt) mf::LogVerbatim("TC")<<" nUnused hits "<<tp.Hits.size()<<" at Pos "<<PrintPos(slc, tp);
     if(tp.Hits.empty()) return;
-    // There are hits on the next wire. Make a copy, reverse it and try
+    // There are hits on the next wire. Make a working copy of the trajectory, reverse it and try
     // to extend it with StepAway
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1417,14 +1417,14 @@ namespace tca {
   } // ReversePropagate
 
   ////////////////////////////////////////////////
-  void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
   {
     unsigned short localIndex;
     GetHitMultiplet(slc, theHit, hitsInMultiplet, localIndex);
   } // GetHitMultiplet
 
   ////////////////////////////////////////////////
-  void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex)
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex)
   {
     // This function attempts to return a list of hits in the current slice that are close to the
     // hit specified by theHit and that are similar to it. If theHit is a high-pulseheight hit (aka imTall)
@@ -1453,7 +1453,7 @@ namespace tca {
     float narrowHitCut = 1.5 * evt.aveHitRMS[ipl];
     bool theHitIsNarrow = (theRMS < narrowHitCut);
     float maxPeak = hit.PeakAmplitude();
-    unsigned short imTall = theHit;
+    unsigned int imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
     // look for hits < theTime but within hitSep
@@ -1492,7 +1492,7 @@ namespace tca {
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
       if(hit.WireID().Wire != theWire) break;
       if(hit.WireID().Plane != ipl) break;
-      if(slc.slHits[iht].InTraj == SHRT_MAX) continue;
+      if(slc.slHits[iht].InTraj == INT_MAX) continue;
       float hitSep = tcc.multHitSep * theRMS;
       float rms = hit.RMS();
       if(rms > theRMS) {
@@ -1546,9 +1546,8 @@ namespace tca {
 
   } // GetHitMultiplet
 
-
   //////////////////////////////////////////
-  float HitTimeErr(TCSlice& slc, unsigned int iht)
+  float HitTimeErr(const TCSlice& slc, unsigned int iht)
   {
     if(iht > slc.slHits.size() - 1) return 0;
     auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -1556,7 +1555,7 @@ namespace tca {
   } // HitTimeErr
 
   //////////////////////////////////////////
-  float HitsTimeErr2(TCSlice& slc, const std::vector<unsigned int>& hitVec)
+  float HitsTimeErr2(const TCSlice& slc, const std::vector<unsigned int>& hitVec)
   {
     // Estimates the error^2 of the time using all hits in hitVec
     if(hitVec.empty()) return 0;
@@ -3008,7 +3007,7 @@ namespace tca {
     }
     // see how many points are left at the end
     ngh = 0;
-    for(unsigned short ipt = lastPtInoTj; ipt <= tj.Pts.size(); ++ipt) {
+    for(unsigned short ipt = lastPtInoTj; ipt <= tj.EndPt[1]; ++ipt) {
       if(tj.Pts[ipt].Chg > 0) ++ngh;
     } // ipt
     // clobber those too?

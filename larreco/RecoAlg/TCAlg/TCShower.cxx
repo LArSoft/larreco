@@ -1618,7 +1618,6 @@ namespace tca {
     // Use the MVA reader
     if(!tcc.showerParentReader) return false;
     if(tcc.showerParentVars.size() != 9) return false;
-    // don't call this function when studying this function. See TCTruth StudyShowerParents
     if(!tcc.useAlg[kShwrParent]) return false;
 
     std::string fcnLabel = inFcnLabel + ".FPar";

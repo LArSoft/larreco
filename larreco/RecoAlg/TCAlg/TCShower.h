@@ -85,8 +85,7 @@ namespace tca {
   double ShowerEnergy(const ShowerStruct3D& ss3);
   float ShowerEnergy(TCSlice& slc, const std::vector<int> tjIDs);
   float ChgToMeV(float chg);
-//  PFPStruct CreateFakePFP(TCSlice& slc, const ShowerStruct3D& ss3);
-  bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3);
+ bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TCSlice& slc);
   ShowerStruct CreateSS(TCSlice& slc, const std::vector<int>& tjl);

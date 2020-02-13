@@ -121,7 +121,7 @@ namespace tca {
       // vertex Tjs in induction planes. Assume that it is required
       tcc.vtx2DCuts.resize(11, 1.);
     }
-    if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
+    if(tcc.vtx3DCuts.size() < 3)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
     if(tcc.vtx3DCuts.size() == 2) {
       std::cout<<"WARNING: Vertex3DCuts is size 2 but should be size 3, where Vertex3DCuts[2] = max 3D separation (cm) btw a PFP and a 3D vertex. Setting it to 3 cm\n";
       tcc.vtx3DCuts.resize(3, 3.);
