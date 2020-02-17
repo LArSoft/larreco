@@ -4,13 +4,13 @@ art_make(MODULE_LIBRARIES
            lardataobj_RecoBase
            nusimdata_SimulationBase
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ROOT_CORE}
-           ${ROOT_RIO}
-           ${ROOT_TREE}
+           ROOT::Core
+           ROOT::RIO
+           ROOT::Tree
            ${MF_MESSAGELOGGER}
-           ${ROOT_EG}
-           ${ROOT_HIST}
-           ${ROOT_PHYSICS}
+           ROOT::EG
+           ROOT::Hist
+           ROOT::Physics
         )
 
 # install_headers()

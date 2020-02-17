@@ -5,10 +5,10 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_ClusterRecoUtil
            larreco_RecoAlg_CMTool_CMToolBase
            larreco_RecoAlg_ImagePatternAlgs_DataProvider
-           ${ROOT_CORE}
-           ${ROOT_PHYSICS}
-           ${ROOT_MATRIX}
-           ${ROOT_MINUIT}
+           ROOT::Core
+           ROOT::Physics
+           ROOT::Matrix
+           ROOT::Minuit
            canvas
            ${FHICLCPP}
            cetlib_except
