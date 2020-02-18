@@ -3,6 +3,7 @@
 // Authors:     D.Stefan (Dorota.Stefan@ncbj.gov.pl),         from DUNE, CERN/NCBJ, since May 2016
 //              R.Sulej (Robert.Sulej@cern.ch),               from DUNE, FNAL/NCBJ, since May 2016
 //              P.Plonski,                                    from DUNE, WUT,       since May 2016
+//              M.Wang,                                       from DUNE, FNAL, 2020: trtis_client
 //
 //
 // Point Identification Algorithm
@@ -18,6 +19,7 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Utilities/InputTag.h"
+#include "fhiclcpp/types/OptionalAtom.h"
 
 // LArSoft includes
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -30,14 +32,24 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/TF/tf_graph.h"
 
+// Nvidia TensorRT inference server client includes
+#include "trtis_clients/request_grpc.h"
+#include "trtis_clients/request_http.h"
+#include "trtis_clients/model_config.pb.h"
+
+
 // ROOT & C++
 #include <memory>
+
+namespace ni = nvidia::inferenceserver;
+namespace nic = nvidia::inferenceserver::client;
 
 namespace nnet
 {
 	class ModelInterface;
 	class KerasModelInterface;
 	class TfModelInterface;
+	class tRTisModelInterface;
 	class PointIdAlg;
 	class TrainingDataAlg;
 }
@@ -85,6 +97,21 @@ private:
 };
 // ------------------------------------------------------
 
+class nnet::tRTisModelInterface : public nnet::ModelInterface
+{
+public:
+	tRTisModelInterface(const std::string& url, const std::string& model_name, const int64_t model_version, const bool verbose);
+
+	std::vector< std::vector<float> > Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples = -1) override;
+	std::vector<float> Run(std::vector< std::vector<float> > const & inp2d) override;
+
+private:
+	std::unique_ptr<nic::InferContext> ctx; // tRTis context
+	nic::Error err;
+	std::shared_ptr<nic::InferContext::Input> model_input;
+};
+// ------------------------------------------------------
+
 class nnet::PointIdAlg : public img::DataProviderAlg
 {
 public:
@@ -107,6 +134,15 @@ public:
 
 		fhicl::Atom<unsigned int> PatchSizeD {
 			Name("PatchSizeD"), Comment("How many downsampled ADC entries in patch")
+		};
+		fhicl::OptionalAtom<std::string> trtisURL {
+			Name("trtisURL"), Comment("URL of TensorRT inference server")
+		};
+		fhicl::OptionalAtom<int64_t> trtisModelVersion {
+			Name("trtisModelVersion"), Comment("Version number of TensorRT inference server model")
+		};
+		fhicl::OptionalAtom<bool> trtisVerbose {
+			Name("trtisVerbose"), Comment("Verbosity switch for TensorRT inference server client")
 		};
     };
 

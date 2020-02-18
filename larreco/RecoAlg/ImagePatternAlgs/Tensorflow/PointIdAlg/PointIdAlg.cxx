@@ -4,6 +4,7 @@
 //              R.Sulej (Robert.Sulej@cern.ch),            from DUNE,   FNAL/NCBJ, since May 2016
 //              P.Plonski,                                 from DUNE,   WUT,       since May 2016
 //              D.Smith,                                   from LArIAT, BU, 2017: real data dump
+//              M.Wang,                                    from DUNE,   FNAL, 2020: trtis_client
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/PointIdAlg/PointIdAlg.h"
@@ -149,6 +150,194 @@ std::vector<float> nnet::TfModelInterface::Run(std::vector< std::vector<float> >
 
 
 // ------------------------------------------------------
+//                  tRTisModelInterface
+// ------------------------------------------------------
+nnet::tRTisModelInterface::tRTisModelInterface(const std::string& url, const std::string& model_name, const int64_t model_version, const bool verbose)
+{
+
+  // ... Create the inference context for the specified model.
+  err = nic::InferGrpcContext::Create(&ctx, url, model_name, model_version, verbose);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "unable to create tRTis inference context: " << err << std::endl;
+  }
+
+  // ... Get the specified model input
+  err = ctx->GetInput("main_input", &model_input);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "unable to get tRTis input: " << err << std::endl;
+  }
+
+  mf::LogInfo("tRTisModelInterface") << "url: " << url;
+  mf::LogInfo("tRTisModelInterface") << "model_name: " << model_name;
+  mf::LogInfo("tRTisModelInterface") << "model_version: " << model_version;
+  mf::LogInfo("tRTisModelInterface") << "verbose: " << verbose;
+
+  mf::LogInfo("tRTisModelInterface") << "tensorRT inference context created.";
+}
+// ------------------------------------------------------
+
+std::vector< std::vector<float> > nnet::tRTisModelInterface::Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples){
+
+  if ((samples == 0) || inps.empty() || inps.front().empty() || inps.front().front().empty())
+    return std::vector< std::vector<float> >();
+
+  if ((samples == -1) || (samples > (long long int)inps.size())) { samples = inps.size(); }
+
+  size_t usamples = samples;
+  size_t nrows = inps.front().size(), ncols = inps.front().front().size();
+
+  // ~~~~ Configure context options
+
+  std::unique_ptr<nic::InferContext::Options> options;
+  err = nic::InferContext::Options::Create(&options);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed initializing tRTis infer options: " << err << std::endl;
+  }
+
+  options->SetBatchSize(usamples);	// set batch size
+  for (const auto& output : ctx->Outputs()) {	// request all output tensors
+    options->AddRawResult(output);
+  }
+
+  err = ctx->SetRunOptions(*options);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "unable to set tRTis inference options: " << err << std::endl;
+  }
+
+  // ~~~~ For each sample, register the mem address of 1st byte of image and #bytes in image
+
+  err = model_input->Reset();
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed resetting tRTis model input: " << err << std::endl;
+  }
+
+  size_t sbuff_byte_size = (nrows*ncols)*sizeof(float);
+  std::vector< std::vector<float> > fa(usamples, std::vector<float>(sbuff_byte_size));
+  
+  for (size_t idx = 0; idx < usamples; ++idx) {
+    // ..first flatten the 2d array into contiguous 1d block
+    for (size_t ir = 0; ir < nrows; ++ir){
+      std::copy(inps[idx][ir].begin(), inps[idx][ir].end(), fa[idx].begin()+(ir*ncols)); 
+    }
+    err = model_input->SetRaw(reinterpret_cast<uint8_t*>(fa[idx].data()),sbuff_byte_size);
+    if (!err.IsOk()) {
+      throw cet::exception("PointIdAlg") << "failed setting tRTis input: " << err << std::endl;
+    }
+  }
+
+  // ~~~~ Send inference request
+
+  std::map<std::string, std::unique_ptr<nic::InferContext::Result>> results;
+
+  err = ctx->Run(&results);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed sending tRTis synchronous infer request: " << err << std::endl;
+  }
+
+  // ~~~~ Retrieve inference results
+
+  std::vector< std::vector<float> > out;
+  for(unsigned int i = 0; i < usamples; i++) {
+    std::map<std::string, std::unique_ptr<nic::InferContext::Result>>::iterator itRes = results.begin();
+
+    // .. loop over the outputs
+    std::vector<float> vprb;
+    while(itRes != results.end()){
+      const std::unique_ptr<nic::InferContext::Result>& result = itRes->second;
+      const uint8_t* rbuff;	  // pointer to buffer holding result bytes
+      size_t rbuff_byte_size;	  // size of result buffer in bytes
+      result->GetRaw(i, &rbuff,&rbuff_byte_size);
+      const float *prb = reinterpret_cast<const float*>(rbuff);
+
+      // .. loop over each class in output
+      size_t ncat = rbuff_byte_size/sizeof(float);
+      for(unsigned int j = 0; j < ncat; j++){
+        vprb.push_back(prb[j]);
+      }
+      itRes++;
+    }
+    out.push_back(vprb);
+  }
+
+  return out;
+}
+// ------------------------------------------------------
+
+std::vector<float> nnet::tRTisModelInterface::Run(std::vector< std::vector<float> > const & inp2d){
+  size_t nrows = inp2d.size(), ncols = inp2d.front().size();
+
+  // ~~~~ Configure context options
+
+  std::unique_ptr<nic::InferContext::Options> options;
+  err = nic::InferContext::Options::Create(&options);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed initializing tRTis infer options: " << err << std::endl;
+  }
+
+  options->SetBatchSize(1);			// set batch size
+  for (const auto& output : ctx->Outputs()) {	// request all output tensors
+    options->AddRawResult(output);
+  }
+
+  err = ctx->SetRunOptions(*options);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "unable to set tRTis infer options: " << err << std::endl;
+  }
+
+  // ~~~~ Register the mem address of 1st byte of image and #bytes in image
+
+  err = model_input->Reset();
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed resetting tRTis model input: " << err << std::endl;
+  }
+
+  size_t sbuff_byte_size = (nrows*ncols)*sizeof(float);
+  std::vector<float> fa(sbuff_byte_size);
+
+  // ..flatten the 2d array into contiguous 1d block
+  for (size_t ir = 0; ir < nrows; ++ir){
+    std::copy(inp2d[ir].begin(), inp2d[ir].end(), fa.begin()+(ir*ncols)); 
+  }
+  err = model_input->SetRaw(reinterpret_cast<uint8_t*>(fa.data()),sbuff_byte_size);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed setting tRTis input: " << err << std::endl;
+  }
+
+  // ~~~~ Send inference request
+
+  std::map<std::string, std::unique_ptr<nic::InferContext::Result>> results;
+
+  err = ctx->Run(&results);
+  if (!err.IsOk()) {
+    throw cet::exception("PointIdAlg") << "failed sending tRTis synchronous infer request: " << err << std::endl;
+  }
+
+  // ~~~~ Retrieve inference results
+
+  std::vector<float> out;
+  std::map<std::string, std::unique_ptr<nic::InferContext::Result>>::iterator itRes = results.begin();
+
+  // .. loop over the outputs
+  while(itRes != results.end()){
+    const std::unique_ptr<nic::InferContext::Result>& result = itRes->second;
+    const uint8_t* rbuff;	// pointer to buffer holding result bytes
+    size_t rbuff_byte_size;	// size of result buffer in bytes
+    result->GetRaw(0, &rbuff,&rbuff_byte_size);
+    const float *prb = reinterpret_cast<const float*>(rbuff);
+
+    // .. loop over each class in output
+    size_t ncat = rbuff_byte_size/sizeof(float);
+    for(unsigned int j = 0; j < ncat; j++){
+      out.push_back(prb[j]);
+    }
+    itRes++;
+  }
+
+  return out;
+}
+
+
+// ------------------------------------------------------
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
@@ -172,6 +361,20 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
     {
       fNNet = new nnet::TfModelInterface(fNNetModelFilePath.c_str());
     }
+  else if ((fNNetModelFilePath.length() > 3) &&
+           (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 6, 6, ":trtis") == 0))
+    {
+      std::string model_name = fNNetModelFilePath.substr(0,fNNetModelFilePath.length() - 6);
+      // ..set some default values
+      std::string trtisURL = "localhost:8001";
+      int64_t trtisModelVersion = -1;
+      bool trtisVerbose = false;
+      // ..replace with values in fcl file, if set
+      config.trtisURL(trtisURL);
+      config.trtisModelVersion(trtisModelVersion);
+      config.trtisVerbose(trtisVerbose);
+      fNNet = new nnet::tRTisModelInterface(trtisURL, model_name, trtisModelVersion, trtisVerbose);
+    }
   else
     {
       mf::LogError("PointIdAlg") << "File name extension not supported.";
@@ -180,6 +383,7 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
   if (!fNNet) { throw cet::exception("nnet::PointIdAlg") << "Loading model from file failed."; }
 
   resizePatch();
+
 }
 // ------------------------------------------------------
 
