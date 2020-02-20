@@ -39,7 +39,7 @@ namespace tca {
     "LastEndMerge",
     "TEP",
     "THCEP", // TrimHiChgEndPoints
-    "CEK", // CheckEndKink
+    "EndKink", // CheckEndKink
     "CHMEH",
     "FillGaps",
     "UseGhostHits",
@@ -62,7 +62,6 @@ namespace tca {
     "NoKinkChk",
     "ChkStop",
     "ChkStopEP",
-    "kEndKink",
     "ChkChgAsym",
     "FTBRvProp",
     "TjHiVx3Score",

@@ -955,7 +955,7 @@ namespace tca {
     }
 
     // reduce nPtsFit to the minimum and check for a large angle kink near the ends
-    ChkEndKinks(slc, tj, tcc.dbgStp);
+    ChkEndKink(slc, tj, tcc.dbgStp);
 
     // Look for a charge asymmetry between points on both sides of a high-
     // charge point and trim points in the vicinity
@@ -1139,14 +1139,13 @@ namespace tca {
         if(delta > maxDeltaCut) continue;
       }
       float dt = std::abs(ftime - tp.Pos[1]);
-      unsigned short localIndex = 0;
-      GetHitMultiplet(slc, iht, hitsInMultiplet, localIndex);
+      GetHitMultiplet(slc, iht, hitsInMultiplet, false);
       if(tcc.dbgStp && delta < 100 && dt < 100) {
         mf::LogVerbatim myprt("TC");
         myprt<<"  iht "<<iht;
         myprt<<" "<<PrintHit(slc.slHits[iht]);
         myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
-        myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<hit.RMS();
+        myprt<<" BB Mult "<<hitsInMultiplet.size()<<" RMS "<<std::setprecision(1)<<hit.RMS();
         myprt<<" Chi "<<std::setprecision(1)<<hit.GoodnessOfFit();
         myprt<<" InTraj "<<slc.slHits[iht].InTraj;
         myprt<<" Chg "<<(int)hit.Integral();
@@ -1417,14 +1416,7 @@ namespace tca {
   } // ReversePropagate
 
   ////////////////////////////////////////////////
-  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
-  {
-    unsigned short localIndex;
-    GetHitMultiplet(slc, theHit, hitsInMultiplet, localIndex);
-  } // GetHitMultiplet
-
-  ////////////////////////////////////////////////
-  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex)
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, bool useLongPulseHits)
   {
     // This function attempts to return a list of hits in the current slice that are close to the
     // hit specified by theHit and that are similar to it. If theHit is a high-pulseheight hit (aka imTall)
@@ -1434,17 +1426,29 @@ namespace tca {
     // hits will be returned. The localIndex is the index of theHit in hitsInMultiplet and shouldn't be
     // confused with the recob::Hit LocalIndex
     hitsInMultiplet.clear();
-    localIndex = 0;
     // check for flagrant errors
     if(theHit >= slc.slHits.size()) return;
     if(slc.slHits[theHit].InTraj == INT_MAX) return;
     if(slc.slHits[theHit].allHitsIndex >= (*evt.allHits).size()) return;
 
+    auto& hit = (*evt.allHits)[slc.slHits[theHit].allHitsIndex];
+    // handle long-pulse hits
+    if(useLongPulseHits && LongPulseHit(hit)) {
+      // return everything in the multiplet as defined by the hit finder, but check for errors
+      unsigned int hitMult = hit.Multiplicity();
+      unsigned int lIndex = hit.LocalIndex();
+      unsigned int firstHit = 0;
+      if(lIndex < theHit) firstHit = theHit - lIndex;
+      for(unsigned int ii = firstHit; ii < firstHit + hitMult; ++ii) {
+        if(ii >= slc.slHits.size()) break;
+        auto& tmp = (*evt.allHits)[slc.slHits[ii].allHitsIndex];
+        if(tmp.Multiplicity() == hitMult) hitsInMultiplet.push_back(ii);
+      } // ii
+      return;
+    } // LongPulseHit
+    
     hitsInMultiplet.resize(1);
     hitsInMultiplet[0] = theHit;
-    localIndex = 0;
-
-    auto& hit = (*evt.allHits)[slc.slHits[theHit].allHitsIndex];
     unsigned int theWire = hit.WireID().Wire;
     unsigned short ipl = hit.WireID().Plane;
 
@@ -1481,7 +1485,6 @@ namespace tca {
         if(iht == 0) break;
       } // iht
     } // iht > 0
-    localIndex = hitsInMultiplet.size() - 1;
     // reverse the order so that hitsInMuliplet will be
     // returned in increasing time order
     if(hitsInMultiplet.size() > 1) std::reverse(hitsInMultiplet.begin(), hitsInMultiplet.end());
@@ -1538,12 +1541,7 @@ namespace tca {
         hitsInMultiplet.erase(hitsInMultiplet.begin() + killMe);
       } // slc.slHits[imTall].RMS < narrowHitCut
     } // narrow / tall test
-
-    // ensure that the localIndex is correct
-    for(localIndex = 0; localIndex < hitsInMultiplet.size(); ++localIndex) {
-      if(hitsInMultiplet[localIndex] == theHit) return;
-    } // localIndex
-
+    
   } // GetHitMultiplet
 
   //////////////////////////////////////////
@@ -1858,8 +1856,7 @@ namespace tca {
     if(tp.AngleCode == 1) {
       // Get the hits that are in the same multiplet as bestDeltaHit
       std::vector<unsigned int> hitsInMultiplet;
-      unsigned short localIndex;
-      GetHitMultiplet(slc, bestDeltaHit, hitsInMultiplet, localIndex);
+      GetHitMultiplet(slc, bestDeltaHit, hitsInMultiplet, false);
       if(tcc.dbgStp) {
         mf::LogVerbatim myprt("TC");
         myprt<<" bestDeltaHit "<<PrintHit(slc.slHits[bestDeltaHit]);
@@ -1933,13 +1930,14 @@ namespace tca {
     if(nAvailable == 2) {
       // See if these two are in the same multiplet and both are available
       std::vector<unsigned int> tHits;
-      unsigned short localIndex;
-      GetHitMultiplet(slc, bestDeltaHit, tHits, localIndex);
+      GetHitMultiplet(slc, bestDeltaHit, tHits, false);
       // ombest is the index of the other hit in tp.Hits that is in the same multiplet as bestDeltaHit
       // if we find it
       unsigned short ombest = USHRT_MAX;
       unsigned int otherHit = INT_MAX;
       if(tHits.size() == 2) {
+        unsigned short localIndex = 0;
+        if(tHits[0] == bestDeltaHit) localIndex = 1;
         otherHit = tHits[1 - localIndex];
         // get the index of this hit in tp.Hits
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -3046,7 +3044,7 @@ namespace tca {
     // find all nearby hits
     std::vector<unsigned int> hitsInMuliplet, nearbyHits;
     for(auto iht : tHits) {
-      GetHitMultiplet(slc, iht, hitsInMuliplet);
+      GetHitMultiplet(slc, iht, hitsInMuliplet, false);
       // prevent double counting
       for(auto mht : hitsInMuliplet) {
         if(std::find(nearbyHits.begin(), nearbyHits.end(), mht) == nearbyHits.end()) {
@@ -3500,7 +3498,14 @@ namespace tca {
             if(tj1.EndFlag[1-end1][kBragg] && tj2.EndFlag[end2][kAtKink]) doMerge = false;
           }
 
-          bool doVtx = !doMerge && kinkSig > tcc.kinkCuts[1];
+          // decide if we should make a vertex instead
+          bool doVtx = false;
+          if(!doMerge) {
+            // check for a significant kink
+            doVtx = (kinkSig > tcc.kinkCuts[1]);
+            // and a less significant kink but very close separation
+            doVtx = (kinkSig > 0.5 * tcc.kinkCuts[1] && sep < 2);
+          } // !doMerge
 
           if(prt) {
             mf::LogVerbatim myprt("TC");
@@ -3783,7 +3788,7 @@ namespace tca {
         ++cnt;
         if(cnt == nPtsToCheck) break;
       } // ii
-      if(cnt < 4) continue;
+      if(cnt < nPtsToCheck) continue;
       // do the fit and get the results
       if(!Fit2D(-1, inPt, chgErr, outVec, outVecErr, chiDOF)) continue;
       // check for really bad chidof indicating a major failure

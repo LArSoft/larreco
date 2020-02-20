@@ -1585,7 +1585,7 @@ void FindPFParticles(TCSlice& slc)
     // second one is put in pfpVec[1]
 
     if(tcc.useAlg[kKink3D]) return;
-    if(tcc.kinkCuts.size() < 5) return;
+    if(tcc.kinkCuts.size() < 4) return;
     if(pfpVec.size() != 1) return;
     if(pfpVec[0].AlgMod[kJunk3D]) return;
 
@@ -1594,9 +1594,9 @@ void FindPFParticles(TCSlice& slc)
     unsigned short atPt = USHRT_MAX;
     double dang, dangSig;
     auto& p1 = pfpVec[0];
-    if(prt) mf::LogVerbatim("TC")<<"SAK: P"<<p1.ID<<" min (3D angle) * (2D significance) cut "<<big<<" fit Len "<<tcc.kinkCuts[4];
+    if(prt) mf::LogVerbatim("TC")<<"SAK: P"<<p1.ID<<" min (3D angle) * (2D significance) cut "<<big<<" fit Len "<<tcc.kinkCuts[3];
     for(unsigned short ipt = 0; ipt < p1.TP3Ds.size(); ++ipt) {
-      KinkFit(slc, p1, ipt, tcc.kinkCuts[4], dang, dangSig);
+      KinkFit(slc, p1, ipt, tcc.kinkCuts[3], dang, dangSig);
       if(dang < 0) continue;
       // multiply the kink angle by the 2D kink significance
       auto& tp3d = p1.TP3Ds[ipt];
@@ -2401,7 +2401,7 @@ void FindPFParticles(TCSlice& slc)
       std::vector<unsigned int> hitMultiplet;
       for(std::size_t ii = 0; ii < tp2.Hits.size(); ++ii) {
         if(!tp2.UseHit[ii]) continue;
-        GetHitMultiplet(slc, tp2.Hits[ii], hitMultiplet);
+        GetHitMultiplet(slc, tp2.Hits[ii], hitMultiplet, true);
         if(hitMultiplet.size() > 1) break;
       } // ii
       rms = HitsRMSTime(slc, hitMultiplet, kAllHits) * tcc.wirePitch;
@@ -3058,7 +3058,7 @@ void FindPFParticles(TCSlice& slc)
         myprt<<" "<<SignalAtTp(tp);
       } // plane
       double dang = -1, dangSig = -1;
-      KinkFit(slc, pfp, ipt, tcc.kinkCuts[4], dang, dangSig);
+      KinkFit(slc, pfp, ipt, tcc.kinkCuts[3], dang, dangSig);
       myprt<<std::setw(7)<<std::setprecision(3)<<dang;
       // print the 2D TP kink significance
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];

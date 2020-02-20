@@ -1091,11 +1091,12 @@ namespace tca {
 
     // update the kink significance
     if(!tj.AlgMod[kJunkTj]) {
-      unsigned short nPtsFit = tcc.kinkCuts[2];
+      unsigned short nPtsFit = tcc.kinkCuts[0];
+      bool useChg = (tcc.kinkCuts[2] > 0);
       if(npts > 2 * nPtsFit) {
         for(unsigned short ipt = tj.EndPt[0] + nPtsFit; ipt < tj.EndPt[1] - nPtsFit; ++ipt) {
           auto& tp = tj.Pts[ipt];
-          if(tp.KinkSig < 0) tp.KinkSig = KinkSignificance(slc, tj, ipt, nPtsFit, false, false);
+          if(tp.KinkSig < 0) tp.KinkSig = KinkSignificance(slc, tj, ipt, nPtsFit, useChg, false);
         }
       } // long trajectory
     } // not JunkTj
@@ -1142,7 +1143,9 @@ namespace tca {
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(slc.slHits[iht].allHitsIndex == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
+          if(slc.slHits[iht].allHitsIndex == debug.Hit) {
+            std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
+          }
         } // ii
       } // ipt
     } // debug.Hit ...
@@ -1397,7 +1400,7 @@ namespace tca {
     unsigned short breakPt = USHRT_MAX;
     float bestFOM = tcc.chkStopCuts[3];
     unsigned short bestBragg = 0;
-    unsigned short nPtsFit = tcc.kinkCuts[2];
+    unsigned short nPtsFit = tcc.kinkCuts[0];
     TrajPoint tp1, tp2;
     ParFit chgFit1, chgFit2;
     for(unsigned short ipt = maxPullPt - 2; ipt <= maxPullPt + 2; ++ipt) {
@@ -1483,29 +1486,30 @@ namespace tca {
     if(tj.EndFlag[1][kBragg]) return;
 
     // only look at the last points that would have not been considered by GottaKink
-    unsigned short nPtsMax = tcc.kinkCuts[2];
+    unsigned short nPtsMax = tcc.kinkCuts[0];
     if(nPtsMax > 8) nPtsMax = 8;
 
-    // count the number of high charge points and the number of
-    // OK charge points near the end
-    unsigned short cntTot = 0;
-    unsigned short cntBad = 0;
+    // find the first point with a high charge pull starting at nPtsMax points before the end
+    // and count the number of high charge pull points
+    float cntBad = 0;
     unsigned short firstBad = USHRT_MAX;
-    for(unsigned short ii = 0; ii < npwc; ++ii) {
-      unsigned short ipt = tj.EndPt[1] - ii;
+    for(unsigned short ii = 0; ii < nPtsMax; ++ii) {
+      unsigned short ipt = tj.EndPt[1] - nPtsMax + ii;
       auto& tp = tj.Pts[ipt];
       if(tp.Chg <= 0) continue;
-      ++cntTot;
-      if(cntTot == nPtsMax) break;
       if(tp.ChgPull < 3) continue;
       ++cntBad;
-      firstBad = ipt;
+      if(firstBad == USHRT_MAX) firstBad = ipt;
     } // ii
     if(firstBad == USHRT_MAX) return;
-    if(prt) mf::LogVerbatim("TC")<<"THCEP Trim points starting at "<<PrintPos(slc, tj.Pts[firstBad]);
+    // total number of points from the first bad point to the end
+    float cntTot = tj.EndPt[1] - firstBad;
+    // fraction of those poins that are bad
+    float fracBad = cntBad / cntTot;
+    if(fracBad < 0.5) return;
+    if(prt) mf::LogVerbatim("TC")<<"THCEP: Trim points starting at "<<PrintPos(slc, tj.Pts[firstBad]);
     for(unsigned short ipt = firstBad; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
     tj.AlgMod[kTHCEP] = true;
-
   } // TrimHiChgEndPts
 
   //////////////////////////////////////////
@@ -1608,32 +1612,36 @@ namespace tca {
   } // TrimEndPts
 
   /////////////////////////////////////////
-  void ChkEndKinks(TCSlice& slc, Trajectory& tj, bool prt)
+  void ChkEndKink(TCSlice& slc, Trajectory& tj, bool prt)
   {
-    // look for large-angle kinks on TPs where KinkSig is undefined, most likely at the ends
+    // look for large-angle kink near the end
     if(!tcc.useAlg[kEndKink]) return;
     if(tj.PDGCode == 111) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 6) return;
 
-    if(!prt) return;
-
-    if(prt) mf::LogVerbatim("TC")<<"CEK: Inside ChkEndKinks T"<<tj.ID;
-
+    if(prt) mf::LogVerbatim("TC")<<"CEK: Inside ChkEndKinks T"<<tj.ID<<" ";
+    
+    float maxSig = tcc.kinkCuts[1];
+    unsigned short withNptsFit = 0;
     unsigned short nPtsFit = tcc.kinkCuts[0];
+    bool useChg = (tcc.kinkCuts[2] > 0);
+    for(unsigned short nptsf = 3; nptsf < nPtsFit; ++nptsf) {
+      unsigned short ipt = tj.EndPt[1] - nptsf;
+      float ks = KinkSignificance(slc, tj, ipt, nptsf, useChg, prt);
+      if(ks > maxSig) {
+        maxSig = ks;
+        withNptsFit = nptsf;
+      }
+    } // nptsf
+    if(withNptsFit > 0) {
+      unsigned short ipt = tj.EndPt[1] - withNptsFit;
+      std::cout<<"CEK: T"<<tj.ID<<" ipt "<<ipt;
+      float ks = KinkSignificance(slc, tj, ipt, withNptsFit, false, prt);
+      auto& tp = tj.Pts[ipt];
+      std::cout<<" "<<PrintPos(slc, tp)<<" withNptsFit "<<withNptsFit<<" ks "<<ks<<"\n";
+    }
 
-    while(nPtsFit > 2) {
-      for(unsigned short ipt = tj.EndPt[0] + nPtsFit; ipt < tj.EndPt[1] - nPtsFit; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.KinkSig > 0) continue;
-        // don't consider charge, which wouldn't be well defined with so few points
-        tp.KinkSig = KinkSignificance(slc, tj, ipt, nPtsFit, false, prt);
-        if(prt) mf::LogVerbatim("TC")<<"  CEK: "<<PrintPos(slc, tp)<<" nPtsFit "<<nPtsFit<<" sig "<<tp.KinkSig;
-      } // ii
-      --nPtsFit;
-    } // nPtsFit
-
-
-  } // ChkEndKinks
+  } // ChkEndKink
 
   /////////////////////////////////////////
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt)
@@ -4339,7 +4347,7 @@ namespace tca {
     Point2_t tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
 
     if(doPrt) {
-      mf::LogVerbatim("TC")<<"MergeAndStore: tj1 T"<<tj1.ID<<" tj2 T"<<tj2.ID<<" at merge points "<<PrintPos(slc, tp1e1)<<" "<<PrintPos(slc, tp2e0);
+      mf::LogVerbatim("TC")<<"MergeAndStore: T"<<tj1.ID<<" and T"<<tj2.ID<<" at merge points "<<PrintPos(slc, tp1e1)<<" "<<PrintPos(slc, tp2e0);
     }
 
     // swap the order so that abs(tj1end1 - tj2end0) is less than abs(tj2end1 - tj1end0)
@@ -5010,7 +5018,6 @@ namespace tca {
     if(tcc.dbgSlc) std::cout<<" dbgSlc";
     if(tcc.dbgStp) std::cout<<" dbgStp";
     if(tcc.dbgMrg) std::cout<<" dbgMrg";
-    if(tcc.dbgStp) std::cout<<" dbgStp";
     if(tcc.dbg2V) std::cout<<" dbg2V";
     if(tcc.dbg2S) std::cout<<" dbg2S";
     if(tcc.dbgVxNeutral) std::cout<<" dbgVxNeutral";

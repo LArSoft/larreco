@@ -29,6 +29,7 @@ namespace tca {
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
+  void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
   void Reconcile2Vs(TCSlice& slc);
   bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt);
   void Find3DVertices(TCSlice& slc);

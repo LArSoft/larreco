@@ -61,7 +61,7 @@ namespace tca {
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
-  void ChkEndKinks(TCSlice& slc, Trajectory& tj, bool prt);
+  void ChkEndKink(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimHiChgEndPts(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   void ChkMissedKink(TCSlice& slc, Trajectory& tj, bool prt);

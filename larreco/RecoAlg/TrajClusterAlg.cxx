@@ -82,7 +82,7 @@ namespace tca {
     tcc.maxChi               = pset.get< float >("MaxChi", 10);
     tcc.chargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
     tcc.multHitSep           = pset.get< float >("MultHitSep", 2.5);
-    tcc.kinkCuts = pset.get< std::vector<float>>("KinkCuts");
+    tcc.kinkCuts             = pset.get< std::vector<float>>("KinkCuts");
     tcc.qualityCuts          = pset.get< std::vector<float >>("QualityCuts", {0.8, 3});
     tcc.maxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     tcc.maxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
@@ -430,7 +430,7 @@ namespace tca {
             iHitsInMultiplet.resize(1);
             iHitsInMultiplet[0] = iht;
           } else {
-            GetHitMultiplet(slc, iht, iHitsInMultiplet);
+            GetHitMultiplet(slc, iht, iHitsInMultiplet, false);
             if(iHitsInMultiplet.empty()) continue;
             // ignore very high multiplicities
             if(iHitsInMultiplet.size() > 4) continue;
@@ -464,7 +464,7 @@ namespace tca {
               jHitsInMultiplet.resize(1);
               jHitsInMultiplet[0] = jht;
             } else {
-              GetHitMultiplet(slc, jht, jHitsInMultiplet);
+              GetHitMultiplet(slc, jht, jHitsInMultiplet, false);
               if(jHitsInMultiplet.empty()) continue;
               // ignore very high multiplicities
               if(jHitsInMultiplet.size() > 4) continue;
@@ -641,6 +641,7 @@ namespace tca {
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
     Find2DVertices(slc, inCTP, USHRT_MAX);
+    SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
     // check for a major failure
@@ -679,12 +680,7 @@ namespace tca {
     if(!tcc.useAlg[kJunkTj]) return;
 
     // shouldn't have to do this but...
-    for(auto& slHit : slc.slHits) {
-      if(slHit.InTraj < 0) {
-        std::cout<<"FJT: dirty hit "<<PrintHit(slHit)<<"\n";
-        slHit.InTraj = 0;
-      }
-    }
+    for(auto& slHit : slc.slHits) if(slHit.InTraj < 0) slHit.InTraj = 0;
 
     bool prt = false;
 
@@ -701,19 +697,20 @@ namespace tca {
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
       for(unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
-        tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
-        GetHitMultiplet(slc, iht, iHits);
+        GetHitMultiplet(slc, iht, iHits, true);
+        prt = (tcc.modes[kDebug] && std::find(iHits.begin(), iHits.end(), debug.Hit) != iHits.end());
+        if(prt) mf::LogVerbatim("TC")<<"FJT: debug iht multiplet size "<<iHits.size();
         if(iHits.empty()) continue;
         for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
           auto& jslHit = slc.slHits[jht];
           if(jslHit.InTraj != 0) continue;
-          if(prt && HitSep2(slc, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(jslHit);
+          if(prt && HitSep2(slc, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(jslHit)<<" hitSep2 "<<HitSep2(slc, iht, jht);
           if(HitSep2(slc, iht, jht) > tcc.JTMaxHitSep2) continue;
           std::vector<unsigned int> jHits;
-          GetHitMultiplet(slc, jht, jHits);
+          GetHitMultiplet(slc, jht, jHits, true);
           if(jHits.empty()) continue;
           // check for hit overlap consistency
           if(!TrajHitsOK(slc, iHits, jHits)) continue;
@@ -738,7 +735,7 @@ namespace tca {
                 // this shouldn't be needed but do it anyway
                 if(std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
                 // re-purpose jHits and check for consistency
-                GetHitMultiplet(slc, kht, jHits);
+                GetHitMultiplet(slc, kht, jHits, true);
                 if(!TrajHitsOK(slc, tHits, jHits)) continue;
                 // add them all and update the wire range
                 for(auto jht : jHits)  {
