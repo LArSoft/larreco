@@ -13,6 +13,7 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_PRINCIPAL}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_ROOT_IO_TFILE_SUPPORT}
+           ${ART_UTILITIES}
            ROOT::Core
            ROOT::Gpad
            ROOT::Hist

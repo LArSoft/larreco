@@ -4,6 +4,7 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardataobj_AnalysisBase
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ART_UTILITIES}
            canvas
            ${MF_MESSAGELOGGER}
            ${FHICLCPP}
