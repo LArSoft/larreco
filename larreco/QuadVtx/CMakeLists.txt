@@ -1,8 +1,8 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 art_make(LIB_LIBRARIES
-           ${ROOT_CORE}
-           ${ROOT_HIST}
+           ROOT::Core
+           ROOT::Hist
          MODULE_LIBRARIES
            larcorealg_Geometry
            lardataobj_RecoBase
@@ -13,11 +13,11 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILE_SUPPORT}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${MF_MESSAGELOGGER}
-           ${ROOT_CORE}
-           ${ROOT_HIST}
-           ${ROOT_MATRIX}
-           ${ROOT_PHYSICS}
-           ${ROOT_TREE}
+           ROOT::Core
+           ROOT::Hist
+           ROOT::Matrix
+           ROOT::Physics
+           ROOT::Tree
         )
 
 install_headers()

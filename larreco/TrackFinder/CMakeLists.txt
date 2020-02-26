@@ -8,7 +8,7 @@ art_make(EXCLUDE
          MODULE_LIBRARIES
            larreco_RecoAlg
            nug4_MagneticField_MagneticField_service
-           ${ROOT_CORE}
+           ROOT::Core
            ${MF_MESSAGELOGGER}
          )
 
@@ -22,10 +22,10 @@ simple_plugin(Track3DKalman "module"
                 ${ART_ROOT_IO_TFILESERVICE_SERVICE}
                 ${ART_ROOT_IO_TFILE_SUPPORT}
                 ${CLHEP}
-                ${ROOT_CORE}
-                ${ROOT_MATRIX}
-                ${ROOT_PHYSICS}
-                ${ROOT_TREE}
+                ROOT::Core
+                ROOT::Matrix
+                ROOT::Physics
+                ROOT::Tree
                 ${MF_MESSAGELOGGER}
               )
 
@@ -38,11 +38,11 @@ simple_plugin(Track3DKalmanSPS "module"
                 ${ART_ROOT_IO_TFILESERVICE_SERVICE}
                 ${ART_ROOT_IO_TFILE_SUPPORT}
                 ${MF_MESSAGELOGGER}
-                ${ROOT_CORE}
-                ${ROOT_HIST}
-                ${ROOT_MATRIX}
-                ${ROOT_PHYSICS}
-                ${ROOT_TREE}
+                ROOT::Core
+                ROOT::Hist
+                ROOT::Matrix
+                ROOT::Physics
+                ROOT::Tree
               )
 
 simple_plugin(KalmanFilterFitTrackMaker "tool"
