@@ -7,7 +7,11 @@ fcldir product_dir job
 fwdir  product_dir config_data
 #
 product         version
+<<<<<<< HEAD
 larsim		v08_19_02
+=======
+larsim		v08_19_01
+>>>>>>> 14d0fdac1aec1a5ed2a4876fd34bd99e8deef897
 eigen		v3_3_5
 tensorflow      v1_3_0h		-	optional
 
