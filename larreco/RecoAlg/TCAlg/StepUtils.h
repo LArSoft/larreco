@@ -36,7 +36,7 @@ namespace tca {
   void AddLAHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
   // Step through TPs starting at the end and moving to the beginning
   void ReversePropagate(TCSlice& slc, Trajectory& tj);
-  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, 
+  void GetHitMultiplet(const TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet,
                        bool useLongPulseHits);
   // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
   float HitTimeErr(const TCSlice& slc, const unsigned int iht);

@@ -77,14 +77,14 @@ private:
   std::array<float, 5> ESums {{0}};
   // and for Purity
   std::array<float, 5> PSums {{0}};
-  
+
   art::Handle<std::vector<recob::Hit>> fHitHandle;
   std::vector<unsigned int> fHitMCPIndex;
 
   bool fCompareProductIDs {true};     ///< compare Hit and Cluster-> Hit art product IDs on the first event
   bool fFirstPrint {true};
   unsigned int fCurrentRun {0};
-  
+
   void FirstLastHitInPlane(unsigned int tpc, unsigned int plane, unsigned int mcpi, unsigned int& firstHitIndex, unsigned int& lastHitIndex);
   std::string HitLocation(unsigned int iht);  ///< packs hit WireID and PeakTime into a compact format
 
@@ -135,7 +135,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
   // decide whether to consider cluster -> hit -> MCParticle for any MCParticle origin or for
   // a specific user-specified origin
   bool anySource = (fTruthOrigin == simb::kUnknown);
-  
+
   if(fPrintLevel > 0 && evt.run() != fCurrentRun) {
     mf::LogVerbatim("ClusterTrackAna")<<"Run: "<<evt.run();
     fCurrentRun = evt.run();
@@ -173,7 +173,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     MCPIs.push_back(mcpi);
   } // ipart
   if(trkIDs.empty()) return;
-  
+
   // next construct a companion vector of MCParticle indices indexed to the full hit collection
   fHitMCPIndex.resize((*fHitHandle).size(), UINT_MAX);
   // Make a list of the <first, last> MC-matched hit in each TPC. This will be used
@@ -213,12 +213,12 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     if(hitRange[tpc].first == UINT_MAX) hitRange[tpc].first = iht;
     hitRange[tpc].second = iht;
   } // iht
-  
+
   if(nMatch == 0) {
     fHitMCPIndex.resize(0);
     return;
   }
-  
+
   if(fPrintLevel > 3) {
     // Print the gory details
     mf::LogVerbatim myprt("ClusterTrackAna");
@@ -258,7 +258,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
       myprt<<"    "<<mcp.Process();
     } // mcpcnt
   } // fPrintLevel > 3
-  
+
   // fill a vector of hits indices from all clusters or all tracks
   std::vector<std::vector<unsigned int>> recoHits;
   // and a companion vector of indices into the cluster or track collection
@@ -279,7 +279,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
         if(cluhits[0].id() != fHitHandle.id()) throw cet::exception("ClusterTrackAna")<<"Hits associated with ClusterModuleLabel are in a different collection than HitModuleLabel.\n";
         fCompareProductIDs = false;
       } // fCompareProductIDs
-      // only load MC-matched hits. Hits that are not MC-matched were either matched to a 
+      // only load MC-matched hits. Hits that are not MC-matched were either matched to a
       // MCParticle that was not selected or were mis-reconstructed by the hit finder. Neither
       // of these conditions warrant penalizing the reconstruction module performance
       std::vector<unsigned int> hitsIndex;
@@ -512,7 +512,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
           myprt<<std::fixed<<std::setprecision(2);
           myprt<<std::setw(8)<<eff;
           myprt<<std::setw(8)<<pur;
-          myprt<<std::setw(8)<<ep;          
+          myprt<<std::setw(8)<<ep;
           if(hasBadEP) myprt<<" <- BadEP";
           myprt<<" Evt: "<<evt.event();
           myprt<<" Evt Cnt "<<fEventCnt;
@@ -520,7 +520,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
       } // mIndx
     } // plane
   } // tpcid
-  
+
   fHitMCPIndex.resize(0);
 
 } // analyze

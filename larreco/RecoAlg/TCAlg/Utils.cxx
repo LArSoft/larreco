@@ -1620,7 +1620,7 @@ namespace tca {
     if(tj.EndPt[1] - tj.EndPt[0] < 6) return;
 
     if(prt) mf::LogVerbatim("TC")<<"CEK: Inside ChkEndKinks T"<<tj.ID<<" ";
-    
+
     float maxSig = tcc.kinkCuts[1];
     unsigned short withNptsFit = 0;
     unsigned short nPtsFit = tcc.kinkCuts[0];

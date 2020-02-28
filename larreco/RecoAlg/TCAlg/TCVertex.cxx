@@ -1832,7 +1832,7 @@ namespace tca {
   bool FitVertex(TCSlice& slc, VtxStore& vx, bool prt)
   {
     // Fit the vertex using T -> 2V assns
-    
+
     // tcc.vtx2DCuts fcl input usage
     // 0 = maximum length of a short trajectory
     // 1 = max vertex - trajectory separation for short trajectories

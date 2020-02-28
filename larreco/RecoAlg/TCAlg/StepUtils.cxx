@@ -1446,7 +1446,7 @@ namespace tca {
       } // ii
       return;
     } // LongPulseHit
-    
+
     hitsInMultiplet.resize(1);
     hitsInMultiplet[0] = theHit;
     unsigned int theWire = hit.WireID().Wire;
@@ -1541,7 +1541,7 @@ namespace tca {
         hitsInMultiplet.erase(hitsInMultiplet.begin() + killMe);
       } // slc.slHits[imTall].RMS < narrowHitCut
     } // narrow / tall test
-    
+
   } // GetHitMultiplet
 
   //////////////////////////////////////////

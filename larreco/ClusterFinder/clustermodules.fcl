@@ -118,7 +118,7 @@ standard_clustertrackana:
   ClusterModuleLabel:       "trajcluster"   # specify a cluster collection
   TrackModuleLabel:         "NA" # OR specify a track collection
   TruthOrigin:              0 # [0 (everything) 1(nu), 2(cosmic), 3(SN nu), 4(SingleParticle)]
-  PrintLevel:               0 
+  PrintLevel:               0
   # 0 = job summary, 1 = only BadEP clusters, 2 = all clusters, 3 = all planes, 4 = all MCParticles
   BadEP:                    0.0 # print cluster/track details if Efficiency * Purity is < BadEP
   #InTPC:                    1 # only consider cluster hits or track hits in one TPC (debugging)
