@@ -2,8 +2,8 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            larreco_RecoAlg_PMAlg
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ROOT_CORE}
-           ${ROOT_PHYSICS}
+           ROOT::Core
+           ROOT::Physics
            canvas
            ${MF_MESSAGELOGGER}
            cetlib_except
@@ -13,8 +13,8 @@ art_make(LIB_LIBRARIES
            larreco_Calorimetry
            larreco_DirOfGamma
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ROOT_CORE}
-           ${ROOT_PHYSICS}
+           ROOT::Core
+           ROOT::Physics
            ${MF_MESSAGELOGGER}
          )
 

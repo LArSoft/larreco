@@ -7,7 +7,7 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_CMTool_CMTAlgPriority
            larreco_RecoAlg_CMTool_CMTAlgMatch
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ROOT_CORE}
+           ROOT::Core
            canvas
            cetlib_except
          MODULE_LIBRARIES
@@ -16,8 +16,8 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ROOT_CORE}
-           ${ROOT_PHYSICS}
+           ROOT::Core
+           ROOT::Physics
            ${MF_MESSAGELOGGER}
          )
 

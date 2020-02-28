@@ -4,7 +4,7 @@ art_make(TOOL_LIBRARIES
            larreco_RecoAlg_Cluster3DAlgs
            larreco_RecoAlg_Cluster3DAlgs_Voronoi
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ROOT_CORE}
+           ROOT::Core
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            canvas
            ${MF_MESSAGELOGGER}
