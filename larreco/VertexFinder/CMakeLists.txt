@@ -9,9 +9,9 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ROOT::Core
-           ROOT::Hist
-           ROOT::Physics
+           ${ROOT_CORE}
+           ${ROOT_HIST}
+           ${ROOT_PHYSICS}
            ${MF_MESSAGELOGGER}
          )
 
@@ -19,8 +19,8 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
 simple_plugin(FeatureVertexFinder "module"
                 ${MF_MESSAGELOGGER}
                 ${ART_FRAMEWORK_SERVICES_REGISTRY}
-                ROOT::Core
-                ROOT::Hist
+                ${ROOT_CORE}
+                ${ROOT_HIST}
                 larcorealg_Geometry
                 lardataobj_RecoBase
               )

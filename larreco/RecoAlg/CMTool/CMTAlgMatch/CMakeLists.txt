@@ -2,10 +2,9 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_CMTool_CMToolBase
            larcorealg_Geometry
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_UTILITIES}
-           ROOT::Core
-           ROOT::RIO
-           ROOT::Tree
+           ${ROOT_CORE}
+           ${ROOT_RIO}
+           ${ROOT_TREE}
            canvas
            cetlib_except
         )

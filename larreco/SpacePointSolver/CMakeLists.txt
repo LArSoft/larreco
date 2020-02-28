@@ -5,11 +5,10 @@ art_make(BASENAME_ONLY
          LIB_LIBRARIES
            larcorealg_Geometry
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ROOT::Core
-           ROOT::Physics
+           ${ROOT_CORE}
+           ${ROOT_PHYSICS}
            canvas
            cetlib_except
-           ${ART_UTILITIES}
          MODULE_LIBRARIES
            larcorealg_Geometry
            lardataobj_RecoBase
@@ -17,8 +16,8 @@ art_make(BASENAME_ONLY
            lardata_ArtDataHelper
            larreco_SpacePointSolver
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ROOT::Core
-           ROOT::Hist
+           ${ROOT_CORE}
+           ${ROOT_HIST}
         )
 
 install_headers()

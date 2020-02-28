@@ -1,7 +1,7 @@
 art_make(LIB_LIBRARIES
            larreco_RecoAlg_PMAlg
-           ROOT::Core
-           ROOT::Physics
+           ${ROOT_CORE}
+           ${ROOT_PHYSICS}
            canvas
            ${MF_MESSAGELOGGER}
            ${FHICLCPP}

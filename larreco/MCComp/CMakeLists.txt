@@ -5,13 +5,12 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            canvas
            cetlib_except
-           ROOT::Core
-           ${ART_UTILITIES}
+           ${ROOT_CORE}
          MODULE_LIBRARIES
            larreco_MCComp
            larcorealg_Geometry
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ROOT::Core
+           ${ROOT_CORE}
          )
 
 # install_headers()

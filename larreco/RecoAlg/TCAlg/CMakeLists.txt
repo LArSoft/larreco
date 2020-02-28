@@ -15,17 +15,17 @@ art_make(LIB_LIBRARIES
            canvas
            cetlib
            cetlib_except
-           ROOT::Core
-           ROOT::GenVector
-           ROOT::Gpad
-           ROOT::Graf
-           ROOT::Graf3d
-           ROOT::Hist
-           ROOT::MathCore
-           ROOT::Matrix
-           ROOT::RIO
-           ROOT::Tree
-           ROOT::TMVA
+           ${ROOT_CORE}
+           ${ROOT_GENVECTOR}
+           ${ROOT_GPAD}
+           ${ROOT_GRAF}
+           ${ROOT_GRAF3D}
+           ${ROOT_HIST}
+           ${ROOT_MATHCORE}
+           ${ROOT_MATRIX}
+           ${ROOT_RIO}
+           ${ROOT_TREE}
+           ${ROOT_TMVA}
         )
 
 add_subdirectory(TCDebugTools)

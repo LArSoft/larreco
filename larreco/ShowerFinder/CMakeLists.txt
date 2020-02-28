@@ -6,8 +6,8 @@ art_make(MODULE_LIBRARIES
           larreco_RecoAlg
           lardataobj_RecoBase
           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-          ROOT::Core
-          ROOT::Physics
+          ${ROOT_CORE}
+          ${ROOT_PHYSICS}
           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
           ${MF_MESSAGELOGGER}
         )

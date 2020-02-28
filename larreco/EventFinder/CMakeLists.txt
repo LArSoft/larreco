@@ -1,6 +1,6 @@
 art_make(MODULE_LIBRARIES
            lardataobj_RecoBase
-           ROOT::Core
+           ${ROOT_CORE}
            ${MF_MESSAGELOGGER}
          )
 

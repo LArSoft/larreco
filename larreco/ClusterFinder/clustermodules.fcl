@@ -8,17 +8,13 @@ standard_trajcluster:
   module_type:          "TrajCluster"
   TrajClusterAlg:       @local::standard_trajclusteralg
   # don't recosntruct a slice if it has more than MaxSliceHits
-  MaxSliceHits:     50000 
+  MaxSliceHits:     50000
   DoWireAssns: true
   DoRawDigitAssns: false
-  # configuration for non-sliced hit collection
-  HitModuleLabel: "gaushit"
-  HitTruthModuleLabel: "gaushit"
-  SliceModuleLabel: "NA"
-  # configuration for sliced hit collection
-#  HitModuleLabel: "NA"
-#  SlicerModuleLabel: "slicermodule"
-#  HitTruthModuleLabel: "slicermodule"
+  SaveAll2DVertices: false
+  HitModuleLabel:           "hitpdune"
+  SpacePointModuleLabel:    "reco3d"
+  SpacePointHitAssnLabel:    "hitpdune"
 } # standard_trajcluster
 
 standard_blurredcluster:
@@ -92,11 +88,11 @@ standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
  HitsModuleLabel: "gaushit"
- HoughSeed:       10      # The user supplied seed the generator uses for the 
+ HoughSeed:       10      # The user supplied seed the generator uses for the
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
 }
- 
+
 standard_cluster3d:
 {
   module_type:            "Cluster3D"
@@ -115,8 +111,21 @@ standard_cluster3d:
   ParallelHitsAlg:        @local::standard_cluster3dparallelhitsseedfinderalg
 }
 
+standard_clustertrackana:
+{
+  module_type:              "ClusterTrackAna"
+  HitModuleLabel:           "gaushit"
+  ClusterModuleLabel:       "trajcluster"   # specify a cluster collection
+  TrackModuleLabel:         "NA" # OR specify a track collection
+  TruthOrigin:              0 # [0 (everything) 1(nu), 2(cosmic), 3(SN nu), 4(SingleParticle)]
+  PrintLevel:               0 
+  # 0 = job summary, 1 = only BadEP clusters, 2 = all clusters, 3 = all planes, 4 = all MCParticles
+  BadEP:                    0.0 # print cluster/track details if Efficiency * Purity is < BadEP
+  #InTPC:                    1 # only consider cluster hits or track hits in one TPC (debugging)
+}
+
 standard_clusterana:
-{ 
+{
  module_type:              "ClusterAna"
  HitsModuleLabel:          "cccluster"
  ClusterModuleLabel:       "cccluster"
@@ -141,7 +150,7 @@ standard_clusteringvalidation:
 }
 
 standard_dbclusterana:
-{ 
+{
  module_type:              "DBclusterAna"
  DigitModuleLabel:         "daq"
  HitsModuleLabel:          "ffthit"
@@ -155,7 +164,7 @@ standard_houghlinefinder:
 {
  module_type:          "HoughLineFinder"
  DBScanModuleLabel:    "dbcluster"
- HoughSeed:       0      # The user supplied seed the generator uses for the 
+ HoughSeed:       0      # The user supplied seed the generator uses for the
                          # Hough transform, if it is zero a seed is randomly created
  MaxLines:             5
  MinHits:              3
@@ -202,7 +211,7 @@ standard_kingacluster:
 }
 
 standard_kingaclusterana:
-{ 
+{
  module_type:               "KingaClusterAna"
  LineMergerModuleLabel:     "linemerger"
  EndPoint2DModuleLabel:     "vertex2d"
@@ -246,42 +255,42 @@ standard_fuzzyclustermerger:
  InputClusterLabel: "fuzzycluster"
  TSep1UseEP:  true
  OOCS1MaxAngle:   20.     # OutOfConeSeparate 1st stage
-    
+
  SDMinHits:      10.     # CBAlgoShortestDist # SetMinHits; SetSquaredDistanceCut
- SDSqDistCut:     5.  
-    
+ SDSqDistCut:     5.
+
  # 2nd stage merge
 #TSep2Debug:         false      # CBAlgoTrackSeparate // SetDebug(false); SetVerbose(false); SetUseEP(true);
 # TSep2Verbose:          false
  TSep2UseEP:        true
- 
+
 # OOCS2Debug:         false        # CBAlgoOutOfConeSeparate // SetDebug(false); SetVerbose(false); SetMaxAngleSep(20.);
 # OOCS2Verbose:       false
  OOCS2MaxAngle:      20.
-   
- AI2MinHits:         50            # CBAlgoAngleIncompat // SetMinHits(50); SetAllow180Ambig(true); SetUseOpeningAngle(false); 
+
+ AI2MinHits:         50            # CBAlgoAngleIncompat // SetMinHits(50); SetAllow180Ambig(true); SetUseOpeningAngle(false);
  AI2Allow180Ambig:   true         #                     // SetAngleCut(10.); SetMinLength(20.); SetDebug(false);
  AI2UseOpeningAngle: false
  AI2AngleCut:        10.
  AI2MinLength:       20.
 # AI2Debug:           false
- 
+
 # COM2Debug:         false      # CBAlgoCenterOfMass // SetDebug(false); SetVerbose(false); UseCOMInPoly(true);
 # COM2Verbose:       false      # 		 	   //	UseCOMInCone(true); UseCOMNearClus(true); SetLengthReach(3.);
  COM2UseCOMInPoly:  true
  COM2UseCOMInCone:  true
- COM2UseCOMNearClus: true 
+ COM2UseCOMNearClus: true
  COM2SetLengthReach:  3.
 
  PO2MinHits:        0          # CBAlgoPolyOverlap  // SetMinNumHits(0);
- 
+
  PSD2MinHits:        30        # CCBAlgoPolyShortestDist; // SetMinNumHits(30); SetMaxNumHits(9999); SetMinDistSquared(1.); SetDebug(false);
  PSD2MaxHits:        9999
  PSD2MinDistSqd:    1
- 
-    
- 
- 
+
+
+
+
 }
 
 
@@ -303,52 +312,52 @@ standard_clustercheater:
  HoughBaseAlg:   	@local::standard_houghbasealg
 }
 
-jp250L_dbcluster:                    @local::standard_dbcluster      
-jp250L_fuzzycluster:                 @local::standard_fuzzycluster      
-jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
-jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg   
-jp250L_dbclusterana:                 @local::standard_dbclusterana   
-jp250L_kingacluster:                 @local::standard_kingacluster   
+jp250L_dbcluster:                    @local::standard_dbcluster
+jp250L_fuzzycluster:                 @local::standard_fuzzycluster
+jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg
+jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg
+jp250L_dbclusterana:                 @local::standard_dbclusterana
+jp250L_kingacluster:                 @local::standard_kingacluster
 jp250L_kingaclusterana:              @local::standard_kingaclusterana
 jp250L_houghlinefinder:              @local::standard_houghlinefinder
 jp250L_houghlinefinder.HoughBaseAlg: @local::jp250L_houghbasealg
-jp250L_houghlinefinderana:           @local::standard_houghlinefinderana 
-jp250L_linemerger:                   @local::standard_linemerger         
-jp250L_endpointmod:                  @local::standard_endpointmod        
+jp250L_houghlinefinderana:           @local::standard_houghlinefinderana
+jp250L_linemerger:                   @local::standard_linemerger
+jp250L_endpointmod:                  @local::standard_endpointmod
 jp250L_endpointmod.EndPointAlg:      @local::jp250L_endpointalg
 jp250L_showeranglecluster:           @local::standard_showeranglecluster
 
 
-bo_clustercrawler:               @local::standard_clustercrawler      
-bo_dbcluster:                    @local::standard_dbcluster      
-bo_fuzzycluster:                 @local::standard_fuzzycluster      
-bo_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
-bo_dbcluster.DBScanAlg:          @local::bo_dbscanalg   
-bo_dbclusterana:                 @local::standard_dbclusterana   
-bo_kingacluster:                 @local::standard_kingacluster   
+bo_clustercrawler:               @local::standard_clustercrawler
+bo_dbcluster:                    @local::standard_dbcluster
+bo_fuzzycluster:                 @local::standard_fuzzycluster
+bo_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg
+bo_dbcluster.DBScanAlg:          @local::bo_dbscanalg
+bo_dbclusterana:                 @local::standard_dbclusterana
+bo_kingacluster:                 @local::standard_kingacluster
 bo_kingaclusterana:              @local::standard_kingaclusterana
 bo_houghlinefinder:              @local::standard_houghlinefinder
 bo_houghlinefinder.HoughBaseAlg: @local::bo_houghbasealg
-bo_houghlinefinderana:           @local::standard_houghlinefinderana 
-bo_linemerger:                   @local::standard_linemerger         
-bo_endpointmod:                  @local::standard_endpointmod        
+bo_houghlinefinderana:           @local::standard_houghlinefinderana
+bo_linemerger:                   @local::standard_linemerger
+bo_endpointmod:                  @local::standard_endpointmod
 bo_endpointmod.EndPointAlg:      @local::bo_endpointalg
 bo_showeranglecluster:           @local::standard_showeranglecluster
 
 
-argoneut_clustercrawler:               @local::standard_clustercrawler      
-argoneut_dbcluster:                    @local::standard_dbcluster      
-argoneut_fuzzycluster:                 @local::standard_fuzzycluster      
-argoneut_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
-argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg   
-argoneut_dbclusterana:                 @local::standard_dbclusterana   
-argoneut_kingacluster:                 @local::standard_kingacluster   
+argoneut_clustercrawler:               @local::standard_clustercrawler
+argoneut_dbcluster:                    @local::standard_dbcluster
+argoneut_fuzzycluster:                 @local::standard_fuzzycluster
+argoneut_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg
+argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg
+argoneut_dbclusterana:                 @local::standard_dbclusterana
+argoneut_kingacluster:                 @local::standard_kingacluster
 argoneut_kingaclusterana:              @local::standard_kingaclusterana
 argoneut_houghlinefinder:              @local::standard_houghlinefinder
 argoneut_houghlinefinder.HoughBaseAlg: @local::argoneut_houghbasealg
-argoneut_houghlinefinderana:           @local::standard_houghlinefinderana 
-argoneut_linemerger:                   @local::standard_linemerger         
-argoneut_endpointmod:                  @local::standard_endpointmod        
+argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
+argoneut_linemerger:                   @local::standard_linemerger
+argoneut_endpointmod:                  @local::standard_endpointmod
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
 argoneut_showeranglecluster:           @local::standard_showeranglecluster
 argoneut_smallclusterfinder:		   @local::standard_smallclusterfinder

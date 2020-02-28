@@ -7,8 +7,7 @@ art_make(LIB_LIBRARIES
            ${MF_MESSAGELOGGER}
            ${FHICLCPP}
            cetlib_except
-           ROOT::Core
-           ${ART_UTILITIES}
+           ${ROOT_CORE}
          MODULE_LIBRARIES
            larreco_HitFinder
            larsim_MCCheater_BackTrackerService_service
@@ -18,13 +17,13 @@ art_make(LIB_LIBRARIES
            lardata_ArtDataHelper
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ROOT::Core
+           ${ROOT_CORE}
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Framework_Services_System_TriggerNamesService_service
            ${MF_MESSAGELOGGER}
-           ROOT::Hist
-           ROOT::MathCore
-           ROOT::Physics
+           ${ROOT_HIST}
+           ${ROOT_MATHCORE}
+           ${ROOT_PHYSICS}
          )
 
 install_headers()

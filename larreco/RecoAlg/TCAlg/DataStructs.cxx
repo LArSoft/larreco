@@ -13,18 +13,22 @@ namespace tca {
   std::vector<TrajPoint> seeds;
 
   const std::vector<std::string> AlgBitNames {
+    "FillGaps3D",
+    "Kink3D",
+    "TEP3D",
+    "Junk3D",
+    "RTPs3D",
+    "Mat3D",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
     "DeltaRay",
-    "CTKink",
     "CTStepChk",
     "RvPrp",
     "CHMUH",
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
-    "HED",
     "HamBragg",
     "HamVx",
     "HamVx2",
@@ -34,9 +38,11 @@ namespace tca {
     "Merge",
     "LastEndMerge",
     "TEP",
+    "THCEP", // TrimHiChgEndPoints
+    "EndKink", // CheckEndKink
     "CHMEH",
-    "FillGap",
-    "Ghost",
+    "FillGaps",
+    "UseGhostHits",
     "MrgGhost",
     "ChkInTraj",
     "StopBadFits",
@@ -48,20 +54,16 @@ namespace tca {
     "UUH",
     "VtxTj",
     "ChkVxTj",
-    "MisdVxTj",
     "Photon",
     "HaloTj",
     "NoFitToVx",
     "VxMerge",
     "VxNeutral",
     "NoKinkChk",
-    "SoftKink",
     "ChkStop",
     "ChkStopEP",
     "ChkChgAsym",
     "FTBRvProp",
-    "StopAtTj",
-    "Mat3D",
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
@@ -77,10 +79,11 @@ namespace tca {
     "CompleteShower",
     "SplitTjCVx",
     "MakePFPTjs",
-    "FillGaps3D",
-    "TEP3D"
+    "StopShort",
+    "Reconcile2Vs",
+    "FTBMod"
   };
-  
+
   const std::vector<std::string> EndFlagNames {
     "Signal",
     "AtKink",
@@ -92,13 +95,14 @@ namespace tca {
   };
 
   const std::vector<std::string> VtxBitNames {
-    "VtxTrjTried",
+    "VxTrjTried",
     "Fixed",
     "OnDeadWire",
     "HiVx3Score",
-    "VtxTruMatch",
-    "VtxMerged",
-    "VtxIndPlnNoChg"
+    "VxTruMatch",
+    "VxMerged",
+    "VxIndPlnNoChg",
+    "VxEnvOK"
   };
 
   const std::vector<std::string> StrategyBitNames {

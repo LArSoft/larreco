@@ -5,14 +5,14 @@ art_make(LIB_LIBRARIES
            canvas
            ${MF_MESSAGELOGGER}
            cetlib_except
-           ROOT::Geom
-           ROOT::Graf3d
-           ROOT::Core
-           ROOT::MathCore
-           ROOT::Matrix
-           ROOT::Physics
-           ROOT::EG
-           ROOT::VMC
+           ${ROOT_GEOM}
+           ${ROOT_GRAF3D}
+           ${ROOT_CORE}
+           ${ROOT_MATHCORE}
+           ${ROOT_MATRIX}
+           ${ROOT_PHYSICS}
+           ${ROOT_EG}
+           ${ROOT_VMC}
          )
 
 install_headers()

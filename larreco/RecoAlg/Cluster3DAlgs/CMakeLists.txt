@@ -13,13 +13,12 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_PRINCIPAL}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ART_UTILITIES}
-           ROOT::Core
-           ROOT::Gpad
-           ROOT::Hist
-           ROOT::Matrix
-           ROOT::Physics
-           ROOT::Tree
+           ${ROOT_CORE}
+           ${ROOT_GPAD}
+           ${ROOT_HIST}
+           ${ROOT_MATRIX}
+           ${ROOT_PHYSICS}
+           ${ROOT_TREE}
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Persistency_Provenance
            canvas
