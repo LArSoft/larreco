@@ -1435,7 +1435,7 @@ namespace tca {
     // handle long-pulse hits
     if(useLongPulseHits && LongPulseHit(hit)) {
       // return everything in the multiplet as defined by the hit finder, but check for errors
-      unsigned int hitMult = hit.Multiplicity();
+      short int hitMult = hit.Multiplicity();
       unsigned int lIndex = hit.LocalIndex();
       unsigned int firstHit = 0;
       if(lIndex < theHit) firstHit = theHit - lIndex;

@@ -328,7 +328,6 @@ void FindPFParticles(TCSlice& slc)
       if(foundMVI) {
         PrintTP3Ds("FF", slc, pfpVec[0], -1);
       }
-      bool success = true;
       for(unsigned short ip = 0; ip < pfpVec.size(); ++ip) {
         auto& pfp = pfpVec[ip];
         // set the end flag bits
@@ -404,10 +403,7 @@ void FindPFParticles(TCSlice& slc)
         FilldEdx(slc, pfp);
         pfp.PDGCode = PDGCodeVote(slc, pfp);
         if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
-        if(!StorePFP(slc, pfp)) {
-          success = false;
-          break;
-        }
+        if(!StorePFP(slc, pfp)) break;
       } // ip (iterate over split pfps)
     } // indx (iterate over matchVec entries)
     slc.mallTraj.resize(0);
@@ -634,11 +630,9 @@ void FindPFParticles(TCSlice& slc)
     if(evt.wireIntersections.empty()) return false;
     if(pln1 == pln2) return false;
 
-    bool swap = false;
     if(pln1 > pln2) {
       std::swap(pln1, pln2);
       std::swap(wir1, wir2);
-      swap = true;
     }
 
     for(auto& wi : evt.wireIntersections) {
@@ -1372,7 +1366,7 @@ void FindPFParticles(TCSlice& slc)
     double x0 = 0.;
     for(short ii = 0; ii < nPtsFit; ++ii) {
       short ipt = fromPt + fitDir * ii;
-      if(ipt < 0 || ipt >= tp3ds.size()) break;
+      if(ipt < 0 || ipt >= (short)tp3ds.size()) break;
       auto& tp3d = tp3ds[ipt];
       if(!tp3d.IsGood) continue;
       if(tp3d.TPXErr2 < 0.0001) return sf;
@@ -1498,7 +1492,7 @@ void FindPFParticles(TCSlice& slc)
     } // plane
     Point3_t pos;
     bool needsSort = false;
-    double prevAlong;
+    double prevAlong = 0;
     for(unsigned short ipt = fromPt; ipt < fromPt + nPtsFit; ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       unsigned short plane = DecodeCTP(tp3d.CTP).Plane;

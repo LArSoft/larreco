@@ -2754,9 +2754,9 @@ namespace tca {
     if(end > 1) return USHRT_MAX;
     short dir = 1;
     if(end == 1) dir = -1;
-    for(short ii = 0; ii < tj.Pts.size(); ++ii) {
+    for(short ii = 0; ii < (short)tj.Pts.size(); ++ii) {
       short ipt = tj.EndPt[end] + dir * ii;
-      if(ipt < 0 || ipt >= tj.Pts.size()) return USHRT_MAX;
+      if(ipt < 0 || ipt >= (short)tj.Pts.size()) return USHRT_MAX;
       auto& tp = tj.Pts[ipt];
       if(!tp.Environment[kEnvOverlap]) return ipt;
     } // ii
@@ -2854,7 +2854,7 @@ namespace tca {
     if(end1 == 1) dir = -1;
     unsigned short cnt = 0;
     // add tj1 points to the trajectory
-    for(short ii = 0; ii < tj1.Pts.size(); ++ii) {
+    for(short ii = 0; ii < (short)tj1.Pts.size(); ++ii) {
       short ipt = tj1.EndPt[end1] + dir * ii;
       if(ipt < 0) break;
       if(ipt >= (short)tj1.Pts.size()) break;
@@ -2869,7 +2869,7 @@ namespace tca {
     dir = 1;
     if(end2 == 1) dir = -1;
     cnt = 0;
-    for(short ii = 0; ii < tj2.Pts.size(); ++ii) {
+    for(short ii = 0; ii < (short)tj2.Pts.size(); ++ii) {
       short ipt = tj2.EndPt[end2] + dir * ii;
       if(ipt < 0) break;
       if(ipt >= (short)tj2.Pts.size()) break;
