@@ -3,20 +3,14 @@
 #
 #  cd .../path/to/build/directory
 #  source .../path/to/larreco/ups/setup_for_development <-d|-p>
-#  cmake [-DCMAKE_INSTALL_PREFIX=/install/path]
-#        -DCMAKE_BUILD_TYPE=$CETPKG_TYPE
-#        $CETPKG_SOURCE
-#  make
-#  make test
-#  make install
-#  make package (builds distribution tarfile)
+#  buildtool [-I /install/path] -bt[i] -jN
 # ======================================================================
 
 
-# use cmake 3.10 or later
-cmake_minimum_required (VERSION 3.10)
+# use cmake 3.14 or later
+cmake_minimum_required (VERSION 3.12...3.14 FATAL_ERROR)
 
-project(larreco)
+project(larreco LANGUAGES CXX)
 
 # cetbuildtools contains our cmake modules
 SET ( CETBUILDTOOLS_VERSION $ENV{CETBUILDTOOLS_VERSION} )
@@ -70,7 +64,7 @@ if( DEFINED ENV{TENSORFLOW_DIR} )
   find_ups_product( tensorflow )
   cet_find_library(TENSORFLOW NAMES tensorflow-core PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
   cet_find_library(PROTOBUF NAMES protobuf PATHS ENV PROTOBUF_LIB NO_DEFAULT_PATH )
-  # This is a hack for a broken tensorflow link, which 
+  # This is a hack for a broken tensorflow link, which
   # requires -lrt for glibc earlier than 2.17 (i.e. SLF6)
   # We take advantage of OSTYPE defined by cetbuildtools
   if ( "${OSTYPE}" MATCHES "slf6" )
