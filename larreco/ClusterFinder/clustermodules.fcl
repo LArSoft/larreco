@@ -13,7 +13,7 @@ standard_trajcluster:
   DoRawDigitAssns: false
   SaveAll2DVertices: false
   HitModuleLabel:           "hitpdune"
-  SpacePointModuleLabel:    "reco3d"
+  SpacePointModuleLabel:    "NA"
   SpacePointHitAssnLabel:    "hitpdune"
 } # standard_trajcluster
 
