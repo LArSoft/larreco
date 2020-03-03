@@ -12,7 +12,7 @@ standard_trajcluster:
   DoWireAssns: true
   DoRawDigitAssns: false
   SaveAll2DVertices: false
-  HitModuleLabel:           "hitpdune"
+  HitModuleLabel:           "gaushit"
   SpacePointModuleLabel:    "NA"
   SpacePointHitAssnLabel:    "hitpdune"
 } # standard_trajcluster

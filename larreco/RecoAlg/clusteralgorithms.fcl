@@ -426,7 +426,6 @@ microboone_trajclusteralg.MaxWireSkipNoSignal: 2
 microboone_trajclusteralg.MuonTag: [40, 500, 10, 3]
 microboone_trajclusteralg.VLAStepSize: 1
 microboone_trajclusteralg.Vertex2DCuts: [ 6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
-microboone_trajclusteralg.Vertex3DCuts: [1, 2]
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
