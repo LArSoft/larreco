@@ -30,26 +30,26 @@ microboone_dbcluster3d.DBScan3DAlg.epsilon:          30
 microboone_dbcluster3d.DBScan3DAlg.minpts:           2
 microboone_dbcluster3d.DBScan3DAlg.badchannelweight: 0.
 
-microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
-microboone_endpointalg:                       @local::standard_endpointalg    
-microboone_houghbasealg:                      @local::standard_houghbasealg   
+microboone_dbscanalg:                         @local::standard_dbscanalg_fast
+microboone_endpointalg:                       @local::standard_endpointalg
+microboone_houghbasealg:                      @local::standard_houghbasealg
 microboone_houghbasealg.MaxLines:             20
 microboone_houghbasealg.MaxDistance:          1.0
 microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
-microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg 
+microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg
 
-microboone_dbcluster:                    @local::standard_dbcluster      
-microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    
-microboone_dbclusterana:                 @local::standard_dbclusterana   
-microboone_fuzzycluster:                 @local::standard_fuzzycluster      
-microboone_fuzzycluster.fuzzyClusterAlg: @local::microboone_fuzzyclusteralg      
+microboone_dbcluster:                    @local::standard_dbcluster
+microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg
+microboone_dbclusterana:                 @local::standard_dbclusterana
+microboone_fuzzycluster:                 @local::standard_fuzzycluster
+microboone_fuzzycluster.fuzzyClusterAlg: @local::microboone_fuzzyclusteralg
 microboone_fuzzyclustermerger:           @local::standard_fuzzyclustermerger
 microboone_houghlinefinder:              @local::standard_houghlinefinder
 microboone_houghlinefinder.HoughBaseAlg: @local::microboone_houghbasealg
 microboone_houghlinefinderana:           @local::standard_houghlinefinderana
-microboone_linemerger:                   @local::standard_linemerger        
-microboone_endpointmod:                  @local::standard_endpointmod       
+microboone_linemerger:                   @local::standard_linemerger
+microboone_endpointmod:                  @local::standard_endpointmod
 microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
 microboone_smallclusterfinder:		 @local::standard_smallclusterfinder
 
@@ -62,10 +62,10 @@ microboone_trajclusteralg.AveHitRMS: [4.3, 4.5, 5.0]
 
 microboone_trajclusteralg.MinPtsFit: [4, 3, 3]
 microboone_trajclusteralg.MinPts:   [5, 5, 3]
-microboone_trajclusteralg.MaxAngleCode: [0, 1, 2] 
+microboone_trajclusteralg.MaxAngleCode: [0, 1, 2]
 microboone_trajclusteralg.AngleRanges: [40, 85, 90] # [SA, LA, VLA]
 
-microboone_trajclusteralg.MinMCSMom: [0, 0, 0] 
+microboone_trajclusteralg.MinMCSMom: [0, 0, 0]
 
 microboone_trajclusteralg.MaxChi: 20
 microboone_trajclusteralg.HitErrFac: 0.4
@@ -80,15 +80,15 @@ microboone_trajclusteralg.ProjectionErrFactor: 2
 microboone_trajclusteralg.VLAStepSize: 1
 
 microboone_trajclusteralg.JTMaxHitSep: 3 # max hit separation for making Junk Trajectories
-#microboone_trajclusteralg.ElectronTag: [15, 1.1, 0.5] 
+#microboone_trajclusteralg.ElectronTag: [15, 1.1, 0.5]
 # number of points to check at the beginning, Chg jump fraction, min jump fraction
-microboone_trajclusteralg.MuonTag: [40, 500, 10, 3] 
+microboone_trajclusteralg.MuonTag: [40, 500, 10, 3]
 # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
 microboone_trajclusteralg.DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
 
 microboone_trajclusteralg.ChkStopCuts: [ 5, 8, 1.5] # [Min chg slope, Number of points to check, Chg fit Chi cut]
 #                                                              0  1   2  3  4  5    6   7   8    9   10
-microboone_trajclusteralg.Vertex2DCuts:  [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8, 1] 
+microboone_trajclusteralg.Vertex2DCuts:  [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8, 1]
 # 0 User definition of a short Tj => max number of Tj points
 # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
 # 2 max separation for a user-defined long Tj
@@ -102,7 +102,7 @@ microboone_trajclusteralg.Vertex2DCuts:  [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8
 # 10 Require signal on wires btw Tjs and Vtx in induction plane?
 
 #microboone_trajclusteralg.Vertex3DCuts: [ 1, 2]
-# 0 = dX match cut 
+# 0 = dX match cut
 # 1 = dY, dZ match cut
 
 microboone_trajclusteralg.VertexScoreWeights: [1, 2, 10, 2]
@@ -134,7 +134,7 @@ microboone_trajclusteralg.ShowerTag: [ 3, 100, 10, 20, 2.5, 0, 15, 3, 3, 0.7, 0.
 microboone_trajclusteralg.SaveShowerTree: false
 microboone_trajclusteralg.MVAShowerParentWeights: "TMVA_ShowerParent_BDT.weights.xml"
 
-physics.producers.trajcluster2.TrajClusterAlg.Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5] 
+physics.producers.trajcluster2.TrajClusterAlg.Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5]
 # 0 dx (cm) matching cut
 # 1 max number of 3-plane matches for any Tj
 # 2 Attempt 2-view match?
