@@ -101,7 +101,7 @@ microboone_trajclusteralg.Vertex2DCuts:  [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8
 # 9 max MCSmom asymmetry for a merge
 # 10 Require signal on wires btw Tjs and Vtx in induction plane?
 
-microboone_trajclusteralg.Vertex3DCuts: [ 1, 2]
+#microboone_trajclusteralg.Vertex3DCuts: [ 1, 2]
 # 0 = dX match cut 
 # 1 = dY, dZ match cut
 
