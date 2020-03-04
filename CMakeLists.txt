@@ -57,21 +57,6 @@ include(ArtDictionary)
 include(ArtMake)
 include(BuildPlugins)
 
-# not ready for c2 yet
-if( DEFINED ENV{TENSORFLOW_DIR} )
-  # find tensorflow library
-  find_ups_product( protobuf )
-  find_ups_product( tensorflow )
-  cet_find_library(TENSORFLOW NAMES tensorflow-core PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
-  cet_find_library(PROTOBUF NAMES protobuf PATHS ENV PROTOBUF_LIB NO_DEFAULT_PATH )
-  # This is a hack for a broken tensorflow link, which
-  # requires -lrt for glibc earlier than 2.17 (i.e. SLF6)
-  # We take advantage of OSTYPE defined by cetbuildtools
-  if ( "${OSTYPE}" MATCHES "slf6" )
-    set(FOR_TENSORFLOW "-lrt")
-  endif ()
-endif ()
-
 # source
 add_subdirectory(larreco)
 
