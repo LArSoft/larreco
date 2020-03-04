@@ -64,35 +64,6 @@ namespace tca {
       pfp.CosmicScore = 1.;
     }
     else pfp.CosmicScore = 0;
-
-    /*
-    float minx = FLT_MAX;
-    float maxx = FLT_MIN;
-
-    for(auto& tjID : pfp.TjIDs) {
-      Trajectory& tj = slc.allTraj[tjID - 1];
-      TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
-      TrajPoint& endPoint = tj.Pts[tj.EndPt[1]];
-      if (beginPoint.Pos[1]/slc.unitsPerTick<minx){
-        minx = beginPoint.Pos[1]/slc.unitsPerTick;
-      }
-      if (beginPoint.Pos[1]/slc.unitsPerTick>maxx){
-        maxx = beginPoint.Pos[1]/slc.unitsPerTick;
-      }
-      if (endPoint.Pos[1]/slc.unitsPerTick<minx){
-        minx = endPoint.Pos[1]/slc.unitsPerTick;
-      }
-      if (endPoint.Pos[1]/slc.unitsPerTick>maxx){
-        maxx = endPoint.Pos[1]/slc.unitsPerTick;
-      }
-    } // tjID
-
-    slc.crt.cr_pfpmintick.push_back(minx);
-    slc.crt.cr_pfpmaxtick.push_back(maxx);
-    */
-//    std::cout<<pfp.mcpListIndex<<std::endl;
-//    std::cout<<startPos[0]<<" "<<endPos[0]<<std::endl;
-
   }
 
   ////////////////////////////////////////////////

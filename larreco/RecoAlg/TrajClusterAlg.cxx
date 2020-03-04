@@ -82,7 +82,7 @@ namespace tca {
     tcc.maxChi               = pset.get< float >("MaxChi", 10);
     tcc.chargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
     tcc.multHitSep           = pset.get< float >("MultHitSep", 2.5);
-    tcc.kinkCuts             = pset.get< std::vector<float >>("KinkCuts", {0.4, 1.5, 4});
+    tcc.kinkCuts             = pset.get< std::vector<float>>("KinkCuts");
     tcc.qualityCuts          = pset.get< std::vector<float >>("QualityCuts", {0.8, 3});
     tcc.maxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     tcc.maxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
@@ -96,7 +96,9 @@ namespace tca {
     std::string fMVAShowerParentWeights = "NA";
     pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);
     tcc.chkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
-    tcc.matchTruth        = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
+    if(pset.has_key("MatchTruth")) {
+      std::cout<<"MatchTruth is not used. Use ClusterAnaV2 or DebugConfig to configure\n";
+    }
     tcc.vtx2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
@@ -119,12 +121,20 @@ namespace tca {
       // vertex Tjs in induction planes. Assume that it is required
       tcc.vtx2DCuts.resize(11, 1.);
     }
-    if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
+    if(tcc.vtx3DCuts.size() < 3)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
     if(tcc.vtx3DCuts.size() == 2) {
-      tcc.vtx3DCuts.resize(3, 2.);
+      std::cout<<"WARNING: Vertex3DCuts is size 2 but should be size 3, where Vertex3DCuts[2] = max 3D separation (cm) btw a PFP and a 3D vertex. Setting it to 3 cm\n";
+      tcc.vtx3DCuts.resize(3, 3.);
     }
-    if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
-    if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
+    if(tcc.kinkCuts.size() < 4) {
+      throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 3\n 0 = Number of points to fit at the end of the trajectory\n 1 = Minimum kink significance\n 2 = Use charge in significance calculation? (yes if > 0)\n 3 = 3D kink fit length (cm). \nYou are using an out-of-date specification?\n";
+    }
+    // throw an exception if the user appears to be using an old version of KinkCuts where
+    // KinkCuts[0] was a kink angle cut
+    if(tcc.kinkCuts[0] > 0 && tcc.kinkCuts[0] < 1.) {
+      throw art::Exception(art::errors::Configuration)<<"Are you using an out-of-date specification for KinkCuts? KinkCuts[0] is the number of points to fit.\n";
+    }
+
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     // dressed muons - change next line
     if(tcc.muonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging\n 4 = dress muon window size (optional)";
@@ -140,7 +150,7 @@ namespace tca {
       tcc.showerTag[12] = -1;
     }
     if(tcc.match3DCuts.size() < 6) throw art::Exception(art::errors::Configuration)<<"Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to fit in each PFP section\n 4 = max pull for accepting TP3Ds in sections\n 5 = max ChiDOF for a SectionFit";
-    
+
     // check the angle ranges and convert from degrees to radians
     if(tcc.angleRanges.back() < 90) {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
@@ -173,16 +183,13 @@ namespace tca {
         } // ib
         // print some instructions and quit if there was a failure
         if(!tcc.modes[kDebug]) {
+          std::cout<<"DecodeDebugString failed: "<<strng<<"\n";
           DecodeDebugString("instruct");
           exit(1);
         }
       } // DecodeDebugString failed
     } // strng
-/*
-    if(tcc.modes[kDebug] && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0) {
-      debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
-    }
-*/
+
     for(auto& range : tcc.angleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
@@ -194,15 +201,13 @@ namespace tca {
     fAlgModCount.resize(kAlgBitSize);
 
     if(kFlagBitSize != EndFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != EndFlagNames size "<<EndFlagNames.size();
-    
+
     if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of EndFlag to at least "<<kFlagBitSize;
-    
+
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
 
     // turn off the special algs
-    // A lightly tested algorithm that should only be turned on for testing
-    tcc.useAlg[kStopAtTj] = false;
     // Do an exhaustive (and slow) check of the hit -> trajectory associations
     tcc.useAlg[kChkInTraj] = false;
 
@@ -235,24 +240,6 @@ namespace tca {
     // Configure the TMVA reader for the shower parent BDT
     if(fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0) ConfigureMVA(tcc, fMVAShowerParentWeights);
 
-    if(tcc.modes[kDebug]) {
-      std::cout<<"Debug mode: using algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-        if(ib % 15 == 0) std::cout<<"\n";
-        if(tcc.useAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
-      }
-      std::cout<<"\n";
-      std::cout<<"Skipping algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tcc.useAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
-      std::cout<<"\n";
-      if(debug.Slice < 0) {
-        std::cout<<"Debugging in all slices\n";
-      } else {
-        std::cout<<"Debug sub-slice index "<<debug.Slice<<"\n";
-      }
-      if(debug.WorkID < 0) std::cout<<"Debug WorkID "<<debug.WorkID<<"\n";
-    } // debug mode
-
     evt.eventsProcessed = 0;
 
   } // reconfigure
@@ -278,8 +265,26 @@ namespace tca {
     evt.global3S_UID = 0;
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
+
+    if(tcc.modes[kDebug] && evt.eventsProcessed == 0) PrintDebugMode();
+
     return AnalyzeHits();
   } // SetInputHits
+
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::SetSourceHits(std::vector<recob::Hit> const& srcHits)
+  {
+    evt.srcHits = &srcHits;
+    evt.tpcSrcHitRange.resize(tcc.geom->NTPC());
+    for(auto& thr : evt.tpcSrcHitRange) thr = {UINT_MAX, UINT_MAX};
+    for(unsigned int iht = 0; iht < (*evt.srcHits).size(); ++iht) {
+      auto& hit = (*evt.srcHits)[iht];
+      unsigned int tpc = hit.WireID().TPC;
+      if(tpc >= evt.tpcSrcHitRange.size()) return;
+      if(evt.tpcSrcHitRange[tpc].first == UINT_MAX) evt.tpcSrcHitRange[tpc].first = iht;
+      evt.tpcSrcHitRange[tpc].second = iht;
+    } // iht
+  } // SetSourceHits
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID)
@@ -288,31 +293,35 @@ namespace tca {
 
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
-    if(tcc.recoSlice > 0) {
-      if(sliceID != tcc.recoSlice) return;
-    }
-    
-    if(!CreateSlice(hitsInSlice, sliceID)) {
-//      std::cout<<"CreateSlice failed\n";
-      return;
-    }
+    if(tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
+
+    if(!CreateSlice(hitsInSlice, sliceID)) return;
+
+    seeds.resize(0);
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
+    // special debug mode reconstruction
+    if(tcc.recoTPC > 0 && (short)slc.TPCID.TPC != tcc.recoTPC) {
+      slices.pop_back();
+      return;
+    }
+
     if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
-      if(!slc.isValid) return;
+      if(!slc.isValid) {
+        std::cout<<"Found invalid slice\n";
+        return;
+      }
     } // plane
-
+    // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
+    // 2D and 3D(?) information
+    Reconcile2Vs(slc);
     Find3DVertices(slc);
-    // Look for incomplete 3D vertices that won't be recovered because there are
-    // missing trajectories in a plane
-    FindMissedVxTjs(slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
-    // TODO: decide how to print debug output
     DefineTjParents(slc, false);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -321,19 +330,8 @@ namespace tca {
       }
     } // plane
     if(tcc.match3DCuts[0] > 0) {
-      // First try to use SpacePoints (if they were loaded)
-      FindSptPFParticles(slc);
-      // Then try using wire intersections of un-matched TPs
       FindPFParticles(slc);
       DefinePFPParents(slc, false);
-/*
-       if(tcc.modes[kTagCosmics]) {
-       for(auto& pfp : slc.pfps) {
-       if(pfp.ID == 0) continue;
-       SaveCRInfo(slc, pfp, prt, fIsRealData);
-       } // pfp
-       } // TagCosmics
-*/
     } // 3D matching requested
       KillPoorVertices(slc);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
@@ -354,8 +352,6 @@ namespace tca {
     // dump a trajectory?
     if(tcc.modes[kDebug] && tcc.dbgDump) DumpTj();
 
-//    if (tcc.modes[kSaveCRTree]) crtree->Fill();
-
     Finish3DShowers(slc);
 
     // count algorithm usage
@@ -365,7 +361,7 @@ namespace tca {
 
     // clear vectors that are not needed later
     slc.mallTraj.resize(0);
-    
+
   } // RunTrajClusterAlg
 
   ////////////////////////////////////////////////
@@ -377,7 +373,6 @@ namespace tca {
     if(slc.firstWire[plane] > slc.nWires[plane]) return;
     unsigned int nwires = slc.lastWire[plane] - slc.firstWire[plane] - 1;
     if(nwires > slc.nWires[plane]) return;
-    seeds.resize(0);
 
     // Make several passes through the hits with user-specified cuts for each
     // pass. In general these are to not reconstruct large angle trajectories on
@@ -435,7 +430,8 @@ namespace tca {
             iHitsInMultiplet.resize(1);
             iHitsInMultiplet[0] = iht;
           } else {
-            GetHitMultiplet(slc, iht, iHitsInMultiplet);
+            GetHitMultiplet(slc, iht, iHitsInMultiplet, false);
+            if(iHitsInMultiplet.empty()) continue;
             // ignore very high multiplicities
             if(iHitsInMultiplet.size() > 4) continue;
           }
@@ -468,7 +464,8 @@ namespace tca {
               jHitsInMultiplet.resize(1);
               jHitsInMultiplet[0] = jht;
             } else {
-              GetHitMultiplet(slc, jht, jHitsInMultiplet);
+              GetHitMultiplet(slc, jht, jHitsInMultiplet, false);
+              if(jHitsInMultiplet.empty()) continue;
               // ignore very high multiplicities
               if(jHitsInMultiplet.size() > 4) continue;
             }
@@ -497,12 +494,6 @@ namespace tca {
             }
             if(work.Pts.empty()) {
               if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: StartTraj failed";
-              continue;
-            }
-            // check for a large angle crawl
-            if(work.Pts[0].AngleCode > tcc.maxAngleCode[work.Pass]) {
-              if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: Wrong angle code "<<work.Pts[0].AngleCode<<" for this pass "<<work.Pass;
-              ReleaseHits(slc, work);
               continue;
             }
             work.Pts[0].DeltaRMS = tcc.hitErrFac * tcc.unitsPerTick * hitsRMSTick;
@@ -554,13 +545,12 @@ namespace tca {
             if(!StoreTraj(slc, work)) continue;
             if(tcc.dbgStp) {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
-              mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
+              PrintTrajectory("RAT", slc, tj, USHRT_MAX);
               if(!InTrajOK(slc, "RAT")) {
                 std::cout<<"RAT: InTrajOK major failure. "<<tj.ID<<"\n";
                 return;
               }
             } // dbgStp
-            // See if it should be split
             CheckTrajBeginChg(slc, slc.tjs.size() - 1);
             BraggSplit(slc, slc.tjs.size() - 1);
             break;
@@ -599,10 +589,7 @@ namespace tca {
         // don't allow yet another reverse propagation
         work.AlgMod[kRvPrp] = true;
         work.Pts.push_back(tp);
-        // stop stepping if we hit another tj (the one that created this seed TP)
-        tcc.useAlg[kStopAtTj] = true;
         StepAway(slc, work);
-        tcc.useAlg[kStopAtTj] = false;
         CheckTraj(slc, work);
         // check for a major failure
         if(!slc.isValid) {
@@ -625,31 +612,21 @@ namespace tca {
 
        seeds.resize(0);
 
-       // Tag delta rays before merging and making vertices
-       TagDeltaRays(slc, inCTP);
-       // Try to merge trajectories before making vertices
-       
        bool lastPass = (pass == tcc.minPtsFit.size() - 1);
        // don't use lastPass cuts if we will use LastEndMerge
        if(tcc.useAlg[kLastEndMerge]) lastPass = false;
        EndMerge(slc, inCTP, lastPass);
-       if(!slc.isValid) {
-         std::cout<<"RAT: EndMerge major failure\n";
-         return;
-       }
-       // TY: Split high charge hits near the trajectory end
-       ChkHiChgHits(slc, inCTP);
-       
+       if(!slc.isValid) return;
+
        Find2DVertices(slc, inCTP, pass);
 
     } // pass
-    
+
     // Last attempt to merge long straight Tjs that failed the EndMerge cuts
     LastEndMerge(slc, inCTP);
-    
+
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
-    TagDeltaRays(slc, inCTP);
     // dressed muons with halo trajectories
     if(tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
       for(auto& tj : slc.tjs) {
@@ -660,7 +637,9 @@ namespace tca {
     } // dressed muons
 
     // Tag ShowerLike Tjs
-    if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);    
+    if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
+    // Set TP Environment bits
+    SetTPEnvironment(slc, inCTP);
     Find2DVertices(slc, inCTP, USHRT_MAX);
     SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
@@ -670,23 +649,25 @@ namespace tca {
       std::cout<<"RAT: MakeJunkVertices major failure\n";
       return;
     }
-    
+
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
       auto& vx2 = slc.vtxs[ivx];
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
       AttachAnyTrajToVertex(slc, ivx, tcc.dbgStp || tcc.dbg2V);
-      UpdateVxEnvironment("RAT", slc, vx2, false);
     } // ivx
+
+    // Set the kEnvOverlap bit true for all TPs that are close to other
+    // trajectories that are close to vertices. The positions of TPs that
+    // overlap are biased and shouldn't be used in a vertex fit. Also, these
+    // TPs shouldn't be used to calculate dE/dx
+    UpdateVxEnvironment(slc);
 
     // Check the Tj <-> vtx associations and define the vertex quality
     if(!ChkVtxAssociations(slc, inCTP)) {
       std::cout<<"RAT: ChkVtxAssociations found an error. Events processed "<<evt.eventsProcessed<<" WorkID "<<evt.WorkID<<"\n";
     }
-
-    // TY: Improve hit assignments near vertex
-    VtxHitsSwap(slc, inCTP);
 
   } // ReconstructAllTraj
 
@@ -699,12 +680,7 @@ namespace tca {
     if(!tcc.useAlg[kJunkTj]) return;
 
     // shouldn't have to do this but...
-    for(auto& slHit : slc.slHits) {
-      if(slHit.InTraj < 0) {
-        std::cout<<"FJT: dirty hit "<<PrintHit(slHit)<<"\n";
-        slHit.InTraj = 0;
-      }
-    }
+    for(auto& slHit : slc.slHits) if(slHit.InTraj < 0) slHit.InTraj = 0;
 
     bool prt = false;
 
@@ -720,23 +696,22 @@ namespace tca {
       unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
-      if(ifirsthit > slc.slHits.size() || ilasthit > slc.slHits.size()) {
-        std::cout<<"FJT: bad hit range wire "<<iwire<<" "<<ifirsthit<<" "<<ilasthit<<" size "<<slc.slHits.size()<<" inCTP "<<inCTP<<"\n";
-        return;
-      }
       for(unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
-        tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
-        GetHitMultiplet(slc, iht, iHits);
+        GetHitMultiplet(slc, iht, iHits, true);
+        prt = (tcc.modes[kDebug] && std::find(iHits.begin(), iHits.end(), debug.Hit) != iHits.end());
+        if(prt) mf::LogVerbatim("TC")<<"FJT: debug iht multiplet size "<<iHits.size();
+        if(iHits.empty()) continue;
         for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
           auto& jslHit = slc.slHits[jht];
           if(jslHit.InTraj != 0) continue;
-          if(prt && HitSep2(slc, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(jslHit);
+          if(prt && HitSep2(slc, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(jslHit)<<" hitSep2 "<<HitSep2(slc, iht, jht);
           if(HitSep2(slc, iht, jht) > tcc.JTMaxHitSep2) continue;
           std::vector<unsigned int> jHits;
-          GetHitMultiplet(slc, jht, jHits);
+          GetHitMultiplet(slc, jht, jHits, true);
+          if(jHits.empty()) continue;
           // check for hit overlap consistency
           if(!TrajHitsOK(slc, iHits, jHits)) continue;
           tHits.clear();
@@ -748,7 +723,6 @@ namespace tca {
           if(iwire != 0) { loWire = iwire - 1; } else { loWire = 0; }
           unsigned int hiWire = jwire + 1;
           if(hiWire > slc.nWires[plane]) break;
-//          if(jwire < slc.nWires[plane] - 3) { hiWire = jwire + 2; } else { hiWire = slc.nWires[plane] - 1; }
           unsigned short nit = 0;
           while(nit < 100) {
             bool hitsAdded = false;
@@ -761,7 +735,7 @@ namespace tca {
                 // this shouldn't be needed but do it anyway
                 if(std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
                 // re-purpose jHits and check for consistency
-                GetHitMultiplet(slc, kht, jHits);
+                GetHitMultiplet(slc, kht, jHits, true);
                 if(!TrajHitsOK(slc, tHits, jHits)) continue;
                 // add them all and update the wire range
                 for(auto jht : jHits)  {
@@ -887,68 +861,6 @@ namespace tca {
     } // tj
 
   } // ChkInTraj
-
-  //////////////////////////////////////////
-  void TrajClusterAlg::FindMissedVxTjs(TCSlice& slc)
-  {
-    // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
-
-    if(!tcc.useAlg[kMisdVxTj]) return;
-
-    bool prt = (tcc.dbgStp || tcc.dbg3V || tcc.dbgAlg[kMisdVxTj]);
-
-    float maxdoca = 6;
-    for(unsigned short iv3 = 0; iv3 < slc.vtx3s.size(); ++iv3) {
-      Vtx3Store& vx3 = slc.vtx3s[iv3];
-      // ignore obsolete vertices
-      if(vx3.ID == 0) continue;
-      // check for a completed 3D vertex
-      if(vx3.Wire < 0) continue;
-      unsigned short mPlane = USHRT_MAX;
-      unsigned short ntj_1stPlane = USHRT_MAX;
-      unsigned short ntj_2ndPlane = USHRT_MAX;
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        if(vx3.Vx2ID[plane] > 0) {
-          auto& vx2 = slc.vtxs[vx3.Vx2ID[plane] - 1];
-          if(ntj_1stPlane == USHRT_MAX) {
-            ntj_1stPlane = vx2.NTraj;
-          } else {
-            ntj_2ndPlane = vx2.NTraj;
-          }
-          continue;
-        }
-        mPlane = plane;
-      } // plane
-      if(mPlane == USHRT_MAX) continue;
-      CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
-      // X position of the purported missing vertex
-      // A TP for the missing 2D vertex
-      TrajPoint tp;
-      tp.Pos[0] = vx3.Wire;
-      tp.Pos[1] = tcc.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tcc.unitsPerTick;
-      std::vector<int> tjIDs;
-      std::vector<unsigned short> tj2Pts;
-      for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-        auto& tj = slc.tjs[itj];
-        if(tj.CTP != mCTP) continue;
-        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
-        if(tj.Pts.size() < 6) continue;
-        if(tj.AlgMod[kComp3DVx]) continue;
-        float doca = maxdoca;
-        // find the closest distance between the vertex and the trajectory
-        unsigned short closePt = 0;
-        TrajPointTrajDOCA(slc, tp, tj, closePt, doca);
-        if(closePt > tj.EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"MisdVxTj: 3V"<<vx3.ID<<" candidate T"<<slc.tjs[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
-        tjIDs.push_back(tj.ID);
-        tj2Pts.push_back(closePt);
-      } // itj
-      // handle the case where there are one or more TJs with TPs near the ends
-      // that make a vertex (a failure by Find2DVertices)
-      if(tjIDs.empty()) continue;
-      if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane;
-    } // iv3
-  } // FindMissedVxTjs
 
   //////////////////////////////////////////
   void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
@@ -1161,19 +1073,7 @@ namespace tca {
     showertree->Branch("nPlanes", &stv.nPlanes);
 
   } // end DefineShTree
-/*
-  /////////////////////////////////////////
-  void TrajClusterAlg::DefineCRTree(TTree *t){
-    crtree = t;
-    crtree->Branch("run", &evt.run, "run/I");
-    crtree->Branch("subrun", &evt.subRun, "subrun/I");
-    crtree->Branch("event", &evt.event, "event/I");
-    crtree->Branch("cr_origin", &slc.crt.cr_origin);
-    crtree->Branch("cr_pfpxmin", &slc.crt.cr_pfpxmin);
-    crtree->Branch("cr_pfpxmax", &slc.crt.cr_pfpxmax);
-    crtree->Branch("cr_pfpyzmindis", &slc.crt.cr_pfpyzmindis);
-  }
-*/
+
   /////////////////////////////////////////
   bool TrajClusterAlg::CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
@@ -1191,7 +1091,7 @@ namespace tca {
     unsigned int cnt = 0;
     std::vector<unsigned int> nHitsInPln;
     for(auto iht : hitsInSlice) {
-      if(iht > (*evt.allHits).size() - 1) return false;
+      if(iht >= (*evt.allHits).size()) return false;
       auto& hit = (*evt.allHits)[iht];
       if(first) {
         cstat = hit.WireID().Cryostat;
@@ -1238,17 +1138,11 @@ namespace tca {
     // Stitch PFParticles between TPCs
 
     // define the PFP TjUIDs vector before calling StitchPFPs
-    unsigned short npfp = 0;
-    unsigned short ntj = 0;
-    float nht = 0;
-    float nhtUsed = 0;
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
-      nht += slc.slHits.size();
       MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
-        ++npfp;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
         for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
           // do a sanity check while we are here
@@ -1261,21 +1155,9 @@ namespace tca {
           pfp.TjUIDs[ii] = tj.UID;
         } // ii
       } // pfp
-      // temp
-      for(auto& tj : slc.tjs) {
-        if(tj.AlgMod[kKilled]) continue;
-        ++ntj;
-        auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
-        nhtUsed += tjhits.size();
-      } // tj
     } // slc
-    float frac = -1;
-    if(nht > 0) frac = nhtUsed / nht;
-    std::cout<<"FinishEvent "<<evt.event<<" nht "<<nht<<" fracUsed "<<std::fixed<<std::setprecision(2)<<frac;
-    std::cout<<" ntj "<<ntj<<" npfp "<<npfp<<"\n";
 
     StitchPFPs();
-    // TODO: Try to make a neutrino PFParticle here
     // Ensure that all PFParticles have a start vertex
     for(auto& slc : slices) PFPVertexCheck(slc);
   } // FinishEvent

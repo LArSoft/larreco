@@ -22,7 +22,6 @@ namespace fhicl { class ParameterSet; }
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
@@ -43,9 +42,9 @@ namespace tca {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
-    void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);
-    void SetInputSpts(std::vector<recob::SpacePoint> const& inputSpts) { evt.sptHandle = &inputSpts; }
+    void SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
+    void SetSourceHits(std::vector<recob::Hit> const& srcHits);
     void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
@@ -53,8 +52,6 @@ namespace tca {
 
 
     void DefineShTree(TTree* t);
-
-//    void DefineCRTree(TTree* t);
 
     unsigned short GetSlicesSize() const { return slices.size(); }
     TCSlice const& GetSlice(unsigned short sliceIndex) const {return slices[sliceIndex]; }
@@ -65,8 +62,7 @@ namespace tca {
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
 
     /// Deletes all the results
-    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.allHitsSptIndex.resize(0); evt.wireHitRange.resize(0); }
-    TruthMatcher fTM;
+    void ClearResults() { slices.resize(0); evt.sptHits.resize(0); evt.wireHitRange.resize(0); }
 
     private:
 
@@ -74,9 +70,6 @@ namespace tca {
 
     // SHOWER VARIABLE TREE
     TTree* showertree;
-
-    // Cosmic Removal Variable Tree
-//    TTree* crtree;
 
     calo::CalorimetryAlg fCaloAlg;
     TMVA::Reader fMVAReader;
@@ -88,7 +81,6 @@ namespace tca {
     void FindJunkTraj(TCSlice& slc, CTP_t inCTP);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText, TCSlice& slc);
-    void FindMissedVxTjs(TCSlice& slc);
 
   }; // class TrajClusterAlg
 
