@@ -16,7 +16,6 @@
 // ART includes
 #include "art/Framework/Services/Registry/ServiceMacros.h"
 
-
 namespace calib {
   class IPhotonCalibratorService {
 
