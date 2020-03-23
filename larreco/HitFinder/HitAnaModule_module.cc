@@ -30,6 +30,7 @@
 
 #include <string>
 
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/RecoBase/Hit.h"

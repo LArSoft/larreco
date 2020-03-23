@@ -1,6 +1,7 @@
 #include "CFAlgoTimeProf.h"
 // ROOT includes
 #include "TH1D.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 

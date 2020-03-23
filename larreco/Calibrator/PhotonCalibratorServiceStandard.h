@@ -14,7 +14,6 @@
 #include "larreco/Calibrator/IPhotonCalibratorService.h"
 #include "larreco/Calibrator/PhotonCalibratorStandard.h"
 
-// ART Includes
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Services/Registry/ActivityRegistry.h"
 #include "art/Framework/Services/Registry/ServiceMacros.h"
@@ -36,19 +35,18 @@ namespace calib {
 
     using Parameters = art::ServiceTable<ServiceConfiguration_t>;
 
-  public:
     PhotonCalibratorServiceStandard(Parameters const& config, art::ActivityRegistry& aReg)
-      : fProvider(new PhotonCalibratorStandard(config.get_PSet(), aReg))
+      : fProvider{config.get_PSet(), aReg}
     {}
 
+  private:
     provider_type const*
     provider() const override
     {
-      return fProvider.get();
+      return &fProvider;
     }
 
-  private:
-    std::unique_ptr<PhotonCalibratorStandard> fProvider;
+    PhotonCalibratorStandard fProvider;
   };
 
 }
