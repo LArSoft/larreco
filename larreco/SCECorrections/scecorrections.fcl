@@ -1,0 +1,12 @@
+BEGIN_PROLOG
+scecorrection:
+{
+  module_type: "SCECorrection"
+  CorrectNoT0Tag: false
+  CorrectSCE: true
+  PFPLabel: "pandora"
+  TrackLabel: "pandoraTrack"
+  T0Labels: ["pandora", "crttrackt0"]
+  T0LabelsCorrectT0: [false, true]
+}
+END_PROLOG
