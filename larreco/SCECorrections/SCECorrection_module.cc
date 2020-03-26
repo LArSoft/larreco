@@ -34,6 +34,7 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/PFParticleMetadata.h"
 
 namespace sce {
   class SCECorrection;
@@ -95,10 +96,13 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
 
   produces<art::Assns<anab::T0, recob::Slice> >();
   produces<art::Assns<anab::T0, recob::PFParticle> >();
+  produces<art::Assns<recob::Slice, recob::Hit>>();
+
   produces<art::Assns<recob::PFParticle, recob::Slice> >();
   produces<art::Assns<recob::PFParticle, recob::SpacePoint> >();
   produces<art::Assns<recob::PFParticle, recob::Vertex> >();
   produces<art::Assns<recob::PFParticle, recob::Cluster> >();
+  produces<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata> >();
   produces<art::Assns<recob::SpacePoint, recob::Hit> >();
   produces<art::Assns<recob::Cluster, recob::Hit> >();
 }
@@ -116,10 +120,12 @@ void sce::SCECorrection::produce(art::Event& evt)
 
   auto t0SliceAssn       = std::make_unique<art::Assns<anab::T0, recob::Slice> >();
   auto t0PFPAssn         = std::make_unique<art::Assns<anab::T0, recob::PFParticle> >();
+  auto slcHitAssn        = std::make_unique<art::Assns<recob::Slice, recob::Hit> >();
   auto pfpSliceAssn      = std::make_unique<art::Assns<recob::PFParticle, recob::Slice> >();
   auto pfpVtxAssn        = std::make_unique<art::Assns<recob::PFParticle, recob::Vertex> >();
   auto pfpSPAssn         = std::make_unique<art::Assns<recob::PFParticle, recob::SpacePoint> >();
   auto pfpClusterAssn    = std::make_unique<art::Assns<recob::PFParticle, recob::Cluster> >();
+  auto pfpMetaAssn       = std::make_unique<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata> >();
   auto spHitAssn         = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit> >();
   auto clusterHitAssn    = std::make_unique<art::Assns<recob::Cluster, recob::Hit> >();
 
@@ -167,6 +173,8 @@ void sce::SCECorrection::produce(art::Event& evt)
   art::FindManyP<recob::Vertex>     fmPFPVertex(pfpHandle, evt, fPFPLabel);
   art::FindManyP<recob::Hit>        fmClusterHit(clusterHandle, evt, fPFPLabel);
   art::FindManyP<recob::Hit>        fmSPHit(spHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit>        fmSlcHit(sliceHandle, evt, fPFPLabel);
+  art::FindManyP<larpandoraobj::PFParticleMetadata> fmPFPMeta(pfpHandle, evt, fPFPLabel);
 
   if (!fmPFPTrack.isValid()){
     std::cout<<"PFPTrack assn not valid"<<std::endl;
@@ -185,6 +193,13 @@ void sce::SCECorrection::produce(art::Event& evt)
     std::vector<art::Ptr< anab::T0> > sliceT0s;
     std::vector<unsigned int> sliceT0Labels;
     std::vector<art::Ptr<recob::PFParticle> > slicePFPs = fmSlicePFP.at(slice.key());
+
+    const std::vector<art::Ptr<recob::Hit>> sliceHits = fmSlcHit.at(slice.key());
+
+    // make an association with the new slice and the old hits
+    for (const art::Ptr<recob::Hit> &hitPtr: sliceHits) {
+      slcHitAssn->addSingle(newSlicePtr, hitPtr);
+    }
 
     // Loop over all of the PFPs in the slice
     // std::cout<<"Test: Slice PPFs: "<<slicePFPs.size()<<std::endl;
@@ -349,6 +364,12 @@ void sce::SCECorrection::produce(art::Event& evt)
           clusterHitAssn->addSingle(newClusterPtr, clusterHit);
         }
       }
+
+      const std::vector<art::Ptr<larpandoraobj::PFParticleMetadata>> pfpMetas = fmPFPMeta.at(pfp.key());
+      for (const art::Ptr<larpandoraobj::PFParticleMetadata> &pfpMeta: pfpMetas) {
+         pfpMetaAssn->addSingle(newPFPPtr, pfpMeta);
+      }
+
     } // slicePFPs
   } // slice
 
@@ -363,12 +384,14 @@ void sce::SCECorrection::produce(art::Event& evt)
 
   evt.put(std::move(t0PFPAssn));
   evt.put(std::move(t0SliceAssn));
+  evt.put(std::move(slcHitAssn));
   evt.put(std::move(pfpSPAssn));
   evt.put(std::move(spHitAssn));
   evt.put(std::move(pfpVtxAssn));
   evt.put(std::move(pfpSliceAssn));
   evt.put(std::move(pfpClusterAssn));
   evt.put(std::move(clusterHitAssn));
+  evt.put(std::move(pfpMetaAssn));
 }
 
 geo::Vector_t sce::SCECorrection::correctT0(const geo::Point_t& point, const double& t0,
