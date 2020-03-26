@@ -382,6 +382,10 @@ void sce::SCECorrection::produce(art::Event& evt)
 
   // std::cout<<"Test: SPs: "<<spCollection->size()<<std::endl;
 
+  // Order the PFPs so the id matched the position in the vector
+  std::sort(pfpCollection->begin(), pfpCollection->end(),
+      [](recob::PFParticle a, recob::PFParticle b) {return a.Self() < b.Self();});
+
   evt.put(std::move(t0Collection));
   evt.put(std::move(sliceCollection));
   evt.put(std::move(clusterCollection));
