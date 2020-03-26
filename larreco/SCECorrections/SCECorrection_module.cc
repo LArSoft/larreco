@@ -93,6 +93,7 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
   produces<std::vector<recob::SpacePoint> >();
   produces<std::vector<recob::Cluster> >();
   produces<std::vector<recob::Vertex> >();
+  produces<std::vector<larpandoraobj::PFParticleMetadata> >();
 
   produces<art::Assns<anab::T0, recob::Slice> >();
   produces<art::Assns<anab::T0, recob::PFParticle> >();
@@ -117,6 +118,7 @@ void sce::SCECorrection::produce(art::Event& evt)
   auto spCollection      = std::make_unique<std::vector<recob::SpacePoint> >();
   auto vtxCollection     = std::make_unique<std::vector<recob::Vertex> >();
   auto sliceCollection   = std::make_unique<std::vector<recob::Slice> >();
+  auto pfpMetaCollection = std::make_unique<std::vector<larpandoraobj::PFParticleMetadata> > ();
 
   auto t0SliceAssn       = std::make_unique<art::Assns<anab::T0, recob::Slice> >();
   auto t0PFPAssn         = std::make_unique<art::Assns<anab::T0, recob::PFParticle> >();
@@ -129,12 +131,13 @@ void sce::SCECorrection::produce(art::Event& evt)
   auto spHitAssn         = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit> >();
   auto clusterHitAssn    = std::make_unique<art::Assns<recob::Cluster, recob::Hit> >();
 
-  art::PtrMaker<anab::T0>          t0PtrMaker{evt};
-  art::PtrMaker<recob::PFParticle> pfpPtrMaker{evt};
-  art::PtrMaker<recob::Cluster>    clusterPtrMaker{evt};
-  art::PtrMaker<recob::Vertex>     vtxPtrMaker{evt};
-  art::PtrMaker<recob::Slice>      slicePtrMaker{evt};
-  art::PtrMaker<recob::SpacePoint> spPtrMaker{evt};
+  art::PtrMaker<anab::T0>                          t0PtrMaker{evt};
+  art::PtrMaker<recob::PFParticle>                 pfpPtrMaker{evt};
+  art::PtrMaker<recob::Cluster>                    clusterPtrMaker{evt};
+  art::PtrMaker<recob::Vertex>                     vtxPtrMaker{evt};
+  art::PtrMaker<recob::Slice>                      slicePtrMaker{evt};
+  art::PtrMaker<recob::SpacePoint>                 spPtrMaker{evt};
+  art::PtrMaker<larpandoraobj::PFParticleMetadata> pfpMetaPtrMaker{evt};
 
   // Get all the slices in the event
   art::Handle<std::vector<recob::Slice> > sliceHandle;
@@ -166,14 +169,14 @@ void sce::SCECorrection::produce(art::Event& evt)
   if (evt.getByLabel(fTrackLabel, trackHandle))
     art::fill_ptr_vector(allTracks, trackHandle);
 
-  art::FindManyP<recob::PFParticle> fmSlicePFP(sliceHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Track>      fmPFPTrack(pfpHandle, evt, fTrackLabel);
-  art::FindManyP<recob::SpacePoint> fmPFPSP(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Cluster>    fmPFPCluster(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Vertex>     fmPFPVertex(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>        fmClusterHit(clusterHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>        fmSPHit(spHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>        fmSlcHit(sliceHandle, evt, fPFPLabel);
+  art::FindManyP<recob::PFParticle>                 fmSlicePFP(sliceHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Track>                      fmPFPTrack(pfpHandle, evt, fTrackLabel);
+  art::FindManyP<recob::SpacePoint>                 fmPFPSP(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Cluster>                    fmPFPCluster(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Vertex>                     fmPFPVertex(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit>                        fmClusterHit(clusterHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit>                        fmSPHit(spHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit>                        fmSlcHit(sliceHandle, evt, fPFPLabel);
   art::FindManyP<larpandoraobj::PFParticleMetadata> fmPFPMeta(pfpHandle, evt, fPFPLabel);
 
   if (!fmPFPTrack.isValid()){
@@ -367,7 +370,11 @@ void sce::SCECorrection::produce(art::Event& evt)
 
       const std::vector<art::Ptr<larpandoraobj::PFParticleMetadata>> pfpMetas = fmPFPMeta.at(pfp.key());
       for (const art::Ptr<larpandoraobj::PFParticleMetadata> &pfpMeta: pfpMetas) {
-         pfpMetaAssn->addSingle(newPFPPtr, pfpMeta);
+        larpandoraobj::PFParticleMetadata newPFPMeta(*pfpMeta);
+        pfpMetaCollection->push_back(newPFPMeta);
+        art::Ptr<larpandoraobj::PFParticleMetadata> newPFPMetaPtr =
+          pfpMetaPtrMaker(pfpMetaCollection->size()-1);
+        pfpMetaAssn->addSingle(newPFPPtr, newPFPMetaPtr);
       }
 
     } // slicePFPs
@@ -381,6 +388,7 @@ void sce::SCECorrection::produce(art::Event& evt)
   evt.put(std::move(pfpCollection));
   evt.put(std::move(spCollection));
   evt.put(std::move(vtxCollection));
+  evt.put(std::move(pfpMetaCollection));
 
   evt.put(std::move(t0PFPAssn));
   evt.put(std::move(t0SliceAssn));
