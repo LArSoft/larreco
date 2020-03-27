@@ -15,7 +15,8 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -108,9 +109,11 @@ namespace ShowerRecoTools {
       showerHits.insert(showerHits.end(), hits.begin(), hits.end());
     }
 
-    //Get the true particle from the shower
+    // Get the true particle from the shower
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
     std::pair<int, double> ShowerTrackInfo =
-      fTRACSCheatingAlg.TrueParticleIDFromTrueChain(showersMothers, showerHits, 2);
+      fTRACSCheatingAlg.TrueParticleIDFromTrueChain(clockData, showersMothers, showerHits, 2);
 
     if (ShowerTrackInfo.first == -99999) {
       mf::LogError("ShowerStartPositionCheater") << "True Shower Not Found";

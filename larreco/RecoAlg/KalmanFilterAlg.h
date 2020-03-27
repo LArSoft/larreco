@@ -57,7 +57,8 @@ namespace trkf {
   class KHitContainer;
 }
 
-class TCanvas;
+#include "TCanvas.h"
+
 class TMarker;
 class TPaveText;
 class TVirtualPad;
@@ -66,14 +67,7 @@ namespace trkf {
 
   class KalmanFilterAlg {
   public:
-    /// Constructor.
     KalmanFilterAlg(const fhicl::ParameterSet& pset);
-
-    /// Destructor.
-    ~KalmanFilterAlg();
-
-    /// Reconfigure method.
-    void reconfigure(const fhicl::ParameterSet& pset);
 
     // Accessors.
 
@@ -106,7 +100,7 @@ namespace trkf {
     /// Make a new track.
     bool buildTrack(const KTrack& trk,                   // Starting track.
                     KGTrack& trg,                        // Result global track.
-                    const Propagator* prop,              // Propagator.
+                    const Propagator& prop,              // Propagator.
                     const Propagator::PropDirection dir, // Direction.
                     KHitContainer& hits,                 // Candidate measurements.
                     bool linear) const;                  // Linear flag.
@@ -114,37 +108,36 @@ namespace trkf {
     /// Smooth track.
     bool smoothTrack(KGTrack& trg,                  // Global track to be smoothed.
                      KGTrack* trg1,                 // Result of unidirectional fit.
-                     const Propagator* prop) const; // Propagator.
+                     const Propagator& prop) const; // Propagator.
 
     /// Add hits to existing track.
     bool extendTrack(KGTrack& trg,               // Global track.
-                     const Propagator* prop,     // Propagator.
+                     const Propagator& prop,     // Propagator.
                      KHitContainer& hits) const; // Candidate measurements.
 
     /// Estimate track momentum using range.
     bool fitMomentumRange(const KGTrack& trg,     // Global track.
-                          const Propagator* prop, // Propagator.
                           KETrack& tremom) const; // Track with updated momentum.
 
     /// Estimate track momentum using multiple scattering.
     bool fitMomentumMS(const KGTrack& trg,     // Global track.
-                       const Propagator* prop, // Propagator.
+                       const Propagator& prop, // Propagator.
                        KETrack& tremom) const; // Track with updated momentum.
 
     /// Estimate track momentum using either range or multiple scattering.
     bool fitMomentum(const KGTrack& trg,     // Global track.
-                     const Propagator* prop, // Propagator.
+                     const Propagator& prop, // Propagator.
                      KETrack& tremom) const; // Track with updated momentum.
 
     /// Set track momentum at each track surface.
     bool updateMomentum(const KETrack& tremom,  // Track with momentum estimate.
-                        const Propagator* prop, // Propagator.
+                        const Propagator& prop, // Propagator.
                         KGTrack& trg) const;    // Global track to be updated.
 
     /// Iteratively smooth a track.
     bool smoothTrackIter(int niter,                     // Number of iterations.
                          KGTrack& trg,                  // Global track.
-                         const Propagator* prop) const; // Propagator.
+                         const Propagator& prop) const; // Propagator.
 
     /// Clean track by removing noise hits near endpoints.
     void cleanTrack(KGTrack& trg) const;

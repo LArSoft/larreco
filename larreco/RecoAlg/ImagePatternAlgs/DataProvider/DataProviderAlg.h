@@ -28,7 +28,11 @@
 
 // ROOT & C++
 #include <memory>
-//#include <functional>
+
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 namespace img {
   class DataProviderAlg;
@@ -83,9 +87,11 @@ public:
 
   DataProviderAlg(const Config& config);
 
-  virtual ~DataProviderAlg(void);
+  virtual ~DataProviderAlg();
 
-  bool setWireDriftData(const std::vector<recob::Wire>&
+  bool setWireDriftData(const detinfo::DetectorClocksData& clock_data,
+                        const detinfo::DetectorPropertiesData& det_prop,
+                        const std::vector<recob::Wire>&
                           wires, // once per plane: setup ADC buffer, collect & downscale ADC's
                         unsigned int plane,
                         unsigned int tpc,
@@ -112,11 +118,9 @@ public:
       ok = patchFromOriginalView(wire, drift, patchSizeW, patchSizeD, patch);
     }
 
-    if (ok)
-      return patch;
-    else {
-      throw cet::exception("img::DataProviderAlg") << "Patch filling failed." << std::endl;
-    }
+    if (ok) return patch;
+
+    throw cet::exception("img::DataProviderAlg") << "Patch filling failed." << std::endl;
   }
 
   /// Return value from the ADC buffer, or zero if coordinates are out of the view;
@@ -129,18 +133,16 @@ public:
     if ((widx < fWireDriftData.size()) && (didx < fNCachedDrifts)) {
       return fWireDriftData[widx][didx];
     }
-    else {
-      return 0;
-    }
+    return 0;
   }
 
   double
-  getAdcSum(void) const
+  getAdcSum() const
   {
     return fAdcSumOverThr;
   }
   size_t
-  getAdcArea(void) const
+  getAdcArea() const
   {
     return fAdcAreaOverThr;
   }
@@ -152,67 +154,68 @@ public:
   float poolSum(int wire, int drift, size_t r = 0) const;
 
   unsigned int
-  Cryo(void) const
+  Cryo() const
   {
     return fCryo;
   }
   unsigned int
-  TPC(void) const
+  TPC() const
   {
     return fTPC;
   }
   unsigned int
-  Plane(void) const
+  Plane() const
   {
     return fPlane;
   }
 
   unsigned int
-  NWires(void) const
+  NWires() const
   {
     return fNWires;
   }
   unsigned int
-  NScaledDrifts(void) const
+  NScaledDrifts() const
   {
     return fNScaledDrifts;
   }
   unsigned int
-  NCachedDrifts(void) const
+  NCachedDrifts() const
   {
     return fNCachedDrifts;
   }
   unsigned int
-  DriftWindow(void) const
+  DriftWindow() const
   {
     return fDriftWindow;
   }
 
   /// Level of zero ADC after scaling.
   float
-  ZeroLevel(void) const
+  ZeroLevel() const
   {
     return fAdcZero;
   }
 
   double
-  LifetimeCorrection(double tick) const
+  LifetimeCorrection(detinfo::DetectorClocksData const& clock_data,
+                     detinfo::DetectorPropertiesData const& det_prop,
+                     double tick) const
   {
-    return fCalorimetryAlg.LifetimeCorrection(tick);
+    return fCalorimetryAlg.LifetimeCorrection(clock_data, det_prop, tick);
   }
 
 protected:
   unsigned int fCryo, fTPC, fPlane;
   unsigned int fNWires, fNDrifts, fNScaledDrifts, fNCachedDrifts;
 
-  std::vector<raw::ChannelID_t>
-    fWireChannels; // wire channels (may need this connection...), InvalidChannelID if not used
+  std::vector<raw::ChannelID_t> fWireChannels; // wire channels (may need this connection...),
+                                               // InvalidChannelID if not used
   std::vector<std::vector<float>>
     fWireDriftData;                        // 2D data for entire projection, drifts scaled down
   std::vector<float> fLifetimeCorrFactors; // precalculated correction factors along full drift
 
   EDownscaleMode fDownscaleMode;
-  //std::function<void (std::vector<float> &, std::vector<float> const &, size_t)> fnDownscale;
 
   size_t fDriftWindow;
   bool fDownscaleFullView;
@@ -256,14 +259,16 @@ protected:
                              size_t size_d,
                              std::vector<std::vector<float>>& patch) const;
 
-  virtual void resizeView(size_t wires, size_t drifts);
+  virtual void resizeView(detinfo::DetectorClocksData const& clock_data,
+                          detinfo::DetectorPropertiesData const& det_prop,
+                          size_t wires,
+                          size_t drifts);
 
   // Calorimetry needed to equalize ADC amplitude along drift:
   calo::CalorimetryAlg fCalorimetryAlg;
 
   // Geometry and detector properties:
   geo::GeometryCore const* fGeometry;
-  detinfo::DetectorProperties const* fDetProp;
 
 private:
   float scaleAdcSample(float val) const;

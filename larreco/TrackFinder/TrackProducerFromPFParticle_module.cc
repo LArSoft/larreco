@@ -5,23 +5,24 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Persistency/Common/PtrMaker.h"
+#include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "cetlib_except/exception.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "lardata/Utilities/ForEachAssociatedGroup.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-//
+
 #include <memory>
-//
-#include "art/Utilities/make_tool.h"
+
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/ForEachAssociatedGroup.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larreco/TrackFinder/TrackMaker.h"
-//
+
 /**
    * @file  larreco/TrackFinder/TrackProducerFromPFParticle_module.cc
    * @class TrackProducerFromPFParticle
@@ -146,44 +147,44 @@ TrackProducerFromPFParticle::produce(art::Event& e)
     assocSeeds = std::unique_ptr<art::FindManyP<recob::Seed>>(
       new art::FindManyP<recob::Seed>(inputPfps, e, pfpInputTag));
   const auto& trackHitsGroups = util::associated_groups(tkHitsAssn);
-  //
+
   std::unique_ptr<art::FindManyP<recob::Cluster>> assocClusters =
     std::unique_ptr<art::FindManyP<recob::Cluster>>(
       new art::FindManyP<recob::Cluster>(inputPfps, e, pfpInputTag));
   auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit>>(clsInputTag);
   const auto& clusterHitsGroups = util::associated_groups(clHitsAssn);
-  //
+
   // Initialize tool for this event
   trackMaker_->initEvent(e);
-  //
+
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e);
+
   // Loop over pfps to fit
   for (unsigned int iPfp = 0; iPfp < inputPfps->size(); ++iPfp) {
-    //
     const art::Ptr<recob::PFParticle> pfp(inputPfps, iPfp);
-    //
     if (trackFromPF_) {
       // Tracks associated to PFParticles
       const std::vector<art::Ptr<recob::Track>>& tracks = assocTracks->at(iPfp);
       // Loop over tracks to refit
       for (art::Ptr<recob::Track> const& track : tracks) {
-        //
+
         // Get track and its hits
         std::vector<art::Ptr<recob::Hit>> inHits;
         decltype(auto) hitsRange = util::groupByIndex(trackHitsGroups, track.key());
         for (art::Ptr<recob::Hit> const& hit : hitsRange)
           inHits.push_back(hit);
-        //
+
         // Declare output objects
         recob::Track outTrack;
         std::vector<art::Ptr<recob::Hit>> outHits;
         trkmkr::OptionalOutputs optionals;
         if (doTrackFitHitInfo_) optionals.initTrackFitInfos();
         if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
-        //
+
         // Invoke tool to fit track and fill output objects
-        bool fitok = trackMaker_->makeTrack(track, inHits, outTrack, outHits, optionals);
+        bool fitok = trackMaker_->makeTrack(detProp, track, inHits, outTrack, outHits, optionals);
         if (!fitok) continue;
-        //
+
         // Check that the requirement Nhits == Npoints is satisfied
         // We also require the hits to the in the same order as the points (this cannot be enforced, can it?)
         if (outTrack.NumberTrajectoryPoints() != outHits.size()) {
@@ -191,7 +192,7 @@ TrackProducerFromPFParticle::produce(art::Event& e)
             << "Produced recob::Track required to have 1-1 correspondance between hits and "
                "points.\n";
         }
-        //
+
         // Fill output collections, including Assns
         outputTracks->emplace_back(std::move(outTrack));
         const art::Ptr<recob::Track> aptr = trackPtrMaker(outputTracks->size() - 1);
@@ -202,7 +203,7 @@ TrackProducerFromPFParticle::produce(art::Event& e)
             outputTracks->back().HasValidPoint(ip) ? ip : std::numeric_limits<int>::max(),
             -std::numeric_limits<double>::max());
           outputHits->addSingle(aptr, trhit, metadata);
-          //
+
           if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
             auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
             const double fXYZ[3] = {tp.X(), tp.Y(), tp.Z()};
@@ -272,7 +273,8 @@ TrackProducerFromPFParticle::produce(art::Event& e)
         if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
         //
         // Invoke tool to fit track and fill output objects
-        bool fitok = trackMaker_->makeTrack(traj, iPfp, inHits, outTrack, outHits, optionals);
+        bool fitok =
+          trackMaker_->makeTrack(detProp, traj, iPfp, inHits, outTrack, outHits, optionals);
         if (!fitok) continue;
         //
         // Check that the requirement Nhits == Npoints is satisfied
@@ -365,7 +367,8 @@ TrackProducerFromPFParticle::produce(art::Event& e)
         if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
         //
         // Invoke tool to fit track and fill output objects
-        bool fitok = trackMaker_->makeTrack(traj, iPfp, inHits, outTrack, outHits, optionals);
+        bool fitok =
+          trackMaker_->makeTrack(detProp, traj, iPfp, inHits, outTrack, outHits, optionals);
         if (!fitok) continue;
         //
         // Check that the requirement Nhits == Npoints is satisfied

@@ -15,7 +15,8 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -36,16 +37,16 @@ namespace ShowerRecoTools {
   public:
     Shower2DLinearRegressionTrackHitFinder(const fhicl::ParameterSet& pset);
 
-    ~Shower2DLinearRegressionTrackHitFinder();
-
     //Calculate the 2D initial track hits
     int CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
                          art::Event& Event,
                          reco::shower::ShowerElementHolder& ShowerEleHolder) override;
 
   private:
-    //Function to find the
-    std::vector<art::Ptr<recob::Hit>> FindInitialTrackHits(std::vector<art::Ptr<recob::Hit>>& hits);
+    // Function to find the
+    std::vector<art::Ptr<recob::Hit>> FindInitialTrackHits(
+      detinfo::DetectorPropertiesData const& detProp,
+      std::vector<art::Ptr<recob::Hit>>& hits);
 
     //Function to perform a weighted regression fit.
     Int_t WeightedFit(const Int_t n,
@@ -91,8 +92,6 @@ namespace ShowerRecoTools {
            "fNfitpass";
     }
   }
-
-  Shower2DLinearRegressionTrackHitFinder::~Shower2DLinearRegressionTrackHitFinder() {}
 
   int
   Shower2DLinearRegressionTrackHitFinder::CalculateElement(
@@ -167,17 +166,22 @@ namespace ShowerRecoTools {
     }
 
     std::vector<art::Ptr<recob::Hit>> InitialTrackHits;
-    //Loop over the clusters and order the hits and get the initial track hits in that plane
+    // Loop over the clusters and order the hits and get the initial track hits
+    // in that plane
+
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event);
     for (auto const& cluster : plane_clusters) {
 
       //Get the hits
       std::vector<art::Ptr<recob::Hit>> hits = cluster.second;
 
-      //Order the hits
-      IShowerTool::GetTRACSAlg().OrderShowerHits(hits, ShowerStartPosition, ShowerDirection);
+      // Order the hits
+      IShowerTool::GetTRACSAlg().OrderShowerHits(
+        detProp, hits, ShowerStartPosition, ShowerDirection);
 
-      //Find the initial track hits
-      std::vector<art::Ptr<recob::Hit>> trackhits = FindInitialTrackHits(hits);
+      // Find the initial track hits
+      std::vector<art::Ptr<recob::Hit>> trackhits = FindInitialTrackHits(detProp, hits);
 
       InitialTrackHits.insert(InitialTrackHits.end(), trackhits.begin(), trackhits.end());
     }
@@ -217,6 +221,7 @@ namespace ShowerRecoTools {
   //Function to calculate the what are the initial tracks hits. Adapted from EMShower FindInitialTrackHits
   std::vector<art::Ptr<recob::Hit>>
   Shower2DLinearRegressionTrackHitFinder::FindInitialTrackHits(
+    detinfo::DetectorPropertiesData const& detProp,
     std::vector<art::Ptr<recob::Hit>>& hits)
   {
 
@@ -234,9 +239,10 @@ namespace ShowerRecoTools {
       unsigned int nhits = 0;
       for (auto& hit : hits) {
 
-        //Not sure I am a fan of doing things in wire tick space. What if id doesn't not iterate properly or the
-        //two planes in each TPC are not symmetric.
-        TVector2 coord = IShowerTool::GetTRACSAlg().HitCoordinates(hit);
+        // Not sure I am a fan of doing things in wire tick space. What if id
+        // doesn't not iterate properly or the two planes in each TPC are not
+        // symmetric.
+        TVector2 coord = IShowerTool::GetTRACSAlg().HitCoordinates(detProp, *hit);
 
         if (i == 0 ||
             (std::abs((coord.Y() - (parm[0] + coord.X() * parm[1])) * cos(atan(parm[1]))) <

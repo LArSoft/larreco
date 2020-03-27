@@ -19,22 +19,22 @@ namespace cmtool {
   }
 
   void
-  CMergeHelper::Process(const std::vector<std::vector<::util::PxHit>>& clusters)
+  CMergeHelper::Process(util::GeometryUtilities const& gser,
+                        const std::vector<std::vector<::util::PxHit>>& clusters)
   {
     _bk = ::cmtool::CMergeBookKeeper(clusters.size());
 
     for (size_t i = 0; i < _mgr_v.size(); ++i) {
-
       auto& mgr = _mgr_v[i];
 
       mgr.Reset();
 
       if (!i)
-        mgr.SetClusters(clusters);
+        mgr.SetClusters(gser, clusters);
       else
         mgr.SetClusters(_mgr_v[i - 1].GetClusters());
 
-      mgr.Process();
+      mgr.Process(gser);
 
       auto const& new_bk = mgr.GetBookKeeper();
 

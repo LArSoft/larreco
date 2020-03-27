@@ -34,18 +34,19 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "art_root_io/TFileService.h"
-
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
-
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "art/Persistency/Common/PtrMaker.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
 #include "lardataobj/AnalysisBase/T0.h"
@@ -56,9 +57,6 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
-
-#include "lardata/ArtDataHelper/MVAReader.h"
-
 #include "larreco/RecoAlg/PMAlgStitching.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
@@ -172,20 +170,14 @@ namespace trkf {
     , fWireModuleLabel(config().WireModuleLabel())
     , fCluModuleLabel(config().ClusterModuleLabel())
     , fEmModuleLabel(config().EmClusterModuleLabel())
-    ,
-
-    fPmaConfig(config().ProjectionMatchingAlg())
+    , fPmaConfig(config().ProjectionMatchingAlg())
     , fPmaTrackerConfig(config().PMAlgTracking())
     , fPmaTaggingConfig(config().PMAlgCosmicTagging())
     , fPmaVtxConfig(config().PMAlgVertexing())
     , fPmaStitchConfig(config().PMAlgStitching())
-    ,
-
-    fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx())
+    , fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx())
     , fSavePmaNodes(config().SavePmaNodes())
-    ,
-
-    fGeom(&*(art::ServiceHandle<geo::Geometry const>()))
+    , fGeom(art::ServiceHandle<geo::Geometry const>().get())
   {
     produces<std::vector<recob::Track>>();
     produces<std::vector<recob::SpacePoint>>();
@@ -417,7 +409,10 @@ namespace trkf {
     }
 
     // ------------------ Do the job here: ----------------------------
-    int retCode = pmalgTracker.build();
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    int retCode = pmalgTracker.build(clockData, detProp);
     // ----------------------------------------------------------------
     switch (retCode) {
     case -2: mf::LogError("Summary") << "problem"; break;
@@ -459,23 +454,23 @@ namespace trkf {
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
         pma::dedx_map dedx_tmp;
         if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) {
-          trk->CompleteMissingWires(geo::kU);
+          trk->CompleteMissingWires(detProp, geo::kU);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kU, 1);
         }
         if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) {
-          trk->CompleteMissingWires(geo::kV);
+          trk->CompleteMissingWires(detProp, geo::kV);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kV, 1);
         }
         if (fGeom->TPC(itpc, icryo).HasPlane(geo::kX)) {
-          trk->CompleteMissingWires(geo::kX);
+          trk->CompleteMissingWires(detProp, geo::kX);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kX, 1);
         }
         if (fGeom->TPC(itpc, icryo).HasPlane(geo::kY)) {
-          trk->CompleteMissingWires(geo::kY);
+          trk->CompleteMissingWires(detProp, geo::kY);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kY, 1);
         }
         if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) {
-          trk->CompleteMissingWires(geo::kZ);
+          trk->CompleteMissingWires(detProp, geo::kZ);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kZ, 1);
         }
 
@@ -557,7 +552,7 @@ namespace trkf {
               (std::fabs(sp_pos[1] - hy) > 1.0e-5) || (std::fabs(sp_pos[2] - hz) > 1.0e-5)) {
             if (sp_hits.size()) // hits assigned to the previous sp
             {
-              util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+              util::CreateAssn(evt, *allsp, sp_hits, *sp2hit);
               sp_hits.clear();
             }
             sp_pos[0] = hx;
@@ -570,11 +565,11 @@ namespace trkf {
 
         if (sp_hits.size()) // hits assigned to the last sp
         {
-          util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+          util::CreateAssn(evt, *allsp, sp_hits, *sp2hit);
         }
         spEnd = allsp->size();
 
-        if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+        if (spEnd > spStart) util::CreateAssn(evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
       }
 
       auto vsel = pmalgTracker.getVertices(

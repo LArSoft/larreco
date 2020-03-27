@@ -16,28 +16,31 @@ namespace btutil {
   MCMatchAlg::MCMatchAlg() { _view_to_plane.clear(); }
 
   bool
-  MCMatchAlg::BuildMap(const std::vector<unsigned int>& g4_trackid_v,
+  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                       const std::vector<unsigned int>& g4_trackid_v,
                        const std::vector<sim::SimChannel>& simch_v,
                        const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
     fBTAlgo.Reset(g4_trackid_v, simch_v);
 
-    return BuildMap(cluster_v);
+    return BuildMap(clockData, cluster_v);
   }
 
   bool
-  MCMatchAlg::BuildMap(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                       const std::vector<std::vector<unsigned int>>& g4_trackid_v,
                        const std::vector<sim::SimChannel>& simch_v,
                        const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
 
     fBTAlgo.Reset(g4_trackid_v, simch_v);
 
-    return BuildMap(cluster_v);
+    return BuildMap(clockData, cluster_v);
   }
 
   bool
-  MCMatchAlg::BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
+  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                       const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
     size_t num_mcobj = fBTAlgo.NumParts();
     size_t num_cluster = cluster_v.size();
@@ -81,7 +84,7 @@ namespace btutil {
 
       _cluster_plane_id.push_back(plane);
 
-      auto mcq_v = fBTAlgo.MCQ(wr_v);
+      auto mcq_v = fBTAlgo.MCQ(clockData, wr_v);
 
       for (size_t i = 0; i < mcq_v.size(); ++i)
 

@@ -24,6 +24,7 @@
 
 #include "TrackCalorimetryAlg.h"
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardata/DetectorInfoServices/ServicePack.h" // lar::extractProviders()
@@ -78,41 +79,46 @@ calo::TrackCalorimetry::produce(art::Event& e)
   e.getByLabel(fTrackModuleLabel, trackHandle);
   std::vector<recob::Track> const& trackVector(*trackHandle);
 
-  //Get Hits from event.
+  // Get Hits from event.
   art::Handle<std::vector<recob::Hit>> hitHandle;
   e.getByLabel(fHitModuleLabel, hitHandle);
   std::vector<recob::Hit> const& hitVector(*hitHandle);
 
-  //Get track<-->hit associations
+  // Get track<-->hit associations
   art::Handle<art::Assns<recob::Track, recob::Hit>> assnTrackHitHandle;
   e.getByLabel(fTrackModuleLabel, assnTrackHitHandle);
   std::vector<std::vector<size_t>> hit_indices_per_track =
     util::GetAssociatedVectorManyI(assnTrackHitHandle, trackHandle);
 
-  //Make the container for the calo product to put onto the event.
+  // Make the container for the calo product to put onto the event.
   std::unique_ptr<std::vector<anab::Calorimetry>> caloPtr(new std::vector<anab::Calorimetry>);
   std::vector<anab::Calorimetry>& caloVector(*caloPtr);
 
-  //Make a container for the track<-->calo associations.
-  //One entry per track, with entry equal to index in calorimetry collection of associated object.
+  // Make a container for the track<-->calo associations.
+  // One entry per track, with entry equal to index in calorimetry collection of
+  // associated object.
   std::vector<size_t> assnTrackCaloVector;
   std::unique_ptr<art::Assns<recob::Track, anab::Calorimetry>> assnTrackCaloPtr(
     new art::Assns<recob::Track, anab::Calorimetry>);
 
-  fTrackCaloAlg.ExtractCalorimetry(trackVector,
-                                   hitVector,
-                                   hit_indices_per_track,
-                                   caloVector,
-                                   assnTrackCaloVector,
-                                   lar::extractProviders<geo::Geometry,
-                                                         detinfo::LArPropertiesService,
-                                                         detinfo::DetectorPropertiesService>());
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clock_data);
+  fTrackCaloAlg.ExtractCalorimetry(
+    clock_data,
+    det_prop,
+    trackVector,
+    hitVector,
+    hit_indices_per_track,
+    caloVector,
+    assnTrackCaloVector,
+    lar::extractProviders<geo::Geometry, detinfo::LArPropertiesService>());
 
   //Make the associations for ART
   for (size_t calo_iter = 0; calo_iter < assnTrackCaloVector.size(); calo_iter++) {
     if (assnTrackCaloVector[calo_iter] == std::numeric_limits<size_t>::max()) continue;
     art::Ptr<recob::Track> trk_ptr(trackHandle, assnTrackCaloVector[calo_iter]);
-    util::CreateAssn(*this, e, caloVector, trk_ptr, *assnTrackCaloPtr, calo_iter);
+    util::CreateAssn(e, caloVector, trk_ptr, *assnTrackCaloPtr, calo_iter);
   }
 
   e.put(std::move(caloPtr));

@@ -25,6 +25,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataalg/Utilities/StatCollector.h"
 #include "lardataobj/RawData/RawDigit.h"
@@ -65,11 +66,12 @@ hit::HitCheater::HitCheater(fhicl::ParameterSet const& p) : EDProducer{p}
   fMinCharge = p.get<double>("MinimumCharge", 5.);
   fNewHitTDCGap = p.get<int>("NewHitTDCGap", 1);
 
-  const detinfo::DetectorProperties* detprop =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
-  fElectronsToADC = detprop->ElectronsToADC();
-  fSamplingRate = detprop->SamplingRate();
-  fTriggerOffset = detprop->TriggerOffset();
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob(clock_data);
+  fElectronsToADC = det_prop.ElectronsToADC();
+  fSamplingRate = sampling_rate(clock_data);
+  fTriggerOffset = trigger_offset(clock_data);
 
   fCalDataProductInstanceName = "";
   size_t pos = fWireModuleLabel.find(":");
@@ -78,8 +80,8 @@ hit::HitCheater::HitCheater(fhicl::ParameterSet const& p) : EDProducer{p}
     fWireModuleLabel = fWireModuleLabel.substr(0, pos);
   }
 
-  fReadOutWindowSize = detprop->ReadOutWindowSize();
-  fNumberTimeSamples = detprop->NumberTimeSamples();
+  fReadOutWindowSize = det_prop.ReadOutWindowSize();
+  fNumberTimeSamples = det_prop.NumberTimeSamples();
 
   // let HitCollectionCreator declare that we are going to produce
   // hits and associations with wires and raw digits

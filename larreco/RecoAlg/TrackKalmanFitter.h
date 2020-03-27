@@ -6,9 +6,12 @@
 #include "fhiclcpp/types/Table.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoObjects/KFTrackState.h"
 #include "lardataobj/RecoBase/TrajectoryPointFlags.h"
+
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 namespace recob {
   class Hit;
@@ -182,7 +185,6 @@ namespace trkf {
       maxDist_ = (maxDist > 0 ? maxDist : std::numeric_limits<float>::max());
       negDistTolerance_ = negDistTolerance;
       dumpLevel_ = dumpLevel;
-      detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
     }
 
     /// Constructor from TrackStatePropagator and Parameters table
@@ -209,7 +211,8 @@ namespace trkf {
     {}
 
     /// Fit track starting from TrackTrajectory
-    bool fitTrack(const recob::TrackTrajectory& traj,
+    bool fitTrack(detinfo::DetectorPropertiesData const& detProp,
+                  const recob::TrackTrajectory& traj,
                   int tkID,
                   const SMatrixSym55& covVtx,
                   const SMatrixSym55& covEnd,
@@ -222,7 +225,8 @@ namespace trkf {
                   trkmkr::OptionalOutputs& optionals) const;
 
     /// Fit track starting from intial position, direction, and flags
-    bool fitTrack(const Point_t& position,
+    bool fitTrack(detinfo::DetectorPropertiesData const& detProp,
+                  const Point_t& position,
                   const Vector_t& direction,
                   SMatrixSym55& trackStateCov,
                   const std::vector<art::Ptr<recob::Hit>>& hits,
@@ -236,6 +240,7 @@ namespace trkf {
 
     /// Function where the core of the fit is performed
     bool doFitWork(KFTrackState& trackState,
+                   detinfo::DetectorPropertiesData const& detProp,
                    std::vector<HitState>& hitstatev,
                    std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
                    std::vector<KFTrackState>& fwdPrdTkState,
@@ -254,7 +259,8 @@ namespace trkf {
                                         const int pdgid) const;
 
     /// Setup vectors of HitState and Masks to be used during the fit
-    bool setupInputStates(const std::vector<art::Ptr<recob::Hit>>& hits,
+    bool setupInputStates(detinfo::DetectorPropertiesData const& detProp,
+                          const std::vector<art::Ptr<recob::Hit>>& hits,
                           const std::vector<recob::TrajectoryPointFlags>& flags,
                           const KFTrackState& trackState,
                           std::vector<HitState>& hitstatev,
@@ -285,7 +291,6 @@ namespace trkf {
                     trkmkr::OptionalOutputs& optionals) const;
 
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop;
     const TrackStatePropagator* propagator;
     bool useRMS_;
     bool sortHitsByPlane_;

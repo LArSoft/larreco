@@ -20,7 +20,7 @@
 
 #include "TVector3.h"
 
-pma::TrkCandidate::TrkCandidate(void)
+pma::TrkCandidate::TrkCandidate()
   : fParent(-1), fTrack(0), fKey(-1), fTreeId(-1), fMse(0), fValidation(0), fGood(false)
 {}
 // ------------------------------------------------------
@@ -39,7 +39,7 @@ pma::TrkCandidate::SetTrack(pma::Track3D* trk)
 // ------------------------------------------------------
 
 void
-pma::TrkCandidate::DeleteTrack(void)
+pma::TrkCandidate::DeleteTrack()
 {
   if (fTrack) delete fTrack;
   fTrack = 0;
@@ -67,7 +67,7 @@ pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const* candidate) const
 }
 
 void
-pma::TrkCandidateColl::setParentDaughterConnections(void)
+pma::TrkCandidateColl::setParentDaughterConnections()
 {
   fParents.clear();
 
@@ -92,9 +92,8 @@ pma::TrkCandidateColl::setParentDaughterConnections(void)
       pma::Track3D const* parentTrk = static_cast<pma::Segment3D*>(firstNode->Prev())->Parent();
       fCandidates[t].SetParent(getCandidateIndex(parentTrk));
     }
-    else if (
-      fCandidates[t].Parent() <
-      0) // parent not reconstructed and not yet set, add empty candidate as a "primary" particle
+    else if (fCandidates[t].Parent() < 0) // parent not reconstructed and not yet set, add empty
+                                          // candidate as a "primary" particle
     {
       fParents.push_back(pma::TrkCandidate());
       fParents.back().SetTreeId(fCandidates[t].TreeId());
@@ -163,7 +162,7 @@ pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
 }
 
 int
-pma::TrkCandidateColl::setTreeIds(void)
+pma::TrkCandidateColl::setTreeIds()
 {
   for (auto& t : fCandidates)
     t.SetTreeId(-1);
@@ -188,7 +187,8 @@ pma::TrkCandidateColl::setTreeIds(void)
 // ------------------------------------------------------
 
 void
-pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
+pma::TrkCandidateColl::flipTreesToCoordinate(detinfo::DetectorPropertiesData const& detProp,
+                                             size_t coordinate)
 {
   std::map<int, std::vector<pma::Track3D*>> toFlip;
   std::map<int, double> minVal;
@@ -234,13 +234,13 @@ pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
         pBack.SetY(-pBack.Y());
 
         if (pFront[coordinate] > pBack[coordinate]) {
-          if (setTreeOriginAtBack(trk)) { break; }
+          if (setTreeOriginAtBack(detProp, trk)) { break; }
           else {
             mf::LogWarning("pma::TrkCandidateColl") << "Flip to coordinate failed.";
           }
         }
         else {
-          setTreeOriginAtFront(trk);
+          setTreeOriginAtFront(detProp, trk);
           break; // good orientation, go to the next tree
         }
 
@@ -251,7 +251,8 @@ pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 // ------------------------------------------------------
 
 bool
-pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
+pma::TrkCandidateColl::setTreeOriginAtFront(detinfo::DetectorPropertiesData const& detProp,
+                                            pma::Track3D* trk)
 {
   int trkIdx = getCandidateIndex(trk);
   int treeId = getCandidateTreeId(trk);
@@ -270,10 +271,10 @@ pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
     {
       int idx = incoming->index_of(n);
       if (idx >= 0) {
-        pma::Track3D* u = incoming->Split(idx, false); // u is in front of incoming
+        pma::Track3D* u = incoming->Split(detProp, idx, false); // u is in front of incoming
         if (u) {
           newTracks.push_back(u);
-          done = u->Flip(newTracks);
+          done = u->Flip(detProp, newTracks);
         }
         else {
           done = false;
@@ -284,7 +285,7 @@ pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
       }
     }
     else {
-      done = incoming->Flip(newTracks);
+      done = incoming->Flip(detProp, newTracks);
     } // just flip incoming
 
     for (const auto ts : newTracks) {
@@ -296,7 +297,8 @@ pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
 // ------------------------------------------------------
 
 bool
-pma::TrkCandidateColl::setTreeOriginAtBack(pma::Track3D* trk)
+pma::TrkCandidateColl::setTreeOriginAtBack(detinfo::DetectorPropertiesData const& detProp,
+                                           pma::Track3D* trk)
 {
   int trkIdx = getCandidateIndex(trk);
   int treeId = getCandidateTreeId(trk);
@@ -307,7 +309,7 @@ pma::TrkCandidateColl::setTreeOriginAtBack(pma::Track3D* trk)
 
   pma::Track3D* incoming = fCandidates[trkIdx].Track();
   std::vector<pma::Track3D*> newTracks;
-  bool done = incoming->Flip(newTracks);
+  bool done = incoming->Flip(detProp, newTracks);
   for (const auto ts : newTracks) {
     fCandidates.emplace_back(ts, -1, treeId);
   }
@@ -316,7 +318,7 @@ pma::TrkCandidateColl::setTreeOriginAtBack(pma::Track3D* trk)
 // ------------------------------------------------------
 
 void
-pma::TrkCandidateColl::flipTreesByDQdx(void)
+pma::TrkCandidateColl::flipTreesByDQdx()
 {
   std::map<int, std::vector<pma::Track3D*>> trkMap;
 
@@ -330,16 +332,6 @@ pma::TrkCandidateColl::flipTreesByDQdx(void)
     for (size_t i = tEntry.second.size(); i > 0; --i) {
       pma::Track3D* trk = tEntry.second[i - 1];
       if (trk->CanFlip()) { trk->AutoFlip(pma::Track3D::kForward, 0.15); }
-
-      // This could e.g. break muon by delta ray, so for
-      // the moment use conservative way and think of
-      // a better strategy...
-      //std::vector< pma::Track3D* > newTracks;
-      //trk->AutoFlip(newTracks, pma::Track3D::kForward, 0.15);
-      //for (const auto ts : newTracks)
-      //{
-      //    fCandidates.emplace_back(ts, -1, tEntry.first);
-      //}
     }
   }
 }

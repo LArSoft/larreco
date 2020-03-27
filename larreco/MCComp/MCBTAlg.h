@@ -19,6 +19,10 @@
 #include <map>
 #include <vector>
 
+namespace detinfo {
+  class DetectorClocksData;
+}
+
 /**
    \class MCBTAlg
    MCBTAlg is meant to back-track reco-ed hits/clusters to MCShower/MCTrack
@@ -73,7 +77,8 @@ namespace btutil {
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
     */
-    std::vector<double> MCQ(const WireRange_t& hit) const;
+    std::vector<double> MCQ(detinfo::DetectorClocksData const& clockData,
+                            const WireRange_t& hit) const;
 
     /**
        Relate Hit => MCX.
@@ -82,7 +87,8 @@ namespace btutil {
        range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
     */
-    std::vector<double> MCQFrac(const WireRange_t& hit) const;
+    std::vector<double> MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                const WireRange_t& hit) const;
 
     /**
        Relate Cluster => MCX.
@@ -91,7 +97,8 @@ namespace btutil {
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
     */
-    std::vector<double> MCQ(const std::vector<btutil::WireRange_t>& hit_v) const;
+    std::vector<double> MCQ(detinfo::DetectorClocksData const& clockData,
+                            const std::vector<btutil::WireRange_t>& hit_v) const;
 
     /**
        Relate Cluster => MCX.
@@ -100,7 +107,8 @@ namespace btutil {
        range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
     */
-    std::vector<double> MCQFrac(const std::vector<btutil::WireRange_t>& hit_v) const;
+    std::vector<double> MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                const std::vector<btutil::WireRange_t>& hit_v) const;
 
     size_t Index(const unsigned int g4_track_id) const;
 

@@ -19,7 +19,7 @@ namespace geo {
 }
 
 // ROOT includes
-class TCanvas;
+#include "TCanvas.h"
 class TFrame;
 class TVector3;
 class TVirtualPad;
@@ -31,7 +31,7 @@ namespace lar_cluster3d {
   /**
  *  @brief  HoughSeedFinderAlg class
  */
-  class HoughSeedFinderAlg : virtual public SeedFinderAlgBase {
+  class HoughSeedFinderAlg : public SeedFinderAlgBase {
   public:
     /**
      *  @brief  Constructor
@@ -41,28 +41,18 @@ namespace lar_cluster3d {
     HoughSeedFinderAlg(fhicl::ParameterSet const& pset);
 
     /**
-     *  @brief  Destructor
-     */
-    virtual ~HoughSeedFinderAlg();
-
-    /**
-     *  @brief a handler for the case where the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
-
-    /**
      *  @brief Given the list of hits this will search for candidate Seed objects and return them
      */
-    virtual bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
-                                reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec& seedHitPairVec) const;
+    bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
+                        reco::PrincipalComponents& inputPCA,
+                        SeedHitPairListPairVec& seedHitPairVec) const override;
 
     /**
      *  @brief Given the list of hits this will return the sets of hits which belong on the same line
      */
-    virtual bool findTrackHits(reco::HitPairListPtr& hitPairListPtr,
-                               reco::PrincipalComponents& inputPCA,
-                               reco::HitPairListPtrList& hitPairListPtrList) const;
+    bool findTrackHits(reco::HitPairListPtr& hitPairListPtr,
+                       reco::PrincipalComponents& inputPCA,
+                       reco::HitPairListPtrList& hitPairListPtrList) const;
 
   private:
     /**
@@ -130,8 +120,6 @@ namespace lar_cluster3d {
     double m_maximumGap;      ///<
 
     geo::Geometry const* m_geometry; // pointer to the Geometry service
-    //    const detinfo::DetectorProperties*            m_detector;           // Pointer to the detector properties
-
     PrincipalComponentsAlg m_pcaAlg; // For running Principal Components Analysis
 
     bool m_displayHist;

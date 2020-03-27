@@ -14,6 +14,10 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 
+namespace detinfo {
+  class DetectorPropertiesData;
+}
+
 namespace pma {
   // these types to be replaced with use of feature proposed in redmine #12602
   typedef std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>> view_hitmap;
@@ -27,17 +31,17 @@ namespace pma {
 
 class pma::TrkCandidate {
 public:
-  TrkCandidate(void);
+  TrkCandidate();
   TrkCandidate(pma::Track3D* trk, int key = -1, int tid = -1);
 
   bool
-  IsValid(void) const
+  IsValid() const
   {
     return fTrack;
   }
 
   bool
-  IsGood(void) const
+  IsGood() const
   {
     return fGood;
   }
@@ -48,27 +52,27 @@ public:
   }
 
   pma::Track3D*
-  Track(void) const
+  Track() const
   {
     return fTrack;
   }
   void SetTrack(pma::Track3D* trk);
-  void DeleteTrack(void);
+  void DeleteTrack();
 
   const std::vector<size_t>&
-  Clusters(void) const
+  Clusters() const
   {
     return fClusters;
   }
   std::vector<size_t>&
-  Clusters(void)
+  Clusters()
   {
     return fClusters;
   }
 
   /// Get key of an external object (like a source PFParticle) associated to this track candidate.
   int
-  Key(void) const
+  Key() const
   {
     return fKey;
   }
@@ -81,7 +85,7 @@ public:
   }
 
   int
-  TreeId(void) const
+  TreeId() const
   {
     return fTreeId;
   }
@@ -92,7 +96,7 @@ public:
   }
 
   double
-  Mse(void) const
+  Mse() const
   {
     return fMse;
   }
@@ -103,7 +107,7 @@ public:
   }
 
   double
-  Validation(void) const
+  Validation() const
   {
     return fValidation;
   }
@@ -114,7 +118,7 @@ public:
   }
 
   int
-  Parent(void) const
+  Parent() const
   {
     return fParent;
   }
@@ -125,12 +129,12 @@ public:
   }
 
   const std::vector<size_t>&
-  Daughters(void) const
+  Daughters() const
   {
     return fDaughters;
   }
   std::vector<size_t>&
-  Daughters(void)
+  Daughters()
   {
     return fDaughters;
   }
@@ -151,7 +155,7 @@ private:
 class pma::TrkCandidateColl {
 public:
   size_t
-  size(void) const
+  size() const
   {
     return fCandidates.size();
   }
@@ -161,7 +165,7 @@ public:
     return fCandidates.resize(n);
   }
   bool
-  empty(void) const
+  empty() const
   {
     return fCandidates.empty();
   }
@@ -177,7 +181,7 @@ public:
     fCandidates.erase(fCandidates.begin() + pos);
   }
   void
-  clear(void)
+  clear()
   {
     fCandidates.clear();
   }
@@ -186,40 +190,40 @@ public:
   TrkCandidate const& operator[](size_t i) const { return fCandidates[i]; }
 
   TrkCandidate&
-  front(void)
+  front()
   {
     return fCandidates.front();
   }
   TrkCandidate const&
-  front(void) const
+  front() const
   {
     return fCandidates.front();
   }
 
   TrkCandidate&
-  back(void)
+  back()
   {
     return fCandidates.back();
   }
   TrkCandidate const&
-  back(void) const
+  back() const
   {
     return fCandidates.back();
   }
 
   std::vector<TrkCandidate> const&
-  tracks(void) const
+  tracks() const
   {
     return fCandidates;
   }
   std::vector<TrkCandidate>&
-  tracks(void)
+  tracks()
   {
     return fCandidates;
   }
 
   std::vector<TrkCandidate> const&
-  parents(void) const
+  parents() const
   {
     return fParents;
   }
@@ -229,16 +233,16 @@ public:
 
   void merge(size_t idx1, size_t idx2);
 
-  void setParentDaughterConnections(void);
+  void setParentDaughterConnections();
 
   void setTreeId(int id, size_t trkIdx, bool isRoot = true);
-  int setTreeIds(void);
+  int setTreeIds();
 
-  void flipTreesToCoordinate(size_t coordinate);
+  void flipTreesToCoordinate(detinfo::DetectorPropertiesData const& detProp, size_t coordinate);
   void flipTreesByDQdx();
 
-  bool setTreeOriginAtFront(pma::Track3D* trk);
-  bool setTreeOriginAtBack(pma::Track3D* trk);
+  bool setTreeOriginAtFront(detinfo::DetectorPropertiesData const& detProp, pma::Track3D* trk);
+  bool setTreeOriginAtBack(detinfo::DetectorPropertiesData const& detProp, pma::Track3D* trk);
 
   pma::Track3D* getTreeCopy(pma::TrkCandidateColl& dst, size_t trkIdx, bool isRoot = true);
 

@@ -17,7 +17,10 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Cluster.h"
 
-/// Cluster reconstruction namespace
+namespace util {
+  class GeometryUtilities;
+}
+
 namespace cluster {
 
   class ClusterParamsAlgBase;
@@ -79,7 +82,8 @@ namespace cluster {
        * - `width`: a measure of the cluster width
        *
        */
-    ClusterCreator(ClusterParamsAlgBase& algo,
+    ClusterCreator(util::GeometryUtilities const& gser,
+                   ClusterParamsAlgBase& algo,
                    float start_wire,
                    float sigma_start_wire,
                    float start_tick,
@@ -172,7 +176,8 @@ namespace cluster {
        * - `width`: a measure of the cluster width
        *
        */
-    recob::Cluster CreateCluster(ClusterParamsAlgBase& algo,
+    recob::Cluster CreateCluster(util::GeometryUtilities const& gser,
+                                 ClusterParamsAlgBase& algo,
                                  float start_wire,
                                  float sigma_start_wire,
                                  float start_tick,

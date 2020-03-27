@@ -8,31 +8,31 @@
 // or low energy electrons.
 //
 /*	There are two parameters that matter from the fcl file:
-		fNHitsInClust is the number of hits that should be in these small clusters
-			^-- Gamma events seem to rarely have more than 4 hits in the cluster
-			^-- SN events are unclear.  Should this even be used for SN?
-		fRadiusSizePar is the distance (in cm) between the small clusters and any other hits.
+                fNHitsInClust is the number of hits that should be in these small clusters
+                        ^-- Gamma events seem to rarely have more than 4 hits in the cluster
+                        ^-- SN events are unclear.  Should this even be used for SN?
+                fRadiusSizePar is the distance (in cm) between the small clusters and any other hits.
 
-	This algorithm sorts the hits by plane, and then looks at each hit individually.  If
-	there is a hit within RadiusSizePar, it gets added to a local list.  All other hits
-	are ignored.  Then, if the number of hits that got added to the local list is greater
-	then NHitsInClust, the original hit is ignored.  If it's less, the original hit is
-	presumed to be part of a very small (or single hit) cluster.  So its added to the list
-	of hits in the small cluster.
+        This algorithm sorts the hits by plane, and then looks at each hit individually.  If
+        there is a hit within RadiusSizePar, it gets added to a local list.  All other hits
+        are ignored.  Then, if the number of hits that got added to the local list is greater
+        then NHitsInClust, the original hit is ignored.  If it's less, the original hit is
+        presumed to be part of a very small (or single hit) cluster.  So its added to the list
+        of hits in the small cluster.
 
-	All of the small clusters are then split apart into groups in the way you would expect.
-	Each cluster is assigned an ID number to distinguish it, and the hits that aren't
-	identified as small clusters all end up in the "leftover" cluster.  The numbering scheme
-	is ID = 100*iPlane + Cluster on that plane, and the leftover hits are the first (0th)
-	cluster written out.
+        All of the small clusters are then split apart into groups in the way you would expect.
+        Each cluster is assigned an ID number to distinguish it, and the hits that aren't
+        identified as small clusters all end up in the "leftover" cluster.  The numbering scheme
+        is ID = 100*iPlane + Cluster on that plane, and the leftover hits are the first (0th)
+        cluster written out.
 
-	All of the heavy lifting is done is the SmallClusterFinderAlg.
-	This module remains responsible for interacting with the framework, getting hits,
-	writing clusters, etc.
+        All of the heavy lifting is done is the SmallClusterFinderAlg.
+        This module remains responsible for interacting with the framework, getting hits,
+        writing clusters, etc.
 
-	Thanks to Andrzej for the basic alg.
+        Thanks to Andrzej for the basic alg.
 
-	-Corey
+        -Corey
 */
 //
 ///////////////////////////////////////////////////////////////////////
@@ -46,7 +46,10 @@
 
 //All the larsoft goodies:
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/ClusterFinder/ClusterCreator.h"
@@ -61,9 +64,9 @@ namespace cluster {
     explicit SmallClusterFinder(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void produce(
-      art::Event& evt); /**Routine that finds the cluster and sets the dTdW of the 2D shower*/
+    void beginJob() override;
+    void produce(art::Event& evt) override; /**Routine that finds the cluster and sets
+                                               the dTdW of the 2D shower*/
 
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -138,14 +141,16 @@ namespace cluster {
 
     //std::cout << "Passing " << hitlist.size() << " hits to the alg." << std::endl;
 
-    //Now run the alg to find the gammas:
-    fSmallClusterFinderAlg.FindSmallClusters(hitlist);
+    // Now run the alg to find the gammas:
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    util::GeometryUtilities const gser{*geom, clockData, detProp};
+    fSmallClusterFinderAlg.FindSmallClusters(gser, clockData, detProp, hitlist);
 
     // make an art::PtrVector of the clusters
-    std::unique_ptr<std::vector<recob::Cluster>> SmallClusterFinder(
-      new std::vector<recob::Cluster>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> assn(
-      new art::Assns<recob::Cluster, recob::Hit>);
+    auto SmallClusterFinder = std::make_unique<std::vector<recob::Cluster>>();
+    auto assn = std::make_unique<art::Assns<recob::Cluster, recob::Hit>>();
 
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -154,9 +159,7 @@ namespace cluster {
 
     for (unsigned int iplane = 0; iplane < fNPlanes; iplane++) {
 
-      //Get the leftover hits for this plane:
-      std::vector<art::Ptr<recob::Hit>> leftoverHits =
-        fSmallClusterFinderAlg.GetLeftoversByPlane(iplane);
+      auto const leftoverHits = fSmallClusterFinderAlg.GetLeftoversByPlane(iplane);
 
       //write the leftover hits as a cluster:
       if (leftoverHits.size() != 0) {
@@ -165,10 +168,11 @@ namespace cluster {
         if (verbose)
           std::cout << "Writing leftover hits to cluster ID: " << iplane * 100 << std::endl;
 
-        ClusterParamAlgo.ImportHits(leftoverHits);
+        ClusterParamAlgo.ImportHits(gser, leftoverHits);
 
         // create the recob::Cluster directly in the vector
-        ClusterCreator leftover(ClusterParamAlgo, // algo
+        ClusterCreator leftover(gser,
+                                ClusterParamAlgo, // algo
                                 0.,               // start_wire
                                 0.,               // sigma_start_wire
                                 0.,               // start_tick
@@ -179,29 +183,26 @@ namespace cluster {
                                 0.,               // sigma_end_tick
                                 iplane * 100,     // ID
                                 geom->Plane(iplane, planeID.TPC, planeID.Cryostat).View(),
-                                // view
                                 planeID,               // plane
                                 recob::Cluster::Sentry // sentry
         );
 
         SmallClusterFinder->emplace_back(leftover.move());
 
-        util::CreateAssn(*this, evt, *SmallClusterFinder, leftoverHits, *assn);
+        util::CreateAssn(evt, *SmallClusterFinder, leftoverHits, *assn);
       } //leftovers are written for this plane, if they exist.
 
-      //Now get the small clusters;
-      std::vector<std::vector<art::Ptr<recob::Hit>>> smallClusters;
-      smallClusters = fSmallClusterFinderAlg.GetSmallClustersByPlane(iplane);
-
+      auto const smallClusters = fSmallClusterFinderAlg.GetSmallClustersByPlane(iplane);
       for (unsigned int i = 0; i < smallClusters.size(); i++) {
         // pick some information from the first hit
         geo::PlaneID planeID; // invalid by default
         if (!smallClusters.empty()) planeID = smallClusters[i].front()->WireID().planeID();
 
-        ClusterParamAlgo.ImportHits(smallClusters[i]);
+        ClusterParamAlgo.ImportHits(gser, smallClusters[i]);
 
         // create the recob::Cluster directly in the vector
-        ClusterCreator clust(ClusterParamAlgo,     // algo
+        ClusterCreator clust(gser,
+                             ClusterParamAlgo,     // algo
                              0.,                   // start_wire
                              0.,                   // sigma_start_wire
                              0.,                   // start_tick
@@ -212,49 +213,19 @@ namespace cluster {
                              0.,                   // sigma_end_tick
                              iplane * 100 + i + 1, // ID
                              geom->Plane(iplane, planeID.TPC, planeID.Cryostat).View(),
-                             // view
                              planeID,               // plane
                              recob::Cluster::Sentry // sentry
         );
 
         SmallClusterFinder->emplace_back(clust.move());
         // associate the hits to this cluster
-        util::CreateAssn(*this, evt, *SmallClusterFinder, smallClusters[i], *assn);
+        util::CreateAssn(evt, *SmallClusterFinder, smallClusters[i], *assn);
       }
-
-      //Just in case there is nothing for this event, make an empty cluster
-      //so that the clusters are defined.  Tag with ID -1.
-      /*	if (smallClusters.size() == 0 && leftoverHits.size() == 0){
-				std::vector< art::Ptr < recob::Hit> > emptyVector;
-				recob::Cluster clust( 0,  0, 	//start wire, error in start wire
-								 0,  0,		//start time, error in start time
-								 0., 0.,	//end   wire, error in end   wire
-								 0., 0.,  	//end   time, error in end   wire
-								 0., 0.,	//dTdW, error in dTdW ??
-								 0., 0.,	//dQdW, error in dQdW ??
-								 0.,		//Total Q
-								 geom->Plane(iplane,0,0).View(), 	//View (geo::View_t)
-								 -iplane,	//id for cluster, given as plane here
-								 PlaneID()); // invalid plane
-
-
-				SmallClusterFinder->push_back(clust);
-				// associate the hits to this cluster
-				util::CreateAssn(*this, evt, *SmallClusterFinder, emptyVector, *assn);
-			}
-		*/
     }
 
-    //Finish up:
     evt.put(std::move(SmallClusterFinder));
     evt.put(std::move(assn));
-
   } //end produce
 
-} // end namespace cluster
-
-namespace cluster {
-
   DEFINE_ART_MODULE(SmallClusterFinder)
-
 }

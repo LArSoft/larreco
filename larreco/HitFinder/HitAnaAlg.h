@@ -25,7 +25,7 @@
 
 class TTree;
 namespace detinfo {
-  class DetectorClocks;
+  class DetectorClocksData;
 }
 
 namespace hit {
@@ -121,7 +121,7 @@ namespace hit {
     void AnalyzeWires(std::vector<recob::Wire> const&,
                       std::vector<sim::MCHitCollection> const&,
                       std::vector<std::vector<int>> const&,
-                      const detinfo::DetectorClocks*,
+                      detinfo::DetectorClocksData const&,
                       unsigned int,
                       unsigned int);
 
@@ -141,13 +141,13 @@ namespace hit {
                       int,
                       std::vector<sim::MCHitCollection> const&,
                       std::vector<int> const&,
-                      const detinfo::DetectorClocks*);
+                      detinfo::DetectorClocksData const&);
 
     void ProcessROI(lar::sparse_vector<float>::datarange_t const&,
                     int,
                     std::vector<sim::MCHitCollection> const&,
                     std::vector<int> const&,
-                    const detinfo::DetectorClocks*);
+                    detinfo::DetectorClocksData const&);
 
     void ROIInfo(lar::sparse_vector<float>::datarange_t const&, float&, float&, float&);
 
@@ -160,7 +160,7 @@ namespace hit {
                                    std::vector<int> const&,
                                    size_t,
                                    size_t,
-                                   const detinfo::DetectorClocks*);
+                                   detinfo::DetectorClocksData const&);
 
     WireROIInfo wireData;
     std::vector<recob::Hit*> hitData;

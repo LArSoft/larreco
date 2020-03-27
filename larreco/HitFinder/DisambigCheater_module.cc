@@ -19,6 +19,7 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/Simulation/SimChannel.h"
@@ -41,12 +42,12 @@ namespace hit {
     std::string fWidHitLabel;
 
     std::map<std::pair<double, double>, std::vector<geo::WireID>> fHitToWids;
-    void InitHitToWids(const std::vector<art::Ptr<recob::Hit>>& ChHits);
+    void InitHitToWids(detinfo::DetectorClocksData const& clockData,
+                       const std::vector<art::Ptr<recob::Hit>>& ChHits);
 
     void MakeDisambigHit(art::Ptr<recob::Hit> const& hit,
                          geo::WireID const& wid,
                          art::Ptr<recob::Wire> const& wire,
-                         //art::Ptr<raw::RawDigit> const& rawdigits,
                          recob::HitCollectionCreator& hcol);
 
     unsigned int fFalseChanHits =
@@ -111,7 +112,6 @@ namespace hit {
   void
   DisambigCheater::produce(art::Event& evt)
   {
-
     // get hits on channels
     art::Handle<std::vector<recob::Hit>> ChanHits;
     evt.getByLabel(fChanHitLabel, ChanHits);
@@ -120,9 +120,6 @@ namespace hit {
 
     // also get the associated wires and raw digits;
     // we assume they have been created by the same module as the hits
-    //    art::FindOneP<raw::RawDigit> ChannelHitRawDigits
-    //      (ChanHits, evt, fChanHitLabel);
-    //    const bool doRawDigitAssns = ChannelHitRawDigits.isValid();
     const bool doRawDigitAssns = false;
 
     art::FindOneP<recob::Wire> ChannelHitWires(ChanHits, evt, fChanHitLabel);
@@ -134,7 +131,8 @@ namespace hit {
     recob::HitCollectionCreator hits(evt, doWireAssns, doRawDigitAssns);
 
     // find the wireIDs each hit is on
-    this->InitHitToWids(ChHits);
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    this->InitHitToWids(clockData, ChHits);
 
     // make all of the hits
     for (size_t h = 0; h < ChHits.size(); h++) {
@@ -142,8 +140,6 @@ namespace hit {
       // get the objects associated with this hit
       art::Ptr<recob::Wire> wire;
       if (doWireAssns) wire = ChannelHitWires.at(h);
-      //      art::Ptr<raw::RawDigit> rawdigits;
-      //      if (doRawDigitAssns) rawdigits = ChannelHitRawDigits.at(h);
 
       // the trivial Z hits
       if (ChHits[h]->View() == geo::kZ) {
@@ -191,7 +187,8 @@ namespace hit {
 
   //-------------------------------------------------------------------
   void
-  DisambigCheater::InitHitToWids(const std::vector<art::Ptr<recob::Hit>>& ChHits)
+  DisambigCheater::InitHitToWids(detinfo::DetectorClocksData const& clockData,
+                                 const std::vector<art::Ptr<recob::Hit>>& ChHits)
   {
 
     unsigned int Ucount(0), Vcount(0);
@@ -209,7 +206,7 @@ namespace hit {
       // get hit IDEs
       std::vector<const sim::IDE*> ides;
       try {
-        ides = bt_serv->HitToSimIDEs_Ps(chit);
+        ides = bt_serv->HitToSimIDEs_Ps(clockData, chit);
       }
       catch (...) {
       };
@@ -292,7 +289,6 @@ namespace hit {
     } // end U/V channel hit loop
 
     if (fHitToWids.size() != Ucount + Vcount) {
-      //throw cet::exception("DisambigCheat");
       mf::LogWarning("DisambigCheat")
         << "Nhits mismatch: " << fHitToWids.size() << " " << Ucount + Vcount;
     }

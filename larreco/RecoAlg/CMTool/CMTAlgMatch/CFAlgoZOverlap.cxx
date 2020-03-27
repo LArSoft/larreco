@@ -3,7 +3,7 @@
 namespace cmtool {
 
   //-------------------------------------------------------
-  CFAlgoZOverlap::CFAlgoZOverlap() : CFloatAlgoBase()
+  CFAlgoZOverlap::CFAlgoZOverlap()
   //-------------------------------------------------------
   {
     _wire_ratio_cut = 0.1; //Preliminary cuts
@@ -17,25 +17,21 @@ namespace cmtool {
 
   //----------------------------------------------------------------------------------------------
   float
-  CFAlgoZOverlap::Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  CFAlgoZOverlap::Float(util::GeometryUtilities const&,
+                        const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
 
-    // Code-block by Kazu starts
     // This ensures the algorithm works only if # clusters is > 2 (and not =2)
     // You may take out this block if you want to allow matching using clusters from only 2 planes.
     if (clusters.size() == 2) return -1;
-    // Code-block by Kazu ends
 
     double wire_distance = 0;
     double ratio = 1;
     double max_wire_distance = -1;
 
-    //Recond the start/end points that retunr the maximum wire distance
-    //double max_start_w			= -1;
+    //Record the start/end points that retunr the maximum wire distance
     double max_end_w = -1;
-    //Record the plane that contains the maximum wire spacing
-    //int max_plane				= -1;
 
     double start_w = 0;
     double end_w = 0;
@@ -60,7 +56,7 @@ namespace cmtool {
 
       if (max_wire_distance < wire_distance) {
         max_wire_distance = wire_distance;
-        //max_plane 	=	c->Plane();
+        //max_plane   =	c->Plane();
         //max_start_w =	start_w ;
         max_end_w = end_w;
       }
@@ -97,7 +93,6 @@ namespace cmtool {
         std::cout << "Start and end points: " << start_w << ",  " << end_w << std::endl;
       }
     }
-    //	std::cout<<"******** ** ** **** END OF CLUSTER PERMUTAITON **** ** ** ***********" <<std::endl;
     if (_verbose && ratio > _wire_ratio_cut)
       std::cout << " FOOOOUUUUNNNND ONE WOooooooooooooooooooooooooooooooooooooooooooooooooo: "
                 << ratio << std::endl;

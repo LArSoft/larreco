@@ -17,6 +17,7 @@
 
 //LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -56,9 +57,9 @@ namespace ShowerRecoTools {
     pma::ProjectionMatchingAlg fProjectionMatchingAlg;
     art::ServiceHandle<geo::Geometry> fGeom;
 
-    //fcl paramters
-    float
-      fMinTrajectoryPoints; //Minimum number of trajectory points returned from the fit to decide the track is good.
+    // fcl paramters
+    float fMinTrajectoryPoints; // Minimum number of trajectory points returned
+                                // from the fit to decide the track is good.
     std::string fInitialTrackLengthOutputLabel;
     std::string fInitialTrackOutputLabel;
     std::string fShowerStartPositionInputLabel;
@@ -176,9 +177,11 @@ namespace ShowerRecoTools {
       return 0;
     }
 
-    //Build the 3D track
-    pma::Track3D* pmatrack =
-      fProjectionMatchingAlg.buildSegment(maxPlaneHits, nextmaxPlaneHits, ShowerStartPosition);
+    // Build the 3D track
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event);
+    pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(
+      detProp, maxPlaneHits, nextmaxPlaneHits, ShowerStartPosition);
 
     if (!pmatrack) {
       mf::LogError("ShowerPMATrackFinder") << "Failed fit " << std::endl;

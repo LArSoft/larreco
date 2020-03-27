@@ -27,7 +27,6 @@
 
 namespace ShowerRecoTools {
   class IShowerTool {
-
   public:
     IShowerTool(const fhicl::ParameterSet& pset)
       : fTRACSAlg(pset.get<fhicl::ParameterSet>("TRACSAlg"))
@@ -118,7 +117,6 @@ namespace ShowerRecoTools {
         throw cet::exception("IShowerTool") << "tried to get a element that does not exist. Failed "
                                                "at making the art ptr for Element: "
                                             << Name << std::endl;
-        return art::Ptr<T>();
       }
 
       //Check the unique ptr has been set.
@@ -127,7 +125,6 @@ namespace ShowerRecoTools {
         throw cet::exception("IShowerTool")
           << "tried to get a ptr that does not exist. Failed at making the art ptr for Element"
           << Name;
-        return art::Ptr<T>();
       }
 
       //Check if the user has defined an index if not just use the current shower index/
@@ -137,9 +134,7 @@ namespace ShowerRecoTools {
         index = ShowerEleHolder.GetShowerNumber();
       }
 
-      //Make the ptr
-      art::Ptr<T> artptr = UniquePtrs->GetArtPtr<T>(Name, index);
-      return artptr;
+      return UniquePtrs->GetArtPtr<T>(Name, index);
     }
 
     //Function so that the user can add products to the art event. This will set up the unique ptrs and the ptr makers required.
@@ -148,7 +143,6 @@ namespace ShowerRecoTools {
     void
     InitialiseProduct(std::string Name, std::string InstanceName = "")
     {
-
       if (collectorPtr == nullptr) {
         mf::LogWarning("IShowerTool") << "The art::ProducesCollector ptr has not been set";
         return;

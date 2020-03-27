@@ -20,8 +20,8 @@ namespace pma {
 
 class pma::VtxCandidate {
 public:
-  static const double kMaxDistToTrack;
-  static const double kMinDistToNode;
+  static constexpr double kMaxDistToTrack{4.0}; // max. dist. track to center to create vtx
+  static constexpr double kMinDistToNode{2.0};  // min. dist. to node needed to split segment
 
   VtxCandidate(double segMinLength = 0.5)
     : tracksJoined(false)
@@ -40,18 +40,18 @@ public:
 
   bool IsAttached(const VtxCandidate& other) const;
 
-  bool HasLoops(void) const;
+  bool HasLoops() const;
 
   bool Add(const pma::TrkCandidate& trk);
 
-  double ComputeMse2D(void);
+  double ComputeMse2D();
 
   double Test(const VtxCandidate& other) const;
 
   double MaxAngle(double minLength = 0.0) const;
 
   size_t
-  Size(void) const
+  Size() const
   {
     return fAssigned.size();
   }
@@ -59,22 +59,24 @@ public:
 
   bool MergeWith(const VtxCandidate& other);
 
-  double Compute(void);
+  double Compute();
 
-  bool JoinTracks(pma::TrkCandidateColl& tracks, pma::TrkCandidateColl& src);
+  bool JoinTracks(detinfo::DetectorPropertiesData const& detProp,
+                  pma::TrkCandidateColl& tracks,
+                  pma::TrkCandidateColl& src);
 
   const TVector3&
-  Center(void) const
+  Center() const
   {
     return fCenter;
   }
   double
-  Mse(void) const
+  Mse() const
   {
     return fMse;
   }
   double
-  Mse2D(void) const
+  Mse2D() const
   {
     return fMse2D;
   }

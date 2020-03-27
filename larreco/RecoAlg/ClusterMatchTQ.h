@@ -16,12 +16,14 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 #include <vector>
 
@@ -30,12 +32,11 @@ namespace cluster {
   public:
     ClusterMatchTQ(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& p);
-
-    void ClusterMatch(const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
-                      const art::FindManyP<recob::Hit>& fm);
-
-    std::vector<std::vector<unsigned int>> matchedclusters;
+    std::vector<std::vector<unsigned int>> MatchedClusters(
+      const detinfo::DetectorClocksData& clockdata,
+      const detinfo::DetectorPropertiesData& detProp,
+      const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
+      const art::FindManyP<recob::Hit>& fm) const;
 
   private:
     double fKSCut;

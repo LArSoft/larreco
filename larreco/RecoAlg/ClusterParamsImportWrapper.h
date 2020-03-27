@@ -17,6 +17,14 @@
 // LArSoft libraries
 #include "lardata/Utilities/Dereference.h" // util::make_pointer()
 
+namespace util {
+  class GeometryUtilities;
+}
+
+namespace recob {
+  class Hit;
+}
+
 /// Cluster reconstruction namespace
 namespace cluster {
 
@@ -59,13 +67,13 @@ namespace cluster {
      */
     template <typename Iter>
     void
-    ImportHits(Iter begin, Iter end)
+    ImportHits(util::GeometryUtilities const& gser, Iter begin, Iter end)
     {
       std::vector<recob::Hit const*> hits;
       std::transform(begin, end, std::back_inserter(hits), [](auto value) {
         return lar::util::make_pointer(value);
       });
-      ClusterParamsAlg_t::SetHits(hits);
+      ClusterParamsAlg_t::SetHits(gser, hits);
     } // ImportHits()
 
     /**
@@ -105,9 +113,9 @@ namespace cluster {
      */
     template <typename Cont>
     void
-    ImportHits(Cont cont)
+    ImportHits(util::GeometryUtilities const& gser, Cont cont)
     {
-      ImportHits(std::begin(cont), std::end(cont));
+      ImportHits(gser, std::begin(cont), std::end(cont));
     }
 
     /**
@@ -127,9 +135,9 @@ namespace cluster {
      */
     template <typename Cont, typename Convert>
     void
-    ImportHits(Cont cont, Convert converter)
+    ImportHits(util::GeometryUtilities const& gser, Cont cont, Convert converter)
     {
-      ImportHits(std::begin(cont), std::end(cont), converter);
+      ImportHits(gser, std::begin(cont), std::end(cont), converter);
     }
 
     /// @}

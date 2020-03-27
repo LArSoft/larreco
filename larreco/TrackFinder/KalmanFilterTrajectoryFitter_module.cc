@@ -14,17 +14,16 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
-
-#include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larreco/TrackFinder/TrackMaker.h"
-
-#include "lardataobj/MCBase/MCTrack.h"
 
 #include <memory>
 
@@ -51,10 +50,6 @@ namespace trkf {
     struct Options {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
-      // fhicl::Atom<bool> pFromMSChi2 {
-      //   Name("momFromMSChi2"),
-      //   Comment("Flag used to get initial momentum estimate from trkf::TrackMomentumCalculator::GetMomentumMultiScatterChi2().")
-      // };
       fhicl::Atom<bool> pFromLength{Name("momFromLength"),
                                     Comment("Flag used to get initial momentum estimate from "
                                             "trkf::TrackMomentumCalculator::GetTrackMomentum().")};
@@ -180,7 +175,6 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(
   }
 
   unsigned int nPFroms = 0;
-  // if (p_().options().pFromMSChi2()) nPFroms++;
   if (p_().options().pFromLength()) nPFroms++;
   if (p_().options().pFromMC()) nPFroms++;
   if (nPFroms > 1) {
@@ -273,14 +267,16 @@ trkf::KalmanFilterTrajectoryFitter::produce(art::Event& e)
     nTrajs = trajectoryVec->size();
   }
 
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e);
+
   for (unsigned int iTraj = 0; iTraj < nTrajs; ++iTraj) {
 
     const recob::TrackTrajectory& inTraj =
       (isTT ? trackTrajectoryVec->at(iTraj) :
               recob::TrackTrajectory(trajectoryVec->at(iTraj),
                                      std::vector<recob::TrajectoryPointFlags>()));
-    //const std::vector<recob::TrajectoryPointFlags>& inFlags = (isTT ? trackTrajectoryVec->at(iTraj).Flags() : std::vector<recob::TrajectoryPointFlags>());
-    //this is not computationally optimal, but at least preserves the order unlike FindManyP
+    // this is not computationally optimal, but at least preserves the order
+    // unlike FindManyP
     std::vector<art::Ptr<recob::Hit>> inHits;
     if (isTT) {
       for (auto it = trackTrajectoryHitsAssn->begin(); it != trackTrajectoryHitsAssn->end(); ++it) {
@@ -306,11 +302,12 @@ trkf::KalmanFilterTrajectoryFitter::produce(art::Event& e)
     std::vector<art::Ptr<recob::Hit>> outHits;
     trkmkr::OptionalOutputs optionals;
     if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-    bool fitok = kalmanFitter.fitTrack(inTraj,
+    bool fitok = kalmanFitter.fitTrack(detProp,
+                                       inTraj,
                                        iTraj,
                                        SMatrixSym55(),
                                        SMatrixSym55(),
-                                       inHits, //inFlags,
+                                       inHits, // inFlags,
                                        mom,
                                        pId,
                                        flipDir,
@@ -409,9 +406,6 @@ trkf::KalmanFilterTrajectoryFitter::setMomValue(const recob::TrackTrajectory* pt
                                                 const int pId) const
 {
   double result = p_().options().pval();
-  // if (p_().options().pFromMSChi2()) {
-  //   result = tmc->GetMomentumMultiScatterChi2(ptrack);
-  // } else
   if (p_().options().pFromLength()) { result = tmc.GetTrackMomentum(ptraj->Length(), pId); }
   else if (p_().options().pFromMC() && pMC > 0.) {
     result = pMC;

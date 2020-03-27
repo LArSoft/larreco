@@ -4,11 +4,12 @@
 //
 // dmckee@phys.ksu.edu
 //
-//
 ////////////////////////////////////////////////////////////////////////
+
 // C++ std library includes
 #include <algorithm>
 #include <string>
+
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
@@ -19,108 +20,94 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+
 // Root Includes
 #include "TH2.h"
 #include "TLine.h"
+
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "nug4/MagneticField/MagneticField.h"
 
-///Detector simulation of raw signals on wires
+/// Detector simulation of raw signals on wires
 namespace hit {
 
   /// Base class for creation of raw signals on wires.
   class MagDriftAna : public art::EDAnalyzer {
-
   public:
     explicit MagDriftAna(fhicl::ParameterSet const& pset);
 
   private:
-    /// read/write access to event
-    void analyze(const art::Event& evt);
-    void endJob();
+    void analyze(const art::Event& evt) override;
+    void endJob() override;
 
     // intilize the histograms
     //
     // Can't be done in Begin job because I want to use LArProperties
     // which used the database, so I test and run on each
     // event. Wasteful and silly, but at least it *works*.
-    void ensureHists();
+    void ensureHists(art::Event const& evt, detinfo::DetectorClocksData const& clockData);
 
     std::string fFFTHitFinderModuleLabel;
-    std::string fTrackFinderModuleLabel;
     std::string fLArG4ModuleLabel;
 
     // Flag for initialization done, because we set up histograms the
     // first time through beginRun() so that we can use the
     // database...
-    bool initDone;
+    bool initDone{false};
 
     // Drift properties
-    double fDirCosY;
-    double fDirCosZ;
+    double fDirCosY{0.};
+    double fDirCosZ{0.};
 
-    TH1D* fChargeXpos; // << position of the MC Truth charge deposition
-    TH1D* fChargeYpos;
-    TH1D* fChargeZpos;
-    TH1D* fHitZpos; // << Z position of the recorded hit (from the
-                    //    z-sensitive wire)
+    TH1D* fChargeXpos{nullptr}; // << position of the MC Truth charge deposition
+    TH1D* fChargeYpos{nullptr};
+    TH1D* fChargeZpos{nullptr};
+    TH1D* fHitZpos{nullptr}; // << Z position of the recorded hit (from the
+                             //    z-sensitive wire)
 
-    TH1D* fDriftDeltaZ; // << Difference in MC charge Z and recorded hit Z
-    TH1D* fDeltaZoverX; // << Delta Z as a function of drift distance
-    TH2D* fDeltaZvsX;
+    TH1D* fDriftDeltaZ{nullptr}; // << Difference in MC charge Z and recorded hit Z
+    TH1D* fDeltaZoverX{nullptr}; // << Delta Z as a function of drift distance
+    TH2D* fDeltaZvsX{nullptr};
 
     // Same as above, but only for long drift distances (greater than
     // 4/5 of the detector)
-    TH1D* fDriftDeltaZAway; // << Difference in MC charge Z and recorded hit Z
-    TH1D* fDeltaZoverXAway; // << Delta Z as a function of drift distance
+    TH1D* fDriftDeltaZAway{nullptr}; // << Difference in MC charge Z and recorded hit Z
+    TH1D* fDeltaZoverXAway{nullptr}; // << Delta Z as a function of drift distance
 
   }; // class MagdriftAna
 
   //-------------------------------------------------
   MagDriftAna::MagDriftAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
-    , initDone(false)
-    , fDirCosY(0.0)
-    , fDirCosZ(0.0)
-    , fChargeXpos()
-    , fChargeYpos()
-    , fChargeZpos()
-    , fHitZpos()
-    , fDriftDeltaZ()
-    , fDeltaZoverX()
-    , fDeltaZvsX()
-    , fDriftDeltaZAway()
-    , fDeltaZoverXAway()
-  {
-    fFFTHitFinderModuleLabel = pset.get<std::string>("HitsModuleLabel");
-    //     fTrackFinderModuleLabel   = pset.get< std::string >("TracksModuleLabel");
-    fLArG4ModuleLabel = pset.get<std::string>("LArGeantModuleLabel");
-  }
+    , fFFTHitFinderModuleLabel{pset.get<std::string>("HitsModuleLabel")}
+    , fLArG4ModuleLabel{pset.get<std::string>("LArGeantModuleLabel")}
+  {}
 
   //-------------------------------------------------
   void
-  MagDriftAna::ensureHists()
+  MagDriftAna::ensureHists(art::Event const& evt, detinfo::DetectorClocksData const& clockData)
   {
     if (initDone) return; // Bail if we've already done this.
     initDone = true;      // Insure that we bail later on
 
-    // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
-    // Find magetic field related corrections
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+
+    // Find magnetic field related corrections
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
     art::ServiceHandle<mag::MagneticField const> MagField;
-    double Efield = detprop->Efield();
-    double Temperature = detprop->Temperature();
-    double DriftVelocity = detprop->DriftVelocity(Efield, Temperature) / 1000.;
+    double Efield = detProp.Efield();
+    double Temperature = detProp.Temperature();
+    double DriftVelocity = detProp.DriftVelocity(Efield, Temperature) / 1000.;
 
     // MagneticField::FieldAtPoint() returns (0, 0, 0) if there is no
     // field at the requested point, so these direction cosines are
@@ -176,8 +163,6 @@ namespace hit {
                                        51,
                                        -10 * zScale,
                                        10 * zScale);
-
-    return;
   }
 
   //-------------------------------------------------
@@ -194,10 +179,8 @@ namespace hit {
     // I know this looks like a memory leak, but each historgram needs
     // it's own copy of the line to prevent double freeing by the
     // framework...
-    ////////////
     l = new TLine(fDirCosZ, 0, fDirCosZ, 1.05 * fDeltaZoverX->GetMaximum());
-    ///////////
-    //
+
     l->SetLineColor(kRed);
     l->SetLineStyle(kDotted);
     fDeltaZoverXAway->GetListOfFunctions()->Add(l);
@@ -207,32 +190,26 @@ namespace hit {
   void
   MagDriftAna::analyze(const art::Event& evt)
   {
-
     if (evt.isRealData()) {
       throw cet::exception("MagDriftAna: ") << "Not for use on Data yet...\n";
     }
 
-    ensureHists();
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
+    ensureHists(evt, clockData);
 
     art::Handle<std::vector<recob::Hit>> hitHandle;
     evt.getByLabel(fFFTHitFinderModuleLabel, hitHandle);
-
-    //     art::Handle< std::vector<recob::Track> > trackHandle;
-    //     evt.getByLabel(fTrackFinderModuleLabel,trackHandle);
 
     art::ServiceHandle<geo::Geometry const> geom;
 
     // We're going to want to compare the reconstructed Z with the
     // simulted Z. For that purpose we use the simultion backtracking.
-    //
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
-    //    art::PtrVector<recob::Hit> hits;
     std::vector<art::Ptr<recob::Hit>> hits;
     art::fill_ptr_vector(hits, hitHandle);
-    //     std::vector< art::Ptr<recob::Track> > tracks;
-    //     art::fill_ptr_vector(tracks, trackHandle);
 
     geo::WireID hitWireID;
 
@@ -256,17 +233,11 @@ namespace hit {
       fHitZpos->Fill(HitZpos, Charge);
 
       // Charge deposition in the detector
-      std::vector<double> xyz = bt_serv->HitToXYZ(itr);
+      std::vector<double> xyz = bt_serv->HitToXYZ(clockData, itr);
       fChargeXpos->Fill(xyz[0], Charge);
       fChargeYpos->Fill(xyz[1], Charge);
       double ChargeZpos = xyz[2];
       fChargeZpos->Fill(ChargeZpos, Charge);
-
-      //      // Delta-Y
-      //      fDriftDeltaY->Fill(HitYpos-ChargeYpos,Charge);
-      //      // Delta Y correlation with X
-      //      fDeltaYoverX->Fill((HitYpos-ChargeYpos)/xyz[0],Charge);
-      //      fDeltaYvsX->Fill(xyz[0],HitYpos-ChargeZpos,Charge);
 
       // Delta-Z
       //
@@ -287,7 +258,7 @@ namespace hit {
     } // loop on Hits
 
     return;
-  } //end analyze method
+  } // end analyze method
 
   DEFINE_ART_MODULE(MagDriftAna)
 

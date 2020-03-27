@@ -17,7 +17,8 @@ namespace cmtool {
 
   //-----------------------------------------------------------------------------------------
   float
-  CFAlgoQRatio::Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  CFAlgoQRatio::Float(util::GeometryUtilities const&,
+                      const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //-----------------------------------------------------------------------------------------
   {
 

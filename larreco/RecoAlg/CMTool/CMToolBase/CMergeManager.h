@@ -30,9 +30,7 @@ namespace cmtool {
      The book-keeping of merged cluster sets are done by CMergeBookKeeper.
   */
   class CMergeManager : public CMManagerBase {
-
   public:
-    /// Default constructor
     CMergeManager();
 
     /// Default destructor
@@ -81,7 +79,7 @@ namespace cmtool {
     virtual void IterationBegin();
 
     /// FMWK function called @ iterative loop inside Process()
-    virtual bool IterationProcess();
+    virtual bool IterationProcess(util::GeometryUtilities const& gser);
 
     /// FMWK function called @ end of iterative loop inside Process()
     virtual void IterationEnd();

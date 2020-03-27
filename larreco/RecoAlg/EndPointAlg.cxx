@@ -30,12 +30,14 @@
 #include "canvas/Persistency/Common/Assns.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "cetlib/pow.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -43,14 +45,7 @@
 #include "larreco/RecoAlg/EndPointAlg.h"
 
 //-----------------------------------------------------------------------------
-cluster::EndPointAlg::EndPointAlg(fhicl::ParameterSet const& pset)
-{
-  this->reconfigure(pset);
-}
-
-//-----------------------------------------------------------------------------
-void
-cluster::EndPointAlg::reconfigure(fhicl::ParameterSet const& p)
+cluster::EndPointAlg::EndPointAlg(fhicl::ParameterSet const& p)
 {
   fTimeBins = p.get<int>("TimeBins");
   fMaxCorners = p.get<int>("MaxCorners");
@@ -64,27 +59,24 @@ cluster::EndPointAlg::reconfigure(fhicl::ParameterSet const& p)
 double
 cluster::EndPointAlg::Gaussian(int x, int y, double sigma) const
 {
-  double Norm = 1. / std::sqrt(2 * TMath::Pi() * pow(sigma, 2));
-  double value = Norm * exp(-(pow(x, 2) + pow(y, 2)) / (2 * pow(sigma, 2)));
-  return value;
+  double const Norm = 1. / std::sqrt(2 * TMath::Pi() * cet::square(sigma));
+  return Norm * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(sigma)));
 }
 
 //-----------------------------------------------------------------------------
 double
 cluster::EndPointAlg::GaussianDerivativeX(int x, int y) const
 {
-  double Norm = 1. / (std::sqrt(2 * TMath::Pi()) * pow(fGsigma, 3));
-  double value = Norm * (-x) * exp(-(pow(x, 2) + pow(y, 2)) / (2 * pow(fGsigma, 2)));
-  return value;
+  double const Norm = 1. / (std::sqrt(2 * TMath::Pi()) * cet::cube(fGsigma));
+  return Norm * (-x) * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(fGsigma)));
 }
 
 //-----------------------------------------------------------------------------
 double
 cluster::EndPointAlg::GaussianDerivativeY(int x, int y) const
 {
-  double Norm = 1. / (std::sqrt(2 * TMath::Pi()) * pow(fGsigma, 3));
-  double value = Norm * (-y) * exp(-(pow(x, 2) + pow(y, 2)) / (2 * pow(fGsigma, 2)));
-  return value;
+  double const Norm = 1. / (std::sqrt(2 * TMath::Pi()) * cet::cube(fGsigma));
+  return Norm * (-y) * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(fGsigma)));
 }
 
 //-----------------------------------------------------------------------------
@@ -135,7 +127,9 @@ cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
 {
 
   art::ServiceHandle<geo::Geometry const> geom;
-  const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
   //Point to a collection of vertices to output.
   std::vector<art::Ptr<recob::Hit>> hit;
@@ -143,14 +137,14 @@ cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   int flag = 0;
-  int windex =
-    0; //the wire index to make sure the end point finder does not fall off the edge of the hit map
-  int tindex =
-    0; //the time index to make sure the end point finder does not fall off the edge of the hit map
-  int n =
-    0; //index of window cell. There are 49 cells in the 7X7 Gaussian and Gaussian derivative windows
+  int windex = 0; // the wire index to make sure the end point finder does not
+                  // fall off the edge of the hit map
+  int tindex = 0; // the time index to make sure the end point finder does not
+                  // fall off the edge of the hit map
+  int n = 0;      // index of window cell. There are 49 cells in the 7X7 Gaussian and
+                  // Gaussian derivative windows
   unsigned int numberwires = 0;
-  const unsigned int numbertimesamples = detp->ReadOutWindowSize();
+  const unsigned int numbertimesamples = det_prop.ReadOutWindowSize();
   const float TicksPerBin = numbertimesamples / fTimeBins;
 
   double MatrixAAsum = 0.;
@@ -211,9 +205,6 @@ cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
     }
     for (unsigned int i = 0; i < hit.size(); ++i) {
       wire = hit[i]->WireID().Wire;
-      //pixelization using a Gaussian
-      //  for(int j = 0; j <= (int)(hit[i]->EndTime()-hit[i]->StartTime()+.5); ++j)
-      //    hit_map[wire][(int)((hit[i]->StartTime()+j)*(fTimeBins/numbertimesamples)+.5)] += Gaussian((int)(j-((hit[i]->EndTime()-hit[i]->StartTime())/2.)+.5),0,hit[i]->EndTime()-hit[i]->StartTime());
       const float center = hit[i]->PeakTime(), sigma = hit[i]->RMS();
       const int iFirstBin = int((center - 3 * sigma) / TicksPerBin),
                 iLastBin = int((center + 3 * sigma) / TicksPerBin);
@@ -341,8 +332,8 @@ cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
               // Note that there are 1/0.0743=13.46 time samples per 4.0 mm (wire pitch in ArgoNeuT),
               // assuming a 1.5 mm/us drift velocity for a 500 V/cm E-field
 
-              double drifttick = detp->DriftVelocity(detp->Efield(), detp->Temperature());
-              drifttick *= detp->SamplingRate() * 1.e-3;
+              double drifttick = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
+              drifttick *= sampling_rate(clock_data) * 1.e-3;
               double wirepitch = geom->WirePitch();
               double corrfactor = drifttick / wirepitch;
 
@@ -377,11 +368,7 @@ cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
       for (int y = 0; y < fTimeBins; ++y) {
         for (unsigned int x = 0; x < numberwires; ++x) {
           cell = (int)(hit_map[x][y] * 1000);
-          if (cell > maxCell) {
-            maxCell = cell;
-            //  xmaxx=x;
-            //  ymaxx=y;
-          }
+          if (cell > maxCell) { maxCell = cell; }
         }
       }
       for (int y = 0; y < fTimeBins; ++y) {

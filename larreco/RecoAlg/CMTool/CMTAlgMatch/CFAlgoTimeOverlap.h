@@ -28,13 +28,11 @@ namespace cmtool {
     /// Default constructor
     CFAlgoTimeOverlap();
 
-    /// Default destructor
-    virtual ~CFAlgoTimeOverlap(){};
-
     /**This algorithm calculates the difference between start and end times for merged clusters,
-		and compares across planes to form matches.
+                and compares across planes to form matches.
     */
-    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters);
+    float Float(util::GeometryUtilities const&,
+                const std::vector<const cluster::ClusterParamsAlg*>& clusters) override;
 
     void
     SetStartTimeCut(float start_time)
@@ -51,7 +49,7 @@ namespace cmtool {
     //Order the theta, phi, hits per plane to make cuts convenient
     /*
     virtual void SetMaxMiddleMin(const double first, const double second, const double third,
-				 double &most, double &middle, double &least) ;
+                                 double &most, double &middle, double &least) ;
     */
     void
     SetDebug(bool debug)
@@ -60,7 +58,7 @@ namespace cmtool {
     }
 
     void
-    SetVerbose(bool verbose)
+    SetVerbose(bool verbose) override
     {
       _verbose = verbose;
     }
@@ -71,9 +69,9 @@ namespace cmtool {
       _require_3planes = doit;
     }
 
-    virtual void Report();
+    void Report() override;
 
-    virtual void Reset();
+    void Reset() override;
 
   protected:
     float _time_ratio_cut;

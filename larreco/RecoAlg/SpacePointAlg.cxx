@@ -36,45 +36,19 @@
 namespace trkf {
 
   SpacePointAlg::SpacePointAlg(const fhicl::ParameterSet& pset)
-    : fMaxDT(0.)
-    , fMaxS(0.)
-    , fMinViews(1000)
-    , fEnableU(false)
-    , fEnableV(false)
-    , fEnableW(false)
-    , fFilter(false)
-    , fMerge(false)
-    , fPreferColl(false)
-    , fTickOffsetU(0.)
-    , fTickOffsetV(0.)
-    , fTickOffsetW(0.)
+    : fMaxDT{pset.get<double>("MaxDT")}
+    , fMaxS{pset.get<double>("MaxS")}
+    , fMinViews{pset.get<int>("MinViews")}
+    , fEnableU{pset.get<bool>("EnableU")}
+    , fEnableV{pset.get<bool>("EnableV")}
+    , fEnableW{pset.get<bool>("EnableW")}
+    , fFilter{pset.get<bool>("Filter")}
+    , fMerge{pset.get<bool>("Merge")}
+    , fPreferColl{pset.get<bool>("PreferColl")}
+    , fTickOffsetU{pset.get<double>("TickOffsetU", 0.)}
+    , fTickOffsetV{pset.get<double>("TickOffsetV", 0.)}
+    , fTickOffsetW{pset.get<double>("TickOffsetW", 0.)}
   {
-    reconfigure(pset);
-  }
-
-  //----------------------------------------------------------------------
-  // Update configuration parameters.
-  //
-  void
-  SpacePointAlg::reconfigure(const fhicl::ParameterSet& pset)
-  {
-    // Get configuration parameters.
-
-    fMaxDT = pset.get<double>("MaxDT");
-    fMaxS = pset.get<double>("MaxS");
-
-    fMinViews = pset.get<int>("MinViews");
-
-    fEnableU = pset.get<bool>("EnableU");
-    fEnableV = pset.get<bool>("EnableV");
-    fEnableW = pset.get<bool>("EnableW");
-    fFilter = pset.get<bool>("Filter");
-    fMerge = pset.get<bool>("Merge");
-    fPreferColl = pset.get<bool>("PreferColl");
-    fTickOffsetU = pset.get<double>("TickOffsetU", 0.);
-    fTickOffsetV = pset.get<double>("TickOffsetV", 0.);
-    fTickOffsetW = pset.get<double>("TickOffsetW", 0.);
-
     // Only allow one of fFilter and fMerge to be true.
 
     if (fFilter && fMerge)
@@ -101,7 +75,7 @@ namespace trkf {
   // Print geometry and properties constants.
   //
   void
-  SpacePointAlg::update() const
+  SpacePointAlg::update(detinfo::DetectorPropertiesData const& detProp) const
   {
     // Generate info report on first call only.
 
@@ -112,8 +86,6 @@ namespace trkf {
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Calculate and print geometry information.
 
@@ -179,7 +151,7 @@ namespace trkf {
               << "  Plane pitch: " << tpcgeom.Plane0Pitch(plane) << "\n"
               << "  Wire angle: " << tpcgeom.Plane(plane).Wire(0).ThetaZ() << "\n"
               << "  Wire pitch: " << tpcgeom.WirePitch() << "\n"
-              << "  Time offset: " << detprop->GetXTicksOffset(plane, tpc, cstat) << "\n";
+              << "  Time offset: " << detProp.GetXTicksOffset(plane, tpc, cstat) << "\n";
           }
 
           if (orient != geo::kVertical)
@@ -192,18 +164,17 @@ namespace trkf {
   //----------------------------------------------------------------------
   // Get corrected time for the specified hit.
   double
-  SpacePointAlg::correctedTime(const recob::Hit& hit) const
+  SpacePointAlg::correctedTime(detinfo::DetectorPropertiesData const& detProp,
+                               const recob::Hit& hit) const
   {
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Correct time for trigger offset and plane-dependent time offsets.
 
-    double t = hit.PeakTime() - detprop->GetXTicksOffset(
-                                  hit.WireID().Plane, hit.WireID().TPC, hit.WireID().Cryostat);
+    double t = hit.PeakTime() -
+               detProp.GetXTicksOffset(hit.WireID().Plane, hit.WireID().TPC, hit.WireID().Cryostat);
     if (hit.View() == geo::kU)
       t -= fTickOffsetU;
     else if (hit.View() == geo::kV)
@@ -303,13 +274,11 @@ namespace trkf {
   // Check hits pairwise for different views and maximum time difference.
   // Check three hits for spatial compatibility.
   bool
-  SpacePointAlg::compatible(const art::PtrVector<recob::Hit>& hits, bool useMC) const
+  SpacePointAlg::compatible(detinfo::DetectorPropertiesData const& detProp,
+                            const art::PtrVector<recob::Hit>& hits,
+                            bool useMC) const
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     int nhits = hits.size();
 
@@ -331,7 +300,7 @@ namespace trkf {
         geo::View_t view1 = hit1.View();
 
         double t1 = hit1.PeakTime() -
-                    detprop->GetXTicksOffset(hit1WireID.Plane, hit1WireID.TPC, hit1WireID.Cryostat);
+                    detProp.GetXTicksOffset(hit1WireID.Plane, hit1WireID.TPC, hit1WireID.Cryostat);
 
         // If using mc information, get a collection of track ids for hit 1.
         // If not using mc information, this section of code will trigger the
@@ -359,7 +328,7 @@ namespace trkf {
             tpc = hit1WireID.TPC;
             cstat = hit1WireID.Cryostat;
 
-            double t2 = hit2.PeakTime() - detprop->GetXTicksOffset(
+            double t2 = hit2.PeakTime() - detProp.GetXTicksOffset(
                                             hit2WireID.Plane, hit2WireID.TPC, hit2WireID.Cryostat);
 
             // Test maximum time difference.
@@ -456,17 +425,14 @@ namespace trkf {
   // Assume points have already been tested for compatibility.
   //
   void
-  SpacePointAlg::fillSpacePoint(const art::PtrVector<recob::Hit>& hits,
+  SpacePointAlg::fillSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                                const art::PtrVector<recob::Hit>& hits,
                                 std::vector<recob::SpacePoint>& sptv,
                                 int sptid) const
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
-    double timePitch = detprop->GetXTicksCoefficient();
+    double timePitch = detProp.GetXTicksCoefficient();
 
     int nhits = hits.size();
 
@@ -497,7 +463,7 @@ namespace trkf {
 
       // Correct time for trigger offset and view-dependent time offsets.
 
-      double t0 = detprop->GetXTicksOffset(hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat);
+      double t0 = detProp.GetXTicksOffset(hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat);
       double t = hit.PeakTime() - t0;
       double et = hit.SigmaPeakTime();
       double w = 1. / (et * et);
@@ -604,7 +570,8 @@ namespace trkf {
   /// the space point algorithm is configured to allow it.
   ///
   void
-  SpacePointAlg::fillSpacePoints(std::vector<recob::SpacePoint>& spts,
+  SpacePointAlg::fillSpacePoints(detinfo::DetectorPropertiesData const& detProp,
+                                 std::vector<recob::SpacePoint>& spts,
                                  std::multimap<double, KHitTrack> const& trackMap) const
   {
     // Loop over KHitTracks.
@@ -626,7 +593,7 @@ namespace trkf {
         // Test this hit for compatibility.
 
         hits.push_back(prhit);
-        bool ok = this->compatible(hits);
+        bool ok = this->compatible(detProp, hits);
         if (!ok) {
 
           // The new hit is not compatible.  Make a space point out of
@@ -634,7 +601,7 @@ namespace trkf {
           // two.
 
           if (compatible_hits.size() >= 2) {
-            this->fillSpacePoint(compatible_hits, spts, this->numHitMap());
+            this->fillSpacePoint(detProp, compatible_hits, spts, this->numHitMap());
             compatible_hits.clear();
           }
 
@@ -653,7 +620,7 @@ namespace trkf {
     // Maybe make one final space point.
 
     if (compatible_hits.size() >= 2) {
-      this->fillSpacePoint(compatible_hits, spts, this->numHitMap());
+      this->fillSpacePoint(detProp, compatible_hits, spts, this->numHitMap());
     }
   }
 
@@ -664,19 +631,16 @@ namespace trkf {
   // and gives unequal weight to different hits.
   //
   void
-  SpacePointAlg::fillComplexSpacePoint(const art::PtrVector<recob::Hit>& hits,
+  SpacePointAlg::fillComplexSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                                       const art::PtrVector<recob::Hit>& hits,
                                        std::vector<recob::SpacePoint>& sptv,
                                        int sptid) const
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Calculate time pitch.
 
-    double timePitch = detprop->GetXTicksCoefficient(); // cm / tick
+    double timePitch = detProp.GetXTicksCoefficient(); // cm / tick
 
     // Figure out which tpc we are in.
 
@@ -706,14 +670,7 @@ namespace trkf {
 
       const recob::Hit& hit = **ihit;
       geo::WireID hitWireID = hit.WireID();
-      /* // kept as assertions for performance reasons
-             if (hitWireID.Cryostat != cstat0)
-             throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible cryostat\n";
-             if (hitWireID.TPC != tpc0);
-             throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible TPC\n";
-             if (hitWireID.Plane >= nplanes);
-             throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): unknown plane\n";
-             */
+      // kept as assertions for performance reasons
       assert(hitWireID.Cryostat == cstat0);
       assert(hitWireID.TPC == tpc0);
       assert(hitWireID.Plane < nplanes);
@@ -746,7 +703,7 @@ namespace trkf {
 
       // Correct time for trigger offset and view-dependent time offsets.
 
-      double t0 = detprop->GetXTicksOffset(hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat);
+      double t0 = detProp.GetXTicksOffset(hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat);
       double t = hit.PeakTime() - t0;
       double et = hit.SigmaPeakTime();
       double w = weight[hitWireID.Plane] / (et * et);
@@ -830,7 +787,6 @@ namespace trkf {
       recob::SpacePoint spt(xyz, errxyz, chisq, sptid);
       sptv.push_back(spt);
     }
-    return;
   }
 
   //----------------------------------------------------------------------
@@ -838,10 +794,12 @@ namespace trkf {
   // from an input vector of hits (non-mc-truth version).
   //
   void
-  SpacePointAlg::makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
+  SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 const art::PtrVector<recob::Hit>& hits,
                                  std::vector<recob::SpacePoint>& spts) const
   {
-    makeSpacePoints(hits, spts, false);
+    makeSpacePoints(clockData, detProp, hits, spts, false);
   }
 
   //----------------------------------------------------------------------
@@ -849,10 +807,12 @@ namespace trkf {
   // from an input vector of hits (mc-truth version).
   //
   void
-  SpacePointAlg::makeMCTruthSpacePoints(const art::PtrVector<recob::Hit>& hits,
+  SpacePointAlg::makeMCTruthSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                        detinfo::DetectorPropertiesData const& detProp,
+                                        const art::PtrVector<recob::Hit>& hits,
                                         std::vector<recob::SpacePoint>& spts) const
   {
-    makeSpacePoints(hits, spts, true);
+    makeSpacePoints(clockData, detProp, hits, spts, true);
   }
 
   //----------------------------------------------------------------------
@@ -860,23 +820,19 @@ namespace trkf {
   // from an input vector of hits (general version).
   //
   void
-  SpacePointAlg::makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
+  SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 const art::PtrVector<recob::Hit>& hits,
                                  std::vector<recob::SpacePoint>& spts,
                                  bool useMC) const
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-    // Clear space point to hit map.
 
     fSptHitMap.clear();
 
     // Print diagnostic information.
 
-    update();
+    update(detProp);
 
     // First make sure result vector is empty.
 
@@ -946,7 +902,7 @@ namespace trkf {
 
               // Get sim::IDEs for this hit.
 
-              std::vector<sim::IDE> ides = bt_serv->HitToAvgSimIDEs(phit);
+              std::vector<sim::IDE> ides = bt_serv->HitToAvgSimIDEs(clockData, phit);
 
               // Get sorted track ids. for this hit.
 
@@ -1172,7 +1128,7 @@ namespace trkf {
                   hitvec.clear();
                   hitvec.push_back(phit1);
                   hitvec.push_back(phit2);
-                  bool ok = compatible(hitvec, useMC);
+                  bool ok = compatible(detProp, hitvec, useMC);
                   if (ok) {
 
                     // Add a space point.
@@ -1187,7 +1143,7 @@ namespace trkf {
                     // will go out of scope.
 
                     std::vector<recob::SpacePoint> sptv;
-                    fillSpacePoint(hitvec, sptv, sptmap.size());
+                    fillSpacePoint(detProp, hitvec, sptv, sptmap.size());
                     sptkey_type key = &*phit2;
                     sptmap.insert(std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
                     sptkeys.insert(key);
@@ -1224,7 +1180,7 @@ namespace trkf {
           double c1 = (xyz12[2] - xyz11[2]) / (2. * hl1);
           double dist1 = -xyz11[1] * c1 + xyz11[2] * s1;
           double pitch1 = geom->WirePitch(plane1, tpc, cstat);
-          const double TicksOffset1 = detprop->GetXTicksOffset(plane1, tpc, cstat);
+          const double TicksOffset1 = detProp.GetXTicksOffset(plane1, tpc, cstat);
 
           // Get angle, pitch, and offset of plane2 wires.
 
@@ -1238,7 +1194,7 @@ namespace trkf {
           double c2 = (xyz22[2] - xyz21[2]) / (2. * hl2);
           double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
           double pitch2 = geom->WirePitch(plane2, tpc, cstat);
-          const double TicksOffset2 = detprop->GetXTicksOffset(plane2, tpc, cstat);
+          const double TicksOffset2 = detProp.GetXTicksOffset(plane2, tpc, cstat);
 
           // Get angle, pitch, and offset of plane3 wires.
 
@@ -1252,7 +1208,7 @@ namespace trkf {
           double c3 = (xyz32[2] - xyz31[2]) / (2. * hl3);
           double dist3 = -xyz31[1] * c3 + xyz31[2] * s3;
           double pitch3 = geom->WirePitch(plane3, tpc, cstat);
-          const double TicksOffset3 = detprop->GetXTicksOffset(plane3, tpc, cstat);
+          const double TicksOffset3 = detProp.GetXTicksOffset(plane3, tpc, cstat);
 
           // Get sine of angle differences.
 
@@ -1321,7 +1277,7 @@ namespace trkf {
                 hitvec.clear();
                 hitvec.push_back(phit1);
                 hitvec.push_back(phit2);
-                bool h12ok = compatible(hitvec, useMC);
+                bool h12ok = compatible(detProp, hitvec, useMC);
                 if (h12ok) {
 
                   // Get oblique coordinate of second hit.
@@ -1367,7 +1323,7 @@ namespace trkf {
                         hitvec.push_back(phit1);
                         hitvec.push_back(phit2);
                         hitvec.push_back(phit3);
-                        bool h123ok = compatible(hitvec, useMC);
+                        bool h123ok = compatible(detProp, hitvec, useMC);
                         if (h123ok) {
 
                           // Add a space point.
@@ -1382,7 +1338,7 @@ namespace trkf {
                           // will go out of scope.
 
                           std::vector<recob::SpacePoint> sptv;
-                          fillSpacePoint(hitvec, sptv, sptmap.size() - 1);
+                          fillSpacePoint(detProp, hitvec, sptv, sptmap.size() - 1);
                           sptkey_type key = &*phit3;
                           sptmap.insert(
                             std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
@@ -1490,7 +1446,7 @@ namespace trkf {
 
             // Construct a complex space points using merged hits.
 
-            fillComplexSpacePoint(merged_hits, spts, sptmap.size() + spts.size() - 1);
+            fillComplexSpacePoint(detProp, merged_hits, spts, sptmap.size() + spts.size() - 1);
 
             if (fMinViews <= 2)
               ++n2filt;

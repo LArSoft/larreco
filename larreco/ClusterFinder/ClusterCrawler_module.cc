@@ -20,6 +20,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -84,11 +86,15 @@ namespace cluster {
     // extract the result of the algorithm (it's moved)
     std::vector<recob::Hit> FirstHits = fCCHFAlg.YieldHits();
 
-    // look for clusters in all planes
-    fCCAlg.RunCrawler(FirstHits);
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
-    std::unique_ptr<std::vector<recob::Hit>> FinalHits(
-      new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
+    // look for clusters in all planes
+    fCCAlg.RunCrawler(clock_data, det_prop, FirstHits);
+
+    auto FinalHits = std::make_unique<std::vector<recob::Hit>>(fCCAlg.YieldHits());
 
     art::ServiceHandle<geo::Geometry const> geo;
 
@@ -99,10 +105,8 @@ namespace cluster {
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
 
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> hc_assn(
-      new art::Assns<recob::Cluster, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> cv_assn(
-      new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
+    auto hc_assn = std::make_unique<art::Assns<recob::Cluster, recob::Hit>>();
+    auto cv_assn = std::make_unique<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>();
 
     std::vector<ClusterCrawlerAlg::ClusterStore> const& tcl = fCCAlg.GetClusters();
 

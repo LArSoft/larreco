@@ -10,7 +10,8 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorClocks.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h" // for Hit
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
@@ -34,20 +35,17 @@
 #include <utility>
 #include <vector>
 
-struct SortEntry {
-  unsigned int index;
-  float val;
-};
+namespace {
+  struct SortEntry {
+    unsigned int index;
+    float val;
+  };
 
-bool
-valDecreasing(SortEntry c1, SortEntry c2)
-{
-  return (c1.val > c2.val);
-}
-bool
-valIncreasing(SortEntry c1, SortEntry c2)
-{
-  return (c1.val < c2.val);
+  bool
+  valDecreasing(SortEntry c1, SortEntry c2)
+  {
+    return (c1.val > c2.val);
+  }
 }
 
 namespace tca {
@@ -2279,14 +2277,20 @@ namespace tca {
 
   //////////////////////////////////////////
   bool
-  SplitTraj(TCSlice& slc, unsigned short itj, float XPos, bool makeVx2, bool prt)
+  SplitTraj(detinfo::DetectorPropertiesData const& detProp,
+            TCSlice& slc,
+            unsigned short itj,
+            float XPos,
+            bool makeVx2,
+            bool prt)
   {
-    // Splits the trajectory at an X position and optionally creates a 2D vertex at the split point
+    // Splits the trajectory at an X position and optionally creates a 2D vertex
+    // at the split point
     if (itj > slc.tjs.size() - 1) return false;
 
     auto& tj = slc.tjs[itj];
     geo::PlaneID planeID = DecodeCTP(tj.CTP);
-    float atPos1 = tcc.detprop->ConvertXToTicks(XPos, planeID) * tcc.unitsPerTick;
+    float atPos1 = detProp.ConvertXToTicks(XPos, planeID) * tcc.unitsPerTick;
     unsigned short atPt = USHRT_MAX;
     for (unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
       if (tj.Pts[ipt].Pos[1] > tj.Pts[ipt - 1].Pos[1]) {
@@ -4015,9 +4019,8 @@ namespace tca {
       } // itj
     }   // indx
 
-    vx2.Stat[kVxEnvOK] = true;
-
-    // update the charge rms for those tjs whose environment was changed above (or elsewhere)
+    // update the charge rms for those tjs whose environment was changed above
+    // (or elsewhere)
     for (auto tjid : tjids) {
       auto& tj = slc.tjs[tjid - 1];
       if (!tj.NeedsUpdate) continue;
@@ -4029,7 +4032,10 @@ namespace tca {
 
   /////////////////////////////////////////
   TrajPoint
-  MakeBareTP(const TCSlice& slc, const Point3_t& pos, CTP_t inCTP)
+  MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             const Point3_t& pos,
+             CTP_t inCTP)
   {
     // A version to use when the 2D direction isn't required
     TrajPoint tp;
@@ -4039,17 +4045,23 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
     tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
-    tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
+    tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
     return tp;
   } // MakeBareTP
 
   /////////////////////////////////////////
   TrajPoint
-  MakeBareTP(const TCSlice& slc, const Point3_t& pos, const Vector3_t& dir, CTP_t inCTP)
+  MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             const Point3_t& pos,
+             const Vector3_t& dir,
+             CTP_t inCTP)
   {
-    // Projects the space point defined by pos and dir into the CTP and returns it in the form of a trajectory point.
-    // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
-    // error if the position is on a dead wire. The projection of the direction vector in CTP is stored in tp.Delta.
+    // Projects the space point defined by pos and dir into the CTP and returns
+    // it in the form of a trajectory point. The TP Pos[0] is set to a negative
+    // number if the point has an invalid wire position but doesn't return an
+    // error if the position is on a dead wire. The projection of the direction
+    // vector in CTP is stored in tp.Delta.
     TrajPoint tp;
     tp.Pos = {{-1, 0}};
     tp.Dir = {{0, 1}};
@@ -4057,7 +4069,7 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
     tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
-    tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
+    tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
 
     // now find the direction if dir is defined
     if (dir[0] == 0 && dir[1] == 0 && dir[2] == 0) return tp;
@@ -4073,8 +4085,8 @@ namespace tca {
     ori2[0] = tcc.geom->WireCoordinate(ori3[1], ori3[2], planeID);
     pos2[0] = tcc.geom->WireCoordinate(pos3[1], pos3[2], planeID);
     // the time coordinates
-    ori2[1] = tcc.detprop->ConvertXToTicks(ori3[0], planeID) * tcc.unitsPerTick;
-    pos2[1] = tcc.detprop->ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
+    ori2[1] = detProp.ConvertXToTicks(ori3[0], planeID) * tcc.unitsPerTick;
+    pos2[1] = detProp.ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
 
     dir2[0] = pos2[0] - ori2[0];
     dir2[1] = pos2[1] - ori2[1];
@@ -4530,7 +4542,9 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  FillWireHitRange(TCSlice& slc)
+  FillWireHitRange(detinfo::DetectorClocksData const& clockData,
+                   detinfo::DetectorPropertiesData const& detProp,
+                   TCSlice& slc)
   {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg.
     // Returns false if there was a serious error
@@ -4576,9 +4590,8 @@ namespace tca {
 
     raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel(0, 0, (int)tpc, (int)cstat);
     tcc.wirePitch = tcc.geom->WirePitch(tcc.geom->View(channel));
-    float tickToDist =
-      tcc.detprop->DriftVelocity(tcc.detprop->Efield(), tcc.detprop->Temperature());
-    tickToDist *= 1.e-3 * tcc.detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+    float tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
+    tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
     tcc.unitsPerTick = tickToDist / tcc.wirePitch;
     for (unsigned short plane = 0; plane < nplanes; ++plane) {
       slc.firstWire[plane] = UINT_MAX;
@@ -4586,7 +4599,7 @@ namespace tca {
       slc.nWires[plane] = tcc.geom->Nwires(plane, tpc, cstat);
       slc.wireHitRange[plane].resize(slc.nWires[plane], flag);
       tcc.maxPos0[plane] = (float)slc.nWires[plane] - 0.5;
-      tcc.maxPos1[plane] = (float)tcc.detprop->NumberTimeSamples() * tcc.unitsPerTick;
+      tcc.maxPos1[plane] = (float)detProp.NumberTimeSamples() * tcc.unitsPerTick;
     }
 
     unsigned int lastWire = 0, lastPlane = 0;
@@ -5513,7 +5526,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  PrintAll(std::string someText)
+  PrintAll(detinfo::DetectorPropertiesData const& detProp, std::string someText)
   {
     // print everything in all slices
     bool prt3V = false;
@@ -5521,7 +5534,6 @@ namespace tca {
     bool prtT = false;
     bool prtP = false;
     bool prtS3 = false;
-    //bool prtS2 = false;
     for (size_t isl = 0; isl < slices.size(); ++isl) {
       if (debug.Slice >= 0 && int(isl) != debug.Slice) continue;
       auto& slc = slices[isl];
@@ -5543,7 +5555,7 @@ namespace tca {
         auto& slc = slices[isl];
         if (slc.showers.empty()) continue;
         for (auto& ss3 : slc.showers)
-          Print3S(someText, myprt, ss3);
+          Print3S(detProp, someText, myprt, ss3);
       } // slc
     }   // prtS3
     if (prtP) {
@@ -5557,19 +5569,25 @@ namespace tca {
       } // slc
     }   // prtS3
     if (prt3V) {
-      // print out 3D vertices
       bool printHeader = true;
+      myprt << "****** 3D vertices "
+               "******************************************__2DVtx_UID__*******\n";
+      myprt << "     prodID    Cstat TPC     X       Y       Z    XEr  YEr  "
+               "ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
+      myprt << " ___________2D_Pos____________ _____Tj UIDs________\n";
       for (size_t isl = 0; isl < slices.size(); ++isl) {
         if (debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if (slc.vtx3s.empty()) continue;
         for (auto& vx3 : slc.vtx3s)
-          Print3V(someText, myprt, vx3, printHeader);
+          Print3V(detProp, someText, myprt, vx3, printHeader);
       } // slc
     }   // prt3V
     if (prt2V) {
-      // print out 2D vertices
       bool printHeader = true;
+      myprt << "************ 2D vertices ************\n";
+      myprt << "     prodID      CTP  wire  err   tick   err  ChiDOF  NTj Pass "
+               " Topo ChgFrac Score  v3D Tj UIDs\n";
       for (size_t isl = 0; isl < slices.size(); ++isl) {
         if (debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
@@ -5678,7 +5696,11 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3, bool& printHeader)
+  Print3V(detinfo::DetectorPropertiesData const& detProp,
+          std::string someText,
+          mf::LogVerbatim& myprt,
+          Vtx3Store& vx3,
+          bool& printHeader)
   {
     // print a 3D vertex on one line
     if (vx3.ID <= 0) return;
@@ -5723,7 +5745,7 @@ namespace tca {
     myprt << std::right << std::setw(5) << nTruMatch;
     Point2_t pos;
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      PosInPlane(slc, vx3, plane, pos);
+      PosInPlane(detProp, slc, vx3, plane, pos);
       myprt << " " << PrintPos(slc, pos);
     } // plane
     if (vx3.Wire == -2) {
@@ -5802,7 +5824,10 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3)
+  Print3S(detinfo::DetectorPropertiesData const& detProp,
+          std::string someText,
+          mf::LogVerbatim& myprt,
+          ShowerStruct3D& ss3)
   {
     if (ss3.ID <= 0) return;
     auto sIndx = GetSliceIndex("3S", ss3.UID);
@@ -5822,7 +5847,7 @@ namespace tca {
     std::vector<float> projInPlane(slc.nPlanes);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-      auto tp = MakeBareTP(slc, ss3.ChgPos, ss3.Dir, inCTP);
+      auto tp = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, inCTP);
       myprt << " " << PrintPos(slc, tp.Pos);
       projInPlane[plane] = tp.Delta;
     } // plane
@@ -5932,7 +5957,8 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  PrintAllTraj(std::string someText,
+  PrintAllTraj(detinfo::DetectorPropertiesData const& detProp,
+               std::string someText,
                TCSlice& slc,
                unsigned short itj,
                unsigned short ipt,
@@ -5982,7 +6008,7 @@ namespace tca {
           myprt << std::right << std::setw(5) << nTruMatch;
           Point2_t pos;
           for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-            PosInPlane(slc, vx3, plane, pos);
+            PosInPlane(detProp, slc, vx3, plane, pos);
             myprt << " " << PrintPos(slc, pos);
           } // plane
           if (vx3.Wire == -2) {

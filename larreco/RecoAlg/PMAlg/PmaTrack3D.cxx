@@ -20,69 +20,14 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-pma::Track3D::Track3D(void)
-  : fMaxHitsPerSeg(70)
-  , fPenaltyFactor(1.0F)
-  , fMaxSegStopFactor(8.0F)
-  ,
+#include <array>
 
-  fSegStopValue(2)
-  , fMinSegStop(2)
-  , fMaxSegStop(2)
-  , fSegStopFactor(0.2F)
-  , fPenaltyValue(0.1F)
-  , fEndSegWeight(0.05F)
-  , fHitsRadius(1.0F)
-  ,
+#include "range/v3/algorithm.hpp"
+#include "range/v3/view.hpp"
 
-  fT0(0.0)
-  , fT0Flag(false)
-  ,
+pma::Track3D::Track3D() = default;
 
-  fTag(pma::Track3D::kNotTagged)
-{}
-
-pma::Track3D::Track3D(const Track3D& src)
-  : fMaxHitsPerSeg(src.fMaxHitsPerSeg)
-  , fPenaltyFactor(src.fPenaltyFactor)
-  , fMaxSegStopFactor(src.fMaxSegStopFactor)
-  ,
-
-  fSegStopValue(src.fSegStopValue)
-  , fMinSegStop(src.fMinSegStop)
-  , fMaxSegStop(src.fMaxSegStop)
-  , fSegStopFactor(src.fSegStopFactor)
-  , fPenaltyValue(src.fPenaltyValue)
-  , fEndSegWeight(src.fEndSegWeight)
-  , fHitsRadius(src.fHitsRadius)
-  ,
-
-  fT0(src.fT0)
-  , fT0Flag(src.fT0Flag)
-  ,
-
-  fTag(src.fTag)
-{
-  fHits.reserve(src.fHits.size());
-  for (auto const& hit : src.fHits) {
-    pma::Hit3D* h3d = new pma::Hit3D(*hit);
-    h3d->fParent = this;
-    fHits.push_back(h3d);
-  }
-
-  fNodes.reserve(src.fNodes.size());
-  for (auto const& node : src.fNodes)
-    fNodes.push_back(new pma::Node3D(
-      node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex(), node->GetDriftShift()));
-
-  for (auto const& point : src.fAssignedPoints)
-    fAssignedPoints.push_back(new TVector3(*point));
-
-  RebuildSegments();
-  MakeProjection();
-}
-
-pma::Track3D::~Track3D(void)
+pma::Track3D::~Track3D()
 {
   for (size_t i = 0; i < fHits.size(); i++)
     delete fHits[i];
@@ -96,7 +41,7 @@ pma::Track3D::~Track3D(void)
 }
 
 bool
-pma::Track3D::Initialize(float initEndSegW)
+pma::Track3D::Initialize(detinfo::DetectorPropertiesData const& detProp, float initEndSegW)
 {
   if (!HasTwoViews(2)) {
     mf::LogError("pma::Track3D") << "Need min. 2 hits per view, at least two views.";
@@ -118,15 +63,13 @@ pma::Track3D::Initialize(float initEndSegW)
   // single tpc, many tpc's are ok, but need to be handled from ProjectionMatchingAlg::buildMultiTPCTrack()
   int tpc = tpcs.front();
 
-  if (InitFromRefPoints(tpc, cryo))
+  if (InitFromRefPoints(detProp, tpc, cryo))
     mf::LogVerbatim("pma::Track3D") << "Track initialized with 3D reference points.";
+  else if (InitFromHits(detProp, tpc, cryo, initEndSegW))
+    mf::LogVerbatim("pma::Track3D") << "Track initialized with hit positions.";
   else {
-    if (InitFromHits(tpc, cryo, initEndSegW))
-      mf::LogVerbatim("pma::Track3D") << "Track initialized with hit positions.";
-    else {
-      InitFromMiddle(tpc, cryo);
-      mf::LogVerbatim("pma::Track3D") << "Track initialized in the module center.";
-    }
+    InitFromMiddle(detProp, tpc, cryo);
+    mf::LogVerbatim("pma::Track3D") << "Track initialized in the module center.";
   }
 
   UpdateHitsRadius();
@@ -134,7 +77,7 @@ pma::Track3D::Initialize(float initEndSegW)
 }
 
 void
-pma::Track3D::ClearNodes(void)
+pma::Track3D::ClearNodes()
 {
   for (size_t i = 0; i < fNodes.size(); i++)
     delete fNodes[i];
@@ -142,9 +85,11 @@ pma::Track3D::ClearNodes(void)
 }
 
 bool
-pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
+pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
+                           int tpc,
+                           int cryo,
+                           float initEndSegW)
 {
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry const> geom;
 
   float wtmp = fEndSegWeight;
@@ -152,20 +97,16 @@ pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 
   // endpoints for the first combination:
   TVector3 v3d_1(0., 0., 0.), v3d_2(0., 0., 0.);
-  double x, y, z;
 
-  pma::Hit3D* hit0_a = front();
-  pma::Hit3D* hit0_b = 0;
+  assert(!fHits.empty());
 
-  pma::Hit3D* hit1_a = front();
-  pma::Hit3D* hit1_b = 0;
+  pma::Hit3D* hit0_a = fHits.front();
+  pma::Hit3D* hit1_a = fHits.front();
 
-  pma::Hit3D* hit = 0;
-  float minX = detprop->ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo);
-  float maxX = detprop->ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo);
-  for (size_t i = 1; i < size(); i++) {
-    hit = fHits[i];
-    x = detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
+  float minX = detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo);
+  float maxX = detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo);
+  for (auto hit : fHits) {
+    double const x = detProp.ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
     if (x < minX) {
       minX = x;
       hit0_a = hit;
@@ -176,11 +117,13 @@ pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
     }
   }
 
-  float diff, minDiff0 = 5000, minDiff1 = 5000;
-  for (size_t i = 0; i < size(); i++) {
-    hit = fHits[i];
-    x = detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
-    diff = fabs(x - minX);
+  pma::Hit3D* hit0_b = nullptr;
+  pma::Hit3D* hit1_b = nullptr;
+
+  float minDiff0 = 5000, minDiff1 = 5000;
+  for (auto hit : fHits) {
+    double const x = detProp.ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
+    double diff = fabs(x - minX);
     if ((diff < minDiff0) && (hit->View2D() != hit0_a->View2D())) {
       minDiff0 = diff;
       hit0_b = hit;
@@ -193,25 +136,26 @@ pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
   }
 
   if (hit0_a && hit0_b && hit1_a && hit1_b) {
-    x = 0.5 * (detprop->ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo) +
-               detprop->ConvertTicksToX(hit0_b->PeakTime(), hit0_b->View2D(), tpc, cryo));
+    double x = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo) +
+                      detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b->View2D(), tpc, cryo));
+    double y, z;
     geom->IntersectionPoint(
       hit0_a->Wire(), hit0_b->Wire(), hit0_a->View2D(), hit0_b->View2D(), cryo, tpc, y, z);
     v3d_1.SetXYZ(x, y, z);
 
-    x = 0.5 * (detprop->ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo) +
-               detprop->ConvertTicksToX(hit1_b->PeakTime(), hit1_b->View2D(), tpc, cryo));
+    x = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo) +
+               detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b->View2D(), tpc, cryo));
     geom->IntersectionPoint(
       hit1_a->Wire(), hit1_b->Wire(), hit1_a->View2D(), hit1_b->View2D(), cryo, tpc, y, z);
     v3d_2.SetXYZ(x, y, z);
 
     ClearNodes();
-    AddNode(v3d_1, tpc, cryo);
-    AddNode(v3d_2, tpc, cryo);
+    AddNode(detProp, v3d_1, tpc, cryo);
+    AddNode(detProp, v3d_2, tpc, cryo);
 
     MakeProjection();
     UpdateHitsRadius();
-    Optimize(0, 0.01F, false, true, 100);
+    Optimize(detProp, 0, 0.01F, false, true, 100);
     SelectAllHits();
   }
   else {
@@ -231,7 +175,7 @@ pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 }
 
 bool
-pma::Track3D::InitFromRefPoints(int tpc, int cryo)
+pma::Track3D::InitFromRefPoints(detinfo::DetectorPropertiesData const& detProp, int tpc, int cryo)
 {
   if (fAssignedPoints.size() < 2) return false;
 
@@ -304,7 +248,7 @@ pma::Track3D::InitFromRefPoints(int tpc, int cryo)
   v2 += mean;
   std::sort(fAssignedPoints.begin(), fAssignedPoints.end(), pma::bSegmentProjLess(v1, v2));
   for (size_t i = 0; i < fAssignedPoints.size(); i++) {
-    AddNode(*(fAssignedPoints[i]), tpc, cryo);
+    AddNode(detProp, *(fAssignedPoints[i]), tpc, cryo);
   }
 
   RebuildSegments();
@@ -312,14 +256,14 @@ pma::Track3D::InitFromRefPoints(int tpc, int cryo)
 
   if (size()) UpdateHitsRadius();
 
-  Optimize(0, 0.01F, false, true, 100);
+  Optimize(detProp, 0, 0.01F, false, true, 100);
   SelectAllHits();
 
   return true;
 }
 
 void
-pma::Track3D::InitFromMiddle(int tpc, int cryo)
+pma::Track3D::InitFromMiddle(detinfo::DetectorPropertiesData const& detProp, int tpc, int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -337,13 +281,13 @@ pma::Track3D::InitFromMiddle(int tpc, int cryo)
   v3d_2 -= shift;
 
   ClearNodes();
-  AddNode(v3d_1, tpc, cryo);
-  AddNode(v3d_2, tpc, cryo);
+  AddNode(detProp, v3d_1, tpc, cryo);
+  AddNode(detProp, v3d_2, tpc, cryo);
 
   MakeProjection();
   UpdateHitsRadius();
 
-  Optimize(0, 0.01F);
+  Optimize(detProp, 0, 0.01F);
 }
 
 int
@@ -371,12 +315,13 @@ pma::Track3D::release_at(size_t index)
 }
 
 bool
-pma::Track3D::push_back(const art::Ptr<recob::Hit>& hit)
+pma::Track3D::push_back(const detinfo::DetectorPropertiesData& detProp,
+                        const art::Ptr<recob::Hit>& hit)
 {
   for (auto const& trk_hit : fHits) {
     if (trk_hit->fHit == hit) return false;
   }
-  pma::Hit3D* h3d = new pma::Hit3D(hit);
+  pma::Hit3D* h3d = new pma::Hit3D(detProp, hit);
   h3d->fParent = this;
   fHits.push_back(h3d);
   return true;
@@ -422,11 +367,12 @@ pma::Track3D::GetDirection3D(size_t index) const
 }
 
 void
-pma::Track3D::AddHits(const std::vector<art::Ptr<recob::Hit>>& hits)
+pma::Track3D::AddHits(detinfo::DetectorPropertiesData const& detProp,
+                      const std::vector<art::Ptr<recob::Hit>>& hits)
 {
   fHits.reserve(fHits.size() + hits.size());
   for (auto const& hit : hits)
-    push_back(hit);
+    push_back(detProp, hit);
 }
 
 void
@@ -443,8 +389,8 @@ unsigned int
 pma::Track3D::NHits(unsigned int view) const
 {
   unsigned int n = 0;
-  for (size_t i = 0; i < fHits.size(); i++) {
-    if (fHits[i]->View2D() == view) n++;
+  for (auto hit : fHits) {
+    if (hit->View2D() == view) n++;
   }
   return n;
 }
@@ -453,33 +399,32 @@ unsigned int
 pma::Track3D::NEnabledHits(unsigned int view) const
 {
   unsigned int n = 0;
-  for (size_t i = 0; i < size(); i++) {
-    pma::Hit3D* hit = fHits[i];
+  for (auto hit : fHits) {
     if (hit->IsEnabled() && ((view == geo::kUnknown) || (view == hit->View2D()))) n++;
   }
   return n;
 }
 
 bool
-pma::Track3D::HasTwoViews(size_t nmin) const
+pma::Track3D::HasTwoViews(size_t const nmin) const
 {
   unsigned int nviews = 0;
   if (NHits(geo::kU) >= nmin) nviews++;
   if (NHits(geo::kV) >= nmin) nviews++;
   if (NHits(geo::kZ) >= nmin) nviews++;
-  return (nviews > 1);
+  return nviews > 1;
 }
 
 std::vector<unsigned int>
-pma::Track3D::TPCs(void) const
+pma::Track3D::TPCs() const
 {
   std::vector<unsigned int> tpc_idxs;
-  for (size_t i = 0; i < size(); i++) {
-    unsigned int tpc = fHits[i]->TPC();
+  for (auto hit : fHits) {
+    unsigned int tpc = hit->TPC();
 
     bool found = false;
-    for (size_t j = 0; j < tpc_idxs.size(); j++)
-      if (tpc_idxs[j] == tpc) {
+    for (unsigned int const tpc_idx : tpc_idxs)
+      if (tpc_idx == tpc) {
         found = true;
         break;
       }
@@ -490,11 +435,11 @@ pma::Track3D::TPCs(void) const
 }
 
 std::vector<unsigned int>
-pma::Track3D::Cryos(void) const
+pma::Track3D::Cryos() const
 {
   std::vector<unsigned int> cryo_idxs;
-  for (size_t i = 0; i < size(); i++) {
-    unsigned int cryo = fHits[i]->Cryo();
+  for (auto hit : fHits) {
+    unsigned int cryo = hit->Cryo();
 
     bool found = false;
     for (size_t j = 0; j < cryo_idxs.size(); j++)
@@ -509,7 +454,10 @@ pma::Track3D::Cryos(void) const
 }
 
 std::pair<TVector2, TVector2>
-pma::Track3D::WireDriftRange(unsigned int view, unsigned int tpc, unsigned int cryo) const
+pma::Track3D::WireDriftRange(detinfo::DetectorPropertiesData const& detProp,
+                             unsigned int view,
+                             unsigned int tpc,
+                             unsigned int cryo) const
 {
   std::pair<TVector2, TVector2> range(TVector2(0., 0.), TVector2(0., 0.));
 
@@ -526,10 +474,10 @@ pma::Track3D::WireDriftRange(unsigned int view, unsigned int tpc, unsigned int c
     if (n1 == fNodes.size()) n1--;
 
     TVector2 p0 = fNodes[n0]->Projection2D(view);
-    p0 = pma::CmToWireDrift(p0.X(), p0.Y(), view, tpc, cryo);
+    p0 = pma::CmToWireDrift(detProp, p0.X(), p0.Y(), view, tpc, cryo);
 
     TVector2 p1 = fNodes[n1]->Projection2D(view);
-    p1 = pma::CmToWireDrift(p1.X(), p1.Y(), view, tpc, cryo);
+    p1 = pma::CmToWireDrift(detProp, p1.X(), p1.Y(), view, tpc, cryo);
 
     if (p0.X() > p1.X()) {
       double tmp = p0.X();
@@ -549,7 +497,8 @@ pma::Track3D::WireDriftRange(unsigned int view, unsigned int tpc, unsigned int c
 }
 
 bool
-pma::Track3D::Flip(std::vector<pma::Track3D*>& allTracks)
+pma::Track3D::Flip(detinfo::DetectorPropertiesData const& detProp,
+                   std::vector<pma::Track3D*>& allTracks)
 {
   if (fNodes.size() < 2) { return true; }
 
@@ -564,10 +513,10 @@ pma::Track3D::Flip(std::vector<pma::Track3D*>& allTracks)
     {
       int idx = t->index_of(n);
       if (idx >= 0) {
-        pma::Track3D* u = t->Split(idx, false); // u is in front of t
+        pma::Track3D* u = t->Split(detProp, idx, false); // u is in front of t
         if (u) {
           allTracks.push_back(u);
-          if (u->Flip(allTracks)) {
+          if (u->Flip(detProp, allTracks)) {
             InternalFlip(toSort);
             toSort.push_back(this);
           }
@@ -587,7 +536,7 @@ pma::Track3D::Flip(std::vector<pma::Track3D*>& allTracks)
     }
     else // flip root
     {
-      if (t->Flip(allTracks)) // all ok, so can flip this track
+      if (t->Flip(detProp, allTracks)) // all ok, so can flip this track
       {
         InternalFlip(toSort);
         toSort.push_back(this);
@@ -647,7 +596,7 @@ pma::Track3D::InternalFlip(std::vector<pma::Track3D*>& toSort)
 }
 
 void
-pma::Track3D::Flip(void)
+pma::Track3D::Flip()
 {
   std::vector<pma::Track3D*> toSort;
   InternalFlip(toSort);
@@ -668,7 +617,7 @@ pma::Track3D::Flip(void)
 }
 
 bool
-pma::Track3D::CanFlip(void) const
+pma::Track3D::CanFlip() const
 {
   if (!fNodes.size()) { return false; }
 
@@ -764,7 +713,8 @@ pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
 }
 
 bool
-pma::Track3D::AutoFlip(std::vector<pma::Track3D*>& allTracks,
+pma::Track3D::AutoFlip(detinfo::DetectorPropertiesData const& detProp,
+                       std::vector<pma::Track3D*>& allTracks,
                        pma::Track3D::EDirection dir,
                        double thr,
                        unsigned int n)
@@ -835,18 +785,20 @@ pma::Track3D::AutoFlip(std::vector<pma::Track3D*>& allTracks,
   if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart)) {
     mf::LogVerbatim("pma::Track3D")
       << "Auto-flip fired (1), thr: " << (1.0 + thr) << ", value: " << dEdxStart / dEdxStop;
-    done = Flip(allTracks); // particle stops at the end of the track
+    done = Flip(detProp, allTracks); // particle stops at the end of the track
   }
   if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart)) {
     mf::LogVerbatim("pma::Track3D")
       << "Auto-flip fired (2), thr: " << (1.0 + thr) << ", value: " << dEdxStop / dEdxStart;
-    done = Flip(allTracks); // particle stops at the front of the track
+    done = Flip(detProp, allTracks); // particle stops at the front of the track
   }
   return done;
 }
 
 double
-pma::Track3D::TestHitsMse(const std::vector<art::Ptr<recob::Hit>>& hits, bool normalized) const
+pma::Track3D::TestHitsMse(const detinfo::DetectorPropertiesData& detProp,
+                          const std::vector<art::Ptr<recob::Hit>>& hits,
+                          bool normalized) const
 {
   if (hits.empty()) {
     mf::LogWarning("pma::Track3D") << "TestHitsMse(): Empty cluster.";
@@ -861,7 +813,7 @@ pma::Track3D::TestHitsMse(const std::vector<art::Ptr<recob::Hit>>& hits, bool no
     unsigned int wire = h->WireID().Wire;
     float drift = h->PeakTime();
 
-    mse += Dist2(pma::WireDriftToCm(wire, drift, view, tpc, cryo), view, tpc, cryo);
+    mse += Dist2(pma::WireDriftToCm(detProp, wire, drift, view, tpc, cryo), view, tpc, cryo);
   }
   if (normalized)
     return mse / hits.size();
@@ -870,7 +822,9 @@ pma::Track3D::TestHitsMse(const std::vector<art::Ptr<recob::Hit>>& hits, bool no
 }
 
 unsigned int
-pma::Track3D::TestHits(const std::vector<art::Ptr<recob::Hit>>& hits, double dist) const
+pma::Track3D::TestHits(detinfo::DetectorPropertiesData const& detProp,
+                       const std::vector<art::Ptr<recob::Hit>>& hits,
+                       double dist) const
 {
   if (hits.empty()) {
     mf::LogWarning("pma::Track3D") << "TestHits(): Empty cluster.";
@@ -881,9 +835,7 @@ pma::Track3D::TestHits(const std::vector<art::Ptr<recob::Hit>>& hits, double dis
   double tst, d2 = dist * dist;
   unsigned int nhits = 0;
   for (auto const& h : hits)
-    if (GetUnconstrainedProj3D(h, p3d, tst)) {
-      if (tst < d2) nhits++;
-    }
+    if (GetUnconstrainedProj3D(detProp, h, p3d, tst) && tst < d2) ++nhits;
 
   return nhits;
 }
@@ -891,18 +843,19 @@ pma::Track3D::TestHits(const std::vector<art::Ptr<recob::Hit>>& hits, double dis
 double
 pma::Track3D::Length(size_t start, size_t stop, size_t step) const
 {
-  if (size() < 2) return 0.0;
+  auto const nHits = size();
+  if (nHits < 2) return 0.0;
 
   if (start > stop) {
     size_t tmp = stop;
     stop = start;
     start = tmp;
   }
-  if (start >= size() - 1) return 0.0;
-  if (stop >= size()) stop = size() - 1;
+  if (start >= nHits - 1) return 0.0;
+  if (stop >= nHits) stop = nHits - 1;
 
   double result = 0.0;
-  pma::Hit3D *h1 = 0, *h0 = fHits[start];
+  pma::Hit3D *h1 = nullptr, *h0 = fHits[start];
 
   if (!step) step = 1;
   size_t i = start + step;
@@ -922,7 +875,7 @@ pma::Track3D::Length(size_t start, size_t stop, size_t step) const
 int
 pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
 {
-  pma::Hit3D* hit = 0;
+  pma::Hit3D* hit = nullptr;
   if (index < -1) index = -1;
   while (++index < (int)size()) // look for the next index of hit from the view
   {
@@ -940,7 +893,7 @@ pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
 int
 pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
 {
-  pma::Hit3D* hit = 0;
+  pma::Hit3D* hit = nullptr;
   if (index > (int)size()) index = (int)size();
   while (--index >= 0) // look for the prev index of hit from the view
   {
@@ -961,7 +914,7 @@ pma::Track3D::HitDxByView(size_t index,
                           pma::Track3D::EDirection dir,
                           bool secondDir) const
 {
-  pma::Hit3D* nexthit = 0;
+  pma::Hit3D* nexthit = nullptr;
   pma::Hit3D* hit = fHits[index];
 
   if (hit->View2D() != view) {
@@ -1037,7 +990,7 @@ pma::Track3D::HitDxByView(size_t index, unsigned int view) const
 pma::Segment3D*
 pma::Track3D::NextSegment(pma::Node3D* vtx) const
 {
-  pma::Segment3D* seg = 0;
+  pma::Segment3D* seg = nullptr;
   unsigned int nCount = vtx->NextCount();
   unsigned int k = 0;
   while (k < nCount) {
@@ -1052,10 +1005,10 @@ pma::Segment3D*
 pma::Track3D::PrevSegment(pma::Node3D* vtx) const
 {
   if (vtx->Prev()) {
-    pma::Segment3D* seg = static_cast<pma::Segment3D*>(vtx->Prev());
+    auto seg = static_cast<pma::Segment3D*>(vtx->Prev());
     if (seg->Parent() == this) return seg;
   }
-  return 0;
+  return nullptr;
 }
 
 double
@@ -1070,7 +1023,7 @@ pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
 
   size_t step = 1;
 
-  pma::Hit3D* hit = 0;
+  pma::Hit3D* hit = nullptr;
 
   double rv, dr, dR, dq, dEq, qSkipped = 0.0;
 
@@ -1109,9 +1062,10 @@ pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
 
     dEq = hit->SummedADC(); // [now it is ADC sum]
 
-    dr =
-      HitDxByView(j, view, pma::Track3D::kForward); // protection against hits on the same position
-    rv = HitDxByView(j, view);                      // dx seen by j-th hit
+    dr = HitDxByView(j,
+                     view,
+                     pma::Track3D::kForward); // protection against hits on the same position
+    rv = HitDxByView(j, view);                // dx seen by j-th hit
     fHits[j]->fDx = rv;
     dR = rv;
 
@@ -1170,19 +1124,23 @@ pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
 }
 
 std::vector<float>
-pma::Track3D::DriftsOfWireIntersection(unsigned int wire, unsigned int view) const
+pma::Track3D::DriftsOfWireIntersection(detinfo::DetectorPropertiesData const& detProp,
+                                       unsigned int wire,
+                                       unsigned int view) const
 {
   std::vector<float> drifts;
   for (size_t i = 0; i < fNodes.size() - 1; i++) {
     int tpc = fNodes[i]->TPC(), cryo = fNodes[i]->Cryo();
     if ((tpc != fNodes[i + 1]->TPC()) || (cryo != fNodes[i + 1]->Cryo())) continue;
 
-    TVector2 p0 = pma::CmToWireDrift(fNodes[i]->Projection2D(view).X(),
+    TVector2 p0 = pma::CmToWireDrift(detProp,
+                                     fNodes[i]->Projection2D(view).X(),
                                      fNodes[i]->Projection2D(view).Y(),
                                      view,
                                      fNodes[i]->TPC(),
                                      fNodes[i]->Cryo());
-    TVector2 p1 = pma::CmToWireDrift(fNodes[i + 1]->Projection2D(view).X(),
+    TVector2 p1 = pma::CmToWireDrift(detProp,
+                                     fNodes[i + 1]->Projection2D(view).X(),
                                      fNodes[i + 1]->Projection2D(view).Y(),
                                      view,
                                      fNodes[i + 1]->TPC(),
@@ -1198,13 +1156,13 @@ pma::Track3D::DriftsOfWireIntersection(unsigned int wire, unsigned int view) con
 }
 
 size_t
-pma::Track3D::CompleteMissingWires(unsigned int view)
+pma::Track3D::CompleteMissingWires(detinfo::DetectorPropertiesData const& detProp,
+                                   unsigned int view)
 {
   int dPrev, dw, w, wx, wPrev, i = NextHit(-1, view);
-  //TVector2 projPoint;
 
-  pma::Hit3D* hitPrev = 0;
-  pma::Hit3D* hit = 0;
+  pma::Hit3D* hitPrev = nullptr;
+  pma::Hit3D* hit = nullptr;
 
   std::vector<pma::Hit3D*> missHits;
 
@@ -1212,14 +1170,7 @@ pma::Track3D::CompleteMissingWires(unsigned int view)
     hitPrev = hit;
     hit = fHits[i];
 
-    //projPoint = pma::CmToWireDrift(
-    //	hit->Projection2D().X(), hit->Projection2D().Y(),
-    //	hit->View2D(), hit->TPC(), hit->Cryo());
-
-    if (hit->View2D() == view) // &&
-    //(projPoint.Y() >= hit->Hit2DPtr()->StartTick()-1) && // cannot use Hit2DPtr here
-    //(projPoint.Y() <= hit->Hit2DPtr()->EndTick()+1))
-    {
+    if (hit->View2D() == view) {
       w = hit->Wire();
       if (hitPrev) {
         wPrev = hitPrev->Wire();
@@ -1234,7 +1185,7 @@ pma::Track3D::CompleteMissingWires(unsigned int view)
           while (wx != w) {
             int peakTime = 0;
             unsigned int iWire = wx;
-            std::vector<float> drifts = DriftsOfWireIntersection(wx, view);
+            std::vector<float> drifts = DriftsOfWireIntersection(detProp, wx, view);
             if (drifts.size()) {
               peakTime = drifts[0];
               for (size_t d = 1; d < drifts.size(); d++)
@@ -1245,7 +1196,7 @@ pma::Track3D::CompleteMissingWires(unsigned int view)
               break;
             }
             pma::Hit3D* hmiss =
-              new pma::Hit3D(iWire, view, hit->TPC(), hit->Cryo(), peakTime, 1.0, 1.0);
+              new pma::Hit3D(detProp, iWire, view, hit->TPC(), hit->Cryo(), peakTime, 1.0, 1.0);
             missHits.push_back(hmiss);
             wx += dw;
             k++;
@@ -1266,7 +1217,6 @@ pma::Track3D::CompleteMissingWires(unsigned int view)
 
   if (missHits.size()) {
     for (size_t hi = 0; hi < missHits.size(); hi++) {
-      //mf::LogVerbatim("pma::Track3D") << "Fill missing hit on wire " << missHits[hi]->Wire();
       push_back(missHits[hi]);
     }
 
@@ -1285,10 +1235,10 @@ pma::Track3D::AddNode(pma::Node3D* node)
 }
 
 bool
-pma::Track3D::AddNode(void)
+pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp)
 {
   pma::Segment3D* seg;
-  pma::Segment3D* maxSeg = 0;
+  pma::Segment3D* maxSeg = nullptr;
 
   size_t si = 0;
   while (si < fSegments.size()) {
@@ -1418,14 +1368,13 @@ pma::Track3D::AddNode(void)
     unsigned int tpc = maxSeg->Hit(i0).TPC();
     unsigned int cryo = maxSeg->Hit(i0).Cryo();
 
-    pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5,
+    pma::Node3D* p = new pma::Node3D(detProp,
+                                     (maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5,
                                      tpc,
                                      cryo,
                                      false,
                                      fNodes[vIndex]->GetDriftShift());
 
-    //mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
-    //	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
     fNodes.insert(fNodes.begin() + vIndex, p);
 
     maxSeg->AddNext(fNodes[vIndex]);
@@ -1440,15 +1389,17 @@ pma::Track3D::AddNode(void)
 }
 
 void
-pma::Track3D::InsertNode(TVector3 const& p3d, size_t at_idx, unsigned int tpc, unsigned int cryo)
+pma::Track3D::InsertNode(detinfo::DetectorPropertiesData const& detProp,
+                         TVector3 const& p3d,
+                         size_t at_idx,
+                         unsigned int tpc,
+                         unsigned int cryo)
 {
-  //std::cout << " insert after " << at_idx << " in " << fNodes.size() << std::endl;
-  pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo, false, fNodes[at_idx]->GetDriftShift());
+  pma::Node3D* vtx =
+    new pma::Node3D(detProp, p3d, tpc, cryo, false, fNodes[at_idx]->GetDriftShift());
   fNodes.insert(fNodes.begin() + at_idx, vtx);
-  //std::cout << " inserted " << std::endl;
 
   if (fNodes.size() > 1) RebuildSegments();
-  //std::cout << " rebuild ok " << std::endl;
 }
 
 bool
@@ -1468,11 +1419,13 @@ pma::Track3D::RemoveNode(size_t idx)
 }
 
 pma::Track3D*
-pma::Track3D::Split(size_t idx, bool try_start_at_idx)
+pma::Track3D::Split(detinfo::DetectorPropertiesData const& detProp,
+                    size_t idx,
+                    bool try_start_at_idx)
 {
   if (!idx || (idx + 1 >= fNodes.size())) return 0;
 
-  pma::Node3D* n = 0;
+  pma::Node3D* n = nullptr;
   pma::Track3D* t0 = new pma::Track3D();
   t0->fT0 = fT0;
   t0->fT0Flag = fT0Flag;
@@ -1500,7 +1453,7 @@ pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 
   n = fNodes.front();
   t0->fNodes.push_back(
-    new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo(), false, n->GetDriftShift()));
+    new pma::Node3D(detProp, n->Point3D(), n->TPC(), n->Cryo(), false, n->GetDriftShift()));
   t0->RebuildSegments();
   RebuildSegments();
 
@@ -1564,20 +1517,13 @@ pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
   pma::Track3D* rootThis = GetRoot();
   if (vStart->Prev()) {
     pma::Track3D* rootPrev = static_cast<pma::Segment3D*>(vStart->Prev())->Parent()->GetRoot();
-    if (rootPrev->IsAttachedTo(rootThis)) {
-      //std::cout << "*** loop with prev ***" << std::endl;
-      return false;
-    }
+    if (rootPrev->IsAttachedTo(rootThis)) { return false; }
   }
   else if (vStart->NextCount()) {
     pma::Track3D* rootNext = static_cast<pma::Segment3D*>(vStart->Next(0))->Parent()->GetRoot();
-    if (rootNext->IsAttachedTo(rootThis)) {
-      //std::cout << "*** loop with next ***" << std::endl;
-      return false;
-    }
+    if (rootNext->IsAttachedTo(rootThis)) { return false; }
   }
   else {
-    //std::cout << "*** isolated vertex ***" << std::endl;
     return false;
   }
 
@@ -1592,7 +1538,6 @@ pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
        pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
       (fNodes.back()->NextCount() == 0)) {
     mf::LogError("pma::Track3D") << "Flip, endpoint closer to vStart.";
-    //std::cout << "Flip, endpoint closer to vStart." << std::endl;
     Flip();
   }
 
@@ -1624,28 +1569,20 @@ pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
   if (vtx->Prev()) {
     pma::Segment3D* segPrev = static_cast<pma::Segment3D*>(vtx->Prev());
     pma::Track3D* tpPrev = segPrev->Parent();
-    if (tpPrev->NextSegment(vtx)) {
-      //std::cout << "Do not reattach from vtx inner in another track." << std::endl;
-      return false;
-    }
+    if (tpPrev->NextSegment(vtx)) { return false; }
     else if (tpPrev->CanFlip()) {
-      //std::cout << "Flip local." << std::endl;
       tpPrev->Flip();
     } // flip in local vtx, no problem
     else {
       if (vStart->Prev()) {
         pma::Segment3D* segNew = static_cast<pma::Segment3D*>(vStart->Prev());
         pma::Track3D* tpNew = segNew->Parent();
-        if (tpNew->NextSegment(vStart)) {
-          //std::cout << "Do not reattach to vStart inner in another track when vtx also has Prev()." << std::endl;
-          return false;
-        }
+        if (tpNew->NextSegment(vStart)) { return false; }
         else if (tpNew->CanFlip()) // flip in remote vStart, no problem
         {
           tpNew->Flip();
 
           mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
-          //std::cout << "Reconnect prev to vStart." << std::endl;
           tpPrev->fNodes[tpPrev->fNodes.size() - 1] = vStart;
           segPrev->AddNext(vStart);
         }
@@ -1656,7 +1593,6 @@ pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
       }
       else {
         mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
-        //std::cout << "Reconnect prev to vStart." << std::endl;
         tpPrev->fNodes[tpPrev->fNodes.size() - 1] = vStart;
         segPrev->AddNext(vStart);
       }
@@ -1692,20 +1628,13 @@ pma::Track3D::AttachBackTo(pma::Node3D* vStart)
   pma::Track3D* rootThis = GetRoot();
   if (vStart->Prev()) {
     pma::Track3D* rootPrev = static_cast<pma::Segment3D*>(vStart->Prev())->Parent()->GetRoot();
-    if (rootPrev->IsAttachedTo(rootThis)) {
-      //std::cout << "*** loop with prev ***" << std::endl;
-      return false;
-    }
+    if (rootPrev->IsAttachedTo(rootThis)) { return false; }
   }
   else if (vStart->NextCount()) {
     pma::Track3D* rootNext = static_cast<pma::Segment3D*>(vStart->Next(0))->Parent()->GetRoot();
-    if (rootNext->IsAttachedTo(rootThis)) {
-      //std::cout << "*** loop with next ***" << std::endl;
-      return false;
-    }
+    if (rootNext->IsAttachedTo(rootThis)) { return false; }
   }
   else {
-    //std::cout << "*** isolated vertex ***" << std::endl;
     return false;
   }
 
@@ -1746,7 +1675,6 @@ pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
     pma::Track3D* tp = seg->Parent();
     if (tp->NextSegment(vStart)) {
       mf::LogError("pma::Track3D") << "Cannot attach back to inner node of other track.";
-      //std::cout << "Cannot attach back to inner node of other track." << std::endl;
       return false;
     }
 
@@ -1754,12 +1682,10 @@ pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
       tp->Flip(); // flip in remote vStart, no problem
     else {
       mf::LogError("pma::Track3D") << "Flip not possible, cannot attach.";
-      //std::cout << "Flip not possible, cannot attach." << std::endl;
       return false;
     }
   }
   fNodes[fNodes.size() - 1] = vStart;
-  //RebuildSegments();
   fSegments[fSegments.size() - 1]->AddNext(vStart);
 
   while (vtx->NextCount()) // reconnect nexts to vStart
@@ -1815,9 +1741,9 @@ pma::Track3D::ExtendWith(pma::Track3D* src)
 }
 
 pma::Track3D*
-pma::Track3D::GetRoot(void)
+pma::Track3D::GetRoot()
 {
-  pma::Track3D* trk = 0;
+  pma::Track3D* trk = nullptr;
 
   if (fNodes.size()) {
     pma::Segment3D* seg = static_cast<pma::Segment3D*>(fNodes.front()->Prev());
@@ -1834,12 +1760,7 @@ bool
 pma::Track3D::GetBranches(std::vector<pma::Track3D const*>& branches, bool skipFirst) const
 {
   for (auto trk : branches)
-    if (trk == this) {
-      //std::cout << "HAS LOOP" << std::endl;
-      throw cet::exception("pma::Track3D") << "Track tree has loop.";
-      //mf::LogError("pma::Track3D") << "Track tree has loop.";
-      //return false;
-    }
+    if (trk == this) { throw cet::exception("pma::Track3D") << "Track tree has loop."; }
 
   branches.push_back(this);
 
@@ -1911,7 +1832,8 @@ pma::Track3D::GetObjFunction(float penaltyFactor) const
 }
 
 double
-pma::Track3D::Optimize(int nNodes,
+pma::Track3D::Optimize(const detinfo::DetectorPropertiesData& detProp,
+                       int nNodes,
                        double eps,
                        bool selAllHits,
                        bool setAllNodes,
@@ -1929,8 +1851,6 @@ pma::Track3D::Optimize(int nNodes,
   }
   double g0 = GetObjFunction(), g1 = 0.0;
   if (g0 == 0.0) return g0;
-
-  //mf::LogVerbatim("pma::Track3D") << "objective function at opt start: " << g0;
 
   // set branching flag only at the beginning, optimization is not changing
   // that and new nodes are not branching
@@ -1965,7 +1885,6 @@ pma::Track3D::Optimize(int nNodes,
         g1 = g0;
         g0 = GetObjFunction();
 
-        //mf::LogVerbatim("pma::Track3D") << "obj fn: " << g0;
         if (g0 == 0.0F) {
           MakeProjection();
           break;
@@ -1994,13 +1913,13 @@ pma::Track3D::Optimize(int nNodes,
       mf::LogVerbatim("pma::Track3D") << "optimized segments: " << fSegments.size();
       if ((fSegments.size() >= fSegStopValue) || (fSegments.size() >= fMaxSegStop)) { stop = true; }
       else {
-        if (!AddNode()) stop = true;
+        if (!AddNode(detProp)) stop = true;
       }
       break;
 
     default: // grow and optimize until fixed number of vertices is added
       if (nNodes > 12) {
-        if (AddNode()) {
+        if (AddNode(detProp)) {
           MakeProjection();
           nNodes--;
         }
@@ -2010,14 +1929,14 @@ pma::Track3D::Optimize(int nNodes,
           break;
         }
 
-        if (AddNode()) {
+        if (AddNode(detProp)) {
           MakeProjection();
           nNodes--;
-          if (AddNode()) nNodes--;
+          if (AddNode(detProp)) nNodes--;
         }
       }
       else if (nNodes > 4) {
-        if (AddNode()) {
+        if (AddNode(detProp)) {
           MakeProjection();
           nNodes--;
         }
@@ -2027,10 +1946,10 @@ pma::Track3D::Optimize(int nNodes,
           break;
         }
 
-        if (AddNode()) nNodes--;
+        if (AddNode(detProp)) nNodes--;
       }
       else {
-        if (AddNode()) { nNodes--; }
+        if (AddNode(detProp)) { nNodes--; }
         else {
           mf::LogVerbatim("pma::Track3D") << "stop (1)";
           stop = true;
@@ -2041,40 +1960,32 @@ pma::Track3D::Optimize(int nNodes,
     }
 
   } while (!stop);
-  //mf::LogVerbatim("pma::Track3D") << "Done (optimized segments: " << fSegments.size() << ").";
 
   MakeProjection();
   return GetObjFunction();
 }
 
 bool
-pma::Track3D::UpdateParamsInTree(bool skipFirst)
+pma::Track3D::UpdateParamsInTree(bool skipFirst, size_t& depth)
 {
-  const size_t maxTreeDepth = 100; // really big tree...
-  static size_t depth;
+  constexpr size_t maxTreeDepth = 100; // really big tree...
 
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
-
-  bool isOK = true;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
 
     if (++depth > maxTreeDepth) { mf::LogError("pma::Track3D") << "Tree depth above allowed max."; }
   }
-  else {
-    depth = 1;
-  }
+
+  bool isOK = true;
 
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
-      if (seg != segThis) { isOK &= seg->Parent()->UpdateParamsInTree(true); }
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      if (seg != segThis) { isOK &= seg->Parent()->UpdateParamsInTree(true, depth); }
     }
 
     if (segThis)
@@ -2088,7 +1999,7 @@ pma::Track3D::UpdateParamsInTree(bool skipFirst)
     isOK = false;
   }
 
-  depth--;
+  --depth;
 
   return isOK;
 }
@@ -2097,21 +2008,18 @@ double
 pma::Track3D::TuneSinglePass(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   double g = 0.0;
   while (vtx) {
     vtx->Optimize(fPenaltyValue, fEndSegWeight);
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) g += seg->Parent()->TuneSinglePass(true);
     }
 
@@ -2128,24 +2036,21 @@ pma::Track3D*
 pma::Track3D::GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   pma::Track3D* result = this;
   dist = sqrt(Dist2(p3d_cm));
 
-  pma::Track3D* candidate = 0;
+  pma::Track3D* candidate = nullptr;
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     double d;
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) {
         candidate = seg->Parent()->GetNearestTrkInTree(p3d_cm, d, true);
         if (d < dist) {
@@ -2173,24 +2078,21 @@ pma::Track3D::GetNearestTrkInTree(const TVector2& p2d_cm,
                                   bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   pma::Track3D* result = this;
   dist = Dist2(p2d_cm, view, tpc, cryo);
 
-  pma::Track3D* candidate = 0;
+  pma::Track3D* candidate = nullptr;
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     double d;
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) {
         candidate = seg->Parent()->GetNearestTrkInTree(p2d_cm, view, tpc, cryo, d, true);
         if (d < dist) {
@@ -2222,19 +2124,16 @@ pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
   }
 
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) seg->Parent()->ReassignHitsInTree(trkRoot);
     }
 
@@ -2245,8 +2144,8 @@ pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
   }
 
   double d0, dmin;
-  pma::Hit3D* hit = 0;
-  pma::Track3D* nearestTrk = 0;
+  pma::Hit3D* hit = nullptr;
+  pma::Track3D* nearestTrk = nullptr;
   size_t i = 0;
   while (HasTwoViews(2) && (i < size())) {
     hit = fHits[i];
@@ -2267,19 +2166,16 @@ void
 pma::Track3D::MakeProjectionInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) seg->Parent()->MakeProjectionInTree(true);
     }
 
@@ -2296,19 +2192,16 @@ void
 pma::Track3D::SortHitsInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) seg->Parent()->SortHitsInTree(true);
     }
 
@@ -2325,20 +2218,17 @@ double
 pma::Track3D::GetObjFnInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(vtx);
-    if (segThis) vtx = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(vtx)) vtx = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   double g = 0.0;
   while (vtx) {
-    segThis = NextSegment(vtx);
+    auto segThis = NextSegment(vtx);
 
     for (size_t i = 0; i < vtx->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(vtx->Next(i));
+      auto seg = static_cast<pma::Segment3D*>(vtx->Next(i));
       if (seg != segThis) g += seg->Parent()->GetObjFnInTree(true);
     }
 
@@ -2354,7 +2244,7 @@ pma::Track3D::GetObjFnInTree(bool skipFirst)
 double
 pma::Track3D::TuneFullTree(double eps, double gmax)
 {
-  if (!UpdateParamsInTree()) {
+  if (size_t depth = 1; !UpdateParamsInTree(false, depth)) {
     mf::LogError("pma::Track3D") << "TuneFullTree failed.";
     return -2; // negetive to tag destroyed tree
   }
@@ -2362,18 +2252,15 @@ pma::Track3D::TuneFullTree(double eps, double gmax)
   double g0 = GetObjFnInTree(), g1 = 0.0;
   if (!std::isfinite(g0)) {
     mf::LogError("pma::Track3D") << "Infinifte value of g.";
-    //std::cout << "Infinifte value of g." << std::endl;
     return -2; // negetive to tag destroyed tree
   }
   if (g0 > gmax) {
     mf::LogWarning("pma::Track3D") << "Too high value of g: " << g0;
-    //std::cout << "Too high value of g: " << g0 << std::endl;
     return -1; // negetive to tag bad tree
   }
   if (g0 == 0.0) return g0;
 
   mf::LogVerbatim("pma::Track3D") << "Tune tree, g = " << g0;
-  //std::cout << "Tune tree, g = " << g0 << std::endl;
   unsigned int stepIter = 0;
   do {
     double gstep = 1.0;
@@ -2383,9 +2270,8 @@ pma::Track3D::TuneFullTree(double eps, double gmax)
       g0 = TuneSinglePass();
 
       MakeProjectionInTree();
-      //ReassignHitsInTree();
 
-      if (!UpdateParamsInTree()) {
+      if (size_t depth = 1; !UpdateParamsInTree(false, depth)) {
         g0 = -2;
         break;
       } // negetive to tag destroyed tree
@@ -2400,8 +2286,6 @@ pma::Track3D::TuneFullTree(double eps, double gmax)
 
   } while (stepIter < 5);
 
-  //ReassignHitsInTree();
-  //TuneSinglePass();
   MakeProjectionInTree();
   SortHitsInTree();
 
@@ -2413,24 +2297,24 @@ pma::Track3D::TuneFullTree(double eps, double gmax)
 }
 
 void
-pma::Track3D::ApplyDriftShiftInTree(double dx, bool skipFirst)
+pma::Track3D::ApplyDriftShiftInTree(const detinfo::DetectorClocksData& clockData,
+                                    const detinfo::DetectorPropertiesData& detProp,
+                                    double dx,
+                                    bool skipFirst)
 {
   pma::Node3D* node = fNodes.front();
-  pma::Segment3D* segThis = 0;
-  pma::Segment3D* seg = 0;
 
   if (skipFirst) {
-    segThis = NextSegment(node);
-    if (segThis) node = static_cast<pma::Node3D*>(segThis->Next());
+    if (auto segThis = NextSegment(node)) node = static_cast<pma::Node3D*>(segThis->Next());
   }
 
   while (node) {
     node->ApplyDriftShift(dx);
 
-    segThis = NextSegment(node);
+    auto segThis = NextSegment(node);
     for (size_t i = 0; i < node->NextCount(); i++) {
-      seg = static_cast<pma::Segment3D*>(node->Next(i));
-      if (seg != segThis) seg->Parent()->ApplyDriftShiftInTree(dx, true);
+      auto seg = static_cast<pma::Segment3D*>(node->Next(i));
+      if (seg != segThis) seg->Parent()->ApplyDriftShiftInTree(clockData, detProp, dx, true);
     }
 
     if (segThis)
@@ -2447,20 +2331,19 @@ pma::Track3D::ApplyDriftShiftInTree(double dx, bool skipFirst)
     (*p)[0] += dx;
   }
 
-  // For T0 we need to make sure we use the total shift, not just this current one in case of multiple shifts
+  // For T0 we need to make sure we use the total shift, not just this current
+  // one in case of multiple shifts
   double newdx = fNodes.front()->GetDriftShift();
 
   // Now convert this newdx into T0 and store in fT0
-  SetT0FromDx(newdx);
+  SetT0FromDx(clockData, detProp, newdx);
 }
 
 void
-pma::Track3D::SetT0FromDx(double dx)
+pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
+                          detinfo::DetectorPropertiesData const& detProp,
+                          double dx)
 {
-
-  // Get all of the services we need
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  auto const* detclock = lar::providerFrom<detinfo::DetectorClocksService>();
   auto const* geom = lar::providerFrom<geo::Geometry>();
   const geo::TPCGeo& tpcGeo = geom->TPC(fNodes.front()->TPC(), fNodes.front()->Cryo());
 
@@ -2481,30 +2364,25 @@ pma::Track3D::SetT0FromDx(double dx)
   }
 
   // The magnitude of x in ticks is fine
-  double dxInTicks = fabs(dx / detprop->GetXTicksCoefficient());
+  double dxInTicks = fabs(dx / detProp.GetXTicksCoefficient());
   // Now correct the sign
   dxInTicks = dxInTicks * correctedSign;
   // At this stage, we have xInTicks relative to the trigger time
-  double dxInTime = dxInTicks * detclock->TPCClock().TickPeriod();
+  double dxInTime = dxInTicks * clockData.TPCClock().TickPeriod();
   // Reconstructed times are relative to the trigger (t=0), so this is our T0
   fT0 = dxInTime;
 
   mf::LogDebug("pma::Track3D") << dx << ", " << dxInTicks << ", " << correctedSign << ", " << fT0
                                << ", " << tpcGeo.DetectDriftDirection()
-                               << " :: " << detclock->TriggerTime() << ", "
-                               << detclock->TriggerOffsetTPC() << std::endl;
-
-  // Leigh test
-  //  mf::LogDebug("pma::Track3D") << " Check x position for T = Trigger Offset " << detprop->ConvertTicksToX(detprop->TriggerOffset(),2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) << std::endl;
-  //  float apaTime = detprop->GetXTicksOffset(2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) - detprop->TriggerOffset();
-  //  mf::LogDebug("pma::Track3D") << " Check x position for T = Trigger Offset + DriftTime " << detprop->ConvertTicksToX(detprop->TriggerOffset() + apaTime,2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) << std::endl;
+                               << " :: " << clockData.TriggerTime() << ", "
+                               << clockData.TriggerOffsetTPC() << std::endl;
 
   // Mark this track as having a measured T0
   fT0Flag = true;
 }
 
 void
-pma::Track3D::DeleteSegments(void)
+pma::Track3D::DeleteSegments()
 {
   for (size_t i = 0; i < fSegments.size(); i++)
     delete fSegments[i];
@@ -2512,7 +2390,7 @@ pma::Track3D::DeleteSegments(void)
 }
 
 void
-pma::Track3D::RebuildSegments(void)
+pma::Track3D::RebuildSegments()
 {
   DeleteSegments();
 
@@ -2523,7 +2401,7 @@ pma::Track3D::RebuildSegments(void)
 }
 
 void
-pma::Track3D::CleanupTails(void)
+pma::Track3D::CleanupTails()
 {
   unsigned int nhits = 0;
   while (!nhits && (fNodes.size() > 2) && !fNodes.front()->IsBranching()) {
@@ -2565,7 +2443,7 @@ pma::Track3D::CleanupTails(void)
 }
 
 bool
-pma::Track3D::ShiftEndsToHits(void)
+pma::Track3D::ShiftEndsToHits()
 {
   pma::Element3D* el;
   pma::Node3D* vtx;
@@ -2592,7 +2470,6 @@ pma::Track3D::ShiftEndsToHits(void)
             if (toRemove->NextCount() == 1) {
               mf::LogWarning("pma::Track3D")
                 << "ShiftEndsToHits(): Short start segment, node removed.";
-              //std::cout << "ShiftEndsToHits(): Short start segment, node removed." << std::endl;
               fNodes.erase(fNodes.begin() + 1);
 
               RebuildSegments();
@@ -2637,7 +2514,6 @@ pma::Track3D::ShiftEndsToHits(void)
             if (toRemove->NextCount() == 1) {
               mf::LogWarning("pma::Track3D")
                 << "ShiftEndsToHits(): Short end segment, node removed.";
-              //std::cout << "ShiftEndsToHits(): Short end segment, node removed." << std::endl;
               fNodes.erase(fNodes.begin() + idx);
 
               RebuildSegments();
@@ -2693,12 +2569,9 @@ pma::Track3D::Dist2(const TVector2& p2d,
 double
 pma::Track3D::Dist2(const TVector3& p3d) const
 {
-  double dist, min_dist = fSegments.front()->GetDistance2To(p3d);
-  for (size_t i = 1; i < fSegments.size(); i++) {
-    dist = fSegments[i]->GetDistance2To(p3d);
-    if (dist < min_dist) min_dist = dist;
-  }
-  return min_dist;
+  using namespace ranges;
+  auto to_distance2 = [&p3d](auto seg) { return seg->GetDistance2To(p3d); };
+  return min(fSegments | view::transform(to_distance2));
 }
 
 pma::Element3D*
@@ -2718,26 +2591,24 @@ pma::Track3D::GetNearestElement(const TVector2& p2d,
   if (skipFrontVtx) v0 = 1;
   if (skipBackVtx) --v1;
 
-  pma::Element3D* pe_min = 0;
-  double dist, min_dist = 1.0e9;
+  pma::Element3D* pe_min = nullptr;
+  auto min_dist = std::numeric_limits<double>::max();
   for (size_t i = v0; i < v1; i++)
-    //if ((tpc == -1) || (fNodes[i]->TPC() == tpc))
     if (fNodes[i]->TPC() == tpc) {
-      dist = fNodes[i]->GetDistance2To(p2d, view);
+      double dist = fNodes[i]->GetDistance2To(p2d, view);
       if (dist < min_dist) {
         min_dist = dist;
         pe_min = fNodes[i];
       }
     }
-  for (size_t i = 0; i < fSegments.size(); i++)
-    //if ((tpc == -1) || (fSegments[i]->TPC() == tpc))
-    if (fSegments[i]->TPC() == tpc) {
-      if (fSegments[i]->TPC() < 0) continue; // segment between TPC's
+  for (auto segment : fSegments)
+    if (segment->TPC() == tpc) {
+      if (segment->TPC() < 0) continue; // segment between TPC's
 
-      dist = fSegments[i]->GetDistance2To(p2d, view);
+      double const dist = segment->GetDistance2To(p2d, view);
       if (dist < min_dist) {
         min_dist = dist;
-        pe_min = fSegments[i];
+        pe_min = segment;
       }
     }
   if (!pe_min) throw cet::exception("pma::Track3D") << "Nearest element not found." << std::endl;
@@ -2767,15 +2638,19 @@ pma::Track3D::GetNearestElement(const TVector3& p3d) const
 }
 
 bool
-pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, double& dist2) const
+pma::Track3D::GetUnconstrainedProj3D(detinfo::DetectorPropertiesData const& detProp,
+                                     art::Ptr<recob::Hit> hit,
+                                     TVector3& p3d,
+                                     double& dist2) const
 {
-  TVector2 p2d = pma::WireDriftToCm(hit->WireID().Wire,
+  TVector2 p2d = pma::WireDriftToCm(detProp,
+                                    hit->WireID().Wire,
                                     hit->PeakTime(),
                                     hit->WireID().Plane,
                                     hit->WireID().TPC,
                                     hit->WireID().Cryostat);
 
-  pma::Segment3D* seg = 0;
+  pma::Segment3D* seg = nullptr;
   double d2, min_d2 = 1.0e100;
   int tpc = (int)hit->WireID().TPC;
   int view = hit->WireID().Plane;
@@ -2800,7 +2675,7 @@ pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, do
 }
 
 void
-pma::Track3D::SortHits(void)
+pma::Track3D::SortHits()
 {
   std::vector<pma::Hit3D*> hits_tmp;
   hits_tmp.reserve(size());
@@ -2838,20 +2713,20 @@ pma::Track3D::SortHits(void)
 }
 
 unsigned int
-pma::Track3D::DisableSingleViewEnds(void)
+pma::Track3D::DisableSingleViewEnds()
 {
   SortHits();
 
   unsigned int nDisabled = 0;
 
-  int hasHits[4];
+  std::array<int, 4> hasHits{{}};
 
-  pma::Hit3D* nextHit = 0;
+  pma::Hit3D* nextHit = nullptr;
   int hitIndex = -1;
 
   bool rebuild = false, stop = false;
   int nViews = 0;
-  hasHits[0] = hasHits[1] = hasHits[2] = hasHits[3] = 0;
+
   do {
     pma::Node3D* vtx = fNodes.front();
     pma::Segment3D* seg = NextSegment(vtx);
@@ -2910,7 +2785,8 @@ pma::Track3D::DisableSingleViewEnds(void)
 
   stop = false;
   nViews = 0;
-  hasHits[0] = hasHits[1] = hasHits[2] = hasHits[3] = 0;
+  hasHits.fill(0);
+
   do {
     pma::Node3D* vtx = fNodes.back();
     pma::Segment3D* seg = PrevSegment(vtx);
@@ -3029,7 +2905,7 @@ pma::Track3D::SelectRndHits(size_t segmax, size_t vtxmax)
 }
 
 bool
-pma::Track3D::SelectAllHits(void)
+pma::Track3D::SelectAllHits()
 {
   bool changed = false;
   for (auto h : fHits) {
@@ -3040,14 +2916,14 @@ pma::Track3D::SelectAllHits(void)
 }
 
 void
-pma::Track3D::MakeProjection(void)
+pma::Track3D::MakeProjection()
 {
   for (auto n : fNodes)
     n->ClearAssigned(this);
   for (auto s : fSegments)
     s->ClearAssigned(this);
 
-  pma::Element3D* pe = 0;
+  pma::Element3D* pe = nullptr;
 
   bool skipFrontVtx = false, skipBackVtx = false;
 
@@ -3077,25 +2953,25 @@ pma::Track3D::MakeProjection(void)
 }
 
 void
-pma::Track3D::MakeFastProjection(void)
+pma::Track3D::MakeFastProjection()
 {
   std::vector<std::pair<pma::Hit3D*, pma::Element3D*>> assignments;
   assignments.reserve(fHits.size());
 
   for (auto hi : fHits) {
-    pma::Element3D* pe = 0;
+    pma::Element3D* pe = nullptr;
 
     for (auto s : fSegments) {
       for (size_t j = 0; j < s->NHits(); ++j)
         if (hi == s->Hits()[j]) // look at next/prev vtx,seg,vtx
         {
           pe = s;
-          double d2, min_d2 = s->GetDistance2To(hi->Point2D(), hi->View2D());
-          int tpc = hi->TPC();
+          double min_d2 = s->GetDistance2To(hi->Point2D(), hi->View2D());
+          int const tpc = hi->TPC();
 
           pma::Node3D* nnext = static_cast<pma::Node3D*>(s->Next());
           if (nnext->TPC() == tpc) {
-            d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+            double const d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
             if (d2 < min_d2) {
               min_d2 = d2;
               pe = nnext;
@@ -3103,7 +2979,7 @@ pma::Track3D::MakeFastProjection(void)
 
             pma::Segment3D* snext = NextSegment(nnext);
             if (snext && (snext->TPC() == tpc)) {
-              d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
+              double const d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
               if (d2 < min_d2) {
                 min_d2 = d2;
                 pe = snext;
@@ -3111,7 +2987,7 @@ pma::Track3D::MakeFastProjection(void)
 
               nnext = static_cast<pma::Node3D*>(snext->Next());
               if (nnext->TPC() == tpc) {
-                d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+                double const d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
                 if (d2 < min_d2) {
                   min_d2 = d2;
                   pe = nnext;
@@ -3122,7 +2998,7 @@ pma::Track3D::MakeFastProjection(void)
 
           pma::Node3D* nprev = static_cast<pma::Node3D*>(s->Prev());
           if (nprev->TPC() == tpc) {
-            d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+            double const d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
             if (d2 < min_d2) {
               min_d2 = d2;
               pe = nprev;
@@ -3130,7 +3006,7 @@ pma::Track3D::MakeFastProjection(void)
 
             pma::Segment3D* sprev = PrevSegment(nprev);
             if (sprev && (sprev->TPC() == tpc)) {
-              d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
+              double const d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
               if (d2 < min_d2) {
                 min_d2 = d2;
                 pe = sprev;
@@ -3138,7 +3014,7 @@ pma::Track3D::MakeFastProjection(void)
 
               nprev = static_cast<pma::Node3D*>(sprev->Prev());
               if (nprev->TPC() == tpc) {
-                d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+                double const d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
                 if (d2 < min_d2) {
                   min_d2 = d2;
                   pe = nprev;
@@ -3238,7 +3114,7 @@ pma::Track3D::MakeFastProjection(void)
 }
 
 void
-pma::Track3D::UpdateProjection(void)
+pma::Track3D::UpdateProjection()
 {
   for (auto n : fNodes)
     n->UpdateProjection();
@@ -3247,7 +3123,7 @@ pma::Track3D::UpdateProjection(void)
 }
 
 double
-pma::Track3D::AverageDist2(void) const
+pma::Track3D::AverageDist2() const
 {
   double sum = 0.0;
   unsigned int count = 0;
@@ -3270,7 +3146,7 @@ pma::Track3D::AverageDist2(void) const
 }
 
 bool
-pma::Track3D::UpdateParams(void)
+pma::Track3D::UpdateParams()
 {
   size_t n = size();
   if (n == 0) {
@@ -3372,20 +3248,17 @@ pma::Track3D::CheckEndSegment(pma::Track3D::ETrackEnd endCode)
 }
 
 void
-pma::Track3D::UpdateHitsRadius(void)
+pma::Track3D::UpdateHitsRadius()
 {
   std::vector<pma::Hit3D*> hitsColl, hitsInd1, hitsInd2;
-  for (size_t i = 0; i < size(); i++) {
-    pma::Hit3D* hit = (*this)[i];
+  for (auto hit : fHits) {
     switch (hit->View2D()) {
     case geo::kZ: hitsColl.push_back(hit); break;
     case geo::kV: hitsInd2.push_back(hit); break;
     case geo::kU: hitsInd1.push_back(hit); break;
     }
   }
-  fHitsRadius = pma::GetHitsRadius2D(hitsColl, true);
-  float r = pma::GetHitsRadius2D(hitsInd2, true);
-  if (r > fHitsRadius) fHitsRadius = r;
-  r = pma::GetHitsRadius2D(hitsInd1, true);
-  if (r > fHitsRadius) fHitsRadius = r;
+  fHitsRadius = std::max({pma::GetHitsRadius2D(hitsColl, true),
+                          pma::GetHitsRadius2D(hitsInd2, true),
+                          pma::GetHitsRadius2D(hitsInd1, true)});
 }

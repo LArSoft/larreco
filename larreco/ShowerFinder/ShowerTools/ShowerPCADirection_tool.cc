@@ -20,11 +20,11 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
 
 //C++ Includes
 #include <iostream>
@@ -41,8 +41,6 @@ namespace ShowerRecoTools {
   public:
     ShowerPCADirection(const fhicl::ParameterSet& pset);
 
-    ~ShowerPCADirection();
-
     //Calculate the direction of the shower.
     int CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
                          art::Event& Event,
@@ -50,7 +48,9 @@ namespace ShowerRecoTools {
 
   private:
     // Define standard art tool interface
-    TVector3 ShowerPCAVector(std::vector<art::Ptr<recob::SpacePoint>>& spacePoints_pfp,
+    TVector3 ShowerPCAVector(detinfo::DetectorClocksData const& clockData,
+                             detinfo::DetectorPropertiesData const& detProp,
+                             std::vector<art::Ptr<recob::SpacePoint>>& spacePoints_pfp,
                              art::FindManyP<recob::Hit>& fmh,
                              TVector3& ShowerCentre);
 
@@ -58,15 +58,14 @@ namespace ShowerRecoTools {
                              TVector3& ShowerCentre,
                              TVector3& Direction);
 
-    //Services
-    detinfo::DetectorProperties const* fDetProp;
-
     //fcl
     art::InputTag fPFParticleModuleLabel;
-    float fNSegments; //Used in the RMS gradient. How many segments should we split the shower into.
-    bool fUseStartPosition; //If we use the start position the drection of the
-                            //PCA vector is decided as (Shower Centre - Shower Start Position).
-    bool fChargeWeighted;   //Should the PCA axis be charge weighted.
+    float fNSegments;       // Used in the RMS gradient. How many segments should we
+                            // split the shower into.
+    bool fUseStartPosition; // If we use the start position the drection of the
+                            // PCA vector is decided as (Shower Centre - Shower
+                            // Start Position).
+    bool fChargeWeighted;   // Should the PCA axis be charge weighted.
 
     std::string fShowerStartPositionInputLabel;
     std::string fShowerDirectionOutputLabel;
@@ -75,7 +74,6 @@ namespace ShowerRecoTools {
 
   ShowerPCADirection::ShowerPCADirection(const fhicl::ParameterSet& pset)
     : IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools"))
-    , fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
     , fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel", ""))
     , fNSegments(pset.get<float>("NSegments"))
     , fUseStartPosition(pset.get<bool>("UseStartPosition"))
@@ -84,8 +82,6 @@ namespace ShowerRecoTools {
     , fShowerDirectionOutputLabel(pset.get<std::string>("ShowerDirectionOutputLabel"))
     , fShowerCentreOutputLabel(pset.get<std::string>("ShowerCentreOutputLabel"))
   {}
-
-  ShowerPCADirection::~ShowerPCADirection() {}
 
   int
   ShowerPCADirection::CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
@@ -130,9 +126,13 @@ namespace ShowerRecoTools {
     //We cannot progress with no spacepoints.
     if (spacePoints_pfp.size() == 0) { return 0; }
 
-    //Find the PCA vector
+    // Find the PCA vector
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
     TVector3 ShowerCentre;
-    TVector3 Eigenvector = ShowerPCAVector(spacePoints_pfp, fmh, ShowerCentre);
+    TVector3 Eigenvector = ShowerPCAVector(clockData, detProp, spacePoints_pfp, fmh, ShowerCentre);
 
     //Save the shower the center for downstream tools
     TVector3 ShowerCentreErr = {-999, -999, -999};
@@ -245,7 +245,9 @@ namespace ShowerRecoTools {
 
   //Function to calculate the shower direction using a charge weight 3D PCA calculation.
   TVector3
-  ShowerPCADirection::ShowerPCAVector(std::vector<art::Ptr<recob::SpacePoint>>& sps,
+  ShowerPCADirection::ShowerPCAVector(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      std::vector<art::Ptr<recob::SpacePoint>>& sps,
                                       art::FindManyP<recob::Hit>& fmh,
                                       TVector3& ShowerCentre)
   {
@@ -255,8 +257,9 @@ namespace ShowerRecoTools {
 
     float TotalCharge = 0;
 
-    //Get the Shower Centre
-    ShowerCentre = IShowerTool::GetTRACSAlg().ShowerCentre(sps, fmh, TotalCharge);
+    // Get the Shower Centre
+    ShowerCentre =
+      IShowerTool::GetTRACSAlg().ShowerCentre(clockData, detProp, sps, fmh, TotalCharge);
 
     //Normalise the spacepoints, charge weight and add to the PCA.
     for (auto& sp : sps) {
@@ -278,7 +281,7 @@ namespace ShowerRecoTools {
 
         //Correct for the lifetime at the moment.
         Charge *=
-          TMath::Exp((fDetProp->SamplingRate() * Time) / (fDetProp->ElectronLifetime() * 1e3));
+          TMath::Exp((sampling_rate(clockData) * Time) / (detProp.ElectronLifetime() * 1e3));
 
         //Charge Weight
         wht *= TMath::Sqrt(Charge / TotalCharge);

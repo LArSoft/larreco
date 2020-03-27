@@ -57,7 +57,9 @@ namespace trkf {
   //  spacepoints by the seeds they formed
   //
   std::vector<recob::Seed>
-  SeedFinderAlgorithm::FindSeeds(art::PtrVector<recob::Hit> const& HitsFlat,
+  SeedFinderAlgorithm::FindSeeds(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 art::PtrVector<recob::Hit> const& HitsFlat,
                                  std::vector<art::PtrVector<recob::Hit>>& CataloguedHits,
                                  unsigned int StopAfter) const
   {
@@ -68,7 +70,7 @@ namespace trkf {
     std::vector<recob::SpacePoint> spts;
 
     fSptalg->clearHitMap();
-    fSptalg->makeSpacePoints(HitsFlat, spts);
+    fSptalg->makeSpacePoints(clockData, detProp, HitsFlat, spts);
 
     if (int(spts.size()) < fMinPointsInSeed) { return std::vector<recob::Seed>(); }
 
@@ -147,7 +149,8 @@ namespace trkf {
       std::vector<int> PointsUsed;
 
       // Find exactly one seed, starting at high Z
-      recob::Seed TheSeed = FindSeedAtEnd(spts, PointStatus, PointsUsed, HitsFlat, OrgHits);
+      recob::Seed TheSeed =
+        FindSeedAtEnd(detProp, spts, PointStatus, PointsUsed, HitsFlat, OrgHits);
 
       // If it was a good seed, collect up the relevant spacepoints
       // and add the seed to the return vector
@@ -161,7 +164,7 @@ namespace trkf {
           }
         }
         PointStatus[PointsUsed.at(0)] = 1;
-        ConsolidateSeed(TheSeed, HitsFlat, HitStatus, OrgHits, false);
+        ConsolidateSeed(detProp, TheSeed, HitsFlat, HitStatus, OrgHits, false);
       }
 
       if (TheSeed.IsValid()) {
@@ -187,7 +190,7 @@ namespace trkf {
             std::vector<double> ViewRMS;
             std::vector<int> HitsPerView;
             GetCenterAndDirection(
-              HitsFlat, PresentHitList, Center, Direction, ViewRMS, HitsPerView);
+              detProp, HitsFlat, PresentHitList, Center, Direction, ViewRMS, HitsPerView);
 
             Direction = Direction.Unit() * TheSeed.GetLength();
 
@@ -205,7 +208,7 @@ namespace trkf {
             if (nViewsWithHits < 2) TheSeed.SetValidity(false);
 
             if (TheSeed.IsValid())
-              ConsolidateSeed(TheSeed, HitsFlat, HitStatus, OrgHits, fExtendSeeds);
+              ConsolidateSeed(detProp, TheSeed, HitsFlat, HitStatus, OrgHits, fExtendSeeds);
 
             // if we accidentally invalidated the seed, go back to the old one and escape
             else {
@@ -284,7 +287,8 @@ namespace trkf {
 
       std::vector<art::PtrVector<recob::Hit>> HitsInThisCollection(3);
 
-      GetCenterAndDirection(HitsFlat, ListAllHits, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
+      GetCenterAndDirection(
+        detProp, HitsFlat, ListAllHits, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
 
       bool ThrowOutSeed = false;
 
@@ -300,7 +304,7 @@ namespace trkf {
       if (nViewsWithHits < 2 || (nViewsWithHits < 3 && !fAllow2DSeeds)) ThrowOutSeed = true;
 
       if (!ThrowOutSeed) {
-        ConsolidateSeed(TheSeed, HitsFlat, HitStatus, OrgHits, false);
+        ConsolidateSeed(detProp, TheSeed, HitsFlat, HitStatus, OrgHits, false);
 
         // Now we have consolidated, grab the right
         //  hits to find the RMS and refitted direction
@@ -310,7 +314,7 @@ namespace trkf {
         }
         std::vector<int> HitsPerView;
         GetCenterAndDirection(
-          HitsFlat, ListAllHits, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
+          detProp, HitsFlat, ListAllHits, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
 
         int nViewsWithHits(0);
         for (size_t n = 0; n != 3; ++n) {
@@ -366,7 +370,8 @@ namespace trkf {
   //
 
   void
-  SeedFinderAlgorithm::ConsolidateSeed(recob::Seed& TheSeed,
+  SeedFinderAlgorithm::ConsolidateSeed(detinfo::DetectorPropertiesData const& detProp,
+                                       recob::Seed& TheSeed,
                                        art::PtrVector<recob::Hit> const& HitsFlat,
                                        std::vector<char>& HitStatus,
                                        std::vector<std::vector<std::vector<int>>>& OrgHits,
@@ -384,7 +389,7 @@ namespace trkf {
     for (size_t i = 0; i != HitStatus.size(); ++i) {
       if (HitStatus.at(i) == 2) {
         double disp, s;
-        GetHitDistAndProj(TheSeed, HitsFlat.at(i), disp, s);
+        GetHitDistAndProj(detProp, TheSeed, HitsFlat.at(i), disp, s);
         if (fabs(s) > 1.2) {
           // This hit is not rightfully part of this seed, toss it.
           HitStatus[i] = 0;
@@ -423,7 +428,7 @@ namespace trkf {
       for (uint32_t c = LowestChan; c != HighestChan; ++c) {
         for (size_t h = 0; h != OrgHits[View][c].size(); ++h) {
           if (HitStatus[OrgHits[View][c].at(h)] == 0) {
-            GetHitDistAndProj(TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
+            GetHitDistAndProj(detProp, TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
             if (dist < fHitResolution) {
               NHitsThisSeed++;
 
@@ -494,7 +499,7 @@ namespace trkf {
             bool GotOneThisChannel = false;
             for (size_t h = 0; h != OrgHits[View][c].size(); ++h) {
               if (HitStatus[OrgHits[View][c][h]] == 0) {
-                GetHitDistAndProj(TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
+                GetHitDistAndProj(detProp, TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
                 if (dist < fHitResolution) {
                   GotOneThisChannel = true;
                   if (s < 0) {
@@ -517,7 +522,7 @@ namespace trkf {
             bool GotOneThisChannel = false;
             for (size_t h = 0; h != OrgHits[View][c].size(); ++h) {
               if (HitStatus[OrgHits[View][c][h]] == 0) {
-                GetHitDistAndProj(TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
+                GetHitDistAndProj(detProp, TheSeed, HitsFlat[OrgHits[View][c].at(h)], dist, s);
                 if (dist < fHitResolution) {
                   GotOneThisChannel = true;
                   if (s < 0) {
@@ -598,23 +603,22 @@ namespace trkf {
   //------------------------------------------------------------
 
   void
-  SeedFinderAlgorithm::GetHitDistAndProj(recob::Seed const& ASeed,
+  SeedFinderAlgorithm::GetHitDistAndProj(detinfo::DetectorPropertiesData const& detProp,
+                                         recob::Seed const& ASeed,
                                          art::Ptr<recob::Hit> const& AHit,
                                          double& disp,
                                          double& s) const
   {
-    const detinfo::DetectorProperties* det =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry const> geom;
 
     double xyzStart[3], xyzEnd[3];
 
     geom->WireEndPoints(0, 0, AHit->WireID().Plane, AHit->WireID().Wire, xyzStart, xyzEnd);
 
-    double HitX = det->ConvertTicksToX(AHit->PeakTime(), AHit->WireID().Plane, 0, 0);
+    double HitX = detProp.ConvertTicksToX(AHit->PeakTime(), AHit->WireID().Plane, 0, 0);
 
-    double HitXHigh = det->ConvertTicksToX(AHit->PeakTimePlusRMS(), AHit->WireID().Plane, 0, 0);
-    double HitXLow = det->ConvertTicksToX(AHit->PeakTimeMinusRMS(), AHit->WireID().Plane, 0, 0);
+    double HitXHigh = detProp.ConvertTicksToX(AHit->PeakTimePlusRMS(), AHit->WireID().Plane, 0, 0);
+    double HitXLow = detProp.ConvertTicksToX(AHit->PeakTimeMinusRMS(), AHit->WireID().Plane, 0, 0);
 
     double HitWidth = HitXHigh - HitXLow;
 
@@ -639,7 +643,8 @@ namespace trkf {
   //
 
   recob::Seed
-  SeedFinderAlgorithm::FindSeedAtEnd(std::vector<recob::SpacePoint> const& Points,
+  SeedFinderAlgorithm::FindSeedAtEnd(detinfo::DetectorPropertiesData const& detProp,
+                                     std::vector<recob::SpacePoint> const& Points,
                                      std::vector<char>& PointStatus,
                                      std::vector<int>& PointsInRange,
                                      art::PtrVector<recob::Hit> const& HitsFlat,
@@ -736,7 +741,8 @@ namespace trkf {
     std::vector<double> ViewRMS;
     std::vector<int> HitsPerView;
 
-    GetCenterAndDirection(HitsFlat, HitList, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
+    GetCenterAndDirection(
+      detProp, HitsFlat, HitList, SeedCenter, SeedDirection, ViewRMS, HitsPerView);
 
     HitMap.clear();
     HitList.clear();
@@ -780,17 +786,14 @@ namespace trkf {
   //-----------------------------------------------------------
 
   void
-  SeedFinderAlgorithm::GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat,
+  SeedFinderAlgorithm::GetCenterAndDirection(detinfo::DetectorPropertiesData const& detProp,
+                                             art::PtrVector<recob::Hit> const& HitsFlat,
                                              std::vector<int>& HitsToUse,
                                              TVector3& Center,
                                              TVector3& Direction,
                                              std::vector<double>& ViewRMS,
                                              std::vector<int>& N) const
   {
-    // Initialize the services we need
-    const detinfo::DetectorProperties* det =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
     N.resize(3);
 
     std::map<uint32_t, bool> HitsClaimed;
@@ -825,9 +828,9 @@ namespace trkf {
           << hitView << ")\n";
       }
       double WireCoord = (*itHit)->WireID().Wire * fPitches.at(ViewIndex);
-      double TimeCoord = det->ConvertTicksToX((*itHit)->PeakTime(), ViewIndex, 0, 0);
-      double TimeUpper = det->ConvertTicksToX((*itHit)->PeakTimePlusRMS(), ViewIndex, 0, 0);
-      double TimeLower = det->ConvertTicksToX((*itHit)->PeakTimeMinusRMS(), ViewIndex, 0, 0);
+      double TimeCoord = detProp.ConvertTicksToX((*itHit)->PeakTime(), ViewIndex, 0, 0);
+      double TimeUpper = detProp.ConvertTicksToX((*itHit)->PeakTimePlusRMS(), ViewIndex, 0, 0);
+      double TimeLower = detProp.ConvertTicksToX((*itHit)->PeakTimeMinusRMS(), ViewIndex, 0, 0);
       double Width = fabs(0.5 * (TimeUpper - TimeLower));
       double Width2 = pow(Width, 2);
 
@@ -970,21 +973,22 @@ namespace trkf {
 
   std::vector<recob::Seed>
   SeedFinderAlgorithm::GetSeedsFromUnSortedHits(
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp,
     art::PtrVector<recob::Hit> const& Hits,
     std::vector<art::PtrVector<recob::Hit>>& HitCatalogue,
     unsigned int StopAfter) const
   {
     std::vector<recob::Seed> ReturnVec;
-
-    ReturnVec = FindSeeds(Hits, HitCatalogue, StopAfter);
-
-    return ReturnVec;
+    return FindSeeds(clockData, detProp, Hits, HitCatalogue, StopAfter);
   }
 
   //---------------------------------------------
 
   std::vector<std::vector<recob::Seed>>
   SeedFinderAlgorithm::GetSeedsFromSortedHits(
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp,
     std::vector<std::vector<art::PtrVector<recob::Hit>>> const& SortedHits,
     std::vector<std::vector<art::PtrVector<recob::Hit>>>& HitsPerSeed,
     unsigned int StopAfter) const
@@ -1030,7 +1034,7 @@ namespace trkf {
             std::vector<art::PtrVector<recob::Hit>> CataloguedHits;
 
             std::vector<recob::Seed> Seeds =
-              FindSeeds(HitsThisComboFlat, CataloguedHits, StopAfter);
+              FindSeeds(clockData, detProp, HitsThisComboFlat, CataloguedHits, StopAfter);
 
             // Add this harvest to return vectors
             HitsPerSeed.push_back(CataloguedHits);

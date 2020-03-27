@@ -24,6 +24,8 @@
 
 // LArSoft Includes
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
@@ -88,7 +90,11 @@ namespace apa {
     }
 
     // Run alg on all APAs
-    fDisambigAlg.RunDisambig(ChannelHits);
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+    fDisambigAlg.RunDisambig(clock_data, det_prop, ChannelHits);
 
     for (size_t t = 0; t < fDisambigAlg.fDisambigHits.size(); t++) {
       art::Ptr<recob::Hit> hit = fDisambigAlg.fDisambigHits[t].first;

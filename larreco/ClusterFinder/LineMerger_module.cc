@@ -30,8 +30,13 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes:
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
@@ -61,12 +66,6 @@ namespace cluster {
                               float cl2endtime);
 
   }; // class LineMerger
-
-}
-
-//#endif // LINEMERGER_H
-
-namespace cluster {
 
   /// Class merging clusters: recomputes start and end position and hit list
   class ClusterMerger {
@@ -483,6 +482,11 @@ namespace cluster {
     art::Handle<std::vector<recob::Cluster>> clusterVecHandle;
     evt.getByLabel(fClusterModuleLabel, clusterVecHandle);
 
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(), clockData, detProp};
+
     constexpr size_t nViews = 3; // number of views we map
 
     //one vector for each view in the geometry (holds the index of the cluster)
@@ -509,9 +513,8 @@ namespace cluster {
       ClsIndices[view].push_back(i);
     } // end loop over input clusters
 
-    std::unique_ptr<std::vector<recob::Cluster>> SuperClusters(new std::vector<recob::Cluster>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> assn(
-      new art::Assns<recob::Cluster, recob::Hit>);
+    auto SuperClusters = std::make_unique<std::vector<recob::Cluster>>();
+    auto assn = std::make_unique<art::Assns<recob::Cluster, recob::Hit>>();
 
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -586,7 +589,7 @@ namespace cluster {
 
         // now add the final version of cl1 to the collection of SuperClusters
         // and create the association between the super cluster and the hits
-        ClusterParamAlgo.ImportHits(cl1.Hits());
+        ClusterParamAlgo.ImportHits(gser, cl1.Hits());
 
         // create the recob::Cluster directly in the vector
         SuperClusters->emplace_back(cl1.StartWire(),                            // start_wire
@@ -616,7 +619,7 @@ namespace cluster {
                                     recob::Cluster::Sentry                 // sentry
         );
 
-        util::CreateAssn(*this, evt, *(SuperClusters.get()), cl1.Hits(), *(assn.get()));
+        util::CreateAssn(evt, *SuperClusters, cl1.Hits(), *assn);
         ++clsnum1;
 
       } // end loop over first cluster iterator
@@ -629,8 +632,6 @@ namespace cluster {
 
     evt.put(std::move(SuperClusters));
     evt.put(std::move(assn));
-
-    return;
   }
 
   //------------------------------------------------------------------------------------//
@@ -642,9 +643,7 @@ namespace cluster {
     double sl2 = atan(slope2);
 
     //the units of fSlope are radians
-    bool comp = std::abs(sl1 - sl2) < fSlope ? true : false;
-
-    return comp;
+    return std::abs(sl1 - sl2) < fSlope;
   }
   //------------------------------------------------------------------------------------//
   int
@@ -666,9 +665,6 @@ namespace cluster {
     float distance2 =
       std::sqrt((pow(sclstartwire - cl2endwire, 2) * 13.5) + pow(sclstarttime - cl2endtime, 2));
 
-    //    bool comp = (distance  < fEndpointWindow ||
-    //                 distance2 < fEndpointWindow) ? true : false;
-
     //determine which way the two clusters should be merged. TY
     int comp = 0;
     if (distance < fEndpointWindow)
@@ -677,10 +673,6 @@ namespace cluster {
       comp = -1;
     return comp;
   }
-
-} // end namespace
-
-namespace cluster {
 
   DEFINE_ART_MODULE(LineMerger)
 

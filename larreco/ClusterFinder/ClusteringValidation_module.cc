@@ -25,6 +25,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -240,12 +241,14 @@ class ClusteringValidation::ClusterAnalyser {
 public:
   explicit ClusterAnalyser(std::string& label);
 
-  void Analyse(std::vector<art::Ptr<recob::Hit>>& hits,
+  void Analyse(detinfo::DetectorClocksData const& clockData,
+               std::vector<art::Ptr<recob::Hit>>& hits,
                std::vector<art::Ptr<recob::Cluster>>& clusters,
                const art::FindManyP<recob::Hit>& fmh,
                int numHits);
-  TrackID FindTrackID(art::Ptr<recob::Hit>& hit);
-  TrackID FindTrueTrack(std::vector<art::Ptr<recob::Hit>>& clusterHits);
+  TrackID FindTrackID(detinfo::DetectorClocksData const& clockData, art::Ptr<recob::Hit>& hit);
+  TrackID FindTrueTrack(detinfo::DetectorClocksData const& clockData,
+                        std::vector<art::Ptr<recob::Hit>>& clusterHits);
   double FindPhotonAngle();
   double GetEndTrackDistance(TrackID id1, TrackID id2);
   const simb::MCParticle* GetPi0();
@@ -352,7 +355,8 @@ ClusteringValidation::ClusterAnalyser::ClusterAnalyser(std::string& clusterLabel
 }
 
 void
-ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit>>& hits,
+ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData const& clockData,
+                                               std::vector<art::Ptr<recob::Hit>>& hits,
                                                std::vector<art::Ptr<recob::Cluster>>& clusters,
                                                const art::FindManyP<recob::Hit>& fmh,
                                                int minHits)
@@ -368,7 +372,7 @@ ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit>>
   // Save preclustered hits
   for (size_t hitIt = 0; hitIt < hits.size(); ++hitIt) {
     art::Ptr<recob::Hit> hit = hits.at(hitIt);
-    TrackID trackID = FindTrackID(hit);
+    TrackID trackID = FindTrackID(clockData, hit);
     clusterMap[hit->WireID().TPC % 2][hit->WireID().Plane]->AddHitPreClustering(trackID);
   }
 
@@ -399,7 +403,7 @@ ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit>>
     if (clusterHits.size() < 10) continue;
 
     // Find which track this cluster belongs to
-    TrackID trueTrackID = FindTrueTrack(clusterHits);
+    TrackID trueTrackID = FindTrueTrack(clockData, clusterHits);
 
     // Save the info for this cluster
     clusterMap[tpc][plane]->AssociateClusterAndTrack(id, trueTrackID);
@@ -407,7 +411,7 @@ ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit>>
          clusHitIt != clusterHits.end();
          ++clusHitIt) {
       art::Ptr<recob::Hit> hit = *clusHitIt;
-      TrackID trackID = FindTrackID(hit);
+      TrackID trackID = FindTrackID(clockData, hit);
       if (trackID == trueTrackID)
         clusterMap[tpc][plane]->AddSignalHitPostClustering(id);
       else
@@ -419,11 +423,12 @@ ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit>>
 }
 
 TrackID
-ClusteringValidation::ClusterAnalyser::FindTrackID(art::Ptr<recob::Hit>& hit)
+ClusteringValidation::ClusterAnalyser::FindTrackID(detinfo::DetectorClocksData const& clockData,
+                                                   art::Ptr<recob::Hit>& hit)
 {
   double particleEnergy = 0;
   TrackID likelyTrackID = (TrackID)0;
-  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(hit);
+  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
   for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
     if (trackIDs.at(idIt).energy > particleEnergy) {
       particleEnergy = trackIDs.at(idIt).energy;
@@ -434,14 +439,15 @@ ClusteringValidation::ClusterAnalyser::FindTrackID(art::Ptr<recob::Hit>& hit)
 }
 
 TrackID
-ClusteringValidation::ClusterAnalyser::FindTrueTrack(std::vector<art::Ptr<recob::Hit>>& clusterHits)
+ClusteringValidation::ClusterAnalyser::FindTrueTrack(detinfo::DetectorClocksData const& clockData,
+                                                     std::vector<art::Ptr<recob::Hit>>& clusterHits)
 {
   std::map<TrackID, double> trackMap;
   for (std::vector<art::Ptr<recob::Hit>>::iterator clusHitIt = clusterHits.begin();
        clusHitIt != clusterHits.end();
        ++clusHitIt) {
     art::Ptr<recob::Hit> hit = *clusHitIt;
-    TrackID trackID = FindTrackID(hit);
+    TrackID trackID = FindTrackID(clockData, hit);
     trackMap[trackID] += hit->Integral();
   }
   //return std::max_element(trackMap.begin(), trackMap.end(), [](const std::pair<int,double>& p1, const std::pair<int,double>& p2) {return p1.second < p2.second;} )->first;
@@ -691,7 +697,8 @@ ClusteringValidation::ClusteringValidation::analyze(art::Event const& evt)
     art::FindManyP<recob::Hit> fmh(clusterHandle, evt, clustering);
 
     // Analyse this particular clustering
-    clusterAnalysis.at(clustering)->Analyse(hits, clusters, fmh, fMinHitsInPlane);
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    clusterAnalysis.at(clustering)->Analyse(clockData, hits, clusters, fmh, fMinHitsInPlane);
   }
 }
 

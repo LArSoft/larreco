@@ -16,7 +16,8 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -83,6 +84,8 @@ namespace ShowerRecoTools {
                                              art::Event& Event,
                                              reco::shower::ShowerElementHolder& ShowerEleHolder)
   {
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
 
     const simb::MCParticle* trueParticle;
 
@@ -129,7 +132,7 @@ namespace ShowerRecoTools {
 
       //Get the true particle from the shower
       std::pair<int, double> ShowerTrackInfo =
-        fTRACSCheatingAlg.TrueParticleIDFromTrueChain(showersMothers, showerHits, 2);
+        fTRACSCheatingAlg.TrueParticleIDFromTrueChain(clockData, showersMothers, showerHits, 2);
 
       if (ShowerTrackInfo.first == -99999) {
         mf::LogError("ShowerStartPosition") << "True Shower Not Found";
@@ -171,7 +174,7 @@ namespace ShowerRecoTools {
 
     //Get the hits from the true particle
     for (auto hit : hits) {
-      int trueParticleID = fTRACSCheatingAlg.TrueParticleID(hit);
+      int trueParticleID = fTRACSCheatingAlg.TrueParticleID(clockData, hit);
       if (trueParticleID == trueParticle->TrackId()) {
         trackHits.push_back(hit);
         std::vector<art::Ptr<recob::SpacePoint>> sps = fmsph.at(hit.key());
@@ -183,7 +186,7 @@ namespace ShowerRecoTools {
     ShowerEleHolder.SetElement(trackSpacePoints, fInitialTrackSpacePointsOutputLabel);
 
     if (fDebugEVD) {
-      fTRACSCheatingAlg.CheatDebugEVD(trueParticle, Event, ShowerEleHolder, pfparticle);
+      fTRACSCheatingAlg.CheatDebugEVD(clockData, trueParticle, Event, ShowerEleHolder, pfparticle);
     }
 
     return 0;

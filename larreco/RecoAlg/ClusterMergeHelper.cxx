@@ -21,7 +21,8 @@ namespace cluster {
 
   //####################################################################################################
   void
-  ClusterMergeHelper::SetClusters(const std::vector<std::vector<art::Ptr<recob::Hit>>>& clusters)
+  ClusterMergeHelper::SetClusters(util::GeometryUtilities const& gser,
+                                  const std::vector<std::vector<art::Ptr<recob::Hit>>>& clusters)
   //####################################################################################################
   {
     fInputClusters.clear();
@@ -52,12 +53,14 @@ namespace cluster {
       }
     }
 
-    SetClusters(px_clusters);
+    SetClusters(gser, px_clusters);
   }
 
   //##################################################################################################
   void
-  ClusterMergeHelper::SetClusters(const art::Event& evt, const std::string& cluster_module_label)
+  ClusterMergeHelper::SetClusters(util::GeometryUtilities const& gser,
+                                  const art::Event& evt,
+                                  const std::string& cluster_module_label)
   //##################################################################################################
   {
 
@@ -72,38 +75,33 @@ namespace cluster {
         << "\033[00m" << std::endl;
 
     std::vector<std::vector<art::Ptr<recob::Hit>>> cluster_hits_v;
-
     cluster_hits_v.reserve(clusters_h->size());
 
     art::FindManyP<recob::Hit> hit_m(clusters_h, evt, cluster_module_label);
 
     for (size_t i = 0; i < clusters_h->size(); ++i)
-
       cluster_hits_v.push_back(hit_m.at(i));
 
-    SetClusters(cluster_hits_v);
+    SetClusters(gser, cluster_hits_v);
   }
 
   //################################
   void
-  ClusterMergeHelper::Process()
+  ClusterMergeHelper::Process(util::GeometryUtilities const& gser)
   //################################
   {
     if (fMgr.GetClusters().size())
-
       throw cet::exception(__PRETTY_FUNCTION__)
         << "\033[93m"
         << "Merged cluster set not empty... Called Process() twice?"
         << "\033[00m" << std::endl;
 
-    // Process
-    fMgr.Process();
+    fMgr.Process(gser);
 
     // Now create output clusters
     auto res = fMgr.GetBookKeeper();
 
     std::vector<std::vector<unsigned short>> out_clusters = res.GetResult();
-
     fOutputClusters.clear();
 
     fOutputClusters.reserve(out_clusters.size());
@@ -113,14 +111,10 @@ namespace cluster {
       std::vector<art::Ptr<recob::Hit>> out_cluster;
 
       for (auto const& cluster_index : cluster_index_v) {
-
         out_cluster.reserve(out_cluster.size() + fInputClusters.at(cluster_index).size());
-
         for (auto const& hit_ptr : fInputClusters.at(cluster_index))
-
           out_cluster.push_back(hit_ptr);
       }
-
       fOutputClusters.push_back(out_cluster);
     }
   }
@@ -131,7 +125,6 @@ namespace cluster {
   //######################################################################################################
   {
     if (!fOutputClusters.size())
-
       throw cet::exception(__FUNCTION__)
         << "\033[93m"
         << "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
@@ -146,7 +139,6 @@ namespace cluster {
   //#####################################################################################
   {
     if (!fOutputClusters.size())
-
       throw cet::exception(__FUNCTION__)
         << "\033[93m"
         << "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
@@ -156,7 +148,7 @@ namespace cluster {
   }
 
   void
-  ClusterMergeHelper::AppendResult(art::EDProducer& ed,
+  ClusterMergeHelper::AppendResult(util::GeometryUtilities const& gser,
                                    art::Event& ev,
                                    std::vector<recob::Cluster>& out_clusters,
                                    art::Assns<recob::Cluster, recob::Hit>& assns) const
@@ -175,7 +167,7 @@ namespace cluster {
     for (size_t out_index = 0; out_index < GetMergedCPAN().size(); ++out_index) {
 
       // To save typing let's just retrieve const cluster_params instance
-      const cluster_params& res = GetMergedCPAN().at(out_index).GetParams();
+      const cluster_params& res = GetMergedCPAN()[out_index].GetParams();
 
       // this "algo" is actually parroting its cluster_params
       LazyClusterParamsAlg algo(res);
@@ -195,30 +187,29 @@ namespace cluster {
                                 0.,                                   // sigma_start_wire
                                 res.start_point.t / fGeoU.TimeToCm(), // start_tick
                                 0.,                                   // sigma_start_tick
-                                algo.StartCharge().value(),           // start_charge
-                                algo.StartAngle().value(),            // start_angle
-                                algo.StartOpeningAngle().value(),     // start_opening
-                                res.end_point.w / fGeoU.WireToCm(),   // end_wire
-                                0.,                                   // sigma_end_wire
-                                res.end_point.t / fGeoU.TimeToCm(),   // end_tick
-                                0.,                                   // sigma_end_tick
-                                algo.EndCharge().value(),             // end_charge
-                                algo.EndAngle().value(),              // end_angle
-                                algo.EndOpeningAngle().value(),       // end_opening
-                                algo.Integral().value(),              // integral
-                                algo.IntegralStdDev().value(),        // integral_stddev
-                                algo.SummedADC().value(),             // summedADC
-                                algo.SummedADCStdDev().value(),       // summedADC_stddev
-                                algo.NHits(),                         // n_hits
-                                algo.MultipleHitDensity(),            // multiple_hit_density
-                                algo.Width(),                         // width
-                                out_clusters.size(),                  // ID
-                                view_id,                              // view
-                                plane,                                // plane
-                                recob::Cluster::Sentry                // sentry
-      );
+                                algo.StartCharge(gser).value(),
+                                algo.StartAngle().value(),
+                                algo.StartOpeningAngle().value(),
+                                res.end_point.w / fGeoU.WireToCm(), // end_wire
+                                0.,                                 // sigma_end_wire
+                                res.end_point.t / fGeoU.TimeToCm(), // end_tick
+                                0.,                                 // sigma_end_tick
+                                algo.EndCharge(gser).value(),
+                                algo.EndAngle().value(),
+                                algo.EndOpeningAngle().value(),
+                                algo.Integral().value(),
+                                algo.IntegralStdDev().value(),
+                                algo.SummedADC().value(),
+                                algo.SummedADCStdDev().value(),
+                                algo.NHits(),
+                                algo.MultipleHitDensity(),
+                                algo.Width(gser),
+                                out_clusters.size(), // ID
+                                view_id,
+                                plane,
+                                recob::Cluster::Sentry);
 
-      util::CreateAssn(ed, ev, out_clusters, GetMergedClusterHits().at(out_index), assns);
+      util::CreateAssn(ev, out_clusters, GetMergedClusterHits().at(out_index), assns);
     }
   }
 

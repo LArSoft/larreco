@@ -14,15 +14,14 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 namespace detinfo {
-  class DetectorProperties;
+  class DetectorClocksData;
+  class DetectorPropertiesData;
   class LArProperties;
 }
 
@@ -32,13 +31,12 @@ namespace detinfo {
 
 namespace trkf {
   class CosmicTrackerAlg {
-
   public:
-    CosmicTrackerAlg(fhicl::ParameterSet const& pset);
+    explicit CosmicTrackerAlg(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
-    void SPTReco(std::vector<art::Ptr<recob::Hit>>& fHits);
+    void SPTReco(detinfo::DetectorClocksData const& clockData,
+                 detinfo::DetectorPropertiesData const& detProp,
+                 std::vector<art::Ptr<recob::Hit>>& fHits);
 
     //trajectory position and direction returned by TrackTrajectoryAlg
     std::vector<TVector3> trajPos;
@@ -53,19 +51,24 @@ namespace trkf {
     int fSPTAlg; //0: Use TrackTrajectoryAlg
                  //1: Use only Track3DReco alg
 
-    bool
-      fTrajOnly; //if true, only return trajectory points, if false, return a 3D point for every hit
+    bool fTrajOnly; // if true, only return trajectory points, if false, return
+                    // a 3D point for every hit
 
-    //use TrackTrajectoryAlg to get trajectory points
-    void TrackTrajectory(std::vector<art::Ptr<recob::Hit>>& fHits);
+    // use TrackTrajectoryAlg to get trajectory points
+    void TrackTrajectory(detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<art::Ptr<recob::Hit>>& fHits);
 
-    //use algorithm in Track3DReco
-    void Track3D(std::vector<art::Ptr<recob::Hit>>& fHits);
+    // use algorithm in Track3DReco
+    void Track3D(detinfo::DetectorClocksData const& clockData,
+                 detinfo::DetectorPropertiesData const& detProp,
+                 std::vector<art::Ptr<recob::Hit>>& fHits);
     double ftmatch; ///< tolerance for time matching (in ticks)
     double fsmatch; ///< tolerance for distance matching (in cm)
 
-    //create one 3D point for each hit using trajectory points
-    void MakeSPT(std::vector<art::Ptr<recob::Hit>>& fHits);
+    // create one 3D point for each hit using trajectory points
+    void MakeSPT(detinfo::DetectorClocksData const& clockData,
+                 detinfo::DetectorPropertiesData const& detProp,
+                 std::vector<art::Ptr<recob::Hit>>& fHits);
 
     // track trajectory for a track under construction
     TrackTrajectoryAlg fTrackTrajectoryAlg;
@@ -77,7 +80,6 @@ namespace trkf {
 
     art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::LArProperties* larprop;
-    const detinfo::DetectorProperties* detprop;
 
   }; //class CosmicTrackerAlg
 } // namespace trkf

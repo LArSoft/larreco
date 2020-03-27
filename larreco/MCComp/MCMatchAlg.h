@@ -19,6 +19,9 @@
 #include "MCBTAlg.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/Simulation/SimChannel.h"
+namespace detinfo {
+  class DetectorClocksData;
+}
 
 #include <cstddef>
 #include <utility>
@@ -40,12 +43,14 @@ namespace btutil {
     virtual ~MCMatchAlg(){};
 
     /// Constructs needed information for Reco=>MC matching
-    bool BuildMap(const std::vector<unsigned int>& g4_trackid_v,
+    bool BuildMap(detinfo::DetectorClocksData const& clockData,
+                  const std::vector<unsigned int>& g4_trackid_v,
                   const std::vector<sim::SimChannel>& simch_v,
                   const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
     /// Constructs needed information for Reco=>MC matching
-    bool BuildMap(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+    bool BuildMap(detinfo::DetectorClocksData const& clockData,
+                  const std::vector<std::vector<unsigned int>>& g4_trackid_v,
                   const std::vector<sim::SimChannel>& simch_v,
                   const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
@@ -91,7 +96,8 @@ namespace btutil {
     }
 
   protected:
-    bool BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
+    bool BuildMap(detinfo::DetectorClocksData const& clockData,
+                  const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
     /// MCBTAlg instance
     MCBTAlg fBTAlgo;

@@ -39,24 +39,10 @@ namespace lar_cluster3d {
     , m_minAllowedCosAng(0.7)
     , m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
   {
-    this->reconfigure(pset);
-
-    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    //    auto const* detectorProperties = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    //    m_detector = detectorProperties->provider();
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  PCASeedFinderAlg::~PCASeedFinderAlg() {}
-
-  void
-  PCASeedFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
-  {
     m_gapDistance = pset.get<double>("GapDistance", 5.);
     m_numSeed2DHits = pset.get<size_t>("NumSeed2DHits", 80);
     m_minAllowedCosAng = pset.get<double>("MinAllowedCosAng", 0.7);
-    m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
+    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
   }
 
   bool

@@ -11,13 +11,10 @@
 
 #include "TMath.h"
 
-//class Hit2D
-
-ems::Hit2D::Hit2D(art::Ptr<recob::Hit> src) : fHit(src)
+ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src)
+  : fHit(src)
 {
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  detinfo::DetectorProperties const* detprop =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   unsigned int plane = src->WireID().Plane;
   unsigned int tpc = src->WireID().TPC;
@@ -25,7 +22,7 @@ ems::Hit2D::Hit2D(art::Ptr<recob::Hit> src) : fHit(src)
 
   double wireCentre[3];
   geom->WireIDToWireGeo(src->WireID()).GetCenter(wireCentre);
-  double x = detprop->ConvertTicksToX(src->PeakTime(), plane, tpc, cryo);
+  double x = detProp.ConvertTicksToX(src->PeakTime(), plane, tpc, cryo);
   double globalWire;
 
   if (tpc % 2 == 0) {
@@ -173,13 +170,12 @@ ems::EndPoint::ComputeMeanCharge()
 double
 ems::EndPoint::GetAsymmetry() const
 {
-  if ((fMaxCharge + fMeanCharge) == 0)
-    return 0.0;
-  else
-    return ((fMaxCharge - fMeanCharge) / (fMaxCharge + fMeanCharge));
+  if ((fMaxCharge + fMeanCharge) == 0) return 0.0;
+  return ((fMaxCharge - fMeanCharge) / (fMaxCharge + fMeanCharge));
 }
 
-ems::DirOfGamma::DirOfGamma(const std::vector<art::Ptr<recob::Hit>>& src,
+ems::DirOfGamma::DirOfGamma(detinfo::DetectorPropertiesData const& detProp,
+                            const std::vector<art::Ptr<recob::Hit>>& src,
                             unsigned int nbins,
                             unsigned int idcl)
   : fNbins(nbins), fIdCl(idcl), fCandidateID(0), fIsCandidateIDset(false)
@@ -187,7 +183,7 @@ ems::DirOfGamma::DirOfGamma(const std::vector<art::Ptr<recob::Hit>>& src,
   fHits = src;
 
   for (unsigned int i = 0; i < src.size(); i++) {
-    Hit2D* hit = new Hit2D(src[i]);
+    Hit2D* hit = new Hit2D(detProp, src[i]);
     fPoints2D.push_back(hit);
   }
 

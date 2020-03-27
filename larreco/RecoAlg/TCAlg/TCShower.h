@@ -16,13 +16,20 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
+namespace detinfo {
+  class DetectorPropertiesData;
+}
+
 namespace tca {
 
   void ConfigureMVA(TCConfig& tcc, std::string fMVAShowerParentWeights);
-  bool FindShowerStart(TCSlice& slc, ShowerStruct3D& ss3, bool prt);
+  bool FindShowerStart(detinfo::DetectorPropertiesData const& detProp,
+                       TCSlice& slc,
+                       ShowerStruct3D& ss3,
+                       bool prt);
   void KillVerticesInShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   void Finish3DShowers(TCSlice& slc);
-  bool FindShowers3D(TCSlice& slc);
+  bool FindShowers3D(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   bool Reconcile3D(std::string inFcnLabel, TCSlice& slc, bool parentSearchDone, bool prt);
   bool Reconcile3D(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
   bool MergeShowerTjsAndStore(TCSlice& slc, unsigned short istj, unsigned short jstj, bool prt);
@@ -36,14 +43,24 @@ namespace tca {
   void Match2DShowers(std::string inFcnLabel, TCSlice& slc, bool prt);
   bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
-  float Match3DFOM(std::string inFcnLabel, TCSlice& slc, int icotID, int jcotID, bool prt);
-  float Match3DFOM(std::string inFcnLabel,
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
+                   TCSlice& slc,
+                   int icotID,
+                   int jcotID,
+                   bool prt);
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
                    TCSlice& slc,
                    int icotID,
                    int jcotID,
                    int kcotID,
                    bool prt);
-  float Match3DFOM(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
+                   TCSlice& slc,
+                   ShowerStruct3D& ss3,
+                   bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   bool DontCluster(TCSlice& slc, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2);
@@ -81,8 +98,13 @@ namespace tca {
   bool AnalyzeRotPos(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   void ReverseShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   void ReverseShower(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt);
-  bool FindParent(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
-  bool SetParent(std::string inFcnLabel,
+  bool FindParent(detinfo::DetectorPropertiesData const& detProp,
+                  std::string inFcnLabel,
+                  TCSlice& slc,
+                  ShowerStruct3D& ss3,
+                  bool prt);
+  bool SetParent(detinfo::DetectorPropertiesData const& detProp,
+                 std::string inFcnLabel,
                  TCSlice& slc,
                  PFPStruct& pfp,
                  ShowerStruct3D& ss3,
@@ -148,12 +170,15 @@ namespace tca {
   double ShowerEnergy(const ShowerStruct3D& ss3);
   float ShowerEnergy(TCSlice& slc, const std::vector<int> tjIDs);
   float ChgToMeV(float chg);
+  //  PFPStruct CreateFakePFP(TCSlice& slc, const ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TCSlice& slc);
   ShowerStruct CreateSS(TCSlice& slc, const std::vector<int>& tjl);
   bool ChkAssns(std::string inFcnLabel, TCSlice& slc);
-  void PrintShowers(std::string someText, TCSlice& slc);
+  void PrintShowers(detinfo::DetectorPropertiesData const& detProp,
+                    std::string someText,
+                    TCSlice& slc);
   void Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers);
   void PrintShower(std::string someText,
                    TCSlice& slc,

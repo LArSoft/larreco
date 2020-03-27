@@ -21,6 +21,10 @@
 
 // LArSoft
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 namespace geo {
   struct TPCID;
 }
@@ -123,7 +127,12 @@ namespace tca {
                  unsigned short pos,
                  unsigned short ivx,
                  bool prt);
-  bool SplitTraj(TCSlice& slc, unsigned short itj, float XPos, bool makeVx2, bool prt);
+  bool SplitTraj(detinfo::DetectorPropertiesData const& detProp,
+                 TCSlice& slc,
+                 unsigned short itj,
+                 float XPos,
+                 bool makeVx2,
+                 bool prt);
   bool TrajClosestApproach(Trajectory const& tj,
                            float x,
                            float y,
@@ -274,9 +283,16 @@ namespace tca {
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(TCSlice& slc);
   void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt);
-  TrajPoint MakeBareTP(const TCSlice& slc, const Point3_t& pos, CTP_t inCTP);
+  TrajPoint MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
+                       const TCSlice& slc,
+                       const Point3_t& pos,
+                       CTP_t inCTP);
   // Make a bare trajectory point that only has position and direction defined
-  TrajPoint MakeBareTP(const TCSlice& slc, const Point3_t& pos, const Vector3_t& dir, CTP_t inCTP);
+  TrajPoint MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
+                       const TCSlice& slc,
+                       const Point3_t& pos,
+                       const Vector3_t& dir,
+                       CTP_t inCTP);
   bool MakeBareTrajPoint(const TCSlice& slc,
                          unsigned int fromHit,
                          unsigned int toHit,
@@ -300,7 +316,10 @@ namespace tca {
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
   void FillWireHitRange(geo::TPCID inTPCID);
-  bool FillWireHitRange(TCSlice& slc);
+  bool FillWireHitRange(detinfo::DetectorClocksData const& clockData,
+                        detinfo::DetectorPropertiesData const& detProp,
+                        TCSlice& slc);
+  //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
@@ -333,17 +352,25 @@ namespace tca {
   // ****************************** Printing  ******************************
   void DumpTj();
   void PrintDebugMode();
-  void PrintAll(std::string someText);
+  void PrintAll(detinfo::DetectorPropertiesData const& detProp, std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
-  void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3, bool& printHeader);
+  void Print3V(detinfo::DetectorPropertiesData const& detProp,
+               std::string someText,
+               mf::LogVerbatim& myprt,
+               Vtx3Store& vx3,
+               bool& printHeader);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader);
-  void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
+  void Print3S(detinfo::DetectorPropertiesData const& detProp,
+               std::string someText,
+               mf::LogVerbatim& myprt,
+               ShowerStruct3D& ss3);
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
   void PrintTrajectory(std::string someText,
                        const TCSlice& slc,
                        const Trajectory& tj,
                        unsigned short tPoint);
-  void PrintAllTraj(std::string someText,
+  void PrintAllTraj(detinfo::DetectorPropertiesData const& detProp,
+                    std::string someText,
                     TCSlice& slc,
                     unsigned short itj,
                     unsigned short ipt,

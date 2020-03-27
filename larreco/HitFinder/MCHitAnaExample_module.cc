@@ -274,23 +274,15 @@ namespace hit {
     fAnaWatch.Start();
 
     art::ServiceHandle<geo::Geometry const> geo;
-    const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
+    auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
 
     fReadWatch.Start();
-    art::Handle<std::vector<sim::MCHitCollection>> mcHandle;
-    e.getByLabel(fMCHitModuleName, mcHandle);
-    if (!mcHandle.isValid())
-      throw cet::exception(__PRETTY_FUNCTION__) << "MCHit not found!" << std::endl;
+    auto const& mchits_v = *e.getValidHandle<std::vector<sim::MCHitCollection>>(fMCHitModuleName);
     hMCHitReadTime->Fill(fReadWatch.RealTime() * 1.e3);
-    const std::vector<sim::MCHitCollection>& mchits_v = *mcHandle;
 
     fReadWatch.Start();
-    art::Handle<std::vector<recob::Hit>> recoHandle;
-    e.getByLabel(fRecoHitModuleName, recoHandle);
-    if (!recoHandle.isValid())
-      throw cet::exception(__PRETTY_FUNCTION__) << "RecoHit not found!" << std::endl;
+    auto const& recohits = *e.getValidHandle<std::vector<recob::Hit>>(fRecoHitModuleName);
     hRecoHitReadTime->Fill(fReadWatch.RealTime() * 1.e3);
-    const std::vector<recob::Hit>& recohits = *recoHandle;
 
     //
     // Work on purely MCHit info
@@ -340,9 +332,9 @@ namespace hit {
       // Locate corresponding MCHit(s) to this RecoHit
       sim::MCHit start_time, end_time, peak_time;
 
-      start_time.SetTime(ts->TPCTick2TDC(hit.PeakTimeMinusRMS()), 0);
-      peak_time.SetTime(ts->TPCTick2TDC(hit.PeakTime()), 0);
-      end_time.SetTime(ts->TPCTick2TDC(hit.PeakTimePlusRMS()), 0);
+      start_time.SetTime(clock_data.TPCTick2TDC(hit.PeakTimeMinusRMS()), 0);
+      peak_time.SetTime(clock_data.TPCTick2TDC(hit.PeakTime()), 0);
+      end_time.SetTime(clock_data.TPCTick2TDC(hit.PeakTimePlusRMS()), 0);
 
       fSearchWatch.Start();
       auto start_iter = std::lower_bound(mchits.begin(), mchits.end(), start_time);

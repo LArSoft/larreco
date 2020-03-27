@@ -42,7 +42,7 @@ namespace cluster {
     virtual ~StandardClusterParamsAlg() = default;
 
     /// Restores the class to post-configuration, pre-initialization state
-    virtual void Clear() override;
+    void Clear() override;
 
     /**
      * @brief Sets the list of input hits
@@ -55,7 +55,8 @@ namespace cluster {
      * This method calls Clear() at the beginning (although the protocol does
      * not requires it).
      */
-    virtual void SetHits(std::vector<recob::Hit const*> const& hits) override;
+    void SetHits(util::GeometryUtilities const& gser,
+                 std::vector<recob::Hit const*> const& hits) override;
 
     /**
      * @brief Sets the list of input hits
@@ -63,14 +64,14 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see ClusterParamsAlgBase::SetHits(std::vector<recob::Hit> const&)
      */
-    virtual void
-    SetHits(std::vector<recob::Hit> const& hits) override
+    void
+    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
     {
-      ClusterParamsAlgBase::SetHits(hits);
+      ClusterParamsAlgBase::SetHits(gser, hits);
     }
 
     /// Set the verbosity level
-    virtual void SetVerbose(int level = 1) override;
+    void SetVerbose(int level = 1) override;
 
     //@{
     /**
@@ -81,8 +82,8 @@ namespace cluster {
      * charge collected in the first or last 1 cm of the cluster, using a linear
      * fit on the deposited charge to reduce fluctuations.
      */
-    virtual Measure_t StartCharge() override;
-    virtual Measure_t EndCharge() override;
+    Measure_t StartCharge(util::GeometryUtilities const& gser) override;
+    Measure_t EndCharge(util::GeometryUtilities const& gser) override;
     //@}
 
     //@{
@@ -101,8 +102,8 @@ namespace cluster {
      *
      * @note Both the methods return the same value.
      */
-    virtual Measure_t StartAngle() override;
-    virtual Measure_t EndAngle() override;
+    Measure_t StartAngle() override;
+    Measure_t EndAngle() override;
     //@}
 
     //@{
@@ -113,8 +114,8 @@ namespace cluster {
      * This algorithm returns an opening angle after weighting the hits by
      * their charge (as defined bu Hit::Integral());
      */
-    virtual Measure_t StartOpeningAngle() override;
-    virtual Measure_t EndOpeningAngle() override;
+    Measure_t StartOpeningAngle() override;
+    Measure_t EndOpeningAngle() override;
     //@}
 
     /// @name Cluster charge
@@ -126,7 +127,7 @@ namespace cluster {
      *
      * ClusterParamsAlg computes the sum from all hits.
      */
-    virtual Measure_t Integral() override;
+    Measure_t Integral() override;
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -137,7 +138,7 @@ namespace cluster {
      * from all hits.
      * Hit charge is obtained by recob::Hit::Integral().
      */
-    virtual Measure_t IntegralStdDev() override;
+    Measure_t IntegralStdDev() override;
 
     /**
      * @brief Computes the total charge of the cluster from Hit::SummedADC()
@@ -146,7 +147,7 @@ namespace cluster {
      *
      * ClusterParamsAlg computes the sum from all hits.
      */
-    virtual Measure_t SummedADC() override;
+    Measure_t SummedADC() override;
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -157,12 +158,12 @@ namespace cluster {
      * from all hits.
      * Hit charge is obtained by recob::Hit::SummedADC().
      */
-    virtual Measure_t SummedADCStdDev() override;
+    Measure_t SummedADCStdDev() override;
 
     /// @}
 
     /// Returns the number of hits in the cluster
-    virtual size_t NHits() override;
+    size_t NHits() override;
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
@@ -173,7 +174,7 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitDensity() override;
+    float MultipleHitDensity() override;
 
     /**
      * @brief Computes the width of the cluster
@@ -181,7 +182,7 @@ namespace cluster {
      *
      * @todo provide a description of the algorithm by words
      */
-    virtual float Width() override;
+    float Width(util::GeometryUtilities const& gser) override;
 
     /// Returns the number of input hits
     size_t NInputHits() const;

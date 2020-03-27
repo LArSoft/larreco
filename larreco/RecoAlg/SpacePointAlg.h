@@ -59,8 +59,11 @@
 #include <vector>
 
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl {
-  class ParameterSet;
+#include "fhiclcpp/fwd.h"
+
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
 }
 
 namespace trkf {
@@ -75,92 +78,98 @@ namespace trkf {
 
   class SpacePointAlg {
   public:
-    // Constructor.
     SpacePointAlg(const fhicl::ParameterSet& pset);
 
     // Configuration Accessors.
 
     bool
-    filter() const
+    filter() const noexcept
     {
       return fFilter;
     }
     bool
-    merge() const
+    merge() const noexcept
     {
       return fMerge;
     }
     double
-    maxDT() const
+    maxDT() const noexcept
     {
       return fMaxDT;
     }
     double
-    maxS() const
+    maxS() const noexcept
     {
       return fMaxS;
     }
     int
-    minViews() const
+    minViews() const noexcept
     {
       return fMinViews;
     }
     bool
-    enableU() const
+    enableU() const noexcept
     {
       return fEnableU;
     }
     bool
-    enableV() const
+    enableV() const noexcept
     {
       return fEnableV;
     }
     bool
-    enableW() const
+    enableW() const noexcept
     {
       return fEnableW;
     }
 
-    // Update configuration parameters.
-    void reconfigure(const fhicl::ParameterSet& pset);
-
     // Print constants obtained from geometry and properties services.
-    void update() const;
+    void update(detinfo::DetectorPropertiesData const& detProp) const;
 
     // Corrected time accessors.
-    double correctedTime(const recob::Hit& hit) const;
+    double correctedTime(detinfo::DetectorPropertiesData const& detProp,
+                         const recob::Hit& hit) const;
 
     // Spatial separation of hits (zero if two or fewer).
     double separation(const art::PtrVector<recob::Hit>& hits) const;
 
     // Test whether the specified hits are compatible with a space point.
     // The last two arguments can be used to override the default cuts.
-    bool compatible(const art::PtrVector<recob::Hit>& hits, bool useMC = false) const;
+    bool compatible(detinfo::DetectorPropertiesData const& detProp,
+                    const art::PtrVector<recob::Hit>& hits,
+                    bool useMC = false) const;
 
     // Fill a single simple space point using the specified hits.
     // Hits are assumed to be compatible.
-    void fillSpacePoint(const art::PtrVector<recob::Hit>& hits,
+    void fillSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                        const art::PtrVector<recob::Hit>& hits,
                         std::vector<recob::SpacePoint>& sptv,
                         int sptid) const;
 
     /// Fill a collection of space points.
-    void fillSpacePoints(std::vector<recob::SpacePoint>& spts,
+    void fillSpacePoints(detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<recob::SpacePoint>& spts,
                          std::multimap<double, KHitTrack> const& trackMap) const;
 
     // Fill a single complex space point using the specified hits.
     // Complex space points allow multiple hits in one plane.
     // Hits are assumed to be compatible.
-    void fillComplexSpacePoint(const art::PtrVector<recob::Hit>& hits,
+    void fillComplexSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                               const art::PtrVector<recob::Hit>& hits,
                                std::vector<recob::SpacePoint>& sptv,
                                int sptid) const;
 
     // Fill a vector of space points from an unsorted collection of hits.
     // Space points are generated for all compatible combinations of hits.
-    void makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
+    void makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         const art::PtrVector<recob::Hit>& hits,
                          std::vector<recob::SpacePoint>& spts) const;
 
     // Fill a vector of space points compatible with mc truth information
-    void makeMCTruthSpacePoints(const art::PtrVector<recob::Hit>& hits,
+    void makeMCTruthSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                detinfo::DetectorPropertiesData const& detProp,
+                                const art::PtrVector<recob::Hit>& hits,
                                 std::vector<recob::SpacePoint>& spts) const;
 
     // Get hits associated with a particular space point, based on most recent
@@ -184,7 +193,9 @@ namespace trkf {
   private:
     // This is the real method for calculating space points (each of
     // the public make*SpacePoints methods comes here).
-    void makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
+    void makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         const art::PtrVector<recob::Hit>& hits,
                          std::vector<recob::SpacePoint>& spts,
                          bool useMC) const;
 

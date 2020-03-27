@@ -9,17 +9,17 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 void
-pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
+pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
+                            pma::TrkCandidateColl& tracks)
 {
   // Get the detector dimensions
   GetDimensions();
@@ -33,7 +33,7 @@ pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
   if (fTagFullHeightTracks) n += fullHeightCrossing(tracks);
   if (fTagFullWidthTracks) n += fullWidthCrossing(tracks);
   if (fTagFullLengthTracks) n += fullLengthCrossing(tracks);
-  if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(tracks);
+  if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(clockData, tracks);
   if (fTagTopFrontBack) n += tagTopFrontBack(tracks);
   if (fTagApparentStopper) n += tagApparentStopper(tracks);
 
@@ -49,9 +49,6 @@ pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
   for (auto& t : tracks.tracks()) {
-
-    // If this track is already tagged then don't try again!
-    // if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     pma::Track3D& trk = *(t.Track());
 
@@ -105,24 +102,19 @@ pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
 // Leigh: Make use of the fact that our cathode and anode crossing tracks have a reconstructed T0.
 // Check to see if this time is consistent with the beam
 size_t
-pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl& tracks) const
+pma::PMAlgCosmicTagger::nonBeamT0Tag(detinfo::DetectorClocksData const& clockData,
+                                     pma::TrkCandidateColl& tracks) const
 {
-
   size_t n = 0;
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   // Search through all of the tracks
   for (auto& t : tracks.tracks()) {
-
-    // If this track is already tagged then don't try again!
-    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     // Non zero T0 means we reconstructed it
     if (t.Track()->GetT0() != 0.0) {
       mf::LogInfo("pma::PMAlgCosmicTagger") << " - track with T0 = " << t.Track()->GetT0();
 
-      if (fabs(t.Track()->GetT0() - detprop->TriggerOffset()) > fNonBeamT0Margin) {
+      if (fabs(t.Track()->GetT0() - trigger_offset(clockData)) > fNonBeamT0Margin) {
         ++n;
         t.Track()->SetTagFlag(pma::Track3D::kCosmic);
         t.Track()->SetTagFlag(pma::Track3D::kBeamIncompatible);
@@ -147,9 +139,6 @@ pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) const
 
   // Loop over the tracks
   for (auto& t : tracks.tracks()) {
-
-    // If this track is already tagged then don't try again!
-    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     // Get the first and last positions from the track.
     auto const& node0 = *(t.Track()->Nodes()[0]);
@@ -196,9 +185,6 @@ pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks) const
 
   // Loop over the tracks
   for (auto& t : tracks.tracks()) {
-
-    // If this track is already tagged then don't try again!
-    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     // Get the first and last positions from the track.
     auto const& node0 = *(t.Track()->Nodes()[0]);
@@ -380,9 +366,6 @@ pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int di
 
   // Loop over the tracks
   for (auto& t : tracks.tracks()) {
-
-    // If this track is already tagged then don't try again!
-    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     // Get the first and last positions from the track.
     auto const& node0 = *(t.Track()->Nodes()[0]);

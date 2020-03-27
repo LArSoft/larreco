@@ -28,6 +28,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/ArtDataHelper/ToElement.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -38,23 +40,21 @@
 #include "TH1F.h"
 #include "TH2F.h"
 
+#include "range/v3/view.hpp"
+
+using lar::to_element;
+using ranges::view::transform;
+
 namespace trkf {
 
   class SpacePointAna : public art::EDAnalyzer {
   public:
-    // Constructors, destructor
-
     explicit SpacePointAna(fhicl::ParameterSet const& pset);
-    virtual ~SpacePointAna();
 
   private:
-    // Book histograms.
+    void analyze(const art::Event& evt) override;
 
     void bookHistograms(bool mc);
-
-    // Overrides.
-
-    void analyze(const art::Event& evt);
 
     // Fcl Attributes.
 
@@ -176,9 +176,6 @@ namespace trkf {
     , fHMCzpull(0)
     , fNumEvent(0)
   {
-
-    // Report.
-
     mf::LogInfo("SpacePointAna") << "SpacePointAna configured with the following parameters:\n"
                                  << "  HitModuleLabel = " << fHitModuleLabel << "\n"
                                  << "  UseClusterHits = " << fUseClusterHits << "\n"
@@ -186,17 +183,8 @@ namespace trkf {
                                  << "  UseMC = " << fUseMC;
   }
 
-  SpacePointAna::~SpacePointAna()
-  //
-  // Purpose: Destructor.
-  //
-  {}
-
   void
   SpacePointAna::bookHistograms(bool mc)
-  //
-  // Purpose: Book histograms.
-  //
   {
     if (!fBooked) {
       fBooked = true;
@@ -290,11 +278,6 @@ namespace trkf {
 
   void
   SpacePointAna::analyze(const art::Event& evt)
-  //
-  // Purpose: Analyze method.
-  //
-  // Arguments: event - Art event.
-  //
   {
     ++fNumEvent;
 
@@ -306,8 +289,6 @@ namespace trkf {
     // Get Services.
 
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get Hits.
 
@@ -357,78 +338,47 @@ namespace trkf {
 
     // Fill histograms that don't depend on space points.
 
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+
     if (mc && fUseMC) {
 
       art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       // Loop over hits and fill hit-electron time difference histogram.
 
-      for (art::PtrVector<recob::Hit>::const_iterator ihit = hits.begin(); ihit != hits.end();
-           ++ihit) {
-        const recob::Hit& hit = **ihit;
+      for (auto const& hitPtr : hits) {
+        const recob::Hit& hit = *hitPtr;
 
-        //unsigned int channel = hit.Channel();
-        //geo::View_t geo_view = geom->View(channel);
-        //geo::View_t hit_view = hit.View();
-        //assert(geo_view == hit_view);
         double tpeak = hit.PeakTime();
         double terr = hit.SigmaPeakTime();
-
-        //assert(channel == hit.Channel());
-
-        // Loop over electrons associated with this hit/channel and fill
-        // hit-electron time difference histograms.
-
-        // loop over the map of TDC to sim::IDE to get the TDC for each energy dep
-        // Find the average time in ticks for this hit.
-
-        //double sumw = 0.;
-        //double sumt = 0.;
-
-        //const std::map<unsigned short, std::vector<sim::IDE> > &idemap = simchan.TDCIDEMap();
-        //std::map<unsigned short, std::vector<sim::IDE> >::const_iterator mitr = idemap.begin();
-        //for(mitr = idemap.begin(); mitr != idemap.end(); mitr++) {
-        //  double tdc = double((*mitr).first);
-        //  if(tdc >= tstart && tdc <= tend) {
-        //    const std::vector<sim::IDE>& idevec = (*mitr).second;
-        //    for(std::vector<sim::IDE>::const_iterator iide=idevec.begin();
-        //	iide != idevec.end(); ++iide) {
-        //      const sim::IDE& ide = *iide;
-        //      double w = ide.numElectrons;
-        //      sumw += w;
-        //      sumt += w*tdc;
-        //    }
-        //  }
-        //}
-        //double tav = 0.;
-        //if(sumw != 0.)
-        //  tav = sumt / sumw;
 
         bool tav_ok = true;
         double tav = 0.;
         try {
-          std::vector<double> hitxyz = bt_serv->HitToXYZ(*ihit);
-          tav = detprop->ConvertXToTicks(
-            hitxyz[0], (*ihit)->WireID().Plane, (*ihit)->WireID().TPC, (*ihit)->WireID().Cryostat);
+          std::vector<double> hitxyz = bt_serv->HitToXYZ(clockData, hit);
+          tav = detProp.ConvertXToTicks(
+            hitxyz[0], hit.WireID().Plane, hit.WireID().TPC, hit.WireID().Cryostat);
         }
         catch (cet::exception& x) {
           tav_ok = false;
         }
         if (tav_ok) {
-          if ((*ihit)->View() == geo::kU) {
+          if (hit.View() == geo::kU) {
             fHDTUE->Fill(tpeak - tav);
             fHDTUPull->Fill((tpeak - tav) / terr);
           }
-          else if ((*ihit)->View() == geo::kV) {
+          else if (hit.View() == geo::kV) {
             fHDTVE->Fill(tpeak - tav);
             fHDTVPull->Fill((tpeak - tav) / terr);
           }
-          else if ((*ihit)->View() == geo::kZ) {
+          else if (hit.View() == geo::kZ) {
             fHDTWE->Fill(tpeak - tav);
             fHDTWPull->Fill((tpeak - tav) / terr);
           }
           else
-            throw cet::exception("SpacePointAna") << "Bad view = " << (*ihit)->View() << "\n";
+            throw cet::exception("SpacePointAna") << "Bad view = " << hit.View() << "\n";
         }
       }
     }
@@ -442,9 +392,9 @@ namespace trkf {
 
     if (!fSptalgTime.merge()) {
       if (mc && fUseMC)
-        fSptalgTime.makeMCTruthSpacePoints(hits, spts1);
+        fSptalgTime.makeMCTruthSpacePoints(clockData, detProp, hits, spts1);
       else
-        fSptalgTime.makeSpacePoints(hits, spts1);
+        fSptalgTime.makeSpacePoints(clockData, detProp, hits, spts1);
 
       // Report number of space points.
 
@@ -457,9 +407,9 @@ namespace trkf {
 
     if (!fSptalgSep.merge()) {
       if (mc && fUseMC)
-        fSptalgSep.makeMCTruthSpacePoints(hits, spts2);
+        fSptalgSep.makeMCTruthSpacePoints(clockData, detProp, hits, spts2);
       else
-        fSptalgSep.makeSpacePoints(hits, spts2);
+        fSptalgSep.makeSpacePoints(clockData, detProp, hits, spts2);
 
       // Report number of space points.
 
@@ -470,9 +420,9 @@ namespace trkf {
     // Make space points using default cuts.
 
     if (mc && fUseMC)
-      fSptalgDefault.makeMCTruthSpacePoints(hits, spts3);
+      fSptalgDefault.makeMCTruthSpacePoints(clockData, detProp, hits, spts3);
     else
-      fSptalgDefault.makeSpacePoints(hits, spts3);
+      fSptalgDefault.makeSpacePoints(clockData, detProp, hits, spts3);
 
     // Report number of space points.
 
@@ -483,9 +433,7 @@ namespace trkf {
 
       // Loop over space points and fill time histograms.
 
-      for (std::vector<recob::SpacePoint>::const_iterator i = spts1.begin(); i != spts1.end();
-           ++i) {
-        const recob::SpacePoint& spt = *i;
+      for (auto const& spt : spts1) {
         if (spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX || spt.XYZ()[1] < fMinY ||
             spt.XYZ()[1] > fMaxY || spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
           continue;
@@ -496,37 +444,27 @@ namespace trkf {
 
         // Make a double loop over hits and fill hit time difference histograms.
 
-        for (art::PtrVector<recob::Hit>::const_iterator ihit = spthits.begin();
-             ihit != spthits.end();
-             ++ihit) {
-          const recob::Hit& hit1 = **ihit;
-
+        for (auto const& hit1 : spthits | transform(to_element)) {
           geo::WireID hit1WireID = hit1.WireID();
-          unsigned int tpc1, plane1, wire1;
-          tpc1 = hit1WireID.TPC;
-          plane1 = hit1WireID.Plane;
-          wire1 = hit1WireID.Wire;
+          unsigned int tpc1 = hit1WireID.TPC;
+          unsigned int plane1 = hit1WireID.Plane;
+          unsigned int wire1 = hit1WireID.Wire;
 
           geo::View_t view1 = hit1.View();
-          double t1 = fSptalgTime.correctedTime(hit1);
+          double t1 = fSptalgTime.correctedTime(detProp, hit1);
 
-          for (art::PtrVector<recob::Hit>::const_iterator jhit = spthits.begin();
-               jhit != spthits.end();
-               ++jhit) {
-            const recob::Hit& hit2 = **jhit;
-
+          for (auto const& hit2 : spthits | transform(to_element)) {
             geo::WireID hit2WireID = hit2.WireID();
-            unsigned int tpc2, plane2, wire2;
-            tpc2 = hit2WireID.TPC;
-            plane2 = hit2WireID.Plane;
-            wire2 = hit2WireID.Wire;
+            unsigned int tpc2 = hit2WireID.TPC;
+            unsigned int plane2 = hit2WireID.Plane;
+            unsigned int wire2 = hit2WireID.Wire;
 
             // Require same tpc, different view.
 
             if (tpc1 == tpc2 && plane1 != plane2) {
 
               geo::View_t view2 = hit2.View();
-              double t2 = fSptalgTime.correctedTime(hit2);
+              double t2 = fSptalgTime.correctedTime(detProp, hit2);
 
               if (view1 == geo::kU) {
                 if (view2 == geo::kV) {
@@ -571,9 +509,7 @@ namespace trkf {
 
       // Loop over space points and fill seperation histograms.
 
-      for (std::vector<recob::SpacePoint>::const_iterator i = spts2.begin(); i != spts2.end();
-           ++i) {
-        const recob::SpacePoint& spt = *i;
+      for (auto const& spt : spts2) {
         if (spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX || spt.XYZ()[1] < fMinY ||
             spt.XYZ()[1] > fMaxY || spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
           continue;
@@ -591,8 +527,7 @@ namespace trkf {
 
     // Loop over default space points and fill histograms.
 
-    for (std::vector<recob::SpacePoint>::const_iterator i = spts3.begin(); i != spts3.end(); ++i) {
-      const recob::SpacePoint& spt = *i;
+    for (auto const& spt : spts3) {
       if (spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX || spt.XYZ()[1] < fMinY ||
           spt.XYZ()[1] > fMaxY || spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
         continue;
@@ -612,9 +547,8 @@ namespace trkf {
 
       // Fill single hit histograms.
 
-      for (art::PtrVector<recob::Hit>::const_iterator ihit = spthits.begin(); ihit != spthits.end();
-           ++ihit) {
-        const recob::Hit& hit = **ihit;
+      for (auto const& hitPtr : spthits) {
+        const recob::Hit& hit = *hitPtr;
 
         geo::View_t view = hit.View();
 
@@ -640,7 +574,7 @@ namespace trkf {
         art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
         try {
-          std::vector<double> mcxyz = bt_serv->SpacePointHitsToWeightedXYZ(spthits);
+          std::vector<double> mcxyz = bt_serv->SpacePointHitsToWeightedXYZ(clockData, spthits);
           fHMCdx->Fill(spt.XYZ()[0] - mcxyz[0]);
           fHMCdy->Fill(spt.XYZ()[1] - mcxyz[1]);
           fHMCdz->Fill(spt.XYZ()[2] - mcxyz[2]);
@@ -651,7 +585,7 @@ namespace trkf {
           if (spt.ErrXYZ()[5] > 0.)
             fHMCzpull->Fill((spt.XYZ()[2] - mcxyz[2]) / std::sqrt(spt.ErrXYZ()[5]));
         }
-        catch (cet::exception& x) {
+        catch (cet::exception&) {
         }
       }
     }

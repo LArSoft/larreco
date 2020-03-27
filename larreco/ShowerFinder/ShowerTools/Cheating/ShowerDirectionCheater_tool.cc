@@ -16,11 +16,12 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/TRACSCheatingAlg.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 
@@ -54,7 +55,6 @@ namespace ShowerRecoTools {
                              TVector3& Direction);
     double CalculateRMS(std::vector<float> perps);
 
-    //Algorithm functions
     shower::TRACSCheatingAlg fTRACSCheatingAlg;
 
     //Services
@@ -62,10 +62,11 @@ namespace ShowerRecoTools {
 
     //fcl
     art::InputTag fPFParticleModuleLabel;
-    float fNSegments; //Number of segement to split the shower into the perforam the RMSFlip.
-    bool fRMSFlip;    //Flip the direction by considering the rms.
-    bool
-      fVertexFlip; //Flip the direction by considering the vertex position relative to the center position.
+    float fNSegments; // Number of segement to split the shower into the
+                      // perforam the RMSFlip.
+    bool fRMSFlip;    // Flip the direction by considering the rms.
+    bool fVertexFlip; // Flip the direction by considering the vertex position
+                      // relative to the center position.
 
     //TTree Branch variables
     TTree* Tree;
@@ -102,6 +103,8 @@ namespace ShowerRecoTools {
                                            art::Event& Event,
                                            reco::shower::ShowerElementHolder& ShowerEleHolder)
   {
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
 
     const simb::MCParticle* trueParticle;
 
@@ -147,7 +150,7 @@ namespace ShowerRecoTools {
 
       //Get the true particle from the shower
       std::pair<int, double> ShowerTrackInfo =
-        fTRACSCheatingAlg.TrueParticleIDFromTrueChain(showersMothers, showerHits, 2);
+        fTRACSCheatingAlg.TrueParticleIDFromTrueChain(clockData, showersMothers, showerHits, 2);
 
       if (ShowerTrackInfo.first == -99999) {
         mf::LogError("ShowerDirectionCheater") << "True shower not found, returning";
@@ -190,10 +193,14 @@ namespace ShowerRecoTools {
 
       if (spacePoints.size() == 0) return 1;
 
-      //Get Shower Centre
+      // Get Shower Centre
+      auto const clockData =
+        art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+      auto const detProp =
+        art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
       float TotalCharge;
       TVector3 ShowerCentre =
-        IShowerTool::GetTRACSAlg().ShowerCentre(spacePoints, fmh, TotalCharge);
+        IShowerTool::GetTRACSAlg().ShowerCentre(clockData, detProp, spacePoints, fmh, TotalCharge);
 
       //Check if we are pointing the correct direction or not, First try the start position
       if (ShowerEleHolder.CheckElement(fShowerStartPositionInputLabel) && fVertexFlip) {

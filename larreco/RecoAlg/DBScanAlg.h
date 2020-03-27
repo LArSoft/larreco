@@ -12,6 +12,10 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for WireID
 #include "larreco/ClusterFinder/RStarTree/RStarTree.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 namespace fhicl {
   class ParameterSet;
@@ -23,22 +27,35 @@ namespace recob {
 
 // RStarTree related infrastructure
 //
-// Our core objects have a physical extent (I.e. there are not
+// Our core objects have a physical extent (i.e. there are not
 // points), but a R*-tree should be able to deal with that.
-class dbsPoint;                               // forward declaration
-typedef RStarTree<uint32_t, 2, 32, 64> RTree; // payload is just an index
-typedef RTree::BoundingBox BoundingBox;
+using RTree = RStarTree<uint32_t, 2, 32, 64>; // payload is just an index
+using BoundingBox = RTree::BoundingBox;
+
+struct dbsPoint {
+  double x, y;
+  double dx, dy;
+  dbsPoint(double X = 0.0, double Y = 0.0, double dX = 0.0, double dY = 0.0)
+    : x(X), y(Y), dx(dX), dy(dY){};
+  BoundingBox bounds() const;
+  void
+  Expand(double DX, double DY)
+  {
+    dx += DX;
+    dy += DY;
+  };
+};
 
 namespace cluster {
 
   //---------------------------------------------------------------
   class DBScanAlg {
   public:
-    DBScanAlg(fhicl::ParameterSet const& pset);
-    ~DBScanAlg();
+    explicit DBScanAlg(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& p);
     void InitScan(
+      const detinfo::DetectorClocksData& clockData,
+      const detinfo::DetectorPropertiesData& detProp,
       const std::vector<art::Ptr<recob::Hit>>& allhits,
       std::set<uint32_t> badChannels,
       const std::vector<geo::WireID>& wireids = std::vector<geo::WireID>()); //wireids is optional
@@ -80,7 +97,8 @@ namespace cluster {
     std::vector<double> fWirePitch;    ///< the pitch of the wires in each plane
     std::set<uint32_t> fBadChannels;   ///< set of bad channels in this detector
     std::vector<uint32_t> fBadWireSum; ///< running total of bad channels. Used for fast intervening
-      ///< dead wire counting ala fBadChannelSum[m]-fBadChannelSum[n].
+                                       ///< dead wire counting ala
+                                       ///< fBadChannelSum[m]-fBadChannelSum[n].
 
     // Three differnt version of the clustering code
     void run_dbscan_cluster();

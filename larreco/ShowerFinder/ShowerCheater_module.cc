@@ -5,12 +5,12 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#include <string>
 
-// ROOT includes
+#include <string>
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -35,21 +35,22 @@ namespace shwf {
     explicit ShowerCheater(fhicl::ParameterSet const& pset);
 
   private:
-    void produce(art::Event& evt);
+    void produce(art::Event& evt) override;
 
-    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
-    std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc
+    std::string const fCheatedClusterLabel; ///< label for module creating
+                                            ///< recob::Cluster objects
+    std::string const fG4ModuleLabel; ///< label for module running G4 and making particles, etc
   };
 }
 
 namespace shwf {
 
   //--------------------------------------------------------------------
-  ShowerCheater::ShowerCheater(fhicl::ParameterSet const& pset) : EDProducer{pset}
+  ShowerCheater::ShowerCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+    , fCheatedClusterLabel{pset.get<std::string>("CheatedClusterLabel", "cluster")}
+    , fG4ModuleLabel{pset.get<std::string>("G4ModuleLabel", "largeant")}
   {
-    fCheatedClusterLabel = pset.get<std::string>("CheatedClusterLabel", "cluster");
-    fG4ModuleLabel = pset.get<std::string>("G4ModuleLabel", "largeant");
-
     produces<std::vector<recob::Shower>>();
     produces<std::vector<recob::SpacePoint>>();
     produces<art::Assns<recob::Shower, recob::Cluster>>();
@@ -107,6 +108,8 @@ namespace shwf {
     std::unique_ptr<art::Assns<recob::Hit, recob::SpacePoint>> sphassn(
       new art::Assns<recob::Hit, recob::SpacePoint>);
 
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
     for (auto const& clusterMapItr : eveClusterMap) {
 
       // separate out the hits for each particle into the different views
@@ -135,7 +138,7 @@ namespace shwf {
           art::Ptr<recob::Hit> hit = hits[h];
           // add up the charge from the hits on the collection plane
           if (hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
-          std::vector<double> xyz = bt_serv->HitToXYZ(hit);
+          std::vector<double> xyz = bt_serv->HitToXYZ(clockData, hit);
           double sperr[6] = {0.01, 0.01, 0.1, 0.001, 0.001, 0.001};
 
           // make the space point and set its ID and XYZ
@@ -207,15 +210,8 @@ namespace shwf {
     evt.put(std::move(shassn));
     evt.put(std::move(sspassn));
     evt.put(std::move(sphassn));
-
-    return;
-
   } // end produce
 
 } // end namespace
 
-namespace shwf {
-
-  DEFINE_ART_MODULE(ShowerCheater)
-
-}
+DEFINE_ART_MODULE(shwf::ShowerCheater)

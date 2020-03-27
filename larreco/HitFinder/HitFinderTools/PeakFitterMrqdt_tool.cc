@@ -7,7 +7,6 @@
 #include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <cassert>

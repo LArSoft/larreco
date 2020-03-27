@@ -28,9 +28,6 @@ namespace cmtool {
     /// Default constructor
     CFAlgoQRatio();
 
-    /// Default destructor
-    virtual ~CFAlgoQRatio(){};
-
     //
     // Author should be aware of 3 functions at least: Float, Report,
     // and Reset. More possibly-useful functions can be found in the later
@@ -41,16 +38,17 @@ namespace cmtool {
        Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
-    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters);
+    float Float(util::GeometryUtilities const&,
+                const std::vector<const cluster::ClusterParamsAlg*>& clusters) override;
 
     /**
        Optional function: called after each iterative approach if a manager class is
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
-    virtual void Report();
+    void Report() override;
 
     /// Function to reset the algorithm instance, called together with manager's Reset()
-    virtual void Reset();
+    void Reset() override;
 
     /// Setter for the minimum value for charge ratio (below this value Float() returns -1)
     void

@@ -55,13 +55,16 @@ namespace DUNE {
     void beginRun(const art::Run& run);
     void analyze(const art::Event& evt);
 
-    void processEff(const art::Event& evt, bool& isFiducial);
-    void truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits,
+    void processEff(const art::Event& evt);
+    void truthMatcher(detinfo::DetectorClocksData const& clockData,
+                      std::vector<art::Ptr<recob::Hit>> all_hits,
                       std::vector<art::Ptr<recob::Hit>> track_hits,
                       const simb::MCParticle*& MCparticle,
                       double& Efrac,
                       double& Ecomplet);
-    double truthLength(const simb::MCParticle* MCparticle);
+    double truthLength(const detinfo::DetectorClocksData& clockData,
+                       detinfo::DetectorPropertiesData const& detProp,
+                       const simb::MCParticle* MCparticle);
     bool insideFV(double vertex[4]);
     void doEfficiencies();
 
@@ -172,11 +175,7 @@ namespace DUNE {
     float fFidVolZmin;
     float fFidVolZmax;
 
-    detinfo::DetectorProperties const* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-    detinfo::DetectorClocks const* ts = lar::providerFrom<detinfo::DetectorClocksService>();
-    double XDriftVelocity = detprop->DriftVelocity() * 1e-3; //cm/ns
-    double WindowSize = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
+    double fDriftVelocity; // in cm/ns
     art::ServiceHandle<geo::Geometry const> geom;
 
   }; // class NeutrinoTrackingEff
@@ -194,13 +193,16 @@ namespace DUNE {
     fFidVolCutX = p.get<float>("FidVolCutX");
     fFidVolCutY = p.get<float>("FidVolCutY");
     fFidVolCutZ = p.get<float>("FidVolCutZ");
+
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();
+    fDriftVelocity = detProp.DriftVelocity() * 1e-3; // cm/ns
   }
   //========================================================================
   void
   NeutrinoTrackingEff::beginJob()
   {
     std::cout << "job begin..." << std::endl;
-    // Get geometry.
     auto const* geo = lar::providerFrom<geo::Geometry>();
     // Define histogram boundaries (cm).
     // For now only draw cryostat=0.
@@ -410,7 +412,6 @@ namespace DUNE {
   void
   NeutrinoTrackingEff::endJob()
   {
-
     doEfficiencies();
   }
   //========================================================================
@@ -425,15 +426,13 @@ namespace DUNE {
   {
     if (event.isRealData()) return;
 
-    bool isFiducial = false;
-    processEff(event, isFiducial);
+    processEff(event);
   }
   //========================================================================
   void
-  NeutrinoTrackingEff::processEff(const art::Event& event, bool& isFiducial)
+  NeutrinoTrackingEff::processEff(const art::Event& event)
   {
-
-    //!save neutrino's interaction info
+    // Save neutrino's interaction info
     art::Handle<std::vector<simb::MCTruth>> MCtruthHandle;
     event.getByLabel(fMCTruthModuleLabel, MCtruthHandle);
     std::vector<art::Ptr<simb::MCTruth>> MCtruthlist;
@@ -462,17 +461,22 @@ namespace DUNE {
     double tmp_leadingPionMinusE = 0.0;
     double tmp_leadingProtonE = 0.0;
 
-    simb::MCParticle* MClepton = NULL;
-    simb::MCParticle* MCproton = NULL;
-    simb::MCParticle* MCpion_plus = NULL;
-    simb::MCParticle* MCpion_minus = NULL;
-    simb::MCParticle* MCkaon = NULL;
-    simb::MCParticle* MCmichel = NULL;
+    simb::MCParticle* MClepton = nullptr;
+    simb::MCParticle* MCproton = nullptr;
+    simb::MCParticle* MCpion_plus = nullptr;
+    simb::MCParticle* MCpion_minus = nullptr;
+    simb::MCParticle* MCkaon = nullptr;
+    simb::MCParticle* MCmichel = nullptr;
 
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle* particle = 0;
     int i = 0; // particle index
+
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(event);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(event);
 
     for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar != plist.end(); ++ipar) {
       particle = ipar->second;
@@ -587,8 +591,7 @@ namespace DUNE {
     //===================================================================
     //Saving denominator histograms
     //===================================================================
-    isFiducial = insideFV(MC_vertex);
-    if (!isFiducial) return;
+    if (not insideFV(MC_vertex)) return;
     double Pv =
       sqrt(pow(MC_incoming_P[0], 2) + pow(MC_incoming_P[1], 2) + pow(MC_incoming_P[2], 2));
     double theta_mu = acos((MC_incoming_P[0] * MC_lepton_startMomentum[0] +
@@ -596,14 +599,15 @@ namespace DUNE {
                             MC_incoming_P[2] * MC_lepton_startMomentum[2]) /
                            (Pv * MC_leptonP));
     theta_mu *= (180.0 / 3.14159);
-    double truth_lengthLepton = truthLength(MClepton);
-    double proton_length = truthLength(MCproton);
-    double pion_plus_length = truthLength(MCpion_plus);
-    double pion_minus_length = truthLength(MCpion_minus);
-    double kaonLength = truthLength(MCkaon);
-    double michelLength = truthLength(MCmichel);
+    double truth_lengthLepton = truthLength(clockData, detProp, MClepton);
+    double proton_length = truthLength(clockData, detProp, MCproton);
+    double pion_plus_length = truthLength(clockData, detProp, MCpion_plus);
+    double pion_minus_length = truthLength(clockData, detProp, MCpion_minus);
+    double kaonLength = truthLength(clockData, detProp, MCkaon);
+    double michelLength = truthLength(clockData, detProp, MCmichel);
 
-    //save CC events within the fiducial volume with the favorite neutrino flavor
+    // save CC events within the fiducial volume with the favorite neutrino
+    // flavor
     if (MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE)) {
       if (MClepton) {
         h_Ev_den->Fill(MC_incoming_P[3]);
@@ -691,12 +695,12 @@ namespace DUNE {
     double trackLength_pion_minus = 0.0;
     double trackLength_kaon = 0.0;
     double trackLength_michel = 0.0;
-    const simb::MCParticle* MClepton_reco = NULL;
-    const simb::MCParticle* MCproton_reco = NULL;
-    const simb::MCParticle* MCpion_plus_reco = NULL;
-    const simb::MCParticle* MCpion_minus_reco = NULL;
-    const simb::MCParticle* MCkaon_reco = NULL;
-    const simb::MCParticle* MCmichel_reco = NULL;
+    const simb::MCParticle* MClepton_reco = nullptr;
+    const simb::MCParticle* MCproton_reco = nullptr;
+    const simb::MCParticle* MCpion_plus_reco = nullptr;
+    const simb::MCParticle* MCpion_minus_reco = nullptr;
+    const simb::MCParticle* MCkaon_reco = nullptr;
+    const simb::MCParticle* MCmichel_reco = nullptr;
 
     std::vector<art::Ptr<recob::Hit>> tmp_all_trackHits = track_hits.at(0);
     std::vector<art::Ptr<recob::Hit>> all_hits;
@@ -712,12 +716,11 @@ namespace DUNE {
       double tmpEfrac = 0;
       double tmpEcomplet = 0;
       const simb::MCParticle* particle;
-      truthMatcher(all_hits, all_trackHits, particle, tmpEfrac, tmpEcomplet);
+      truthMatcher(clockData, all_hits, all_trackHits, particle, tmpEfrac, tmpEcomplet);
       if (!particle) continue;
-      //std::cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<std::endl;
       if ((particle->PdgCode() == fLeptonPDGcode) && (particle->TrackId() == MC_leptonID)) {
-        //save the best track ... based on completeness if there is more than one track
-        //if( tmpEfrac > Efrac_lepton ){ ///this was base on purity
+        // save the best track ... based on completeness if there is more than
+        // one track if( tmpEfrac > Efrac_lepton ){ ///this was base on purity
         if (tmpEcomplet > Ecomplet_lepton) {
           Ecomplet_lepton = tmpEcomplet;
           Efrac_lepton = tmpEfrac;
@@ -875,20 +878,19 @@ namespace DUNE {
   }
   //========================================================================
   void
-  NeutrinoTrackingEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits,
+  NeutrinoTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                    std::vector<art::Ptr<recob::Hit>> all_hits,
                                     std::vector<art::Ptr<recob::Hit>> track_hits,
                                     const simb::MCParticle*& MCparticle,
                                     double& Efrac,
                                     double& Ecomplet)
   {
-
-    //std::cout<<"truthMatcher..."<<std::endl;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     std::map<int, double> trkID_E;
     for (size_t j = 0; j < track_hits.size(); ++j) {
       art::Ptr<recob::Hit> hit = track_hits[j];
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
       for (size_t k = 0; k < TrackIDs.size(); k++) {
         trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;
       }
@@ -898,9 +900,11 @@ namespace DUNE {
     double total_E = 0.0;
     int TrackID = -999;
     double partial_E =
-      0.0; // amount of energy deposited by the particle that deposited more energy... tomato potato... blabla
-    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition
-    //!since we are looking for muons/pions/protons this should be enough
+      0.0; // amount of energy deposited by the particle that deposited more energy...
+
+    // If the collection of hits have more than one particle associate
+    // save the particle w/ the highest energy deposition since we are
+    // looking for muons/pions/protons this should be enough
     if (!trkID_E.size()) {
       MCparticle = 0;
       return; //Ghost track???
@@ -916,19 +920,21 @@ namespace DUNE {
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
 
-    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of
-    //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
-    //we don't want to track gammas or any other EM activity
+    // In the current simulation, we do not save EM Shower daughters
+    // in GEANT. But we do save the energy deposition in TrackIDEs. If
+    // the energy deposition is from a particle that is the daughter
+    // of an EM particle, the negative of the parent track ID is saved
+    // in TrackIDE for the daughter particle we don't want to track
+    // gammas or any other EM activity
     if (TrackID < 0) return;
 
-    //Efrac = (partial_E+E_em)/total_E;
     Efrac = (partial_E) / total_E;
 
-    //completeness
+    // Completeness
     double totenergy = 0;
     for (size_t k = 0; k < all_hits.size(); ++k) {
       art::Ptr<recob::Hit> hit = all_hits[k];
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
       for (size_t l = 0; l < TrackIDs.size(); ++l) {
         if (TrackIDs[l].trackID == TrackID) totenergy += TrackIDs[l].energy;
       }
@@ -937,10 +943,13 @@ namespace DUNE {
   }
   //========================================================================
   double
-  NeutrinoTrackingEff::truthLength(const simb::MCParticle* MCparticle)
+  NeutrinoTrackingEff::truthLength(const detinfo::DetectorClocksData& clockData,
+                                   const detinfo::DetectorPropertiesData& detProp,
+                                   const simb::MCParticle* MCparticle)
   {
-    //calculate the truth length considering only the part that is inside the TPC
-    //Base on a peace of code from dune/TrackingAna/TrackingEfficiency_module.cc
+    // Calculate the truth length considering only the part that is
+    // inside the TPC Base on a peace of code from
+    // dune/TrackingAna/TrackingEfficiency_module.cc
 
     if (!MCparticle) return -999.0;
     int numberTrajectoryPoints = MCparticle->NumberTrajectoryPoints();
@@ -948,6 +957,8 @@ namespace DUNE {
     int FirstHit = 0, LastHit = 0;
     double TPCLength = 0.0;
     bool BeenInVolume = false;
+
+    double const WindowSize = detProp.NumberTimeSamples() * clockData.TPCClock().TickPeriod() * 1e3;
 
     for (unsigned int MCHit = 0; MCHit < TPCLengthHits.size(); ++MCHit) {
       const TLorentzVector& tmpPosition = MCparticle->Position(MCHit);
@@ -962,10 +973,11 @@ namespace DUNE {
         geo::CryostatGeo const& cryo = geom->Cryostat(tpcid.Cryostat);
         geo::TPCGeo const& tpc = cryo.TPC(tpcid.TPC);
         double XPlanePosition = tpc.PlaneLocation(0)[0];
-        double DriftTimeCorrection = fabs(tmpPosition[0] - XPlanePosition) / XDriftVelocity;
+        double DriftTimeCorrection = fabs(tmpPosition[0] - XPlanePosition) / fDriftVelocity;
         double TimeAtPlane = MCparticle->T() + DriftTimeCorrection;
-        if (TimeAtPlane < detprop->TriggerOffset() ||
-            TimeAtPlane > detprop->TriggerOffset() + WindowSize)
+
+        if (TimeAtPlane < trigger_offset(clockData) ||
+            TimeAtPlane > trigger_offset(clockData) + WindowSize)
           continue;
         LastHit = MCHit;
         if (!BeenInVolume) {
@@ -982,22 +994,17 @@ namespace DUNE {
   bool
   NeutrinoTrackingEff::insideFV(double vertex[4])
   {
+    double const x = vertex[0];
+    double const y = vertex[1];
+    double const z = vertex[2];
 
-    double x = vertex[0];
-    double y = vertex[1];
-    double z = vertex[2];
-
-    if (x > fFidVolXmin && x < fFidVolXmax && y > fFidVolYmin && y < fFidVolYmax &&
-        z > fFidVolZmin && z < fFidVolZmax)
-      return true;
-    else
-      return false;
+    return x > fFidVolXmin && x < fFidVolXmax && y > fFidVolYmin && y < fFidVolYmax &&
+           z > fFidVolZmin && z < fFidVolZmax;
   }
   //========================================================================
   void
   NeutrinoTrackingEff::doEfficiencies()
   {
-
     art::ServiceHandle<art::TFileService const> tfs;
 
     if (TEfficiency::CheckConsistency(*h_Ev_num, *h_Ev_den)) {

@@ -15,6 +15,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -41,19 +42,20 @@ namespace trkf {
   private:
     void produce(art::Event& evt) override;
 
-    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
-    std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc
+    std::string const fCheatedClusterLabel; ///< label for module creating
+                                            ///< recob::Cluster objects
+    std::string const fG4ModuleLabel; ///< label for module running G4 and making particles, etc
   };
 }
 
 namespace trkf {
 
   //--------------------------------------------------------------------
-  TrackCheater::TrackCheater(fhicl::ParameterSet const& pset) : EDProducer{pset}
+  TrackCheater::TrackCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+    , fCheatedClusterLabel{pset.get<std::string>("CheatedClusterLabel", "cluster")}
+    , fG4ModuleLabel{pset.get<std::string>("G4ModuleLabel", "largeant")}
   {
-    fCheatedClusterLabel = pset.get<std::string>("CheatedClusterLabel", "cluster");
-    fG4ModuleLabel = pset.get<std::string>("G4ModuleLabel", "largeant");
-
     produces<std::vector<recob::Track>>();
     produces<std::vector<recob::SpacePoint>>();
     produces<art::Assns<recob::Track, recob::Cluster>>();
@@ -111,6 +113,8 @@ namespace trkf {
     std::unique_ptr<art::Assns<recob::Track, recob::Hit>> thassn(
       new art::Assns<recob::Track, recob::Hit>);
 
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
     for (auto const& clusterMapItr : eveClusterMap) {
 
       // separate out the hits for each particle into the different views
@@ -126,9 +130,6 @@ namespace trkf {
         // vectors to hold the positions and directions of the track
         std::vector<TVector3> points;
         std::vector<TVector3> moms;
-
-        // size_t nviews = geo->Nviews();
-        // std::vector< std::vector<double> > dQdx(nviews);
 
         mf::LogInfo("TrackCheater")
           << "G4 id " << clusterMapItr.first << " is a track with pdg code " << part->PdgCode();
@@ -155,18 +156,17 @@ namespace trkf {
         // loop over the hits to get the positions and directions
         size_t spStart = spcol->size();
         for (size_t t = 0; t < hits.size(); ++t) {
-          std::vector<double> xyz = bt_serv->HitToXYZ(hits[t]);
+          std::vector<double> xyz = bt_serv->HitToXYZ(clockData, hits[t]);
           TVector3 point(xyz[0], xyz[1], xyz[2]);
           points.push_back(point);
 
           std::vector<double> xyz1;
-          //double charge = hits[t]->Integral();
           double dx = 0.;
           double sign = 1.;
 
-          if (t < hits.size() - 1) { xyz1 = bt_serv->HitToXYZ(hits[t + 1]); }
+          if (t < hits.size() - 1) { xyz1 = bt_serv->HitToXYZ(clockData, hits[t + 1]); }
           else {
-            xyz1 = bt_serv->HitToXYZ(hits[t - 1]);
+            xyz1 = bt_serv->HitToXYZ(clockData, hits[t - 1]);
             sign = -1.;
           }
 

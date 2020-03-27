@@ -11,18 +11,19 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
-
-#include "lardataobj/AnalysisBase/Calorimetry.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
@@ -47,37 +48,43 @@ namespace shower {
 
     TCShowerAlg(fhicl::ParameterSet const& pset);
 
-    int makeShowers(std::vector<art::Ptr<recob::PFParticle>> pfplist,
-                    std::vector<art::Ptr<recob::Vertex>> vertexlist,
-                    std::vector<art::Ptr<recob::Cluster>> clusterlist,
-                    std::vector<art::Ptr<recob::Hit>> hitlist,
-                    art::FindManyP<recob::Hit> cls_fm,
-                    art::FindManyP<recob::Cluster> clspfp_fm,
-                    art::FindManyP<recob::Vertex> vtxpfp_fm,
-                    art::FindManyP<recob::PFParticle> hit_fm,
-                    art::FindManyP<recob::Cluster> hitcls_fm,
-                    art::FindManyP<recob::Track> trkpfp_fm,
-                    art::FindManyP<anab::Calorimetry> fmcal);
+    int makeShowers(detinfo::DetectorClocksData const& dataClock,
+                    detinfo::DetectorPropertiesData const& detProp,
+                    std::vector<art::Ptr<recob::PFParticle>> const& pfplist,
+                    std::vector<art::Ptr<recob::Vertex>> const& vertexlist,
+                    std::vector<art::Ptr<recob::Cluster>> const& clusterlist,
+                    std::vector<art::Ptr<recob::Hit>> const& hitlist,
+                    art::FindManyP<recob::Hit> const& cls_fm,
+                    art::FindManyP<recob::Cluster> const& clspfp_fm,
+                    art::FindManyP<recob::Vertex> const& vtxpfp_fm,
+                    art::FindManyP<recob::PFParticle> const& hit_fm,
+                    art::FindManyP<recob::Cluster> const& hitcls_fm,
+                    art::FindManyP<recob::Track> const& trkpfp_fm,
+                    art::FindManyP<anab::Calorimetry> const& fmcal);
 
   private:
     calo::CalorimetryAlg fCalorimetryAlg;
     pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
-    int goodHit(art::Ptr<recob::Hit>,
+    int goodHit(detinfo::DetectorClocksData const& dataClock,
+                detinfo::DetectorPropertiesData const& detProp,
+                art::Ptr<recob::Hit> const&,
                 double maxDist,
                 double minDistVert,
-                std::map<geo::PlaneID, double> trk_wire1,
-                std::map<geo::PlaneID, double> trk_tick1,
-                std::map<geo::PlaneID, double> trk_wire2,
-                std::map<geo::PlaneID, double> trk_tick2) const;
+                std::map<geo::PlaneID, double> const& trk_wire1,
+                std::map<geo::PlaneID, double> const& trk_tick1,
+                std::map<geo::PlaneID, double> const& trk_wire2,
+                std::map<geo::PlaneID, double> const& trk_tick2) const;
 
-    int goodHit(art::Ptr<recob::Hit>,
+    int goodHit(detinfo::DetectorClocksData const& dataClock,
+                detinfo::DetectorPropertiesData const& detProp,
+                art::Ptr<recob::Hit> const&,
                 double maxDist,
                 double minDistVert,
-                std::map<geo::PlaneID, double> trk_wire1,
-                std::map<geo::PlaneID, double> trk_tick1,
-                std::map<geo::PlaneID, double> trk_wire2,
-                std::map<geo::PlaneID, double> trk_tick2,
+                std::map<geo::PlaneID, double> const& trk_wire1,
+                std::map<geo::PlaneID, double> const& trk_tick1,
+                std::map<geo::PlaneID, double> const& trk_wire2,
+                std::map<geo::PlaneID, double> const& trk_tick2,
                 int& pull) const;
 
     bool addShowerHit(art::Ptr<recob::Hit> hit, std::vector<art::Ptr<recob::Hit>> showerhits) const;

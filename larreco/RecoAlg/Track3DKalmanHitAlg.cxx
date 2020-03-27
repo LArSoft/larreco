@@ -25,21 +25,21 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoObjects/KETrack.h"
 #include "lardata/RecoObjects/KHitContainerWireLine.h"
 #include "lardata/RecoObjects/KHitContainerWireX.h"
 #include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KTrack.h"
 #include "lardata/RecoObjects/KalmanLinearAlgebra.h"
-#include "lardata/RecoObjects/PropAny.h"
 #include "lardata/RecoObjects/SurfXYZPlane.h"
 #include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "type_traits"
-#include "utility"
-#include "vector"
+
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
 
@@ -49,7 +49,7 @@ namespace {
   inline double
   calcMagnitude(const double* x)
   {
-    return std::sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+    return std::hypot(x[0], x[1], x[2]);
   }
 
   //----------------------------------------------------------------------------
@@ -82,53 +82,29 @@ namespace {
 /// Constructor.
 
 trkf::Track3DKalmanHitAlg::Track3DKalmanHitAlg(const fhicl::ParameterSet& pset)
-  : fDoDedx(false)
-  , fSelfSeed(false)
-  , fMaxTcut(0.)
-  , fLineSurface(false)
-  , fMinSeedHits(0)
-  , fMinSeedChopHits(0)
-  , fMaxChopHits(0)
-  , fMaxSeedChiDF(0.)
-  , fMinSeedSlope(0.)
-  , fInitialMomentum(0.)
+  : fDoDedx{pset.get<bool>("DoDedx")}
+  , fSelfSeed{pset.get<bool>("SelfSeed")}
+  , fMaxTcut{pset.get<double>("MaxTcut")}
+  , fLineSurface{pset.get<bool>("LineSurface")}
+  , fMinSeedHits{pset.get<size_t>("MinSeedHits")}
+  , fMinSeedChopHits{pset.get<int>("MinSeedChopHits")}
+  , fMaxChopHits{pset.get<int>("MaxChopHits")}
+  , fMaxSeedChiDF{pset.get<double>("MaxSeedChiDF")}
+  , fMinSeedSlope{pset.get<double>("MinSeedSlope")}
+  , fInitialMomentum{pset.get<double>("InitialMomentum")}
   , fKFAlg(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"))
   , fSeedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg"))
-  , fProp(nullptr)
   , fNumTrack(0)
 {
   mf::LogInfo("Track3DKalmanHitAlg") << "Track3DKalmanHitAlg instantiated.";
-
-  // Load fcl parameters.
-
-  reconfigure(pset);
-}
-
-//----------------------------------------------------------------------------
-
-/// Reconfigure method.
-void
-trkf::Track3DKalmanHitAlg::reconfigure(const fhicl::ParameterSet& pset)
-{
-  fDoDedx = pset.get<bool>("DoDedx");
-  fSelfSeed = pset.get<bool>("SelfSeed");
-  fMaxTcut = pset.get<double>("MaxTcut");
-  fLineSurface = pset.get<bool>("LineSurface");
-  fMinSeedHits = pset.get<size_t>("MinSeedHits");
-  fMinSeedChopHits = pset.get<int>("MinSeedChopHits");
-  fMaxChopHits = pset.get<int>("MaxChopHits");
-  fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
-  fMinSeedSlope = pset.get<double>("MinSeedSlope");
-  fInitialMomentum = pset.get<double>("InitialMomentum");
-  fKFAlg.reconfigure(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"));
-  fSeedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
-  fProp.reset(new PropAny(fMaxTcut, fDoDedx));
 }
 
 //----------------------------------------------------------------------------
 //makeTracks
 std::vector<trkf::KalmanOutput>
-trkf::Track3DKalmanHitAlg::makeTracks(KalmanInputs& inputs)
+trkf::Track3DKalmanHitAlg::makeTracks(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      KalmanInputs& inputs)
 {
   std::vector<KalmanOutput> outputs(inputs.size());
   // Loop over input vectors.
@@ -154,7 +130,8 @@ trkf::Track3DKalmanHitAlg::makeTracks(KalmanInputs& inputs)
       auto const seedsize = inputs[i].seeds.size();
       if (first && seedsize > 0 && inputs[i].seedhits.size() > 0) {
         seeds.reserve(seedsize);
-        pfseed = fetchPFParticleSeeds(inputs[i].seeds, inputs[i].seedhits, seeds, hitsperseed);
+        fetchPFParticleSeeds(inputs[i].seeds, inputs[i].seedhits, seeds, hitsperseed);
+        pfseed = true;
       }
       else {
         // On subsequent trips, or if there were no usable pfparticle-associated seeds,
@@ -162,23 +139,23 @@ trkf::Track3DKalmanHitAlg::makeTracks(KalmanInputs& inputs)
         if (unusedhits.size() > 0) {
           if (fSelfSeed) {
             // Self seed - convert all hits into one big seed.
-            seeds.emplace_back(makeSeed(unusedhits));
+            seeds.emplace_back(makeSeed(detProp, unusedhits));
             hitsperseed.emplace_back();
             hitsperseed.back().insert(
               hitsperseed.back().end(), unusedhits.begin(), unusedhits.end());
           }
           else
-            seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(unusedhits, hitsperseed);
+            seeds =
+              fSeedFinderAlg.GetSeedsFromUnSortedHits(clockData, detProp, unusedhits, hitsperseed);
         }
       }
 
       assert(seeds.size() == hitsperseed.size());
       first = false;
 
-      if (seeds.size() == 0)
-        break;
-      else
-        growSeedsIntoTracks(pfseed, seeds, hitsperseed, unusedhits, hits, outputs[i].tracks);
+      if (empty(seeds)) break;
+
+      growSeedsIntoTracks(detProp, pfseed, seeds, hitsperseed, unusedhits, hits, outputs[i].tracks);
     }
   }
   return outputs;
@@ -187,7 +164,7 @@ trkf::Track3DKalmanHitAlg::makeTracks(KalmanInputs& inputs)
 //----------------------------------------------------------------------------
 /// Fetch Seeds method.
 
-bool
+void
 trkf::Track3DKalmanHitAlg::fetchPFParticleSeeds(const art::PtrVector<recob::Seed>& pfseeds,
                                                 const std::vector<Hits>& pfseedhits,
                                                 std::vector<recob::Seed>& seeds,
@@ -197,40 +174,40 @@ trkf::Track3DKalmanHitAlg::fetchPFParticleSeeds(const art::PtrVector<recob::Seed
     seeds.push_back(*pseed);
   }
   hitsperseed.insert(hitsperseed.end(), pfseedhits.begin(), pfseedhits.end());
-  return true;
 }
 
 //----------------------------------------------------------------------------
 /// Grow Seeds method.
 
 void
-trkf::Track3DKalmanHitAlg::growSeedsIntoTracks(const bool pfseed,
+trkf::Track3DKalmanHitAlg::growSeedsIntoTracks(detinfo::DetectorPropertiesData const& detProp,
+                                               const bool pfseed,
                                                const std::vector<recob::Seed>& seeds,
                                                const std::vector<Hits>& hitsperseed,
                                                Hits& unusedhits,
                                                Hits& hits,
                                                std::deque<KGTrack>& kgtracks)
 {
-  //check for size of both containers
+  // check for size of both containers
   if (seeds.size() != hitsperseed.size()) {
     throw cet::exception("Track3DKalmanHitAlg")
       << "Different size containers for Seeds and Hits/Seed.\n";
   }
   for (size_t i = 0; i < seeds.size(); ++i) {
-    growSeedIntoTracks(pfseed, seeds[i], hitsperseed[i], unusedhits, hits, kgtracks);
+    growSeedIntoTracks(detProp, pfseed, seeds[i], hitsperseed[i], unusedhits, hits, kgtracks);
   }
 }
 
 //----------------------------------------------------------------------------
 void
-trkf::Track3DKalmanHitAlg::growSeedIntoTracks(const bool pfseed,
+trkf::Track3DKalmanHitAlg::growSeedIntoTracks(detinfo::DetectorPropertiesData const& detProp,
+                                              const bool pfseed,
                                               const recob::Seed& seed,
                                               const Hits& hpsit,
                                               Hits& unusedhits,
                                               Hits& hits,
                                               std::deque<KGTrack>& kgtracks)
 {
-
   Hits trimmedhits;
   // Chop a couple of hits off each end of the seed.
   chopHitsOffSeeds(hpsit, pfseed, trimmedhits);
@@ -265,9 +242,9 @@ trkf::Track3DKalmanHitAlg::growSeedIntoTracks(const bool pfseed,
   const int ninit = 2;
 
   auto ntracks = kgtracks.size(); // Remember original track count.
-  bool ok = makeKalmanTracks(psurf, Surface::FORWARD, trimmedhits, hits, kgtracks);
+  bool ok = makeKalmanTracks(detProp, psurf, Surface::FORWARD, trimmedhits, hits, kgtracks);
   if ((!ok || build_both) && ninit == 2) {
-    makeKalmanTracks(psurf, Surface::BACKWARD, trimmedhits, hits, kgtracks);
+    makeKalmanTracks(detProp, psurf, Surface::BACKWARD, trimmedhits, hits, kgtracks);
   }
 
   // Loop over newly added tracks and remove hits contained on
@@ -296,13 +273,14 @@ trkf::Track3DKalmanHitAlg::makeSurface(const recob::Seed& seed, double* dir) con
       << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n";
   } // if debug
 
-  return std::shared_ptr<Surface>(new SurfXYZPlane(xyz[0], xyz[1], xyz[2], dir[0], dir[1], dir[2]));
+  return std::make_shared<SurfXYZPlane>(xyz[0], xyz[1], xyz[2], dir[0], dir[1], dir[2]);
 }
 
 //----------------------------------------------------------------------------
 
 bool
-trkf::Track3DKalmanHitAlg::makeKalmanTracks(const std::shared_ptr<trkf::Surface> psurf,
+trkf::Track3DKalmanHitAlg::makeKalmanTracks(detinfo::DetectorPropertiesData const& detProp,
+                                            const std::shared_ptr<trkf::Surface> psurf,
                                             const Surface::TrackDirection trkdir,
                                             Hits& seedhits,
                                             Hits& hits,
@@ -321,11 +299,11 @@ trkf::Track3DKalmanHitAlg::makeKalmanTracks(const std::shared_ptr<trkf::Surface>
   vec(3) = 0.;
   vec(4) = (fInitialMomentum != 0. ? 1. / fInitialMomentum : 2.);
 
-  KTrack initial_track(KTrack(psurf, vec, trkdir, pdg));
+  KTrack initial_track(psurf, vec, trkdir, pdg);
 
   // Fill hit container with current seed hits.
-  //KHitContainer may not be cheaply movabale thats why unique_ptr
-  std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(seedhits);
+  // KHitContainer may not be cheaply movabale thats why unique_ptr
+  std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(detProp, seedhits);
 
   // Set the preferred plane to be the one with the most hits.
   unsigned int prefplane = pseedcont->getPreferredPlane();
@@ -333,11 +311,13 @@ trkf::Track3DKalmanHitAlg::makeKalmanTracks(const std::shared_ptr<trkf::Surface>
   if (mf::isDebugEnabled())
     mf::LogDebug("Track3DKalmanHit") << "Preferred plane = " << prefplane << "\n";
 
+  PropAny const propagator{detProp, fMaxTcut, fDoDedx};
+
   // Build and smooth seed track.
   KGTrack trg0(prefplane);
   bool ok =
-    fKFAlg.buildTrack(initial_track, trg0, fProp.get(), Propagator::FORWARD, *pseedcont, fSelfSeed);
-  if (ok) ok = smoothandextendTrack(trg0, hits, prefplane, kgtracks);
+    fKFAlg.buildTrack(initial_track, trg0, propagator, Propagator::FORWARD, *pseedcont, fSelfSeed);
+  if (ok) ok = smoothandextendTrack(detProp, propagator, trg0, hits, prefplane, kgtracks);
 
   if (mf::isDebugEnabled())
     mf::LogDebug("Track3DKalmanHit")
@@ -370,12 +350,13 @@ trkf::Track3DKalmanHitAlg::filterHitsOnKalmanTrack(const KGTrack& trg,
 //----------------------------------------------------------------------------
 /// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
 std::unique_ptr<trkf::KHitContainer>
-trkf::Track3DKalmanHitAlg::fillHitContainer(const Hits& hits) const
+trkf::Track3DKalmanHitAlg::fillHitContainer(detinfo::DetectorPropertiesData const& detProp,
+                                            const Hits& hits) const
 {
   std::unique_ptr<KHitContainer> hitcont(fLineSurface ?
                                            static_cast<KHitContainer*>(new KHitContainerWireLine) :
                                            static_cast<KHitContainer*>(new KHitContainerWireX));
-  hitcont->fill(hits, -1);
+  hitcont->fill(detProp, hits, -1);
   return hitcont;
 }
 
@@ -424,13 +405,15 @@ trkf::Track3DKalmanHitAlg::chopHitsOffSeeds(Hits const& hpsit, bool pfseed, Hits
 //----------------------------------------------------------------------------
 /// SMooth and extend track
 bool
-trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack& trg0,
+trkf::Track3DKalmanHitAlg::smoothandextendTrack(detinfo::DetectorPropertiesData const& detProp,
+                                                Propagator const& propagator,
+                                                KGTrack& trg0,
                                                 const Hits hits,
                                                 unsigned int prefplane,
                                                 std::deque<KGTrack>& kalman_tracks)
 {
   KGTrack trg1(prefplane);
-  bool ok = fKFAlg.smoothTrack(trg0, &trg1, fProp.get());
+  bool ok = fKFAlg.smoothTrack(trg0, &trg1, propagator);
   if (!ok) return ok;
 
   // Now we have the seed track in the form of a KGTrack.
@@ -452,28 +435,30 @@ trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack& trg0,
   // Do an extend + smooth loop here.
   // Exit after two consecutive failures to extend (i.e. from each end),
   // or if the iteration count reaches the maximum.
-  if (ok) ok = extendandsmoothLoop(trg1, prefplane, trackhits);
+  if (ok) ok = extendandsmoothLoop(detProp, propagator, trg1, prefplane, trackhits);
 
   // Do a final smooth.
-  if (!ok) return ok;
+  if (!ok) return false;
 
-  ok = fKFAlg.smoothTrack(trg1, 0, fProp.get());
-  if (!ok) return ok;
+  ok = fKFAlg.smoothTrack(trg1, 0, propagator);
+  if (!ok) return false;
 
   // Skip momentum estimate for constant-momentum tracks.
 
-  if (fDoDedx) { fitnupdateMomentum(trg1, trg1); }
+  if (fDoDedx) { fitnupdateMomentum(propagator, trg1, trg1); }
   // Save this track.
   ++fNumTrack;
   kalman_tracks.push_back(trg1);
-  return ok;
+  return true;
 }
 
 //----------------------------------------------------------------------------
 /// SMooth and extend a track in a loop
 
 bool
-trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack& trg1,
+trkf::Track3DKalmanHitAlg::extendandsmoothLoop(detinfo::DetectorPropertiesData const& detProp,
+                                               Propagator const& propagator,
+                                               KGTrack& trg1,
                                                unsigned int prefplane,
                                                Hits& trackhits) const
 {
@@ -492,12 +477,13 @@ trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack& trg1,
     filterHits(trackhits, goodhits);
 
     // Fill hit container using filtered hits.
-    std::unique_ptr<KHitContainer> ptrackcont = fillHitContainer(trackhits);
+    std::unique_ptr<KHitContainer> ptrackcont = fillHitContainer(detProp, trackhits);
 
     // Extend the track.  It is not an error for the
     // extend operation to fail, meaning that no new hits
     // were added.
-    if (fKFAlg.extendTrack(trg1, fProp.get(), *ptrackcont))
+
+    if (fKFAlg.extendTrack(trg1, propagator, *ptrackcont))
       nfail = 0;
     else
       ++nfail;
@@ -507,10 +493,10 @@ trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack& trg1,
     // direction.
 
     KGTrack trg2(prefplane);
-    ok = fKFAlg.smoothTrack(trg1, &trg2, fProp.get());
+    ok = fKFAlg.smoothTrack(trg1, &trg2, propagator);
     if (ok) {
       // Skip momentum estimate for constant-momentum tracks.
-      if (fDoDedx) { fitnupdateMomentum(trg1, trg2); }
+      if (fDoDedx) { fitnupdateMomentum(propagator, trg1, trg2); }
       trg1 = trg2;
     }
   }
@@ -519,25 +505,23 @@ trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack& trg1,
 //----------------------------------------------------------------------------
 /// fit and update method, used twice.
 void
-trkf::Track3DKalmanHitAlg::fitnupdateMomentum(KGTrack& trg1, KGTrack& trg2) const
+trkf::Track3DKalmanHitAlg::fitnupdateMomentum(Propagator const& propagator,
+                                              KGTrack& trg1,
+                                              KGTrack& trg2) const
 {
   KETrack tremom;
-  if (fKFAlg.fitMomentum(trg1, fProp.get(), tremom)) {
-    fKFAlg.updateMomentum(tremom, fProp.get(), trg2);
+  if (fKFAlg.fitMomentum(trg1, propagator, tremom)) {
+    fKFAlg.updateMomentum(tremom, propagator, trg2);
   }
 }
 
 //----------------------------------------------------------------------------
 /// Make seed method.
 recob::Seed
-trkf::Track3DKalmanHitAlg::makeSeed(const Hits& hits) const
+trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData const& detProp,
+                                    const Hits& hits) const
 {
-
-  // Get Services.
-
   art::ServiceHandle<geo::Geometry const> geom;
-  const detinfo::DetectorProperties* detprop =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   // Do a linear 3D least squares for of y and z vs. x.
   // y = y0 + ay*(x-x0)
@@ -554,7 +538,7 @@ trkf::Track3DKalmanHitAlg::makeSeed(const Hits& hits) const
     const recob::Hit& hit = *phit;
     geo::WireID wire_id = hit.WireID();
     double time = hit.PeakTime();
-    double x = detprop->ConvertTicksToX(time, wire_id);
+    double x = detProp.ConvertTicksToX(time, wire_id);
     x0 += x;
     ++n;
   }
@@ -594,7 +578,7 @@ trkf::Track3DKalmanHitAlg::makeSeed(const Hits& hits) const
     double w = -xyz[1] * sphi + xyz[2] * cphi;
 
     double time = hit.PeakTime();
-    double x = detprop->ConvertTicksToX(time, wire_id);
+    double x = detProp.ConvertTicksToX(time, wire_id);
 
     // Accumulate data for least squares fit.
 

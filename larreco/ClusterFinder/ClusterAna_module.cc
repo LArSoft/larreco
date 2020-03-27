@@ -27,6 +27,7 @@
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Vertex.h"
@@ -37,19 +38,17 @@
 
 #include "art/Framework/Core/EDAnalyzer.h"
 
-///Cluster finding and building
+/// Cluster finding and building
 namespace cluster {
 
   class ClusterAna : public art::EDAnalyzer {
   public:
     explicit ClusterAna(fhicl::ParameterSet const& pset);
-    virtual ~ClusterAna();
 
   private:
-    /// read access to event
-    void analyze(const art::Event& evt);
-    void beginJob();
-    void endJob();
+    void analyze(const art::Event& evt) override;
+    void beginJob() override;
+    void endJob() override;
 
     TH1F* fNClusters;
     TH1F* fNHitInCluster;
@@ -149,8 +148,6 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------
-  ClusterAna::~ClusterAna() {}
-
   void
   ClusterAna::beginJob()
   {
@@ -213,7 +210,6 @@ namespace cluster {
   void
   ClusterAna::analyze(const art::Event& evt)
   {
-
     // code stolen from TrackAna_module.cc
     art::ServiceHandle<geo::Geometry const> geom;
     if (geom->Nplanes() > 3) {
@@ -235,7 +231,6 @@ namespace cluster {
     if (clusterListHandle->size() == 0) {
       std::cout << "No clusters in event. Hits size " << allhits.size() << "\n";
       // don't return or the statistics will be off
-      //      return;
     }
 
     // get 3D vertices
@@ -285,6 +280,9 @@ namespace cluster {
     int neutCCNC = -1;
     bool isNeutrino = false;
     bool isSingleParticle = false;
+
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
     for (sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
       assert(part != 0);
@@ -306,8 +304,7 @@ namespace cluster {
           neutIntType = theNeutrino.InteractionType();
           neutCCNC = theNeutrino.CCNC();
         }
-        //  mf::LogVerbatim("ClusterAna")
-        //    <<"True Vtx "<<part->Vx()<<" "<<part->Vy()<<" "<<part->Vz();
+
         for (unsigned short iv = 0; iv < recoVtxList.size(); ++iv) {
           recoVtxList[iv]->XYZ(xyz);
           fNuVtx_dx->Fill(part->Vx() - xyz[0]);
@@ -371,7 +368,7 @@ namespace cluster {
     if (plist2.size() == 0) return;
 
     // get the hits (in all planes) that are matched to the true tracks
-    hlist2 = bt_serv->TrackIdsToHits_Ps(tidlist, allhits);
+    hlist2 = bt_serv->TrackIdsToHits_Ps(clockData, tidlist, allhits);
     if (hlist2.size() != plist2.size()) {
       mf::LogError("ClusterAna") << "MC particle list size " << plist2.size()
                                  << " != size of MC particle true hits lists " << hlist2.size();
@@ -450,8 +447,6 @@ namespace cluster {
       std::vector<unsigned short> nHitInPl2(plist2.size());
       for (size_t iht = 0; iht < cluhits.size(); ++iht) {
 
-        //        mf::LogVerbatim("ClusterAna")<<"Clus Hit "<<cluhits[iht]->View()<<":"<<cluhits[iht]->WireID().Wire<<":"<<(int)cluhits[iht]->PeakTime();
-
         // look for this hit in all of the truth hit lists
         short hitInPl2 = -1;
         for (unsigned short ipl = 0; ipl < plist2.size(); ++ipl) {
@@ -528,7 +523,7 @@ namespace cluster {
         for (unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii) {
           if (ViewToPlane[hlist2[ipl][ii]->View()] == plane) ++nTru[plane];
         } // ii
-        //        mf::LogVerbatim("ClusterAna")<<"Chk mom "<<ipl<<" plane "<<plane<<" nTru hits "<<nTru[plane];
+
         // next look for daughters and count those hits in all generations
         unsigned short mom = ipl;
         std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator rit =
@@ -541,13 +536,11 @@ namespace cluster {
             } // jj
             // It is likely that one hit appears in the mother list
             // as well as the daughter list, so subtract one from the count
-            //            --nTru[plane];
             mom = (*rit).second;
-            //            mf::LogVerbatim("ClusterAna")<<"new mom "<<mom<<" nTru "<<nTru[plane];
           } // (*rit).first == mom
           ++rit;
         } // rit
-        //        mf::LogVerbatim("ClusterAna")<<"Chk dau "<<nTru[plane];
+
         if (nTru[plane] == 0) continue;
         // Ignore short truth clusters
         if (nTru[plane] < 3) continue;
@@ -571,7 +564,6 @@ namespace cluster {
           outFile << moduleID << " " << evt.id().event() << " " << trackID << " " << PDG << " "
                   << (int)KE << " " << plane << " " << nTru[plane] << " " << std::setprecision(3)
                   << eff[plane] << " " << pur[plane] << "\n";
-        //        mf::LogVerbatim("ClusterAna")<<"Cluster "<<icl<<" nRec hits "<<nRec[plane]<<" nTruRec hits "<<nTruRec[plane]<<" eff "<<eff[plane]<<" pur "<<pur[plane];
       } // plane
       // sort the ep values in ascending order
       std::vector<float> temp;
@@ -729,10 +721,6 @@ namespace cluster {
     }
   } // analyze
 
-} //end namespace
+} // end namespace
 
-namespace cluster {
-
-  DEFINE_ART_MODULE(ClusterAna)
-
-}
+DEFINE_ART_MODULE(cluster::ClusterAna)

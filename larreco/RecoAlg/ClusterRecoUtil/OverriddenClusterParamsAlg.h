@@ -20,27 +20,18 @@
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
-/// Cluster reconstruction namespace
 namespace cluster {
-
   namespace details {
     /**
      * @brief Class holding a value of one among some selected types...
      *
-     * The result of default construction is not defined.
-     * That's basically throwing away one of the pillars of C++.
-     *
-     * This horrible class is supposed to keep a value that you give to it,
-     * and give it back to you if you ask nicely.
-     * Of course, if you ask something you did not give it first, it will become
-     * naughty. In other words, it's caller's responsibility not to ask float
-     * when it assigned size_t.
+     * FIXME: If this functionality is necessary, it should be
+     * replaced with std::variant.
      */
     class MultiValue {
     public:
       using Measure_t = cluster::details::Measure_t<float>;
 
-      // I can't believe I am writing this shit
       union {
         Measure_t measure_value;
         float float_value;
@@ -86,7 +77,7 @@ namespace cluster {
     using This_t = OverriddenClusterParamsAlg<AlgoBase>;
     using Measure_t = typename AlgoBase::Measure_t;
 
-    typedef enum {
+    enum ParameterType_t {
       cpStartAngle,         ///< StartAngle()
       cpEndAngle,           ///< EndAngle()
       cpStartCharge,        ///< StartCharge()
@@ -101,16 +92,13 @@ namespace cluster {
       cpMultipleHitDensity, ///< MultipleHitDensity()
       cpWidth,              ///< Width()
       NParameters           ///< total number of supported parameters
-    } ParameterType_t;      ///< type of cluster parameters
+    };                      ///< type of cluster parameters
 
     /// Constructor; just forwards the arguments to the base class
     template <typename... Args>
     explicit OverriddenClusterParamsAlg(Args&&... args)
       : algo(std::forward<Args>(args)...), values(NParameters)
     {}
-
-    /// Destructor
-    virtual ~OverriddenClusterParamsAlg() = default;
 
     /**
      * @brief Overrides the specified cluster parameter
@@ -159,7 +147,7 @@ namespace cluster {
      * @brief Restores the class to post-configuration, pre-initialization state
      * @see Algo_t::Clear()
      */
-    virtual void
+    void
     Clear() override
     {
       algo.Clear();
@@ -171,10 +159,11 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    virtual void
-    SetHits(std::vector<recob::Hit const*> const& hits) override
+    void
+    SetHits(util::GeometryUtilities const& gser,
+            std::vector<recob::Hit const*> const& hits) override
     {
-      algo.SetHits(hits);
+      algo.SetHits(gser, hits);
     }
 
     /**
@@ -183,14 +172,14 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    virtual void
-    SetHits(std::vector<recob::Hit> const& hits) override
+    void
+    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
     {
-      algo.SetHits(hits);
+      algo.SetHits(gser, hits);
     }
 
     /// Set the verbosity level; @see Algo_t::SetVerbose().
-    virtual void
+    void
     SetVerbose(int level = 1) override
     {
       ClusterParamsAlgBase::SetVerbose(level);
@@ -206,15 +195,15 @@ namespace cluster {
      * @return the charge in ADC counts, with uncertainty
      * @see Algo_t::StartCharge(), Algo_t::EndCharge()
      */
-    virtual Measure_t
-    StartCharge() override
+    Measure_t
+    StartCharge(util::GeometryUtilities const& gser) override
     {
-      return ReturnValue(cpStartCharge, &Algo_t::StartCharge);
+      return ReturnValue(cpStartCharge, &Algo_t::StartCharge, gser);
     }
-    virtual Measure_t
-    EndCharge() override
+    Measure_t
+    EndCharge(util::GeometryUtilities const& gser) override
     {
-      return ReturnValue(cpEndCharge, &Algo_t::EndCharge);
+      return ReturnValue(cpEndCharge, &Algo_t::EndCharge, gser);
     }
     //@}
 
@@ -228,13 +217,13 @@ namespace cluster {
      * a cluster parallel to the wire plane and @f$ \pi @f$ to a cluster
      * orthogonal to the wire plane, going farther from it.
      */
-    virtual Measure_t
+    Measure_t
     StartAngle() override
     {
       return ReturnValue(cpStartAngle, &Algo_t::StartAngle);
     }
 
-    virtual Measure_t
+    Measure_t
     EndAngle() override
     {
       return ReturnValue(cpEndAngle, &Algo_t::EndAngle);
@@ -247,12 +236,12 @@ namespace cluster {
      * @return angle at the start of the cluster, in radians
      * @see Algo_t::StartOpeningAngle(), Algo_t::EndOpeningAngle()
      */
-    virtual Measure_t
+    Measure_t
     StartOpeningAngle() override
     {
       return ReturnValue(cpStartOpeningAngle, &Algo_t::StartOpeningAngle);
     }
-    virtual Measure_t
+    Measure_t
     EndOpeningAngle() override
     {
       return ReturnValue(cpEndOpeningAngle, &Algo_t::EndOpeningAngle);
@@ -267,7 +256,7 @@ namespace cluster {
      * @see IntegralStdDev(), SummedADC()
      * @see Algo_t::Integral()
      */
-    virtual Measure_t
+    Measure_t
     Integral() override
     {
       return ReturnValue(cpIntegral, &Algo_t::Integral);
@@ -279,7 +268,7 @@ namespace cluster {
      * @see Integral()
      * @see Algo_t::IntegralStdDev()
      */
-    virtual Measure_t
+    Measure_t
     IntegralStdDev() override
     {
       return ReturnValue(cpIntegralStdDev, &Algo_t::IntegralStdDev);
@@ -291,7 +280,7 @@ namespace cluster {
      * @see SummedADCStdDev(), Integral()
      * @see Algo_t::SummedADC()
      */
-    virtual Measure_t
+    Measure_t
     SummedADC() override
     {
       return ReturnValue(cpSummedADC, &Algo_t::SummedADC);
@@ -303,7 +292,7 @@ namespace cluster {
      * @see SummedADC()
      * @see Algo_t::SummedADCStdDev()
      */
-    virtual Measure_t
+    Measure_t
     SummedADCStdDev() override
     {
       return ReturnValue(cpSummedADCStdDev, &Algo_t::SummedADCStdDev);
@@ -312,7 +301,7 @@ namespace cluster {
     /// @}
 
     /// Returns the number of hits in the cluster
-    virtual size_t
+    size_t
     NHits() override
     {
       return ReturnValue(cpNHits, &Algo_t::NHits);
@@ -323,7 +312,7 @@ namespace cluster {
      * @return fraction of wires with more than one hit, or 0 if no wires
      * @see Algo_t::MultipleHitDensity()
      */
-    virtual float
+    float
     MultipleHitDensity() override
     {
       return ReturnValue(cpMultipleHitDensity, &Algo_t::MultipleHitDensity);
@@ -334,10 +323,10 @@ namespace cluster {
      * @return width of the cluster
      * @see Algo_t::Width()
      */
-    virtual float
-    Width() override
+    float
+    Width(util::GeometryUtilities const& gser) override
     {
-      return ReturnValue(cpWidth, &Algo_t::Width);
+      return ReturnValue(cpWidth, &Algo_t::Width, gser);
     }
 
     /// @}
@@ -353,9 +342,9 @@ namespace cluster {
     std::vector<details::MultiValue> values; ///< the overridden values
     std::bitset<NParameters> overridden_set; ///< bits for overriding
 
-    template <typename Func>
+    template <typename Func, typename... Args>
     auto
-    ReturnValue(ParameterType_t param, Func func) -> decltype((algo.*func)())
+    ReturnValue(ParameterType_t param, Func func, Args&&... args) -> decltype((algo.*func)(args...))
     {
       if (isOverridden(param)) {
         // convert here to the return type of the function
@@ -363,7 +352,7 @@ namespace cluster {
         return values[(size_t)param];
       }
       else
-        return (algo.*func)();
+        return (algo.*func)(args...);
     } // ReturnValue()
 
   }; // class OverriddenClusterParamsAlg
@@ -424,7 +413,6 @@ namespace cluster {
     }
 
   } // namespace details
-
 } // namespace cluster
 
 #endif // OVERRIDDENCLUSTERPARAMSALG_H

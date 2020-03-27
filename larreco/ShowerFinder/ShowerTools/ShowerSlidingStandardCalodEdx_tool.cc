@@ -22,6 +22,7 @@
 
 //LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -54,7 +55,6 @@ namespace ShowerRecoTools {
     //Servcies and Algorithms
     art::ServiceHandle<geo::Geometry> fGeom;
     calo::CalorimetryAlg fCalorimetryAlg;
-    detinfo::DetectorProperties const* fDetProp;
 
     //fcl parameters
     float fMinAngleToWire;  //Minimum angle between the wire direction and the shower
@@ -83,7 +83,6 @@ namespace ShowerRecoTools {
   ShowerSlidingStandardCalodEdx::ShowerSlidingStandardCalodEdx(const fhicl::ParameterSet& pset)
     : IShowerTool(pset.get<fhicl::ParameterSet>("BaseTools"))
     , fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg"))
-    , fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
     , fMinAngleToWire(pset.get<float>("MinAngleToWire"))
     , fShapingTime(pset.get<float>("ShapingTime"))
     , fMinDistCutOff(pset.get<float>("MinDistCutOff"))
@@ -172,7 +171,12 @@ namespace ShowerRecoTools {
       num_hits[plane_id.Plane] = 0;
     }
 
-    //Loop over the spacepoints
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
+
+    // Loop over the spacepoints
     for (auto const sp : tracksps) {
 
       //Get the associated hit
@@ -253,7 +257,7 @@ namespace ShowerRecoTools {
       }
 
       //If the direction is too much into the wire plane then the shaping amplifer cuts the charge. Lets remove these events.
-      double velocity = fDetProp->DriftVelocity(fDetProp->Efield(), fDetProp->Temperature());
+      double velocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
       double distance_in_x = TrajDirection.X() * (wirepitch / TrajDirection.Dot(PlaneDirection));
       double time_taken = TMath::Abs(distance_in_x / velocity);
 
@@ -269,8 +273,9 @@ namespace ShowerRecoTools {
       //Calculate the dQdx
       double dQdx = hit->Integral() / trackpitch;
 
-      //Calculate the dEdx
-      double dEdx = fCalorimetryAlg.dEdx_AREA(dQdx, hit->PeakTime(), planeid.Plane);
+      // Calculate the dEdx
+      double dEdx =
+        fCalorimetryAlg.dEdx_AREA(clockData, detProp, dQdx, hit->PeakTime(), planeid.Plane);
 
       //Add the value to the dEdx
       dEdx_vec[planeid.Plane].push_back(dEdx);

@@ -130,30 +130,20 @@
 #include <utility> // std::pair<>
 #include <vector>
 
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
-
 #include "canvas/Persistency/Common/PtrVector.h"
-//--- BEGIN issue #19494 -------------------------------------------------------
-// BulkAllocator.h is currently broken; see issue #19494.
-// When the issue is solved, this may or may not be restored, depending on the
-// solution.
-#if 0
-#include "lardata/Utilities/BulkAllocator.h"
-#endif // 0
-//--- END issue #19494 ---------------------------------------------------------
+#include "fhiclcpp/fwd.h"
 
 #include "lardata/Utilities/CountersMap.h"
 
 namespace CLHEP {
   class HepRandomEngine;
 }
-namespace art {
-  class Event;
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
 }
-namespace fhicl {
-  class ParameterSet;
-}
-
 namespace recob {
   class Hit;
   class Cluster;
@@ -475,79 +465,7 @@ namespace cluster {
 
   }; // class HoughTransformCounters
 
-#define FC_DEVELOP 0
-
-  class HoughTransform {
-  public:
-    HoughTransform();
-    ~HoughTransform();
-
-    void Init(unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
-    std::array<int, 3> AddPointReturnMax(int x, int y);
-    bool SubtractPoint(int x, int y);
-    int GetCell(int row, int col) const;
-    void
-    SetCell(int row, int col, int value)
-    {
-      m_accum[row].set(col, value);
-    }
-    void
-    GetAccumSize(int& numRows, int& numCols)
-    {
-      numRows = m_accum.size();
-      numCols = (int)m_rowLength;
-    }
-    int
-    NumAccumulated()
-    {
-      return m_numAccumulated;
-    }
-    void GetEquation(float row, float col, float& rho, float& theta) const;
-    int GetMax(int& xmax, int& ymax) const;
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-
-  private:
-    /// rho -> # hits (for convenience)
-    typedef HoughTransformCounters<int, signed char, 64> BaseMap_t;
-
-    //--- BEGIN issue #19494 ---------------------------------------------------
-    // BulkAllocator.h is currently broken; see issue #19494 and comment above.
-#if 0
-    /// Special allocator for large chunks of pairs (turns out map won't use it)
-    typedef lar::BulkAllocator<BaseMap_t::allocator_type::value_type>
-      BulkPairAllocator_t;
-    /// Type of map distance (discretized) =># hits,
-    /// #hits stored in counters allocated in blocks
-    typedef HoughTransformCounters<int, signed char, 64, BulkPairAllocator_t>
-      DistancesMap_t;
-#else  // !0
-    typedef HoughTransformCounters<int, signed char, 64> DistancesMap_t;
-#endif // 0?
-    //--- END issue #19494 -----------------------------------------------------
-
-    /// Type of the Hough transform (angle, distance) map with custom allocator
-    typedef std::vector<DistancesMap_t> HoughImage_t;
-
-    unsigned int m_dx;
-    unsigned int m_dy;
-    unsigned int m_rowLength;
-    unsigned int m_numAngleCells;
-    float m_rhoResolutionFactor;
-    // Note, m_accum is a vector of associative containers,
-    // the vector elements are called by rho, theta is the container key,
-    // the number of hits is the value corresponding to the key
-    HoughImage_t m_accum; ///< column (map key)=rho, row (vector index)=theta
-    int m_numAccumulated;
-    std::vector<double> m_cosTable;
-    std::vector<double> m_sinTable;
-
-    std::array<int, 3> DoAddPointReturnMax(int x, int y, bool bSubtract = false);
-
-  }; // class HoughTransform
-
   class HoughBaseAlg {
-
   public:
     /// Data structure collecting charge information to be filled in cluster
     struct ChargeInfo_t {
@@ -561,8 +479,8 @@ namespace cluster {
       {}
     }; // ChargeInfo_t
 
-    HoughBaseAlg(fhicl::ParameterSet const& pset);
-    virtual ~HoughBaseAlg();
+    explicit HoughBaseAlg(fhicl::ParameterSet const& pset);
+    virtual ~HoughBaseAlg() = default;
 
     size_t FastTransform(const std::vector<art::Ptr<recob::Cluster>>& clusIn,
                          std::vector<recob::Cluster>& ccol,
@@ -571,20 +489,27 @@ namespace cluster {
                          art::Event const& evt,
                          std::string const& label);
 
-    size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits,
+    size_t Transform(const detinfo::DetectorClocksData& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     std::vector<art::Ptr<recob::Hit>> const& hits,
                      CLHEP::HepRandomEngine& engine,
                      std::vector<unsigned int>* fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
                      unsigned int* nClusters,
                      std::vector<protoTrack>* protoTracks);
 
-    // interface to look for lines only on a set of hits,without slope and totalQ arrays
-    size_t FastTransform(std::vector<art::Ptr<recob::Hit>> const& clusIn,
+    // interface to look for lines only on a set of hits,without slope and
+    // totalQ arrays
+    size_t FastTransform(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<art::Ptr<recob::Hit>> const& clusIn,
                          std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                          CLHEP::HepRandomEngine& engine);
 
     // interface to look for lines only on a set of hits
-    size_t FastTransform(std::vector<art::Ptr<recob::Hit>> const& clusIn,
+    size_t FastTransform(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<art::Ptr<recob::Hit>> const& clusIn,
                          std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                          CLHEP::HepRandomEngine& engine,
                          std::vector<double>& slope,
@@ -592,16 +517,16 @@ namespace cluster {
 
     size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits);
 
-    size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits,
+    size_t Transform(detinfo::DetectorPropertiesData const& detProp,
+                     std::vector<art::Ptr<recob::Hit>> const& hits,
                      double& slope,
                      double& intercept);
 
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
-
-  protected:
-    void HLSSaveBMPFile(char const*, unsigned char*, int, int);
+    friend class HoughTransformClus;
 
   private:
+    void HLSSaveBMPFile(char const*, unsigned char*, int, int);
+
     int fMaxLines;        ///< Max number of lines that can be found
     int fMinHits;         ///< Min number of hits in the accumulator to consider
                           ///< (number of hits required to be considered a line).
@@ -628,9 +553,6 @@ namespace cluster {
       fMissedHitsDistance; ///< Distance between hits in a hough line before a hit is considered missed
     float
       fMissedHitsToLineSize; ///< Ratio of missed hits to line size for a line to be considered a fake
-
-  protected:
-    friend class HoughTransformClus;
   };
 
 } // namespace

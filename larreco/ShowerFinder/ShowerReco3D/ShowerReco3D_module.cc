@@ -14,7 +14,11 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardata/Utilities/PxHitConverter.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -32,8 +36,6 @@
 
 #include <memory>
 #include <string>
-
-class ShowerReco3D;
 
 class ShowerReco3D : public art::EDProducer {
 public:
@@ -100,9 +102,13 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
 void
 ShowerReco3D::produce(art::Event& e)
 {
-  //
+  auto const& geom = *lar::providerFrom<geo::Geometry>();
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clockData);
+  util::GeometryUtilities const gser{geom, clockData, detProp};
+
   // Create output data product containers
-  //
   std::unique_ptr<std::vector<recob::Shower>> out_shower_v(new std::vector<recob::Shower>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Cluster>> sc_assn(
     new art::Assns<recob::Shower, recob::Cluster>);
@@ -111,9 +117,7 @@ ShowerReco3D::produce(art::Event& e)
   std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower>> sp_assn(
     new art::Assns<recob::PFParticle, recob::Shower>);
 
-  //
   // Preparation
-  //
 
   // Reset ShowerRecoManager
   fManager.Reset();
@@ -128,9 +132,8 @@ ShowerReco3D::produce(art::Event& e)
   // Cluster type conversion: recob::Hit => util::PxHit
   std::vector<std::vector<::util::PxHit>> local_clusters;
   art::FindManyP<recob::Hit> hit_m(cHandle, e, fInputProducer);
-  ::util::PxHitConverter conv;
+  ::util::PxHitConverter conv{gser};
   for (size_t i = 0; i < cHandle->size(); ++i) {
-
     local_clusters.push_back(std::vector<::util::PxHit>());
 
     const std::vector<art::Ptr<recob::Hit>>& hits = hit_m.at(i);
@@ -148,9 +151,9 @@ ShowerReco3D::produce(art::Event& e)
   // shower vector container to receive from ShowerRecoManager::Reconstruct
   std::vector<recob::Shower> shower_v;
 
-  if (!fUsePFParticle)
-    matched_pairs = fManager.Reconstruct(local_clusters, shower_v);
-
+  if (!fUsePFParticle) {
+    matched_pairs = fManager.Reconstruct(geom, clockData, detProp, local_clusters, shower_v);
+  }
   else {
 
     // Retrieve PFParticle
@@ -194,7 +197,7 @@ ShowerReco3D::produce(art::Event& e)
       shower_pfpart_index.push_back(i);
     }
     // Run reconstruction
-    fManager.Reconstruct(local_clusters, matched_pairs, shower_v);
+    fManager.Reconstruct(geom, clockData, detProp, local_clusters, matched_pairs, shower_v);
   }
 
   // Make sure output shower vector size is same as expected length

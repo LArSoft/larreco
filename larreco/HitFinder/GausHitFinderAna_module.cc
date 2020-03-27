@@ -5,14 +5,15 @@
 // jaasaadi@syr.edu
 //
 // Note: This is a rework of the original hit finder ana module
-// 	 The only histograms that are saved are ones that can be used
+//       The only histograms that are saved are ones that can be used
 //	 to make sure the hit finder is functioning...the rest is
-// 	 outputted to a TTree for offline analysis.
+//       outputted to a TTree for offline analysis.
 ////////////////////////////////////////////////////////////////////////
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
@@ -37,7 +38,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-constexpr int kMaxHits = 20000; //maximum number of hits;
+constexpr int kMaxHits = 20000;
 
 namespace hit {
 
@@ -47,11 +48,10 @@ namespace hit {
     explicit GausHitFinderAna(fhicl::ParameterSet const& pset);
 
   private:
-    /// read/write access to event
-    void analyze(const art::Event& evt);
-    void beginJob();
+    void analyze(const art::Event& evt) override;
+    void beginJob() override;
 
-    std::string fHitFinderModuleLabel; ///
+    std::string fHitFinderModuleLabel;
     std::string fLArG4ModuleLabel;
     std::string fCalDataModuleLabel;
 
@@ -62,6 +62,7 @@ namespace hit {
 
     // ### TTree for offline analysis ###
     TTree* fHTree;
+
     // === Event Information ===
     Int_t fRun; // Run Number
     Int_t fEvt; // Event Number
@@ -101,11 +102,7 @@ namespace hit {
   void
   GausHitFinderAna::beginJob()
   {
-    // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
-
-    // ======================================
-    // === Hit Information for Histograms ===
     fHitResidualAll = tfs->make<TH1F>("fHitResidualAll", "Hit Residual All", 1600, -400, 400);
     fHitResidualAllAlt = tfs->make<TH1F>("fHitResidualAllAlt", "Hit Residual All", 1600, -400, 400);
     fNumberOfHitsPerEvent =
@@ -113,15 +110,9 @@ namespace hit {
     fPeakTimeVsWire =
       tfs->make<TH2F>("fPeakTimeVsWire", "Peak Time vs Wire Number", 3200, 0, 3200, 9500, 0, 9500);
 
-    // ##############
-    // ### TTree ####
     fHTree = tfs->make<TTree>("HTree", "HTree");
-
-    // === Event Info ====
     fHTree->Branch("Evt", &fEvt, "Evt/I");
     fHTree->Branch("Run", &fRun, "Run/I");
-
-    // === Wire Info ===
     fHTree->Branch("WireTotalCharge", &fWireTotalCharge, "WireTotalCharge/F");
 
     // === Hit Info ===
@@ -141,105 +132,54 @@ namespace hit {
 
     // === Truth Hit Information from BackTrackerService ===
     fHTree->Branch("TruePeakPos", &fTruePeakPos, "fTruePeakPos[nHits]/F");
-
-    return;
   }
 
   //-------------------------------------------------
   void
   GausHitFinderAna::analyze(const art::Event& evt)
   {
-
-    // ##############################################
-    // ### Outputting Run Number and Event Number ###
-    // ##############################################
-    //std::cout << "run    : " << evt.run() <<" event  : "<<evt.id().event() << std::endl;
-
     // ### TTree Run/Event ###
     fEvt = evt.id().event();
     fRun = evt.run();
 
-    // ####################################
-    // ### Getting Geometry Information ###
-    // ####################################
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
-    // ###################################
-    // ### Getting Detector Properties ###
-    // ###################################
-    const detinfo::DetectorProperties* detp =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-    // ##########################################
-    // ### Reading in the Wire List object(s) ###
-    // ##########################################
     art::Handle<std::vector<recob::Wire>> wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel, wireVecHandle);
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////        CHARGE DIRECTLY FROM WIRE INFO   /////////////////////////////////////////////////
-
+    // Charge directly from wire info
     float TotWireCharge = 0;
 
-    //##############################
-    //### Looping over the wires ###
-    //##############################
     for (size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++) {
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
-      // #################################################
-      // ### Getting a vector of signals for this wire ###
-      // #################################################
       std::vector<float> signal(wire->Signal());
 
-      // ##########################################################
-      // ### Making an iterator for the time ticks of this wire ###
-      // ##########################################################
-      std::vector<float>::iterator timeIter; // iterator for time bins
+      for (auto timeIter = signal.begin(); timeIter + 2 < signal.end(); timeIter++) {
 
-      // ##################################
-      // ### Looping over Signal Vector ###
-      // ##################################
-      for (timeIter = signal.begin(); timeIter + 2 < signal.end(); timeIter++) {
-
-        // ###########################################################
-        // ### If the ADC value is less than 2 skip this time tick ###
-        // ###########################################################
         if (*timeIter < 2) { continue; }
 
-        // ### Filling Total Wire Charge ###
         TotWireCharge += *timeIter;
+      }
+    }
 
-      } //<---End timeIter loop
-
-    } //<---End wireIter loop
-
-    // ~~~ Filling the total charge in the event ~~~
-    //std::cout<<"Total Real Charge = "<<TotWireCharge<<std::endl;
     fWireTotalCharge = TotWireCharge;
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////        RECONSTRUCTED HIT INFORMATION   /////////////////////////////////////////////////
-
-    // ##################################################
-    // ### Getting the Reconstructed Hits (hitHandle) ###
-    // ##################################################
+    // Reconstructed hit information
     art::Handle<std::vector<recob::Hit>> hitHandle;
     evt.getByLabel(fHitFinderModuleLabel, hitHandle);
 
-    // #########################################
-    // ### Putting Hits into a vector (hits) ###
-    // #########################################
     std::vector<art::Ptr<recob::Hit>> hits;
     art::fill_ptr_vector(hits, hitHandle);
 
     float TotCharge = 0;
     int hitCount = 0;
-    // ### Number of Hits in the event ###
     fnHits = hitHandle->size();
     fNumberOfHitsPerEvent->Fill(hitHandle->size());
-    // #########################
-    // ### Looping over Hits ###
-    // #########################
+
     for (size_t numHit = 0; numHit < hitHandle->size(); ++numHit) {
       // === Finding Channel associated with the hit ===
       art::Ptr<recob::Hit> hit(hitHandle, numHit);
@@ -253,42 +193,27 @@ namespace hit {
       fChargeUncert[hitCount] = hit->SigmaIntegral();
       fMultiplicity[hitCount] = hit->Multiplicity();
       fGOF[hitCount] = hit->GoodnessOfFit();
-      //std::cout<<"Hit Charge = "<<hit->Charge()<<std::endl;
-      //std::cout<<"StartTime = "<<hit->StartTime()<<std::endl;
 
       hitCount++;
       TotCharge += hit->Integral();
 
       fPeakTimeVsWire->Fill(hit->WireID().Wire, hit->PeakTime());
     } //<---End numHit
-    //std::cout<<"Total Reco Charge = "<<TotCharge<<std::endl;
     fTotalHitChargePerEvent = TotCharge;
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////        TRUTH HIT INFO FROM BACKTRACKER   /////////////////////////////////////////////////
+    // Truth hit info from BackTracker
 
-    // ###############################################################
-    // ### Integers used for setting Channel, TPC, Plane, and Wire ###
-    // ###############################################################
     unsigned int plane = 0;
-
-    // ############################################
-    // ### Variables used for Truth Calculation ###
-    // ############################################
     Float_t TruthHitTime = 0, TruthHitCalculated = 0;
     int count = 0;
 
-    // ================================================
-    // === Calculating Time Tick and Drift Velocity ===
-    // ================================================
-    double time_tick = detp->SamplingRate() / 1000.;
-    double drift_velocity = detp->DriftVelocity(detp->Efield(), detp->Temperature());
+    double time_tick = sampling_rate(clock_data) / 1000.;
+    double drift_velocity = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
 
     for (size_t nh = 0; nh < hitHandle->size(); nh++) {
       // === Finding Channel associated with the hit ===
       art::Ptr<recob::Hit> hitPoint(hitHandle, nh);
       plane = hitPoint->WireID().Plane;
-      //wire = hitPoint->WireID().Wire;
 
       // ===================================================================
       // Using Track IDE's to locate the XYZ location from truth information
@@ -296,13 +221,9 @@ namespace hit {
       std::vector<sim::TrackIDE> trackides;
       std::vector<double> xyz;
       try {
-        // ####################################
-        // ### Using BackTrackerService HitCheater ###
-        // ####################################
         art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-
-        trackides = bt_serv->HitToTrackIDEs(hitPoint);
-        xyz = bt_serv->HitToXYZ(hitPoint);
+        trackides = bt_serv->HitToTrackIDEs(clock_data, hitPoint);
+        xyz = bt_serv->HitToXYZ(clock_data, hitPoint);
       }
       catch (cet::exception const&) {
         mf::LogWarning("GausHitFinderAna") << "BackTrackerService Failed";
@@ -316,8 +237,8 @@ namespace hit {
       // ==============================================================
 
       // ### Method 1 ###
-      TruthHitTime =
-        detp->ConvertXToTicks(xyz[0], plane, hitPoint->WireID().TPC, hitPoint->WireID().Cryostat);
+      TruthHitTime = det_prop.ConvertXToTicks(
+        xyz[0], plane, hitPoint->WireID().TPC, hitPoint->WireID().Cryostat);
 
       // ### Method 2 ###
       // ================================================
@@ -343,11 +264,8 @@ namespace hit {
     } //<---End nh loop
 
     fHTree->Fill();
-    return;
+  } // end analyze method
 
-  } //end analyze method
-
-  // --------------------------------------------------------
   DEFINE_ART_MODULE(GausHitFinderAna)
 
 } // end of hit namespace

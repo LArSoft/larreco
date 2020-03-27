@@ -14,12 +14,12 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "cetlib/pow.h"
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-
 #include "lardata/ArtDataHelper/ChargedSpacePointCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -31,13 +31,6 @@
 
 #include "Solver.h"
 #include "TripletFinder.h"
-
-template <class T>
-T
-sqr(T x)
-{
-  return x * x;
-}
 
 namespace reco3d {
 
@@ -111,7 +104,6 @@ namespace reco3d {
 
     double fXHitOffset;
 
-    const detinfo::DetectorProperties* detprop;
     const geo::GeometryCore* geom;
     std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
   };
@@ -146,7 +138,6 @@ namespace reco3d {
   void
   SpacePointSolver::beginJob()
   {
-    detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
     geom = art::ServiceHandle<geo::Geometry const>()->provider();
   }
 
@@ -208,10 +199,10 @@ namespace reco3d {
           ++Ntests;
 
           if (sc1 == sc2) continue;
-          /*const*/ double dist2 =
-            sqr(sc1->fX - sc2->fX) + sqr(sc1->fY - sc2->fY) + sqr(sc1->fZ - sc2->fZ);
+          double dist2 =
+            cet::sum_of_squares(sc1->fX - sc2->fX, sc1->fY - sc2->fY, sc1->fZ - sc2->fZ);
 
-          if (dist2 > sqr(kCritDist)) continue;
+          if (dist2 > cet::square(kCritDist)) continue;
 
           if (dist2 == 0) {
             std::cout << "ZERO DISTANCE SOMEHOW?" << std::endl;
@@ -220,7 +211,7 @@ namespace reco3d {
             std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " "
                       << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             continue;
-            dist2 = sqr(kCritDist);
+            dist2 = cet::square(kCritDist);
           }
 
           ++Nnei;
@@ -485,16 +476,28 @@ namespace reco3d {
     // Nodes with a bad collection wire that we otherwise can't address
     std::vector<SpaceCharge*> orphanSCs;
 
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
+
     HitMap_t hitmap;
     if (is2view) {
       std::cout << "Finding 2-view coincidences..." << std::endl;
-      TripletFinder tf(
-        xhits, uhits, {}, xbadchans, ubadchans, {}, fDistThresh, fDistThreshDrift, fXHitOffset);
+      TripletFinder tf(detProp,
+                       xhits,
+                       uhits,
+                       {},
+                       xbadchans,
+                       ubadchans,
+                       {},
+                       fDistThresh,
+                       fDistThreshDrift,
+                       fXHitOffset);
       BuildSystem(tf.TripletsTwoView(), cwires, iwires, orphanSCs, fAlpha != 0, hitmap);
     }
     else {
       std::cout << "Finding XUV coincidences..." << std::endl;
-      TripletFinder tf(xhits,
+      TripletFinder tf(detProp,
+                       xhits,
                        uhits,
                        vhits,
                        xbadchans,

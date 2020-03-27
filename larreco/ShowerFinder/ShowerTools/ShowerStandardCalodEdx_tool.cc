@@ -18,6 +18,7 @@
 
 //LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
@@ -131,6 +132,11 @@ namespace ShowerRecoTools {
     int bestPlane = -999;
     double minPitch = 999;
 
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
+
     for (unsigned int plane = 0; plane < numPlanes; ++plane) {
       std::vector<art::Ptr<recob::Hit>> trackPlaneHits = trackHits.at(plane);
 
@@ -182,7 +188,8 @@ namespace ShowerRecoTools {
 
             //Get the median and calculate the dEdx using the algorithm.
             double dQdx = TMath::Median(vQ.size(), &vQ[0]) / pitch;
-            dEdx = fCalorimetryAlg.dEdx_AREA(dQdx, avgT / nhits, trackPlaneHits[0]->WireID().Plane);
+            dEdx = fCalorimetryAlg.dEdx_AREA(
+              clockData, detProp, dQdx, avgT / nhits, trackPlaneHits[0]->WireID().Plane);
 
             if (isinf(dEdx)) { dEdx = -999; };
 

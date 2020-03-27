@@ -15,9 +15,7 @@
 #include <vector>
 
 // framework libraries
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
@@ -26,6 +24,9 @@ namespace fhicl {
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
+namespace detinfo {
+  class DetectorClocksData;
+}
 
 // ROOT libraries
 #include "TMVA/Reader.h"
@@ -35,12 +36,7 @@ namespace tca {
 
   class TrajClusterAlg {
   public:
-    /// @{
-    /// @name Data structures for the reconstruction results
-
-    TrajClusterAlg(fhicl::ParameterSet const& pset);
-
-    void reconfigure(fhicl::ParameterSet const& pset);
+    explicit TrajClusterAlg(fhicl::ParameterSet const& pset);
 
     bool SetInputHits(std::vector<recob::Hit> const& inputHits,
                       unsigned int run,
@@ -56,8 +52,14 @@ namespace tca {
     {
       evt.expectSlicedHits = true;
     }
-    void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
-    bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
+    void RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           std::vector<unsigned int>& hitsInSlice,
+                           int sliceID);
+    bool CreateSlice(detinfo::DetectorClocksData const& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     std::vector<unsigned int>& hitsInSlice,
+                     int sliceID);
     void FinishEvent();
 
     void DefineShTree(TTree* t);
@@ -107,7 +109,9 @@ namespace tca {
 
     std::vector<unsigned int> fAlgModCount;
 
-    void ReconstructAllTraj(TCSlice& slc, CTP_t inCTP);
+    void ReconstructAllTraj(detinfo::DetectorPropertiesData const& detProp,
+                            TCSlice& slc,
+                            CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj(TCSlice& slc, CTP_t inCTP);
     // Check allTraj -> inTraj associations

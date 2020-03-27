@@ -1,7 +1,16 @@
 #include "larreco/RecoAlg/TRACSAlg.h"
+#include "lardata/ArtDataHelper/ToElement.h"
+#include "lardataalg/DetectorInfo/DetectorClocksData.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
+
+#include <cmath>
+
+#include "range/v3/view.hpp"
+
+using lar::to_element;
+using ranges::view::transform;
 
 shower::TRACSAlg::TRACSAlg(const fhicl::ParameterSet& pset)
-  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
   fUseCollectionOnly = pset.get<bool>("UseCollectionOnly");
   fPFParticleModuleLabel = pset.get<art::InputTag>("PFParticleModuleLabel");
@@ -16,11 +25,11 @@ shower::TRACSAlg::TRACSAlg(const fhicl::ParameterSet& pset)
 //the shower direction from the shower start position. This is done
 //in the 2D coordinate system (wire direction, x)
 void
-shower::TRACSAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit>>& hits,
+shower::TRACSAlg::OrderShowerHits(detinfo::DetectorPropertiesData const& detProp,
+                                  std::vector<art::Ptr<recob::Hit>>& hits,
                                   TVector3 const& ShowerStartPosition,
                                   TVector3 const& ShowerDirection) const
 {
-
   std::map<double, art::Ptr<recob::Hit>> OrderedHits;
   art::Ptr<recob::Hit> startHit = hits.front();
 
@@ -52,8 +61,8 @@ shower::TRACSAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit>>& hits,
 
     if (WireID.asPlaneID() != startWireID.asPlaneID()) { break; }
 
-    //Get the hit Vector.
-    TVector2 hitcoord = HitCoordinates(hit);
+    // Get the hit Vector.
+    TVector2 hitcoord = HitCoordinates(detProp, *hit);
 
     //Order the hits based on the projection
     TVector2 pos = hitcoord - Shower2DStartPosition;
@@ -71,22 +80,21 @@ shower::TRACSAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit>>& hits,
   art::Ptr<recob::Hit> frontHit = showerHits.front();
   art::Ptr<recob::Hit> backHit = showerHits.back();
 
-  //Get the hit Vector.
-  TVector2 fronthitcoord = HitCoordinates(frontHit);
+  // Get the hit Vector.
+  TVector2 fronthitcoord = HitCoordinates(detProp, *frontHit);
   TVector2 frontpos = fronthitcoord - Shower2DStartPosition;
 
-  //Get the hit Vector.
-  TVector2 backhitcoord = HitCoordinates(backHit);
+  // Get the hit Vector.
+  TVector2 backhitcoord = HitCoordinates(detProp, *backHit);
   TVector2 backpos = backhitcoord - Shower2DStartPosition;
 
   double frontproj = frontpos * Shower2DDirection;
   double backproj = backpos * Shower2DDirection;
-  if (TMath::Abs(backproj) < TMath::Abs(frontproj)) {
+  if (std::abs(backproj) < std::abs(frontproj)) {
     std::reverse(showerHits.begin(), showerHits.end());
   }
 
   hits = showerHits;
-  return;
 }
 
 //Orders the shower spacepoints with regards to there prejected length from
@@ -96,7 +104,6 @@ shower::TRACSAlg::OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint>
                                          TVector3 const& vertex,
                                          TVector3 const& direction) const
 {
-
   std::map<double, art::Ptr<recob::SpacePoint>> OrderedSpacePoints;
 
   //Loop over the spacepoints and get the pojected distance from the vertex.
@@ -114,14 +121,12 @@ shower::TRACSAlg::OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint>
   for (auto const& sp : OrderedSpacePoints) {
     showersps.push_back(sp.second);
   }
-  return;
 }
 
 void
 shower::TRACSAlg::OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint>>& showersps,
                                          TVector3 const& vertex) const
 {
-
   std::map<double, art::Ptr<recob::SpacePoint>> OrderedSpacePoints;
 
   //Loop over the spacepoints and get the pojected distance from the vertex.
@@ -139,37 +144,39 @@ shower::TRACSAlg::OrderShowerSpacePoints(std::vector<art::Ptr<recob::SpacePoint>
   for (auto const& sp : OrderedSpacePoints) {
     showersps.push_back(sp.second);
   }
-  return;
 }
 
 TVector3
 shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& showersps) const
 {
+  if (empty(showersps)) { return TVector3{}; }
+
   TVector3 centre_position;
   for (auto const& sp : showersps) {
-    TVector3 pos = SpacePointPosition(sp);
-    centre_position += pos;
+    centre_position += SpacePointPosition(sp);
   }
-  if (showersps.size() > 0) centre_position *= (1. / showersps.size());
+  centre_position *= (1. / showersps.size());
   return centre_position;
 }
 
 TVector3
-shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& showerspcs,
+shower::TRACSAlg::ShowerCentre(detinfo::DetectorClocksData const& clockData,
+                               detinfo::DetectorPropertiesData const& detProp,
+                               std::vector<art::Ptr<recob::SpacePoint>> const& showerspcs,
                                art::FindManyP<recob::Hit> const& fmh) const
 {
   float totalCharge = 0;
-  TVector3 centre = shower::TRACSAlg::ShowerCentre(showerspcs, fmh, totalCharge);
-  return centre;
+  return shower::TRACSAlg::ShowerCentre(clockData, detProp, showerspcs, fmh, totalCharge);
 }
 
 //Returns the vector to the shower centre and the total charge of the shower.
 TVector3
-shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& showersps,
+shower::TRACSAlg::ShowerCentre(detinfo::DetectorClocksData const& clockData,
+                               detinfo::DetectorPropertiesData const& detProp,
+                               std::vector<art::Ptr<recob::SpacePoint>> const& showersps,
                                art::FindManyP<recob::Hit> const& fmh,
                                float& totalCharge) const
 {
-
   TVector3 pos, chargePoint = TVector3(0, 0, 0);
 
   //Loop over the spacepoints and get the charge weighted center.
@@ -179,19 +186,19 @@ shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& s
     pos = SpacePointPosition(sp);
 
     //Get the associated hits
-    std::vector<art::Ptr<recob::Hit>> hits = fmh.at(sp.key());
+    std::vector<art::Ptr<recob::Hit>> const& hits = fmh.at(sp.key());
 
     //Average the charge unless sepcified.
     float charge = 0;
     float charge2 = 0;
-    for (auto const& hit : hits) {
+    for (auto const& hit : hits | transform(to_element)) {
 
       if (fUseCollectionOnly) {
-        if (hit->SignalType() == geo::kCollection) {
-          charge = hit->Integral();
-          //Correct for the lifetime: Need to do other detproperites
-          charge *= TMath::Exp((fDetProp->SamplingRate() * (hit)->PeakTime()) /
-                               (fDetProp->ElectronLifetime() * 1e3));
+        if (hit.SignalType() == geo::kCollection) {
+          charge = hit.Integral();
+          // Correct for the lifetime: Need to do other detproperites
+          charge *= std::exp((sampling_rate(clockData) * hit.PeakTime()) /
+                             (detProp.ElectronLifetime() * 1e3));
           break;
         }
       }
@@ -199,9 +206,9 @@ shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& s
       //Check if any of the points are not withing 2 sigma.
       if (!fUseCollectionOnly) {
 
-        //Correct for the lifetime FIX: Need  to do other detproperties somehow
-        double Q = hit->Integral() * TMath::Exp((fDetProp->SamplingRate() * (hit)->PeakTime()) /
-                                                (fDetProp->ElectronLifetime() * 1e3));
+        // Correct for the lifetime FIX: Need  to do other detproperties somehow
+        double Q = hit.Integral() * std::exp((sampling_rate(clockData) * hit.PeakTime()) /
+                                             (detProp.ElectronLifetime() * 1e3));
 
         charge += Q;
         charge2 += Q * Q;
@@ -215,17 +222,17 @@ shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& s
       float rms = 1;
 
       if (hits.size() > 1) {
-        rms = TMath::Sqrt((charge2 - charge * charge) / ((float)(hits.size() - 1)));
+        rms = std::sqrt((charge2 - charge * charge) / ((float)(hits.size() - 1)));
       }
 
       charge = 0;
       int n = 0;
-      for (auto const& hit : hits) {
-        double lifetimecorrection = TMath::Exp((fDetProp->SamplingRate() * (hit)->PeakTime()) /
-                                               (fDetProp->ElectronLifetime() * 1e3));
-        if (hit->Integral() * lifetimecorrection > (mean - 2 * rms) &&
-            hit->Integral() * lifetimecorrection < (mean + 2 * rms)) {
-          charge += hit->Integral() * lifetimecorrection;
+      for (auto const& hit : hits | transform(to_element)) {
+        double lifetimecorrection = std::exp((sampling_rate(clockData) * hit.PeakTime()) /
+                                             (detProp.ElectronLifetime() * 1e3));
+        if (hit.Integral() * lifetimecorrection > (mean - 2 * rms) &&
+            hit.Integral() * lifetimecorrection < (mean + 2 * rms)) {
+          charge += hit.Integral() * lifetimecorrection;
           ++n;
         }
       }
@@ -253,10 +260,8 @@ shower::TRACSAlg::ShowerCentre(std::vector<art::Ptr<recob::SpacePoint>> const& s
 TVector3
 shower::TRACSAlg::SpacePointPosition(art::Ptr<recob::SpacePoint> const& sp) const
 {
-
   const Double32_t* sp_xyz = sp->XYZ();
-  TVector3 sp_postiion = {sp_xyz[0], sp_xyz[1], sp_xyz[2]};
-  return sp_postiion;
+  return TVector3{sp_xyz[0], sp_xyz[1], sp_xyz[2]};
 }
 
 double
@@ -265,19 +270,18 @@ shower::TRACSAlg::DistanceBetweenSpacePoints(art::Ptr<recob::SpacePoint> const& 
 {
   TVector3 position_a = SpacePointPosition(sp_a);
   TVector3 position_b = SpacePointPosition(sp_b);
-  double distance = (position_a - position_b).Mag();
-  return distance;
+  return (position_a - position_b).Mag();
 }
 
 //Return the total Lifetimecorrected charge for a set of spacepoints
 double
-shower::TRACSAlg::TotalCorrectedCharge(std::vector<art::Ptr<recob::SpacePoint>> const& sps,
+shower::TRACSAlg::TotalCorrectedCharge(detinfo::DetectorClocksData const& clockData,
+                                       detinfo::DetectorPropertiesData const& detProp,
+                                       std::vector<art::Ptr<recob::SpacePoint>> const& sps,
                                        art::FindManyP<recob::Hit> const& fmh) const
 {
-
   float TotalCharge = 0;
   for (auto& sp : sps) {
-
     TVector3 sp_position = shower::TRACSAlg::SpacePointPosition(sp);
 
     //Get the charge.
@@ -286,8 +290,8 @@ shower::TRACSAlg::TotalCorrectedCharge(std::vector<art::Ptr<recob::SpacePoint>> 
     //Get the time of the spacepoint
     float Time = shower::TRACSAlg::SpacePointTime(sp, fmh);
 
-    //Correct for the lifetime at the moment.
-    Charge *= TMath::Exp((fDetProp->SamplingRate() * Time) / (fDetProp->ElectronLifetime() * 1e3));
+    // Correct for the lifetime at the moment.
+    Charge *= std::exp((sampling_rate(clockData) * Time) / (detProp.ElectronLifetime() * 1e3));
 
     TotalCharge += Charge;
   }
@@ -299,15 +303,13 @@ double
 shower::TRACSAlg::SpacePointCharge(art::Ptr<recob::SpacePoint> const& sp,
                                    art::FindManyP<recob::Hit> const& fmh) const
 {
-
   double Charge = 0;
 
   //Average over the charge even though there is only one
-  std::vector<art::Ptr<recob::Hit>> hits = fmh.at(sp.key());
+  std::vector<art::Ptr<recob::Hit>> const& hits = fmh.at(sp.key());
   for (auto const& hit : hits) {
     Charge += hit->Integral();
   }
-
   Charge /= (float)hits.size();
 
   return Charge;
@@ -318,11 +320,10 @@ double
 shower::TRACSAlg::SpacePointTime(art::Ptr<recob::SpacePoint> const& sp,
                                  art::FindManyP<recob::Hit> const& fmh) const
 {
-
   double Time = 0;
 
-  //Avergae over the hits
-  std::vector<art::Ptr<recob::Hit>> hits = fmh.at(sp.key());
+  //Average over the hits
+  std::vector<art::Ptr<recob::Hit>> const& hits = fmh.at(sp.key());
   for (auto const& hit : hits) {
     Time += hit->PeakTime();
   }
@@ -333,15 +334,15 @@ shower::TRACSAlg::SpacePointTime(art::Ptr<recob::SpacePoint> const& sp,
 
 //Return the cooordinates of the hit in cm in wire direction and x.
 TVector2
-shower::TRACSAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) const
+shower::TRACSAlg::HitCoordinates(detinfo::DetectorPropertiesData const& detProp,
+                                 recob::Hit const& hit) const
 {
-
   //Get the pitch
-  const geo::WireID WireID = hit->WireID();
+  const geo::WireID WireID = hit.WireID();
   const geo::PlaneID planeid = WireID.asPlaneID();
   double pitch = fGeom->WirePitch(planeid);
 
-  return TVector2(WireID.Wire * pitch, fDetProp->ConvertTicksToX(hit->PeakTime(), planeid));
+  return TVector2(WireID.Wire * pitch, detProp.ConvertTicksToX(hit.PeakTime(), planeid));
 }
 
 double
@@ -349,14 +350,11 @@ shower::TRACSAlg::SpacePointProjection(const art::Ptr<recob::SpacePoint>& sp,
                                        TVector3 const& vertex,
                                        TVector3 const& direction) const
 {
-
   // Get the position of the spacepoint
   TVector3 pos = shower::TRACSAlg::SpacePointPosition(sp) - vertex;
 
   // Get the the projected length
-  double projLen = pos.Dot(direction);
-
-  return projLen;
+  return pos.Dot(direction);
 }
 
 double
@@ -365,7 +363,6 @@ shower::TRACSAlg::SpacePointPerpendiular(art::Ptr<recob::SpacePoint> const& sp,
                                          TVector3 const& direction,
                                          double proj) const
 {
-
   // Get the position of the spacepoint
   TVector3 pos = shower::TRACSAlg::SpacePointPosition(sp) - vertex;
 
@@ -374,9 +371,7 @@ shower::TRACSAlg::SpacePointPerpendiular(art::Ptr<recob::SpacePoint> const& sp,
   pos = pos - proj * direction;
 
   // Get the the projected length
-  double perpLen = pos.Mag();
-
-  return perpLen;
+  return pos.Mag();
 }
 
 void
@@ -385,7 +380,6 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
                            reco::shower::ShowerElementHolder& ShowerEleHolder,
                            std::string evd_disp_name_append) const
 {
-
   std::cout << "Making Debug Event Display" << std::endl;
 
   //Function for drawing reco showers to check direction and initial track selection
@@ -479,7 +473,6 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
   if (!ShowerEleHolder.CheckElement(fShowerDirectionInputLabel) &&
       !ShowerEleHolder.CheckElement("ShowerStartPosition")) {
     mf::LogError("Shower3DTrackFinder") << "Direction not set, returning " << std::endl;
-    //return;
   }
   else {
 
@@ -495,7 +488,6 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
     int point = 0;
 
     for (auto spacePoint : spacePoints) {
-      //TVector3 pos = shower::TRACSAlg::SpacePointPosition(spacePoint) - showerStartPosition;
       TVector3 pos = shower::TRACSAlg::SpacePointPosition(spacePoint);
 
       x = pos.X();
@@ -514,8 +506,6 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
       // Calculate the projection of (point-startpoint) along the direction
       double proj =
         shower::TRACSAlg::SpacePointProjection(spacePoint, showerStartPosition, showerDirection);
-      //double proj = shower::TRACSAlg::SpacePointProjection(spacePoint, TVector3(0,0,0),
-      //    showerDirection);
       if (proj > maxProj) { maxProj = proj; }
       else if (proj < minProj) {
         minProj = proj;
@@ -544,13 +534,11 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
     std::unique_ptr<TPolyMarker3D>(new TPolyMarker3D(trackSpacePoints.size()));
   if (!ShowerEleHolder.CheckElement(fInitialTrackSpacePointsInputLabel)) {
     mf::LogError("Shower3DTrackFinder") << "TrackSpacePoints not set, returning " << std::endl;
-    //    return;
   }
   else {
     ShowerEleHolder.GetElement(fInitialTrackSpacePointsInputLabel, trackSpacePoints);
     point = 0; // re-initialise counter
     for (auto spacePoint : trackSpacePoints) {
-      //TVector3 pos = shower::TRACSAlg::SpacePointPosition(spacePoint) - showerStartPosition;
       TVector3 pos = shower::TRACSAlg::SpacePointPosition(spacePoint);
 
       x = pos.X();
@@ -587,17 +575,15 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
 
   // initial loop over pfps to find nuber of spacepoints for tracks and showers
   for (auto const& pfp : pfps) {
-    std::vector<art::Ptr<recob::SpacePoint>> sps = fmspp.at(pfp.key());
+    std::vector<art::Ptr<recob::SpacePoint>> const& sps = fmspp.at(pfp.key());
     if (pfp->PdgCode() == 11) { pfpShowerCounter += sps.size(); }
     else if (pfp->PdgCode() == 13) {
       pfpTrackCounter += sps.size();
     }
   }
 
-  std::unique_ptr<TPolyMarker3D> pfpPolyTrack =
-    std::unique_ptr<TPolyMarker3D>(new TPolyMarker3D(pfpTrackCounter));
-  std::unique_ptr<TPolyMarker3D> pfpPolyShower =
-    std::unique_ptr<TPolyMarker3D>(new TPolyMarker3D(pfpShowerCounter));
+  auto pfpPolyTrack = std::make_unique<TPolyMarker3D>(pfpTrackCounter);
+  auto pfpPolyShower = std::make_unique<TPolyMarker3D>(pfpShowerCounter);
 
   // initialise counters
   int trackPoints = 0;
@@ -607,7 +593,6 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
     std::vector<art::Ptr<recob::SpacePoint>> sps = fmspp.at(pfp.key());
     int pdg = pfp->PdgCode(); // Track or shower
     for (auto sp : sps) {
-      //TVector3 pos = shower::TRACSAlg::SpacePointPosition(sp) - showerStartPosition;
       TVector3 pos = shower::TRACSAlg::SpacePointPosition(sp);
 
       x = pos.X();
@@ -630,18 +615,14 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
       }
     } // loop over sps
 
-    //pfpPolyTrack->Draw();
-
   } // if (fDrawAllPFPs)
 
   //#################################
   //### Initial Track Traj Points ###
   //#################################
 
-  std::unique_ptr<TPolyMarker3D> TrackTrajPoly =
-    std::unique_ptr<TPolyMarker3D>(new TPolyMarker3D(1));
-  std::unique_ptr<TPolyMarker3D> TrackInitTrajPoly =
-    std::unique_ptr<TPolyMarker3D>(new TPolyMarker3D(1));
+  auto TrackTrajPoly = std::make_unique<TPolyMarker3D>(1);
+  auto TrackInitTrajPoly = std::make_unique<TPolyMarker3D>(1);
 
   if (ShowerEleHolder.CheckElement(fInitialTrackInputLabel)) {
 
@@ -685,13 +666,12 @@ shower::TRACSAlg::DebugEVD(art::Ptr<recob::PFParticle> const& pfparticle,
   }
 
   gStyle->SetOptStat(0);
-  std::unique_ptr<TH3F> axes =
-    std::unique_ptr<TH3F>(new TH3F("axes", "", 1, x_min, x_max, 1, y_min, y_max, 1, z_min, z_max));
-  axes->SetDirectory(0);
-  axes->GetXaxis()->SetTitle("X");
-  axes->GetYaxis()->SetTitle("Y");
-  axes->GetZaxis()->SetTitle("Z");
-  axes->Draw();
+  TH3F axes("axes", "", 1, x_min, x_max, 1, y_min, y_max, 1, z_min, z_max);
+  axes.SetDirectory(0);
+  axes.GetXaxis()->SetTitle("X");
+  axes.GetYaxis()->SetTitle("Y");
+  axes.GetZaxis()->SetTitle("Z");
+  axes.Draw();
 
   // Draw all of the things
   pfpPolyShower->SetMarkerStyle(20);

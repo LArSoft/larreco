@@ -54,7 +54,8 @@ shower::TRACSCheatingAlg::GetTrueChain(std::map<int, const simb::MCParticle*>& t
 }
 
 void
-shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticle,
+shower::TRACSCheatingAlg::CheatDebugEVD(detinfo::DetectorClocksData const& clockData,
+                                        const simb::MCParticle* trueParticle,
                                         art::Event const& Event,
                                         reco::shower::ShowerElementHolder& ShowerEleHolder,
                                         const art::Ptr<recob::PFParticle>& pfparticle) const
@@ -97,7 +98,7 @@ shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticle,
   std::map<art::Ptr<recob::SpacePoint>, art::Ptr<recob::Hit>> spacePointHitMap;
   //Get the hits from the true particle
   for (auto hit : hits) {
-    int trueParticleID = TMath::Abs(TrueParticleID(hit));
+    int trueParticleID = TMath::Abs(TrueParticleID(clockData, hit));
     std::vector<art::Ptr<recob::SpacePoint>> sps = fmsph.at(hit.key());
     if (sps.size() == 1) {
       art::Ptr<recob::SpacePoint> sp = sps.front();
@@ -221,12 +222,13 @@ shower::TRACSCheatingAlg::CheatDebugEVD(const simb::MCParticle* trueParticle,
 }
 
 int
-shower::TRACSCheatingAlg::TrueParticleID(const art::Ptr<recob::Hit>& hit) const
+shower::TRACSCheatingAlg::TrueParticleID(detinfo::DetectorClocksData const& clockData,
+                                         const art::Ptr<recob::Hit>& hit) const
 {
   double particleEnergy = 0;
   int likelyTrackID = 0;
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(hit);
+  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
   for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
     if (trackIDs.at(idIt).energy > particleEnergy) {
       particleEnergy = trackIDs.at(idIt).energy;
@@ -238,6 +240,7 @@ shower::TRACSCheatingAlg::TrueParticleID(const art::Ptr<recob::Hit>& hit) const
 
 std::pair<int, double>
 shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(
+  detinfo::DetectorClocksData const& clockData,
   std::map<int, std::vector<int>> const& ShowersMothers,
   std::vector<art::Ptr<recob::Hit>> const& hits,
   int planeid) const
@@ -255,7 +258,7 @@ shower::TRACSCheatingAlg::TrueParticleIDFromTrueChain(
     //Get the plane ID
     geo::WireID wireid = (*hitIt)->WireID();
     int PlaneID = wireid.Plane;
-    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(hit);
+    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
     for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
       trackIDTo3EDepMap[TMath::Abs(trackIDs[idIt].trackID)] += trackIDs[idIt].energy;
       if (PlaneID == planeid) {

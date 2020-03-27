@@ -6,12 +6,12 @@
 
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 namespace reco3d {
   // -------------------------------------------------------------------------
-  TripletFinder::TripletFinder(const std::vector<art::Ptr<recob::Hit>>& xhits,
+  TripletFinder::TripletFinder(const detinfo::DetectorPropertiesData& detProp,
+                               const std::vector<art::Ptr<recob::Hit>>& xhits,
                                const std::vector<art::Ptr<recob::Hit>>& uhits,
                                const std::vector<art::Ptr<recob::Hit>>& vhits,
                                const std::vector<raw::ChannelID_t>& xbad,
@@ -21,14 +21,13 @@ namespace reco3d {
                                double distThreshDrift,
                                double xhitOffset)
     : geom(art::ServiceHandle<geo::Geometry const>()->provider())
-    , detprop(art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider())
     , fDistThresh(distThresh)
     , fDistThreshDrift(distThreshDrift)
     , fXHitOffset(xhitOffset)
   {
-    FillHitMap(xhits, fX_by_tpc);
-    FillHitMap(uhits, fU_by_tpc);
-    FillHitMap(vhits, fV_by_tpc);
+    FillHitMap(detProp, xhits, fX_by_tpc);
+    FillHitMap(detProp, uhits, fU_by_tpc);
+    FillHitMap(detProp, vhits, fV_by_tpc);
 
     FillBadMap(xbad, fXbad_by_tpc);
     FillBadMap(ubad, fUbad_by_tpc);
@@ -37,7 +36,8 @@ namespace reco3d {
 
   // -------------------------------------------------------------------------
   void
-  TripletFinder::FillHitMap(const std::vector<art::Ptr<recob::Hit>>& hits,
+  TripletFinder::FillHitMap(const detinfo::DetectorPropertiesData& detProp,
+                            const std::vector<art::Ptr<recob::Hit>>& hits,
                             std::map<geo::TPCID, std::vector<HitOrChan>>& out)
   {
     for (const art::Ptr<recob::Hit>& hit : hits) {
@@ -45,7 +45,7 @@ namespace reco3d {
         double xpos = 0;
         for (geo::WireID wire : geom->ChannelToWire(hit->Channel())) {
           if (geo::TPCID(wire) == tpc) {
-            xpos = detprop->ConvertTicksToX(hit->PeakTime(), wire);
+            xpos = detProp.ConvertTicksToX(hit->PeakTime(), wire);
             if (geom->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
           }
         }

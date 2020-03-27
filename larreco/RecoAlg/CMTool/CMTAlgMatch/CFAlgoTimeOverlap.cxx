@@ -3,7 +3,7 @@
 namespace cmtool {
 
   //-------------------------------------------------------
-  CFAlgoTimeOverlap::CFAlgoTimeOverlap() : CFloatAlgoBase()
+  CFAlgoTimeOverlap::CFAlgoTimeOverlap()
   //-------------------------------------------------------
   {
     SetRatioCut(0.001); //(0.095) ;
@@ -21,7 +21,8 @@ namespace cmtool {
 
   //----------------------------------------------------------------------------------------------
   float
-  CFAlgoTimeOverlap::Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  CFAlgoTimeOverlap::Float(util::GeometryUtilities const&,
+                           const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
 
@@ -140,11 +141,11 @@ namespace cmtool {
   //------------------------------
   /*
   void CFAlgoTimeOverlap::SetMaxMiddleMin(const double first,
-					  const double second,
-					  const double third,
-					  double &max,
-					  double &middle,
-					  double &min)
+                                          const double second,
+                                          const double third,
+                                          double &max,
+                                          double &middle,
+                                          double &min)
   //------------------------------
   {
 

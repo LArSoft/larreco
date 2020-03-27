@@ -14,6 +14,9 @@
 
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 #include <math.h>
 
@@ -30,9 +33,10 @@ class pma::Hit3D {
   friend struct bTrajectory3DOrderLess;
 
 public:
-  Hit3D(void);
-  Hit3D(art::Ptr<recob::Hit> src);
-  Hit3D(unsigned int wire,
+  Hit3D();
+  Hit3D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src);
+  Hit3D(detinfo::DetectorPropertiesData const& detProp,
+        unsigned int wire,
         unsigned int view,
         unsigned int tpc,
         unsigned int cryo,
@@ -40,16 +44,15 @@ public:
         float ampl,
         float area);
   Hit3D(const pma::Hit3D& src);
-  virtual ~Hit3D(void) {}
 
   art::Ptr<recob::Hit> const&
-  Hit2DPtr(void) const
+  Hit2DPtr() const
   {
     return fHit;
   }
 
   TVector3 const&
-  Point3D(void) const
+  Point3D() const
   {
     return fPoint3D;
   }
@@ -66,78 +69,78 @@ public:
   }
 
   TVector2 const&
-  Point2D(void) const
+  Point2D() const noexcept
   {
     return fPoint2D;
   }
   TVector2 const&
-  Projection2D(void) const
+  Projection2D() const noexcept
   {
     return fProjection2D;
   }
 
   unsigned int
-  Cryo(void) const
+  Cryo() const noexcept
   {
     return fCryo;
   }
   unsigned int
-  TPC(void) const
+  TPC() const noexcept
   {
     return fTPC;
   }
   unsigned int
-  View2D(void) const
+  View2D() const noexcept
   {
     return fPlane;
   }
   unsigned int
-  Wire(void) const
+  Wire() const noexcept
   {
     return fWire;
   }
   float
-  PeakTime(void) const
+  PeakTime() const noexcept
   {
     return fPeakTime;
   }
 
   float
-  SummedADC(void) const
+  SummedADC() const noexcept
   {
     return fArea;
   }
   float
-  GetAmplitude(void) const
+  GetAmplitude() const noexcept
   {
     return fAmpl;
   }
   float
-  GetSigmaFactor(void) const
+  GetSigmaFactor() const noexcept
   {
     return fSigmaFactor;
   }
   void
-  SetSigmaFactor(float value)
+  SetSigmaFactor(float value) noexcept
   {
     fSigmaFactor = value;
   }
 
   double
-  Dx(void) const
+  Dx() const noexcept
   {
     return fDx;
   }
 
   double
-  GetDistToProj(void) const
+  GetDistToProj() const
   {
     return sqrt(GetDist2ToProj());
   }
-  double GetDist2ToProj(void) const;
+  double GetDist2ToProj() const;
 
   float
-  GetSegFraction() const
+  GetSegFraction() const noexcept
   {
     return fSegFraction;
   }
@@ -155,23 +158,23 @@ public:
   }
 
   bool
-  IsEnabled(void) const
+  IsEnabled() const noexcept
   {
     return (fEnabled && !fOutlier);
   }
   void
-  SetEnabled(bool state)
+  SetEnabled(bool state) noexcept
   {
     fEnabled = state;
   }
 
   bool
-  IsOutlier(void) const
+  IsOutlier() const noexcept
   {
     return fOutlier;
   }
-  virtual void
-  TagOutlier(bool state)
+  void
+  TagOutlier(bool state) noexcept
   {
     fOutlier = state;
   }

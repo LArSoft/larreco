@@ -28,6 +28,7 @@
 #include "canvas/Utilities/InputTag.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -190,6 +191,9 @@ namespace trkf {
     art::FindManyP<recob::Cluster> clustersFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
     art::FindManyP<recob::Vertex> vtxFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
 
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
+
     // -------------- PMA Fitter for this event ---------------
     auto pmalgFitter = pma::PMAlgFitter(allhitlist,
                                         *cluListHandle,
@@ -202,7 +206,7 @@ namespace trkf {
                                         fPmaVtxConfig);
 
     // ------------------ Do the job here: --------------------
-    int retCode = pmalgFitter.build();
+    int retCode = pmalgFitter.build(detProp);
     // --------------------------------------------------------
     switch (retCode) {
     case -2: mf::LogError("Summary") << "problem"; break;
@@ -240,11 +244,11 @@ namespace trkf {
 
         trk->SelectHits(); // just in case, set all to enabled
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(geo::kU);
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
+        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(detProp, geo::kU);
+        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(detProp, geo::kV);
+        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(detProp, geo::kZ);
 
-        //gc: make sure no tracks are created with less than 2 points
+        // gc: make sure no tracks are created with less than 2 points
         if (trk->size() < 2) continue;
 
         tracks->push_back(pma::convertFrom(*trk, trkIndex));
@@ -414,9 +418,6 @@ namespace trkf {
 
     evt.put(std::move(pfp2trk));
   }
-  // ------------------------------------------------------
-  // ------------------------------------------------------
-  // ------------------------------------------------------
 
   DEFINE_ART_MODULE(PMAlgTrajFitter)
 

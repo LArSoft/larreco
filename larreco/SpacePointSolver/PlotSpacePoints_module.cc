@@ -10,9 +10,9 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-
 #include "larsim/MCCheater/BackTrackerService.h"
 
 #include "TGraph.h"
@@ -26,13 +26,14 @@ namespace reco3d {
     explicit PlotSpacePoints(const fhicl::ParameterSet& pset);
 
   private:
-    void analyze(const art::Event& evt);
+    void analyze(const art::Event& evt) override;
 
     void Plot(const std::vector<recob::SpacePoint>& pts, const std::string& suffix) const;
 
     void Plot3D(const std::vector<recob::SpacePoint>& pts, const std::string& suffix) const;
 
-    std::vector<recob::SpacePoint> TrueSpacePoints(art::Handle<std::vector<recob::Hit>> hits) const;
+    std::vector<recob::SpacePoint> TrueSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                                   art::Handle<std::vector<recob::Hit>> hits) const;
 
     art::InputTag fSpacePointTag;
 
@@ -98,7 +99,8 @@ namespace reco3d {
 
   // ---------------------------------------------------------------------------
   std::vector<recob::SpacePoint>
-  PlotSpacePoints::TrueSpacePoints(art::Handle<std::vector<recob::Hit>> hits) const
+  PlotSpacePoints::TrueSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                   art::Handle<std::vector<recob::Hit>> hits) const
   {
     std::vector<recob::SpacePoint> pts_true;
 
@@ -109,7 +111,7 @@ namespace reco3d {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     for (unsigned int i = 0; i < hits->size(); ++i) {
       try {
-        const std::vector<double> xyz = bt_serv->HitToXYZ(art::Ptr<recob::Hit>(hits, i));
+        const std::vector<double> xyz = bt_serv->HitToXYZ(clockData, art::Ptr<recob::Hit>(hits, i));
         pts_true.emplace_back(&xyz[0], err, 0);
       }
       catch (...) {
@@ -135,8 +137,7 @@ namespace reco3d {
         for (const recob::SpacePoint& p : pts) {
           const double* xyz = p.XYZ();
 
-          double x{};
-          double y{};
+          double x{}, y{};
           if (phase == 0) {
             x = cos(ang) * xyz[1] + sin(ang) * xyz[2];
             y = xyz[0];
@@ -187,7 +188,9 @@ namespace reco3d {
     if (fPlotsTrue) {
       art::Handle<std::vector<recob::Hit>> hits;
       evt.getByLabel(fHitLabel, hits);
-      const std::vector<recob::SpacePoint> pts = TrueSpacePoints(hits);
+      auto const clockData =
+        art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+      const std::vector<recob::SpacePoint> pts = TrueSpacePoints(clockData, hits);
 
       const std::string suffix = TString::Format("%s_true_%d", fSuffix.c_str(), evt.event()).Data();
 

@@ -2,18 +2,17 @@
 
 trkf::VertexWrapper
 trkf::Geometric3DVertexFitter::fitPFP(
+  detinfo::DetectorPropertiesData const& detProp,
   size_t iPF,
   const art::ValidHandle<std::vector<recob::PFParticle>>& inputPFParticle,
   const std::unique_ptr<art::FindManyP<recob::Track>>& assocTracks) const
 {
   using namespace std;
-  //
   art::Ptr<recob::PFParticle> pfp(inputPFParticle, iPF);
-  //
   if (debugLevel > 1)
     std::cout << "pfp#" << iPF << " PdgCode=" << pfp->PdgCode() << " IsPrimary=" << pfp->IsPrimary()
               << " NumDaughters=" << pfp->NumDaughters() << std::endl;
-  if (pfp->IsPrimary() == false || pfp->NumDaughters() < 2) VertexWrapper();
+  if (pfp->IsPrimary() == false || pfp->NumDaughters() < 2) return VertexWrapper();
 
   TrackRefVec tracks;
 
@@ -24,27 +23,30 @@ trkf::Geometric3DVertexFitter::fitPFP(
       tracks.push_back(*t);
     }
   }
-  if (tracks.size() < 2) return VertexWrapper();
-  //
-  return fitTracks(tracks);
+
+  if (size(tracks) < 2) { return VertexWrapper{}; }
+
+  return fitTracks(detProp, tracks);
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracks(const std::vector<art::Ptr<recob::Track>>& arttracks) const
+trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& detProp,
+                                         const std::vector<art::Ptr<recob::Track>>& arttracks) const
 {
   TrackRefVec tracks;
   for (auto t : arttracks) {
     tracks.push_back(*t);
   }
-  //
-  return fitTracks(tracks);
+  return fitTracks(detProp, tracks);
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracks(TrackRefVec& tracks) const
+trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& detProp,
+                                         TrackRefVec& tracks) const
 {
   if (debugLevel > 0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size() < 2) return VertexWrapper();
+
   // sort tracks by number of hits
   std::sort(
     tracks.begin(),
@@ -52,6 +54,7 @@ trkf::Geometric3DVertexFitter::fitTracks(TrackRefVec& tracks) const
     [](std::reference_wrapper<const recob::Track> a, std::reference_wrapper<const recob::Track> b) {
       return a.get().CountValidPoints() > b.get().CountValidPoints();
     });
+
   //find pair with closest start positions and put them upfront
   unsigned int tk0 = tracks.size();
   unsigned int tk1 = tracks.size();
@@ -81,23 +84,24 @@ trkf::Geometric3DVertexFitter::fitTracks(TrackRefVec& tracks) const
     if (tk1 == 0) std::swap(tracks[1], tracks[tk0]);
     if (tk1 == 1) std::swap(tracks[0], tracks[tk0]);
   }
-  //
+
   // find vertex between the first two tracks
-  VertexWrapper vtx = fitTwoTracks(tracks[0], tracks[1]);
+  VertexWrapper vtx = fitTwoTracks(detProp, tracks[0], tracks[1]);
   if (vtx.isValid() == false || vtx.tracksSize() < 2) return vtx;
-  //
+
   // then add other tracks and update vertex measurement
   for (auto tk = tracks.begin() + 2; tk < tracks.end(); ++tk) {
-    auto sipv = sip(vtx, *tk);
+    auto sipv = sip(detProp, vtx, *tk);
     if (debugLevel > 1) std::cout << "sip=" << sipv << std::endl;
     if (sipv > sipCut) continue;
-    addTrackToVertex(vtx, *tk);
+    addTrackToVertex(detProp, vtx, *tk);
   }
   return vtx;
 }
 
 trkf::VertexWrapper
 trkf::Geometric3DVertexFitter::fitTracksWithVtx(
+  detinfo::DetectorPropertiesData const& detProp,
   const std::vector<art::Ptr<recob::Track>>& arttracks,
   const recob::tracking::Point_t& vtxPos) const
 {
@@ -105,29 +109,29 @@ trkf::Geometric3DVertexFitter::fitTracksWithVtx(
   for (auto t : arttracks) {
     tracks.push_back(*t);
   }
-  //
-  return fitTracksWithVtx(tracks, vtxPos);
+  return fitTracksWithVtx(detProp, tracks, vtxPos);
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracksWithVtx(TrackRefVec& tracks,
+trkf::Geometric3DVertexFitter::fitTracksWithVtx(detinfo::DetectorPropertiesData const& detProp,
+                                                TrackRefVec& tracks,
                                                 const recob::tracking::Point_t& vtxPos) const
 {
   if (debugLevel > 0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size() < 2) return VertexWrapper();
   // sort tracks by proximity to input vertex
   std::sort(tracks.begin(), tracks.end(), TracksFromVertexSorter(vtxPos));
-  //
+
   // find vertex between the first two tracks
-  VertexWrapper vtx = fitTwoTracks(tracks[0], tracks[1]);
+  VertexWrapper vtx = fitTwoTracks(detProp, tracks[0], tracks[1]);
   if (vtx.isValid() == false || vtx.tracks().size() < 2) return vtx;
-  //
+
   // then add other tracks and update vertex measurement
   for (auto tk = tracks.begin() + 2; tk < tracks.end(); ++tk) {
-    auto sipv = sip(vtx, *tk);
+    auto sipv = sip(detProp, vtx, *tk);
     if (debugLevel > 1) std::cout << "sip=" << sipv << std::endl;
     if (sipv > sipCut) continue;
-    addTrackToVertex(vtx, *tk);
+    addTrackToVertex(detProp, vtx, *tk);
   }
   return vtx;
 }
@@ -141,17 +145,17 @@ trkf::Geometric3DVertexFitter::weightedAverageState(SVector2& par1,
 {
   SVector2 deltapar = par2 - par1;
   SMatrixSym22 covsum = (cov2 + cov1);
-  //
+
   if (debugLevel > 1) {
     std::cout << "par1=" << par1 << std::endl;
     std::cout << "par2=" << par2 << std::endl;
     std::cout << "deltapar=" << deltapar << std::endl;
-    //
+
     std::cout << "cov1=\n" << cov1 << std::endl;
     std::cout << "cov2=\n" << cov2 << std::endl;
     std::cout << "covsum=\n" << covsum << std::endl;
   }
-  //
+
   if (debugLevel > 1) {
     double det1;
     bool d1ok = cov1.Det2(det1);
@@ -163,7 +167,7 @@ trkf::Geometric3DVertexFitter::weightedAverageState(SVector2& par1,
     bool dsok = covsum.Det2(detsum);
     std::cout << "covsum det=" << detsum << " ok=" << dsok << std::endl;
   }
-  //
+
   bool invertok = covsum.Invert();
   if (!invertok) {
     SVector5 vtxpar5(0, 0, 0, 0, 0);
@@ -197,8 +201,10 @@ trkf::Geometric3DVertexFitter::weightedAverageState(SVector2& par1,
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::closestPointAlongTrack(const recob::Track& track,
-                                                      const recob::Track& other) const
+trkf::Geometric3DVertexFitter::closestPointAlongTrack(
+  detinfo::DetectorPropertiesData const& detProp,
+  const recob::Track& track,
+  const recob::Track& other) const
 {
   // find the closest approach point along track
   const auto& start1 = track.Trajectory().Start();
@@ -239,7 +245,7 @@ trkf::Geometric3DVertexFitter::closestPointAlongTrack(const recob::Track& track,
                           track.ParticleId());
   bool propok1 = true;
   state1 = prop->propagateToPlane(
-    propok1, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
+    propok1, detProp, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
   if (!propok1) {
     std::cout << "failed propagation, return track1 start pos=" << track.Start() << std::endl;
     VertexWrapper vtx;
@@ -256,7 +262,9 @@ trkf::Geometric3DVertexFitter::closestPointAlongTrack(const recob::Track& track,
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob::Track& tk2) const
+trkf::Geometric3DVertexFitter::fitTwoTracks(detinfo::DetectorPropertiesData const& detProp,
+                                            const recob::Track& tk1,
+                                            const recob::Track& tk2) const
 {
   // find the closest approach points
   auto start1 = tk1.Trajectory().Start();
@@ -291,7 +299,7 @@ trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob
     tk1.VertexParametersLocal5D(), tk1.VertexCovarianceLocal5D(), plane1, true, tk1.ParticleId());
   bool propok1 = true;
   state1 = prop->propagateToPlane(
-    propok1, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
+    propok1, detProp, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
   if (!propok1) {
     std::cout << "failed propagation, return track1 start pos=" << tk1.Start() << std::endl;
     VertexWrapper vtx;
@@ -305,7 +313,7 @@ trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob
     tk2.VertexParametersLocal5D(), tk2.VertexCovarianceLocal5D(), plane2, true, tk2.ParticleId());
   bool propok2 = true;
   state2 = prop->propagateToPlane(
-    propok2, state2, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
+    propok2, detProp, state2, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
   if (!propok2) {
     std::cout << "failed propagation, return track1 start pos=" << tk1.Start() << std::endl;
     VertexWrapper vtx;
@@ -329,7 +337,7 @@ trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob
     auto dcp = state1.position() - state2.position();
     std::cout << "dot dcp-dir1=" << dcp.Dot(tk1.Trajectory().StartDirection()) << std::endl;
     std::cout << "dot dcp-dir2=" << dcp.Dot(tk2.Trajectory().StartDirection()) << std::endl;
-    //
+
     std::cout << "cov1=" << cov1 << std::endl;
     std::cout << "cov2=" << cov2 << std::endl;
   }
@@ -362,7 +370,8 @@ trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob
 }
 
 trkf::Geometric3DVertexFitter::ParsCovsOnPlane
-trkf::Geometric3DVertexFitter::getParsCovsOnPlane(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::getParsCovsOnPlane(detinfo::DetectorPropertiesData const& detProp,
+                                                  const trkf::VertexWrapper& vtx,
                                                   const recob::Track& tk) const
 {
   auto start = tk.Trajectory().Start();
@@ -380,8 +389,8 @@ trkf::Geometric3DVertexFitter::getParsCovsOnPlane(const trkf::VertexWrapper& vtx
   trkf::TrackState state(
     tk.VertexParametersLocal5D(), tk.VertexCovarianceLocal5D(), plane, true, tk.ParticleId());
   bool propok = true;
-  state =
-    prop->propagateToPlane(propok, state, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
+  state = prop->propagateToPlane(
+    propok, detProp, state, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
 
   if (debugLevel > 0) {
     std::cout << "input vtx=" << vtxpos << std::endl;
@@ -417,7 +426,8 @@ trkf::Geometric3DVertexFitter::getParsCovsOnPlane(const trkf::VertexWrapper& vtx
 }
 
 void
-trkf::Geometric3DVertexFitter::addTrackToVertex(trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::addTrackToVertex(detinfo::DetectorPropertiesData const& detProp,
+                                                trkf::VertexWrapper& vtx,
                                                 const recob::Track& tk) const
 {
 
@@ -427,7 +437,7 @@ trkf::Geometric3DVertexFitter::addTrackToVertex(trkf::VertexWrapper& vtx,
     std::cout << "covariance=\n" << tk.VertexCovarianceGlobal6D() << std::endl;
   }
 
-  ParsCovsOnPlane pcp = getParsCovsOnPlane(vtx, tk);
+  ParsCovsOnPlane pcp = getParsCovsOnPlane(detProp, vtx, tk);
   std::pair<TrackState, double> was = weightedAverageState(pcp);
   if (was.second <= (util::kBogusD - 1.)) { return; }
 
@@ -440,8 +450,6 @@ trkf::Geometric3DVertexFitter::addTrackToVertex(trkf::VertexWrapper& vtx,
     std::cout << "updvtxcov=\n" << vtx.covariance() << std::endl;
     std::cout << "add chi2=" << was.second << std::endl;
   }
-
-  return;
 }
 
 double
@@ -449,17 +457,19 @@ trkf::Geometric3DVertexFitter::chi2(const trkf::Geometric3DVertexFitter::ParsCov
 {
   const SVector2 deltapar = pcp.par2 - pcp.par1;
   SMatrixSym22 covsum = (pcp.cov2 + pcp.cov1);
-  //
+
   bool invertok = covsum.Invert();
   if (!invertok) return -1.;
-  //
+
   return ROOT::Math::Similarity(deltapar, covsum);
 }
 
 double
-trkf::Geometric3DVertexFitter::chi2(const VertexWrapper& vtx, const recob::Track& tk) const
+trkf::Geometric3DVertexFitter::chi2(detinfo::DetectorPropertiesData const& detProp,
+                                    const VertexWrapper& vtx,
+                                    const recob::Track& tk) const
 {
-  return chi2(getParsCovsOnPlane(vtx, tk));
+  return chi2(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
 double
@@ -470,9 +480,11 @@ trkf::Geometric3DVertexFitter::ip(const trkf::Geometric3DVertexFitter::ParsCovsO
 }
 
 double
-trkf::Geometric3DVertexFitter::ip(const VertexWrapper& vtx, const recob::Track& tk) const
+trkf::Geometric3DVertexFitter::ip(detinfo::DetectorPropertiesData const& detProp,
+                                  const VertexWrapper& vtx,
+                                  const recob::Track& tk) const
 {
-  return ip(getParsCovsOnPlane(vtx, tk));
+  return ip(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
 double
@@ -486,9 +498,11 @@ trkf::Geometric3DVertexFitter::ipErr(
 }
 
 double
-trkf::Geometric3DVertexFitter::ipErr(const VertexWrapper& vtx, const recob::Track& tk) const
+trkf::Geometric3DVertexFitter::ipErr(detinfo::DetectorPropertiesData const& detProp,
+                                     const VertexWrapper& vtx,
+                                     const recob::Track& tk) const
 {
-  return ipErr(getParsCovsOnPlane(vtx, tk));
+  return ipErr(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
 double
@@ -498,9 +512,11 @@ trkf::Geometric3DVertexFitter::sip(const trkf::Geometric3DVertexFitter::ParsCovs
 }
 
 double
-trkf::Geometric3DVertexFitter::sip(const VertexWrapper& vtx, const recob::Track& tk) const
+trkf::Geometric3DVertexFitter::sip(detinfo::DetectorPropertiesData const& detProp,
+                                   const VertexWrapper& vtx,
+                                   const recob::Track& tk) const
 {
-  return sip(getParsCovsOnPlane(vtx, tk));
+  return sip(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
 double
@@ -510,95 +526,105 @@ trkf::Geometric3DVertexFitter::pDist(const VertexWrapper& vtx, const recob::Trac
 }
 
 trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::unbiasedVertex(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::unbiasedVertex(detinfo::DetectorPropertiesData const& detProp,
+                                              const trkf::VertexWrapper& vtx,
                                               const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return vtx; }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return fitTracks(tks);
+    return fitTracks(detProp, tks);
   }
 }
 
 double
-trkf::Geometric3DVertexFitter::chi2Unbiased(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::chi2Unbiased(detinfo::DetectorPropertiesData const& detProp,
+                                            const trkf::VertexWrapper& vtx,
                                             const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
-  if (ittoerase == vtx.tracksSize()) { return chi2(vtx, tk); }
+  if (ittoerase == vtx.tracksSize()) { return chi2(detProp, vtx, tk); }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return chi2(fitTracks(tks), tk);
+    return chi2(detProp, fitTracks(detProp, tks), tk);
   }
 }
 
 double
-trkf::Geometric3DVertexFitter::ipUnbiased(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::ipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                          const trkf::VertexWrapper& vtx,
                                           const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
-  if (ittoerase == vtx.tracksSize()) { return ip(vtx, tk); }
+  if (ittoerase == vtx.tracksSize()) { return ip(detProp, vtx, tk); }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return ip(fitTracks(tks), tk);
+    return ip(detProp, fitTracks(detProp, tks), tk);
   }
 }
 
 double
-trkf::Geometric3DVertexFitter::ipErrUnbiased(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::ipErrUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                             const trkf::VertexWrapper& vtx,
                                              const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
-  if (ittoerase == vtx.tracksSize()) { return ipErr(vtx, tk); }
+  if (ittoerase == vtx.tracksSize()) { return ipErr(detProp, vtx, tk); }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return ipErr(fitTracks(tks), tk);
+    return ipErr(detProp, fitTracks(detProp, tks), tk);
   }
 }
 
 double
-trkf::Geometric3DVertexFitter::sipUnbiased(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::sipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                           const trkf::VertexWrapper& vtx,
                                            const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
-  if (ittoerase == vtx.tracksSize()) { return sip(vtx, tk); }
+  if (ittoerase == vtx.tracksSize()) { return sip(detProp, vtx, tk); }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return sip(fitTracks(tks), tk);
+    return sip(detProp, fitTracks(detProp, tks), tk);
   }
 }
 
 double
-trkf::Geometric3DVertexFitter::pDistUnbiased(const trkf::VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::pDistUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                             const trkf::VertexWrapper& vtx,
                                              const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return pDist(vtx, tk); }
   else {
     auto tks = vtx.tracksWithoutElement(ittoerase);
-    return pDist(fitTracks(tks), tk);
+    return pDist(fitTracks(detProp, tks), tk);
   }
 }
 
 std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx)
+trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
+                                           const VertexWrapper& vtx)
 {
-  return computeMeta(vtx, vtx.tracks());
+  return computeMeta(detProp, vtx, vtx.tracks());
 }
 
 std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx,
+trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
+                                           const VertexWrapper& vtx,
                                            const std::vector<art::Ptr<recob::Track>>& arttracks)
 {
   TrackRefVec tracks;
   for (auto t : arttracks)
     tracks.push_back(*t);
-  return computeMeta(vtx, tracks);
+  return computeMeta(detProp, vtx, tracks);
 }
 
 std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const TrackRefVec& trks)
+trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
+                                           const VertexWrapper& vtx,
+                                           const TrackRefVec& trks)
 {
   std::vector<recob::VertexAssnMeta> result;
   for (auto tk : trks) {
@@ -609,13 +635,13 @@ trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const Track
     auto ittoerase = vtx.findTrack(tk);
     if (debugLevel > 1)
       std::cout << "computeMeta for vertex with ntracks=" << vtx.tracksSize() << std::endl;
-    auto ubvtx = unbiasedVertex(vtx, tk.get());
+    auto ubvtx = unbiasedVertex(detProp, vtx, tk.get());
     if (debugLevel > 1)
       std::cout << "got unbiased vertex with ntracks=" << ubvtx.tracksSize()
                 << " isValid=" << ubvtx.isValid() << std::endl;
     if (ubvtx.isValid()) {
       d = pDist(ubvtx, tk.get());
-      auto pcop = getParsCovsOnPlane(ubvtx, tk.get());
+      auto pcop = getParsCovsOnPlane(detProp, ubvtx, tk.get());
       i = ip(pcop);
       e = ipErr(pcop);
       c = chi2(pcop);
@@ -625,10 +651,10 @@ trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const Track
     }
     else if (vtx.tracksSize() == 2 && ittoerase != vtx.tracksSize()) {
       auto tks = vtx.tracksWithoutElement(ittoerase);
-      auto fakevtx = closestPointAlongTrack(tks[0], tk);
+      auto fakevtx = closestPointAlongTrack(detProp, tks[0], tk);
       d = pDist(fakevtx, tk.get());
       // these will be identical for the two tracks (modulo numerical instabilities in the matrix inversion for the chi2)
-      auto pcop = getParsCovsOnPlane(fakevtx, tk.get());
+      auto pcop = getParsCovsOnPlane(detProp, fakevtx, tk.get());
       i = ip(pcop);
       e = ipErr(pcop);
       c = chi2(pcop);

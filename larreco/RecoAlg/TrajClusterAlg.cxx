@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
@@ -27,14 +28,6 @@ namespace tca {
     : fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg")), fMVAReader("Silent")
   {
     tcc.showerParentReader = &fMVAReader;
-    reconfigure(pset);
-    tcc.caloAlg = &fCaloAlg;
-  }
-
-  //------------------------------------------------------------------------------
-  void
-  TrajClusterAlg::reconfigure(fhicl::ParameterSet const& pset)
-  {
 
     bool badinput = false;
     // set all configurable modes false
@@ -297,7 +290,8 @@ namespace tca {
 
     evt.eventsProcessed = 0;
 
-  } // reconfigure
+    tcc.caloAlg = &fCaloAlg;
+  }
 
   ////////////////////////////////////////////////
   bool
@@ -312,7 +306,6 @@ namespace tca {
     evt.run = run;
     evt.event = event;
     // refresh service references
-    tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
     evt.WorkID = 0;
     evt.globalT_UID = 0;
@@ -348,7 +341,10 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID)
+  TrajClusterAlg::RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
+                                    detinfo::DetectorPropertiesData const& detProp,
+                                    std::vector<unsigned int>& hitsInSlice,
+                                    int sliceID)
   {
     // Reconstruct everything using the hits in a slice
 
@@ -356,7 +352,7 @@ namespace tca {
     if (hitsInSlice.size() < 2) return;
     if (tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
 
-    if (!CreateSlice(hitsInSlice, sliceID)) return;
+    if (!CreateSlice(clockData, detProp, hitsInSlice, sliceID)) return;
 
     seeds.resize(0);
     // get a reference to the stored slice
@@ -375,16 +371,13 @@ namespace tca {
                 << " in TPC " << slc.TPCID.TPC << "\n";
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
-      ReconstructAllTraj(slc, inCTP);
-      if (!slc.isValid) {
-        std::cout << "Found invalid slice\n";
-        return;
-      }
+      ReconstructAllTraj(detProp, slc, inCTP);
+      if (!slc.isValid) return;
     } // plane
     // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
     // 2D and 3D(?) information
     Reconcile2Vs(slc);
-    Find3DVertices(slc);
+    Find3DVertices(detProp, slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
     DefineTjParents(slc, false);
@@ -395,14 +388,14 @@ namespace tca {
       }
     } // plane
     if (tcc.match3DCuts[0] > 0) {
-      FindPFParticles(slc);
+      FindPFParticles(clockData, detProp, slc);
       DefinePFPParents(slc, false);
     } // 3D matching requested
     KillPoorVertices(slc);
     // Use 3D matching information to find showers in 2D. FindShowers3D returns
     // true if the algorithm was successful indicating that the matching needs to be redone
     if (tcc.showerTag[0] == 2 || tcc.showerTag[0] == 4) {
-      FindShowers3D(slc);
+      FindShowers3D(detProp, slc);
       if (tcc.modes[kSaveShowerTree]) {
         std::cout << "SHOWER TREE STAGE NUM SIZE: " << stv.StageNum.size() << std::endl;
         showertree->Fill();
@@ -432,7 +425,9 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  TrajClusterAlg::ReconstructAllTraj(TCSlice& slc, CTP_t inCTP)
+  TrajClusterAlg::ReconstructAllTraj(detinfo::DetectorPropertiesData const& detProp,
+                                     TCSlice& slc,
+                                     CTP_t inCTP)
   {
     // Reconstruct trajectories in inCTP and put them in allTraj
 
@@ -710,7 +705,7 @@ namespace tca {
       EndMerge(slc, inCTP, lastPass);
       if (!slc.isValid) return;
 
-      Find2DVertices(slc, inCTP, pass);
+      Find2DVertices(detProp, slc, inCTP, pass);
 
     } // pass
 
@@ -732,7 +727,7 @@ namespace tca {
     if (tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
-    Find2DVertices(slc, inCTP, USHRT_MAX);
+    Find2DVertices(detProp, slc, inCTP, USHRT_MAX);
     SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
@@ -1212,7 +1207,10 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  TrajClusterAlg::CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID)
+  TrajClusterAlg::CreateSlice(detinfo::DetectorClocksData const& clockData,
+                              detinfo::DetectorPropertiesData const& detProp,
+                              std::vector<unsigned int>& hitsInSlice,
+                              int sliceID)
   {
     // Defines a TCSlice struct and pushes the slice onto slices.
     // Sets the isValid flag true if successful.
@@ -1247,8 +1245,9 @@ namespace tca {
       if (hip < 2) return false;
     // Define the TCEvent wire hit range vector for this new TPC for ALL hits
     FillWireHitRange(slc.TPCID);
-    // next define the Slice wire hit range vectors, UnitsPerTick, etc for this slice
-    if (!FillWireHitRange(slc)) return false;
+    // next define the Slice wire hit range vectors, UnitsPerTick, etc for this
+    // slice
+    if (!FillWireHitRange(clockData, detProp, slc)) return false;
     slc.isValid = true;
     slices.push_back(slc);
     if (tcc.modes[kDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {

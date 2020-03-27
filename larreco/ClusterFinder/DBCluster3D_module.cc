@@ -15,6 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -55,7 +56,6 @@ private:
   DBScan3DAlg fDBScan;
 
   geo::GeometryCore const* fGeom;
-  detinfo::DetectorProperties const* fDetProp;
 
   double tickToDist;
   double fMinHitDis;
@@ -73,25 +73,22 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Slice, recob::Hit>>();
   produces<art::Assns<recob::Slice, recob::SpacePoint>>();
 
-  fGeom = &*(art::ServiceHandle<geo::Geometry const>());
-  fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  fGeom = art::ServiceHandle<geo::Geometry const>().get();
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob(clock_data);
 
-  tickToDist = fDetProp->DriftVelocity(fDetProp->Efield(), fDetProp->Temperature());
-  tickToDist *= 1.e-3 * fDetProp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+  tickToDist = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
+  tickToDist *= 1.e-3 * sampling_rate(clock_data); // 1e-3 is conversion of 1/us to 1/ns
   fMinHitDis *= fMinHitDis;
 }
 
 void
 cluster::DBCluster3D::produce(art::Event& evt)
 {
-
-  std::vector<recob::Slice> slcCol;
-
-  std::unique_ptr<art::Assns<recob::Slice, recob::Hit>> slc_hit_assn(
-    new art::Assns<recob::Slice, recob::Hit>);
-
-  std::unique_ptr<art::Assns<recob::Slice, recob::SpacePoint>> slc_sps_assn(
-    new art::Assns<recob::Slice, recob::SpacePoint>);
+  auto scol = std::make_unique<std::vector<recob::Slice>>();
+  auto slc_hit_assn = std::make_unique<art::Assns<recob::Slice, recob::Hit>>();
+  auto slc_sps_assn = std::make_unique<art::Assns<recob::Slice, recob::SpacePoint>>();
 
   auto hitsHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitModuleLabel);
   auto spsHandle = evt.getValidHandle<std::vector<recob::SpacePoint>>(fSpacePointModuleLabel);
@@ -138,7 +135,6 @@ cluster::DBCluster3D::produce(art::Event& evt)
   //Find number of slices
   int maxid = INT_MIN;
   for (size_t i = 0; i < fDBScan.points.size(); ++i) {
-    //    std::cout<<"Space point index "<<i<<" "<<fDBScan.points[i].sp.key()<<" "<<fDBScan.points[i].cluster_id<<std::endl;
     if (fDBScan.points[i].cluster_id > maxid) maxid = fDBScan.points[i].cluster_id;
   }
   size_t nslc = 0;
@@ -277,12 +273,11 @@ cluster::DBCluster3D::produce(art::Event& evt)
     Point_t ep0(pos0[0], pos0[1], pos0[2]);
     auto pos1 = sps_in_slc[isl][imax]->XYZ();
     Point_t ep1(pos1[0], pos1[1], pos1[2]);
-    slcCol.emplace_back(id, ctr, dir, ep0, ep1, aspectRatio, charge);
-    util::CreateAssn(*this, evt, slcCol, slcHits[isl], *slc_hit_assn);
-    util::CreateAssn(*this, evt, slcCol, sps_in_slc[isl], *slc_sps_assn);
+    scol->emplace_back(id, ctr, dir, ep0, ep1, aspectRatio, charge);
+    util::CreateAssn(evt, *scol, slcHits[isl], *slc_hit_assn);
+    util::CreateAssn(evt, *scol, sps_in_slc[isl], *slc_sps_assn);
   } // isl
 
-  std::unique_ptr<std::vector<recob::Slice>> scol(new std::vector<recob::Slice>(std::move(slcCol)));
   evt.put(std::move(scol));
   evt.put(std::move(slc_hit_assn));
   evt.put(std::move(slc_sps_assn));

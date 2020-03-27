@@ -14,12 +14,6 @@
 
 pma::PMAlgVertexing::PMAlgVertexing(const pma::PMAlgVertexing::Config& config)
 {
-  this->reconfigure(config);
-}
-
-void
-pma::PMAlgVertexing::reconfigure(const pma::PMAlgVertexing::Config& config)
-{
   fMinTrackLength = config.MinTrackLength();
 
   fFindKinks = config.FindKinks();
@@ -28,14 +22,14 @@ pma::PMAlgVertexing::reconfigure(const pma::PMAlgVertexing::Config& config)
 }
 // ------------------------------------------------------
 
-pma::PMAlgVertexing::~PMAlgVertexing(void)
+pma::PMAlgVertexing::~PMAlgVertexing()
 {
   cleanTracks();
 }
 // ------------------------------------------------------
 
 void
-pma::PMAlgVertexing::cleanTracks(void)
+pma::PMAlgVertexing::cleanTracks()
 {
   for (auto& t : fOutTracks.tracks())
     t.DeleteTrack();
@@ -97,11 +91,10 @@ pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl& trk_input)
     pma::Track3D* copy = new pma::Track3D(*(t.Track()));
     int key = t.Key();
 
-    if ((t.Track()->GetT0() !=
-         0) || // do not create vertices on cosmic muons, now track with any non-zero t0 is a muon,
-        (t.Track()->HasTagFlag(
-          pma::Track3D::
-            kCosmic))) // tag for track recognized as a cosmic ray is starting to be used
+    if ((t.Track()->GetT0() != 0) || // do not create vertices on cosmic muons, now track with any
+                                     // non-zero t0 is a muon,
+        (t.Track()->HasTagFlag(pma::Track3D::kCosmic))) // tag for track recognized as a cosmic ray
+                                                        // is starting to be used
     {
       fExcludedTracks.tracks().emplace_back(copy, key);
       continue;
@@ -131,7 +124,7 @@ pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl& trk_input)
 // ------------------------------------------------------
 
 std::vector<pma::VtxCandidate>
-pma::PMAlgVertexing::firstPassCandidates(void) const
+pma::PMAlgVertexing::firstPassCandidates() const
 {
   std::vector<pma::VtxCandidate> candidates;
   for (size_t t = 0; t < fOutTracks.size() - 1; t++) {
@@ -151,7 +144,7 @@ pma::PMAlgVertexing::firstPassCandidates(void) const
 }
 
 std::vector<pma::VtxCandidate>
-pma::PMAlgVertexing::secondPassCandidates(void) const
+pma::PMAlgVertexing::secondPassCandidates() const
 {
   std::vector<pma::VtxCandidate> candidates;
   for (size_t t = 0; t < fOutTracks.size(); t++)
@@ -171,7 +164,8 @@ pma::PMAlgVertexing::secondPassCandidates(void) const
 }
 
 size_t
-pma::PMAlgVertexing::makeVertices(std::vector<pma::VtxCandidate>& candidates)
+pma::PMAlgVertexing::makeVertices(detinfo::DetectorPropertiesData const& detProp,
+                                  std::vector<pma::VtxCandidate>& candidates)
 {
   bool merged = true;
   while (merged && (candidates.size() > 1)) {
@@ -244,20 +238,20 @@ pma::PMAlgVertexing::makeVertices(std::vector<pma::VtxCandidate>& candidates)
         c_best = v;
       }
       /*
-			mf::LogVerbatim("pma::PMAlgVertexing")
-				<< "center x:" << candidates[v].Center().X()
-				<< " y:" << candidates[v].Center().Y()
-				<< " z:" << candidates[v].Center().Z();
+                        mf::LogVerbatim("pma::PMAlgVertexing")
+                                << "center x:" << candidates[v].Center().X()
+                                << " y:" << candidates[v].Center().Y()
+                                << " z:" << candidates[v].Center().Z();
 
-			for (size_t i = 0; i < candidates[v].Size(); i++)
-				mf::LogVerbatim("pma::PMAlgVertexing")
-					<< "     trk:" << i << " "
-					<< candidates[v].Track(i).first->size();
+                        for (size_t i = 0; i < candidates[v].Size(); i++)
+                                mf::LogVerbatim("pma::PMAlgVertexing")
+                                        << "     trk:" << i << " "
+                                        << candidates[v].Track(i).first->size();
 
-			mf::LogVerbatim("pma::PMAlgVertexing")
-				<< " dist 3D:" << sqrt(candidates[v].Mse())
-				<< " 2D:" << sqrt(candidates[v].Mse2D())
-				<< " max ang:" << a;
+                        mf::LogVerbatim("pma::PMAlgVertexing")
+                                << " dist 3D:" << sqrt(candidates[v].Mse())
+                                << " 2D:" << sqrt(candidates[v].Mse2D())
+                                << " max ang:" << a;
 */
     }
     if (c_best >= 0) {
@@ -271,7 +265,7 @@ pma::PMAlgVertexing::makeVertices(std::vector<pma::VtxCandidate>& candidates)
 
   size_t njoined = 0;
   for (auto& c : toJoin) {
-    if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
+    if (c.JoinTracks(detProp, fOutTracks, fEmTracks)) njoined++;
   }
 
   return njoined;
@@ -279,9 +273,10 @@ pma::PMAlgVertexing::makeVertices(std::vector<pma::VtxCandidate>& candidates)
 // ------------------------------------------------------
 
 size_t
-pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input)
+pma::PMAlgVertexing::run(const detinfo::DetectorPropertiesData& detProp,
+                         pma::TrkCandidateColl& trk_input)
 {
-  if (fFindKinks) findKinksOnTracks(trk_input);
+  if (fFindKinks) findKinksOnTracks(detProp, trk_input);
 
   if (trk_input.size() < 2) {
     mf::LogWarning("pma::PMAlgVertexing") << "need min two source tracks!";
@@ -298,7 +293,7 @@ pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input)
     do {
       auto candidates = firstPassCandidates();
       if (candidates.size()) {
-        nfound = makeVertices(candidates);
+        nfound = makeVertices(detProp, candidates);
         nvtx += nfound;
       }
       else
@@ -317,7 +312,7 @@ pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input)
     while (nfound && fEmTracks.size()) {
       auto candidates = secondPassCandidates();
       if (candidates.size()) {
-        nfound = makeVertices(candidates);
+        nfound = makeVertices(detProp, candidates);
         nvtx += nfound;
       }
       else
@@ -544,7 +539,8 @@ pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl& trk_input) const
 // ------------------------------------------------------
 
 void
-pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) const
+pma::PMAlgVertexing::findKinksOnTracks(const detinfo::DetectorPropertiesData& detProp,
+                                       pma::TrkCandidateColl& trk_input) const
 {
   if (trk_input.size() < 1) return;
 
@@ -554,7 +550,7 @@ pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) const
     pma::Track3D* trk = trk_input[t].Track();
     if (trk->Nodes().size() < 5) continue;
 
-    trk->Optimize(0, 1.0e-5, false);
+    trk->Optimize(detProp, 0, 1.0e-5, false);
 
     std::vector<size_t> tested_nodes;
     bool kinkFound = true;
@@ -591,7 +587,7 @@ pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) const
           tested_nodes.push_back(kinkIdx);
           kinkFound = true;
 
-          trk->Optimize(0, 1.0e-5, false, false);
+          trk->Optimize(detProp, 0, 1.0e-5, false, false);
           double c = -trk->Nodes()[kinkIdx]->SegmentCosTransverse();
           double a =
             180.0 * (1 - std::acos(trk->Nodes()[kinkIdx]->SegmentCosTransverse()) / TMath::Pi());

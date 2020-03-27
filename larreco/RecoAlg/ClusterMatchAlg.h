@@ -14,9 +14,7 @@
 #include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft
 #include "lardataobj/RecoBase/Cluster.h"
@@ -24,6 +22,10 @@ namespace fhicl {
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 namespace trkf {
   class SpacePointAlg;
 }
@@ -104,12 +106,10 @@ namespace cluster {
     void FillMCInfo(const art::Event& evt);
 
     /// Method to fill cluster information to be used for matching
-    void AppendClusterInfo(const recob::Cluster& in_cluster,
+    void AppendClusterInfo(detinfo::DetectorPropertiesData const& det_prop,
+                           const recob::Cluster& in_cluster,
                            const std::vector<art::Ptr<recob::Hit>>& in_hit_v);
 
-    /// Method to fill cluster information to be used for matching
-    void AppendClusterInfo(const art::Ptr<recob::Cluster> in_cluster,
-                           const std::vector<art::Ptr<recob::Hit>>& in_hit_v);
     /**
        Method to run matching algorithms for three planes.
        Event info must be provided prior to this function call through FillEventInfo()
@@ -117,10 +117,12 @@ namespace cluster {
        art::Event object, it does not perform any new matching unless a user explicitly
        calls ClearEventInfo() and then fill event info again though FillEventInfo().
     */
-    void MatchThreePlanes();
+    void MatchThreePlanes(detinfo::DetectorClocksData const& clock_data,
+                          detinfo::DetectorPropertiesData const& det_prop);
 
     /// Two plane version of cluster matching method.
-    void MatchTwoPlanes();
+    void MatchTwoPlanes(detinfo::DetectorClocksData const& clock_data,
+                        detinfo::DetectorPropertiesData const& det_prop);
 
     /// Method to retrieve matched cluster combinations. The format is [wire_plane][cluster_index]
     std::vector<std::vector<unsigned int>> GetMatchedClusters() const;
@@ -153,7 +155,7 @@ namespace cluster {
     void ClearTTreeInfo();
 
     /// Internal method, called only once, to fill detector-wise information
-    void PrepareDetParams();
+    void PrepareDetParams(detinfo::DetectorPropertiesData const& clockData);
 
     /// Internal method to create output TTree for quality checking of the algorithm
     void PrepareTTree();
@@ -196,7 +198,9 @@ namespace cluster {
        there found N spacepoints using hits in them and N > min_nsps where "min_nsps" is
        the cut value you can set in SetNSpacePointCut() method.
     */
-    bool Match_SpacePoint(const size_t uindex,
+    bool Match_SpacePoint(detinfo::DetectorClocksData const& clockData,
+                          detinfo::DetectorPropertiesData const& detProp,
+                          const size_t uindex,
                           const size_t vindex,
                           const size_t windex,
                           std::vector<recob::SpacePoint>& sps_v);
@@ -204,11 +208,12 @@ namespace cluster {
     //
     // Cut parameter values
     //
-    size_t _num_sps_cut; ///< Number of SpacePoint used to cut in Match_SpacePoint method
-    double
-      _overlay_tratio_cut; ///< Minimum overlayed time fraction among two clusters used in Match_RoughTime method
-    double
-      _qratio_cut; ///< Maximum difference among clusters' charge sum used in Match_SumCharge method
+    size_t _num_sps_cut;        ///< Number of SpacePoint used to cut in
+                                ///< Match_SpacePoint method
+    double _overlay_tratio_cut; ///< Minimum overlayed time fraction among two
+                                ///< clusters used in Match_RoughTime method
+    double _qratio_cut;         ///< Maximum difference among clusters' charge sum used
+                                ///< in Match_SumCharge method
 
     //
     // Resulting data holder for matched cluster indexes

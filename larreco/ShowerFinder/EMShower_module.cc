@@ -17,9 +17,11 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
+#include "cetlib/pow.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -27,8 +29,8 @@
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/ArtDataHelper/ToElement.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -54,6 +56,26 @@
 #include <string>
 #include <vector>
 
+#include "range/v3/view.hpp"
+
+namespace {
+  template <typename T, typename U>
+  struct AddMany {
+    AddMany(art::Ptr<T> const& ptr, art::Assns<T, U>& assns) : ptr_{ptr}, assns_{assns} {}
+
+    void
+    operator()(art::Ptr<U> const& b) const
+    {
+      assns_.addSingle(ptr_, b);
+    }
+
+    art::Ptr<T> const ptr_;
+    art::Assns<T, U>& assns_;
+  };
+}
+
+using lar::to_element;
+
 namespace shower {
   class EMShower;
 }
@@ -65,46 +87,45 @@ public:
 private:
   void produce(art::Event& evt);
 
-  art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel,
-    fVertexModuleLabel, fCNNEMModuleLabel;
-  EMShowerAlg fEMShowerAlg;
-  bool fSaveNonCompleteShowers;
-  bool fFindBadPlanes;
-  bool fMakeSpacePoints;
-  bool fUseCNNtoIDEMPFP;
-  bool fUseCNNtoIDEMHit;
-  double fMinTrackLikeScore;
+  art::InputTag const fHitsModuleLabel;
+  art::InputTag const fClusterModuleLabel;
+  art::InputTag const fTrackModuleLabel;
+  art::InputTag const fPFParticleModuleLabel;
+  art::InputTag const fVertexModuleLabel;
+  art::InputTag const fCNNEMModuleLabel;
+  int const fShower;
+  int const fPlane;
+  int const fDebug;
+  EMShowerAlg const fEMShowerAlg;
+  bool const fSaveNonCompleteShowers;
+  bool const fFindBadPlanes;
+  bool const fMakeSpacePoints;
+  bool const fUseCNNtoIDEMPFP;
+  bool const fUseCNNtoIDEMHit;
+  double const fMinTrackLikeScore;
 
   art::ServiceHandle<geo::Geometry const> fGeom;
-  detinfo::DetectorProperties const* fDetProp =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-  int fShower;
-  int fPlane;
-
-  int fDebug;
 };
 
 shower::EMShower::EMShower(fhicl::ParameterSet const& pset)
-  : EDProducer{pset}, fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg"))
+  : EDProducer{pset}
+  , fHitsModuleLabel{pset.get<art::InputTag>("HitsModuleLabel")}
+  , fClusterModuleLabel{pset.get<art::InputTag>("ClusterModuleLabel")}
+  , fTrackModuleLabel{pset.get<art::InputTag>("TrackModuleLabel")}
+  , fPFParticleModuleLabel{pset.get<art::InputTag>("PFParticleModuleLabel", "")}
+  , fVertexModuleLabel{pset.get<art::InputTag>("VertexModuleLabel", "")}
+  , fCNNEMModuleLabel{pset.get<art::InputTag>("CNNEMModuleLabel", "")}
+  , fShower{pset.get<int>("Shower", -1)}
+  , fPlane{pset.get<int>("Plane", -1)}
+  , fDebug{pset.get<int>("Debug", 0)}
+  , fEMShowerAlg{pset.get<fhicl::ParameterSet>("EMShowerAlg"), fDebug}
+  , fSaveNonCompleteShowers{pset.get<bool>("SaveNonCompleteShowers")}
+  , fFindBadPlanes{pset.get<bool>("FindBadPlanes")}
+  , fMakeSpacePoints{pset.get<bool>("MakeSpacePoints")}
+  , fUseCNNtoIDEMPFP{pset.get<bool>("UseCNNtoIDEMPFP")}
+  , fUseCNNtoIDEMHit{pset.get<bool>("UseCNNtoIDEMHit")}
+  , fMinTrackLikeScore{pset.get<double>("MinTrackLikeScore")}
 {
-  fHitsModuleLabel = pset.get<art::InputTag>("HitsModuleLabel");
-  fClusterModuleLabel = pset.get<art::InputTag>("ClusterModuleLabel");
-  fTrackModuleLabel = pset.get<art::InputTag>("TrackModuleLabel");
-  fPFParticleModuleLabel = pset.get<art::InputTag>("PFParticleModuleLabel", "");
-  fVertexModuleLabel = pset.get<art::InputTag>("VertexModuleLabel", "");
-  fCNNEMModuleLabel = pset.get<art::InputTag>("CNNEMModuleLabel", "");
-  fFindBadPlanes = pset.get<bool>("FindBadPlanes");
-  fSaveNonCompleteShowers = pset.get<bool>("SaveNonCompleteShowers");
-  fMakeSpacePoints = pset.get<bool>("MakeSpacePoints");
-  fUseCNNtoIDEMPFP = pset.get<bool>("UseCNNtoIDEMPFP");
-  fUseCNNtoIDEMHit = pset.get<bool>("UseCNNtoIDEMHit");
-  fMinTrackLikeScore = pset.get<double>("MinTrackLikeScore");
-  fShower = pset.get<int>("Shower", -1);
-  fPlane = pset.get<int>("Plane", -1);
-  fDebug = pset.get<int>("Debug", 0);
-  fEMShowerAlg.fDebug = fDebug;
-
   produces<std::vector<recob::Shower>>();
   produces<std::vector<recob::SpacePoint>>();
   produces<art::Assns<recob::Shower, recob::Hit>>();
@@ -117,20 +138,14 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset)
 void
 shower::EMShower::produce(art::Event& evt)
 {
-
   // Output -- showers and associations with hits and clusters
-  std::unique_ptr<std::vector<recob::Shower>> showers(new std::vector<recob::Shower>);
-  std::unique_ptr<std::vector<recob::SpacePoint>> spacePoints(new std::vector<recob::SpacePoint>);
-  std::unique_ptr<art::Assns<recob::Shower, recob::Cluster>> clusterAssociations(
-    new art::Assns<recob::Shower, recob::Cluster>);
-  std::unique_ptr<art::Assns<recob::Shower, recob::Hit>> hitShowerAssociations(
-    new art::Assns<recob::Shower, recob::Hit>);
-  std::unique_ptr<art::Assns<recob::Shower, recob::Track>> trackAssociations(
-    new art::Assns<recob::Shower, recob::Track>);
-  std::unique_ptr<art::Assns<recob::Shower, recob::SpacePoint>> spShowerAssociations(
-    new art::Assns<recob::Shower, recob::SpacePoint>);
-  std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> hitSpAssociations(
-    new art::Assns<recob::SpacePoint, recob::Hit>);
+  auto showers = std::make_unique<std::vector<recob::Shower>>();
+  auto spacePoints = std::make_unique<std::vector<recob::SpacePoint>>();
+  auto clusterAssociations = std::make_unique<art::Assns<recob::Shower, recob::Cluster>>();
+  auto hitShowerAssociations = std::make_unique<art::Assns<recob::Shower, recob::Hit>>();
+  auto trackAssociations = std::make_unique<art::Assns<recob::Shower, recob::Track>>();
+  auto spShowerAssociations = std::make_unique<art::Assns<recob::Shower, recob::SpacePoint>>();
+  auto hitSpAssociations = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
 
   // Event has hits, tracks and clusters found already
 
@@ -167,6 +182,9 @@ shower::EMShower::produce(art::Event& evt)
   art::FindManyP<recob::Cluster> fmc(hitHandle, evt, fHitsModuleLabel);
 
   // Make showers
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
   std::vector<std::vector<int>> newShowers;
   std::vector<unsigned int> pfParticles;
 
@@ -185,6 +203,7 @@ shower::EMShower::produce(art::Event& evt)
     std::vector<int> clustersToIgnore;
     if (fFindBadPlanes)
       clustersToIgnore = fEMShowerAlg.CheckShowerPlanes(initialShowers, clusters, fmh);
+
     if (clustersToIgnore.size() > 0) {
       clusterToTracks.clear();
       trackToClusters.clear();
@@ -260,15 +279,12 @@ shower::EMShower::produce(art::Event& evt)
 
   // Make output larsoft products
   int showerNum = 0;
-  for (std::vector<std::vector<int>>::iterator newShower = newShowers.begin();
-       newShower != newShowers.end();
-       ++newShower, ++showerNum) {
+  for (auto const& newShower : newShowers) {
 
     if (showerNum != fShower and fShower != -1) continue;
 
     // New shower
-    if (fDebug > 0)
-      std::cout << std::endl << std::endl << "Start shower " << showerNum << std::endl;
+    if (fDebug > 0) std::cout << "\n\nStart shower " << showerNum << '\n';
 
     // New associations
     art::PtrVector<recob::Hit> showerHits;
@@ -279,17 +295,15 @@ shower::EMShower::produce(art::Event& evt)
     std::vector<int> associatedTracks;
 
     // Make showers and associations
-    for (std::vector<int>::iterator showerCluster = (*newShower).begin();
-         showerCluster != (*newShower).end();
-         ++showerCluster) {
+    for (int const showerCluster : newShower) {
 
       // Clusters
-      art::Ptr<recob::Cluster> cluster = clusters.at(*showerCluster);
+      art::Ptr<recob::Cluster> const cluster = clusters.at(showerCluster);
       showerClusters.push_back(cluster);
 
       // Hits
-      std::vector<art::Ptr<recob::Hit>> showerClusterHits = fmh.at(cluster.key());
-      if (fCNNEMModuleLabel != "" && fUseCNNtoIDEMHit) { //use CNN to identify EM hits
+      std::vector<art::Ptr<recob::Hit>> const& showerClusterHits = fmh.at(cluster.key());
+      if (fCNNEMModuleLabel != "" && fUseCNNtoIDEMHit) { // use CNN to identify EM hits
         auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
         if (!hitResults) {
           throw cet::exception("EMShower")
@@ -297,59 +311,44 @@ shower::EMShower::produce(art::Event& evt)
         }
         int trkLikeIdx = hitResults->getIndex("track");
         int emLikeIdx = hitResults->getIndex("em");
-        if ((trkLikeIdx < 0) || (emLikeIdx < 0)) {
+        if (trkLikeIdx < 0 || emLikeIdx < 0) {
           throw cet::exception("EMShower") << "No em/track labeled columns in MVA data products.";
         }
-        for (auto& showerHit : showerClusterHits) {
+        for (auto const& showerHit : showerClusterHits) {
           auto vout = hitResults->getOutput(showerHit);
           double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
           if (trk_or_em > 0) {
             trk_like = vout[trkLikeIdx] / trk_or_em;
-            if (trk_like < fMinTrackLikeScore) { //EM like
+            if (trk_like < fMinTrackLikeScore) { // EM like
               showerHits.push_back(showerHit);
             }
           }
         }
       }
       else {
-        for (std::vector<art::Ptr<recob::Hit>>::iterator showerClusterHit =
-               showerClusterHits.begin();
-             showerClusterHit != showerClusterHits.end();
-             ++showerClusterHit)
-          showerHits.push_back(*showerClusterHit);
+        for (auto const& showerClusterHit : showerClusterHits)
+          showerHits.push_back(showerClusterHit);
       }
       // Tracks
       if (!pfpHandle.isValid()) { // Only do this for non-pfparticle mode
-        std::vector<int> clusterTracks = clusterToTracks.at(*showerCluster);
-        for (std::vector<int>::iterator clusterTracksIt = clusterTracks.begin();
-             clusterTracksIt != clusterTracks.end();
-             ++clusterTracksIt)
-          if (std::find(associatedTracks.begin(), associatedTracks.end(), *clusterTracksIt) ==
-              associatedTracks.end())
-            associatedTracks.push_back(*clusterTracksIt);
+        for (int const clusterTrack : clusterToTracks.at(showerCluster))
+          if (not cet::search_all(associatedTracks, clusterTrack))
+            associatedTracks.push_back(clusterTrack);
       }
     }
 
     if (!pfpHandle.isValid()) { // For non-pfparticles, get space points from tracks
       // Tracks and space points
-      for (std::vector<int>::iterator associatedTracksIt = associatedTracks.begin();
-           associatedTracksIt != associatedTracks.end();
-           ++associatedTracksIt) {
-        art::Ptr<recob::Track> showerTrack = tracks.at(*associatedTracksIt);
-        showerTracks.push_back(showerTrack);
+      for (int const trackIndex : associatedTracks) {
+        showerTracks.push_back(tracks.at(trackIndex));
       }
     }
-
     else { // For pfparticles, get space points from hits
       art::FindManyP<recob::SpacePoint> fmspp(showerHits, evt, fPFParticleModuleLabel);
-      for (size_t ihit = 0; ihit < showerHits.size(); ++ihit) {
-        if (fmspp.isValid()) {
-          std::vector<art::Ptr<recob::SpacePoint>> spacePoints_pfp = fmspp.at(ihit);
-          for (std::vector<art::Ptr<recob::SpacePoint>>::iterator spacePointsIt =
-                 spacePoints_pfp.begin();
-               spacePointsIt != spacePoints_pfp.end();
-               ++spacePointsIt)
-            showerSpacePoints_p.push_back(*spacePointsIt);
+      if (fmspp.isValid()) {
+        for (size_t ihit = 0; ihit < showerHits.size(); ++ihit) {
+          for (auto const& spPtr : fmspp.at(ihit))
+            showerSpacePoints_p.push_back(spPtr);
         }
       }
     }
@@ -358,67 +357,59 @@ shower::EMShower::produce(art::Event& evt)
 
       // First, order the hits into the correct shower order in each plane
       if (fDebug > 1)
-        std::cout << " ------------------ Ordering shower hits -------------------- " << std::endl;
+        std::cout << " ------------------ Ordering shower hits --------------------\n";
       std::map<int, std::vector<art::Ptr<recob::Hit>>> showerHitsMap =
-        fEMShowerAlg.OrderShowerHits(showerHits, fPlane);
+        fEMShowerAlg.OrderShowerHits(detProp, showerHits, fPlane);
       if (fDebug > 1)
-        std::cout << " ------------------ End ordering shower hits -------------------- "
-                  << std::endl;
+        std::cout << " ------------------ End ordering shower hits "
+                     "--------------------\n";
 
       // Find the track at the start of the shower
       std::unique_ptr<recob::Track> initialTrack;
       std::map<int, std::vector<art::Ptr<recob::Hit>>> initialTrackHits;
-      fEMShowerAlg.FindInitialTrack(showerHitsMap, initialTrack, initialTrackHits, fPlane);
+      fEMShowerAlg.FindInitialTrack(detProp, showerHitsMap, initialTrack, initialTrackHits, fPlane);
 
       // Make space points
       std::vector<std::vector<art::Ptr<recob::Hit>>> hitAssns;
       std::vector<recob::SpacePoint> showerSpacePoints;
       if (fMakeSpacePoints)
-        showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHitsMap, hitAssns);
+        showerSpacePoints = fEMShowerAlg.MakeSpacePoints(detProp, showerHitsMap, hitAssns);
       else {
-        for (art::PtrVector<recob::Track>::const_iterator trackIt = showerTracks.begin();
-             trackIt != showerTracks.end();
-             ++trackIt) {
-          const std::vector<art::Ptr<recob::SpacePoint>> trackSpacePoints = fmsp.at(trackIt->key());
-          for (std::vector<art::Ptr<recob::SpacePoint>>::const_iterator trackSpIt =
-                 trackSpacePoints.begin();
-               trackSpIt != trackSpacePoints.end();
-               ++trackSpIt) {
-            showerSpacePoints.push_back(*(*trackSpIt));
+        for (auto const& trkPtr : showerTracks) {
+          for (auto const& trackSpacePoint :
+               fmsp.at(trkPtr.key()) | ranges::view::transform(to_element)) {
+            showerSpacePoints.push_back(trackSpacePoint);
             hitAssns.push_back(std::vector<art::Ptr<recob::Hit>>());
           }
         }
       }
 
       // Save space points
-      int firstSpacePoint = spacePoints->size(), nSpacePoint = 0;
-      for (std::vector<recob::SpacePoint>::const_iterator sspIt = showerSpacePoints.begin();
-           sspIt != showerSpacePoints.end();
-           ++sspIt, ++nSpacePoint) {
-        spacePoints->emplace_back(
-          sspIt->XYZ(), sspIt->ErrXYZ(), sspIt->Chisq(), spacePoints->size());
-        util::CreateAssn(
-          *this, evt, *(spacePoints.get()), hitAssns.at(nSpacePoint), *(hitSpAssociations.get()));
+      art::PtrMaker<recob::SpacePoint> const make_space_point_ptr{evt};
+      size_t firstSpacePoint = spacePoints->size(), nSpacePoint = 0;
+      for (auto const& ssp : showerSpacePoints) {
+        spacePoints->emplace_back(ssp.XYZ(), ssp.ErrXYZ(), ssp.Chisq(), spacePoints->size());
+        auto const index = spacePoints->size() - 1;
+        auto const space_point_ptr = make_space_point_ptr(index);
+        cet::for_all(hitAssns.at(nSpacePoint), AddMany{space_point_ptr, *hitSpAssociations});
       }
-      int lastSpacePoint = spacePoints->size();
+      auto const lastSpacePoint = spacePoints->size();
 
       // Make shower object and associations
-      recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
+      recob::Shower shower =
+        fEMShowerAlg.MakeShower(clockData, detProp, showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
       if (fSaveNonCompleteShowers or
-          (!fSaveNonCompleteShowers and shower.ShowerStart() != TVector3(0, 0, 0))) {
+          (!fSaveNonCompleteShowers and shower.ShowerStart() != TVector3{})) {
         showers->push_back(shower);
-        util::CreateAssn(*this, evt, *(showers.get()), showerHits, *(hitShowerAssociations.get()));
-        util::CreateAssn(
-          *this, evt, *(showers.get()), showerClusters, *(clusterAssociations.get()));
-        util::CreateAssn(*this, evt, *(showers.get()), showerTracks, *(trackAssociations.get()));
-        util::CreateAssn(*this,
-                         evt,
-                         *(showers.get()),
-                         *(spacePoints.get()),
-                         *(spShowerAssociations.get()),
-                         firstSpacePoint,
-                         lastSpacePoint);
+
+        auto const shower_ptr = art::PtrMaker<recob::Shower>{evt}(showers->size() - 1);
+        cet::for_all(showerHits, AddMany{shower_ptr, *hitShowerAssociations});
+        cet::for_all(showerClusters, AddMany{shower_ptr, *clusterAssociations});
+        cet::for_all(showerTracks, AddMany{shower_ptr, *trackAssociations});
+        for (size_t i = firstSpacePoint; i < lastSpacePoint; ++i) {
+          spShowerAssociations->addSingle(shower_ptr, make_space_point_ptr(i));
+        }
       }
       else
         mf::LogInfo("EMShower") << "Discarding shower " << showerNum
@@ -428,52 +419,50 @@ shower::EMShower::produce(art::Event& evt)
     else { // pfParticle
 
       if (vertices.size()) {
-        //found the most upstream vertex
-        TVector3 nuvtx(0, 0, DBL_MAX);
-        for (auto& vtx : vertices) {
-          double xyz[3];
-          vtx->XYZ(xyz);
-          if (xyz[2] < nuvtx.Z()) { nuvtx.SetXYZ(xyz[0], xyz[1], xyz[2]); }
+        // found the most upstream vertex
+        using recob::tracking::Point_t;
+        Point_t nuvtx{0, 0, DBL_MAX};
+        for (auto const& vtx : vertices) {
+          auto const pos = vtx->position();
+          if (pos.Z() < nuvtx.Z()) { nuvtx = pos; }
         }
 
-        TVector3 shwvtx(0, 0, 0);
-        double mindis = DBL_MAX;
-        for (auto& sp : showerSpacePoints_p) {
-          double dis = sqrt(pow(nuvtx.X() - sp->XYZ()[0], 2) + pow(nuvtx.Y() - sp->XYZ()[1], 2) +
-                            pow(nuvtx.Z() - sp->XYZ()[2], 2));
-          if (dis < mindis) {
-            mindis = dis;
-            shwvtx.SetXYZ(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
+        Point_t shwvtx{0, 0, 0};
+        double mindist2 = DBL_MAX;
+        for (auto const& sp : showerSpacePoints_p | ranges::view::transform(to_element)) {
+          double const dist2 = cet::sum_of_squares(
+            nuvtx.X() - sp.XYZ()[0], nuvtx.Y() - sp.XYZ()[1], nuvtx.Z() - sp.XYZ()[2]);
+          if (dist2 < mindist2) {
+            mindist2 = dist2;
+            shwvtx.SetXYZ(sp.XYZ()[0], sp.XYZ()[1], sp.XYZ()[2]);
           }
         }
 
         art::Ptr<recob::Vertex> bestvtx;
-        mindis = DBL_MAX;
-        for (auto& vtx : vertices) {
-          double xyz[3];
-          vtx->XYZ(xyz);
-          double dis = sqrt(pow(xyz[0] - shwvtx.X(), 2) + pow(xyz[1] - shwvtx.Y(), 2) +
-                            pow(xyz[2] - shwvtx.Z(), 2));
-          if (dis < mindis) {
-            mindis = dis;
+        mindist2 = DBL_MAX;
+        for (auto const& vtx : vertices) {
+          auto const pos = vtx->position();
+          double const dist2 =
+            cet::sum_of_squares(pos.X() - shwvtx.X(), pos.Y() - shwvtx.Y(), pos.Z() - shwvtx.Z());
+          if (dist2 < mindist2) {
+            mindist2 = dist2;
             bestvtx = vtx;
           }
         }
 
         int iok = 0;
-
-        recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, bestvtx, iok);
-        //shower.set_id(showerNum);
+        recob::Shower shower =
+          fEMShowerAlg.MakeShower(clockData, detProp, showerHits, bestvtx, iok);
         if (iok == 0) {
           showers->push_back(shower);
-          showers->back().set_id(showers->size() - 1);
-          util::CreateAssn(
-            *this, evt, *(showers.get()), showerHits, *(hitShowerAssociations.get()));
-          util::CreateAssn(
-            *this, evt, *(showers.get()), showerClusters, *(clusterAssociations.get()));
-          util::CreateAssn(*this, evt, *(showers.get()), showerTracks, *(trackAssociations.get()));
-          util::CreateAssn(
-            *this, evt, *(showers.get()), showerSpacePoints_p, *(spShowerAssociations.get()));
+          auto const index = showers->size() - 1;
+          showers->back().set_id(index);
+
+          auto const shower_ptr = art::PtrMaker<recob::Shower>{evt}(index);
+          cet::for_all(showerHits, AddMany{shower_ptr, *hitShowerAssociations});
+          cet::for_all(showerClusters, AddMany{shower_ptr, *clusterAssociations});
+          cet::for_all(showerTracks, AddMany{shower_ptr, *trackAssociations});
+          cet::for_all(showerSpacePoints_p, AddMany{shower_ptr, *spShowerAssociations});
         }
       }
     }

@@ -23,9 +23,6 @@ namespace TMVA {
 namespace calo {
   class CalorimetryAlg;
 }
-namespace detinfo {
-  class DetectorProperties;
-}
 namespace geo {
   class GeometryCore;
 }
@@ -569,7 +566,6 @@ namespace tca {
     float multHitSep; ///< preferentially "merge" hits with < this separation
     float maxChi;
     const geo::GeometryCore* geom;
-    const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
     TMVA::Reader* showerParentReader;
     std::vector<float> showerParentVars;

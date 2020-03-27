@@ -178,9 +178,8 @@ namespace cmtool {
   }
 
   bool
-  CMatchManager::IterationProcess()
+  CMatchManager::IterationProcess(util::GeometryUtilities const& gser)
   {
-
     TStopwatch localWatch;
 
     //
@@ -191,7 +190,6 @@ namespace cmtool {
     if (_planes.size() < 2) return false;
 
     if (_planes.size() > _nplanes)
-
       throw CMTException("Found more plane IDs than specified number of planes!");
 
     // Index array of clusters per plane
@@ -205,9 +203,7 @@ namespace cmtool {
 
     // Fill plane-to-index map
     for (size_t plane = 0; plane < _nplanes; ++plane) {
-
       if (_planes.find(plane) != _planes.end()) {
-
         plane_to_index[plane] = cluster_array.size();
 
         cluster_array.push_back(std::vector<size_t>());
@@ -216,7 +212,6 @@ namespace cmtool {
 
     // Fill cluster_array
     for (auto riter = _priority.rbegin(); riter != _priority.rend(); ++riter)
-
       cluster_array.at(plane_to_index.at(_in_clusters.at((*riter).second).Plane()))
         .push_back((*riter).second);
 
@@ -224,7 +219,6 @@ namespace cmtool {
     std::vector<size_t> seed;
     seed.reserve(cluster_array.size());
     for (auto const& clusters_per_plane : cluster_array)
-
       seed.push_back(clusters_per_plane.size());
 
     auto const& combinations = PlaneClusterCombinations(seed);
@@ -235,13 +229,11 @@ namespace cmtool {
       std::vector<const cluster::ClusterParamsAlg*> ptr_v;
 
       std::vector<unsigned int> tmp_index_v;
-
       tmp_index_v.reserve(comb.size());
 
       ptr_v.reserve(comb.size());
 
       for (auto const& plane_cluster : comb) {
-
         auto const& in_cluster_index =
           cluster_array.at(plane_cluster.first).at(plane_cluster.second);
 
@@ -251,7 +243,6 @@ namespace cmtool {
       }
 
       if (_debug_mode <= kPerMerging) {
-
         std::cout << "    \033[93m"
                   << "Inspecting a pair (";
         for (auto const& index : tmp_index_v)
@@ -261,10 +252,9 @@ namespace cmtool {
         localWatch.Start();
       }
 
-      auto const& score = _match_algo->Float(ptr_v);
+      auto const& score = _match_algo->Float(gser, ptr_v);
 
       if (_debug_mode <= kPerMerging)
-
         std::cout << " ... Time taken = " << localWatch.RealTime() << " [s]" << std::endl;
 
       if (score > 0) _book_keeper.Match(tmp_index_v, score);

@@ -23,7 +23,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/RecoObjects/TrackStatePropagator.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
@@ -34,7 +34,8 @@
 #include "larreco/TrackFinder/TrackMaker.h"
 
 bool
-trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj,
+trkf::TrackKalmanFitter::fitTrack(detinfo::DetectorPropertiesData const& detProp,
+                                  const recob::TrackTrajectory& traj,
                                   const int tkID,
                                   const SMatrixSym55& covVtx,
                                   const SMatrixSym55& covEnd,
@@ -54,7 +55,8 @@ trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj,
     std::vector<art::Ptr<recob::Hit>> fwdHits;
     trkmkr::OptionalOutputs fwdoptionals;
     SMatrixSym55 fwdcov = covVtx;
-    bool okfwd = fitTrack(position,
+    bool okfwd = fitTrack(detProp,
+                          position,
                           direction,
                           fwdcov,
                           hits,
@@ -70,7 +72,8 @@ trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj,
     std::vector<art::Ptr<recob::Hit>> bwdHits;
     trkmkr::OptionalOutputs bwdoptionals;
     SMatrixSym55 bwdcov = covEnd;
-    bool okbwd = fitTrack(position,
+    bool okbwd = fitTrack(detProp,
+                          position,
                           -direction,
                           bwdcov,
                           hits,
@@ -116,7 +119,8 @@ trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj,
 
     auto trackStateCov = (flipDirection ? covEnd : covVtx);
 
-    return fitTrack(position,
+    return fitTrack(detProp,
+                    position,
                     direction,
                     trackStateCov,
                     hits,
@@ -131,7 +135,8 @@ trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj,
 }
 
 bool
-trkf::TrackKalmanFitter::fitTrack(const Point_t& position,
+trkf::TrackKalmanFitter::fitTrack(detinfo::DetectorPropertiesData const& detProp,
+                                  const Point_t& position,
                                   const Vector_t& direction,
                                   SMatrixSym55& trackStateCov,
                                   const std::vector<art::Ptr<recob::Hit>>& hits,
@@ -159,7 +164,7 @@ trkf::TrackKalmanFitter::fitTrack(const Point_t& position,
   // this is what we'll loop over during the fit
   std::vector<HitState> hitstatev;
   std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv;
-  bool inputok = setupInputStates(hits, flags, trackState, hitstatev, hitflagsv);
+  bool inputok = setupInputStates(detProp, hits, flags, trackState, hitstatev, hitflagsv);
   if (!inputok) return false;
 
   // track and index vectors we use to store the fit results
@@ -171,6 +176,7 @@ trkf::TrackKalmanFitter::fitTrack(const Point_t& position,
 
   // do the actual fit
   bool fitok = doFitWork(trackState,
+                         detProp,
                          hitstatev,
                          hitflagsv,
                          fwdPrdTkState,
@@ -182,6 +188,7 @@ trkf::TrackKalmanFitter::fitTrack(const Point_t& position,
     mf::LogWarning("TrackKalmanFitter")
       << "Trying to recover with skipNegProp = false and cleanZigzag = false\n";
     fitok = doFitWork(trackState,
+                      detProp,
                       hitstatev,
                       hitflagsv,
                       fwdPrdTkState,
@@ -241,6 +248,7 @@ trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position,
 
 bool
 trkf::TrackKalmanFitter::setupInputStates(
+  detinfo::DetectorPropertiesData const& detProp,
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const std::vector<recob::TrajectoryPointFlags>& flags,
   const KFTrackState& trackState,
@@ -258,8 +266,8 @@ trkf::TrackKalmanFitter::setupInputStates(
     double t = hit->PeakTime();
     double terr = (useRMS_ ? hit->RMS() : hit->SigmaPeakTime());
     double x =
-      detprop->ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
-    double xerr = terr * detprop->GetXTicksCoefficient();
+      detProp.ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
+    double xerr = terr * detProp.GetXTicksCoefficient();
     hitstatev.emplace_back(
       x, hitErr2ScaleFact_ * xerr * xerr, hit->WireID(), geom->WireIDToWireGeo(hit->WireID()));
     //
@@ -291,6 +299,7 @@ trkf::TrackKalmanFitter::setupInputStates(
 
 bool
 trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
+                                   detinfo::DetectorPropertiesData const& detProp,
                                    std::vector<HitState>& hitstatev,
                                    std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
                                    std::vector<KFTrackState>& fwdPrdTkState,
@@ -300,7 +309,6 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
                                    std::vector<unsigned int>& sortedtksidx,
                                    bool applySkipClean) const
 {
-
   fwdPrdTkState.clear();
   fwdUpdTkState.clear();
   hitstateidx.clear();
@@ -440,6 +448,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok,
+                                                detProp,
                                                 trackState.trackState(),
                                                 hitstate->plane(),
                                                 true,
@@ -448,6 +457,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
       if (!propok && !(applySkipClean && fwdUpdTkState.size() > 0 && skipNegProp_)) {
         if (dumpLevel_ > 1) std::cout << "attempt backward prop" << std::endl;
         trackState = propagator->propagateToPlane(propok,
+                                                  detProp,
                                                   trackState.trackState(),
                                                   hitstate->plane(),
                                                   true,
@@ -611,6 +621,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok,
+                                                detProp,
                                                 trackState.trackState(),
                                                 hitstate.plane(),
                                                 true,
@@ -618,6 +629,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
                                                 TrackStatePropagator::FORWARD);
       if (!propok && !(applySkipClean && skipNegProp_))
         trackState = propagator->propagateToPlane(propok,
+                                                  detProp,
                                                   trackState.trackState(),
                                                   hitstate.plane(),
                                                   true,
@@ -700,6 +712,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
     }
     bool propok = true;
     trackState = propagator->propagateToPlane(propok,
+                                              detProp,
                                               trackState.trackState(),
                                               hitstate.plane(),
                                               true,
@@ -707,6 +720,7 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
                                               TrackStatePropagator::BACKWARD);
     if (!propok)
       trackState = propagator->propagateToPlane(propok,
+                                                detProp,
                                                 trackState.trackState(),
                                                 hitstate.plane(),
                                                 true,
@@ -767,8 +781,8 @@ trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
       // but we can still use its position from the forward fit, so just mark it as ExcludedFromFit
       hitflags.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
       hitflags.set(
-        recob::TrajectoryPointFlagTraits::
-          NoPoint); //fixme: this is only for event display, also needed by current definition of ValidPoint
+        recob::TrajectoryPointFlagTraits::NoPoint); // fixme: this is only for event display, also
+                                                    // needed by current definition of ValidPoint
       if (dumpLevel_ > 0)
         std::cout << "WARNING: backward propagation failed. Skip this hit... hitstateidx[itk]="
                   << hitstateidx[itk] << " itk=" << itk << std::endl;

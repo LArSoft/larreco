@@ -26,14 +26,18 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  SaveCRInfo(TCSlice& slc, PFPStruct& pfp, bool prt, bool fIsRealData)
+  SaveCRInfo(detinfo::DetectorClocksData const& clockData,
+             TCSlice& slc,
+             PFPStruct& pfp,
+             bool prt,
+             bool fIsRealData)
   {
 
     //Check the origin of pfp
     if (tcc.modes[kSaveCRTree]) {
       if (fIsRealData) { slc.crt.cr_origin.push_back(-1); }
       else {
-        slc.crt.cr_origin.push_back(GetOrigin(slc, pfp));
+        slc.crt.cr_origin.push_back(GetOrigin(clockData, slc, pfp));
       }
     }
 
@@ -68,7 +72,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   int
-  GetOrigin(TCSlice& slc, PFPStruct& pfp)
+  GetOrigin(detinfo::DetectorClocksData const& clockData, TCSlice& slc, PFPStruct& pfp)
   {
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
@@ -93,7 +97,7 @@ namespace tca {
           double endTick = hit.PeakTime() + hit.RMS();
           // get a list of track IDEs that are close to this hit
           std::vector<sim::TrackIDE> tides;
-          tides = bt_serv->ChannelToTrackIDEs(channel, startTick, endTick);
+          tides = bt_serv->ChannelToTrackIDEs(clockData, channel, startTick, endTick);
           for (auto itide = tides.begin(); itide != tides.end(); ++itide) {
             omap[pi_serv->TrackIdToMCTruth_P(itide->trackID)->Origin()] += itide->energy;
           }

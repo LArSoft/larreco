@@ -13,7 +13,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-pma::Hit3D::Hit3D(void)
+pma::Hit3D::Hit3D()
   : fCryo(0)
   , fTPC(0)
   , fPlane(0)
@@ -32,7 +32,7 @@ pma::Hit3D::Hit3D(void)
   , fParent(0)
 {}
 
-pma::Hit3D::Hit3D(art::Ptr<recob::Hit> src)
+pma::Hit3D::Hit3D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src)
   : fHit(src)
   , fPoint3D(0, 0, 0)
   , fProjection2D(0, 0)
@@ -53,10 +53,11 @@ pma::Hit3D::Hit3D(art::Ptr<recob::Hit> src)
   fAmpl = src->PeakAmplitude();
   fArea = src->SummedADC();
 
-  fPoint2D = pma::WireDriftToCm(fWire, fPeakTime, fPlane, fTPC, fCryo);
+  fPoint2D = pma::WireDriftToCm(detProp, fWire, fPeakTime, fPlane, fTPC, fCryo);
 }
 
-pma::Hit3D::Hit3D(unsigned int wire,
+pma::Hit3D::Hit3D(detinfo::DetectorPropertiesData const& detProp,
+                  unsigned int wire,
                   unsigned int view,
                   unsigned int tpc,
                   unsigned int cryo,
@@ -82,7 +83,7 @@ pma::Hit3D::Hit3D(unsigned int wire,
   fAmpl = ampl;
   fArea = area;
 
-  fPoint2D = pma::WireDriftToCm(fWire, fPeakTime, fPlane, fTPC, fCryo);
+  fPoint2D = pma::WireDriftToCm(detProp, fWire, fPeakTime, fPlane, fTPC, fCryo);
 }
 
 pma::Hit3D::Hit3D(const pma::Hit3D& src)
@@ -106,7 +107,7 @@ pma::Hit3D::Hit3D(const pma::Hit3D& src)
 {}
 
 double
-pma::Hit3D::GetDist2ToProj(void) const
+pma::Hit3D::GetDist2ToProj() const
 {
   return pma::Dist2(fPoint2D, fProjection2D);
 }

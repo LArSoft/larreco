@@ -83,17 +83,12 @@ namespace lar_cluster3d {
     explicit StandardHit3DBuilder(fhicl::ParameterSet const& pset);
 
     /**
-     *  @brief  Destructor
-     */
-    ~StandardHit3DBuilder();
-
-    /**
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::ProducesCollector&) override;
+    void produces(art::ProducesCollector&) override;
 
-    virtual void configure(const fhicl::ParameterSet&) override;
+    void configure(const fhicl::ParameterSet&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -101,12 +96,12 @@ namespace lar_cluster3d {
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
+    void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    virtual float
+    float
     getTimeToExecute(IHit3DBuilder::TimeValues index) const override
     {
       return m_timeVector[index];
@@ -299,21 +294,18 @@ namespace lar_cluster3d {
 
     mutable bool m_weHaveAllBeenHereBefore = false;
 
-    const geo::Geometry* m_geometry;               //< pointer to the Geometry service
-    const detinfo::DetectorProperties* m_detector; //< Pointer to the detector properties
+    const geo::Geometry* m_geometry;
     const lariov::ChannelStatusProvider* m_channelFilter;
   };
 
   StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const& pset)
-    : m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
-
+    : m_geometry(art::ServiceHandle<geo::Geometry const>{}.get())
+    , m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
   {
     this->configure(pset);
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
-
-  StandardHit3DBuilder::~StandardHit3DBuilder() {}
 
   void
   StandardHit3DBuilder::produces(art::ProducesCollector& collector)
@@ -341,7 +333,6 @@ namespace lar_cluster3d {
     m_outputHistograms = pset.get<bool>("OutputHistograms", false);
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     m_wirePitch[0] = m_geometry->WirePitch(0);
@@ -547,11 +538,6 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
   namespace {
-    //bool SetHitStartTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
-    //{
-    //    // Sort by "modified start time" of pulse
-    //    return left->getHit().PeakTime() - left->getHit().RMS() < right->getHit().PeakTime() - right->getHit().RMS();
-    //}
 
     class SetHitEarliestTimeOrder {
     public:
@@ -1558,6 +1544,11 @@ namespace lar_cluster3d {
     // Here is a container for the hits...
     std::vector<const recob::Hit*> recobHitVec;
 
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+
     // Loop through the list of input sources
     for (const auto& inputTag : m_hitFinderTagVec) {
       art::Handle<std::vector<recob::Hit>> recobHitHandle;
@@ -1596,11 +1587,11 @@ namespace lar_cluster3d {
         // Note that plane 0 is assumed the "first" plane and is the reference
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 0)] = 0.;
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 1)] =
-          m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1)) -
-          m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1)) -
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 2)] =
-          m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2)) -
-          m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2)) -
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
 
         // Should we provide output?
         if (!m_weHaveAllBeenHereBefore) {
@@ -1613,12 +1604,12 @@ namespace lar_cluster3d {
                        << "\n";
           debugMessage += outputString.str();
           outputString << "     Det prop plane 0: "
-                       << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0))
+                       << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0))
                        << ", plane 1: "
-                       << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1))
+                       << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1))
                        << ", plane 2: "
-                       << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2))
-                       << ", Trig: " << m_detector->TriggerOffset() << "\n";
+                       << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2))
+                       << ", Trig: " << trigger_offset(clock_data) << "\n";
           debugMessage += outputString.str();
         }
       }
@@ -1652,7 +1643,7 @@ namespace lar_cluster3d {
         const geo::PlaneID& planeID = wireID.planeID();
 
         double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
-        double xPosition(m_detector->ConvertTicksToX(
+        double xPosition(det_prop.ConvertTicksToX(
           recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
 
         m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit);

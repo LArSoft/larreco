@@ -13,7 +13,7 @@
 
 // LArSoft includes
 namespace detinfo {
-  class DetectorProperties;
+  class DetectorPropertiesData;
 }
 namespace geo {
   class Geometry;
@@ -25,15 +25,11 @@ namespace geo {
 // Eigen
 #include <Eigen/Core>
 
-// std includes
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
 namespace lar_cluster3d {
 
   /**
- *  @brief  Cluster3D class
- */
+   *  @brief  Cluster3D class
+   */
   class PrincipalComponentsAlg {
   public:
     /**
@@ -44,19 +40,10 @@ namespace lar_cluster3d {
     PrincipalComponentsAlg(fhicl::ParameterSet const& pset);
 
     /**
-     *  @brief  Destructor
-     */
-    ~PrincipalComponentsAlg();
-
-    /**
-     *  @brief a handler for the case where the algorithm control parameters are to be reset
-     */
-    void reconfigure(fhicl::ParameterSet const& pset);
-
-    /**
      *  @brief Run the Principal Components Analysis
      */
-    void PCAAnalysis(const reco::HitPairListPtr& hitPairVector,
+    void PCAAnalysis(const detinfo::DetectorPropertiesData& detProp,
+                     const reco::HitPairListPtr& hitPairVector,
                      reco::PrincipalComponents& pca,
                      float doca3DScl = 3.) const;
 
@@ -64,7 +51,8 @@ namespace lar_cluster3d {
                         reco::PrincipalComponents& pca,
                         bool skeletonOnly = false) const;
 
-    void PCAAnalysis_2D(const reco::HitPairListPtr& hitPairVector,
+    void PCAAnalysis_2D(const detinfo::DetectorPropertiesData& detProp,
+                        const reco::HitPairListPtr& hitPairVector,
                         reco::PrincipalComponents& pca,
                         bool updateAvePos = false) const;
 
@@ -83,21 +71,8 @@ namespace lar_cluster3d {
                                      float aveHitDoca) const;
 
   private:
-    /**
-     *  @brief This is used to get the poca, doca and arclen along cluster axis to 2D hit
-     */
-    void getHit2DPocaToAxis(const Eigen::Vector3f& axisPos,
-                            const Eigen::Vector3f& axisDir,
-                            const reco::ClusterHit2D* hit2D,
-                            Eigen::Vector3f& poca,
-                            float& arcLenAxis,
-                            float& arcLenWire,
-                            float& doca);
-
-    float m_parallel; ///< means lines are parallel
-
-    const geo::Geometry* m_geometry;               // pointer to the Geometry service
-    const detinfo::DetectorProperties* m_detector; // Pointer to the detector properties
+    float m_parallel;                ///< means lines are parallel
+    const geo::Geometry* m_geometry; // pointer to the Geometry service
   };
 
 } // namespace lar_cluster3d

@@ -21,6 +21,10 @@
 // ROOT & C++
 #include <memory>
 
+namespace detinfo {
+  class DetectorPropertiesData;
+}
+
 namespace pma {
   class PMAlgVertexing;
 }
@@ -46,15 +50,14 @@ public:
   };
 
   PMAlgVertexing(const Config& config);
-  void reconfigure(const Config& config);
 
   PMAlgVertexing(const fhicl::ParameterSet& pset) : PMAlgVertexing(fhicl::Table<Config>(pset, {})())
   {}
 
-  ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
+  ~PMAlgVertexing(); // delete last produced tracks (if not passed to output)
 
   void
-  reset(void)
+  reset()
   {
     cleanTracks();
   }
@@ -63,7 +66,7 @@ public:
   /// reoptimize track structures. Result is returned as a collection of new tracks, that
   /// replaces content of trk_input (old tracks are deleted).
   /// Vertices can be accessed with getVertices function.
-  size_t run(pma::TrkCandidateColl& trk_input);
+  size_t run(const detinfo::DetectorPropertiesData& detProp, pma::TrkCandidateColl& trk_input);
 
   /// Copy input tracks, use provided 3D vertices to connect tracks, break tracks or flip if
   /// needed, reoptimize track structures. Result is returned as a collection of new tracks,
@@ -87,9 +90,10 @@ private:
     return false;
   }
 
-  std::vector<pma::VtxCandidate> firstPassCandidates(void) const;
-  std::vector<pma::VtxCandidate> secondPassCandidates(void) const;
-  size_t makeVertices(std::vector<pma::VtxCandidate>& candidates);
+  std::vector<pma::VtxCandidate> firstPassCandidates() const;
+  std::vector<pma::VtxCandidate> secondPassCandidates() const;
+  size_t makeVertices(detinfo::DetectorPropertiesData const& detProp,
+                      std::vector<pma::VtxCandidate>& candidates);
 
   /// Get dQ/dx sequence to detect various features.
   std::vector<std::pair<double, double>> getdQdx(const pma::Track3D& trk) const;
@@ -108,22 +112,23 @@ private:
   void splitMergedTracks(pma::TrkCandidateColl& trk_input) const;
 
   /// Remove penalty on the angle if kink detected and reopt track.
-  void findKinksOnTracks(pma::TrkCandidateColl& trk_input) const;
+  void findKinksOnTracks(const detinfo::DetectorPropertiesData& detProp,
+                         pma::TrkCandidateColl& trk_input) const;
 
   pma::TrkCandidateColl fOutTracks, fShortTracks, fEmTracks;
   pma::TrkCandidateColl fExcludedTracks;
-  void cleanTracks(void);
+  void cleanTracks();
 
   void sortTracks(const pma::TrkCandidateColl& trk_input);
   void collectTracks(pma::TrkCandidateColl& result);
 
   // Parameters used in the algorithm
 
-  double
-    fMinTrackLength; // min. length of tracks used to find vtx candidates (short tracks attached later)
+  double fMinTrackLength; // min. length of tracks used to find vtx candidates
+                          // (short tracks attached later)
 
-  bool
-    fFindKinks; // detect significant kinks on long tracks (need min. 5 nodes to collect angle stats)
+  bool fFindKinks;    // detect significant kinks on long tracks (need min. 5 nodes
+                      // to collect angle stats)
   double fKinkMinDeg; // min. angle [deg] in XY of a kink
   double fKinkMinStd; // threshold in no. of stdev of all segment angles needed to tag a kink
 

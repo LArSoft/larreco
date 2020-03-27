@@ -77,15 +77,6 @@ namespace {
           z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
         else
           z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
-
-        //int pl = hit.getMeasPlane();
-        //std::cout << "pl = " << pl
-        //	  << ", x=" << x
-        //	  << ", z0=" << z0
-        //	  << ", y0=" << y0
-        //	  << ", phi=" << phi
-        //	  << ", z=" << z
-        //	  << std::endl;
       }
       else if (const trkf::SurfYZLine* pyz = dynamic_cast<const trkf::SurfYZLine*>(&*psurf)) {
 
@@ -109,15 +100,6 @@ namespace {
           z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
         else
           z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
-
-        //int pl = hit.getMeasPlane();
-        //std::cout << "pl = " << pl
-        //	  << ", x=" << x
-        //	  << ", z0=" << z0
-        //	  << ", y0=" << y0
-        //	  << ", phi=" << phi
-        //	  << ", z=" << z
-        //	  << std::endl;
       }
     }
   }
@@ -269,18 +251,6 @@ trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset)
 {
   mf::LogInfo("KalmanFilterAlg") << "KalmanFilterAlg instantiated.";
 
-  // Load fcl parameters.
-
-  reconfigure(pset);
-}
-
-/// Destructor.
-trkf::KalmanFilterAlg::~KalmanFilterAlg() {}
-
-/// Reconfigure method.
-void
-trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
-{
   fTrace = pset.get<bool>("Trace");
   fMaxPErr = pset.get<double>("MaxPErr");
   fGoodPErr = pset.get<double>("GoodPErr");
@@ -337,15 +307,11 @@ trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
 bool
 trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
                                   KGTrack& trg,
-                                  const Propagator* prop,
+                                  const Propagator& prop,
                                   const Propagator::PropDirection dir,
                                   KHitContainer& hits,
                                   bool linear) const
 {
-  if (!prop)
-    throw cet::exception("KalmanFilterAlg")
-      << "trkf::KalmanFilterAlg::buildTrack(): no propagator\n";
-
   // Direction must be forward or backward (unknown is not allowed).
 
   if (dir != Propagator::FORWARD && dir != Propagator::BACKWARD)
@@ -621,11 +587,11 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
     // Propagate track to the prediction surface.
 
-    boost::optional<double> dist = prop->noise_prop(trf, psurf, Propagator::UNKNOWN, true, pref);
-    if (!!dist && std::abs(*dist) > fMaxPropDist) dist = boost::optional<double>(false, 0.);
+    std::optional<double> dist = prop.noise_prop(trf, psurf, Propagator::UNKNOWN, true, pref);
+    if (dist && std::abs(*dist) > fMaxPropDist) dist = std::nullopt;
     double ds = 0.;
 
-    if (!!dist) {
+    if (dist) {
 
       // Propagation succeeded.
       // Update cumulative path distance and track status.
@@ -670,8 +636,7 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
         // Update predction using current track hypothesis and get
         // incremental chisquare.
 
-        bool ok = hit.predict(trf, prop);
-        if (ok) {
+        if (hit.predict(trf, prop)) {
           double chisq = hit.getChisq();
           double preddist = hit.getPredDistance();
           if (fTrace) {
@@ -791,7 +756,7 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
     // If the propagation distance was the wrong direction, resort the measurements.
 
-    if (pref == 0 && !!dist &&
+    if (pref == 0 && dist &&
         ((dir == Propagator::FORWARD && (ds < fMinSortDist || ds > fMaxSortDist)) ||
          (dir == Propagator::BACKWARD && (-ds < fMinSortDist || -ds > fMaxSortDist)))) {
       if (fTrace) log << "Resorting measurements.\n";
@@ -827,7 +792,6 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       << "Track has " << trg.numHits() << " hits.\n"
       << "Track length = " << path << "\n"
       << "Track chisquare = " << fchisq << "\n";
-  // log << trg << "\n";
 
   // Done.  Return success if we added at least one measurement.
 
@@ -881,324 +845,293 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 /// an undefined state.
 ///
 bool
-trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator* prop) const
+trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator& prop) const
 {
-  if (!prop)
-    throw cet::exception("KalmanFilterAlg")
-      << "trkf::KalmanFilterAlg::smoothTrack(): no propagator\n";
-
-  // Default result failure.
+  if (not trg.isValid()) {
+    // It is an error if the KGTrack is not valid.
+    return false;
+  }
 
   bool result = false;
 
-  //if(fGTrace && fCanvases.size() > 0) {
-  //  TText* t = fMessages->AddText("Enter smoothTrack");
-  //  t->SetBit(kCanDelete);
-  //  fInfoPad->Modified();
-  //  fCanvases.back()->Update();
-  // }
+  // Examine the track endpoints and figure out which end of the track
+  // to start from.  The fit always starts at the optimal end.  It is
+  // an error if neither end point is optimal.  Do nothing and return
+  // success if both end points are optimal.
 
-  // It is an error if the KGTrack is not valid.
+  const KHitTrack& trh0 = trg.startTrack();
+  const KHitTrack& trh1 = trg.endTrack();
+  KFitTrack::FitStatus stat0 = trh0.getStat();
+  KFitTrack::FitStatus stat1 = trh1.getStat();
+  bool dofit = false;
 
-  if (trg.isValid()) {
+  // Remember starting direction, track, and distance.
 
-    // Examine the track endpoints and figure out which end of the track
-    // to start from.  The fit always starts at the optimal end.  It is
-    // an error if neither end point is optimal.  Do nothing and return
-    // success if both end points are optimal.
+  Propagator::PropDirection dir = Propagator::UNKNOWN;
+  const KTrack* trk = 0;
+  double path = 0.;
 
-    const KHitTrack& trh0 = trg.startTrack();
-    const KHitTrack& trh1 = trg.endTrack();
-    KFitTrack::FitStatus stat0 = trh0.getStat();
-    KFitTrack::FitStatus stat1 = trh1.getStat();
-    bool dofit = false;
+  if (stat0 == KFitTrack::OPTIMAL) {
+    if (stat1 == KFitTrack::OPTIMAL) {
 
-    // Remember starting direction, track, and distance.
+      // Both ends optimal (do nothing, return success).
 
-    Propagator::PropDirection dir = Propagator::UNKNOWN;
-    const KTrack* trk = 0;
-    double path = 0.;
-
-    if (stat0 == KFitTrack::OPTIMAL) {
-      if (stat1 == KFitTrack::OPTIMAL) {
-
-        // Both ends optimal (do nothing, return success).
-
-        dofit = false;
-        result = true;
-      }
-      else {
-
-        // Start optimal.
-
-        dofit = true;
-        dir = Propagator::FORWARD;
-        trk = &trh0;
-        path = 0.;
-      }
+      dofit = false;
+      result = true;
     }
     else {
-      if (stat1 == KFitTrack::OPTIMAL) {
 
-        // End optimal.
+      // Start optimal.
 
-        dofit = true;
-        dir = Propagator::BACKWARD;
-        trk = &trh1;
-        path = trh1.getPath();
-      }
-      else {
-
-        // Neither end optimal (do nothing, return failure).
-
-        dofit = false;
-        result = false;
-      }
+      dofit = true;
+      dir = Propagator::FORWARD;
+      trk = &trh0;
+      path = 0.;
     }
-    if (dofit) {
-      if (!trk)
-        throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): no track!\n";
+  }
+  else {
+    if (stat1 == KFitTrack::OPTIMAL) {
 
-      // Cumulative chisquare.
+      // End optimal.
 
-      double tchisq = 0.;
+      dofit = true;
+      dir = Propagator::BACKWARD;
+      trk = &trh1;
+      path = trh1.getPath();
+    }
+    else {
 
-      // Construct starting KFitTrack with track information and distance
-      // taken from the optimal end, but with "infinite" errors.
+      // Neither end optimal (do nothing, return failure).
 
-      TrackError err;
-      trk->getSurface()->getStartingError(err);
-      KETrack tre(*trk, err);
-      KFitTrack trf(tre, path, tchisq);
+      dofit = false;
+      result = false;
+    }
+  }
+  if (dofit) {
+    if (!trk)
+      throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): no track!\n";
 
-      // Make initial reference track to be same as initial fit track.
+    // Cumulative chisquare.
 
-      KTrack ref(trf);
+    double tchisq = 0.;
 
-      // Loop over KHitTracks contained in KGTrack.
+    // Construct starting KFitTrack with track information and distance
+    // taken from the optimal end, but with "infinite" errors.
 
-      std::multimap<double, KHitTrack>::iterator it;
-      std::multimap<double, KHitTrack>::iterator itend;
-      switch (dir) {
-      case Propagator::FORWARD:
-        it = trg.getTrackMap().begin();
-        itend = trg.getTrackMap().end();
-        break;
-      case Propagator::BACKWARD:
-        it = trg.getTrackMap().end();
-        itend = trg.getTrackMap().begin();
-        break;
-      default:
-        throw cet::exception("KalmanFilterAlg")
-          << "KalmanFilterAlg::smoothTrack(): invalid direction\n";
-      } // switch
+    TrackError err;
+    trk->getSurface()->getStartingError(err);
+    KETrack tre(*trk, err);
+    KFitTrack trf(tre, path, tchisq);
 
-      mf::LogInfo log("KalmanFilterAlg");
+    // Make initial reference track to be same as initial fit track.
 
-      // Loop starts here.
+    KTrack ref(trf);
 
-      result = true; // Result success unless we find an error.
-      int step = 0;  // Step count.
-      while (dofit && it != itend) {
-        ++step;
+    // Loop over KHitTracks contained in KGTrack.
+
+    std::multimap<double, KHitTrack>::iterator it;
+    std::multimap<double, KHitTrack>::iterator itend;
+    switch (dir) {
+    case Propagator::FORWARD:
+      it = trg.getTrackMap().begin();
+      itend = trg.getTrackMap().end();
+      break;
+    case Propagator::BACKWARD:
+      it = trg.getTrackMap().end();
+      itend = trg.getTrackMap().begin();
+      break;
+    default:
+      throw cet::exception("KalmanFilterAlg")
+        << "KalmanFilterAlg::smoothTrack(): invalid direction\n";
+    } // switch
+
+    mf::LogInfo log("KalmanFilterAlg");
+
+    // Loop starts here.
+
+    result = true; // Result success unless we find an error.
+    int step = 0;  // Step count.
+    while (dofit && it != itend) {
+      ++step;
+      if (fTrace) {
+        log << "Smooth Step " << step << "\n";
+        log << "Reverse fit track:\n";
+        log << trf;
+      }
+
+      // For backward fit, decrement iterator at start of loop.
+
+      if (dir == Propagator::BACKWARD) --it;
+
+      KHitTrack& trh = (*it).second;
+      if (fTrace) {
+        log << "Forward track:\n";
+        log << trh;
+      }
+
+      // Extract measurement.
+
+      const KHitBase& hit = *(trh.getHit());
+
+      // Propagate KFitTrack to the next track surface.
+
+      std::shared_ptr<const Surface> psurf = trh.getSurface();
+      std::optional<double> dist = prop.noise_prop(trf, psurf, Propagator::UNKNOWN, true, &ref);
+
+      // Check if propagation succeeded.  If propagation fails, this
+      // measurement will be dropped from the unidirectional fit
+      // track.  This measurement will still be in the original
+      // track, but with a status other than optimal.
+
+      if (dist) {
+
+        // Propagation succeeded.
+        // Update cumulative path distance and track status.
+
+        double ds = *dist;
+        path += ds;
+        trf.setPath(path);
+        if (dir == Propagator::FORWARD)
+          trf.setStat(KFitTrack::FORWARD_PREDICTED);
+        else {
+          trf.setStat(KFitTrack::BACKWARD_PREDICTED);
+        }
         if (fTrace) {
-          log << "Smooth Step " << step << "\n";
-          log << "Reverse fit track:\n";
+          log << "Reverse fit track after propagation:\n";
+          log << "  Propagation distance = " << ds << "\n";
           log << trf;
         }
 
-        // For backward fit, decrement iterator at start of loop.
+        // See if we have the proper information to calculate an optimal track
+        // at this surface (should normally be possible).
 
-        if (dir == Propagator::BACKWARD) --it;
+        KFitTrack::FitStatus stat = trh.getStat();
+        KFitTrack::FitStatus newstat = trf.getStat();
 
-        KHitTrack& trh = (*it).second;
-        if (fTrace) {
-          log << "Forward track:\n";
-          log << trh;
-        }
+        if ((newstat == KFitTrack::FORWARD_PREDICTED && stat == KFitTrack::BACKWARD) ||
+            (newstat == KFitTrack::BACKWARD_PREDICTED && stat == KFitTrack::FORWARD)) {
 
-        // Extract measurement.
+          // Update stored KHitTrack to be optimal.
 
-        const KHitBase& hit = *(trh.getHit());
+          bool ok = trh.combineFit(trf);
 
-        // Propagate KFitTrack to the next track surface.
+          // Update the stored path distance to be from the currently fitting track.
 
-        std::shared_ptr<const Surface> psurf = trh.getSurface();
-        boost::optional<double> dist =
-          prop->noise_prop(trf, psurf, Propagator::UNKNOWN, true, &ref);
+          trh.setPath(trf.getPath());
 
-        // Check if propagation succeeded.  If propagation fails, this
-        // measurement will be dropped from the unidirectional fit
-        // track.  This measurement will still be in the original
-        // track, but with a status other than optimal.
+          // Update reference track.
 
-        if (!!dist) {
+          ref = trh;
 
-          // Propagation succeeded.
-          // Update cumulative path distance and track status.
+          // If combination failed, abandon the fit and return failure.
 
-          double ds = *dist;
-          path += ds;
-          trf.setPath(path);
-          if (dir == Propagator::FORWARD)
-            trf.setStat(KFitTrack::FORWARD_PREDICTED);
-          else {
-            trf.setStat(KFitTrack::BACKWARD_PREDICTED);
-          }
-          if (fTrace) {
-            log << "Reverse fit track after propagation:\n";
-            log << "  Propagation distance = " << ds << "\n";
-            log << trf;
-          }
-
-          // See if we have the proper information to calculate an optimal track
-          // at this surface (should normally be possible).
-
-          KFitTrack::FitStatus stat = trh.getStat();
-          KFitTrack::FitStatus newstat = trf.getStat();
-
-          if ((newstat == KFitTrack::FORWARD_PREDICTED && stat == KFitTrack::BACKWARD) ||
-              (newstat == KFitTrack::BACKWARD_PREDICTED && stat == KFitTrack::FORWARD)) {
-
-            // Update stored KHitTrack to be optimal.
-
-            bool ok = trh.combineFit(trf);
-
-            // Update the stored path distance to be from the currently fitting track.
-
-            trh.setPath(trf.getPath());
-
-            // Update reference track.
-
-            ref = trh;
-
-            // If combination failed, abandon the fit and return failure.
-
-            if (!ok) {
-              dofit = false;
-              result = false;
-              break;
-            }
-            if (fTrace) {
-              log << "Combined track:\n";
-              log << trh;
-            }
-          }
-
-          // Update measurement predction using current track hypothesis.
-
-          bool ok = hit.predict(trf, prop, &ref);
           if (!ok) {
-
-            // If prediction failed, abandon the fit and return failure.
-
             dofit = false;
             result = false;
             break;
           }
-          else {
-
-            // Prediction succeeded.  Get incremental chisquare.  If
-            // this hit fails incremental chisquare cut, this hit will
-            // be dropped from the unidirecitonal Kalman fit track,
-            // but may still be in the smoothed track.
-
-            double chisq = hit.getChisq();
-            if (chisq < fMaxSmoothIncChisq) {
-
-              // Update the reverse fitting track using the current measurement
-              // (both track parameters and status).
-
-              KFitTrack trf0(trf);
-              hit.update(trf);
-              bool update_ok = trf.isValid();
-              if (!update_ok)
-                trf = trf0;
-              else {
-                tchisq += chisq;
-                trf.setChisq(tchisq);
-
-                if (dir == Propagator::FORWARD)
-                  trf.setStat(KFitTrack::FORWARD);
-                else {
-                  trf.setStat(KFitTrack::BACKWARD);
-                }
-                if (fTrace) {
-                  log << "Reverse fit track after update:\n";
-                  log << trf;
-                }
-                if (fGTrace && fCanvases.size() > 0) {
-                  auto marker_it = fMarkerMap.find(hit.getID());
-                  if (marker_it != fMarkerMap.end()) {
-                    TMarker* marker = marker_it->second;
-                    marker->SetMarkerColor(kOrange);
-                  }
-                  fCanvases.back()->Update();
-                }
-
-                // If unidirectional track pointer is not null, make a
-                // KHitTrack and save it in the unidirectional track.
-
-                if (trg1 != 0) {
-                  KHitTrack trh1(trf, trh.getHit());
-                  trg1->addTrack(trh1);
-                }
-              }
-            }
+          if (fTrace) {
+            log << "Combined track:\n";
+            log << trh;
           }
         }
 
-        // For forward fit, increment iterator at end of loop.
+        // Update measurement predction using current track hypothesis.
 
-        if (dir == Propagator::FORWARD) ++it;
+        if (not hit.predict(trf, prop, &ref)) {
 
-      } // Loop over KHitTracks.
+          // Abandon the fit and return failure.
 
-      // If fit was successful and the unidirectional track pointer
-      // is not null and the track is valid, set the fit status of
-      // the last added KHitTrack to optimal.
+          dofit = false;
+          result = false;
+          break;
+        }
 
-      if (result && trg1 != 0 && trg1->isValid()) {
-        if (dir == Propagator::FORWARD)
-          trg1->endTrack().setStat(KFitTrack::OPTIMAL);
-        else {
-          trg1->startTrack().setStat(KFitTrack::OPTIMAL);
+        // Prediction succeeded.  Get incremental chisquare.  If this
+        // hit fails incremental chisquare cut, this hit will be
+        // dropped from the unidirecitonal Kalman fit track, but may
+        // still be in the smoothed track.
+
+        double chisq = hit.getChisq();
+        if (chisq < fMaxSmoothIncChisq) {
+
+          // Update the reverse fitting track using the current measurement
+          // (both track parameters and status).
+
+          KFitTrack trf0(trf);
+          hit.update(trf);
+          bool update_ok = trf.isValid();
+          if (!update_ok)
+            trf = trf0;
+          else {
+            tchisq += chisq;
+            trf.setChisq(tchisq);
+
+            if (dir == Propagator::FORWARD)
+              trf.setStat(KFitTrack::FORWARD);
+            else {
+              trf.setStat(KFitTrack::BACKWARD);
+            }
+            if (fTrace) {
+              log << "Reverse fit track after update:\n";
+              log << trf;
+            }
+            if (fGTrace && fCanvases.size() > 0) {
+              auto marker_it = fMarkerMap.find(hit.getID());
+              if (marker_it != fMarkerMap.end()) {
+                TMarker* marker = marker_it->second;
+                marker->SetMarkerColor(kOrange);
+              }
+              fCanvases.back()->Update();
+            }
+
+            // If unidirectional track pointer is not null, make a
+            // KHitTrack and save it in the unidirectional track.
+
+            if (trg1 != 0) {
+              KHitTrack trh1(trf, trh.getHit());
+              trg1->addTrack(trh1);
+            }
+          }
         }
       }
 
-      // Recalibrate track map.
+      // For forward fit, increment iterator at end of loop.
 
-      trg.recalibrate();
+      if (dir == Propagator::FORWARD) ++it;
 
-    } // Do fit.
+    } // Loop over KHitTracks.
 
-    // Get the final chisquare.
+    // If fit was successful and the unidirectional track pointer
+    // is not null and the track is valid, set the fit status of
+    // the last added KHitTrack to optimal.
 
-    double fchisq = 0.5 * (trg.startTrack().getChisq() + trg.endTrack().getChisq());
+    if (result && trg1 != 0 && trg1->isValid()) {
+      if (dir == Propagator::FORWARD)
+        trg1->endTrack().setStat(KFitTrack::OPTIMAL);
+      else {
+        trg1->startTrack().setStat(KFitTrack::OPTIMAL);
+      }
+    }
 
-    // Summary.
+    // Recalibrate track map.
 
-    mf::LogInfo log("KalmanFilterAlg");
-    log << "KalmanFilterAlg smooth track summary.\n"
-        << "Smooth direction = " << (dir == Propagator::FORWARD ? "FORWARD" : "BACKWARD") << "\n"
-        << "Track has " << trg.numHits() << " hits.\n"
-        << "Track length = " << trg.endTrack().getPath() - trg.startTrack().getPath() << "\n"
-        << "Track chisquare = " << fchisq << "\n";
-    // log << trg << "\n";
-  }
+    trg.recalibrate();
 
-  //if(fGTrace && fCanvases.size() > 0) {
-  //  TText* t = 0;
-  //  if(result)
-  //    t = fMessages->AddText("Exit smoothTrack, status success");
-  //  else
-  //    t = fMessages->AddText("Exit smoothTrack, status fail");
-  //  t->SetBit(kCanDelete);
-  //  fInfoPad->Modified();
-  //  fCanvases.back()->Update();
-  // }
+  } // Do fit.
 
-  // Done.
+  // Get the final chisquare.
+
+  double fchisq = 0.5 * (trg.startTrack().getChisq() + trg.endTrack().getChisq());
+
+  // Summary.
+
+  mf::LogInfo log("KalmanFilterAlg");
+  log << "KalmanFilterAlg smooth track summary.\n"
+      << "Smooth direction = " << (dir == Propagator::FORWARD ? "FORWARD" : "BACKWARD") << "\n"
+      << "Track has " << trg.numHits() << " hits.\n"
+      << "Track length = " << trg.endTrack().getPath() - trg.startTrack().getPath() << "\n"
+      << "Track chisquare = " << fchisq << "\n";
 
   return result;
 }
@@ -1220,12 +1153,8 @@ trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator
 /// result is unidirectionally fit KGTrack.
 ///
 bool
-trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator* prop, KHitContainer& hits) const
+trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator& prop, KHitContainer& hits) const
 {
-  if (!prop)
-    throw cet::exception("KalmanFilterAlg")
-      << "trkf::KalmanFilterAlg::extendTrack(): no propagator\n";
-
   // Default result failure.
 
   bool result = false;
@@ -1446,11 +1375,11 @@ trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator* prop, KHitCon
 
         // Propagate track to the prediction surface.
 
-        boost::optional<double> dist = prop->noise_prop(trf, psurf, Propagator::UNKNOWN, true);
-        if (!!dist && std::abs(*dist) > fMaxPropDist) dist = boost::optional<double>(false, 0.);
+        std::optional<double> dist = prop.noise_prop(trf, psurf, Propagator::UNKNOWN, true);
+        if (dist && std::abs(*dist) > fMaxPropDist) dist = std::nullopt;
         double ds = 0.;
 
-        if (!!dist) {
+        if (dist) {
 
           // Propagation succeeded.
           // Update cumulative path distance and track status.
@@ -1600,9 +1529,8 @@ trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator* prop, KHitCon
 
         // If the propagation distance was the wrong direction, resort the measurements.
 
-        if (!!dist &&
-            ((dir == Propagator::FORWARD && (ds < fMinSortDist || ds > fMaxSortDist)) ||
-             (dir == Propagator::BACKWARD && (-ds < fMinSortDist || -ds > fMaxSortDist)))) {
+        if (dist && ((dir == Propagator::FORWARD && (ds < fMinSortDist || ds > fMaxSortDist)) ||
+                     (dir == Propagator::BACKWARD && (-ds < fMinSortDist || -ds > fMaxSortDist)))) {
           if (fTrace) log << "Resorting measurements.\n";
           hits.sort(trf, true, prop, dir);
         }
@@ -1678,9 +1606,7 @@ trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator* prop, KHitCon
 /// some small value.
 ///
 bool
-trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg,
-                                        const Propagator* /*prop*/,
-                                        KETrack& tremom) const
+trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg, KETrack& tremom) const
 {
   if (!trg.isValid()) return false;
 
@@ -1735,7 +1661,7 @@ trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg,
 ///
 bool
 trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
-                                     const Propagator* prop,
+                                     const Propagator& prop,
                                      KETrack& tremom) const
 {
   // Get iterators pointing to the first and last tracks.
@@ -1794,9 +1720,7 @@ trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
   // Loop over fits, starting at the high path distance (low momentum)
   // end.
 
-  for (std::multimap<double, KHitTrack>::const_reverse_iterator it = trackmap.rbegin();
-       it != trackmap.rend();
-       ++it) {
+  for (auto it = trackmap.rbegin(); it != trackmap.rend(); ++it) {
     double s = it->first;
     const KHitTrack& trh = it->second;
 
@@ -1813,17 +1737,17 @@ trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
       // Propagate tracks to the current track surface.
 
       std::shared_ptr<const Surface> psurf = trh.getSurface();
-      boost::optional<double> dist_inf = prop->err_prop(tre_inf, psurf, Propagator::UNKNOWN, false);
-      boost::optional<double> dist_range =
-        prop->vec_prop(trk_range, psurf, Propagator::UNKNOWN, false);
-      boost::optional<double> dist_noise =
-        prop->noise_prop(tre_noise, psurf, Propagator::UNKNOWN, true);
+      std::optional<double> dist_inf = prop.err_prop(tre_inf, psurf, Propagator::UNKNOWN, false);
+      std::optional<double> dist_range =
+        prop.vec_prop(trk_range, psurf, Propagator::UNKNOWN, false);
+      std::optional<double> dist_noise =
+        prop.noise_prop(tre_noise, psurf, Propagator::UNKNOWN, true);
 
       // All propagations should normally succeed.  If they don't,
       // ignore this sample for the purpose of updating the momentum.
 
       bool momentum_updated = false;
-      if (!!dist_inf && !!dist_range && !!dist_noise) {
+      if (dist_inf && dist_range && dist_noise) {
 
         // Extract the momentum at the new sample point.
 
@@ -1907,9 +1831,8 @@ trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
 
   const KHitTrack& trh0 = itend[0]->second;
   std::shared_ptr<const Surface> psurf = trh0.getSurface();
-  boost::optional<double> dist_noise =
-    prop->noise_prop(tre_noise, psurf, Propagator::UNKNOWN, true);
-  result = !!dist_noise;
+  std::optional<double> dist_noise = prop.noise_prop(tre_noise, psurf, Propagator::UNKNOWN, true);
+  result = dist_noise.has_value();
 
   // Update momentum-estimating track.
 
@@ -1933,7 +1856,7 @@ trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
 ///
 bool
 trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
-                                   const Propagator* prop,
+                                   const Propagator& prop,
                                    KETrack& tremom) const
 {
   mf::LogInfo log("KalmanFilterAlg");
@@ -1965,7 +1888,7 @@ trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
   KETrack tremom_range;
   bool ok_range = false;
   if (fFitMomRange) {
-    ok_range = fitMomentumRange(trg, prop, tremom_range);
+    ok_range = fitMomentumRange(trg, tremom_range);
     if (ok_range) {
       KGTrack trg_range(trg);
       ok_range = updateMomentum(tremom_range, prop, trg_range);
@@ -2015,7 +1938,7 @@ trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
 ///
 bool
 trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
-                                      const Propagator* prop,
+                                      const Propagator& prop,
                                       KGTrack& trg) const
 {
   // Get modifiable track map.
@@ -2032,23 +1955,23 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
   // Find distance to first track fit.
 
   KETrack tre0(tremom);
-  boost::optional<double> dist0 =
-    prop->vec_prop(tre0, trackmap.begin()->second.getSurface(), Propagator::UNKNOWN, false, 0, 0);
+  std::optional<double> dist0 =
+    prop.vec_prop(tre0, trackmap.begin()->second.getSurface(), Propagator::UNKNOWN, false, 0, 0);
   // Find distance to last track fit.
 
   KETrack tre1(tremom);
-  boost::optional<double> dist1 =
-    prop->vec_prop(tre1, trackmap.rbegin()->second.getSurface(), Propagator::UNKNOWN, false, 0, 0);
+  std::optional<double> dist1 =
+    prop.vec_prop(tre1, trackmap.rbegin()->second.getSurface(), Propagator::UNKNOWN, false, 0, 0);
 
   // Based on distances, make starting iterator and direction flag.
 
   bool forward = true;
   std::multimap<double, KHitTrack>::iterator it = trackmap.begin();
-  if (!!dist0) {
+  if (dist0) {
 
     // Propagation to first track succeeded.
 
-    if (!!dist1) {
+    if (dist1) {
 
       // Propagation to both ends succeeded.  If the last track is
       // closer, initialize iterator and direction flag for reverse
@@ -2067,7 +1990,7 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
     // direction flag for reverse direction, provided that the
     // propagation to the last track succeeded.
 
-    if (!!dist1) {
+    if (dist1) {
       it = trackmap.end();
       --it;
       forward = false;
@@ -2093,13 +2016,12 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
     // Propagate momentum-estimating track to current track surface
     // and update momentum.
 
-    boost::optional<double> dist =
-      prop->noise_prop(tre, trh.getSurface(), Propagator::UNKNOWN, true);
+    std::optional<double> dist = prop.noise_prop(tre, trh.getSurface(), Propagator::UNKNOWN, true);
 
     // Copy momentum to global track.
 
     std::multimap<double, KHitTrack>::iterator erase_it = trackmap.end();
-    if (!!dist) {
+    if (dist) {
       trh.getVector()(4) = tre.getVector()(4);
       trh.getError()(4, 0) = 0.;
       trh.getError()(4, 1) = 0.;
@@ -2135,22 +2057,7 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
       trackmap.erase(erase_it);
   }
 
-  bool result = (trackmap.size() > 0);
-
-  // Print value of momentum at start of track.
-
-  //if(result) {
-  //  mf::LogInfo log("KalmanFilterAlg");
-  //  double invp = trg.startTrack().getVector()(4);
-  //  double var_invp = trg.startTrack().getError()(4,4);
-  //  double p = 0.;
-  //  if(invp != 0.)
-  //    p = 1./invp;
-  //  double err_p = p*p * std::sqrt(var_invp);
-  //  log << "Updated momentum estimate = " << p << "+-" << err_p;
-  //}
-
-  return result;
+  return not empty(trackmap);
 }
 
 /// Iteratively smooth a track.
@@ -2166,14 +2073,14 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
 /// The initial track should have been unidirectionally fit.
 ///
 bool
-trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth, KGTrack& trg, const Propagator* prop) const
+trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth, KGTrack& trg, const Propagator& prop) const
 {
   bool ok = true;
 
   // Call smoothTrack method in a loop.
 
   for (int ismooth = 0; ok && ismooth < nsmooth - 1; ++ismooth) {
-    KGTrack trg1(trg.getPrefPlane());
+    KGTrack trg1{trg.getPrefPlane()};
     ok = smoothTrack(trg, &trg1, prop);
     if (ok) trg = trg1;
   }

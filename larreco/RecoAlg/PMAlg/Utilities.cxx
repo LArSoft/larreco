@@ -12,6 +12,7 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "cetlib/pow.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMatrixT.h"
@@ -28,178 +29,135 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
+#include "range/v3/algorithm.hpp"
+#include "range/v3/view.hpp"
+
 double
 pma::Dist2(const TVector2& v1, const TVector2& v2)
 {
-  double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
-  return dx * dx + dy * dy;
+  double const dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
+  return cet::sum_of_squares(dx, dy);
 }
 double
 pma::Dist2(const Vector2D& v1, const Vector2D& v2)
 {
-  double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
-  return dx * dx + dy * dy;
+  double const dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
+  return cet::sum_of_squares(dx, dy);
 }
 
 size_t
 pma::GetHitsCount(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
-  size_t n = 0;
-  for (auto const& hit : hits)
-    if ((view == geo::kUnknown) || (view == hit->View2D())) n++;
-  return n;
+  if (view == geo::kUnknown) { return hits.size(); }
+  return ranges::count_if(hits, [view](auto hit) { return view == hit->View2D(); });
 }
 
 double
 pma::GetSummedADC(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
-  double sum = 0.0;
-  for (auto const& hit : hits)
-    if ((view == geo::kUnknown) || (view == hit->View2D())) sum += hit->SummedADC();
-  return sum;
+  using namespace ranges;
+  auto to_summed_adc = [](auto hit) { return hit->SummedADC(); };
+  if (view == geo::kUnknown) { return accumulate(hits | view::transform(to_summed_adc), 0.); }
+  return accumulate(hits | view::filter([view](auto hit) { return view == hit->View2D(); }) |
+                      view::transform(to_summed_adc),
+                    0.);
 }
 
 double
 pma::GetSummedAmpl(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
-  double sum = 0.0;
-  for (auto const& hit : hits)
-    if ((view == geo::kUnknown) || (view == hit->View2D())) sum += hit->GetAmplitude();
-  return sum;
+  using namespace ranges;
+  auto to_amplitude = [](auto hit) { return hit->GetAmplitude(); };
+  if (view == geo::kUnknown) { return accumulate(hits | view::transform(to_amplitude), 0.); }
+  return accumulate(hits | view::filter([view](auto hit) { return view == hit->View2D(); }) |
+                      view::transform(to_amplitude),
+                    0.);
 }
 
 double
 pma::GetHitsRadius3D(const std::vector<pma::Hit3D*>& hits, bool exact)
 {
+  if (hits.empty()) return 0.0;
+
   if (!exact && (hits.size() < 5)) return 0.0;
 
-  if (hits.size() == 0) return 0.0;
+  using namespace ranges;
+  auto to_3d_point = [](auto hit) -> decltype(auto) { return hit->Point3D(); };
+  auto const mean_point =
+    accumulate(hits | view::transform(to_3d_point), TVector3{}) * (1. / hits.size());
 
-  TVector3 mean(0, 0, 0);
-  for (size_t i = 0; i < hits.size(); i++) {
-    mean += hits[i]->Point3D();
-  }
-  mean *= (1.0 / hits.size());
-
-  double r2, max_r2 = pma::Dist2(hits.front()->Point3D(), mean);
-  for (size_t i = 1; i < hits.size(); i++) {
-    r2 = pma::Dist2(hits[i]->Point3D(), mean);
-    if (r2 > max_r2) max_r2 = r2;
-  }
+  auto to_dist2_from_mean = [&mean_point](auto hit) {
+    return pma::Dist2(hit->Point3D(), mean_point);
+  };
+  auto const max_r2 = max(hits | view::transform(to_dist2_from_mean));
   return sqrt(max_r2);
 }
 
 double
 pma::GetHitsRadius2D(const std::vector<pma::Hit3D*>& hits, bool exact)
 {
+  if (hits.empty()) return 0.0;
+
   if (!exact && (hits.size() < 5)) return 0.0;
 
-  if (hits.size() == 0) return 0.0;
+  using namespace ranges;
+  auto to_2d_point = [](auto hit) -> decltype(auto) { return hit->Point2D(); };
+  auto const mean_point =
+    accumulate(hits | view::transform(to_2d_point), TVector2{}) * (1. / hits.size());
 
-  TVector2 mean(0, 0);
-  for (size_t i = 0; i < hits.size(); i++) {
-    mean += hits[i]->Point2D();
-  }
-  mean *= (1.0 / hits.size());
-
-  double r2, max_r2 = pma::Dist2(hits.front()->Point2D(), mean);
-  for (size_t i = 1; i < hits.size(); i++) {
-    r2 = pma::Dist2(hits[i]->Point2D(), mean);
-    if (r2 > max_r2) max_r2 = r2;
-  }
+  auto to_dist2_from_mean = [&mean_point](auto hit) {
+    return pma::Dist2(hit->Point2D(), mean_point);
+  };
+  auto const max_r2 = max(hits | view::transform(to_dist2_from_mean));
   return sqrt(max_r2);
 }
 
 double
 pma::GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1)
 {
-  TVector2 v0(p);
-  v0 -= p0;
-  TVector2 v1(p1);
-  v1 -= p0;
-
-  double v0Norm = v0.Mod();
-  double v1Norm = v1.Mod();
-  double mag = v0Norm * v1Norm;
-  double cosine = 0.0;
-  if (mag != 0.0) cosine = v0 * v1 / mag;
-
-  return v0Norm * cosine / v1Norm;
+  TVector2 const v0(p - p0);
+  TVector2 const v1(p1 - p0);
+  return v0 * v1 / v1.Mod2();
 }
 
 double
 pma::GetSegmentProjVector(const pma::Vector2D& p, const pma::Vector2D& p0, const pma::Vector2D& p1)
 {
-  pma::Vector2D v0(p);
-  v0 -= p0;
-  pma::Vector2D v1(p1);
-  v1 -= p0;
-
-  double v0Norm = v0.R();
-  double v1Norm = v1.R();
-  double mag = v0Norm * v1Norm;
-  double cosine = 0.0;
-  if (mag != 0.0) cosine = v0.Dot(v1) / mag;
-
-  return v0Norm * cosine / v1Norm;
+  pma::Vector2D const v0(p - p0);
+  pma::Vector2D const v1(p1 - p0);
+  return v0.Dot(v1) / v1.Mag2();
 }
 
 double
 pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1)
 {
-  TVector3 v0(p);
-  v0 -= p0;
-  TVector3 v1(p1);
-  v1 -= p0;
-
-  double v0Norm = v0.Mag();
-  double v1Norm = v1.Mag();
-  double mag = v0Norm * v1Norm;
-  double cosine = 0.0;
-  if (mag != 0.0) cosine = v0 * v1 / mag;
-
-  return v0Norm * cosine / v1Norm;
+  TVector3 const v0(p - p0);
+  TVector3 const v1(p1 - p0);
+  return v0.Dot(v1) / v1.Mag2();
 }
 
 double
 pma::GetSegmentProjVector(const pma::Vector3D& p, const pma::Vector3D& p0, const pma::Vector3D& p1)
 {
-  pma::Vector3D v0(p);
-  v0 -= p0;
-  pma::Vector3D v1(p1);
-  v1 -= p0;
-
-  double v0Norm = v0.R();
-  double v1Norm = v1.R();
-  double mag = v0Norm * v1Norm;
-  double cosine = 0.0;
-  if (mag != 0.0) cosine = v0.Dot(v1) / mag;
-
-  return v0Norm * cosine / v1Norm;
+  pma::Vector3D const v0(p - p0);
+  pma::Vector3D const v1(p1 - p0);
+  return v0.Dot(v1) / v1.Mag2();
 }
 
 TVector2
 pma::GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1)
 {
-  TVector2 v1(p1);
-  v1 -= p0;
-
-  double b = GetSegmentProjVector(p, p0, p1);
-  TVector2 r(p0);
-  r += (v1 * b);
-  return r;
+  TVector2 const v1(p1 - p0);
+  double const b = GetSegmentProjVector(p, p0, p1);
+  return p0 + v1 * b;
 }
 
 TVector3
 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1)
 {
-  TVector3 v1(p1);
-  v1 -= p0;
-
-  double b = GetSegmentProjVector(p, p0, p1);
-  TVector3 r(p0);
-  r += (v1 * b);
-  return r;
+  TVector3 const v1(p1 - p0);
+  double const b = GetSegmentProjVector(p, p0, p1);
+  return p0 + v1 * b;
 }
 
 double
@@ -295,16 +253,14 @@ pma::SolveLeastSquares3D(const std::vector<std::pair<TVector3, TVector3>>& lines
 
   result.SetXYZ(x[0], x[1], x[2]);
 
-  TVector3 pproj;
-  double dx, dy, dz, mse = 0.0;
+  double mse = 0.0;
   for (size_t v = 0; v < lines.size(); v++) {
-    pproj = pma::GetProjectionToSegment(result, lines[v].first, lines[v].second);
+    TVector3 const pproj = pma::GetProjectionToSegment(result, lines[v].first, lines[v].second);
 
-    dx = result.X() - pproj.X(); // dx, dy, dz and the result point can be weighted
-    dy = result.Y() - pproj.Y(); // here (linearly) by each line uncertainty
-    dz = result.Z() - pproj.Z();
-
-    mse += dx * dx + dy * dy + dz * dz;
+    double const dx = result.X() - pproj.X(); // dx, dy, dz and the result point can be weighted
+    double const dy = result.Y() - pproj.Y(); // here (linearly) by each line uncertainty
+    double const dz = result.Z() - pproj.Z();
+    mse += cet::sum_of_squares(dx, dy, dz);
   }
   return mse / lines.size();
 }
@@ -334,29 +290,29 @@ pma::GetVectorProjectionToPlane(const TVector3& v,
 }
 
 TVector2
-pma::WireDriftToCm(unsigned int wire,
+pma::WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
+                   unsigned int wire,
                    float drift,
                    unsigned int plane,
                    unsigned int tpc,
                    unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
-  const detinfo::DetectorProperties* detprop =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
-
   return TVector2(geom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
-                  detprop->ConvertTicksToX(drift, plane, tpc, cryo));
+                  detProp.ConvertTicksToX(drift, plane, tpc, cryo));
 }
 
 TVector2
-pma::CmToWireDrift(float xw, float yd, unsigned int plane, unsigned int tpc, unsigned int cryo)
+pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
+                   float xw,
+                   float yd,
+                   unsigned int plane,
+                   unsigned int tpc,
+                   unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
-  const detinfo::DetectorProperties* detprop =
-    lar::providerFrom<detinfo::DetectorPropertiesService>();
-
   return TVector2(xw / geom->TPC(tpc, cryo).Plane(plane).WirePitch(),
-                  detprop->ConvertXToTicks(yd, plane, tpc, cryo));
+                  detProp.ConvertXToTicks(yd, plane, tpc, cryo));
 }
 
 bool

@@ -2,14 +2,11 @@
 
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-
-#include "TMatrixD.h"
-#include "TVectorD.h"
 
 #include <algorithm>
 #include <array>
@@ -21,6 +18,9 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
+
+#include "TMatrixD.h"
+#include "TVectorD.h"
 
 namespace tca {
 
@@ -143,7 +143,10 @@ namespace tca {
 
   //////////////////////////////////////////
   void
-  Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass)
+  Find2DVertices(detinfo::DetectorPropertiesData const& detProp,
+                 TCSlice& slc,
+                 const CTP_t& inCTP,
+                 unsigned short pass)
   {
     // Find 2D vertices between pairs of tjs that have a same-end topology. Using an example
     // where StepDir = 1 (end 0 is at small wire number) vertices will be found with Topo = 0
@@ -174,11 +177,11 @@ namespace tca {
     bool requireVtxTjChg = true;
     if (tcc.vtx2DCuts[10] == 0 && int(planeID.Plane) < slc.nPlanes - 1) requireVtxTjChg = false;
 
-    bool prt = (tcc.dbg2V && tcc.dbgSlc && inCTP == debug.CTP);
+    bool prt = (tcc.dbg2V && tcc.dbgSlc && debug.Plane == (int)planeID.Plane);
     if (prt) {
       mf::LogVerbatim("TC") << "prt set for CTP " << inCTP << " in Find2DVertices. firstPassCuts? "
                             << firstPassCuts << " requireVtxTjChg " << requireVtxTjChg;
-      PrintAllTraj("F2DVi", slc, USHRT_MAX, slc.tjs.size());
+      PrintAllTraj(detProp, "F2DVi", slc, USHRT_MAX, slc.tjs.size());
     }
 
     unsigned short maxShortTjLen = tcc.vtx2DCuts[0];
@@ -437,7 +440,7 @@ namespace tca {
       FindHammerVertices2(slc, inCTP);
     }
 
-    if (prt) PrintAllTraj("F2DVo", slc, USHRT_MAX, USHRT_MAX);
+    if (prt) PrintAllTraj(detProp, "F2DVo", slc, USHRT_MAX, USHRT_MAX);
 
   } // Find2DVertices
 
@@ -1276,7 +1279,7 @@ namespace tca {
 
   //////////////////////////////////////
   void
-  Find3DVertices(TCSlice& slc)
+  Find3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Create 3D vertices from 2D vertices. 3D vertices that are matched
     // in all three planes have Vtx2ID > 0 for all planes. This function re-scores all
@@ -1322,7 +1325,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       // Convert 2D vertex time error to X error
       double ticks = slc.vtxs[ivx].Pos[1] / tcc.unitsPerTick;
-      vX[ivx] = tcc.detprop->ConvertTicksToX(ticks, planeID);
+      vX[ivx] = detProp.ConvertTicksToX(ticks, planeID);
     } // ivx
 
     // temp vector of all 2D vertex matches
@@ -1371,7 +1374,7 @@ namespace tca {
               wireWindow[0] = kWire - maxSep;
               wireWindow[1] = kWire + maxSep;
               float time =
-                tcc.detprop->ConvertXToTicks(kX, kpl, (int)tpc, (int)cstat) * tcc.unitsPerTick;
+                detProp.ConvertXToTicks(kX, kpl, (int)tpc, (int)cstat) * tcc.unitsPerTick;
               timeWindow[0] = time - maxSep;
               timeWindow[1] = time + maxSep;
               bool hitsNear;
@@ -1547,8 +1550,8 @@ namespace tca {
 
     // Try to complete incomplete vertices
     if (ninc > 0) {
-      CompleteIncomplete3DVerticesInGaps(slc);
-      CompleteIncomplete3DVertices(slc);
+      CompleteIncomplete3DVerticesInGaps(detProp, slc);
+      CompleteIncomplete3DVertices(detProp, slc);
     }
 
     // Score and flag Tjs that are attached to high-score vertices
@@ -2404,7 +2407,7 @@ namespace tca {
 
   //////////////////////////////////////////
   void
-  CompleteIncomplete3DVerticesInGaps(TCSlice& slc)
+  CompleteIncomplete3DVerticesInGaps(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
 
     if (!tcc.useAlg[kComp3DVxIG]) return;
@@ -2434,7 +2437,7 @@ namespace tca {
       VtxStore aVtx;
       aVtx.ID = slc.vtxs.size() + 1;
       aVtx.Pos[0] = vx3.Wire;
-      aVtx.Pos[1] = tcc.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) *
+      aVtx.Pos[1] = detProp.ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) *
                     tcc.unitsPerTick;
       aVtx.CTP = mCTP;
       aVtx.Topo = 4;
@@ -2498,7 +2501,7 @@ namespace tca {
 
   //////////////////////////////////////////
   void
-  CompleteIncomplete3DVertices(TCSlice& slc)
+  CompleteIncomplete3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Look for trajectories in a plane that lack a 2D vertex as listed in
     // 2DVtxID that are near the projected wire. This may trigger splitting trajectories,
@@ -2535,7 +2538,7 @@ namespace tca {
       // A TP for the missing 2D vertex
       TrajPoint vtp;
       vtp.Pos[0] = vx3.Wire;
-      vtp.Pos[1] = tcc.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) *
+      vtp.Pos[1] = detProp.ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) *
                    tcc.unitsPerTick;
       if (prt)
         mf::LogVerbatim("TC") << "CI3DV 3V" << vx3.ID << " Pos " << mPlane << ":"
@@ -2887,12 +2890,16 @@ namespace tca {
 
   //////////////////////////////////////////
   void
-  PosInPlane(const TCSlice& slc, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos)
+  PosInPlane(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             const Vtx3Store& vx3,
+             unsigned short plane,
+             Point2_t& pos)
   {
     // returns the 2D position of the vertex in the plane
     pos[0] = tcc.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
-    pos[1] = tcc.detprop->ConvertXToTicks(vx3.X, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) *
-             tcc.unitsPerTick;
+    pos[1] =
+      detProp.ConvertXToTicks(vx3.X, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tcc.unitsPerTick;
 
   } // PosInPlane
 

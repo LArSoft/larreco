@@ -25,7 +25,7 @@ bool pma::Node3D::fGradFixed[3] = {false, false, false};
 
 double pma::Node3D::fMargin = 3.0;
 
-pma::Node3D::Node3D(void)
+pma::Node3D::Node3D()
   : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(0, 0))
   , fMinX(0)
   , fMaxX(0)
@@ -45,7 +45,8 @@ pma::Node3D::Node3D(void)
   fProj2D[2].Set(0);
 }
 
-pma::Node3D::Node3D(const TVector3& p3d,
+pma::Node3D::Node3D(detinfo::DetectorPropertiesData const& detProp,
+                    const TVector3& p3d,
                     unsigned int tpc,
                     unsigned int cryo,
                     bool vtx,
@@ -61,11 +62,8 @@ pma::Node3D::Node3D(const TVector3& p3d,
   while ((lastPlane > 0) && !fTpcGeo.HasPlane(lastPlane))
     lastPlane--;
 
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
-  fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
-  //    fMinX = fTpcGeo.MinX();
-  //    fMaxX = fTpcGeo.MaxX();
+  fMinX = detProp.ConvertTicksToX(0, lastPlane, tpc, cryo);
+  fMaxX = detProp.ConvertTicksToX(detProp.NumberTimeSamples() - 1, lastPlane, tpc, cryo);
   if (fMaxX < fMinX) {
     double tmp = fMaxX;
     fMaxX = fMinX;
@@ -81,7 +79,7 @@ pma::Node3D::Node3D(const TVector3& p3d,
 }
 
 double
-pma::Node3D::GetDistToWall(void) const
+pma::Node3D::GetDistToWall() const
 {
   double d, dmin = fPoint3D.X() - fMinX;
   d = fMaxX - fPoint3D.X();
@@ -123,7 +121,7 @@ pma::Node3D::SameTPC(const pma::Vector3D& p3d, float margin) const
 }
 
 bool
-pma::Node3D::LimitPoint3D(void)
+pma::Node3D::LimitPoint3D()
 {
   bool trimmed = false;
 
@@ -158,7 +156,7 @@ pma::Node3D::LimitPoint3D(void)
 }
 
 void
-pma::Node3D::UpdateProj2D(void)
+pma::Node3D::UpdateProj2D()
 {
   for (size_t i = 0; i < fTpcGeo.Nplanes(); ++i) {
     fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(fPoint3D), fPoint3D.X() - fDriftOffset);
@@ -189,7 +187,7 @@ pma::Node3D::GetDistance2To(const TVector2& p2d, unsigned int view) const
 }
 
 double
-pma::Node3D::SumDist2Hits(void) const
+pma::Node3D::SumDist2Hits() const
 {
   double sum = 0.0F;
   for (auto h : fAssignedHits) {
@@ -205,7 +203,7 @@ pma::Node3D::SumDist2Hits(void) const
 }
 
 pma::Vector3D
-pma::Node3D::GetDirection3D(void) const
+pma::Node3D::GetDirection3D() const
 {
   pma::Element3D* seg = 0;
   if (next) { seg = dynamic_cast<pma::Element3D*>(next); }
@@ -298,7 +296,7 @@ pma::Node3D::SetProjection(pma::Hit3D& h) const
 }
 
 double
-pma::Node3D::Length2(void) const
+pma::Node3D::Length2() const
 {
   double l = 0.0;
   if (next) l += (static_cast<pma::Segment3D*>(next))->Length();
@@ -311,7 +309,7 @@ pma::Node3D::Length2(void) const
 }
 
 double
-pma::Node3D::SegmentCos(void) const
+pma::Node3D::SegmentCos() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -332,7 +330,7 @@ pma::Node3D::SegmentCos(void) const
 }
 
 double
-pma::Node3D::SegmentCosWirePlane(void) const
+pma::Node3D::SegmentCosWirePlane() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -351,7 +349,7 @@ pma::Node3D::SegmentCosWirePlane(void) const
 }
 
 double
-pma::Node3D::SegmentCosTransverse(void) const
+pma::Node3D::SegmentCosTransverse() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -371,7 +369,7 @@ pma::Node3D::SegmentCosTransverse(void) const
 
 // *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
 double
-pma::Node3D::EndPtCos2Transverse(void) const
+pma::Node3D::EndPtCos2Transverse() const
 {
   if (prev && next) {
     auto const& vStart = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -389,7 +387,7 @@ pma::Node3D::EndPtCos2Transverse(void) const
 }
 
 double
-pma::Node3D::PiInWirePlane(void) const
+pma::Node3D::PiInWirePlane() const
 {
   if (prev && NextCount()) {
     pma::Segment3D* seg0 = dynamic_cast<pma::Segment3D*>(prev);
@@ -411,7 +409,7 @@ pma::Node3D::PiInWirePlane(void) const
 // there are Ind1 / geo::kU hits which add information to the object shape.
 // *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
 double
-pma::Node3D::PenaltyInWirePlane(void) const
+pma::Node3D::PenaltyInWirePlane() const
 {
   if (fIsVertex) return 0.0;
 
@@ -435,7 +433,7 @@ pma::Node3D::PenaltyInWirePlane(void) const
 }
 
 bool
-pma::Node3D::IsBranching(void) const
+pma::Node3D::IsBranching() const
 {
   size_t nnext = NextCount();
   if (nnext > 1) return true; // 1 trk -> vtx -> n*trk
@@ -450,7 +448,7 @@ pma::Node3D::IsBranching(void) const
 }
 
 bool
-pma::Node3D::IsTPCEdge(void) const
+pma::Node3D::IsTPCEdge() const
 {
   if (prev && (NextCount() == 1)) {
     pma::Segment3D* segPrev = static_cast<pma::Segment3D*>(prev);
@@ -462,7 +460,7 @@ pma::Node3D::IsTPCEdge(void) const
 }
 
 std::vector<pma::Track3D*>
-pma::Node3D::GetBranches(void) const
+pma::Node3D::GetBranches() const
 {
   std::vector<pma::Track3D*> branches;
   if (NextCount()) {
@@ -553,7 +551,7 @@ pma::Node3D::Penalty(float endSegWeight) const
 }
 
 double
-pma::Node3D::Mse(void) const
+pma::Node3D::Mse() const
 {
   unsigned int nhits = NPrecalcEnabledHits(); //NEnabledHits();
   double mse = SumDist2();

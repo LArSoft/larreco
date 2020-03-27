@@ -25,10 +25,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-
 // Eigen
 #include <Eigen/Dense>
 
@@ -169,12 +165,6 @@ namespace lar_cluster3d {
     float findConvexHullEndPoints(const reco::EdgeList&,
                                   const reco::ClusterHit3D*,
                                   const reco::ClusterHit3D*) const;
-
-    /**
-     *  @brief define data structure for keeping track of channel status
-     */
-    using ChannelStatusVec = std::vector<size_t>;
-    using ChannelStatusByPlaneVec = std::vector<ChannelStatusVec>;
 
     /**
      *  @brief Data members to follow
@@ -795,16 +785,16 @@ namespace lar_cluster3d {
     /*
      // Chebyshev distance
      // We look for maximum distance by wires...
-     
+
      // Now go through the hits and compare view by view to look for delta wire and tigher constraint on delta t
      int wireDeltas[] = {0,0,0};
-     
+
      for(size_t idx = 0; idx < 3; idx++)
      wireDeltas[idx] = std::abs(int(node1->getWireIDs()[idx].Wire) - int(node2->getWireIDs()[idx].Wire));
-     
+
      // put wire deltas in order...
      std::sort(wireDeltas, wireDeltas + 3);
-     
+
      return std::sqrt(deltaNode[0]*deltaNode[0] + 0.09 * float(wireDeltas[2]*wireDeltas[2]));
      */
   }

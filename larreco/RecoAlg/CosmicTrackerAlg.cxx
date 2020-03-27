@@ -17,51 +17,28 @@
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "lardataobj/RecoBase/Hit.h"
 
-/*
-bool SortByMultiplet(art::Ptr<recob::Hit> const& a,
-		     art::Ptr<recob::Hit> const& b){
-  // compare the wire IDs first:
-  if (a->WireID().Plane != b->WireID().Plane)
-    return a->WireID().Plane < b->WireID().Plane;
-  if (a->WireID().Wire != b->WireID().Wire)
-    return a->WireID().Wire > b->WireID().Wire;
-  if (a->StartTick() != b->StartTick()) return a->StartTick() < b->StartTick();
-  // if still undecided, resolve by local index
-  return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
-}
-*/
 namespace {
-  template <typename T>
-  inline T
-  sqr(T v)
+  struct PlnLen {
+    unsigned short index;
+    float length;
+  };
+
+  bool
+  greaterThan1(PlnLen p1, PlnLen p2)
   {
-    return v * v;
+    return p1.length > p2.length;
   }
-} // local namespace
-
-struct PlnLen {
-  unsigned short index;
-  float length;
-};
-
-bool
-greaterThan1(PlnLen p1, PlnLen p2)
-{
-  return (p1.length > p2.length);
 }
 
 namespace trkf {
 
-  CosmicTrackerAlg::CosmicTrackerAlg(fhicl::ParameterSet const& pset) { this->reconfigure(pset); }
-
-  //---------------------------------------------------------------------
-  void
-  CosmicTrackerAlg::reconfigure(fhicl::ParameterSet const& pset)
+  CosmicTrackerAlg::CosmicTrackerAlg(fhicl::ParameterSet const& pset)
   {
     fSPTAlg = pset.get<int>("SPTAlg", 0);
     fTrajOnly = pset.get<bool>("TrajOnly", false);
@@ -71,9 +48,10 @@ namespace trkf {
 
   //---------------------------------------------------------------------
   void
-  CosmicTrackerAlg::SPTReco(std::vector<art::Ptr<recob::Hit>>& fHits)
+  CosmicTrackerAlg::SPTReco(detinfo::DetectorClocksData const& clockData,
+                            detinfo::DetectorPropertiesData const& detProp,
+                            std::vector<art::Ptr<recob::Hit>>& fHits)
   {
-
     trajPos.clear();
     trajDir.clear();
     trajHit.clear();
@@ -81,9 +59,9 @@ namespace trkf {
     trkPos.clear();
     trkDir.clear();
 
-    if (fSPTAlg == 0) { TrackTrajectory(fHits); }
+    if (fSPTAlg == 0) { TrackTrajectory(detProp, fHits); }
     else if (fSPTAlg == 1) {
-      Track3D(fHits);
+      Track3D(clockData, detProp, fHits);
     }
     else {
       throw cet::exception("CosmicTrackerAlg")
@@ -91,7 +69,7 @@ namespace trkf {
     }
 
     if (!fTrajOnly && trajPos.size())
-      MakeSPT(fHits);
+      MakeSPT(clockData, detProp, fHits);
     else {
       trkPos = trajPos;
       trkDir = trajDir;
@@ -100,21 +78,9 @@ namespace trkf {
 
   //---------------------------------------------------------------------
   void
-  CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit>>& fHits)
+  CosmicTrackerAlg::TrackTrajectory(detinfo::DetectorPropertiesData const& detProp,
+                                    std::vector<art::Ptr<recob::Hit>>& fHits)
   {
-
-    detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-    /*
-    // Track hit X and WireIDs in each plane
-    std::array<std::vector<std::pair<double, geo::WireID>>,3> trajXW;
-    // Track hit charge ...
-    std::array<std::vector<double>,3> trajChg;
-    std::array< std::vector<art::Ptr<recob::Hit>>,3> trajHits;
-    for (size_t i = 0; i<fHits.size(); ++i){
-      trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
-    }
-*/
     // Track hit vectors for fitting the trajectory
     std::array<std::vector<geo::WireID>, 3> trkWID;
     std::array<std::vector<double>, 3> trkX;
@@ -131,7 +97,6 @@ namespace trkf {
     for (unsigned int ipl = 0; ipl < 3; ++ipl) {
       plnlen.index = ipl;
       plnlen.length = trajHits[ipl].size();
-      //if(plnlen.length > 0)
       spl.push_back(plnlen);
     }
     std::sort(spl.begin(), spl.end(), greaterThan1);
@@ -139,60 +104,43 @@ namespace trkf {
 
     for (size_t ipl = 0; ipl < 3; ++ipl) {
       if (!trajHits[ipl].size()) continue;
-      //if (ipl == spl[0].index) continue;
-      double xbeg0 = detprop->ConvertTicksToX(trajHits[spl[0].index][0]->PeakTime(),
-                                              trajHits[spl[0].index][0]->WireID().Plane,
-                                              trajHits[spl[0].index][0]->WireID().TPC,
-                                              trajHits[spl[0].index][0]->WireID().Cryostat);
-      double xend0 = detprop->ConvertTicksToX(trajHits[spl[0].index].back()->PeakTime(),
-                                              trajHits[spl[0].index].back()->WireID().Plane,
-                                              trajHits[spl[0].index].back()->WireID().TPC,
-                                              trajHits[spl[0].index].back()->WireID().Cryostat);
-      double xbeg1 = detprop->ConvertTicksToX(trajHits[ipl][0]->PeakTime(),
-                                              trajHits[ipl][0]->WireID().Plane,
-                                              trajHits[ipl][0]->WireID().TPC,
-                                              trajHits[ipl][0]->WireID().Cryostat);
-      double xend1 = detprop->ConvertTicksToX(trajHits[ipl].back()->PeakTime(),
-                                              trajHits[ipl].back()->WireID().Plane,
-                                              trajHits[ipl].back()->WireID().TPC,
-                                              trajHits[ipl].back()->WireID().Cryostat);
+      double xbeg0 = detProp.ConvertTicksToX(trajHits[spl[0].index][0]->PeakTime(),
+                                             trajHits[spl[0].index][0]->WireID().Plane,
+                                             trajHits[spl[0].index][0]->WireID().TPC,
+                                             trajHits[spl[0].index][0]->WireID().Cryostat);
+      double xend0 = detProp.ConvertTicksToX(trajHits[spl[0].index].back()->PeakTime(),
+                                             trajHits[spl[0].index].back()->WireID().Plane,
+                                             trajHits[spl[0].index].back()->WireID().TPC,
+                                             trajHits[spl[0].index].back()->WireID().Cryostat);
+      double xbeg1 = detProp.ConvertTicksToX(trajHits[ipl][0]->PeakTime(),
+                                             trajHits[ipl][0]->WireID().Plane,
+                                             trajHits[ipl][0]->WireID().TPC,
+                                             trajHits[ipl][0]->WireID().Cryostat);
+      double xend1 = detProp.ConvertTicksToX(trajHits[ipl].back()->PeakTime(),
+                                             trajHits[ipl].back()->WireID().Plane,
+                                             trajHits[ipl].back()->WireID().TPC,
+                                             trajHits[ipl].back()->WireID().Cryostat);
       double dx1 = std::abs(xbeg0 - xbeg1) + std::abs(xend0 - xend1);
       double dx2 = std::abs(xbeg0 - xend1) + std::abs(xend0 - xbeg1);
-      if (
-        std::abs(xbeg1 - xend1) >
-          0.2 // this is to make sure the track is not completely flat in t, different by ~2.5 ticks
-        && dx2 < dx1) {
+      if (std::abs(xbeg1 - xend1) >
+            0.2 // this is to make sure the track is not completely flat in t,
+                // different by ~2.5 ticks
+          && dx2 < dx1) {
         std::reverse(trajHits[ipl].begin(), trajHits[ipl].end());
       }
     }
-    /*
-    // make the track trajectory
-    for(size_t ipl = 0; ipl < 3; ++ipl) {
-      //if (ipl == spl.back().index) continue;
-      trajXW[ipl].resize(trajHits[ipl].size());
-      trajChg[ipl].resize(trajHits[ipl].size());
-      for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
-        double xx = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),
-					     ipl, trajHits[ipl][iht]->WireID().TPC,
-					     trajHits[ipl][iht]->WireID().Cryostat);
-        trajXW[ipl][iht] = std::make_pair(xx, trajHits[ipl][iht]->WireID());
-        trajChg[ipl][iht] = trajHits[ipl][iht]->Integral();
-      } // iht
-    } // ip
-    fTrackTrajectoryAlg.TrackTrajectory(trajXW, trajPos, trajDir, trajChg);
-*/
     // make the track trajectory
     for (size_t ipl = 0; ipl < 3; ++ipl) {
-      //if (ipl == spl.back().index) continue;
+      // if (ipl == spl.back().index) continue;
       trkWID[ipl].resize(trajHits[ipl].size());
       trkX[ipl].resize(trajHits[ipl].size());
       trkXErr[ipl].resize(trajHits[ipl].size());
       for (size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
         trkWID[ipl][iht] = trajHits[ipl][iht]->WireID();
-        trkX[ipl][iht] = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),
-                                                  ipl,
-                                                  trajHits[ipl][iht]->WireID().TPC,
-                                                  trajHits[ipl][iht]->WireID().Cryostat);
+        trkX[ipl][iht] = detProp.ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),
+                                                 ipl,
+                                                 trajHits[ipl][iht]->WireID().TPC,
+                                                 trajHits[ipl][iht]->WireID().Cryostat);
         trkXErr[ipl][iht] = 0.2 * trajHits[ipl][iht]->RMS() * trajHits[ipl][iht]->Multiplicity();
       } // iht
     }   // ip
@@ -232,26 +180,23 @@ namespace trkf {
           for (size_t i = 0; i < trajPos.size(); ++i) {
             double wirecord =
               geom->WireCoordinate(trajPos[i].Y(), trajPos[i].Z(), plane, tpc, cstat);
-            double tick = detprop->ConvertXToTicks(trajPos[i].X(), plane, tpc, cstat);
-            //if (int(wirecord)>=0&&int(wirecord)<int(geom->Nwires(plane,tpc,cstat))
-            //&&int(tick)>=0&&int(tick)<int(detprop->ReadOutWindowSize())){
+            double tick = detProp.ConvertXToTicks(trajPos[i].X(), plane, tpc, cstat);
             vw[cstat][tpc][plane].push_back(wirecord);
             vt[cstat][tpc][plane].push_back(tick);
             vtraj[cstat][tpc][plane].push_back(i);
-            //}//if wire and tick make sense
-          } //trajPos.size()
-        }   //plane
-      }     //tpc
-    }       //cstat
+          } // trajPos.size()
+        }   // plane
+      }     // tpc
+    }       // cstat
   }
 
   //---------------------------------------------------------------------
   void
-  CosmicTrackerAlg::Track3D(std::vector<art::Ptr<recob::Hit>>& fHits)
+  CosmicTrackerAlg::Track3D(detinfo::DetectorClocksData const& clockData,
+                            detinfo::DetectorPropertiesData const& detProp,
+                            std::vector<art::Ptr<recob::Hit>>& fHits)
   {
-
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
-    detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     //save time/hit information along track trajectory
     std::vector<std::map<int, double>> vtimemap(3);
@@ -263,7 +208,7 @@ namespace trkf {
       unsigned int w = hitWireID.Wire;
       unsigned int pl = hitWireID.Plane;
       double time = fHits[ihit]->PeakTime();
-      time -= detprop->GetXTicksOffset(
+      time -= detProp.GetXTicksOffset(
         fHits[ihit]->WireID().Plane, fHits[ihit]->WireID().TPC, fHits[ihit]->WireID().Cryostat);
       vtimemap[pl][w] = time;
       vhitmap[pl][w] = fHits[ihit];
@@ -369,11 +314,11 @@ namespace trkf {
         rev = true;
       }
 
-      double timetick = detprop->SamplingRate() * 1e-3; //time sample in us
-      double Efield_drift = detprop->Efield(0);    // Electric Field in the drift region in kV/cm
-      double Temperature = detprop->Temperature(); // LAr Temperature in K
+      double timetick = sampling_rate(clockData) * 1e-3; // time sample in us
+      double Efield_drift = detProp.Efield(0);    // Electric Field in the drift region in kV/cm
+      double Temperature = detProp.Temperature(); // LAr Temperature in K
 
-      double driftvelocity = detprop->DriftVelocity(
+      double driftvelocity = detProp.DriftVelocity(
         Efield_drift, Temperature); //drift velocity in the drift region (cm/us)
       double timepitch = driftvelocity * timetick;
 
@@ -393,8 +338,7 @@ namespace trkf {
                                                 wend = vtimemap[iclu].cend();
           double t0 = iw->first, w0 = iw->second;
           while (++iw != wend) {
-            tracklength +=
-              std::sqrt(sqr((iw->first - w0) * wire_pitch) + sqr((iw->second - t0) * timepitch));
+            tracklength += std::hypot((iw->first - w0) * wire_pitch, (iw->second - t0) * timepitch);
             w0 = iw->first;
             t0 = iw->second;
           } // while
@@ -416,8 +360,8 @@ namespace trkf {
           for (auto iw1 = vtimemap[iclu1].begin(); iw1 != itime1; ++iw1) {
             auto iw2 = iw1;
             ++iw2;
-            length1 += std::sqrt(std::pow((iw1->first - iw2->first) * wire_pitch, 2) +
-                                 std::pow((iw1->second - iw2->second) * timepitch, 2));
+            length1 += std::hypot((iw1->first - iw2->first) * wire_pitch,
+                                  (iw1->second - iw2->second) * timepitch);
           }
         }
         double difference = 1e10; //distance between two matched hits
@@ -434,8 +378,8 @@ namespace trkf {
             for (auto iw1 = vtimemap[iclu2].begin(); iw1 != itime2; ++iw1) {
               auto iw2 = iw1;
               ++iw2;
-              length2 += std::sqrt(std::pow((iw1->first - iw2->first) * wire_pitch, 2) +
-                                   std::pow((iw1->second - iw2->second) * timepitch, 2));
+              length2 += std::hypot((iw1->first - iw2->first) * wire_pitch,
+                                    (iw1->second - iw2->second) * timepitch);
             }
           }
           if (rev) length2 = vtracklength[iclu2] - length2;
@@ -448,10 +392,10 @@ namespace trkf {
           }
         } //loop over hits2
         if (difference < fsmatch) {
-          hitcoord[0] = detprop->ConvertTicksToX(
-            matchedtime->second + detprop->GetXTicksOffset((matchedhit->second)->WireID().Plane,
-                                                           (matchedhit->second)->WireID().TPC,
-                                                           (matchedhit->second)->WireID().Cryostat),
+          hitcoord[0] = detProp.ConvertTicksToX(
+            matchedtime->second + detProp.GetXTicksOffset((matchedhit->second)->WireID().Plane,
+                                                          (matchedhit->second)->WireID().TPC,
+                                                          (matchedhit->second)->WireID().Cryostat),
             (matchedhit->second)->WireID().Plane,
             (matchedhit->second)->WireID().TPC,
             (matchedhit->second)->WireID().Cryostat);
@@ -487,18 +431,18 @@ namespace trkf {
 
   //---------------------------------------------------------------------
   void
-  CosmicTrackerAlg::MakeSPT(std::vector<art::Ptr<recob::Hit>>& fHits)
+  CosmicTrackerAlg::MakeSPT(detinfo::DetectorClocksData const& clockData,
+                            detinfo::DetectorPropertiesData const& detProp,
+                            std::vector<art::Ptr<recob::Hit>>& fHits)
   {
-
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
-    detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
-    double timetick = detprop->SamplingRate() * 1e-3; //time sample in us
-    double Efield_drift = detprop->Efield(0);         // Electric Field in the drift region in kV/cm
-    double Temperature = detprop->Temperature();      // LAr Temperature in K
-    double driftvelocity = detprop->DriftVelocity(
-      Efield_drift, Temperature);                 //drift velocity in the drift region (cm/us)
-    double time_pitch = driftvelocity * timetick; //time sample (cm)
+    double timetick = sampling_rate(clockData) * 1e-3; // time sample in us
+    double Efield_drift = detProp.Efield(0);    // Electric Field in the drift region in kV/cm
+    double Temperature = detProp.Temperature(); // LAr Temperature in K
+    double driftvelocity =
+      detProp.DriftVelocity(Efield_drift, Temperature); //drift velocity in the drift region (cm/us)
+    double time_pitch = driftvelocity * timetick;       //time sample (cm)
 
     for (size_t i = 0; i < fHits.size(); ++i) {
       int ip1 = -1;
@@ -519,8 +463,8 @@ namespace trkf {
       //find the two trajectory points that enclose the hit
       //find the nearest trajectory point first
       for (size_t j = 0; j < vw[cstat][tpc][plane].size(); ++j) {
-        double dis = sqrt(pow(wire_pitch * (wire - vw[cstat][tpc][plane][j]), 2) +
-                          pow(time_pitch * (fHits[i]->PeakTime() - vt[cstat][tpc][plane][j]), 2));
+        double dis = std::hypot(wire_pitch * (wire - vw[cstat][tpc][plane][j]),
+                                time_pitch * (fHits[i]->PeakTime() - vt[cstat][tpc][plane][j]));
         if (dis < mindis1) {
           mindis1 = dis;
           ip1 = vtraj[cstat][tpc][plane][j];
@@ -530,8 +474,8 @@ namespace trkf {
       //find the second nearest trajectory point, prefer the point on the other side
       for (size_t j = 0; j < vw[cstat][tpc][plane].size(); ++j) {
         if (int(j) == ih1) continue;
-        double dis = sqrt(pow(wire_pitch * (wire - vw[cstat][tpc][plane][j]), 2) +
-                          pow(time_pitch * (fHits[i]->PeakTime() - vt[cstat][tpc][plane][j]), 2));
+        double dis = std::hypot(wire_pitch * (wire - vw[cstat][tpc][plane][j]),
+                                time_pitch * (fHits[i]->PeakTime() - vt[cstat][tpc][plane][j]));
         if (dis < mindis2) {
           mindis2 = dis;
           ip2 = vtraj[cstat][tpc][plane][j];
@@ -555,7 +499,6 @@ namespace trkf {
         ip2 = ip2p;
         ih2 = ih2p;
       }
-      //std::cout<<i<<" "<<ip1<<" "<<ip2<<std::endl;
       if (ip1 == -1 || ip2 == -1) {
         return;
         throw cet::exception("CosmicTrackerAlg") << "Cannot find two nearest trajectory points.";
@@ -566,7 +509,6 @@ namespace trkf {
       TVector3 v2(wire_pitch * (vw[cstat][tpc][plane][ih2] - vw[cstat][tpc][plane][ih1]),
                   time_pitch * (vt[cstat][tpc][plane][ih2] - vt[cstat][tpc][plane][ih1]),
                   0);
-      //std::cout<<v1.X()<<" "<<v1.Y()<<" "<<v2.X()<<" "<<v2.Y()<<" "<<v1.Mag()<<" "<<v2.Mag()<<std::endl;
       if (!v2.Mag()) {
         throw cet::exception("CosmicTrackerAlg") << "Two identical trajectory points.";
       }

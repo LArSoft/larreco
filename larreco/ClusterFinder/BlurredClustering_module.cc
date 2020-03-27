@@ -23,7 +23,10 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -94,8 +97,13 @@ cluster::BlurredClustering::produce(art::Event& evt)
   // Just use default for now, but configuration will go here
   ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
 
-  // Create geometry handle
+  // Services
   art::ServiceHandle<geo::Geometry const> geom;
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+  util::GeometryUtilities const gser{*geom, clockData, detProp};
+  int const readoutWindowSize = detProp.ReadOutWindowSize();
 
   // Get the hits from the event
   art::Handle<std::vector<recob::Hit>> hitCollection;
@@ -160,7 +168,7 @@ cluster::BlurredClustering::produce(art::Event& evt)
     if (hits.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      auto const image = fBlurredClusteringAlg.ConvertRecobHitsToVector(hits);
+      auto const image = fBlurredClusteringAlg.ConvertRecobHitsToVector(hits, readoutWindowSize);
       auto const blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
       // Find clusters in histogram
@@ -210,10 +218,11 @@ cluster::BlurredClustering::produce(art::Event& evt)
       unsigned int const endWire = fBlurredClusteringAlg.GlobalWire(clusterHits.back()->WireID());
 
       // Put cluster hits in the algorithm
-      ClusterParamAlgo.ImportHits(clusterHits);
+      ClusterParamAlgo.ImportHits(gser, clusterHits);
 
       // Create the recob::Cluster and place in the vector of clusters
-      ClusterCreator cluster(ClusterParamAlgo,                        // algo
+      ClusterCreator cluster(gser,
+                             ClusterParamAlgo,                        // algo
                              float(startWire),                        // start_wire
                              0.,                                      // sigma_start_wire
                              clusterHits.front()->PeakTime(),         // start_tick
@@ -230,7 +239,7 @@ cluster::BlurredClustering::produce(art::Event& evt)
       clusters->emplace_back(cluster.move());
 
       // Associate the hits to this cluster
-      util::CreateAssn(*this, evt, *clusters, clusterHits, *associations);
+      util::CreateAssn(evt, *clusters, clusterHits, *associations);
     } // End loop over all clusters
   }
 

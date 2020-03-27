@@ -19,41 +19,26 @@
 
 namespace lar_cluster3d {
 
-  //typedef std::pair<recob::Seed, reco::HitPairListPtr> SeedHitListPair;
-  //typedef std::list<SeedHitListPair >                  SeedHitPairList;
-
   /**
  *  @brief  ParallelHitsSeedFinderAlg class
  */
-  class ParallelHitsSeedFinderAlg : virtual public SeedFinderAlgBase {
+  class ParallelHitsSeedFinderAlg final : public SeedFinderAlgBase {
   public:
     /**
-     *  @brief  Constructor
-     *
-     *  @param  pset
-     */
-    ParallelHitsSeedFinderAlg(fhicl::ParameterSet const& pset);
-
-    /**
-     *  @brief  Destructor
-     */
-    virtual ~ParallelHitsSeedFinderAlg();
-
-    /**
-     *  @brief a handler for the case where the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
+   *  @brief  Constructor
+   *
+   *  @param  pset
+   */
+    explicit ParallelHitsSeedFinderAlg(fhicl::ParameterSet const& pset);
 
     /**
      *  @brief Given the list of hits this will search for candidate Seed objects and return them
      */
-    virtual bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
-                                reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec& seedHitMap) const;
+    bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
+                        reco::PrincipalComponents& inputPCA,
+                        SeedHitPairListPairVec& seedHitMap) const override;
 
   private:
-    //    const detinfo::DetectorProperties*    m_detector;        // Pointer to the detector properties
-
     size_t m_maxNumEdgeHits; ///< Maximum number hits each end of PCA axis
     double m_gapDistance;    ///< Maximum allowed distance between hits
     size_t m_numSeed2DHits;  ///< Number 2D seed hits desired

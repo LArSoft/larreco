@@ -27,11 +27,6 @@ namespace lar_cluster3d {
   class SeedFinderAlgBase {
   public:
     /**
-     *  @brief Require that a handler is definied in case the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const& pset) = 0;
-
-    /**
      *  @brief Define the interface to take an input list of 3D hits and return seed candidates
      *         so hits are ordered along the axis
      */

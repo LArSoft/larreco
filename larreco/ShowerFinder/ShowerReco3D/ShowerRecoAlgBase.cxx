@@ -6,8 +6,6 @@
 
 namespace showerreco {
 
-  ShowerRecoAlgBase::ShowerRecoAlgBase() : fInputClusters() { fVerbosity = false; }
-
   void
   ShowerRecoAlgBase::Reset()
   {
@@ -35,20 +33,17 @@ namespace showerreco {
   }
 
   std::vector<::recob::Shower>
-  ShowerRecoAlgBase::Reconstruct()
+  ShowerRecoAlgBase::Reconstruct(geo::GeometryCore const& geom,
+                                 detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp)
   {
-
-    if (!fCaloAlg) throw ShowerRecoException("Calorimetry algorithm must be provided!");
-
     ProcessInputClusters();
 
     std::vector<::recob::Shower> output;
-
     output.reserve(fInputClusters.size());
 
     for (auto const& clusters : fInputClusters)
-
-      output.push_back(RecoOneShower(clusters));
+      output.push_back(RecoOneShower(geom, clockData, detProp, clusters));
 
     return output;
   }

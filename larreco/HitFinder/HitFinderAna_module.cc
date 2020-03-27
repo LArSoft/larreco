@@ -24,6 +24,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
@@ -182,6 +183,7 @@ namespace hit {
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
 
     sim::ParticleList const& _particleList = pi_serv->ParticleList();
 
@@ -209,9 +211,9 @@ namespace hit {
         fRun = evt.run();
         fEvt = evt.id().event();
 
-        std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
+        std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(clockData, *itr);
         std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
-        std::vector<double> xyz = bt_serv->HitToXYZ(*itr);
+        std::vector<double> xyz = bt_serv->HitToXYZ(clockData, *itr);
 
         if (pid.Plane == 0 && fNp0 < 9000) {
           fTimep0[fNp0] = (*itr)->PeakTime();
@@ -287,12 +289,8 @@ namespace hit {
     }   // loop on map
 
     return;
-  } //end analyze method
+  } // end analyze method
 
-} //end namespace
+} // end namespace
 
-namespace hit {
-
-  DEFINE_ART_MODULE(HitFinderAna)
-
-} // end of hit namespace
+DEFINE_ART_MODULE(hit::HitFinderAna)

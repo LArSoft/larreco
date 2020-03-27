@@ -14,6 +14,9 @@
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 #include "Math/GenVector/Cartesian2D.h"
 #include "Math/GenVector/DisplacementVector2D.h"
@@ -76,12 +79,14 @@ namespace pma {
                                       unsigned int plane,
                                       unsigned int tpc,
                                       unsigned int cryo);
-  TVector2 WireDriftToCm(unsigned int wire,
+  TVector2 WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
+                         unsigned int wire,
                          float drift,
                          unsigned int plane,
                          unsigned int tpc,
                          unsigned int cryo);
-  TVector2 CmToWireDrift(float xw,
+  TVector2 CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
+                         float xw,
                          float yd,
                          unsigned int plane,
                          unsigned int tpc,

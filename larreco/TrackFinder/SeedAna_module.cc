@@ -37,8 +37,6 @@
 
 namespace {
 
-  // Local functions.
-
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
   double
@@ -55,15 +53,16 @@ namespace {
     double d5 = pos.Z();                             // Distance to front.
     double d6 = geom->DetLength() - pos.Z();         // Distance to back.
 
-    double result = std::min(std::min(std::min(std::min(std::min(d1, d2), d3), d4), d5), d6);
-    return result;
+    return std::min({d1, d2, d3, d4, d5, d6});
   }
 
   // Find the closest matching mc trajectory point (sim::MCStep) for a given seed.
   // Returned value is index of the trajectory point.
   // Return -1 in case of no match.
   int
-  mcmatch(const sim::MCTrack& mctrk, const recob::Seed& seed)
+  mcmatch(detinfo::DetectorPropertiesData const& detProp,
+          const sim::MCTrack& mctrk,
+          const recob::Seed& seed)
   {
     // Get seed point.
 
@@ -72,11 +71,8 @@ namespace {
     seed.GetPoint(pos, err);
 
     // Calculate the x offset due to nonzero mc particle time.
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-    double mctime = mctrk.Start().T();                       // nsec
-    double mcdx = mctime * 1.e-3 * detprop->DriftVelocity(); // cm
+    double mctime = mctrk.Start().T();                      // nsec
+    double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
     // Loop over trajectory points.
 
@@ -102,7 +98,8 @@ namespace {
   // (MCTrack stores momenta in Mev).
   //----------------------------------------------------------------------------
   double
-  length(const sim::MCTrack& mctrk,
+  length(detinfo::DetectorPropertiesData const& detProp,
+         const sim::MCTrack& mctrk,
          double dx,
          TVector3& start,
          TVector3& end,
@@ -114,8 +111,6 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -125,7 +120,6 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-    //double ticks_max = detprop->ReadOutWindowSize();
     double result = 0.;
     TVector3 disp;
     int n = mctrk.size();
@@ -141,8 +135,8 @@ namespace {
       if (pos.X() >= xmin && pos.X() <= xmax && pos.Y() >= ymin && pos.Y() <= ymax &&
           pos.Z() >= zmin && pos.Z() <= zmax) {
         pos[0] += dx;
-        double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
-        if (ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
+        double ticks = detProp.ConvertXToTicks(pos[0], 0, 0, 0);
+        if (ticks >= 0. && ticks < detProp.ReadOutWindowSize()) {
           if (first) {
             start = pos;
             startmom = 0.001 * mctrk[i].Momentum().Vect();
@@ -240,127 +234,116 @@ namespace trkf {
     // Struct for histograms that depend on seeds only.
 
     struct RecoHists {
-      // Constructors.
-
-      RecoHists();
       RecoHists(const std::string& subdir);
 
       // Pure reco seed histograms.
 
-      TH1F* fHx;        // Seed x position.
-      TH1F* fHy;        // Seed y position.
-      TH1F* fHz;        // Seed z position.
-      TH1F* fHdist;     // Seed distance to boundary.
-      TH1F* fHtheta;    // Theta.
-      TH1F* fHphi;      // Phi.
-      TH1F* fHtheta_xz; // Theta_xz.
-      TH1F* fHtheta_yz; // Theta_yz.
+      TH1F* fHx{nullptr};        // Seed x position.
+      TH1F* fHy{nullptr};        // Seed y position.
+      TH1F* fHz{nullptr};        // Seed z position.
+      TH1F* fHdist{nullptr};     // Seed distance to boundary.
+      TH1F* fHtheta{nullptr};    // Theta.
+      TH1F* fHphi{nullptr};      // Phi.
+      TH1F* fHtheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHtheta_yz{nullptr}; // Theta_yz.
     };
 
     // Struct for mc particles and mc-matched tracks.
 
     struct MCHists {
-      // Constructors.
-
-      MCHists();
       MCHists(const std::string& subdir);
 
       // Reco-MC matching.
 
-      TH2F* fHduvcosth; // 2D mc vs. data matching, duv vs. cos(theta).
-      TH1F* fHcosth;    // 1D direction matching, cos(theta).
-      TH1F* fHmcu;      // 1D endpoint truth u.
-      TH1F* fHmcv;      // 1D endpoint truth v.
-      TH1F* fHmcw;      // 1D endpoint truth w.
-      TH1F* fHmcdudw;   // Truth du/dw.
-      TH1F* fHmcdvdw;   // Truth dv/dw.
+      TH2F* fHduvcosth{nullptr}; // 2D mc vs. data matching, duv vs. cos(theta).
+      TH1F* fHcosth{nullptr};    // 1D direction matching, cos(theta).
+      TH1F* fHmcu{nullptr};      // 1D endpoint truth u.
+      TH1F* fHmcv{nullptr};      // 1D endpoint truth v.
+      TH1F* fHmcw{nullptr};      // 1D endpoint truth w.
+      TH1F* fHmcdudw{nullptr};   // Truth du/dw.
+      TH1F* fHmcdvdw{nullptr};   // Truth dv/dw.
 
       // Pure MC particle histograms (efficiency denominator).
 
-      TH1F* fHmcstartx;   // Starting x position.
-      TH1F* fHmcstarty;   // Starting y position.
-      TH1F* fHmcstartz;   // Starting z position.
-      TH1F* fHmcendx;     // Ending x position.
-      TH1F* fHmcendy;     // Ending y position.
-      TH1F* fHmcendz;     // Ending z position.
-      TH1F* fHmctheta;    // Theta.
-      TH1F* fHmcphi;      // Phi.
-      TH1F* fHmctheta_xz; // Theta_xz.
-      TH1F* fHmctheta_yz; // Theta_yz.
-      TH1F* fHmcmom;      // Momentum.
-      TH1F* fHmclen;      // Length.
+      TH1F* fHmcstartx{nullptr};   // Starting x position.
+      TH1F* fHmcstarty{nullptr};   // Starting y position.
+      TH1F* fHmcstartz{nullptr};   // Starting z position.
+      TH1F* fHmcendx{nullptr};     // Ending x position.
+      TH1F* fHmcendy{nullptr};     // Ending y position.
+      TH1F* fHmcendz{nullptr};     // Ending z position.
+      TH1F* fHmctheta{nullptr};    // Theta.
+      TH1F* fHmcphi{nullptr};      // Phi.
+      TH1F* fHmctheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHmctheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHmcmom{nullptr};      // Momentum.
+      TH1F* fHmclen{nullptr};      // Length.
 
       // Matched seed histograms (multiplicity numerator).
 
-      TH1F* fHmstartx;   // Starting x position.
-      TH1F* fHmstarty;   // Starting y position.
-      TH1F* fHmstartz;   // Starting z position.
-      TH1F* fHmendx;     // Ending x position.
-      TH1F* fHmendy;     // Ending y position.
-      TH1F* fHmendz;     // Ending z position.
-      TH1F* fHmtheta;    // Theta.
-      TH1F* fHmphi;      // Phi.
-      TH1F* fHmtheta_xz; // Theta_xz.
-      TH1F* fHmtheta_yz; // Theta_yz.
-      TH1F* fHmmom;      // Momentum.
-      TH1F* fHmlen;      // Length.
+      TH1F* fHmstartx{nullptr};   // Starting x position.
+      TH1F* fHmstarty{nullptr};   // Starting y position.
+      TH1F* fHmstartz{nullptr};   // Starting z position.
+      TH1F* fHmendx{nullptr};     // Ending x position.
+      TH1F* fHmendy{nullptr};     // Ending y position.
+      TH1F* fHmendz{nullptr};     // Ending z position.
+      TH1F* fHmtheta{nullptr};    // Theta.
+      TH1F* fHmphi{nullptr};      // Phi.
+      TH1F* fHmtheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHmtheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHmmom{nullptr};      // Momentum.
+      TH1F* fHmlen{nullptr};      // Length.
 
       // Matched seed histograms (efficiency numerator).
 
-      TH1F* fHgstartx;   // Starting x position.
-      TH1F* fHgstarty;   // Starting y position.
-      TH1F* fHgstartz;   // Starting z position.
-      TH1F* fHgendx;     // Ending x position.
-      TH1F* fHgendy;     // Ending y position.
-      TH1F* fHgendz;     // Ending z position.
-      TH1F* fHgtheta;    // Theta.
-      TH1F* fHgphi;      // Phi.
-      TH1F* fHgtheta_xz; // Theta_xz.
-      TH1F* fHgtheta_yz; // Theta_yz.
-      TH1F* fHgmom;      // Momentum.
-      TH1F* fHglen;      // Length.
+      TH1F* fHgstartx{nullptr};   // Starting x position.
+      TH1F* fHgstarty{nullptr};   // Starting y position.
+      TH1F* fHgstartz{nullptr};   // Starting z position.
+      TH1F* fHgendx{nullptr};     // Ending x position.
+      TH1F* fHgendy{nullptr};     // Ending y position.
+      TH1F* fHgendz{nullptr};     // Ending z position.
+      TH1F* fHgtheta{nullptr};    // Theta.
+      TH1F* fHgphi{nullptr};      // Phi.
+      TH1F* fHgtheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHgtheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHgmom{nullptr};      // Momentum.
+      TH1F* fHglen{nullptr};      // Length.
 
       // Multiplicity histograms.
 
-      TH1F* fHmulstartx;   // Starting x position.
-      TH1F* fHmulstarty;   // Starting y position.
-      TH1F* fHmulstartz;   // Starting z position.
-      TH1F* fHmulendx;     // Ending x position.
-      TH1F* fHmulendy;     // Ending y position.
-      TH1F* fHmulendz;     // Ending z position.
-      TH1F* fHmultheta;    // Theta.
-      TH1F* fHmulphi;      // Phi.
-      TH1F* fHmultheta_xz; // Theta_xz.
-      TH1F* fHmultheta_yz; // Theta_yz.
-      TH1F* fHmulmom;      // Momentum.
-      TH1F* fHmullen;      // Length.
+      TH1F* fHmulstartx{nullptr};   // Starting x position.
+      TH1F* fHmulstarty{nullptr};   // Starting y position.
+      TH1F* fHmulstartz{nullptr};   // Starting z position.
+      TH1F* fHmulendx{nullptr};     // Ending x position.
+      TH1F* fHmulendy{nullptr};     // Ending y position.
+      TH1F* fHmulendz{nullptr};     // Ending z position.
+      TH1F* fHmultheta{nullptr};    // Theta.
+      TH1F* fHmulphi{nullptr};      // Phi.
+      TH1F* fHmultheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHmultheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHmulmom{nullptr};      // Momentum.
+      TH1F* fHmullen{nullptr};      // Length.
 
       // Efficiency histograms.
 
-      TH1F* fHestartx;   // Starting x position.
-      TH1F* fHestarty;   // Starting y position.
-      TH1F* fHestartz;   // Starting z position.
-      TH1F* fHeendx;     // Ending x position.
-      TH1F* fHeendy;     // Ending y position.
-      TH1F* fHeendz;     // Ending z position.
-      TH1F* fHetheta;    // Theta.
-      TH1F* fHephi;      // Phi.
-      TH1F* fHetheta_xz; // Theta_xz.
-      TH1F* fHetheta_yz; // Theta_yz.
-      TH1F* fHemom;      // Momentum.
-      TH1F* fHelen;      // Length.
+      TH1F* fHestartx{nullptr};   // Starting x position.
+      TH1F* fHestarty{nullptr};   // Starting y position.
+      TH1F* fHestartz{nullptr};   // Starting z position.
+      TH1F* fHeendx{nullptr};     // Ending x position.
+      TH1F* fHeendy{nullptr};     // Ending y position.
+      TH1F* fHeendz{nullptr};     // Ending z position.
+      TH1F* fHetheta{nullptr};    // Theta.
+      TH1F* fHephi{nullptr};      // Phi.
+      TH1F* fHetheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHetheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHemom{nullptr};      // Momentum.
+      TH1F* fHelen{nullptr};      // Length.
     };
 
-    // Constructors, destructor
-
     explicit SeedAna(fhicl::ParameterSet const& pset);
-    virtual ~SeedAna();
 
   private:
-    // Overrides.
-
-    void analyze(const art::Event& evt);
-    void endJob();
+    void analyze(const art::Event& evt) override;
+    void endJob() override;
 
     // Fcl Attributes.
 
@@ -387,29 +370,11 @@ namespace trkf {
 
   // RecoHists methods.
 
-  SeedAna::RecoHists::RecoHists()
-    : //
-    // Purpose: Default constructor.
-    //
-    fHx(0)
-    , fHy(0)
-    , fHz(0)
-    , fHdist(0)
-    , fHtheta(0)
-    , fHphi(0)
-    , fHtheta_xz(0)
-    , fHtheta_yz(0)
-  {}
-
   SeedAna::RecoHists::RecoHists(const std::string& subdir)
   //
   // Purpose: Initializing constructor.
   //
   {
-    // Make sure all histogram pointers are initially zero.
-
-    *this = RecoHists();
-
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
@@ -436,88 +401,11 @@ namespace trkf {
 
   // MCHists methods.
 
-  SeedAna::MCHists::MCHists()
-    : //
-    // Purpose: Default constructor.
-    //
-    fHduvcosth(0)
-    , fHcosth(0)
-    , fHmcu(0)
-    , fHmcv(0)
-    , fHmcw(0)
-    , fHmcdudw(0)
-    , fHmcdvdw(0)
-    , fHmcstartx(0)
-    , fHmcstarty(0)
-    , fHmcstartz(0)
-    , fHmcendx(0)
-    , fHmcendy(0)
-    , fHmcendz(0)
-    , fHmctheta(0)
-    , fHmcphi(0)
-    , fHmctheta_xz(0)
-    , fHmctheta_yz(0)
-    , fHmcmom(0)
-    , fHmclen(0)
-    , fHmstartx(0)
-    , fHmstarty(0)
-    , fHmstartz(0)
-    , fHmendx(0)
-    , fHmendy(0)
-    , fHmendz(0)
-    , fHmtheta(0)
-    , fHmphi(0)
-    , fHmtheta_xz(0)
-    , fHmtheta_yz(0)
-    , fHmmom(0)
-    , fHmlen(0)
-    , fHgstartx(0)
-    , fHgstarty(0)
-    , fHgstartz(0)
-    , fHgendx(0)
-    , fHgendy(0)
-    , fHgendz(0)
-    , fHgtheta(0)
-    , fHgphi(0)
-    , fHgtheta_xz(0)
-    , fHgtheta_yz(0)
-    , fHgmom(0)
-    , fHglen(0)
-    , fHmulstartx(0)
-    , fHmulstarty(0)
-    , fHmulstartz(0)
-    , fHmulendx(0)
-    , fHmulendy(0)
-    , fHmulendz(0)
-    , fHmultheta(0)
-    , fHmulphi(0)
-    , fHmultheta_xz(0)
-    , fHmultheta_yz(0)
-    , fHmulmom(0)
-    , fHmullen(0)
-    , fHestartx(0)
-    , fHestarty(0)
-    , fHestartz(0)
-    , fHeendx(0)
-    , fHeendy(0)
-    , fHeendz(0)
-    , fHetheta(0)
-    , fHephi(0)
-    , fHetheta_xz(0)
-    , fHetheta_yz(0)
-    , fHemom(0)
-    , fHelen(0)
-  {}
-
   SeedAna::MCHists::MCHists(const std::string& subdir)
   //
   // Purpose: Initializing constructor.
   //
   {
-    // Make sure all histogram pointers are initially zero.
-
-    *this = MCHists();
-
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
@@ -674,9 +562,6 @@ namespace trkf {
     , fIgnoreSign(pset.get<bool>("IgnoreSign"))
     , fNumEvent(0)
   {
-
-    // Report.
-
     mf::LogInfo("SeedAna") << "SeedAna configured with the following parameters:\n"
                            << "  SeedModuleLabel = " << fSeedModuleLabel << "\n"
                            << "  MCTrackModuleLabel = " << fMCTrackModuleLabel << "\n"
@@ -684,12 +569,6 @@ namespace trkf {
                            << "  MinMCKE = " << fMinMCKE << "\n"
                            << "  MinMCLen = " << fMinMCLen;
   }
-
-  SeedAna::~SeedAna()
-  //
-  // Purpose: Destructor.
-  //
-  {}
 
   void
   SeedAna::analyze(const art::Event& evt)
@@ -718,9 +597,6 @@ namespace trkf {
     art::Handle<std::vector<recob::Seed>> seedh;
     evt.getByLabel(fSeedModuleLabel, seedh);
 
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
     // Seed->mc track matching map.
 
     std::map<const recob::Seed*, int> seedmap;
@@ -744,6 +620,8 @@ namespace trkf {
 
       // Loop over mc tracks, and fill histograms that depend only
       // on mc particles.
+      auto const detProp =
+        art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
       for (std::vector<sim::MCTrack>::const_iterator imctrk = mctrackh->begin();
            imctrk != mctrackh->end();
@@ -766,8 +644,8 @@ namespace trkf {
 
             // Calculate the x offset due to nonzero mc particle time.
 
-            double mctime = mctrk.Start().T();                       // nsec
-            double mcdx = mctime * 1.e-3 * detprop->DriftVelocity(); // cm
+            double mctime = mctrk.Start().T();                      // nsec
+            double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
             // Calculate the length of this mc particle inside the fiducial volume.
 
@@ -775,7 +653,7 @@ namespace trkf {
             TVector3 mcend;
             TVector3 mcstartmom;
             TVector3 mcendmom;
-            double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+            double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
             // Apply minimum fiducial length cut.  Always reject particles that have
             // zero length in the tpc regardless of the configured cut.
@@ -820,9 +698,9 @@ namespace trkf {
               if (fMCHistMap.count(pdg) == 0) {
                 std::ostringstream ostr;
                 ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
-                fMCHistMap[pdg] = MCHists(ostr.str());
+                fMCHistMap.emplace(pdg, MCHists{ostr.str()});
               }
-              const MCHists& mchists = fMCHistMap[pdg];
+              const MCHists& mchists = fMCHistMap.at(pdg);
 
               double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
               double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
@@ -888,7 +766,7 @@ namespace trkf {
 
                   // Get best matching mc trajectory point.
 
-                  int itraj = mcmatch(mctrk, seed);
+                  int itraj = mcmatch(detProp, mctrk, seed);
                   if (itraj >= 0) {
 
                     // Get mc relative position and direction at matching trajectory point.
@@ -1037,8 +915,8 @@ namespace trkf {
 
         // Fill histograms.
 
-        if (fRecoHistMap.count(0) == 0) fRecoHistMap[0] = RecoHists("Reco");
-        const RecoHists& rhists = fRecoHistMap[0];
+        if (fRecoHistMap.count(0) == 0) fRecoHistMap.emplace(0, RecoHists{"Reco"});
+        const RecoHists& rhists = fRecoHistMap.at(0);
 
         rhists.fHx->Fill(pos.X());
         rhists.fHy->Fill(pos.Y());

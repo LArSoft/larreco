@@ -22,6 +22,10 @@
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
 
+namespace util {
+  class GeometryUtilities;
+}
+
 /// Cluster reconstruction namespace
 namespace cluster {
 
@@ -98,10 +102,7 @@ namespace cluster {
     /// Type used to return values with errors
     using Measure_t = details::Measure_t<float>;
 
-    // no constructor provided for the abstract class
-
-    /// Virtual destructor. Override freely.
-    virtual ~ClusterParamsAlgBase() {}
+    virtual ~ClusterParamsAlgBase() = default;
 
     /**
      * @brief Restores the class to post-configuration, pre-initialization state
@@ -130,7 +131,8 @@ namespace cluster {
      * This is left to the implementation, that might still implement a
      * different strategy.
      */
-    virtual void SetHits(std::vector<recob::Hit const*> const& hits) = 0;
+    virtual void SetHits(util::GeometryUtilities const& gser,
+                         std::vector<recob::Hit const*> const& hits) = 0;
 
     /**
      * @brief Sets the list of input hits
@@ -150,7 +152,7 @@ namespace cluster {
      * this to initialize the algorithm in a more direct way.
      */
     virtual void
-    SetHits(std::vector<recob::Hit> const& hits)
+    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits)
     {
       std::vector<recob::Hit const*> hitptrs;
       hitptrs.reserve(hits.size());
@@ -158,7 +160,7 @@ namespace cluster {
                      hits.end(),
                      std::back_inserter(hitptrs),
                      [](recob::Hit const& hit) { return &hit; });
-      SetHits(hitptrs);
+      SetHits(gser, hitptrs);
     }
 
     /// Set the verbosity level
@@ -174,12 +176,12 @@ namespace cluster {
      * @return the charge in ADC counts, with uncertainty
      */
     virtual Measure_t
-    StartCharge()
+    StartCharge(util::GeometryUtilities const& gser)
     {
       throw NotImplemented(__func__);
     }
     virtual Measure_t
-    EndCharge()
+    EndCharge(util::GeometryUtilities const& gser)
     {
       throw NotImplemented(__func__);
     }
@@ -299,7 +301,7 @@ namespace cluster {
      *
      */
     virtual float
-    Width()
+    Width(util::GeometryUtilities const&)
     {
       throw NotImplemented(__func__);
     }

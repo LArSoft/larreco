@@ -25,6 +25,10 @@ namespace geo {
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 namespace cluster {
 
@@ -107,10 +111,11 @@ namespace cluster {
       unsigned short ProcCode;
     };
 
-    ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
+    explicit ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void RunCrawler(std::vector<recob::Hit> const& srchits);
+    void RunCrawler(detinfo::DetectorClocksData const& clock_data,
+                    detinfo::DetectorPropertiesData const& det_prop,
+                    std::vector<recob::Hit> const& srchits);
 
     /// @{
     /// @name Result retrieval
@@ -224,12 +229,12 @@ namespace cluster {
     std::vector<geo::WireID> fFilteredWires;
 
     // these variables define the cluster used during crawling
-    float clpar[3];     ///< cluster parameters for the current fit with
-                        ///< origin at the US wire on the cluster (in clpar[2])
-    float clparerr[2];  ///< cluster parameter errors
-    float clChisq;      ///< chisq of the current fit
-    float fAveChg;      ///< average charge at leading edge of cluster
-                        //  float fChgRMS;  ///< average charge RMS at leading edge of cluster
+    float clpar[3];    ///< cluster parameters for the current fit with
+                       ///< origin at the US wire on the cluster (in clpar[2])
+    float clparerr[2]; ///< cluster parameter errors
+    float clChisq;     ///< chisq of the current fit
+    float fAveChg;     ///< average charge at leading edge of cluster
+    //  float fChgRMS;  ///< average charge RMS at leading edge of cluster
     float fChgSlp;      ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
 
@@ -412,13 +417,20 @@ namespace cluster {
     // ************** 3D vertex routines *******************
 
     // match vertices between planes
-    void VtxMatch(geo::TPCID const& tpcid);
+    void VtxMatch(detinfo::DetectorClocksData const& clock_data,
+                  detinfo::DetectorPropertiesData const& det_prop,
+                  geo::TPCID const& tpcid);
     // Match clusters to endpoints using 3D vertex information
-    void Vtx3ClusterMatch(geo::TPCID const& tpcid);
+    void Vtx3ClusterMatch(detinfo::DetectorClocksData const& clock_data,
+                          detinfo::DetectorPropertiesData const& det_prop,
+                          geo::TPCID const& tpcid);
     // split clusters using 3D vertex information
-    void Vtx3ClusterSplit(geo::TPCID const& tpcid);
+    void Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
+                          detinfo::DetectorPropertiesData const& det_prop,
+                          geo::TPCID const& tpcid);
     // look for a long cluster that stops at a short cluster in two views
-    void FindHammerClusters();
+    void FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
+                            detinfo::DetectorPropertiesData const& det_prop);
 
     // ************** utility routines *******************
 

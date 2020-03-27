@@ -28,7 +28,7 @@ namespace lar_cluster3d {
   /**
  *  @brief  PCASeedFinderAlg class
  */
-  class PCASeedFinderAlg : virtual public SeedFinderAlgBase {
+  class PCASeedFinderAlg final : public SeedFinderAlgBase {
   public:
     /**
      *  @brief  Constructor
@@ -38,21 +38,11 @@ namespace lar_cluster3d {
     PCASeedFinderAlg(fhicl::ParameterSet const& pset);
 
     /**
-     *  @brief  Destructor
-     */
-    virtual ~PCASeedFinderAlg();
-
-    /**
-     *  @brief a handler for the case where the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
-
-    /**
      *  @brief Given the list of hits this will search for candidate Seed objects and return them
      */
-    virtual bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
-                                reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec& seedHitMap) const;
+    bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
+                        reco::PrincipalComponents& inputPCA,
+                        SeedHitPairListPairVec& seedHitMap) const override;
 
   private:
     /**
@@ -67,7 +57,6 @@ namespace lar_cluster3d {
                        double& ChiDOF) const;
 
     geo::Geometry const* m_geometry; // pointer to the Geometry service
-    //    const detinfo::DetectorProperties*    m_detector;         // Pointer to the detector properties
 
     double m_gapDistance;      ///<
     size_t m_numSeed2DHits;    ///<

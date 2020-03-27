@@ -15,7 +15,9 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/AnalysisBase/ParticleID.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -24,8 +26,6 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
-
-#include "lardataobj/AnalysisBase/ParticleID.h"
 
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardataobj/MCBase/MCTrack.h"
@@ -291,7 +291,6 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(
 void
 trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
 {
-
   auto outputTracks = std::make_unique<std::vector<recob::Track>>();
   auto outputHitsMeta =
     std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>>();
@@ -323,8 +322,9 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
                        mctrack.Start().Momentum().Z() * 0.001 / pMC);
       break;
     }
-    //std::cout << "mc momentum value = " << pval << " GeV" << std::endl;
   }
+
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e);
 
   if (inputFromPF) {
 
@@ -373,7 +373,8 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
           std::vector<art::Ptr<recob::Hit>> outHits;
           trkmkr::OptionalOutputs optionals;
           if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-          bool fitok = kalmanFitter.fitTrack(track.Trajectory(),
+          bool fitok = kalmanFitter.fitTrack(detProp,
+                                             track.Trajectory(),
                                              track.ID(),
                                              track.VertexCovarianceLocal5D(),
                                              track.EndCovarianceLocal5D(),
@@ -424,18 +425,8 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
           else if (inHits.size() > 0)
             break;
         }
-        //auto const& shHitsAssn = *e.getValidHandle<art::Assns<recob::Shower, recob::Hit> >(showerInputTag);
         for (unsigned int iShower = 0; iShower < showers.size(); ++iShower) {
-          //
           const recob::Shower& shower = *showers[iShower];
-          // art::Ptr<recob::Shower> pshower = showers[iShower];
-          // //this is not computationally optimal, but at least preserves the order unlike FindManyP
-          // std::vector<art::Ptr<recob::Hit> > inHits;
-          // for (auto it = shHitsAssn.begin(); it!=shHitsAssn.end(); ++it) {
-          //   if (it->first == pshower) inHits.push_back(it->second);
-          //   else if (inHits.size()>0) break;
-          // }
-
           recob::Track outTrack;
           std::vector<art::Ptr<recob::Hit>> outHits;
           trkmkr::OptionalOutputs optionals;
@@ -445,7 +436,8 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
           auto cov = SMatrixSym55();
           auto pid = p_().options().pdgId();
           auto mom = p_().options().pval();
-          bool fitok = kalmanFitter.fitTrack(pos,
+          bool fitok = kalmanFitter.fitTrack(detProp,
+                                             pos,
                                              dir,
                                              cov,
                                              inHits,
@@ -527,7 +519,8 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
       std::vector<art::Ptr<recob::Hit>> outHits;
       trkmkr::OptionalOutputs optionals;
       if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-      bool fitok = kalmanFitter.fitTrack(track.Trajectory(),
+      bool fitok = kalmanFitter.fitTrack(detProp,
+                                         track.Trajectory(),
                                          track.ID(),
                                          track.VertexCovarianceLocal5D(),
                                          track.EndCovarianceLocal5D(),

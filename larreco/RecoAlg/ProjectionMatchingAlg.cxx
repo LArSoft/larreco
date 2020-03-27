@@ -4,45 +4,50 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
-#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
-
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
+#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include "lardata/ArtDataHelper/ToElement.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TH1F.h"
 
+#include "range/v3/view.hpp"
+
+using lar::to_element;
+using namespace ranges;
+
+namespace {
+  constexpr double step{0.3};
+}
+
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
-  : fGeom(&*(art::ServiceHandle<geo::Geometry const>()))
-  , fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+  : fOptimizationEps{config.OptimizationEps()}
+  , fFineTuningEps{config.FineTuningEps()}
+  , fTrkValidationDist2D{config.TrkValidationDist2D()}
+  , fHitTestingDist2D{config.HitTestingDist2D()}
+  , fMinTwoViewFraction{config.MinTwoViewFraction()}
+  , fGeom{lar::providerFrom<geo::Geometry>()}
 {
-  fOptimizationEps = config.OptimizationEps();
-  fFineTuningEps = config.FineTuningEps();
-
-  fTrkValidationDist2D = config.TrkValidationDist2D();
-  fHitTestingDist2D = config.HitTestingDist2D();
-
-  fMinTwoViewFraction = config.MinTwoViewFraction();
-
   pma::Node3D::SetMargin(config.NodeMargin3D());
 
   pma::Element3D::SetOptFactor(geo::kU, config.HitWeightU());
   pma::Element3D::SetOptFactor(geo::kV, config.HitWeightV());
   pma::Element3D::SetOptFactor(geo::kZ, config.HitWeightZ());
-
-  fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
 // ------------------------------------------------------
 
 double
-pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
+pma::ProjectionMatchingAlg::validate_on_adc(const detinfo::DetectorPropertiesData& detProp,
+                                            const lariov::ChannelStatusProvider& channelStatus,
+                                            const pma::Track3D& trk,
                                             const img::DataProviderAlg& adcImage,
-                                            float thr) const
+                                            float const thr) const
 {
   unsigned int nAll = 0, nPassed = 0;
   unsigned int testPlane = adcImage.Plane();
@@ -50,12 +55,6 @@ pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
   std::vector<unsigned int> trkTPCs = trk.TPCs();
   std::vector<unsigned int> trkCryos = trk.Cryos();
 
-  unsigned int tpc, cryo;
-
-  auto const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-
-  double step = 0.3;
   // check how pixels with a high signal are distributed along the track
   // namely: are there track sections crossing empty spaces, except dead wires?
   pma::Vector3D p(
@@ -71,8 +70,8 @@ pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
 
     pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
 
-    tpc = seg->TPC();
-    cryo = seg->Cryo();
+    unsigned tpc = seg->TPC();
+    unsigned cryo = seg->Cryo();
 
     pma::Vector3D dc = step * seg->GetDirection3D();
 
@@ -82,7 +81,7 @@ pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
       geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
 
       int widx = (int)p2d.X();
-      int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
+      int didx = (int)detProp.ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
 
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
@@ -92,17 +91,14 @@ pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
 
           nAll++;
         }
-        //else mf::LogVerbatim("ProjectionMatchingAlg")
-        //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
       }
 
       p += dc;
       f = pma::GetSegmentProjVector(p, p0, p1);
     }
 
-    p =
-      seg
-        ->End(); // need to have it at the end due to the p in the first iter set to the hit position, not segment start
+    p = seg->End(); // need to have it at the end due to the p in the first iter
+                    // set to the hit position, not segment start
   }
 
   if (nAll > 0) {
@@ -110,13 +106,27 @@ pma::ProjectionMatchingAlg::validate_on_adc(const pma::Track3D& trk,
     mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
     return v;
   }
-  else
-    return 1.0;
+
+  return 1.0;
 }
+
+namespace {
+  struct hits_on_plane {
+    bool
+    operator()(recob::Hit const& hit) const
+    {
+      return hit.WireID().Plane == plane_;
+    }
+    unsigned int const plane_;
+  };
+}
+
 // ------------------------------------------------------
 
 double
-pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
+pma::ProjectionMatchingAlg::validate_on_adc_test(const detinfo::DetectorPropertiesData& detProp,
+                                                 const lariov::ChannelStatusProvider& channelStatus,
+                                                 const pma::Track3D& trk,
                                                  const img::DataProviderAlg& adcImage,
                                                  const std::vector<art::Ptr<recob::Hit>>& hits,
                                                  TH1F* histoPassing,
@@ -131,42 +141,37 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
   std::vector<unsigned int> trkCryos = trk.Cryos();
   std::map<std::pair<unsigned int, unsigned int>, std::pair<TVector2, TVector2>> ranges;
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
-  for (auto c : trkCryos)
-    for (auto t : trkTPCs) {
-      ranges[std::pair<unsigned int, unsigned int>(t, c)] = trk.WireDriftRange(testPlane, t, c);
-      wirePitch[std::pair<unsigned int, unsigned int>(t, c)] =
-        fGeom->TPC(t, c).Plane(testPlane).WirePitch();
-    }
+  for (auto const& [t, c] : view::cartesian_product(trkTPCs, trkCryos)) {
+    ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
+    wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
+  }
 
   unsigned int tpc, cryo;
   std::map<std::pair<unsigned int, unsigned int>, std::vector<pma::Vector2D>> all_close_points;
 
-  for (const auto h : hits)
-    if (h->WireID().Plane == testPlane) {
-      tpc = h->WireID().TPC;
-      cryo = h->WireID().Cryostat;
-      std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
-      std::pair<TVector2, TVector2> rect = ranges[tpc_cryo];
+  for (auto const& h :
+       hits | view::transform(to_element) | view::filter(hits_on_plane{testPlane})) {
+    tpc = h.WireID().TPC;
+    cryo = h.WireID().Cryostat;
+    std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
+    std::pair<TVector2, TVector2> rect = ranges[tpc_cryo];
 
-      if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
-          (h->WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
-          (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
-          (h->PeakTime() < rect.second.Y() + 100)) {
-        TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire,
-                     fDetProp->ConvertTicksToX(h->PeakTime(), testPlane, tpc, cryo));
+    if ((h.WireID().Wire > rect.first.X() - 10) &&  // check only hits in the rectangle around
+        (h.WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
+        (h.PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
+        (h.PeakTime() < rect.second.Y() + 100)) {
+      TVector2 p2d(wirePitch[tpc_cryo] * h.WireID().Wire,
+                   detProp.ConvertTicksToX(h.PeakTime(), testPlane, tpc, cryo));
 
-        d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
+      d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
 
-        if (d2 < max_d2) { all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y()); }
-      }
+      if (d2 < max_d2) { all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y()); }
     }
+  }
 
-  auto const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-
-  double step = 0.3;
-  // then check how points-close-to-the-track-projection are distributed along the
-  // track, namely: are there track sections crossing empty spaces, except dead wires?
+  // then check how points-close-to-the-track-projection are distributed along
+  // the track, namely: are there track sections crossing empty spaces, except
+  // dead wires?
   pma::Vector3D p(
     trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
   for (auto const* seg : trk.Segments()) {
@@ -185,7 +190,7 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
 
     pma::Vector3D dc = step * seg->GetDirection3D();
 
-    auto const& points = all_close_points[std::pair<unsigned int, unsigned int>(tpc, cryo)];
+    auto const& points = all_close_points[{tpc, cryo}];
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
@@ -195,7 +200,7 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
       geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
 
       int widx = (int)p2d.X();
-      int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
+      int didx = (int)detProp.ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
 
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
@@ -239,13 +244,16 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
     mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
     return v;
   }
-  else
-    return 1.0;
+
+  return 1.0;
 }
+
 // ------------------------------------------------------
 
 double
-pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
+pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detProp,
+                                     const lariov::ChannelStatusProvider& channelStatus,
+                                     const pma::Track3D& trk,
                                      const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   if (hits.empty()) { return 0; }
@@ -259,42 +267,37 @@ pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
   std::vector<unsigned int> trkCryos = trk.Cryos();
   std::map<std::pair<unsigned int, unsigned int>, std::pair<TVector2, TVector2>> ranges;
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
-  for (auto c : trkCryos)
-    for (auto t : trkTPCs) {
-      ranges[std::pair<unsigned int, unsigned int>(t, c)] = trk.WireDriftRange(testPlane, t, c);
-      wirePitch[std::pair<unsigned int, unsigned int>(t, c)] =
-        fGeom->TPC(t, c).Plane(testPlane).WirePitch();
-    }
+  for (auto const& [t, c] : view::cartesian_product(trkTPCs, trkCryos)) {
+    ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
+    wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
+  }
 
   unsigned int tpc, cryo;
   std::map<std::pair<unsigned int, unsigned int>, std::vector<pma::Vector2D>> all_close_points;
 
-  for (const auto h : hits)
-    if (h->WireID().Plane == testPlane) {
-      tpc = h->WireID().TPC;
-      cryo = h->WireID().Cryostat;
-      std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
-      std::pair<TVector2, TVector2> rect = ranges[tpc_cryo];
+  for (auto const& h :
+       hits | view::transform(to_element) | view::filter(hits_on_plane{testPlane})) {
+    tpc = h.WireID().TPC;
+    cryo = h.WireID().Cryostat;
+    std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
+    std::pair<TVector2, TVector2> rect = ranges[tpc_cryo];
 
-      if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
-          (h->WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
-          (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
-          (h->PeakTime() < rect.second.Y() + 100)) {
-        TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire,
-                     fDetProp->ConvertTicksToX(h->PeakTime(), testPlane, tpc, cryo));
+    if ((h.WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
+        (h.WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
+        (h.PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
+        (h.PeakTime() < rect.second.Y() + 100)) {
+      TVector2 p2d(wirePitch[tpc_cryo] * h.WireID().Wire,
+                   detProp.ConvertTicksToX(h.PeakTime(), testPlane, tpc, cryo));
 
-        d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
+      d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
 
-        if (d2 < max_d2) all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y());
-      }
+      if (d2 < max_d2) all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y());
     }
+  }
 
-  auto const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-
-  double step = 0.3;
-  // then check how points-close-to-the-track-projection are distributed along the
-  // track, namely: are there track sections crossing empty spaces, except dead wires?
+  // then check how points-close-to-the-track-projection are distributed along
+  // the track, namely: are there track sections crossing empty spaces, except
+  // dead wires?
   pma::Vector3D p(
     trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
   for (auto const* seg : trk.Segments()) {
@@ -313,7 +316,7 @@ pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 
     pma::Vector3D dc = step * seg->GetDirection3D();
 
-    auto const& points = all_close_points[std::pair<unsigned int, unsigned int>(tpc, cryo)];
+    auto const& points = all_close_points[{tpc, cryo}];
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
@@ -351,20 +354,21 @@ pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
     mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
     return v;
   }
-  else
-    return 1.0;
+
+  return 1.0;
 }
 // ------------------------------------------------------
 
 double
-pma::ProjectionMatchingAlg::validate(const TVector3& p0,
+pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData const& detProp,
+                                     const lariov::ChannelStatusProvider& channelStatus,
+                                     const TVector3& p0,
                                      const TVector3& p1,
                                      const std::vector<art::Ptr<recob::Hit>>& hits,
                                      unsigned int testPlane,
                                      unsigned int tpc,
                                      unsigned int cryo) const
 {
-  double step = 0.3;
   double max_d = fTrkValidationDist2D;
   double d2, max_d2 = max_d * max_d;
   unsigned int nAll = 0, nPassed = 0;
@@ -373,9 +377,6 @@ pma::ProjectionMatchingAlg::validate(const TVector3& p0,
   TVector3 dc(p1);
   dc -= p;
   dc *= step / dc.Mag();
-
-  auto const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
   double f = pma::GetSegmentProjVector(p, p0, p1);
   double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
@@ -390,7 +391,8 @@ pma::ProjectionMatchingAlg::validate(const TVector3& p0,
           if ((h->WireID().Plane == testPlane) && (h->WireID().TPC == tpc) &&
               (h->WireID().Cryostat == cryo)) {
             d2 = pma::Dist2(
-              p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testPlane, tpc, cryo));
+              p2d,
+              pma::WireDriftToCm(detProp, h->WireID().Wire, h->PeakTime(), testPlane, tpc, cryo));
             if (d2 < max_d2) {
               nPassed++;
               break;
@@ -398,8 +400,6 @@ pma::ProjectionMatchingAlg::validate(const TVector3& p0,
           }
         nAll++;
       }
-      //else mf::LogVerbatim("ProjectionMatchingAlg")
-      //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
     }
 
     p += dc;
@@ -440,24 +440,21 @@ pma::ProjectionMatchingAlg::twoViewFraction(pma::Track3D& trk) const
 // ------------------------------------------------------
 
 size_t
-pma::ProjectionMatchingAlg::getSegCount(size_t trk_size)
+pma::ProjectionMatchingAlg::getSegCount_(size_t const trk_size)
 {
-  int nSegments = (int)(0.8 * trk_size / sqrt(trk_size));
-
-  if (nSegments > 1)
-    return (size_t)nSegments;
-  else
-    return 1;
+  int const nSegments = 0.8 * trk_size / sqrt(trk_size);
+  return std::max(size_t{1}, static_cast<size_t>(nSegments));
 }
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildTrack(const std::vector<art::Ptr<recob::Hit>>& hits_1,
+pma::ProjectionMatchingAlg::buildTrack(const detinfo::DetectorPropertiesData& detProp,
+                                       const std::vector<art::Ptr<recob::Hit>>& hits_1,
                                        const std::vector<art::Ptr<recob::Hit>>& hits_2) const
 {
   pma::Track3D* trk = new pma::Track3D(); // track candidate
-  trk->AddHits(hits_1);
-  trk->AddHits(hits_2);
+  trk->AddHits(detProp, hits_1);
+  trk->AddHits(detProp, hits_2);
 
   mf::LogVerbatim("ProjectionMatchingAlg") << "track size: " << trk->size();
   std::vector<unsigned int> tpcs = trk->TPCs();
@@ -468,11 +465,11 @@ pma::ProjectionMatchingAlg::buildTrack(const std::vector<art::Ptr<recob::Hit>>& 
     << "  #coll:" << trk->NHits(geo::kZ) << "  #ind2:" << trk->NHits(geo::kV)
     << "  #ind1:" << trk->NHits(geo::kU);
 
-  size_t nSegments = getSegCount(trk->size());
+  size_t nSegments = getSegCount_(trk->size());
   size_t nNodes = (size_t)(nSegments - 1); // n nodes to add
 
   mf::LogVerbatim("ProjectionMatchingAlg") << "  initialize trk";
-  if (!trk->Initialize()) {
+  if (!trk->Initialize(detProp)) {
     mf::LogWarning("ProjectionMatchingAlg") << "  initialization failed, delete trk";
     delete trk;
     return 0;
@@ -483,11 +480,12 @@ pma::ProjectionMatchingAlg::buildTrack(const std::vector<art::Ptr<recob::Hit>>& 
     double g = 0.0;
     mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (" << nSegments << " seg)";
     if (nNodes) {
-      g = trk->Optimize(nNodes, fOptimizationEps, false, true, 25, 10); // build nodes
+      g = trk->Optimize(detProp, nNodes, fOptimizationEps, false, true, 25,
+                        10); // build nodes
       mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
       trk->SelectAllHits();
     }
-    g = trk->Optimize(0, fFineTuningEps); // final tuning
+    g = trk->Optimize(detProp, 0, fFineTuningEps); // final tuning
     mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
 
     trk->SortHits();
@@ -503,7 +501,8 @@ pma::ProjectionMatchingAlg::buildTrack(const std::vector<art::Ptr<recob::Hit>>& 
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob::Hit>>& hits) const
+pma::ProjectionMatchingAlg::buildMultiTPCTrack(const detinfo::DetectorPropertiesData& detProp,
+                                               const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>> hits_by_tpc;
   for (auto const& h : hits) {
@@ -512,8 +511,7 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob:
 
   std::vector<pma::Track3D*> tracks;
   for (auto const& hsel : hits_by_tpc) {
-    //pma::Track3D* trk = buildTrack(hsel.second);
-    pma::Track3D* trk = buildSegment(hsel.second);
+    pma::Track3D* trk = buildSegment(detProp, hsel.second);
     if (trk) tracks.push_back(trk);
   }
 
@@ -565,14 +563,14 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob:
       default:
       case 0:
       case 1:
-        mergeTracks(*best, *first, false);
+        mergeTracks(detProp, *best, *first, false);
         tracks[0] = best;
         delete first;
         break;
 
       case 2:
       case 3:
-        mergeTracks(*first, *best, false);
+        mergeTracks(detProp, *first, *best, false);
         delete best;
         break;
       }
@@ -586,12 +584,12 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob:
   if (!tracks.empty()) {
     trk = tracks.front();
     if (need_reopt) {
-      double g = trk->Optimize(0, fOptimizationEps);
+      double g = trk->Optimize(detProp, 0, fOptimizationEps);
       mf::LogVerbatim("ProjectionMatchingAlg")
         << "  reopt after merging initial tpc segments: done, g = " << g;
     }
 
-    int nSegments = getSegCount(trk->size()) - trk->Segments().size() + 1;
+    int nSegments = getSegCount_(trk->size()) - trk->Segments().size() + 1;
     if (nSegments > 0) // need to add segments
     {
       double g = 0.0;
@@ -599,11 +597,12 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob:
       if (nNodes) {
         mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (add " << nSegments << " seg)";
 
-        g = trk->Optimize(nNodes, fOptimizationEps, false, true, 25, 10); // build nodes
+        g = trk->Optimize(detProp, nNodes, fOptimizationEps, false, true, 25,
+                          10); // build nodes
         mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
         trk->SelectAllHits();
       }
-      g = trk->Optimize(0, fFineTuningEps); // final tuning
+      g = trk->Optimize(detProp, 0, fFineTuningEps); // final tuning
       mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
     }
     trk->SortHits();
@@ -614,7 +613,8 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const std::vector<art::Ptr<recob:
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildShowerSeg(const std::vector<art::Ptr<recob::Hit>>& hits,
+pma::ProjectionMatchingAlg::buildShowerSeg(const detinfo::DetectorPropertiesData& detProp,
+                                           const std::vector<art::Ptr<recob::Hit>>& hits,
                                            const pma::Vector3D& vtx) const
 {
   double vtxarray[3]{vtx.X(), vtx.Y(), vtx.Z()};
@@ -658,7 +658,7 @@ pma::ProjectionMatchingAlg::buildShowerSeg(const std::vector<art::Ptr<recob::Hit
     TVector2 proj_pr = pma::GetProjectionToPlane(vtxv3, view, tpc, cryo);
 
     mf::LogVerbatim("ProjectionMatchinAlg") << "start filter out: ";
-    FilterOutSmallParts(2.0, hitsview, hitsfilter, proj_pr);
+    FilterOutSmallParts(detProp, 2.0, hitsview, hitsfilter, proj_pr);
     mf::LogVerbatim("ProjectionMatchingAlg") << "after filter out";
 
     for (size_t h = 0; h < hitsfilter.size(); ++h)
@@ -677,10 +677,10 @@ pma::ProjectionMatchingAlg::buildShowerSeg(const std::vector<art::Ptr<recob::Hit
   // hits are prepared, finally segment is built
 
   pma::Track3D* trk = new pma::Track3D();
-  trk = buildSegment(hitstrk, vtxv3);
+  trk = buildSegment(detProp, hitstrk, vtxv3);
 
   // make shorter segment to estimate direction more precise
-  ShortenSeg(*trk, tpcgeom);
+  ShortenSeg_(detProp, *trk, tpcgeom);
 
   if (trk->size() < 10) {
     mf::LogWarning("ProjectionMatchingAlg") << "too short segment, delete segment";
@@ -694,7 +694,8 @@ pma::ProjectionMatchingAlg::buildShowerSeg(const std::vector<art::Ptr<recob::Hit
 // ------------------------------------------------------
 
 void
-pma::ProjectionMatchingAlg::FilterOutSmallParts(double r2d,
+pma::ProjectionMatchingAlg::FilterOutSmallParts(const detinfo::DetectorPropertiesData& detProp,
+                                                double r2d,
                                                 const std::vector<art::Ptr<recob::Hit>>& hits_in,
                                                 std::vector<art::Ptr<recob::Hit>>& hits_out,
                                                 const TVector2& vtx2d) const
@@ -709,12 +710,13 @@ pma::ProjectionMatchingAlg::FilterOutSmallParts(double r2d,
   float mindist2 = 99999.99;
   size_t id_sub_groups_save = 0;
   size_t id = 0;
-  while (GetCloseHits(r2d, hits_in, used, close_hits)) {
+  while (GetCloseHits_(detProp, r2d, hits_in, used, close_hits)) {
 
     sub_groups.emplace_back(close_hits);
 
     for (size_t h = 0; h < close_hits.size(); ++h) {
-      TVector2 hi_cm = pma::WireDriftToCm(close_hits[h]->WireID().Wire,
+      TVector2 hi_cm = pma::WireDriftToCm(detProp,
+                                          close_hits[h]->WireID().Wire,
                                           close_hits[h]->PeakTime(),
                                           close_hits[h]->WireID().Plane,
                                           close_hits[h]->WireID().TPC,
@@ -747,17 +749,18 @@ pma::ProjectionMatchingAlg::FilterOutSmallParts(double r2d,
 // ------------------------------------------------------
 
 bool
-pma::ProjectionMatchingAlg::GetCloseHits(double r2d,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits_in,
-                                         std::vector<size_t>& used,
-                                         std::vector<art::Ptr<recob::Hit>>& hits_out) const
+pma::ProjectionMatchingAlg::GetCloseHits_(const detinfo::DetectorPropertiesData& detProp,
+                                          double r2d,
+                                          const std::vector<art::Ptr<recob::Hit>>& hits_in,
+                                          std::vector<size_t>& used,
+                                          std::vector<art::Ptr<recob::Hit>>& hits_out) const
 {
   hits_out.clear();
 
   const double gapMargin = 5.0; // can be changed to f(id_tpc1, id_tpc2)
   size_t idx = 0;
 
-  while ((idx < hits_in.size()) && Has(used, idx))
+  while ((idx < hits_in.size()) && Has_(used, idx))
     idx++;
 
   if (idx < hits_in.size()) {
@@ -768,7 +771,7 @@ pma::ProjectionMatchingAlg::GetCloseHits(double r2d,
     unsigned int cryo = hits_in[idx]->WireID().Cryostat;
     unsigned int view = hits_in[idx]->WireID().Plane;
     double wirePitch = fGeom->TPC(tpc, cryo).Plane(view).WirePitch();
-    double driftPitch = fDetProp->GetXTicksCoefficient(tpc, cryo);
+    double driftPitch = detProp.GetXTicksCoefficient(tpc, cryo);
 
     double r2d2 = r2d * r2d;
     double gapMargin2 = sqrt(2 * gapMargin * gapMargin);
@@ -778,7 +781,7 @@ pma::ProjectionMatchingAlg::GetCloseHits(double r2d,
     while (collect) {
       collect = false;
       for (size_t i = 0; i < hits_in.size(); i++)
-        if (!Has(used, i)) {
+        if (!Has_(used, i)) {
           art::Ptr<recob::Hit> const& hi = hits_in[i];
           TVector2 hi_cm(wirePitch * hi->WireID().Wire, driftPitch * hi->PeakTime());
 
@@ -810,11 +813,13 @@ pma::ProjectionMatchingAlg::GetCloseHits(double r2d,
 // ------------------------------------------------------
 
 void
-pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
+pma::ProjectionMatchingAlg::ShortenSeg_(const detinfo::DetectorPropertiesData& detProp,
+                                        pma::Track3D& trk,
+                                        const geo::TPCGeo& tpcgeom) const
 {
   double mse = trk.GetMse();
   mf::LogWarning("ProjectionMatchingAlg") << "initial value of mse: " << mse;
-  while ((mse > 0.5) && TestTrk(trk, tpcgeom)) {
+  while ((mse > 0.5) && TestTrk_(trk, tpcgeom)) {
     mse = trk.GetMse();
     for (size_t h = 0; h < trk.size(); ++h)
       if (std::sqrt(pma::Dist2(trk[h]->Point3D(), trk.front()->Point3D())) > 0.8 * trk.Length())
@@ -823,14 +828,13 @@ pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpc
     RemoveNotEnabledHits(trk);
 
     // trk.Optimize(0.0001, false); // BUG: first argument missing; tentatively:
-    trk.Optimize(0, 0.0001, false);
+    trk.Optimize(detProp, 0, 0.0001, false);
     trk.SortHits();
 
     mf::LogWarning("ProjectionMatchingAlg") << " mse: " << mse;
-    if (mse == trk.GetMse())
-      break;
-    else
-      mse = trk.GetMse();
+    if (mse == trk.GetMse()) break;
+
+    mse = trk.GetMse();
   }
 
   RemoveNotEnabledHits(trk);
@@ -839,7 +843,7 @@ pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpc
 // ------------------------------------------------------
 
 bool
-pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
+pma::ProjectionMatchingAlg::TestTrk_(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
 {
   bool test = false;
 
@@ -868,7 +872,7 @@ pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& tpcgeo
 // ------------------------------------------------------
 
 bool
-pma::ProjectionMatchingAlg::Has(const std::vector<size_t>& v, size_t idx) const
+pma::ProjectionMatchingAlg::Has_(const std::vector<size_t>& v, size_t idx) const
 {
   for (auto c : v)
     if (c == idx) return true;
@@ -892,22 +896,23 @@ pma::ProjectionMatchingAlg::RemoveNotEnabledHits(pma::Track3D& trk) const
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>& hits_1,
+pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
+                                         const std::vector<art::Ptr<recob::Hit>>& hits_1,
                                          const std::vector<art::Ptr<recob::Hit>>& hits_2) const
 {
   pma::Track3D* trk = new pma::Track3D();
   trk->SetEndSegWeight(0.001F);
-  trk->AddHits(hits_1);
-  trk->AddHits(hits_2);
+  trk->AddHits(detProp, hits_1);
+  trk->AddHits(detProp, hits_2);
 
   if (trk->HasTwoViews() && (trk->TPCs().size() == 1)) // now only in single tpc
   {
-    if (!trk->Initialize(0.001F)) {
+    if (!trk->Initialize(detProp, 0.001F)) {
       mf::LogWarning("ProjectionMatchingAlg") << "initialization failed, delete segment";
       delete trk;
       return 0;
     }
-    trk->Optimize(0, fFineTuningEps);
+    trk->Optimize(detProp, 0, fFineTuningEps);
 
     trk->SortHits();
     return trk;
@@ -921,11 +926,12 @@ pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>& hits_1,
+pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
+                                         const std::vector<art::Ptr<recob::Hit>>& hits_1,
                                          const std::vector<art::Ptr<recob::Hit>>& hits_2,
                                          const TVector3& point) const
 {
-  pma::Track3D* trk = buildSegment(hits_1, hits_2);
+  pma::Track3D* trk = buildSegment(detProp, hits_1, hits_2);
 
   if (trk) {
     double dfront = pma::Dist2(trk->front()->Point3D(), point);
@@ -934,7 +940,7 @@ pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>
 
     trk->Nodes().front()->SetPoint3D(point);
     trk->Nodes().front()->SetFrozen(true);
-    trk->Optimize(0, fFineTuningEps);
+    trk->Optimize(detProp, 0, fFineTuningEps);
 
     trk->SortHits();
   }
@@ -943,19 +949,20 @@ pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>& hits,
+pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
+                                         const std::vector<art::Ptr<recob::Hit>>& hits,
                                          const TVector3& point) const
 {
-  pma::Track3D* trk = buildSegment(hits);
+  pma::Track3D* trk = buildSegment(detProp, hits);
 
   if (trk) {
     double dfront = pma::Dist2(trk->front()->Point3D(), point);
     double dback = pma::Dist2(trk->back()->Point3D(), point);
-    if (dfront > dback) trk->Flip();
+    if (dfront > dback) trk->Flip(); // detProp);
 
     trk->Nodes().front()->SetPoint3D(point);
     trk->Nodes().front()->SetFrozen(true);
-    trk->Optimize(0, fFineTuningEps);
+    trk->Optimize(detProp, 0, fFineTuningEps);
 
     trk->SortHits();
   }
@@ -964,28 +971,29 @@ pma::ProjectionMatchingAlg::buildSegment(const std::vector<art::Ptr<recob::Hit>>
 // ------------------------------------------------------
 
 pma::Track3D*
-pma::ProjectionMatchingAlg::extendTrack(const pma::Track3D& trk,
+pma::ProjectionMatchingAlg::extendTrack(const detinfo::DetectorPropertiesData& detProp,
+                                        const pma::Track3D& trk,
                                         const std::vector<art::Ptr<recob::Hit>>& hits,
                                         bool add_nodes) const
 {
   pma::Track3D* copy = new pma::Track3D(trk);
-  copy->AddHits(hits);
+  copy->AddHits(detProp, hits);
 
   mf::LogVerbatim("ProjectionMatchingAlg")
     << "ext. track size: " << copy->size() << "  #coll:" << copy->NHits(geo::kZ)
     << "  #ind2:" << copy->NHits(geo::kV) << "  #ind1:" << copy->NHits(geo::kU);
 
   if (add_nodes) {
-    size_t nSegments = getSegCount(copy->size());
+    size_t nSegments = getSegCount_(copy->size());
     int nNodes = nSegments - copy->Nodes().size() + 1; // n nodes to add
     if (nNodes < 0) nNodes = 0;
 
     if (nNodes) {
       mf::LogVerbatim("ProjectionMatchingAlg") << "  add " << nNodes << " nodes";
-      copy->Optimize(nNodes, fOptimizationEps);
+      copy->Optimize(detProp, nNodes, fOptimizationEps);
     }
   }
-  double g = copy->Optimize(0, fFineTuningEps);
+  double g = copy->Optimize(detProp, 0, fFineTuningEps);
   mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt done, g = " << g;
 
   return copy;
@@ -993,14 +1001,15 @@ pma::ProjectionMatchingAlg::extendTrack(const pma::Track3D& trk,
 // ------------------------------------------------------
 
 bool
-pma::ProjectionMatchingAlg::chkEndpointHits(int wire,
-                                            int wdir,
-                                            double drift_x,
-                                            int view,
-                                            unsigned int tpc,
-                                            unsigned int cryo,
-                                            const pma::Track3D& trk,
-                                            const std::vector<art::Ptr<recob::Hit>>& hits) const
+pma::ProjectionMatchingAlg::chkEndpointHits_(const detinfo::DetectorPropertiesData& detProp,
+                                             int wire,
+                                             int wdir,
+                                             double drift_x,
+                                             int view,
+                                             unsigned int tpc,
+                                             unsigned int cryo,
+                                             const pma::Track3D& trk,
+                                             const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   size_t nCloseHits = 0;
   int forwWires = 3, backWires = -1;
@@ -1018,7 +1027,7 @@ pma::ProjectionMatchingAlg::chkEndpointHits(int wire,
 
       int dw = wdir * (h->WireID().Wire - wire);
       if ((dw <= forwWires) && (dw >= backWires)) {
-        double x = fDetProp->ConvertTicksToX(h->PeakTime(), view, tpc, cryo);
+        double x = detProp.ConvertTicksToX(h->PeakTime(), view, tpc, cryo);
         if (fabs(x - drift_x) < xMargin) nCloseHits++;
       }
     }
@@ -1029,7 +1038,8 @@ pma::ProjectionMatchingAlg::chkEndpointHits(int wire,
 }
 
 bool
-pma::ProjectionMatchingAlg::addEndpointRef(
+pma::ProjectionMatchingAlg::addEndpointRef_(
+  const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   const std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>>& hits,
   std::pair<int, int> const* wires,
@@ -1043,10 +1053,17 @@ pma::ProjectionMatchingAlg::addEndpointRef(
     if (wires[i].first >= 0) {
       const auto hiter = hits.find(i);
       if (hiter != hits.end()) {
-        if (chkEndpointHits(
-              wires[i].first, wires[i].second, xPos[i], i, tpc, cryo, trk, hiter->second)) {
+        if (chkEndpointHits_(detProp,
+                             wires[i].first,
+                             wires[i].second,
+                             xPos[i],
+                             i,
+                             tpc,
+                             cryo,
+                             trk,
+                             hiter->second)) {
           x += xPos[i];
-          wire_view.push_back(std::pair<int, unsigned int>(wires[i].first, i));
+          wire_view.emplace_back(wires[i].first, i);
         }
       }
     }
@@ -1076,6 +1093,7 @@ pma::ProjectionMatchingAlg::addEndpointRef(
 
 void
 pma::ProjectionMatchingAlg::guideEndpoints(
+  const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   const std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>>& hits) const
 {
@@ -1132,11 +1150,11 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 
           wiresFront[i].first = wFront0;
           wiresFront[i].second = wFront0 - wFront1;
-          xFront[i] = fDetProp->ConvertTicksToX(trk[idxFront0]->PeakTime(), i, tpc, cryo);
+          xFront[i] = detProp.ConvertTicksToX(trk[idxFront0]->PeakTime(), i, tpc, cryo);
 
           wiresBack[i].first = wBack0;
           wiresBack[i].second = wBack0 - wBack1;
-          xBack[i] = fDetProp->ConvertTicksToX(trk[idxBack0]->PeakTime(), i, tpc, cryo);
+          xBack[i] = detProp.ConvertTicksToX(trk[idxBack0]->PeakTime(), i, tpc, cryo);
 
           if (wiresFront[i].second) {
             if (wiresFront[i].second > 0)
@@ -1166,15 +1184,15 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 
   bool refAdded = false;
   if ((nPlanesFront > 1) && (fabs(dirFrontXZ.Z()) >= maxCosXZ)) {
-    refAdded |= addEndpointRef(trk, hits, wiresFront, xFront, tpc, cryo);
+    refAdded |= addEndpointRef_(detProp, trk, hits, wiresFront, xFront, tpc, cryo);
   }
 
   if ((nPlanesBack > 1) && (fabs(dirBackXZ.Z()) >= maxCosXZ)) {
-    refAdded |= addEndpointRef(trk, hits, wiresBack, xBack, tpc, cryo);
+    refAdded |= addEndpointRef_(detProp, trk, hits, wiresBack, xBack, tpc, cryo);
   }
   if (refAdded) {
     mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoints";
-    double g = trk.Optimize(0, 0.1 * fFineTuningEps);
+    double g = trk.Optimize(detProp, 0, 0.1 * fFineTuningEps);
     mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
   }
 }
@@ -1182,6 +1200,7 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 
 void
 pma::ProjectionMatchingAlg::guideEndpoints(
+  const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   pma::Track3D::ETrackEnd endpoint,
   const std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>>& hits) const
@@ -1236,7 +1255,7 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 
           wires[i].first = w0;
           wires[i].second = w0 - w1;
-          x0[i] = fDetProp->ConvertTicksToX(trk[idx0]->PeakTime(), i, tpc, cryo);
+          x0[i] = detProp.ConvertTicksToX(trk[idx0]->PeakTime(), i, tpc, cryo);
 
           if (wires[i].second) {
             if (wires[i].second > 0)
@@ -1254,20 +1273,18 @@ pma::ProjectionMatchingAlg::guideEndpoints(
   }
 
   if ((nPlanes > 1) && (fabs(dir0XZ.Z()) >= maxCosXZ) &&
-      addEndpointRef(trk, hits, wires, x0, tpc, cryo)) {
+      addEndpointRef_(detProp, trk, hits, wires, x0, tpc, cryo)) {
     mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoint";
-    double g = trk.Optimize(0, 0.1 * fFineTuningEps);
+    double g = trk.Optimize(detProp, 0, 0.1 * fFineTuningEps);
     mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
   }
 }
 // ------------------------------------------------------
 
 std::vector<pma::Hit3D*>
-pma::ProjectionMatchingAlg::trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const
+pma::ProjectionMatchingAlg::trimTrackToVolume(pma::Track3D&, TVector3, TVector3) const
 {
-  std::vector<pma::Hit3D*> trimmedHits;
-
-  return trimmedHits;
+  return {};
 }
 // ------------------------------------------------------
 
@@ -1275,16 +1292,16 @@ bool
 pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& second) const
 {
   unsigned int k = 0;
-  double distFF = pma::Dist2(first.front()->Point3D(), second.front()->Point3D());
+  double const distFF = pma::Dist2(first.front()->Point3D(), second.front()->Point3D());
   double dist = distFF;
 
-  double distFB = pma::Dist2(first.front()->Point3D(), second.back()->Point3D());
+  double const distFB = pma::Dist2(first.front()->Point3D(), second.back()->Point3D());
   if (distFB < dist) {
     k = 1;
     dist = distFB;
   }
 
-  double distBF = pma::Dist2(first.back()->Point3D(), second.front()->Point3D());
+  double const distBF = pma::Dist2(first.back()->Point3D(), second.front()->Point3D());
   if (distBF < dist) {
     k = 2;
     dist = distBF;
@@ -1298,10 +1315,14 @@ pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& secon
 
   switch (k) // flip to get dst end before src start, do not merge if track's order reversed
   {
-  case 0: first.Flip(); break;
+  case 0:
+    first.Flip(); // detProp);
+    break;
   case 1: mf::LogError("PMAlgTrackMaker") << "Tracks in reversed order."; return false;
   case 2: break;
-  case 3: second.Flip(); break;
+  case 3:
+    second.Flip(); // detProp);
+    break;
   default:
     throw cet::exception("pma::ProjectionMatchingAlg")
       << "alignTracks: should never happen." << std::endl;
@@ -1310,7 +1331,10 @@ pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& secon
 }
 
 void
-pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& src, bool reopt) const
+pma::ProjectionMatchingAlg::mergeTracks(detinfo::DetectorPropertiesData const& detProp,
+                                        pma::Track3D& dst,
+                                        pma::Track3D& src,
+                                        bool const reopt) const
 {
   if (!alignTracks(dst, src)) return;
 
@@ -1319,21 +1343,21 @@ pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& src, bo
   double lmean = dst.Length() / (dst.Nodes().size() - 1);
   if ((pma::Dist2(dst.Nodes().back()->Point3D(), src.Nodes().front()->Point3D()) > 0.5 * lmean) ||
       (tpc != dst.BackTPC()) || (cryo != dst.BackCryo())) {
-    dst.AddNode(src.Nodes().front()->Point3D(), tpc, cryo);
+    dst.AddNode(detProp, src.Nodes().front()->Point3D(), tpc, cryo);
     if (src.Nodes().front()->IsFrozen()) dst.Nodes().back()->SetFrozen(true);
   }
   for (size_t n = 1; n < src.Nodes().size(); n++) {
     pma::Node3D* node = src.Nodes()[n];
 
-    dst.AddNode(src.Nodes()[n]->Point3D(), node->TPC(), node->Cryo());
+    dst.AddNode(detProp, src.Nodes()[n]->Point3D(), node->TPC(), node->Cryo());
 
     if (node->IsFrozen()) dst.Nodes().back()->SetFrozen(true);
   }
   for (size_t h = 0; h < src.size(); h++) {
-    dst.push_back(src[h]->Hit2DPtr());
+    dst.push_back(detProp, src[h]->Hit2DPtr());
   }
   if (reopt) {
-    double g = dst.Optimize(0, fFineTuningEps);
+    double g = dst.Optimize(detProp, 0, fFineTuningEps);
     mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging done, g = " << g;
   }
   else {
@@ -1411,7 +1435,6 @@ pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk,
 
   if (nused) (*nused) = nhits;
 
-  //std::cout << "nhits=" << nhits << ", dq=" << dq << ", dx=" << dx << std::endl;
   return dqdx;
 }
 // ------------------------------------------------------

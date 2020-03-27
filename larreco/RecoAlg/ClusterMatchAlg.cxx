@@ -19,8 +19,7 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
@@ -29,11 +28,8 @@
 
 namespace cluster {
 
-  //##################################################################
   ClusterMatchAlg::ClusterMatchAlg(fhicl::ParameterSet const& pset) : _ModName_MCTruth("")
-  //##################################################################
   {
-
     _debug_mode = pset.get<bool>("DebugMode");
     _store_sps = pset.get<bool>("StoreSpacePoint");
     _num_sps_cut = pset.get<size_t>("CutParam_NumSpacePoint");
@@ -66,10 +62,8 @@ namespace cluster {
     ClearEventInfo();
   }
 
-  //########################################
   void
   ClusterMatchAlg::ReportConfig() const
-  //########################################
   {
     std::ostringstream msg;
     msg << std::endl
@@ -152,25 +146,16 @@ namespace cluster {
     _tend_max_v.clear();
   }
 
-  //##################################################################
   void
   ClusterMatchAlg::ClearEventInfo()
-  //##################################################################
   {
-    // Clear input event data holders
     ClearMatchInputInfo();
-
-    // Clear result data holders
     ClearMatchOutputInfo();
-
-    /// Clear TTree variables
     ClearTTreeInfo();
   }
 
-  //##################################################################
   void
   ClusterMatchAlg::PrepareTTree()
-  //##################################################################
   {
     if (!_match_tree) {
       art::ServiceHandle<art::TFileService const> fileService;
@@ -217,10 +202,8 @@ namespace cluster {
     }
   }
 
-  //##########################################################################################
   void
   ClusterMatchAlg::FillMCInfo(const art::Event& evt)
-  //##########################################################################################
   {
     if (!_ModName_MCTruth.size()) return;
 
@@ -265,7 +248,7 @@ namespace cluster {
   }
 
   void
-  ClusterMatchAlg::PrepareDetParams()
+  ClusterMatchAlg::PrepareDetParams(const detinfo::DetectorPropertiesData& det_prop)
   {
     if (!_det_params_prepared) {
       // Total number of planes
@@ -274,22 +257,20 @@ namespace cluster {
 
       // Ask DetectorPrperties about time-offset among different wire planes ... used to correct timing
       // difference among different wire planes in the following loop.
-      const detinfo::DetectorProperties* det_h =
-        lar::providerFrom<detinfo::DetectorPropertiesService>();
-      _time_offset_uplane = det_h->GetXTicksOffset(geo::kU, 0, 0);
-      _time_offset_vplane = det_h->GetXTicksOffset(geo::kV, 0, 0);
+      _time_offset_uplane = det_prop.GetXTicksOffset(geo::kU, 0, 0);
+      _time_offset_vplane = det_prop.GetXTicksOffset(geo::kV, 0, 0);
       _time_offset_wplane = 0;
-      if (_tot_planes > 2) _time_offset_wplane = det_h->GetXTicksOffset(geo::kW, 0, 0);
+      if (_tot_planes > 2) _time_offset_wplane = det_prop.GetXTicksOffset(geo::kW, 0, 0);
       _det_params_prepared = true;
     }
   }
 
   void
-  ClusterMatchAlg::AppendClusterInfo(const recob::Cluster& in_cluster,
+  ClusterMatchAlg::AppendClusterInfo(const detinfo::DetectorPropertiesData& det_prop,
+                                     const recob::Cluster& in_cluster,
                                      const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
   {
-
-    PrepareDetParams();
+    PrepareDetParams(det_prop);
     cluster_match_info ci(in_cluster.ID());
     ci.view = in_cluster.View();
 
@@ -315,40 +296,6 @@ namespace cluster {
       break;
     default:
       mf::LogError("ClusterMatchAlg") << Form("Found an invalid plane ID: %d", in_cluster.View());
-    }
-  }
-
-  void
-  ClusterMatchAlg::AppendClusterInfo(const art::Ptr<recob::Cluster> in_cluster,
-                                     const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
-  {
-
-    PrepareDetParams();
-    cluster_match_info ci(in_cluster->ID());
-    ci.view = in_cluster->View();
-
-    art::PtrVector<recob::Hit> hit_ptrv;
-    FillHitInfo(ci, hit_ptrv, in_hit_v);
-
-    // Save created art::PtrVector & cluster_match_info struct object
-    switch (ci.view) {
-    case geo::kU:
-      _uhits_v.push_back(hit_ptrv);
-      _ucluster_v.push_back(ci);
-      AppendClusterTreeVariables(ci);
-      break;
-    case geo::kV:
-      _vhits_v.push_back(hit_ptrv);
-      _vcluster_v.push_back(ci);
-      AppendClusterTreeVariables(ci);
-      break;
-    case geo::kW:
-      _whits_v.push_back(hit_ptrv);
-      _wcluster_v.push_back(ci);
-      AppendClusterTreeVariables(ci);
-      break;
-    default:
-      mf::LogError("ClusterMatchAlg") << Form("Found an invalid plane ID: %d", in_cluster->View());
     }
   }
 
@@ -398,7 +345,6 @@ namespace cluster {
   void
   ClusterMatchAlg::AppendClusterTreeVariables(const cluster_match_info& ci)
   {
-
     if (_cluster_tree) {
       _view_v.push_back(ci.view);
       _charge_v.push_back(ci.sum_charge);
@@ -418,7 +364,6 @@ namespace cluster {
                                 const cluster_match_info& ci2,
                                 const geo::View_t v1,
                                 const geo::View_t v2) const
-  //########################################################################################
   {
     art::ServiceHandle<geo::Geometry const> geo_h;
     double y, z_min, z_max;
@@ -428,16 +373,11 @@ namespace cluster {
     return (z_max > z_min);
   }
 
-  //###########################################################################################
   bool
   ClusterMatchAlg::Match_RoughTime(const cluster_match_info& ci1, const cluster_match_info& ci2)
-  //###########################################################################################
   {
-    //return (!(ci1.end_time_max < ci2.start_time_min || ci2.end_time_max < ci1.start_time_min));
     double time_overlay = std::min(ci1.end_time_max, ci2.end_time_max) -
                           std::max(ci1.start_time_min, ci2.start_time_min);
-
-    //if(time_overlay <= 0 && !_debug_mode) return false;
 
     double overlay_tratio =
       time_overlay /
@@ -456,10 +396,8 @@ namespace cluster {
     return (overlay_tratio > _overlay_tratio_cut);
   }
 
-  //##############################################################################################
   bool
   ClusterMatchAlg::Match_SumCharge(const cluster_match_info& uc, const cluster_match_info& vc)
-  //##############################################################################################
   {
     double qratio = (uc.sum_charge) / (vc.sum_charge);
 
@@ -469,13 +407,13 @@ namespace cluster {
     return ((1 - _qratio_cut) < qratio && (qratio) < (1 + _qratio_cut));
   }
 
-  //#####################################################################################################
   bool
-  ClusterMatchAlg::Match_SpacePoint(const size_t uindex,
+  ClusterMatchAlg::Match_SpacePoint(detinfo::DetectorClocksData const& clock_data,
+                                    detinfo::DetectorPropertiesData const& det_prop,
+                                    const size_t uindex,
                                     const size_t vindex,
                                     const size_t windex,
                                     std::vector<recob::SpacePoint>& sps_v)
-  //#####################################################################################################
   {
     bool use_wplane = _tot_planes > 2;
 
@@ -548,7 +486,7 @@ namespace cluster {
     // Run SpacePoint finder algo
     if (u_nhits && v_nhits && (!use_wplane || (w_nhits && use_wplane))) {
       _sps_algo->clearHitMap();
-      _sps_algo->makeSpacePoints(hit_group, sps_v);
+      _sps_algo->makeSpacePoints(clock_data, det_prop, hit_group, sps_v);
     }
 
     size_t nsps = sps_v.size();
@@ -561,10 +499,8 @@ namespace cluster {
     return true;
   }
 
-  //#################################################################################
   std::vector<std::vector<unsigned int>>
   ClusterMatchAlg::GetMatchedClusters() const
-  //#################################################################################
   {
     std::vector<std::vector<unsigned int>> result;
     result.push_back(_matched_uclusters_v);
@@ -573,10 +509,9 @@ namespace cluster {
     return result;
   }
 
-  //#######################################################################
   void
-  ClusterMatchAlg::MatchTwoPlanes()
-  //#######################################################################
+  ClusterMatchAlg::MatchTwoPlanes(detinfo::DetectorClocksData const& clockData,
+                                  detinfo::DetectorPropertiesData const& detProp)
   {
     std::ostringstream msg;
     msg << Form("Received (U,V,W) = (%zu,%zu,%zu) clusters...",
@@ -645,7 +580,7 @@ namespace cluster {
         std::vector<recob::SpacePoint> sps_v;
         if (_match_methods[kSpacePoint]) {
 
-          if (Match_SpacePoint(uci_index, vci_index, 0, sps_v))
+          if (Match_SpacePoint(clockData, detProp, uci_index, vci_index, 0, sps_v))
             _tot_pass_sps++;
           else if (!_debug_mode)
             continue;
@@ -683,10 +618,9 @@ namespace cluster {
     ClearTTreeInfo();
   }
 
-  //#######################################################################
   void
-  ClusterMatchAlg::MatchThreePlanes()
-  //#######################################################################
+  ClusterMatchAlg::MatchThreePlanes(detinfo::DetectorClocksData const& clock_data,
+                                    detinfo::DetectorPropertiesData const& det_prop)
   {
     std::ostringstream msg;
     msg << Form("Received (U,V,W) = (%zu,%zu,%zu) clusters...",
@@ -774,7 +708,7 @@ namespace cluster {
           std::vector<recob::SpacePoint> sps_v;
           if (_match_methods[kSpacePoint]) {
 
-            if (Match_SpacePoint(uci_index, vci_index, wci_index, sps_v))
+            if (Match_SpacePoint(clock_data, det_prop, uci_index, vci_index, wci_index, sps_v))
               _tot_pass_sps++;
             else if (!_debug_mode)
               continue;
@@ -811,9 +745,8 @@ namespace cluster {
 
     if (_match_tree) _match_tree->Fill();
     if (_cluster_tree) _cluster_tree->Fill();
-    // Clear input event data holders
+
     ClearMatchInputInfo();
-    /// Clear TTree variables
     ClearTTreeInfo();
   }
 

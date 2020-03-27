@@ -9,13 +9,16 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Persistency/Common/FindManyP.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace trkf {
 
@@ -63,11 +66,14 @@ namespace trkf {
   void
   SeedFinderModule::produce(art::Event& evt)
   {
-
-    std::unique_ptr<std::vector<recob::Seed>> seeds(new std::vector<recob::Seed>);
+    auto seeds = std::make_unique<std::vector<recob::Seed>>();
 
     std::vector<std::vector<recob::SpacePoint>> SpacePointsWithSeeds;
     std::vector<recob::Seed> SeedVector;
+
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
     // Make seeds from clusters
     if (fInputSource == 1) {
@@ -77,7 +83,7 @@ namespace trkf {
       GetSortedHitsFromClusters(fInputModuleLabel, evt, SortedHits);
 
       std::vector<std::vector<recob::Seed>> Seeds =
-        fSeedAlg.GetSeedsFromSortedHits(SortedHits, HitsPerSeed);
+        fSeedAlg.GetSeedsFromSortedHits(clockData, detProp, SortedHits, HitsPerSeed);
 
       for (size_t i = 0; i != Seeds.size(); ++i)
         for (size_t j = 0; j != Seeds.at(i).size(); ++j)
@@ -89,7 +95,7 @@ namespace trkf {
 
       art::PtrVector<recob::Hit> Hits = GetHitsFromEvent(fInputModuleLabel, evt);
       std::vector<art::PtrVector<recob::Hit>> HitCatalogue;
-      SeedVector = fSeedAlg.GetSeedsFromUnSortedHits(Hits, HitCatalogue);
+      SeedVector = fSeedAlg.GetSeedsFromUnSortedHits(clockData, detProp, Hits, HitCatalogue);
     }
     else {
       throw cet::exception("SeedFinderModule") << "Unkown source mode " << fInputSource << "\n";

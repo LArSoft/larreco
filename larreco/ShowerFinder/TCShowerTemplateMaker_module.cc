@@ -15,6 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/MCBase/MCDataHolder.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -37,18 +38,22 @@ namespace shower {
     explicit TCShowerTemplateMaker(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void analyze(const art::Event& evt);
+    void beginJob() override;
+    void analyze(const art::Event& evt) override;
 
-    void showerProfile(std::vector<art::Ptr<recob::Hit>> showerhits,
+    void showerProfile(detinfo::DetectorClocksData const& clockData,
+                       detinfo::DetectorPropertiesData const& detProp,
+                       std::vector<art::Ptr<recob::Hit>> showerhits,
                        TVector3 shwvtx,
                        TVector3 shwdir,
                        double elep);
-    void showerProfileTrue(std::vector<art::Ptr<recob::Hit>> allhits, double elep);
+    void showerProfileTrue(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           std::vector<art::Ptr<recob::Hit>> allhits,
+                           double elep);
     void showerProfileTrue(std::vector<art::Ptr<sim::SimChannel>> allchan,
                            simb::MCParticle electron);
 
-    //    TTree* fTree;
     TProfile* fShowerProfileSimLong;
     TProfile* fShowerProfileHitLong;
     TProfile* fShowerProfileRecoLong;
@@ -123,12 +128,6 @@ namespace shower {
     const int TMIN = -5;
     const int TMAX = 5;
 
-    /*
-    const int EBINS = 10;
-    const double EMIN = 0.5;
-    const double EMAX = 10.5;
-    */
-
     const int EBINS = 20;
     const double EMIN = 0.5;
     const double EMAX = 20.5;
@@ -159,16 +158,11 @@ shower::TCShowerTemplateMaker::TCShowerTemplateMaker(fhicl::ParameterSet const& 
 
 // -------------------------------------------------
 
-// -------------------------------------------------
-
 void
 shower::TCShowerTemplateMaker::beginJob()
 {
 
   art::ServiceHandle<art::TFileService const> tfs;
-
-  //  fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
-
   fShowerProfileSimLong =
     tfs->make<TProfile>("fShowerProfileSimLong",
                         "longitudinal e- profile (true, simchannel);t;E (MeV)",
@@ -605,53 +599,50 @@ shower::TCShowerTemplateMaker::analyze(const art::Event& evt)
 
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
-  if (mclist.size()) {
-    art::Ptr<simb::MCTruth> mctruth = mclist[0];
-    if (mctruth->NeutrinoSet()) {
-      if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 &&
-          mctruth->GetNeutrino().CCNC() == 0) {
-        double elep = mctruth->GetNeutrino().Lepton().E();
-        if (showerlist.size()) {
-          std::vector<art::Ptr<recob::Hit>> showerhits = shwfm.at(0);
-          showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction(), elep);
-        }
-        showerProfileTrue(hitlist, elep);
-        showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
+  if (empty(mclist)) return;
+
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+
+  art::Ptr<simb::MCTruth> mctruth = mclist[0];
+  if (mctruth->NeutrinoSet()) {
+    if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 &&
+        mctruth->GetNeutrino().CCNC() == 0) {
+      double elep = mctruth->GetNeutrino().Lepton().E();
+      if (showerlist.size()) {
+        std::vector<art::Ptr<recob::Hit>> showerhits = shwfm.at(0);
+        showerProfile(clock_data,
+                      det_prop,
+                      showerhits,
+                      showerlist[0]->ShowerStart(),
+                      showerlist[0]->Direction(),
+                      elep);
       }
-      // use this to look at background
-      /*
-      if (!(std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0)) {
-	if (showerlist.size()) {
-	  std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
-          showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction(), 0);
-        }
-      }
-      */
+      showerProfileTrue(clock_data, det_prop, hitlist, elep);
+      showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
     }
   }
-
-  //fTree->Fill();
-
 } // analyze
 
 // -------------------------------------------------
 
 void
-shower::TCShowerTemplateMaker::showerProfile(std::vector<art::Ptr<recob::Hit>> showerhits,
+shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData const& clockData,
+                                             detinfo::DetectorPropertiesData const& detProp,
+                                             std::vector<art::Ptr<recob::Hit>> showerhits,
                                              TVector3 shwvtx,
                                              TVector3 shwdir,
                                              double elep)
 {
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry const> geom;
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
-  double shwVtxTime = detprop->ConvertXToTicks(shwvtx[0], collectionPlane);
+  double shwVtxTime = detProp.ConvertXToTicks(shwvtx[0], collectionPlane);
   double shwVtxWire = geom->WireCoordinate(shwvtx[1], shwvtx[2], collectionPlane);
 
-  double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
+  double shwTwoTime = detProp.ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
   double shwTwoWire =
     geom->WireCoordinate(shwvtx[1] + shwdir[1], shwvtx[2] + shwdir[2], collectionPlane);
 
@@ -668,8 +659,8 @@ shower::TCShowerTemplateMaker::showerProfile(std::vector<art::Ptr<recob::Hit>> s
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
 
     double wirePitch = geom->WirePitch(showerhits[i]->WireID());
-    double tickToDist = detprop->DriftVelocity(detprop->Efield(), detprop->Temperature());
-    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+    double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
+    tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
 
     double xvtx = shwVtxTime * tickToDist;
     double yvtx = shwVtxWire * wirePitch;
@@ -685,18 +676,18 @@ shower::TCShowerTemplateMaker::showerProfile(std::vector<art::Ptr<recob::Hit>> s
 
     double ldist = std::abs((ytwoorth - yvtx) * xhit - (xtwoorth - xvtx) * yhit + xtwoorth * yvtx -
                             ytwoorth * xvtx) /
-                   std::sqrt(pow((ytwoorth - yvtx), 2) + pow((xtwoorth - xvtx), 2));
+                   std::hypot(ytwoorth - yvtx, xtwoorth - xvtx);
     double tdist = ((ytwo - yvtx) * xhit - (xtwo - xvtx) * yhit + xtwo * yvtx - ytwo * xvtx) /
-                   std::sqrt(pow((ytwo - yvtx), 2) + pow((xtwo - xvtx), 2));
+                   std::hypot(ytwo - yvtx, xtwo - xvtx);
 
-    double to3D = 1. / sqrt(pow(xvtx - xtwo, 2) +
-                            pow(yvtx - ytwo, 2)); // distance between two points in 3D space is one
+    double to3D = 1. / std::hypot(xvtx - xtwo,
+                                  yvtx - ytwo); // distance between two points in 3D space is one
     ldist *= to3D;
     tdist *= to3D;
     double t = ldist / X0;
 
-    double Q =
-      showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
+    double Q = showerhits[i]->Integral() *
+               fCalorimetryAlg.LifetimeCorrection(clockData, detProp, showerhits[i]->PeakTime());
 
     ltemp->Fill(t, Q);
     ttemp->Fill(tdist, Q);
@@ -744,19 +735,16 @@ shower::TCShowerTemplateMaker::showerProfile(std::vector<art::Ptr<recob::Hit>> s
     fTransverse_4->Fill(ttemp_4->GetBinCenter(i + 1), elep, ttemp_4->GetBinContent(i + 1));
     fTransverse_5->Fill(ttemp_5->GetBinCenter(i + 1), elep, ttemp_5->GetBinContent(i + 1));
   }
-
-  return;
-
 } // showerProfile
 
 // -------------------------------------------------
 
 void
-shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<recob::Hit>> allhits,
+shower::TCShowerTemplateMaker::showerProfileTrue(detinfo::DetectorClocksData const& clockData,
+                                                 detinfo::DetectorPropertiesData const& detProp,
+                                                 std::vector<art::Ptr<recob::Hit>> allhits,
                                                  double elep)
 {
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry const> geom;
   auto collectionPlane = geo::PlaneID(0, 0, 1);
   art::ServiceHandle<cheat::BackTrackerService const> btserv;
@@ -795,11 +783,11 @@ shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<recob::Hit
 
   bool foundParent = false;
 
-  for (size_t i = 0; i < allhits.size(); ++i) {
-    if (allhits[i]->WireID().Plane != collectionPlane.Plane) continue;
+  for (auto const& hit : allhits) {
+    if (hit->WireID().Plane != collectionPlane.Plane) continue;
 
-    art::Ptr<recob::Hit> hit = allhits[i];
-    std::vector<sim::TrackIDE> trackIDs = btserv->HitToEveTrackIDEs(hit);
+    // art::Ptr<recob::Hit> hit = allhits[i];
+    std::vector<sim::TrackIDE> trackIDs = btserv->HitToEveTrackIDEs(clockData, hit);
 
     for (size_t j = 0; j < trackIDs.size(); ++j) {
       // only want energy associated with the electron and electron must have neutrino mother
@@ -815,15 +803,15 @@ shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<recob::Hit
         ytwo = yvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Py();
         ztwo = zvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Pz();
 
-        shwvtxT = detprop->ConvertXToTicks(xvtx, collectionPlane);
+        shwvtxT = detProp.ConvertXToTicks(xvtx, collectionPlane);
         shwvtxW = geom->WireCoordinate(yvtx, zvtx, collectionPlane);
 
-        shwtwoT = detprop->ConvertXToTicks(xtwo, collectionPlane);
+        shwtwoT = detProp.ConvertXToTicks(xtwo, collectionPlane);
         shwtwoW = geom->WireCoordinate(ytwo, ztwo, collectionPlane);
 
         wirePitch = geom->WirePitch(hit->WireID());
-        tickToDist = detprop->DriftVelocity(detprop->Efield(), detprop->Temperature());
-        tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+        tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
+        tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
 
         shwvtxx = shwvtxT * tickToDist;
         shwvtxy = shwvtxW * wirePitch;
@@ -841,15 +829,14 @@ shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<recob::Hit
 
       double ldist = abs((ytwoorth - shwvtxy) * xhit - (xtwoorth - shwvtxx) * yhit +
                          xtwoorth * shwvtxy - ytwoorth * shwvtxx) /
-                     sqrt(pow((ytwoorth - shwvtxy), 2) + pow((xtwoorth - shwvtxx), 2));
+                     std::hypot(ytwoorth - shwvtxy, xtwoorth - shwvtxx);
       double tdist = ((shwtwoy - shwvtxy) * xhit - (shwtwox - shwvtxx) * yhit + shwtwox * shwvtxy -
                       shwtwoy * shwvtxx) /
-                     sqrt(pow((shwtwoy - shwvtxy), 2) + pow((shwtwox - shwvtxx), 2));
+                     std::hypot(shwtwoy - shwvtxy, shwtwox - shwvtxx);
 
-      double to3D =
-        sqrt(pow(xvtx - xtwo, 2) + pow(yvtx - ytwo, 2) + pow(zvtx - ztwo, 2)) /
-        sqrt(pow(shwvtxx - shwtwox, 2) +
-             pow(shwvtxy - shwtwoy, 2)); // distance between two points in 3D space is one
+      double to3D = std::hypot(xvtx - xtwo, yvtx - ytwo, zvtx - ztwo) /
+                    std::hypot(shwvtxx - shwtwox,
+                               shwvtxy - shwtwoy); // distance between two points in 3D space is one
       ldist *= to3D;
       tdist *= to3D;
       double t = ldist / X0;
@@ -896,9 +883,6 @@ shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<recob::Hit
     fShowerProfileHitTrans2D_5->Fill(
       ttemp_5->GetBinCenter(i + 1), elep, ttemp_5->GetBinContent(i + 1));
   }
-
-  return;
-
 } // showerProfileTrue
 
 // -------------------------------------------------
@@ -1007,9 +991,6 @@ shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<sim::SimCh
     fShowerProfileSimTrans2D_5->Fill(
       ttemp_5->GetBinCenter(i + 1), electron.E(), ttemp_5->GetBinContent(i + 1));
   }
-
-  return;
-
 } // showerProfileTrue
 
 // -------------------------------------------------

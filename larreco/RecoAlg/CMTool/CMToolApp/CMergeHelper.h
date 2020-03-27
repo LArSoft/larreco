@@ -31,7 +31,8 @@ namespace cmtool {
 
     void SetAnaFile(TFile* fout);
 
-    void Process(const std::vector<std::vector<::util::PxHit>>& clusters);
+    void Process(util::GeometryUtilities const& gser,
+                 const std::vector<std::vector<::util::PxHit>>& clusters);
 
     size_t
     size() const

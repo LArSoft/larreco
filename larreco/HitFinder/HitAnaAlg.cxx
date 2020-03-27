@@ -109,14 +109,14 @@ void
 hit::HitAnaAlg::AnalyzeWires(std::vector<recob::Wire> const& WireVector,
                              std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
                              std::vector<std::vector<int>> const& AssocVector,
-                             const detinfo::DetectorClocks* ts,
+                             detinfo::DetectorClocksData const& clock_data,
                              unsigned int event,
                              unsigned int run)
 {
 
   InitWireData(event, run);
   for (size_t iwire = 0; iwire < WireVector.size(); iwire++)
-    FillWireInfo(WireVector[iwire], iwire, MCHitCollectionVector, AssocVector[iwire], ts);
+    FillWireInfo(WireVector[iwire], iwire, MCHitCollectionVector, AssocVector[iwire], clock_data);
 }
 
 void
@@ -157,7 +157,7 @@ hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
                              int WireIndex,
                              std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
                              std::vector<int> const& thisAssocVector,
-                             const detinfo::DetectorClocks* ts)
+                             detinfo::DetectorClocksData const& clock_data)
 {
 
   wireData.channel = wire.Channel();
@@ -172,7 +172,7 @@ hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 
     ClearWireDataHitInfo();
 
-    ProcessROI(range, WireIndex, MCHitCollectionVector, thisAssocVector, ts);
+    ProcessROI(range, WireIndex, MCHitCollectionVector, thisAssocVector, clock_data);
     range_index++;
 
   } //end loop over roi ranges
@@ -204,7 +204,7 @@ hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& range,
                            int WireIndex,
                            std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
                            std::vector<int> const& thisAssocVector,
-                           const detinfo::DetectorClocks* ts)
+                           detinfo::DetectorClocksData const& clock_data)
 {
 
   ROIInfo(range, wireData.integrated_charge, wireData.peak_charge, wireData.peak_time);
@@ -225,7 +225,7 @@ hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& range,
                             thisAssocVector,
                             range.begin_index(),
                             range.begin_index() + range.size(),
-                            ts);
+                            clock_data);
 
   wireDataTree->Fill();
 }
@@ -280,7 +280,7 @@ hit::HitAnaAlg::FindAndStoreMCHitsInRange(
   std::vector<int> const& HitsOnWire,
   size_t begin_wire_tdc,
   size_t end_wire_tdc,
-  const detinfo::DetectorClocks* ts)
+  detinfo::DetectorClocksData const& clock_data)
 {
 
   wireData.MCHits_PeakCharge = -999;
@@ -297,8 +297,8 @@ hit::HitAnaAlg::FindAndStoreMCHitsInRange(
       //std::cout << "\t\tMCHit end: " << ts->TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) << std::endl;
 
       //check if this hit is on this ROI
-      if (ts->TPCTDC2Tick(thishit.PeakTime() - thishit.PeakWidth()) < begin_wire_tdc ||
-          ts->TPCTDC2Tick(thishit.PeakTime() + thishit.PeakWidth()) > end_wire_tdc)
+      if (clock_data.TPCTDC2Tick(thishit.PeakTime() - thishit.PeakWidth()) < begin_wire_tdc ||
+          clock_data.TPCTDC2Tick(thishit.PeakTime() + thishit.PeakWidth()) > end_wire_tdc)
         continue;
 
       nmchits_per_trackID_map[thishit.PartTrackId()] += 1;
@@ -306,11 +306,11 @@ hit::HitAnaAlg::FindAndStoreMCHitsInRange(
 
       if (thishit.Charge(true) > wireData.MCHits_PeakCharge) {
         wireData.MCHits_PeakCharge = thishit.Charge(true);
-        wireData.MCHits_PeakTime = ts->TPCTDC2Tick(thishit.PeakTime());
+        wireData.MCHits_PeakTime = clock_data.TPCTDC2Tick(thishit.PeakTime());
       }
 
       wireData.MCHits_wAverageCharge += thishit.Charge() * thishit.Charge();
-      wireData.MCHits_wAverageTime += thishit.Charge() * ts->TPCTDC2Tick(thishit.PeakTime());
+      wireData.MCHits_wAverageTime += thishit.Charge() * clock_data.TPCTDC2Tick(thishit.PeakTime());
     }
 
     wireData.NMCHits = nmchits_per_trackID_map.size();

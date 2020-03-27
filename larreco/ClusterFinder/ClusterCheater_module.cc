@@ -14,9 +14,15 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nug4/ParticleNavigation/EmEveIdCalculator.h"
@@ -28,9 +34,6 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "larreco/ClusterFinder/ClusterCreator.h"
-#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
-#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace cluster {
@@ -39,7 +42,7 @@ namespace cluster {
     explicit ClusterCheater(fhicl::ParameterSet const& pset);
 
   private:
-    void produce(art::Event& evt);
+    void produce(art::Event& evt) override;
 
     std::string fMCGeneratorLabel; ///< label for module to get MC truth information
     std::string fHitModuleLabel;   ///< label for module creating recob::Hit objects
@@ -51,7 +54,6 @@ namespace cluster {
 namespace cluster {
 
   struct eveLoc {
-
     eveLoc(int id, geo::PlaneID plnID) : eveID(id), planeID(plnID) {}
 
     friend bool
@@ -112,10 +114,12 @@ namespace cluster {
     // location in cryostat, TPC, plane coordinates of where the hit originated
     std::map<eveLoc, std::vector<art::Ptr<recob::Hit>>> eveHitMap;
 
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
     // loop over all hits and fill in the map
     for (auto const& itr : hits) {
 
-      std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(itr);
+      std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(clockData, itr);
 
       // loop over all eveides for this hit
       for (size_t e = 0; e < eveides.size(); ++e) {
@@ -136,6 +140,10 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Cluster>> clustercol(new std::vector<recob::Cluster>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> assn(
       new art::Assns<recob::Cluster, recob::Hit>);
+
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    util::GeometryUtilities const gser{*geo, clockData, detProp};
 
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -217,10 +225,11 @@ namespace cluster {
         planeID.Cryostat;
 
       // feed the algorithm with all the cluster hits
-      ClusterParamAlgo.ImportHits(hitMapItr.second);
+      ClusterParamAlgo.ImportHits(gser, hitMapItr.second);
 
       // create the recob::Cluster directly in the vector
-      ClusterCreator cluster(ClusterParamAlgo,               // algo
+      ClusterCreator cluster(gser,
+                             ClusterParamAlgo,               // algo
                              startWire,                      // start_wire
                              0.,                             // sigma_start_wire
                              startTime,                      // start_tick
@@ -238,7 +247,7 @@ namespace cluster {
       clustercol->emplace_back(cluster.move());
 
       // association the hits to this cluster
-      util::CreateAssn(*this, evt, *clustercol, hitMapItr.second, *assn);
+      util::CreateAssn(evt, *clustercol, hitMapItr.second, *assn);
 
       mf::LogInfo("ClusterCheater") << "adding cluster: \n"
                                     << clustercol->back() << "\nto collection.";
@@ -247,15 +256,7 @@ namespace cluster {
 
     evt.put(std::move(clustercol));
     evt.put(std::move(assn));
-
-    return;
-
   } // end produce
 
-} // end namespace
-
-namespace cluster {
-
   DEFINE_ART_MODULE(ClusterCheater)
-
 }

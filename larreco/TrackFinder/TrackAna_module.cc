@@ -33,6 +33,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -48,8 +49,6 @@
 #include "TMatrixD.h"
 
 namespace {
-
-  // Local functions.
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
@@ -67,8 +66,7 @@ namespace {
     double d5 = pos.Z();                             // Distance to front.
     double d6 = geom->DetLength() - pos.Z();         // Distance to back.
 
-    double result = std::min(std::min(std::min(std::min(std::min(d1, d2), d3), d4), d5), d6);
-    return result;
+    return std::min({d1, d2, d3, d4, d5, d6});
   }
 
   // Length of reconstructed track.
@@ -82,30 +80,24 @@ namespace {
   // Length of MC particle.
   //----------------------------------------------------------------------------
   double
-  length(const simb::MCParticle& part,
+  length(detinfo::DetectorClocksData const& clockData,
+         detinfo::DetectorPropertiesData const& detProp,
+         const simb::MCParticle& part,
          double dx,
          TVector3& start,
          TVector3& end,
          TVector3& startmom,
-         TVector3& endmom,
-         unsigned int /*tpc*/ = 0,
-         unsigned int /*cstat*/ = 0)
+         TVector3& endmom)
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
-
     double xmin = 0.;
     double xmax = 2. * geom->DetHalfWidth();
     double ymin = -geom->DetHalfHeight();
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-    //double ticks_max = detprop->ReadOutWindowSize();
     double result = 0.;
     TVector3 disp;
     int n = part.NumberTrajectoryPoints();
@@ -121,8 +113,8 @@ namespace {
       if (pos.X() >= xmin && pos.X() <= xmax && pos.Y() >= ymin && pos.Y() <= ymax &&
           pos.Z() >= zmin && pos.Z() <= zmax) {
         pos[0] += dx;
-        double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
-        if (ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
+        double ticks = detProp.ConvertXToTicks(pos[0], 0, 0, 0);
+        if (ticks >= 0. && ticks < detProp.ReadOutWindowSize()) {
           if (first) {
             start = pos;
             startmom = part.Momentum(i).Vect();
@@ -147,20 +139,16 @@ namespace {
   // (MCTrack stores momenta in Mev).
   //----------------------------------------------------------------------------
   double
-  length(const sim::MCTrack& mctrk,
+  length(detinfo::DetectorClocksData const& clockData,
+         detinfo::DetectorPropertiesData const& detProp,
+         const sim::MCTrack& mctrk,
          double dx,
          TVector3& start,
          TVector3& end,
          TVector3& startmom,
-         TVector3& endmom,
-         unsigned int /*tpc*/ = 0,
-         unsigned int /*cstat*/ = 0)
+         TVector3& endmom)
   {
-    // Get services.
-
     art::ServiceHandle<geo::Geometry const> geom;
-    //    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -170,7 +158,6 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-    //double ticks_max = detprop->ReadOutWindowSize();
     double result = 0.;
     TVector3 disp;
     int n = mctrk.size();
@@ -186,8 +173,8 @@ namespace {
       if (pos.X() >= xmin && pos.X() <= xmax && pos.Y() >= ymin && pos.Y() <= ymax &&
           pos.Z() >= zmin && pos.Z() <= zmax) {
         pos[0] += dx;
-        double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
-        if (ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
+        double ticks = detProp.ConvertXToTicks(pos[0], 0, 0, 0);
+        if (ticks >= 0. && ticks < detProp.ReadOutWindowSize()) {
           if (first) {
             start = pos;
             startmom = 0.001 * mctrk[i].Momentum().Vect();
@@ -277,155 +264,148 @@ namespace trkf {
     // Struct for histograms that depend on reco track only.
 
     struct RecoHists {
-      // Constructors.
-
-      RecoHists();
-      RecoHists(const std::string& subdir);
+      explicit RecoHists(const std::string& subdir);
 
       // Pure reco track histograms.
 
-      TH1F* fHstartx;   // Starting x position.
-      TH1F* fHstarty;   // Starting y position.
-      TH1F* fHstartz;   // Starting z position.
-      TH1F* fHstartd;   // Starting distance to boundary.
-      TH1F* fHendx;     // Ending x position.
-      TH1F* fHendy;     // Ending y position.
-      TH1F* fHendz;     // Ending z position.
-      TH1F* fHendd;     // Ending distance to boundary.
-      TH1F* fHtheta;    // Theta.
-      TH1F* fHphi;      // Phi.
-      TH1F* fHtheta_xz; // Theta_xz.
-      TH1F* fHtheta_yz; // Theta_yz.
-      TH1F* fHmom;      // Momentum.
-      TH1F* fHmoml;     // Momentum (low momentum).
-      TH1F* fHlen;      // Length.
-      TH1F* fHlens;     // Length (short tracks).
+      TH1F* fHstartx{nullptr};   // Starting x position.
+      TH1F* fHstarty{nullptr};   // Starting y position.
+      TH1F* fHstartz{nullptr};   // Starting z position.
+      TH1F* fHstartd{nullptr};   // Starting distance to boundary.
+      TH1F* fHendx{nullptr};     // Ending x position.
+      TH1F* fHendy{nullptr};     // Ending y position.
+      TH1F* fHendz{nullptr};     // Ending z position.
+      TH1F* fHendd{nullptr};     // Ending distance to boundary.
+      TH1F* fHtheta{nullptr};    // Theta.
+      TH1F* fHphi{nullptr};      // Phi.
+      TH1F* fHtheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHtheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHmom{nullptr};      // Momentum.
+      TH1F* fHmoml{nullptr};     // Momentum (low momentum).
+      TH1F* fHlen{nullptr};      // Length.
+      TH1F* fHlens{nullptr};     // Length (short tracks).
 
       // Histograms for the consituent Hits
 
-      TH1F* fHHitChg;    // hit charge
-      TH1F* fHHitWidth;  // hit width
-      TH1F* fHHitPdg;    // Pdg primarily responsible.
-      TH1F* fHHitTrkId;  // TrkId
-      TH1F* fModeFrac;   // mode fraction
-      TH1F* fNTrkIdTrks; // # of stitched tracks in which unique TrkId appears
-      TH2F* fNTrkIdTrks2;
-      TH2F* fNTrkIdTrks3;
+      TH1F* fHHitChg{nullptr};    // hit charge
+      TH1F* fHHitWidth{nullptr};  // hit width
+      TH1F* fHHitPdg{nullptr};    // Pdg primarily responsible.
+      TH1F* fHHitTrkId{nullptr};  // TrkId
+      TH1F* fModeFrac{nullptr};   // mode fraction
+      TH1F* fNTrkIdTrks{nullptr}; // # of stitched tracks in which unique TrkId appears
+      TH2F* fNTrkIdTrks2{nullptr};
+      TH2F* fNTrkIdTrks3{nullptr};
     };
 
     // Struct for mc particles and mc-matched tracks.
 
     struct MCHists {
-      // Constructors.
-
-      MCHists();
-      MCHists(const std::string& subdir);
+      explicit MCHists(const std::string& subdir);
 
       // Reco-MC matching.
 
-      TH2F* fHduvcosth;  // 2D mc vs. data matching, duv vs. cos(theta).
-      TH1F* fHcosth;     // 1D direction matching, cos(theta).
-      TH1F* fHmcu;       // 1D endpoint truth u.
-      TH1F* fHmcv;       // 1D endpoint truth v.
-      TH1F* fHmcw;       // 1D endpoint truth w.
-      TH1F* fHupull;     // 1D endpoint u pull.
-      TH1F* fHvpull;     // 1D endpoint v pull.
-      TH1F* fHmcdudw;    // Truth du/dw.
-      TH1F* fHmcdvdw;    // Truth dv/dw.
-      TH1F* fHdudwpull;  // du/dw pull.
-      TH1F* fHdvdwpull;  // dv/dw pull.
-      TH1F* fHHitEff;    // Hit efficiency.
-      TH1F* fHHitPurity; // Hit purity.
+      TH2F* fHduvcosth{nullptr};  // 2D mc vs. data matching, duv vs. cos(theta).
+      TH1F* fHcosth{nullptr};     // 1D direction matching, cos(theta).
+      TH1F* fHmcu{nullptr};       // 1D endpoint truth u.
+      TH1F* fHmcv{nullptr};       // 1D endpoint truth v.
+      TH1F* fHmcw{nullptr};       // 1D endpoint truth w.
+      TH1F* fHupull{nullptr};     // 1D endpoint u pull.
+      TH1F* fHvpull{nullptr};     // 1D endpoint v pull.
+      TH1F* fHmcdudw{nullptr};    // Truth du/dw.
+      TH1F* fHmcdvdw{nullptr};    // Truth dv/dw.
+      TH1F* fHdudwpull{nullptr};  // du/dw pull.
+      TH1F* fHdvdwpull{nullptr};  // dv/dw pull.
+      TH1F* fHHitEff{nullptr};    // Hit efficiency.
+      TH1F* fHHitPurity{nullptr}; // Hit purity.
 
       // Histograms for matched tracks.
 
-      TH1F* fHstartdx; // Start dx.
-      TH1F* fHstartdy; // Start dy.
-      TH1F* fHstartdz; // Start dz.
-      TH1F* fHenddx;   // End dx.
-      TH1F* fHenddy;   // End dy.
-      TH1F* fHenddz;   // End dz.
-      TH2F* fHlvsl;    // MC vs. reco length.
-      TH1F* fHdl;      // Delta(length).
-      TH2F* fHpvsp;    // MC vs. reco momentum.
-      TH2F* fHpvspc;   // MC vs. reco momentum (contained tracks).
-      TH1F* fHdp;      // Momentum difference.
-      TH1F* fHdpc;     // Momentum difference (contained tracks).
-      TH1F* fHppull;   // Momentum pull.
-      TH1F* fHppullc;  // Momentum pull (contained tracks).
+      TH1F* fHstartdx{nullptr}; // Start dx.
+      TH1F* fHstartdy{nullptr}; // Start dy.
+      TH1F* fHstartdz{nullptr}; // Start dz.
+      TH1F* fHenddx{nullptr};   // End dx.
+      TH1F* fHenddy{nullptr};   // End dy.
+      TH1F* fHenddz{nullptr};   // End dz.
+      TH2F* fHlvsl{nullptr};    // MC vs. reco length.
+      TH1F* fHdl{nullptr};      // Delta(length).
+      TH2F* fHpvsp{nullptr};    // MC vs. reco momentum.
+      TH2F* fHpvspc{nullptr};   // MC vs. reco momentum (contained tracks).
+      TH1F* fHdp{nullptr};      // Momentum difference.
+      TH1F* fHdpc{nullptr};     // Momentum difference (contained tracks).
+      TH1F* fHppull{nullptr};   // Momentum pull.
+      TH1F* fHppullc{nullptr};  // Momentum pull (contained tracks).
 
       // Pure MC particle histograms (efficiency denominator).
 
-      TH1F* fHmcstartx;   // Starting x position.
-      TH1F* fHmcstarty;   // Starting y position.
-      TH1F* fHmcstartz;   // Starting z position.
-      TH1F* fHmcendx;     // Ending x position.
-      TH1F* fHmcendy;     // Ending y position.
-      TH1F* fHmcendz;     // Ending z position.
-      TH1F* fHmctheta;    // Theta.
-      TH1F* fHmcphi;      // Phi.
-      TH1F* fHmctheta_xz; // Theta_xz.
-      TH1F* fHmctheta_yz; // Theta_yz.
-      TH1F* fHmcmom;      // Momentum.
-      TH1F* fHmcmoml;     // Momentum (low momentum).
-      TH1F* fHmcke;       // Kinetic energy.
-      TH1F* fHmckel;      // Kinetic energy (low energy).
-      TH1F* fHmclen;      // Length.
-      TH1F* fHmclens;     // Length (short tracks).
+      TH1F* fHmcstartx{nullptr};   // Starting x position.
+      TH1F* fHmcstarty{nullptr};   // Starting y position.
+      TH1F* fHmcstartz{nullptr};   // Starting z position.
+      TH1F* fHmcendx{nullptr};     // Ending x position.
+      TH1F* fHmcendy{nullptr};     // Ending y position.
+      TH1F* fHmcendz{nullptr};     // Ending z position.
+      TH1F* fHmctheta{nullptr};    // Theta.
+      TH1F* fHmcphi{nullptr};      // Phi.
+      TH1F* fHmctheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHmctheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHmcmom{nullptr};      // Momentum.
+      TH1F* fHmcmoml{nullptr};     // Momentum (low momentum).
+      TH1F* fHmcke{nullptr};       // Kinetic energy.
+      TH1F* fHmckel{nullptr};      // Kinetic energy (low energy).
+      TH1F* fHmclen{nullptr};      // Length.
+      TH1F* fHmclens{nullptr};     // Length (short tracks).
 
       // Histograms for well-reconstructed matched tracks (efficiency numerator).
 
-      TH1F* fHgstartx;   // Starting x position.
-      TH1F* fHgstarty;   // Starting y position.
-      TH1F* fHgstartz;   // Starting z position.
-      TH1F* fHgendx;     // Ending x position.
-      TH1F* fHgendy;     // Ending y position.
-      TH1F* fHgendz;     // Ending z position.
-      TH1F* fHgtheta;    // Theta.
-      TH1F* fHgphi;      // Phi.
-      TH1F* fHgtheta_xz; // Theta_xz.
-      TH1F* fHgtheta_yz; // Theta_yz.
-      TH1F* fHgmom;      // Momentum.
-      TH1F* fHgmoml;     // Momentum (low momentum).
-      TH1F* fHgke;       // Kinetic energy.
-      TH1F* fHgkel;      // Kinetic energy (low momentum).
-      TH1F* fHglen;      // Length.
-      TH1F* fHglens;     // Length (short tracks).
+      TH1F* fHgstartx{nullptr};   // Starting x position.
+      TH1F* fHgstarty{nullptr};   // Starting y position.
+      TH1F* fHgstartz{nullptr};   // Starting z position.
+      TH1F* fHgendx{nullptr};     // Ending x position.
+      TH1F* fHgendy{nullptr};     // Ending y position.
+      TH1F* fHgendz{nullptr};     // Ending z position.
+      TH1F* fHgtheta{nullptr};    // Theta.
+      TH1F* fHgphi{nullptr};      // Phi.
+      TH1F* fHgtheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHgtheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHgmom{nullptr};      // Momentum.
+      TH1F* fHgmoml{nullptr};     // Momentum (low momentum).
+      TH1F* fHgke{nullptr};       // Kinetic energy.
+      TH1F* fHgkel{nullptr};      // Kinetic energy (low momentum).
+      TH1F* fHglen{nullptr};      // Length.
+      TH1F* fHglens{nullptr};     // Length (short tracks).
 
       // Efficiency histograms.
 
-      TH1F* fHestartx;   // Starting x position.
-      TH1F* fHestarty;   // Starting y position.
-      TH1F* fHestartz;   // Starting z position.
-      TH1F* fHeendx;     // Ending x position.
-      TH1F* fHeendy;     // Ending y position.
-      TH1F* fHeendz;     // Ending z position.
-      TH1F* fHetheta;    // Theta.
-      TH1F* fHephi;      // Phi.
-      TH1F* fHetheta_xz; // Theta_xz.
-      TH1F* fHetheta_yz; // Theta_yz.
-      TH1F* fHemom;      // Momentum.
-      TH1F* fHemoml;     // Momentum (low momentum).
-      TH1F* fHeke;       // Kinetic energy.
-      TH1F* fHekel;      // Kinetic energy (low momentum).
-      TH1F* fHelen;      // Length.
-      TH1F* fHelens;     // Length (short tracks).
+      TH1F* fHestartx{nullptr};   // Starting x position.
+      TH1F* fHestarty{nullptr};   // Starting y position.
+      TH1F* fHestartz{nullptr};   // Starting z position.
+      TH1F* fHeendx{nullptr};     // Ending x position.
+      TH1F* fHeendy{nullptr};     // Ending y position.
+      TH1F* fHeendz{nullptr};     // Ending z position.
+      TH1F* fHetheta{nullptr};    // Theta.
+      TH1F* fHephi{nullptr};      // Phi.
+      TH1F* fHetheta_xz{nullptr}; // Theta_xz.
+      TH1F* fHetheta_yz{nullptr}; // Theta_yz.
+      TH1F* fHemom{nullptr};      // Momentum.
+      TH1F* fHemoml{nullptr};     // Momentum (low momentum).
+      TH1F* fHeke{nullptr};       // Kinetic energy.
+      TH1F* fHekel{nullptr};      // Kinetic energy (low momentum).
+      TH1F* fHelen{nullptr};      // Length.
+      TH1F* fHelens{nullptr};     // Length (short tracks).
     };
 
     // Constructors, destructor
 
     explicit TrackAna(fhicl::ParameterSet const& pset);
-    virtual ~TrackAna();
 
   private:
-    // Overrides.
+    void analyze(const art::Event& evt) override;
+    void endJob() override;
 
-    void analyze(const art::Event& evt);
-    void anaStitch(const art::Event& evt);
-    void endJob();
+    void anaStitch(const art::Event& evt,
+                   detinfo::DetectorClocksData const& clockData,
+                   detinfo::DetectorPropertiesData const& detProp);
 
-    template <typename T>
-    std::vector<size_t> fsort_indexes(const std::vector<T>& v);
+    std::vector<size_t> fsort_indexes(const std::vector<double>& v);
 
     // Fcl Attributes.
 
@@ -466,45 +446,8 @@ namespace trkf {
 
   // RecoHists methods.
 
-  TrackAna::RecoHists::RecoHists()
-    : //
-    // Purpose: Default constructor.
-    //
-    fHstartx(0)
-    , fHstarty(0)
-    , fHstartz(0)
-    , fHstartd(0)
-    , fHendx(0)
-    , fHendy(0)
-    , fHendz(0)
-    , fHendd(0)
-    , fHtheta(0)
-    , fHphi(0)
-    , fHtheta_xz(0)
-    , fHtheta_yz(0)
-    , fHmom(0)
-    , fHmoml(0)
-    , fHlen(0)
-    , fHlens(0)
-    , fHHitChg(0)
-    , fHHitWidth(0)
-    , fHHitPdg(0)
-    , fHHitTrkId(0)
-    , fModeFrac(0)
-    , fNTrkIdTrks(0)
-    , fNTrkIdTrks2(0)
-    , fNTrkIdTrks3(0)
-  {}
-
   TrackAna::RecoHists::RecoHists(const std::string& subdir)
-  //
-  // Purpose: Initializing constructor.
-  //
   {
-    // Make sure all histogram pointers are initially zero.
-
-    *this = RecoHists();
-
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
@@ -577,96 +520,8 @@ namespace trkf {
 
   // MCHists methods.
 
-  TrackAna::MCHists::MCHists()
-    : //
-    // Purpose: Default constructor.
-    //
-    fHduvcosth(0)
-    , fHcosth(0)
-    , fHmcu(0)
-    , fHmcv(0)
-    , fHmcw(0)
-    , fHupull(0)
-    , fHvpull(0)
-    , fHmcdudw(0)
-    , fHmcdvdw(0)
-    , fHdudwpull(0)
-    , fHdvdwpull(0)
-    , fHHitEff(0)
-    , fHHitPurity(0)
-    , fHstartdx(0)
-    , fHstartdy(0)
-    , fHstartdz(0)
-    , fHenddx(0)
-    , fHenddy(0)
-    , fHenddz(0)
-    , fHlvsl(0)
-    , fHdl(0)
-    , fHpvsp(0)
-    , fHpvspc(0)
-    , fHdp(0)
-    , fHdpc(0)
-    , fHppull(0)
-    , fHppullc(0)
-    , fHmcstartx(0)
-    , fHmcstarty(0)
-    , fHmcstartz(0)
-    , fHmcendx(0)
-    , fHmcendy(0)
-    , fHmcendz(0)
-    , fHmctheta(0)
-    , fHmcphi(0)
-    , fHmctheta_xz(0)
-    , fHmctheta_yz(0)
-    , fHmcmom(0)
-    , fHmcmoml(0)
-    , fHmcke(0)
-    , fHmckel(0)
-    , fHmclen(0)
-    , fHmclens(0)
-    , fHgstartx(0)
-    , fHgstarty(0)
-    , fHgstartz(0)
-    , fHgendx(0)
-    , fHgendy(0)
-    , fHgendz(0)
-    , fHgtheta(0)
-    , fHgphi(0)
-    , fHgtheta_xz(0)
-    , fHgtheta_yz(0)
-    , fHgmom(0)
-    , fHgmoml(0)
-    , fHgke(0)
-    , fHgkel(0)
-    , fHglen(0)
-    , fHglens(0)
-    , fHestartx(0)
-    , fHestarty(0)
-    , fHestartz(0)
-    , fHeendx(0)
-    , fHeendy(0)
-    , fHeendz(0)
-    , fHetheta(0)
-    , fHephi(0)
-    , fHetheta_xz(0)
-    , fHetheta_yz(0)
-    , fHemom(0)
-    , fHemoml(0)
-    , fHeke(0)
-    , fHekel(0)
-    , fHelen(0)
-    , fHelens(0)
-  {}
-
   TrackAna::MCHists::MCHists(const std::string& subdir)
-  //
-  // Purpose: Initializing constructor.
-  //
   {
-    // Make sure all histogram pointers are initially zero.
-
-    *this = MCHists();
-
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
@@ -859,22 +714,9 @@ namespace trkf {
                             << " Origin value " << fOriginValue;
   }
 
-  TrackAna::~TrackAna()
-  //
-  // Purpose: Destructor.
-  //
-  {}
-
   void
   TrackAna::analyze(const art::Event& evt)
-  //
-  // Purpose: Analyze method.
-  //
-  // Arguments: event - Art event.
-  //
   {
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     art::ServiceHandle<geo::Geometry const> geom;
@@ -886,7 +728,7 @@ namespace trkf {
     std::unique_ptr<mf::LogInfo> pdump;
     if (fDump > 0) {
       --fDump;
-      pdump = std::unique_ptr<mf::LogInfo>(new mf::LogInfo("TrackAna"));
+      pdump = std::make_unique<mf::LogInfo>("TrackAna");
     }
 
     // Make sure histograms are booked.
@@ -899,6 +741,10 @@ namespace trkf {
     evt.getByLabel(fMCTrackModuleLabel, mctrackh);
     // pair of MCTrack and index of matched reco track
     std::vector<std::pair<const sim::MCTrack*, int>> selected_mctracks;
+
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
     if (mc && mctrackh.isValid()) {
 
@@ -942,8 +788,8 @@ namespace trkf {
 
             // Calculate the x offset due to nonzero mc particle time.
 
-            double mctime = mctrk.Start().T();                       // nsec
-            double mcdx = mctime * 1.e-3 * detprop->DriftVelocity(); // cm
+            double mctime = mctrk.Start().T();                      // nsec
+            double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
             // Calculate the length of this mc particle inside the fiducial volume.
 
@@ -951,7 +797,8 @@ namespace trkf {
             TVector3 mcend;
             TVector3 mcstartmom;
             TVector3 mcendmom;
-            double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+            double plen =
+              length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
             // Apply minimum fiducial length cut.  Always reject particles that have
             // zero length in the tpc regardless of the configured cut.
@@ -1001,15 +848,15 @@ namespace trkf {
               if (fMCHistMap.count(pdg) == 0) {
                 std::ostringstream ostr;
                 ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
-                fMCHistMap[pdg] = MCHists(ostr.str());
+                fMCHistMap.emplace(pdg, MCHists{ostr.str()});
               }
-              const MCHists& mchists = fMCHistMap[pdg];
+              const MCHists& mchists = fMCHistMap.at(pdg);
 
               double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
               double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
               double mcmom = mcstartmom.Mag();
               double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
-              double mcke = mcmom * mcmom / (std::sqrt(mcmom * mcmom + mcmass * mcmass) + mcmass);
+              double mcke = mcmom * mcmom / (std::hypot(mcmom, mcmass) + mcmass);
 
               mchists.fHmcstartx->Fill(mcstart.X());
               mchists.fHmcstarty->Fill(mcstart.Y());
@@ -1063,7 +910,7 @@ namespace trkf {
     if (trackvh.isValid() && fStitchedAnalysis) {
       mf::LogDebug("TrackAna") << "TrackAna read " << trackvh->size()
                                << "  vectors of Stitched PtrVectorsof tracks.";
-      anaStitch(evt);
+      anaStitch(evt, clockData, detProp);
     }
 
     if (trackh.isValid()) {
@@ -1090,9 +937,6 @@ namespace trkf {
 
         // Calculate the x offset due to nonzero reconstructed time.
 
-        //double recotime = track.Time() * detprop->SamplingRate();       // nsec
-        //	double recotime = 0.;
-        //	double trackdx = recotime * 1.e-3 * detprop->DriftVelocity();  // cm
         double trackdx = 0;
 
         // Fill histograms involving reco tracks only.
@@ -1111,8 +955,8 @@ namespace trkf {
           double theta_xz = std::atan2(dir.X(), dir.Z());
           double theta_yz = std::atan2(dir.Y(), dir.Z());
 
-          if (fRecoHistMap.count(0) == 0) fRecoHistMap[0] = RecoHists("Reco");
-          const RecoHists& rhists = fRecoHistMap[0];
+          if (fRecoHistMap.count(0) == 0) fRecoHistMap.emplace(0, RecoHists{"Reco"});
+          const RecoHists& rhists = fRecoHistMap.at(0);
 
           rhists.fHstartx->Fill(pos.X());
           rhists.fHstarty->Fill(pos.Y());
@@ -1194,8 +1038,8 @@ namespace trkf {
 
               // Calculate the x offset due to nonzero mc particle time.
 
-              double mctime = mctrk.Start().T();                       // nsec
-              double mcdx = mctime * 1.e-3 * detprop->DriftVelocity(); // cm
+              double mctime = mctrk.Start().T();                      // nsec
+              double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
               // Calculate the points where this mc particle enters and leaves the
               // fiducial volume, and the length in the fiducial volume.
@@ -1204,7 +1048,8 @@ namespace trkf {
               TVector3 mcend;
               TVector3 mcstartmom;
               TVector3 mcendmom;
-              double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+              double plen =
+                length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
               // Get the displacement of this mc particle in the global coordinate system.
 
@@ -1231,7 +1076,7 @@ namespace trkf {
 
               double u0 = u - w * dudw;
               double v0 = v - w * dvdw;
-              double uv0 = std::sqrt(u0 * u0 + v0 * v0);
+              double uv0 = std::hypot(u0, v0);
 
               mchists.fHduvcosth->Fill(colinearity, uv0);
 
@@ -1263,8 +1108,7 @@ namespace trkf {
                   double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
                   double mcmom = mcstartmom.Mag();
                   double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
-                  double mcke =
-                    mcmom * mcmom / (std::sqrt(mcmom * mcmom + mcmass * mcmass) + mcmass);
+                  double mcke = mcmom * mcmom / (std::hypot(mcmom, mcmass) + mcmass);
 
                   mchists.fHstartdx->Fill(pos.X() - mcstart.X());
                   mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
@@ -1297,9 +1141,9 @@ namespace trkf {
 
                     std::set<int> tkidset;
                     tkidset.insert(mcid);
-                    double hiteff =
-                      bt_serv->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
-                    double hitpurity = bt_serv->HitCollectionPurity(tkidset, trackhits);
+                    double hiteff = bt_serv->HitCollectionEfficiency(
+                      clockData, tkidset, trackhits, allhits, geo::k3D);
+                    double hitpurity = bt_serv->HitCollectionPurity(clockData, tkidset, trackhits);
                     mchists.fHHitEff->Fill(hiteff);
                     mchists.fHHitPurity->Fill(hitpurity);
 
@@ -1344,9 +1188,9 @@ namespace trkf {
                       // this won't work for DUNE
                       for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
                         sWire = geom->NearestWire(mcstart, ipl, 0, 0);
-                        sTick = detprop->ConvertXToTicks(mcstart[0], ipl, 0, 0);
+                        sTick = detProp.ConvertXToTicks(mcstart[0], ipl, 0, 0);
                         eWire = geom->NearestWire(mcend, ipl, 0, 0);
-                        eTick = detprop->ConvertXToTicks(mcend[0], ipl, 0, 0);
+                        eTick = detProp.ConvertXToTicks(mcend[0], ipl, 0, 0);
                         mf::LogVerbatim("TrackAna")
                           << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":" << sTick
                           << " - " << eWire << ":" << eTick;
@@ -1412,8 +1256,8 @@ namespace trkf {
         }
         // find the start/end wire:time in each plane
         TVector3 mcstart, mcend, mcstartmom, mcendmom;
-        double mcdx = mctrk.Start().T() * 1.e-3 * detprop->DriftVelocity(); // cm
-        double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+        double mcdx = mctrk.Start().T() * 1.e-3 * detProp.DriftVelocity(); // cm
+        double plen = length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
         mf::LogVerbatim("TrackAna")
           << evt.run() << "." << evt.event() << " NoMat MCTkID " << std::setw(6) << mctrk.TrackID()
           << " Origin " << mctrk.Origin() << " PDG" << std::setw(5) << mctrk.PdgCode() << " KE"
@@ -1424,9 +1268,9 @@ namespace trkf {
           // this won't work for DUNE
           for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
             sWire = geom->NearestWire(mcstart, ipl, 0, 0);
-            sTick = detprop->ConvertXToTicks(mcstart[0], ipl, 0, 0);
+            sTick = detProp.ConvertXToTicks(mcstart[0], ipl, 0, 0);
             eWire = geom->NearestWire(mcend, ipl, 0, 0);
-            eTick = detprop->ConvertXToTicks(mcend[0], ipl, 0, 0);
+            eTick = detProp.ConvertXToTicks(mcend[0], ipl, 0, 0);
             mf::LogVerbatim("TrackAna") << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":"
                                         << sTick << " - " << eWire << ":" << eTick;
           } // ipl
@@ -1436,14 +1280,13 @@ namespace trkf {
   }
 
   void
-  TrackAna::anaStitch(const art::Event& evt)
+  TrackAna::anaStitch(const art::Event& evt,
+                      detinfo::DetectorClocksData const& clockData,
+                      detinfo::DetectorPropertiesData const& detProp)
   {
-
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>>> hitmap; // trkID, otrk, hitvec
     std::map<int, int> KEmap; // length traveled in det [cm]?, trkID want to sort by KE
@@ -1458,7 +1301,6 @@ namespace trkf {
     int ntv(trackvh->size());
 
     std::vector<art::PtrVector<recob::Track>>::const_iterator cti = trackvh->begin();
-    /// art::FindManyP<recob::Hit> fh(sppth, evt, fHitSpptAssocModuleLabel);
 
     if (trackh.isValid()) {
       art::FindManyP<recob::SpacePoint> fswhole(trackh, evt, fTrkSpptAssocModuleLabel);
@@ -1468,12 +1310,12 @@ namespace trkf {
     }
 
     if (fRecoHistMap.count(0) == 0) {
-      fRecoHistMap[0] = RecoHists("Reco");
+      fRecoHistMap.emplace(0, RecoHists{"Reco"});
       std::cout << "\n"
                 << "\t\t  TrkAna: Fresh fRecoHistMap[0] ******* \n"
                 << std::endl;
     }
-    const RecoHists& rhistsStitched = fRecoHistMap[0];
+    const RecoHists& rhistsStitched = fRecoHistMap.at(0);
 
     std::vector<std::vector<unsigned int>> NtrkIdsAll;
     std::vector<double> ntvsorted;
@@ -1483,30 +1325,22 @@ namespace trkf {
     // Look at the components of the stitched tracks. Grab their sppts/hits from Assns.
     for (int o = 0; o < ntv; ++o) // o for outer
     {
-
       const art::PtrVector<recob::Track> pvtrack(*(cti++));
-      //	auto it = pvtrack.begin();
       int ntrack = pvtrack.size();
-      //	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
       std::vector<std::vector<unsigned int>> NtrkId_Hit; // hit IDs in inner tracks
       std::vector<unsigned int> vecMode;
       art::FindManyP<recob::SpacePoint> fs(pvtrack, evt, fTrkSpptAssocModuleLabel);
 
       for (int i = 0; i < ntrack; ++i) {
 
-        //const art::Ptr<recob::Track> ptrack(*(it++));
-        //	  const recob::Track& track = *ptrack;
-        //	  auto pcoll { ptrack };
-        // art::FindManyP<recob::SpacePoint> fs( ptrack, evt, fTrkSpptAssocModuleLabel);
-        // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is grabbed after fs.at(0)
+        // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is
+        // grabbed after fs.at(0)
         bool assns(true);
         try {
-          // Got Spacepoints from this Track; now get Hits from those Spacepoints.
-          //	    int nsppts = ptrack->NumberTrajectoryPoints();
+          // Got Spacepoints from this Track; now get Hits from those
+          // Spacepoints.
 
           int nsppts_assn = fs.at(i).size();
-          //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
-          //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
 
           const auto& sppt = fs.at(i); //.at(0);
           // since we're in a try and worried about failure, we won't pull the following
@@ -1527,11 +1361,10 @@ namespace trkf {
               rhistsStitched.fHHitChg->Fill(hit->Integral());
               rhistsStitched.fHHitWidth->Fill(2. * hit->RMS());
               if (mc) {
-                std::vector<sim::TrackIDE> tids = bt_serv->HitToTrackIDEs(hit);
+                std::vector<sim::TrackIDE> tids = bt_serv->HitToTrackIDEs(clockData, hit);
                 // more here.
                 // Loop over track ids.
                 bool justOne(true); // Only take first trk that contributed to this hit
-                //	  std::cout  << "\t\t  TrkAna: TrkId  tids.size() ******* " << tids.size()  <<std::endl;
                 for (std::vector<sim::TrackIDE>::const_iterator itid = tids.begin();
                      itid != tids.end();
                      ++itid) {
@@ -1554,14 +1387,14 @@ namespace trkf {
                   TVector3 mcend;
                   TVector3 mcstartmom;
                   TVector3 mcendmom;
-                  double mctime = part->T();                               // nsec
-                  double mcdx = mctime * 1.e-3 * detprop->DriftVelocity(); // cm
+                  double mctime = part->T();                              // nsec
+                  double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
-                  double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+                  double plen =
+                    length(clockData, detProp, *part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
-                  KEmap[(int)(1e6 * plen)] =
-                    trackID; // multiple assignment but always the same, so fine.
-                  //		      std::cout  << "\t\t  TrkAna: TrkId  trackID, KE [MeV] ******* " << trackID << ", " << (int)(1e3*(part->E()-part->Mass()))  <<std::endl;
+                  KEmap[(int)(1e6 * plen)] = trackID; // multiple assignment but always the same, so
+                                                      // fine.
                 }
 
               } // mc
@@ -1587,12 +1420,10 @@ namespace trkf {
               }
               ii++;
             }
-            // std::cout  << "\t\t  TrkAna: TrkId  ind for this track is ******* " << ind  <<std::endl;
             unsigned int mode(sim::NoParticleId);
             if (strkIds.begin() != strkIds.end()) mode = strkIds.at(ind);
             vecMode.push_back(mode);
 
-            //	if (ntrack>1)	std::cout  << "\t\t  TrkAna: TrkId mode for this component track is ******* " << mode <<std::endl;
             if (strkIds.size() != 0)
               rhistsStitched.fModeFrac->Fill((double)max / (double)strkIds.size());
             else
@@ -1614,7 +1445,6 @@ namespace trkf {
         std::unique(NtrkIdsAll.back().begin(), NtrkIdsAll.back().end());
         double sum(0.0);
         for (auto const val : NtrkIdsAll.back()) {
-          //		rhistsStitched.fNTrkIdTrks3->Fill(o,val%100,hitmap[val][o].size());
           sum += hitmap[val][o].size();
         }
         ntvsorted.push_back(sum);
@@ -1626,12 +1456,6 @@ namespace trkf {
     int vtmp(0);
     // get KEmap indices by most energetic first, least last.
     for (auto it = KEmap.rbegin(); it != KEmap.rend(); ++it) {
-      //	    int tval = it->second; // grab trkIDs in order, since they're sorted by KE
-      //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
-      //	    const simb::MCParticle* part = bt_serv->TrackIDToParticle(tval);
-
-      //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
-
       vtmp++;
     }
 
@@ -1641,18 +1465,17 @@ namespace trkf {
       // get KEmap indices by longest trajectory first, least last.
       for (auto it = KEmap.rbegin(); it != KEmap.rend(); ++it) {
         int val = it->second; // grab trkIDs in order, since they're sorted by KE
-        //	    const simb::MCParticle* part = pi_serv->TrackIDToParticle(val);
-        //	    std::cout << "TrackAnaStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
         rhistsStitched.fNTrkIdTrks3->Fill(o, v, hitmap[val][o].size());
         v++;
       }
     }
 
-    // In how many o tracks did each trkId appear? Histo it. Would like it to be precisely 1.
-    // Histo it vs. particle KE.
+    // In how many o tracks did each trkId appear? Histo it. Would like it to be
+    // precisely 1. Histo it vs. particle KE.
     flattener flat(NtrkIdsAll);
     std::vector<unsigned int>& v = flat;
-    //  auto const it ( std::unique(v.begin(),v.end()) ); // never use this it, perhaps.
+    //  auto const it ( std::unique(v.begin(),v.end()) ); // never use this it,
+    //  perhaps.
     for (auto const val : v) {
       if (val != (unsigned int)sim::NoParticleId) {
         const simb::MCParticle* part = pi_serv->TrackIdToParticle_P(val);
@@ -1668,9 +1491,6 @@ namespace trkf {
 
   void
   TrackAna::endJob()
-  //
-  // Purpose: End of job.
-  //
   {
     // Print summary.
 
@@ -1702,9 +1522,8 @@ namespace trkf {
   }
 
   // Stole this from online. Returns indices sorted by corresponding vector values.
-  template <typename T>
   std::vector<size_t>
-  TrackAna::fsort_indexes(const std::vector<T>& v)
+  TrackAna::fsort_indexes(const std::vector<double>& v)
   {
     // initialize original index locations
     std::vector<size_t> idx(v.size());

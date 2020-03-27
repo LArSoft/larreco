@@ -18,6 +18,7 @@
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
+#include "lardata/RecoObjects/KGTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Seed.h"
@@ -37,8 +38,8 @@ namespace trkf {
     std::deque<trkf::KGTrack> tracks;
   };
 
-  typedef typename std::vector<KalmanInput> KalmanInputs;
-  typedef typename art::PtrVector<recob::Hit> Hits;
+  typedef std::vector<KalmanInput> KalmanInputs;
+  typedef art::PtrVector<recob::Hit> Hits;
 }
 
 #endif

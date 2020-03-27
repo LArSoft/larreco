@@ -58,7 +58,7 @@ namespace pma {
 class pma::PMAlgTrackingBase {
 public:
   const pma::TrkCandidateColl&
-  result(void)
+  result()
   {
     return fResult;
   }
@@ -70,7 +70,7 @@ public:
   }
 
   std::vector<std::pair<TVector3, size_t>>
-  getKinks(void) const
+  getKinks() const
   {
     return fPMAlgVertexing.getKinks(fResult);
   }
@@ -79,9 +79,10 @@ protected:
   PMAlgTrackingBase(const std::vector<art::Ptr<recob::Hit>>& allhitlist,
                     const pma::ProjectionMatchingAlg::Config& pmalgConfig,
                     const pma::PMAlgVertexing::Config& pmvtxConfig);
-  ~PMAlgTrackingBase(void);
+  ~PMAlgTrackingBase();
 
-  void guideEndpoints(pma::TrkCandidateColl& tracks);
+  void guideEndpoints(detinfo::DetectorPropertiesData const& detProp,
+                      pma::TrkCandidateColl& tracks);
 
   pma::cryo_tpc_view_hitmap fHitMap;
 
@@ -123,11 +124,11 @@ public:
               const pma::PMAlgFitter::Config& pmalgFitterConfig,
               const pma::PMAlgVertexing::Config& pmvtxConfig);
 
-  int build(void);
+  int build(detinfo::DetectorPropertiesData const& detProp);
 
 private:
-  void buildTracks(void);
-  void buildShowers(void);
+  void buildTracks(detinfo::DetectorPropertiesData const& detProp);
+  void buildShowers(detinfo::DetectorPropertiesData const& detProp);
 
   bool
   has(const std::vector<int>& v, int i) const
@@ -144,11 +145,11 @@ private:
   std::map<int, int> fPfpPdgCodes;
 
   // ******************** fcl parameters ***********************
-  std::vector<int>
-    fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
-  std::vector<int>
-    fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
-  bool fRunVertexing; // run vertex finding
+  std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when
+                                     // using input from PFParticles
+  std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using
+                                     // input from PFParticles
+  bool fRunVertexing;                // run vertex finding
 };
 
 class pma::PMAlgTracker : public pma::PMAlgTrackingBase {
@@ -258,23 +259,20 @@ public:
   void init(const art::FindManyP<recob::Hit>& hitsFromClusters,
             const art::FindManyP<recob::Hit>& hitsFromEmParts);
 
-  int build(void);
+  int build(detinfo::DetectorClocksData const& clockData,
+            detinfo::DetectorPropertiesData const& detProp);
 
 private:
   double collectSingleViewEnd(pma::Track3D& trk, std::vector<art::Ptr<recob::Hit>>& hits) const;
   double collectSingleViewFront(pma::Track3D& trk, std::vector<art::Ptr<recob::Hit>>& hits) const;
 
-  bool reassignHits_1(const std::vector<art::Ptr<recob::Hit>>& hits,
+  bool reassignHits_1(detinfo::DetectorPropertiesData const& detProp,
+                      const std::vector<art::Ptr<recob::Hit>>& hits,
                       pma::TrkCandidateColl& tracks,
                       size_t trk_idx,
                       double dist2);
-  bool reassignSingleViewEnds_1(pma::TrkCandidateColl& tracks); // use clusters
-
-  bool reassignHits_2(const std::vector<art::Ptr<recob::Hit>>& hits,
-                      pma::TrkCandidateColl& tracks,
-                      size_t trk_idx,
-                      double dist2) const;
-  bool reassignSingleViewEnds_2(pma::TrkCandidateColl& tracks) const;
+  bool reassignSingleViewEnds_1(detinfo::DetectorPropertiesData const& detProp,
+                                pma::TrkCandidateColl& tracks); // use clusters
 
   bool areCoLinear(pma::Track3D* trk1,
                    pma::Track3D* trk2,
@@ -289,20 +287,29 @@ private:
   void freezeBranchingNodes(pma::TrkCandidateColl& tracks) const;
   void releaseAllNodes(pma::TrkCandidateColl& tracks) const;
 
-  bool mergeCoLinear(pma::TrkCandidateColl& tracks) const;
-  void mergeCoLinear(pma::tpc_track_map& tracks) const;
+  bool mergeCoLinear(detinfo::DetectorClocksData const& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     pma::TrkCandidateColl& tracks) const;
+  void mergeCoLinear(detinfo::DetectorClocksData const& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     pma::tpc_track_map& tracks) const;
 
-  double validate(pma::Track3D& trk, unsigned int testView);
+  double validate(detinfo::DetectorPropertiesData const& detProp,
+                  pma::Track3D& trk,
+                  unsigned int testView);
 
-  void fromMaxCluster_tpc(pma::TrkCandidateColl& result,
+  void fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& detProp,
+                          pma::TrkCandidateColl& result,
                           size_t minBuildSize,
                           unsigned int tpc,
                           unsigned int cryo);
 
-  size_t matchTrack(const pma::TrkCandidateColl& tracks,
+  size_t matchTrack(detinfo::DetectorPropertiesData const& detProp,
+                    const pma::TrkCandidateColl& tracks,
                     const std::vector<art::Ptr<recob::Hit>>& hits) const;
 
-  pma::TrkCandidate matchCluster(int first_clu_idx,
+  pma::TrkCandidate matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                                 int first_clu_idx,
                                  const std::vector<art::Ptr<recob::Hit>>& first_hits,
                                  size_t minSizeCompl,
                                  unsigned int tpc,
@@ -310,17 +317,19 @@ private:
                                  geo::View_t first_view);
 
   pma::TrkCandidate
-  matchCluster(int first_clu_idx,
+  matchCluster(detinfo::DetectorPropertiesData const& detProp,
+               int first_clu_idx,
                size_t minSizeCompl,
                unsigned int tpc,
                unsigned int cryo,
                geo::View_t first_view)
   {
     return matchCluster(
-      first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view);
+      detProp, first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view);
   }
 
-  int matchCluster(const pma::TrkCandidate& trk,
+  int matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                   const pma::TrkCandidate& trk,
                    size_t minSize,
                    double fraction,
                    unsigned int preferedView,
@@ -328,12 +337,14 @@ private:
                    unsigned int tpc,
                    unsigned int cryo) const;
 
-  bool extendTrack(pma::TrkCandidate& candidate,
+  bool extendTrack(detinfo::DetectorPropertiesData const& detProp,
+                   pma::TrkCandidate& candidate,
                    const std::vector<art::Ptr<recob::Hit>>& hits,
                    unsigned int testView,
                    bool add_nodes);
 
-  int maxCluster(int first_idx_tag,
+  int maxCluster(detinfo::DetectorPropertiesData const& detProp,
+                 int first_idx_tag,
                  const pma::TrkCandidateColl& candidates,
                  float xmin,
                  float xmax,
@@ -344,7 +355,7 @@ private:
 
   int maxCluster(size_t min_clu_size, geo::View_t view, unsigned int tpc, unsigned int cryo) const;
 
-  void listUsedClusters(void) const;
+  void listUsedClusters(detinfo::DetectorPropertiesData const& detProp) const;
 
   bool
   has(const std::vector<size_t>& v, size_t idx) const
@@ -375,21 +386,27 @@ private:
   bool fFlipToX;       // set the track direction to decreasing X values
   bool fAutoFlip_dQdx; // set the track direction to increasing dQ/dx
 
-  bool
-    fMergeWithinTPC; // merge witnin single TPC; finds tracks best matching by angle, with limits:
-  double fMergeTransverseShift; //   - max. transverse displacement [cm] between tracks
+  bool fMergeWithinTPC;         // merge witnin single TPC; finds tracks best matching
+                                // by angle, with limits:
+  double fMergeTransverseShift; //   - max. transverse displacement [cm] between
+                                //   tracks
   double fMergeAngle;           //   - max. angle [degree] between tracks (nearest segments)
 
   pma::PMAlgCosmicTagger fCosmicTagger; // cosmic tagger alg
-  bool fTagCosmicTracks;                // do any tagging of cosmic rays (simple or of tagger flags)
+  bool fTagCosmicTracks;                // do any tagging of cosmic rays (simple or of tagger
+                                        // flags)
 
-  bool fStitchBetweenTPCs; // stitch between TPCs; finds tracks best matching by angle, with limits:
+  bool fStitchBetweenTPCs;       // stitch between TPCs; finds tracks best matching by
+                                 // angle, with limits:
   double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
-  double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
+  double fStitchTransverseShift; //   - max. transverse displacement [cm]
+                                 //   between tracks
   double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
 
-  bool fMatchT0inAPACrossing; // match T0 of APA-crossing tracks using PMAlgStitcher
-  bool fMatchT0inCPACrossing; // match T0 of CPA-crossing tracks using PMAlgStitcher
+  bool fMatchT0inAPACrossing; // match T0 of APA-crossing tracks using
+                              // PMAlgStitcher
+  bool fMatchT0inCPACrossing; // match T0 of CPA-crossing tracks using
+                              // PMAlgStitcher
 
   pma::PMAlgStitching fStitcher;
 
@@ -405,7 +422,6 @@ private:
 
   // *********************** services *************************
   geo::GeometryCore const* fGeom;
-  const detinfo::DetectorProperties* fDetProp;
 };
 
 #endif

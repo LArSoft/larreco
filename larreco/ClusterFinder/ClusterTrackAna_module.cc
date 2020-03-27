@@ -29,6 +29,7 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -152,6 +153,7 @@ cluster::ClusterTrackAna::analyze(art::Event const& evt)
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   sim::ParticleList const& plist = pi_serv->ParticleList();
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
 
   // make a list of Hit -> MCParticle assns in all TPCs. The first step is
   // to make a list of Geant TrackIDs whose origin was requested by the user.
@@ -199,7 +201,7 @@ cluster::ClusterTrackAna::analyze(art::Event const& evt)
     unsigned int tpc = hit.WireID().TPC;
     if (fInTPC != UINT_MAX && tpc != fInTPC) continue;
     ++nInTPC;
-    auto tides = bt_serv->HitToTrackIDEs(hit);
+    auto tides = bt_serv->HitToTrackIDEs(clockData, hit);
     if (tides.empty()) {
       ++noMatch;
       continue;

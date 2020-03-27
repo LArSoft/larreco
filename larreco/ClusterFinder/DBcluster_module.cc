@@ -20,7 +20,10 @@
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -115,13 +118,18 @@ namespace cluster {
     for (size_t i = 0; i < hitcol->size(); ++i)
       planeIDToHits[hitcol->at(i).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitcol, i));
 
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+    util::GeometryUtilities const gser{*geom, clock_data, det_prop};
     for (auto& itr : planeIDToHits) {
 
       geo::SigType_t sigType = geom->SignalType(itr.first);
       allhits.resize(itr.second.size());
       allhits.swap(itr.second);
 
-      fDBScan.InitScan(allhits, BadChannels);
+      fDBScan.InitScan(clock_data, det_prop, allhits, BadChannels);
 
       //----------------------------------------------------------------
       for (unsigned int j = 0; j < fDBScan.fps.size(); ++j) {
@@ -148,41 +156,37 @@ namespace cluster {
           }
         }
 
-        ////////
-        if (clusterHits.size() > 0) {
+        if (clusterHits.empty()) continue;
 
-          /// \todo: need to define start and end positions for this cluster and slopes for dTdW, dQdW
-          const geo::WireID& wireID = clusterHits.front()->WireID();
-          unsigned int sw = wireID.Wire;
-          unsigned int ew = clusterHits.back()->WireID().Wire;
+        /// \todo: need to define start and end positions for this cluster and slopes for dTdW, dQdW
+        const geo::WireID& wireID = clusterHits.front()->WireID();
+        unsigned int sw = wireID.Wire;
+        unsigned int ew = clusterHits.back()->WireID().Wire;
 
-          // feed the algorithm with all the cluster hits
-          ClusterParamAlgo.ImportHits(clusterHits);
+        // feed the algorithm with all the cluster hits
+        ClusterParamAlgo.ImportHits(gser, clusterHits);
 
-          // create the recob::Cluster directly in the vector
-          ClusterCreator cluster(ClusterParamAlgo,                     // algo
-                                 float(sw),                            // start_wire
-                                 0.,                                   // sigma_start_wire
-                                 clusterHits.front()->PeakTime(),      // start_tick
-                                 clusterHits.front()->SigmaPeakTime(), // sigma_start_tick
-                                 float(ew),                            // end_wire
-                                 0.,                                   // sigma_end_wire,
-                                 clusterHits.back()->PeakTime(),       // end_tick
-                                 clusterHits.back()->SigmaPeakTime(),  // sigma_end_tick
-                                 ccol->size(),                         // ID
-                                 clusterHits.front()->View(),          // view
-                                 wireID.planeID(),                     // plane
-                                 recob::Cluster::Sentry                // sentry
-          );
+        // create the recob::Cluster directly in the vector
+        ClusterCreator cluster(gser,
+                               ClusterParamAlgo,                     // algo
+                               float(sw),                            // start_wire
+                               0.,                                   // sigma_start_wire
+                               clusterHits.front()->PeakTime(),      // start_tick
+                               clusterHits.front()->SigmaPeakTime(), // sigma_start_tick
+                               float(ew),                            // end_wire
+                               0.,                                   // sigma_end_wire,
+                               clusterHits.back()->PeakTime(),       // end_tick
+                               clusterHits.back()->SigmaPeakTime(),  // sigma_end_tick
+                               ccol->size(),                         // ID
+                               clusterHits.front()->View(),          // view
+                               wireID.planeID(),                     // plane
+                               recob::Cluster::Sentry                // sentry
+        );
 
-          ccol->emplace_back(cluster.move());
+        ccol->emplace_back(cluster.move());
 
-          // associate the hits to this cluster
-          util::CreateAssn(*this, evt, *(ccol.get()), clusterHits, *(assn.get()));
-
-          clusterHits.clear();
-
-        } //end if clusterHits has at least one hit
+        // associate the hits to this cluster
+        util::CreateAssn(evt, *ccol, clusterHits, *assn);
 
       } //end loop over fclusters
 

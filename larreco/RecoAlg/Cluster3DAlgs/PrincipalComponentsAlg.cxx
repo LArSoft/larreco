@@ -17,8 +17,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 
 // std includes
@@ -40,92 +39,13 @@ namespace lar_cluster3d {
 
   PrincipalComponentsAlg::PrincipalComponentsAlg(fhicl::ParameterSet const& pset)
   {
-    this->reconfigure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  PrincipalComponentsAlg::~PrincipalComponentsAlg() {}
-
-  void
-  PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const& pset)
-  {
     m_parallel = pset.get<float>("ParallelLines", 0.00001);
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  }
-
-  void
-  PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f& axisPos,
-                                             const Eigen::Vector3f& axisDir,
-                                             const reco::ClusterHit2D* hit2D,
-                                             Eigen::Vector3f& poca,
-                                             float& arcLenAxis,
-                                             float& arcLenWire,
-                                             float& doca)
-  {
-    // Step one is to set up to determine the point of closest approach of this 2D hit to
-    // the cluster's current axis.
-    // Get this wire's geometry object
-    const geo::WireID& hitID = hit2D->WireID();
-    const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
-
-    // From this, get the parameters of the line for the wire
-    double wirePos[3] = {0., 0., 0.};
-    Eigen::Vector3f wireDir(
-      wire_geom.Direction().X(), wire_geom.Direction().Y(), wire_geom.Direction().Z());
-
-    wire_geom.GetCenter(wirePos);
-
-    // Correct the wire position in x to set to correspond to the drift time
-    float hitPeak(hit2D->getHit()->PeakTime());
-
-    wirePos[0] = m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat);
-
-    // Get a vector from the wire position to our cluster's current average position
-    Eigen::Vector3f wVec(axisPos(0) - wirePos[0], axisPos(1) - wirePos[1], axisPos(2) - wirePos[2]);
-
-    // Get the products we need to compute the arc lengths to the distance of closest approach
-    float a(axisDir.dot(axisDir));
-    float b(axisDir.dot(wireDir));
-    float c(wireDir.dot(wireDir));
-    float d(axisDir.dot(wVec));
-    float e(wireDir.dot(wVec));
-
-    float den(a * c - b * b);
-
-    // Parallel lines is a special case
-    if (fabs(den) > m_parallel) {
-      arcLenAxis = (b * e - c * d) / den;
-      arcLenWire = (a * e - b * d) / den;
-    }
-    else {
-      mf::LogDebug("Cluster3D") << "** Parallel lines, need a solution here" << std::endl;
-      arcLenAxis = 0.;
-      arcLenWire = 0.;
-    }
-
-    // Now get the hit position we'll use for the pca analysis
-    poca = Eigen::Vector3f(wirePos[0] + arcLenWire * wireDir(0),
-                           wirePos[1] + arcLenWire * wireDir(1),
-                           wirePos[2] + arcLenWire * wireDir(2));
-    Eigen::Vector3f axisPocaPos(axisPos[0] + arcLenAxis * axisDir(0),
-                                axisPos[1] + arcLenAxis * axisDir(1),
-                                axisPos[2] + arcLenAxis * axisDir(2));
-
-    float deltaX(poca(0) - axisPocaPos(0));
-    float deltaY(poca(1) - axisPocaPos(1));
-    float deltaZ(poca(2) - axisPocaPos(2));
-    float doca2(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
-
-    doca = sqrt(doca2);
-
-    return;
   }
 
   struct Sort3DHitsByDocaToAxis {
     bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return left->getDocaToAxis() < right->getDocaToAxis();
     }
@@ -133,7 +53,7 @@ namespace lar_cluster3d {
 
   struct Sort3DHitsByArcLen3D {
     bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return left->getArclenToPoca() < right->getArclenToPoca();
     }
@@ -141,14 +61,15 @@ namespace lar_cluster3d {
 
   struct Sort3DHitsByAbsArcLen3D {
     bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
     }
   };
 
   void
-  PrincipalComponentsAlg::PCAAnalysis(const reco::HitPairListPtr& hitPairVector,
+  PrincipalComponentsAlg::PCAAnalysis(const detinfo::DetectorPropertiesData& detProp,
+                                      const reco::HitPairListPtr& hitPairVector,
                                       reco::PrincipalComponents& pca,
                                       float doca3DScl) const
   {
@@ -169,7 +90,7 @@ namespace lar_cluster3d {
     // First attempt to refine it using only 2D information
     reco::PrincipalComponents pcaLoop = pca;
 
-    PCAAnalysis_2D(hitPairVector, pcaLoop);
+    PCAAnalysis_2D(detProp, hitPairVector, pcaLoop);
 
     // If valid result then go to next steps
     if (pcaLoop.getSvdOK()) {
@@ -195,7 +116,7 @@ namespace lar_cluster3d {
         // Try looping to see if we improve things
         while (maxIterations-- && numRejHits > 0 && totalRejects < maxRejects) {
           // Run the PCA
-          PCAAnalysis_2D(hitPairVector, pcaLoop, true);
+          PCAAnalysis_2D(detProp, hitPairVector, pcaLoop, true);
 
           maxRange =
             sclFctr * 0.5 * (3. * sqrt(pcaLoop.getEigenValues()[1]) + pcaLoop.getAveHitDoca());
@@ -277,9 +198,9 @@ namespace lar_cluster3d {
         continue;
 
       // Weight the hit by the peak time difference significance
-      double weight = std::max(
-        minimumDeltaPeakSig,
-        double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+      double weight = std::max(minimumDeltaPeakSig,
+                               double(hit->getHitChiSquare())); // hit->getDeltaPeakTime());
+                                                                // ///hit->getSigmaPeakTime());
 
       meanPos(0) += hit->getPosition()[0] * weight;
       meanPos(1) += hit->getPosition()[1] * weight;
@@ -306,11 +227,9 @@ namespace lar_cluster3d {
                             reco::ClusterHit3D::SKELETONHIT))
         continue;
 
-      double weight =
-        1. /
-        std::max(
-          minimumDeltaPeakSig,
-          double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+      double weight = 1. / std::max(minimumDeltaPeakSig,
+                                    double(hit->getHitChiSquare())); // hit->getDeltaPeakTime());
+                                                                     // ///hit->getSigmaPeakTime());
       double x = (hit->getPosition()[0] - meanPos(0)) * weight;
       double y = (hit->getPosition()[1] - meanPos(1)) * weight;
       double z = (hit->getPosition()[2] - meanPos(2)) * weight;
@@ -365,7 +284,8 @@ namespace lar_cluster3d {
   }
 
   void
-  PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairVector,
+  PrincipalComponentsAlg::PCAAnalysis_2D(const detinfo::DetectorPropertiesData& detProp,
+                                         const reco::HitPairListPtr& hitPairVector,
                                          reco::PrincipalComponents& pca,
                                          bool updateAvePos) const
   {
@@ -417,7 +337,7 @@ namespace lar_cluster3d {
         float hitPeak(hit->getHit()->PeakTime());
 
         Eigen::Vector3f wirePos(
-          m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat),
+          detProp.ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat),
           wireCenter[1],
           wireCenter[2]);
 

@@ -37,6 +37,8 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -296,8 +298,10 @@ namespace trkf {
     art::FindManyP<recob::Hit> fm(clusterListHandle, evt, fClusterModuleLabel);
 
     // find matched clusters
-    fClusterMatch.ClusterMatch(clusterlist, fm);
-    std::vector<std::vector<unsigned int>>& matchedclusters = fClusterMatch.matchedclusters;
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    auto const matchedclusters = fClusterMatch.MatchedClusters(clockData, detProp, clusterlist, fm);
 
     // get track space points
     std::vector<std::vector<trkPoint>> trkpts(matchedclusters.size());
@@ -311,8 +315,8 @@ namespace trkf {
           hitlist.push_back(hits[ihit]);
         }
       }
-      //reconstruct space points and directions
-      fCTAlg.SPTReco(hitlist);
+      // reconstruct space points and directions
+      fCTAlg.SPTReco(clockData, detProp, hitlist);
       if (!fTrajOnly) {
         if (!fCTAlg.trkPos.size()) continue;
         for (size_t i = 0; i < hitlist.size(); ++i) {
@@ -334,18 +338,12 @@ namespace trkf {
         if (!fCTAlg.trajPos.size()) continue;
         size_t spStart = spcol->size();
         std::vector<recob::SpacePoint> spacepoints;
-        //      for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
-        //	if (fCTAlg.usehit[ihit] == 1){
         for (size_t ipt = 0; ipt < fCTAlg.trajPos.size(); ++ipt) {
           art::PtrVector<recob::Hit> sp_hits;
-          //sp_hits.push_back(hitlist[ihit]);
           double hitcoord[3];
           hitcoord[0] = fCTAlg.trajPos[ipt].X();
           hitcoord[1] = fCTAlg.trajPos[ipt].Y();
           hitcoord[2] = fCTAlg.trajPos[ipt].Z();
-          //	  if (itrk==1){
-          //	    std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
-          //	  }
           double err[6] = {util::kBogusD};
           recob::SpacePoint mysp(hitcoord,
                                  err,
@@ -353,13 +351,9 @@ namespace trkf {
                                  spStart + spacepoints.size()); //3d point at end of track
           spacepoints.push_back(mysp);
           spcol->push_back(mysp);
-          util::CreateAssn(*this, evt, *spcol, fCTAlg.trajHit[ipt], *shassn);
-          //}//
-        } //ihit
+          util::CreateAssn(evt, *spcol, fCTAlg.trajHit[ipt], *shassn);
+        } // ihit
         size_t spEnd = spcol->size();
-        //sort in z direction
-        //std::sort(spacepoints.begin(),spacepoints.end(),sp_sort_z0);
-        //std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,sp_sort_z0);
         if (fSortDir == "+x") {
           std::sort(spacepoints.begin(), spacepoints.end(), spt_sort_x0);
           std::sort(spcol->begin() + spStart, spcol->begin() + spEnd, spt_sort_x0);
@@ -405,7 +399,6 @@ namespace trkf {
             std::cout << "The Spacepoint is infinitely small" << std::endl;
             continue;
           }
-          //std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
           std::vector<TVector3> dircos(spacepoints.size(), DirCos);
 
           tcol->push_back(
@@ -421,19 +414,14 @@ namespace trkf {
                          tcol->size()));
 
           // make associations between the track and space points
-          util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
-
-          // now the track and clusters
-          //util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+          util::CreateAssn(evt, *tcol, *spcol, *tspassn, spStart, spEnd);
 
           // and the hits and track
           std::vector<art::Ptr<recob::Hit>> trkhits;
           for (size_t ihit = 0; ihit < hitlist.size(); ++ihit) {
-            //if (fCTAlg.usehit[ihit] == 1){
             trkhits.push_back(hitlist[ihit]);
-            //}
           }
-          util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
+          util::CreateAssn(evt, *tcol, trkhits, *thassn);
         }
       }
     } //itrk
@@ -454,7 +442,6 @@ namespace trkf {
                   if (trkidx[i][j] == itrk2) found2 = i;
                 }
               }
-              //std::cout<<itrk1<<" "<<itrk2<<" "<<found1<<" "<<found2<<std::endl;
               if (found1 == -1 && found2 == -1) {
                 std::vector<unsigned int> tmp;
                 tmp.push_back(itrk1);
@@ -533,7 +520,6 @@ namespace trkf {
           hitcoord[0] = finaltrkpts[ipt].pos.X();
           hitcoord[1] = finaltrkpts[ipt].pos.Y();
           hitcoord[2] = finaltrkpts[ipt].pos.Z();
-          //std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
           double err[6] = {util::kBogusD};
           recob::SpacePoint mysp(hitcoord,
                                  err,
@@ -541,8 +527,8 @@ namespace trkf {
                                  spStart + spacepoints.size()); //3d point at end of track
           spacepoints.push_back(mysp);
           spcol->push_back(mysp);
-          util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
-        } //ipt
+          util::CreateAssn(evt, *spcol, sp_hits, *shassn);
+        } // ipt
         size_t spEnd = spcol->size();
         if (spacepoints.size() > 0) {
           // make a vector of the trajectory points along the track
@@ -563,7 +549,6 @@ namespace trkf {
                 if (dir.Angle(dircos[s]) > 0.8 * TMath::Pi()) { dircos[s] = -dircos[s]; }
               }
             }
-            //std::cout<<s<<" "<<xyz[s].X()<<" "<<xyz[s].Y()<<" "<<xyz[s].Z()<<" "<<dircos[s].X()<<" "<<dircos[s].Y()<<" "<<dircos[s].Z()<<std::endl;
           }
           tcol->push_back(
             recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
@@ -578,19 +563,17 @@ namespace trkf {
                          tcol->size()));
 
           // make associations between the track and space points
-          util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+          util::CreateAssn(evt, *tcol, *spcol, *tspassn, spStart, spEnd);
 
           // now the track and clusters
-          util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+          util::CreateAssn(evt, *tcol, clustersPerTrack, *tcassn);
 
           // and the hits and track
           std::vector<art::Ptr<recob::Hit>> trkhits;
           for (size_t ihit = 0; ihit < hitlist.size(); ++ihit) {
-            //if (fCTAlg.usehit[ihit] == 1){
             trkhits.push_back(hitlist[ihit]);
-            //}
           }
-          util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
+          util::CreateAssn(evt, *tcol, trkhits, *thassn);
         }
 
       } //i

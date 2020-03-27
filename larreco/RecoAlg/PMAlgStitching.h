@@ -14,6 +14,11 @@
 
 class TVector3;
 
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
+
 namespace pma {
   class PMAlgStitching;
   class TrkCandidateColl;
@@ -41,12 +46,19 @@ public:
   PMAlgStitching(const pma::PMAlgStitching::Config& config);
 
   // CPA and APA stitching wrappers
-  void StitchTracksCPA(pma::TrkCandidateColl& tracks);
-  void StitchTracksAPA(pma::TrkCandidateColl& tracks);
+  void StitchTracksCPA(const detinfo::DetectorClocksData& clockData,
+                       const detinfo::DetectorPropertiesData& detProp,
+                       pma::TrkCandidateColl& tracks);
+  void StitchTracksAPA(const detinfo::DetectorClocksData& clockData,
+                       const detinfo::DetectorPropertiesData& detProp,
+                       pma::TrkCandidateColl& tracks);
 
 private:
   // Main function of the algorithm
-  void StitchTracks(pma::TrkCandidateColl& tracks, bool isCPA);
+  void StitchTracks(const detinfo::DetectorClocksData& clockData,
+                    const detinfo::DetectorPropertiesData& detProp,
+                    pma::TrkCandidateColl& tracks,
+                    bool isCPA);
 
   double GetOptimalStitchShift(TVector3& pos1,
                                TVector3& pos2,
@@ -62,9 +74,10 @@ private:
   std::map<geo::TPCID, double> fTPCXOffsetsCPA;
 
   // Tuneable parameters
-  double fStitchingThreshold; // The maximum stitching score allowed for a successful stitch.
-  unsigned int
-    fNodesFromEnd; // Number of nodes we step back to make the stitch extrapolation. Require to mitigate end effects on tracks.
+  double fStitchingThreshold; // The maximum stitching score allowed for a
+                              // successful stitch.
+  unsigned int fNodesFromEnd; // Number of nodes we step back to make the stitch
+                              // extrapolation. Require to mitigate end effects on tracks.
 };
 
 #endif

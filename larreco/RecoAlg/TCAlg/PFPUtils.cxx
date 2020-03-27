@@ -23,7 +23,7 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
@@ -202,7 +202,9 @@ namespace tca {
   } // StitchPFPs
 
   void
-  FindPFParticles(TCSlice& slc)
+  FindPFParticles(detinfo::DetectorClocksData const& clockData,
+                  detinfo::DetectorPropertiesData const& detProp,
+                  TCSlice& slc)
   {
     // Match Tjs in 3D and create PFParticles
 
@@ -230,7 +232,7 @@ namespace tca {
     if (slc.nPlanes == 2) maxNit = 1;
     if (std::nearbyint(tcc.match3DCuts[2]) == 0) maxNit = 1;
     // fill the mAllTraj vector with TPs if we aren't using SpacePoints
-    if (evt.sptHits.empty()) FillmAllTraj(slc);
+    if (evt.sptHits.empty()) FillmAllTraj(detProp, slc);
     for (unsigned short nit = 0; nit < maxNit; ++nit) {
       matVec.clear();
       if (slc.nPlanes == 3 && nit == 0) {
@@ -261,13 +263,14 @@ namespace tca {
           myprt << "\n";
         } // indx
       }   // prt
-      MakePFParticles(slc, matVec, nit);
+      MakePFParticles(clockData, detProp, slc, matVec, nit);
     } // nit
 
     // a last debug print
     if (tcc.dbgPFP && debug.MVI != UINT_MAX) {
       for (auto& pfp : slc.pfps)
-        if (tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
+        if (tcc.dbgPFP && pfp.MVI == debug.MVI)
+          PrintTP3Ds(clockData, detProp, "FPFP", slc, pfp, -1);
     } // last debug print
 
     slc.mallTraj.resize(0);
@@ -276,7 +279,11 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  MakePFParticles(TCSlice& slc, std::vector<MatchStruct> matVec, unsigned short matVec_Iter)
+  MakePFParticles(detinfo::DetectorClocksData const& clockData,
+                  detinfo::DetectorPropertiesData const& detProp,
+                  TCSlice& slc,
+                  std::vector<MatchStruct> matVec,
+                  unsigned short matVec_Iter)
   {
     // Makes PFParticles using Tjs listed in matVec
     if (matVec.empty()) return;
@@ -284,8 +291,7 @@ namespace tca {
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
 
     // create a PFParticle for each valid match combination
-    // define a glabal matVec index for debugging
-    for (unsigned int indx = 0; indx < matVec.size(); ++indx) {
+    for (std::size_t indx = 0; indx < matVec.size(); ++indx) {
       // tone down the level of printing in ReSection
       bool foundMVI = (tcc.dbgPFP && indx == debug.MVI && matVec_Iter == debug.MVI_Iter);
       if (foundMVI) prt = true;
@@ -310,12 +316,12 @@ namespace tca {
       pfpVec[0].MVI = indx;
       // fill the TP3D points using the 2D trajectory points for Tjs in TjIDs. All
       // points are put in one section
-      if (!MakeTP3Ds(slc, pfpVec[0])) {
+      if (!MakeTP3Ds(detProp, slc, pfpVec[0])) {
         if (foundMVI) mf::LogVerbatim("TC") << " MakeTP3Ds failed. Too many points already used ";
         continue;
       }
       // fit all the points to get the general direction
-      if (!FitSection(slc, pfpVec[0], 0)) continue;
+      if (!FitSection(detProp, slc, pfpVec[0], 0)) continue;
       if (pfpVec[0].SectionFits[0].ChiDOF > 500) {
         if (foundMVI)
           mf::LogVerbatim("TC") << " crazy high ChiDOF P" << pfpVec[0].ID << " "
@@ -341,17 +347,17 @@ namespace tca {
         myprt << " projInPlane";
         for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
           CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
-          auto tp = MakeBareTP(slc, pfp.SectionFits[0].Pos, pfp.SectionFits[0].Dir, inCTP);
+          auto tp = MakeBareTP(detProp, slc, pfp.SectionFits[0].Pos, pfp.SectionFits[0].Dir, inCTP);
           myprt << " " << std::setprecision(2) << tp.Delta;
         } // plane
         myprt << " maxTjLen " << (int)MaxTjLen(slc, pfp.TjIDs);
         myprt << " MCSMom " << MCSMom(slc, pfp.TjIDs);
-        myprt << " PDGCodeVote " << PDGCodeVote(slc, pfp);
+        myprt << " PDGCodeVote " << PDGCodeVote(clockData, detProp, slc, pfp);
         myprt << " nTP3Ds " << pfp.TP3Ds.size();
         myprt << " Reco3DRange "
               << Find3DRecoRange(slc, pfp, 0, (unsigned short)tcc.match3DCuts[3], 1);
       } // prt
-      if (foundMVI) { PrintTP3Ds("FF", slc, pfpVec[0], -1); }
+      if (foundMVI) { PrintTP3Ds(clockData, detProp, "FF", slc, pfpVec[0], -1); }
       for (unsigned short ip = 0; ip < pfpVec.size(); ++ip) {
         auto& pfp = pfpVec[ip];
         // set the end flag bits
@@ -384,12 +390,12 @@ namespace tca {
           prevPFP.Vx3ID[1] = vx3.ID;
         } // ip > 0
         // remove really bad TP3Ds
-        KillBadPoints(slc, pfp, 50., foundMVI);
+        KillBadPoints(detProp, slc, pfp, 50., foundMVI);
         // check for a valid two-plane match with a Tj in the third plane for long pfps.
         // For short pfps, it is possible that a Tj would be too short to be reconstructed
         // in the third plane.
         if (pfp.TjIDs.size() == 2 && slc.nPlanes == 3 && pfp.TP3Ds.size() > 20 &&
-            !ValidTwoPlaneMatch(slc, pfp)) {
+            !ValidTwoPlaneMatch(detProp, slc, pfp)) {
           continue;
         }
         // Skip this combination if it isn't reconstructable in 3D
@@ -403,18 +409,18 @@ namespace tca {
           pfp.Flags[kNeedsUpdate] = false;
         }
         else if (pfp.Flags[kCanSection]) {
-          if (!ReSection(slc, pfp, foundMVI)) continue;
-          KillBadPoints(slc, pfp, tcc.match3DCuts[4], foundMVI);
+          if (!ReSection(detProp, slc, pfp, foundMVI)) continue;
+          KillBadPoints(detProp, slc, pfp, tcc.match3DCuts[4], foundMVI);
           // Try to remove bad points if there was a ReSection problem
         } // CanSection
-        if (foundMVI) { PrintTP3Ds("RS", slc, pfp, -1); }
+        if (foundMVI) { PrintTP3Ds(clockData, detProp, "RS", slc, pfp, -1); }
         // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
         // inserts new TP3Ds if there are hits in the gaps. This search is only done in a
         // plane if the projection of the pfp results in a large angle where 2D reconstruction
         // is likely to be poor - not true for TCWork2
-        FillGaps3D(slc, pfp, foundMVI);
+        FillGaps3D(clockData, detProp, slc, pfp, foundMVI);
         // Trim points from the ends until there is a 3D point where there is a signal in at least two planes
-        TrimEndPts(slc, pfp, foundMVI);
+        TrimEndPts(detProp, slc, pfp, foundMVI);
         // Check the TP3D -> TP assn, resolve conflicts and set TP -> InPFP
         if (!ReconcileTPs(slc, pfp, foundMVI)) continue;
         // Look for mis-placed 2D and 3D vertices
@@ -425,9 +431,10 @@ namespace tca {
           auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
           if (tp.Environment[kEnvOverlap]) tp3d.IsGood = false;
         } // tp3d
-        FilldEdx(slc, pfp);
-        pfp.PDGCode = PDGCodeVote(slc, pfp);
-        if (tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("STORE", slc, pfp, -1);
+        FilldEdx(clockData, detProp, slc, pfp);
+        pfp.PDGCode = PDGCodeVote(clockData, detProp, slc, pfp);
+        if (tcc.dbgPFP && pfp.MVI == debug.MVI)
+          PrintTP3Ds(clockData, detProp, "STORE", slc, pfp, -1);
         if (!StorePFP(slc, pfp)) break;
       } // ip (iterate over split pfps)
     }   // indx (iterate over matchVec entries)
@@ -1043,7 +1050,10 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  Update(const TCSlice& slc, PFPStruct& pfp, bool prt)
+  Update(detinfo::DetectorPropertiesData const& detProp,
+         const TCSlice& slc,
+         PFPStruct& pfp,
+         bool prt)
   {
     // This function only updates SectionFits that need to be re-sorted or re-fit. It returns
     // false if there was a serious error indicating that the pfp should be abandoned
@@ -1052,14 +1062,14 @@ namespace tca {
     for (std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
       auto& sf = pfp.SectionFits[sfi];
       if (!sf.NeedsUpdate) continue;
-      if (!FitSection(slc, pfp, sfi)) return false;
+      if (!FitSection(detProp, slc, pfp, sfi)) return false;
       if (!SortSection(pfp, sfi)) return false;
       sf.NeedsUpdate = false;
     } // sfi
 
     // ensure that all points (good or not) have a valid SFIndex
     for (auto& tp3d : pfp.TP3Ds) {
-      if (tp3d.SFIndex >= pfp.SectionFits.size()) SetSection(slc, pfp, tp3d);
+      if (tp3d.SFIndex >= pfp.SectionFits.size()) SetSection(detProp, slc, pfp, tp3d);
     } // tp3d
     pfp.Flags[kNeedsUpdate] = false;
     return true;
@@ -1067,7 +1077,10 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  ReSection(const TCSlice& slc, PFPStruct& pfp, bool prt)
+  ReSection(detinfo::DetectorPropertiesData const& detProp,
+            const TCSlice& slc,
+            PFPStruct& pfp,
+            bool prt)
   {
     // Re-fit the TP3Ds in sections and add/remove sections to keep ChiDOF of each section close to 1.
     // This function only fails when there is a serious error, otherwise if reasonable fits cannot be
@@ -1098,7 +1111,7 @@ namespace tca {
         tp3d.IsGood = true;
       }
       auto& sf = pfp.SectionFits[0];
-      if (!FitSection(slc, pfp, 0)) return false;
+      if (!FitSection(detProp, slc, pfp, 0)) { return false; }
       if (sf.ChiDOF < tcc.match3DCuts[5]) return true;
     } // > 1 SectionFit
     // sort by distance from the start
@@ -1124,7 +1137,7 @@ namespace tca {
     // Try to reduce the number of iterations for long pfps
     if (pfp.TP3Ds.size() > 100) {
       unsigned short nhalf = pfp.TP3Ds.size() / 2;
-      FitTP3Ds(slc, pfp, fromPt, nhalf, USHRT_MAX, chiDOF);
+      FitTP3Ds(detProp, slc, pfp, fromPt, nhalf, USHRT_MAX, chiDOF);
       if (chiDOF < tcc.match3DCuts[5]) nPts = nhalf;
     }
     bool lastSection = false;
@@ -1135,7 +1148,9 @@ namespace tca {
       for (unsigned short nit = 0; nit < 10; ++nit) {
         // Decide how many points to add or subtract after doing the fit
         unsigned short nPtsNext = nPts;
-        if (!FitTP3Ds(slc, pfp, fromPt, nPts, USHRT_MAX, chiDOF)) { nPtsNext += 1.5 * nPtsToAdd; }
+        if (!FitTP3Ds(detProp, slc, pfp, fromPt, nPts, USHRT_MAX, chiDOF)) {
+          nPtsNext += 1.5 * nPtsToAdd;
+        }
         else if (chiDOF < chiLo) {
           // low chiDOF
           if (nHiChi > 2) {
@@ -1211,8 +1226,8 @@ namespace tca {
         }
       } // !lastSection
       // Do a final fit and update the points. Don't worry about a poor ChiDOF
-      FitSection(slc, pfp, sfIndex);
-      if (!SortSection(pfp, 0)) return false;
+      FitSection(detProp, slc, pfp, sfIndex);
+      if (!SortSection(pfp, 0)) { return false; }
       if (lastSection) break;
       // Prepare for the next section.
       fromPt = fromPt + nPts;
@@ -1245,7 +1260,7 @@ namespace tca {
       pfp.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
     } // tp3d
 
-    Update(slc, pfp, prt);
+    Update(detProp, slc, pfp, prt);
 
     // set CanSection false if the chisq is poor in any section
     for (auto& sf : pfp.SectionFits) {
@@ -1291,7 +1306,11 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  KillBadPoints(TCSlice& slc, PFPStruct& pfp, float pullCut, bool prt)
+  KillBadPoints(detinfo::DetectorPropertiesData const& detProp,
+                TCSlice& slc,
+                PFPStruct& pfp,
+                float pullCut,
+                bool prt)
   {
     // Find bad TP3Ds points and remove them in all sections
     unsigned short nbad = 0;
@@ -1313,7 +1332,7 @@ namespace tca {
     for (auto& tp3d : pfp.TP3Ds)
       if (!tp3d.IsBad) ntp3ds.push_back(tp3d);
     pfp.TP3Ds = ntp3ds;
-    Update(slc, pfp, prt);
+    Update(detProp, slc, pfp, prt);
 
   } // KillBadPoints
 
@@ -1389,7 +1408,10 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  FitSection(const TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex)
+  FitSection(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             PFPStruct& pfp,
+             unsigned short sfIndex)
   {
     // Fits the TP3D points in the selected section to a 3D line with the origin at the center of
     // the section
@@ -1410,13 +1432,14 @@ namespace tca {
 
     // fit these points and update
     float chiDOF = 999;
-    return FitTP3Ds(slc, pfp, fromPt, npts, sfIndex, chiDOF);
+    return FitTP3Ds(detProp, slc, pfp, fromPt, npts, sfIndex, chiDOF);
 
   } // FitSection
 
   /////////////////////////////////////////
   SectionFit
-  FitTP3Ds(const TCSlice& slc,
+  FitTP3Ds(detinfo::DetectorPropertiesData const& detProp,
+           const TCSlice& slc,
            const std::vector<TP3D>& tp3ds,
            unsigned short fromPt,
            short fitDir,
@@ -1522,7 +1545,7 @@ namespace tca {
     std::vector<TrajPoint> plnTP(slc.nPlanes);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
-      plnTP[plane] = MakeBareTP(slc, sf.Pos, sf.Dir, inCTP);
+      plnTP[plane] = MakeBareTP(detProp, slc, sf.Pos, sf.Dir, inCTP);
     } // plane
     // a local position
     Point3_t pos;
@@ -1554,7 +1577,8 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  FitTP3Ds(const TCSlice& slc,
+  FitTP3Ds(detinfo::DetectorPropertiesData const& detProp,
+           const TCSlice& slc,
            PFPStruct& pfp,
            unsigned short fromPt,
            unsigned short nPtsFit,
@@ -1569,7 +1593,7 @@ namespace tca {
     if (nPtsFit < 5) return false;
     if (fromPt + nPtsFit > pfp.TP3Ds.size()) return false;
 
-    auto sf = FitTP3Ds(slc, pfp.TP3Ds, fromPt, 1, nPtsFit);
+    auto sf = FitTP3Ds(detProp, slc, pfp.TP3Ds, fromPt, 1, nPtsFit);
     chiDOF = sf.ChiDOF;
     if (chiDOF > 900) return false;
 
@@ -1583,7 +1607,7 @@ namespace tca {
     std::vector<TrajPoint> plnTP(slc.nPlanes);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
-      plnTP[plane] = MakeBareTP(slc, sf.Pos, sf.Dir, inCTP);
+      plnTP[plane] = MakeBareTP(detProp, slc, sf.Pos, sf.Dir, inCTP);
     } // plane
     Point3_t pos;
     bool needsSort = false;
@@ -1618,7 +1642,8 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  KinkFit(const TCSlice& slc,
+  KinkFit(detinfo::DetectorPropertiesData const& detProp,
+          const TCSlice& slc,
           const PFPStruct& pfp,
           unsigned short atPt,
           double fitLen,
@@ -1656,9 +1681,9 @@ namespace tca {
     } // ipt
     if (!gotenuf) return;
 
-    auto fitMinus = FitTP3Ds(slc, pfp.TP3Ds, atPt - 1, -1, nPtsMinus);
+    auto fitMinus = FitTP3Ds(detProp, slc, pfp.TP3Ds, atPt - 1, -1, nPtsMinus);
     if (fitMinus.ChiDOF > 10) return;
-    auto fitPlus = FitTP3Ds(slc, pfp.TP3Ds, atPt + 1, 1, nPtsMinus);
+    auto fitPlus = FitTP3Ds(detProp, slc, pfp.TP3Ds, atPt + 1, 1, nPtsMinus);
     if (fitPlus.ChiDOF > 10) return;
     dang = DeltaAngle(fitMinus.Dir, fitPlus.Dir);
     double cnt = 0;
@@ -1675,7 +1700,10 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  SplitAtKinks(const TCSlice& slc, std::vector<PFPStruct>& pfpVec, bool prt)
+  SplitAtKinks(detinfo::DetectorPropertiesData const& detProp,
+               const TCSlice& slc,
+               std::vector<PFPStruct>& pfpVec,
+               bool prt)
   {
     // Looks for a kink in pfpVec[0]. If one is found, the pfp is split and the
     // second one is put in pfpVec[1]
@@ -1694,7 +1722,7 @@ namespace tca {
       mf::LogVerbatim("TC") << "SAK: P" << p1.ID << " min (3D angle) * (2D significance) cut "
                             << big << " fit Len " << tcc.kinkCuts[3];
     for (unsigned short ipt = 0; ipt < p1.TP3Ds.size(); ++ipt) {
-      KinkFit(slc, p1, ipt, tcc.kinkCuts[3], dang, dangSig);
+      KinkFit(detProp, slc, p1, ipt, tcc.kinkCuts[3], dang, dangSig);
       if (dang < 0) continue;
       // multiply the kink angle by the 2D kink significance
       auto& tp3d = p1.TP3Ds[ipt];
@@ -1715,13 +1743,18 @@ namespace tca {
     auto p2 = CreatePFP(slc);
     p2.MVI = p1.MVI;
     p2.ID = pfpVec[0].ID + 1;
-    if (!Split(slc, p1, atPt, p2, prt)) return;
+    if (!Split(detProp, slc, p1, atPt, p2, prt)) return;
     pfpVec.push_back(p2);
   } // SplitAtKinks
 
   /////////////////////////////////////////
   bool
-  Split(const TCSlice& slc, PFPStruct& p1, unsigned short atPt, PFPStruct& p2, bool prt)
+  Split(detinfo::DetectorPropertiesData const& detProp,
+        const TCSlice& slc,
+        PFPStruct& p1,
+        unsigned short atPt,
+        PFPStruct& p2,
+        bool prt)
   {
     // Splits pfp p1 at the specified point atPt of the TP3Ds vector.
     // Points < atPt are kept in p1. Points >= atPt are moved to p2. This
@@ -1731,7 +1764,7 @@ namespace tca {
     // ensure that p2 was created properly
     if (p2.SectionFits.size() != 1 || !p2.TP3Ds.empty()) return false;
     // ensure that p1 is updated
-    if (p1.Flags[kNeedsUpdate] && !Update(slc, p1, prt)) return false;
+    if (p1.Flags[kNeedsUpdate] && !Update(detProp, slc, p1, prt)) return false;
     return false;
   } // Split
 
@@ -1825,12 +1858,13 @@ namespace tca {
       if (std::find(vx3List.begin(), vx3List.end(), pfp.Vx3ID[end]) != vx3List.end()) continue;
     } // end
     if (neutrinoVxEnd < 2 && neutrinoVxEnd != 0) Reverse(slc, pfp);
+
     return;
   } // ReconcileVertices
 
   /////////////////////////////////////////
   void
-  TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt)
+  TrimEndPts(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp, bool prt)
   {
     // Check for a wire signal and trim points starting
     // at the ends until there at least 2 planes that have a wire signal. The
@@ -1856,7 +1890,7 @@ namespace tca {
         unsigned short cnt = 0;
         for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
           CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
-          auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+          auto tp = MakeBareTP(detProp, slc, tp3d.Pos, inCTP);
           if (SignalAtTp(tp)) ++cnt;
         } // plane
         if (cnt >= 2) break;
@@ -1876,7 +1910,7 @@ namespace tca {
         unsigned short cnt = 0;
         for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
           CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
-          auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+          auto tp = MakeBareTP(detProp, slc, tp3d.Pos, inCTP);
           if (SignalAtTp(tp)) ++cnt;
         } // plane
         if (cnt >= 2) break;
@@ -1902,16 +1936,23 @@ namespace tca {
         if (firstGood == 0 && lastGood == pWork.TP3Ds.size()) break;
         std::vector<TP3D> temp(pWork.TP3Ds.begin() + firstGood, pWork.TP3Ds.begin() + lastGood);
         pWork.TP3Ds = temp;
-        if (!Update(slc, pWork, prt)) return;
+        if (!Update(detProp, slc, pWork, prt)) { return; }
       }
     } // nit
-    if (pWork.Flags[kNeedsUpdate]) Update(slc, pWork, prt);
+
+    if (pWork.Flags[kNeedsUpdate]) { Update(detProp, slc, pWork, prt); }
+
     pfp = pWork;
+
   } // TrimEndPts
 
   /////////////////////////////////////////
   void
-  FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt)
+  FillGaps3D(detinfo::DetectorClocksData const& clockData,
+             detinfo::DetectorPropertiesData const& detProp,
+             TCSlice& slc,
+             PFPStruct& pfp,
+             bool prt)
   {
     // Look for gaps in each plane in the TP3Ds vector in planes in which
     // the projection of the pfp angle is large (~> 60 degrees). Hits
@@ -1936,19 +1977,31 @@ namespace tca {
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pWork.TPCID.Cryostat, pWork.TPCID.TPC, plane);
       unsigned short nWires, nAdd;
-      AddPointsInRange(slc, pWork, fromPt, toPt, inCTP, tcc.match3DCuts[4], nWires, nAdd, foundMVI);
-      if (pWork.Flags[kNeedsUpdate]) Update(slc, pWork, prt);
+      AddPointsInRange(clockData,
+                       detProp,
+                       slc,
+                       pWork,
+                       fromPt,
+                       toPt,
+                       inCTP,
+                       tcc.match3DCuts[4],
+                       nWires,
+                       nAdd,
+                       foundMVI);
+      if (pWork.Flags[kNeedsUpdate]) Update(detProp, slc, pWork, prt);
       nPtsAdded += nAdd;
     } // plane
     if (prt) mf::LogVerbatim("TC") << "FG3D P" << pWork.ID << " added " << nPtsAdded << " points";
-    if (pWork.Flags[kNeedsUpdate] && !Update(slc, pWork, prt)) return;
+    if (pWork.Flags[kNeedsUpdate] && !Update(detProp, slc, pWork, prt)) return;
     pfp = pWork;
     return;
   } // FillGaps3D
 
   /////////////////////////////////////////
   bool
-  ValidTwoPlaneMatch(const TCSlice& slc, const PFPStruct& pfp)
+  ValidTwoPlaneMatch(detinfo::DetectorPropertiesData const& detProp,
+                     const TCSlice& slc,
+                     const PFPStruct& pfp)
   {
     // This function checks the third plane in the PFP when only two Tjs are 3D-matched to
     // ensure that the reason for the lack of a 3rd plane match is that it is in a dead region.
@@ -1964,13 +2017,13 @@ namespace tca {
     unsigned short thirdPlane = 3 - planes[0] - planes[1];
     CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, thirdPlane);
     // Project the 3D position at the start into the third plane
-    auto tp = MakeBareTP(slc, pfp.TP3Ds[0].Pos, inCTP);
+    auto tp = MakeBareTP(detProp, slc, pfp.TP3Ds[0].Pos, inCTP);
     unsigned int wire0 = 0;
     if (tp.Pos[0] > 0) wire0 = std::nearbyint(tp.Pos[0]);
     if (wire0 > slc.nWires[thirdPlane]) wire0 = slc.nWires[thirdPlane];
     // Do the same for the end
     unsigned short lastPt = pfp.TP3Ds.size() - 1;
-    tp = MakeBareTP(slc, pfp.TP3Ds[lastPt].Pos, inCTP);
+    tp = MakeBareTP(detProp, slc, pfp.TP3Ds[lastPt].Pos, inCTP);
     unsigned int wire1 = 0;
     if (tp.Pos[0] > 0) wire1 = std::nearbyint(tp.Pos[0]);
     if (wire1 > slc.nWires[thirdPlane]) wire1 = slc.nWires[thirdPlane];
@@ -1987,7 +2040,9 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  AddPointsInRange(TCSlice& slc,
+  AddPointsInRange(detinfo::DetectorClocksData const& clockData,
+                   detinfo::DetectorPropertiesData const& detProp,
+                   TCSlice& slc,
                    PFPStruct& pfp,
                    unsigned short fromPt,
                    unsigned short toPt,
@@ -2009,7 +2064,7 @@ namespace tca {
     // Find the average dE/dx so we can apply a generous min/max dE/dx cut
     float dEdXAve = 0;
     float dEdXRms = 0;
-    Average_dEdX(slc, pfp, dEdXAve, dEdXRms);
+    Average_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
     float dEdxMin = 0.5, dEdxMax = 50.;
     if (dEdXAve > 0.5) {
       dEdxMin = dEdXAve - maxPull * dEdXRms;
@@ -2046,7 +2101,7 @@ namespace tca {
       else {
         // Found the first tp3d in a new SectionFit and it is in a different CTP.
         // Make a TP in the right CTP
-        auto tp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP);
+        auto tp = MakeBareTP(detProp, slc, tp3d.Pos, tp3d.Dir, inCTP);
         wire = std::nearbyint(tp.Pos[0]);
         if (wire >= slc.nWires[pln]) break;
         sfTPs.push_back(tp);
@@ -2106,12 +2161,12 @@ namespace tca {
           if (utp.InPFP > 0) continue;
           // or if it overlaps another trajectory near a 2D vertex
           if (utp.Environment[kEnvOverlap]) continue;
-          auto newTP3D = CreateTP3D(slc, utj.ID, tpIndex);
-          if (!SetSection(slc, pfp, newTP3D)) continue;
+          auto newTP3D = CreateTP3D(detProp, slc, utj.ID, tpIndex);
+          if (!SetSection(detProp, slc, pfp, newTP3D)) continue;
           // set the direction to the direction of the SectionFit it is in so we can calculate dE/dx
           newTP3D.Dir = pfp.SectionFits[newTP3D.SFIndex].Dir;
           float pull = PointPull(pfp, newTP3D);
-          float dedx = dEdx(slc, newTP3D);
+          float dedx = dEdx(clockData, detProp, slc, newTP3D);
           // Require a good pull and a consistent dE/dx (MeV/cm)
           bool useIt = (pull < bestPull && dedx > dEdxMin && dedx < dEdxMax);
           if (!useIt) continue;
@@ -2235,7 +2290,7 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  MakeTP3Ds(TCSlice& slc, PFPStruct& pfp)
+  MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp)
   {
     // Create and populate the TP3Ds vector. This function is called before the first
     // fit is done so the TP3D along variable can't be determined. It returns false
@@ -2254,7 +2309,7 @@ namespace tca {
         ++cnt;
         if (tp.InPFP > 0) continue;
         ++avail;
-        auto tp3d = CreateTP3D(slc, tid, ipt);
+        auto tp3d = CreateTP3D(detProp, slc, tid, ipt);
         tp3d.SFIndex = 0;
         // We need to assume that all points are good or the first fit will fail
         tp3d.IsGood = true;
@@ -2292,7 +2347,7 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  FillmAllTraj(TCSlice& slc)
+  FillmAllTraj(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Fills the mallTraj vector with trajectory points in the tpc and sorts
     // them by increasing X
@@ -2330,7 +2385,7 @@ namespace tca {
         ++cnt;
         // don't try matching if the wire doesn't exist
         if (!tcc.geom->HasWire(geo::WireID(cstat, tpc, plane, tj2pt.wire))) continue;
-        float xpos = tcc.detprop->ConvertTicksToX(tp.Pos[1] / tcc.unitsPerTick, plane, tpc, cstat);
+        float xpos = detProp.ConvertTicksToX(tp.Pos[1] / tcc.unitsPerTick, plane, tpc, cstat);
         tj2pt.xlo = xpos - rms;
         tj2pt.xhi = xpos + rms;
         tj2pt.plane = plane;
@@ -2416,7 +2471,10 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  FilldEdx(const TCSlice& slc, PFPStruct& pfp)
+  FilldEdx(detinfo::DetectorClocksData const& clockData,
+           detinfo::DetectorPropertiesData const& detProp,
+           const TCSlice& slc,
+           PFPStruct& pfp)
   {
     // Fills dE/dx variables in the pfp struct
 
@@ -2450,7 +2508,7 @@ namespace tca {
         if (PosSep2(tp3d.Pos, endPos) > maxSep2) break;
         // require good points
         if (!tp3d.IsGood) continue;
-        float dedx = dEdx(slc, tp3d);
+        float dedx = dEdx(clockData, detProp, slc, tp3d);
         if (dedx < 0.5) continue;
         unsigned short plane = DecodeCTP(tp3d.CTP).Plane;
         pfp.dEdx[end][plane] += dedx;
@@ -2466,7 +2524,12 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  Average_dEdX(const TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms)
+  Average_dEdX(detinfo::DetectorClocksData const& clockData,
+               detinfo::DetectorPropertiesData const& detProp,
+               const TCSlice& slc,
+               PFPStruct& pfp,
+               float& dEdXAve,
+               float& dEdXRms)
   {
     // Return a simple average of dE/dx and rms using ALL points in all planes, not
     // just those at the ends ala FilldEdx
@@ -2478,7 +2541,7 @@ namespace tca {
     double cnt = 0;
     for (auto& tp3d : pfp.TP3Ds) {
       if (!tp3d.IsGood || tp3d.IsBad) continue;
-      double dedx = dEdx(slc, tp3d);
+      double dedx = dEdx(clockData, detProp, slc, tp3d);
       if (dedx < 0.5 || dedx > 80.) continue;
       sum += dedx;
       sum2 += dedx * dedx;
@@ -2498,7 +2561,10 @@ namespace tca {
 
   /////////////////////////////////////////
   float
-  dEdx(const TCSlice& slc, const TP3D& tp3d)
+  dEdx(detinfo::DetectorClocksData const& clockData,
+       detinfo::DetectorPropertiesData const& detProp,
+       const TCSlice& slc,
+       TP3D& tp3d)
   {
     if (!tp3d.IsGood) return 0;
     if (tp3d.TjID > (int)slc.slHits.size()) return 0;
@@ -2524,14 +2590,17 @@ namespace tca {
     double dx = tcc.geom->WirePitch(plnID) / cosgamma;
     double dQdx = dQ / dx;
     double t0 = 0;
-    float dedx = tcc.caloAlg->dEdx_AREA(dQdx, time, plnID.Plane, t0);
+    float dedx = tcc.caloAlg->dEdx_AREA(clockData, detProp, dQdx, time, plnID.Plane, t0);
     if (std::isinf(dedx)) dedx = 0;
     return dedx;
   } // dEdx
 
   ////////////////////////////////////////////////
   TP3D
-  CreateTP3D(const TCSlice& slc, int tjID, unsigned short tpIndex)
+  CreateTP3D(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             int tjID,
+             unsigned short tpIndex)
   {
     // create a TP3D with a single TP. Note that the SectionFit in which it
     // should be placed and the 3D position can't be determined until the the TP3D is
@@ -2548,7 +2617,7 @@ namespace tca {
     auto plnID = DecodeCTP(tp2.CTP);
     tp3d.CTP = tp2.CTP;
     double tick = tp2.HitPos[1] / tcc.unitsPerTick;
-    tp3d.TPX = tcc.detprop->ConvertTicksToX(tick, plnID);
+    tp3d.TPX = detProp.ConvertTicksToX(tick, plnID);
     // Get the RMS of the TP in WSE units and convert to cm
     float rms = TPHitsRMSTime(slc, tp2, kAllHits) * tcc.wirePitch;
     // inflate the error for large angle TPs
@@ -2575,7 +2644,10 @@ namespace tca {
 
   /////////////////////////////////////////
   bool
-  SetSection(const TCSlice& slc, PFPStruct& pfp, TP3D& tp3d)
+  SetSection(detinfo::DetectorPropertiesData const& detProp,
+             const TCSlice& slc,
+             PFPStruct& pfp,
+             TP3D& tp3d)
   {
     // Determine which SectionFit this tp3d should reside in, then calculate
     // the 3D position and the distance from the center of the SectionFit
@@ -2601,7 +2673,7 @@ namespace tca {
       } // sfi
     }   // pfp.SectionFits.size() > 1
     auto& sf = pfp.SectionFits[tp3d.SFIndex];
-    auto plnTP = MakeBareTP(slc, sf.Pos, sf.Dir, tp3d.CTP);
+    auto plnTP = MakeBareTP(detProp, slc, sf.Pos, sf.Dir, tp3d.CTP);
     // the number of wires relative to the SectionFit center
     double dw = tp3d.Wire - plnTP.Pos[0];
     // dt/dW was stored in DeltaRMS
@@ -2858,7 +2930,6 @@ namespace tca {
     else {
       pos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
     }
-
     return (pos[0] > slc.xLo + abit && pos[0] < slc.xHi - abit && pos[1] > slc.yLo + abit &&
             pos[1] < slc.yHi - abit && pos[2] > slc.zLo + abit && pos[2] < slc.zHi - abit);
 
@@ -2991,7 +3062,10 @@ namespace tca {
 
   ////////////////////////////////////////////////
   float
-  ChgFracBetween(const TCSlice& slc, Point3_t pos1, Point3_t pos2)
+  ChgFracBetween(detinfo::DetectorPropertiesData const& detProp,
+                 const TCSlice& slc,
+                 Point3_t pos1,
+                 Point3_t pos2)
   {
     // Step between pos1 and pos2 and find the fraction of the points that have nearby hits
     // in each plane. This function returns -1 if something is fishy, but this doesn't mean
@@ -3011,9 +3085,8 @@ namespace tca {
         tp.CTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
         tp.Pos[0] =
           tcc.geom->WireCoordinate(pos1[1], pos1[2], plane, slc.TPCID.TPC, slc.TPCID.Cryostat);
-        tp.Pos[1] =
-          tcc.detprop->ConvertXToTicks(pos1[0], plane, slc.TPCID.TPC, slc.TPCID.Cryostat) *
-          tcc.unitsPerTick;
+        tp.Pos[1] = detProp.ConvertXToTicks(pos1[0], plane, slc.TPCID.TPC, slc.TPCID.Cryostat) *
+                    tcc.unitsPerTick;
         ++cnt;
         if (SignalAtTp(tp)) ++sum;
       } // plane
@@ -3024,7 +3097,10 @@ namespace tca {
 
   ////////////////////////////////////////////////
   float
-  ChgFracNearEnd(const TCSlice& slc, const PFPStruct& pfp, unsigned short end)
+  ChgFracNearEnd(detinfo::DetectorPropertiesData const& detProp,
+                 const TCSlice& slc,
+                 const PFPStruct& pfp,
+                 unsigned short end)
   {
     // returns the charge fraction near the end of the pfp. Note that this function
     // assumes that there is only one Tj in a plane.
@@ -3055,7 +3131,7 @@ namespace tca {
         unsigned int wire = std::nearbyint(pos2[0]);
         if (wire > slc.nWires[plane]) continue;
         if (slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
-        pos2[1] = tcc.detprop->ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
+        pos2[1] = detProp.ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
         float cf = ChgFracNearPos(slc, pos2, tjids);
         if (cf < lo) lo = cf;
         if (cf > hi) hi = cf;
@@ -3141,7 +3217,10 @@ namespace tca {
 
   /////////////////////////////////////////
   int
-  PDGCodeVote(const TCSlice& slc, const PFPStruct& pfp)
+  PDGCodeVote(detinfo::DetectorClocksData const& clockData,
+              detinfo::DetectorPropertiesData const& detProp,
+              const TCSlice& slc,
+              PFPStruct& pfp)
   {
     // returns a vote using PDG code assignments from dE/dx. A PDGCode of -1 is
     // returned if there was a failure and returns 0 if no decision can be made
@@ -3150,7 +3229,7 @@ namespace tca {
     // try to do better using dE/dx
     float dEdXAve = 0;
     float dEdXRms = 0;
-    Average_dEdX(slc, pfp, dEdXAve, dEdXRms);
+    Average_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
     if (dEdXAve < 0) return 0;
     // looks like a proton if dE/dx is high and the rms is low
     dEdXRms /= dEdXAve;
@@ -3183,7 +3262,12 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  PrintTP3Ds(std::string someText, const TCSlice& slc, const PFPStruct& pfp, short printPts)
+  PrintTP3Ds(detinfo::DetectorClocksData const& clockData,
+             detinfo::DetectorPropertiesData const& detProp,
+             std::string someText,
+             const TCSlice& slc,
+             const PFPStruct& pfp,
+             short printPts)
   {
     if (pfp.TP3Ds.empty()) return;
     mf::LogVerbatim myprt("TC");
@@ -3254,16 +3338,16 @@ namespace tca {
       myprt << std::setw(3) << tp3d.IsGood << tp3d.IsBad;
       myprt << std::setw(7) << std::setprecision(1) << PosSep(tp3d.Pos, pfp.TP3Ds[0].Pos);
       myprt << std::setw(7) << std::setprecision(1) << tp3d.along;
-      myprt << std::setw(6) << std::setprecision(2) << dEdx(slc, tp3d);
+      myprt << std::setw(6) << std::setprecision(2) << dEdx(clockData, detProp, slc, tp3d);
       // print SignalAtTP in each plane
       myprt << " ";
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
-        auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+        auto tp = MakeBareTP(detProp, slc, tp3d.Pos, inCTP);
         myprt << " " << SignalAtTp(tp);
       } // plane
       double dang = -1, dangSig = -1;
-      KinkFit(slc, pfp, ipt, tcc.kinkCuts[3], dang, dangSig);
+      KinkFit(detProp, slc, pfp, ipt, tcc.kinkCuts[3], dang, dangSig);
       myprt << std::setw(7) << std::setprecision(3) << dang;
       // print the 2D TP kink significance
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];

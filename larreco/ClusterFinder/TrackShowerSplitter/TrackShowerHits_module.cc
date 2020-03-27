@@ -13,6 +13,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -68,6 +69,8 @@ namespace tss {
   bool
   TrackShowerHits::sortHits(const art::Event& evt)
   {
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
     fHitMap.clear();
 
     art::Handle<std::vector<recob::Hit>> hitListHandle;
@@ -81,7 +84,7 @@ namespace tss {
         tpc = h->WireID().TPC;
         view = h->WireID().Plane;
 
-        fHitMap[cryo][tpc][view].emplace_back(tss::Hit2D(h));
+        fHitMap[cryo][tpc][view].emplace_back(detProp, h);
       }
       return true;
     }

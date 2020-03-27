@@ -78,13 +78,15 @@ namespace quad {
     void produce(art::Event& evt) override;
 
   private:
-    bool FindVtx(const std::vector<recob::Hit>& hits, TVector3& vtx, int evt) const;
+    bool FindVtx(const detinfo::DetectorPropertiesData& detProp,
+                 const std::vector<recob::Hit>& hits,
+                 TVector3& vtx,
+                 int evt) const;
 
     std::string fHitLabel;
 
     bool fSavePlots;
 
-    const detinfo::DetectorProperties* detprop;
     const geo::GeometryCore* geom;
   };
 
@@ -103,7 +105,6 @@ namespace quad {
   void
   QuadVtx::beginJob()
   {
-    detprop = art::ServiceHandle<const detinfo::DetectorPropertiesService>()->provider();
     geom = art::ServiceHandle<const geo::Geometry>()->provider();
   }
 
@@ -327,11 +328,11 @@ namespace quad {
 
   // ---------------------------------------------------------------------------
   void
-  GetPts2D(const std::vector<recob::Hit>& hits,
+  GetPts2D(const detinfo::DetectorPropertiesData& detProp,
+           const std::vector<recob::Hit>& hits,
            std::vector<std::vector<Pt2D>>& pts,
            std::vector<TVector3>& dirs,
-           const geo::GeometryCore* geom,
-           const detinfo::DetectorProperties* detprop)
+           const geo::GeometryCore* geom)
   {
     pts.resize(3); // 3 views
 
@@ -341,7 +342,7 @@ namespace quad {
     for (const recob::Hit& hit : hits) {
       const geo::WireID wire = hit.WireID();
 
-      const double xpos = detprop->ConvertTicksToX(hit.PeakTime(), wire);
+      const double xpos = detProp.ConvertTicksToX(hit.PeakTime(), wire);
 
       const TVector3 r0 = geom->WireEndPoints(wire).start();
       const TVector3 r1 = geom->WireEndPoints(wire).end();
@@ -387,14 +388,17 @@ namespace quad {
 
   // ---------------------------------------------------------------------------
   bool
-  QuadVtx::FindVtx(const std::vector<recob::Hit>& hits, TVector3& vtx, int evt) const
+  QuadVtx::FindVtx(const detinfo::DetectorPropertiesData& detProp,
+                   const std::vector<recob::Hit>& hits,
+                   TVector3& vtx,
+                   int evt) const
   {
     if (hits.empty()) return false;
 
     std::vector<std::vector<Pt2D>> pts;
     std::vector<TVector3> dirs;
 
-    GetPts2D(hits, pts, dirs, geom, detprop);
+    GetPts2D(detProp, hits, pts, dirs, geom);
 
     double minx = +1e9;
     double maxx = -1e9;
@@ -498,8 +502,10 @@ namespace quad {
     art::Handle<std::vector<recob::Hit>> hits;
     evt.getByLabel(fHitLabel, hits);
 
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
     TVector3 vtx;
-    if (FindVtx(*hits, vtx, evt.event())) {
+    if (FindVtx(detProp, *hits, vtx, evt.event())) {
       vtxcol->emplace_back(
         recob::Vertex::Point_t(vtx.X(), vtx.Y(), vtx.Z()), recob::Vertex::SMatrixSym33(), 0, 0);
     }

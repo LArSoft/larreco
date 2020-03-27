@@ -22,7 +22,8 @@ namespace anab {
   class Calorimetry;
 }
 namespace detinfo {
-  class DetectorProperties;
+  class DetectorClocksData;
+  class DetectorPropertiesData;
   class LArProperties;
 }
 namespace fhicl {
@@ -43,13 +44,13 @@ namespace calo {
 
 class calo::TrackCalorimetryAlg {
 public:
-  using Providers_t =
-    lar::ProviderPack<geo::GeometryCore, detinfo::LArProperties, detinfo::DetectorProperties>;
+  using Providers_t = lar::ProviderPack<geo::GeometryCore, detinfo::LArProperties>;
 
   TrackCalorimetryAlg(fhicl::ParameterSet const& p);
-  void reconfigure(fhicl::ParameterSet const& p);
 
-  void ExtractCalorimetry(std::vector<recob::Track> const&,
+  void ExtractCalorimetry(detinfo::DetectorClocksData const& clock_data,
+                          detinfo::DetectorPropertiesData const& det_prop,
+                          std::vector<recob::Track> const&,
                           std::vector<recob::Hit> const&,
                           std::vector<std::vector<size_t>> const&,
                           std::vector<anab::Calorimetry>&,
@@ -61,7 +62,7 @@ private:
   unsigned int fNHitsToDetermineStart;
 
   struct HitProperties {
-    HitProperties() {}
+    HitProperties() = default;
     HitProperties(float q, float dqdx, float dedx, float p, TVector3 pos, float pf)
       : charge(q), dQdx(dqdx), dEdx(dedx), pitch(p), xyz(pos), path_fraction(pf)
     {}
@@ -87,8 +88,7 @@ private:
     }
   };
 
-  typedef std::multiset<HitProperties, HitPropertySorter> HitPropertiesMultiset_t;
-  //typedef std::multimap<float,HitProperties> HitPropertiesMultiset_t;
+  using HitPropertiesMultiset_t = std::multiset<HitProperties, HitPropertySorter>;
 
   void
   ClearInternalVectors()
@@ -99,7 +99,9 @@ private:
 
   std::vector<float> CreatePathLengthFractionVector(recob::Track const& track);
 
-  void AnalyzeHit(recob::Hit const&,
+  void AnalyzeHit(detinfo::DetectorClocksData const&,
+                  detinfo::DetectorPropertiesData const&,
+                  recob::Hit const&,
                   recob::Track const&,
                   std::vector<std::pair<geo::WireID, float>> const&,
                   std::vector<float> const&,

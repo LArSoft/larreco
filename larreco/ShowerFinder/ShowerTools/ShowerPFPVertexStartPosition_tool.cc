@@ -17,7 +17,8 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft Includes
+// LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -157,8 +158,13 @@ namespace ShowerRecoTools {
       //Cannot continue if we have no spacepoints
       if (spacePoints_pfp.size() == 0) { return 0; }
 
-      //Get the Shower Center
-      TVector3 ShowerCentre = IShowerTool::GetTRACSAlg().ShowerCentre(spacePoints_pfp, fmh);
+      // Get the Shower Center
+      auto const clockData =
+        art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+      auto const detProp =
+        art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
+      TVector3 ShowerCentre =
+        IShowerTool::GetTRACSAlg().ShowerCentre(clockData, detProp, spacePoints_pfp, fmh);
 
       //Order the Hits from the shower centre. The most negative will be the start position.
       IShowerTool::GetTRACSAlg().OrderShowerSpacePoints(

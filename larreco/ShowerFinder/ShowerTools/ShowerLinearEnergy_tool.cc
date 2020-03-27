@@ -19,6 +19,7 @@
 
 //LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -33,11 +34,8 @@
 namespace ShowerRecoTools {
 
   class ShowerLinearEnergy : IShowerTool {
-
   public:
-    ShowerLinearEnergy(const fhicl::ParameterSet& pset);
-
-    ~ShowerLinearEnergy();
+    explicit ShowerLinearEnergy(const fhicl::ParameterSet& pset);
 
     //Physics Function. Calculate the shower Energy.
     int CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
@@ -45,12 +43,16 @@ namespace ShowerRecoTools {
                          reco::shower::ShowerElementHolder& ShowerElementHolder) override;
 
   private:
-    double CalculateEnergy(std::vector<art::Ptr<recob::Hit>>& hits, geo::View_t& view);
+    double CalculateEnergy(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           std::vector<art::Ptr<recob::Hit>> const& hits,
+                           geo::View_t view);
 
-    //fcl parameters
-    double fUGradient; //Gradient of the linear fit of total charge to total energy on the U plane.
-    double
-      fUIntercept; //Intercept of the linear fit of total charge to total energy on the U plane.
+    // fcl parameters
+    double fUGradient;  // Gradient of the linear fit of total charge to total
+                        // energy on the U plane.
+    double fUIntercept; // Intercept of the linear fit of total charge to total
+                        // energy on the U plane.
     double fVGradient;
     double fVIntercept;
     double fZGradient;
@@ -67,7 +69,6 @@ namespace ShowerRecoTools {
     std::string fShowerEnergyOutputLabel;
 
     //Services
-    detinfo::DetectorProperties const* detprop = nullptr;
     art::ServiceHandle<geo::Geometry> fGeom;
   };
 
@@ -87,17 +88,13 @@ namespace ShowerRecoTools {
     , f3DIntercept(pset.get<double>("ThreeDIntercept"))
     , fPFParticleModuleLabel(pset.get<art::InputTag>("PFParticleModuleLabel", ""))
     , fShowerEnergyOutputLabel(pset.get<std::string>("ShowerEnergyOutputLabel"))
-    , detprop(lar::providerFrom<detinfo::DetectorPropertiesService>())
   {}
-
-  ShowerLinearEnergy::~ShowerLinearEnergy() {}
 
   int
   ShowerLinearEnergy::CalculateElement(const art::Ptr<recob::PFParticle>& pfparticle,
                                        art::Event& Event,
                                        reco::shower::ShowerElementHolder& ShowerEleHolder)
   {
-
     //Holder for the final product
     std::vector<double> ShowerLinearEnergy;
     unsigned int numPlanes = fGeom->Nplanes();
@@ -108,7 +105,6 @@ namespace ShowerRecoTools {
       throw cet::exception("ShowerLinearEnergy")
         << "Could not get the pandora pf particles. Something is not cofingured coreectly Please "
            "give the correct pandoa module label. Stopping";
-      return 1;
     }
 
     std::map<geo::View_t, std::vector<art::Ptr<recob::Hit>>> view_hits;
@@ -119,7 +115,6 @@ namespace ShowerRecoTools {
       throw cet::exception("ShowerLinearEnergy")
         << "Could not get the pandora clusters. Something is not cofingured coreectly Please give "
            "the correct pandoa module label. Stopping";
-      return 1;
     }
     art::FindManyP<recob::Cluster> fmc(pfpHandle, Event, fPFParticleModuleLabel);
     std::vector<art::Ptr<recob::Cluster>> clusters = fmc.at(pfparticle.key());
@@ -140,17 +135,15 @@ namespace ShowerRecoTools {
     }
 
     std::map<unsigned int, double> view_energies;
-    //Accounting for events crossing the cathode.
-    for (auto const& view_hit_iter : view_hits) {
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(Event);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(Event, clockData);
 
-      std::vector<art::Ptr<recob::Hit>> hits = view_hit_iter.second;
-      geo::View_t view = view_hit_iter.first;
-
-      //Calculate the Energy for
-      double Energy = CalculateEnergy(hits, view);
-
+    // Accounting for events crossing the cathode.
+    for (auto const& [view, hits] : view_hits) {
       unsigned int viewNum = view;
-      view_energies[viewNum] = Energy;
+      view_energies[viewNum] = CalculateEnergy(clockData, detProp, hits, view);
     }
 
     //TODO think of a better way of doing this
@@ -173,7 +166,6 @@ namespace ShowerRecoTools {
 
     if (ShowerLinearEnergy.size() == 0) {
       throw cet::exception("ShowerLinearEnergy") << "Energy Vector is empty";
-      return 1;
     }
 
     //TODO
@@ -187,15 +179,16 @@ namespace ShowerRecoTools {
   //Function to calculate the energy of a shower in a plane. Using a linear map between charge and Energy.
   //Exactly the same method as the ShowerEnergyAlg.cxx. Thanks Mike.
   double
-  ShowerLinearEnergy::CalculateEnergy(std::vector<art::Ptr<recob::Hit>>& hits, geo::View_t& view)
+  ShowerLinearEnergy::CalculateEnergy(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      std::vector<art::Ptr<recob::Hit>> const& hits,
+                                      geo::View_t const view)
   {
-
     double totalCharge = 0, totalEnergy = 0;
 
-    for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit) {
-      totalCharge +=
-        ((*hit)->Integral() * TMath::Exp((detprop->SamplingRate() * (*hit)->PeakTime()) /
-                                         (detprop->ElectronLifetime() * 1e3)));
+    for (auto const& hit : hits) {
+      totalCharge += (hit->Integral() * std::exp((sampling_rate(clockData) * hit->PeakTime()) /
+                                                 (detProp.ElectronLifetime() * 1e3)));
     }
 
     switch (view) {
@@ -207,7 +200,7 @@ namespace ShowerRecoTools {
     case geo::kX: totalEnergy = (totalCharge * fXGradient) + fXIntercept; break;
     case geo::kY: totalEnergy = (totalCharge * fYGradient) + fYIntercept; break;
     case geo::k3D: totalEnergy = (totalCharge * f3DGradient) + f3DIntercept; break;
-    default: throw cet::exception("ShowerLinearEnergy") << "View Not configured"; return 1;
+    default: throw cet::exception("ShowerLinearEnergy") << "View Not configured";
     }
 
     return totalEnergy;

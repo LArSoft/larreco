@@ -1,5 +1,6 @@
 // LArSoft includes
 #include "lardata/ArtDataHelper/MVAReader.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -37,19 +38,24 @@ namespace DUNE {
     explicit NeutrinoShowerEff(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void endJob();
-    void beginRun(const art::Run& run);
-    void analyze(const art::Event& evt);
+    void beginJob() override;
+    void endJob() override;
+    void beginRun(const art::Run& run) override;
+    void analyze(const art::Event& evt) override;
 
-    void processEff(const art::Event& evt, bool& isFiducial);
-    void truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits,
+    void processEff(detinfo::DetectorClocksData const& clockData,
+                    const art::Event& evt,
+                    bool& isFiducial);
+    void truthMatcher(detinfo::DetectorClocksData const& clockData,
+                      std::vector<art::Ptr<recob::Hit>> all_hits,
                       std::vector<art::Ptr<recob::Hit>> shower_hits,
                       const simb::MCParticle*& MCparticle,
                       double& Efrac,
                       double& Ecomplet);
     template <size_t N>
-    void checkCNNtrkshw(const art::Event& evt, std::vector<art::Ptr<recob::Hit>> all_hits);
+    void checkCNNtrkshw(detinfo::DetectorClocksData const& clockData,
+                        const art::Event& evt,
+                        std::vector<art::Ptr<recob::Hit>> all_hits);
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
@@ -841,14 +847,20 @@ namespace DUNE {
     Run = event.run();
     SubRun = event.subRun();
     bool isFiducial = false;
-    processEff(event, isFiducial);
+
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(event);
+
+    processEff(clockData, event, isFiducial);
     if (fSaveMCTree) {
       if (isFiducial) fEventTree->Fill();
     }
   }
   //========================================================================
   void
-  NeutrinoShowerEff::processEff(const art::Event& event, bool& isFiducial)
+  NeutrinoShowerEff::processEff(detinfo::DetectorClocksData const& clockData,
+                                const art::Event& event,
+                                bool& isFiducial)
   {
 
     //!save neutrino's interaction info
@@ -880,7 +892,6 @@ namespace DUNE {
         vertex.GetXYZT(MC_vertex);
         simb::MCParticle lepton = nu.Lepton();
         MC_lepton_PDG = lepton.PdgCode();
-        //cout<<"Incoming E "<<MC_incoming_P[3]<<" is CC? "<<MC_isCC<<" nuPDG "<<MC_incoming_PDG<<" target "<<MC_target<<" vtx "<<MC_vertex[0]<<" "<<MC_vertex[1]<<" "<<MC_vertex[2]<<" "<<MC_vertex[3]<<endl;
       }
     }
 
@@ -1065,18 +1076,16 @@ namespace DUNE {
           }
         }
       }
-      //  std::cout<<" shower best plane:"<<shower->best_plane()<<" shower dEdx size:"<<shower->dEdx().size()<<std::endl;
-      //for( size_t j =0; j<shower->dEdx().size(); j++) std::cout<<shower->dEdx()[j]<<" ";
 
       const simb::MCParticle* particle;
       double tmpEfrac_contamination =
-        0.0; //fraction of non EM energy contatiminatio (see truthMatcher for definition)
+        0.0; // fraction of non EM energy contatiminatio (see truthMatcher for
+             // definition)
       double tmpEcomplet = 0;
 
       int tmp_nHits = sh_hits.size();
 
-      truthMatcher(all_hits, sh_hits, particle, tmpEfrac_contamination, tmpEcomplet);
-      //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
+      truthMatcher(clockData, all_hits, sh_hits, particle, tmpEfrac_contamination, tmpEcomplet);
       if (!particle) continue;
 
       sh_Efrac_contamination[i] = tmpEfrac_contamination;
@@ -1171,17 +1180,11 @@ namespace DUNE {
         else { //everythingelse shower
           showerPDGwithHighestHitsforFillingdEdX = 7;
         }
-
-        //Efrac_contamination = tmpEfrac_contamination;
-        //MClepton_reco = particle;
-        //sh_Efrac_best =Efrac_contamination;
-        //cout<<"this is the best shower "<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<endl;
       }
 
       if (particle->PdgCode() == fLeptonPDGcode && particle->TrackId() == MC_leptonID)
         sh_hasPrimary_e[i] = 1;
-      //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
-      //save the best shower based on non EM and number of hits
+      // save the best shower based on non EM and number of hits
 
       if (std::abs(particle->PdgCode()) == fLeptonPDGcode && particle->TrackId() == MC_leptonID) {
 
@@ -1358,12 +1361,13 @@ namespace DUNE {
       } //if(ParticlePDG_HighestShHits>0)
     }   //else if(!MC_isCC&&isFiducial)
 
-    checkCNNtrkshw<4>(event, all_hits);
+    checkCNNtrkshw<4>(clockData, event, all_hits);
   }
 
   //========================================================================
   void
-  NeutrinoShowerEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits,
+  NeutrinoShowerEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                  std::vector<art::Ptr<recob::Hit>> all_hits,
                                   std::vector<art::Ptr<recob::Hit>> shower_hits,
                                   const simb::MCParticle*& MCparticle,
                                   double& Efrac,
@@ -1379,9 +1383,7 @@ namespace DUNE {
     std::map<int, double> trkID_E;
     for (size_t j = 0; j < shower_hits.size(); ++j) {
       art::Ptr<recob::Hit> hit = shower_hits[j];
-      //For know let's use collection plane to look at the shower reconstruction
-      //if( hit->View() != 2) continue;
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(clockData, hit);
       for (size_t k = 0; k < TrackIDs.size(); k++) {
         if (trkID_E.find(std::abs(TrackIDs[k].trackID)) == trkID_E.end())
           trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
@@ -1392,8 +1394,9 @@ namespace DUNE {
     double total_E = 0.0;
     int TrackID = -999;
     double partial_E = 0.0;
-    //double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons
-    if (!trkID_E.size()) return; //Ghost shower???
+
+    if (empty(trkID_E)) return; // Ghost shower???
+
     for (std::map<int, double>::iterator ii = trkID_E.begin(); ii != trkID_E.end(); ++ii) {
       total_E += ii->second;
       if ((ii->second) > max_E) {
@@ -1401,12 +1404,6 @@ namespace DUNE {
         max_E = ii->second;
         TrackID = ii->first;
       }
-      //int ID = ii->first;
-      // const simb::MCParticle *particle = pi_serv->TrackIDToParticle(ID);
-      //if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){
-      //if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
-      //noEM_E += ii->second;
-      //}
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
 
@@ -1416,13 +1413,14 @@ namespace DUNE {
     double totenergy = 0;
     for (size_t k = 0; k < all_hits.size(); ++k) {
       art::Ptr<recob::Hit> hit = all_hits[k];
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(clockData, hit);
       for (size_t l = 0; l < TrackIDs.size(); ++l) {
         if (std::abs(TrackIDs[l].trackID) == TrackID) { totenergy += TrackIDs[l].energy; }
       }
     }
     Ecomplet = partial_E / totenergy;
   }
+
   //========================================================================
   bool
   NeutrinoShowerEff::insideFV(double vertex[4])
@@ -1433,12 +1431,6 @@ namespace DUNE {
     double x = vertex[0];
     double y = vertex[1];
     double z = vertex[2];
-
-    /*   if( fabs(x) > 350.0 ) return false;
-         else if( fabs(y) > 550.0 ) return false;
-         else if( z< 0 || z> 400.0 ) return false;
-         else return true;
-    */
 
     if (x > fFidVolXmin && x < fFidVolXmax && y > fFidVolYmin && y < fFidVolYmax &&
         z > fFidVolZmin && z < fFidVolZmax)
@@ -1496,18 +1488,18 @@ namespace DUNE {
   }
 
   //============================================
-  //Check CNN track/shower ID
+  // Check CNN track/shower ID
   //============================================
   template <size_t N>
   void
-  NeutrinoShowerEff::checkCNNtrkshw(const art::Event& evt,
+  NeutrinoShowerEff::checkCNNtrkshw(detinfo::DetectorClocksData const& clockData,
+                                    const art::Event& evt,
                                     std::vector<art::Ptr<recob::Hit>> all_hits)
   {
-    if (fCNNEMModuleLabel == "") return;
+    if (fCNNEMModuleLabel.empty()) return;
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    //auto const* geo = lar::providerFrom<geo::Geometry>();
 
     auto hitResults = anab::MVAReader<recob::Hit, N>::create(evt, fCNNEMModuleLabel);
     if (hitResults) {
@@ -1517,22 +1509,14 @@ namespace DUNE {
         throw cet::exception("NeutrinoShowerEff")
           << "No em/track labeled columns in MVA data products." << std::endl;
       }
-      //std::cout<<all_hits.size()<<std::endl;
+
       for (size_t i = 0; i < all_hits.size(); ++i) {
         //find out if the hit was generated by an EM particle
         bool isEMparticle = false;
         int pdg = INT_MAX;
-        std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(all_hits[i]);
+        std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(clockData, all_hits[i]);
         if (!TrackIDs.size()) continue;
-        //        raw::ChannelID_t channel = all_hits[i]->Channel();
-        //        bool firstwire = false;
-        //        std::vector<geo::WireID> wires = geo->ChannelToWire(channel);
-        //        for (auto &w : wires){
-        //          if (w.TPC == all_hits[i]->WireID().TPC){
-        //            if (w==all_hits[i]->WireID()) firstwire = true;
-        //            break;
-        //          }
-        //        }
+
         int trkid = INT_MAX;
         double maxE = -1;
         for (size_t k = 0; k < TrackIDs.size(); k++) {
@@ -1553,18 +1537,10 @@ namespace DUNE {
           }
         }
         auto vout = hitResults->getOutput(all_hits[i]);
-        //std::cout<<i<<" "<<all_hits[i]->View()<<" "<<vout[0]<<" "<<vout[1]<<" "<<vout[2]<<" "<<vout[3]<<" "<<firstwire<<std::endl;
         double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
         if (trk_or_em > 0) {
           trk_like = vout[trkLikeIdx] / trk_or_em;
-          //std::cout<<"trk_like "<<trk_like<<std::endl;
-          if (isEMparticle) {
-            h_trklike_em->Fill(trk_like);
-            //            if (trk_like>0.4&&trk_like<0.41){
-            //              std::cout<<std::string(all_hits[i]->WireID())<<" "<<all_hits[i]->PeakTime()<<std::endl;
-            //              std::cout<<vout[trkLikeIdx]<<" "<<vout[emLikeIdx]<<" "<<trk_like<<std::endl;
-            //            }
-          }
+          if (isEMparticle) { h_trklike_em->Fill(trk_like); }
           else {
             h_trklike_nonem->Fill(trk_like);
           }
@@ -1617,6 +1593,7 @@ namespace DUNE {
     sh_largest = -999;
     sh_mpi0 = -999;
   }
+
   //========================================================================
   DEFINE_ART_MODULE(NeutrinoShowerEff)
 

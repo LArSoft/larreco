@@ -178,7 +178,7 @@ namespace trkmkr {
     }
 
     /// initialize event: get collection of recob::MCSFitResult
-    virtual void
+    void
     initEvent(const art::Event& e) override
     {
       if (momFromMCSColl_)
@@ -189,11 +189,11 @@ namespace trkmkr {
       if (pidFromColl_) {
         pid = e.getValidHandle<std::vector<anab::ParticleID>>(pidInputTag_).product();
       }
-      return;
     }
 
     /// function that actually calls the fitter
-    bool makeTrackImpl(const recob::TrackTrajectory& traj,
+    bool makeTrackImpl(const detinfo::DetectorPropertiesData& detProp,
+                       const recob::TrackTrajectory& traj,
                        const int tkID,
                        const std::vector<art::Ptr<recob::Hit>>& inHits,
                        const SMatrixSym55& covVtx,
@@ -205,14 +205,16 @@ namespace trkmkr {
     /// override of TrackMaker purely virtual function with
     /// recob::TrackTrajectory as argument
     bool
-    makeTrack(const recob::TrackTrajectory& traj,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const recob::TrackTrajectory& traj,
               const int tkID,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
               std::vector<art::Ptr<recob::Hit>>& outHits,
               OptionalOutputs& optionals) const override
     {
-      return makeTrackImpl(traj,
+      return makeTrackImpl(detProp,
+                           traj,
                            tkID,
                            inHits,
                            trkf::SMatrixSym55{},
@@ -224,14 +226,16 @@ namespace trkmkr {
 
     /// override of TrackMaker virtual function with recob::Track as argument
     bool
-    makeTrack(const recob::Track& track,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const recob::Track& track,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
               std::vector<art::Ptr<recob::Hit>>& outHits,
               OptionalOutputs& optionals) const override
     {
       auto covs = track.Covariances();
-      return makeTrackImpl(track.Trajectory(),
+      return makeTrackImpl(detProp,
+                           track.Trajectory(),
                            track.ID(),
                            inHits,
                            covs.first,
@@ -284,7 +288,8 @@ namespace trkmkr {
 }
 
 bool
-trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajectory& traj,
+trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const detinfo::DetectorPropertiesData& detProp,
+                                                 const recob::TrackTrajectory& traj,
                                                  const int tkID,
                                                  const std::vector<art::Ptr<recob::Hit>>& inHits,
                                                  const SMatrixSym55& covVtx,
@@ -293,26 +298,25 @@ trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajectory& t
                                                  std::vector<art::Ptr<recob::Hit>>& outHits,
                                                  OptionalOutputs& optionals) const
 {
-  //
   const int pid = getParticleID(traj, tkID);
   const bool flipDirection = isFlipDirection(traj, tkID);
   const double mom = getMomentum(traj, pid, flipDirection, tkID); // what about mom uncertainty?
-  // std::cout << "fitting track with mom=" << mom << " pid=" << pid << " flip="
-  // << flipDirection << " start pos=" << traj.Start() << " dir=" <<
-  // traj.StartDirection() << std::endl;
-  bool fitok = kalmanFitter.fitTrack(
-    traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
+  bool fitok = kalmanFitter.fitTrack(detProp,
+                                     traj,
+                                     tkID,
+                                     covVtx,
+                                     covEnd,
+                                     inHits,
+                                     mom,
+                                     pid,
+                                     flipDirection,
+                                     outTrack,
+                                     outHits,
+                                     optionals);
   if (!fitok) return false;
-  //
-  // std::cout << "fitted track with mom=" << outTrack.StartMomentum() << "
-  // pid=" << outTrack.ParticleId() << " flip=" << flipDirection << " start pos="
-  // << outTrack.Start() << " dir=" << outTrack.StartDirection() << " nchi2=" <<
-  // outTrack.Chi2PerNdof() << std::endl;
-  //
   if (p_().options().keepInputTrajectoryPoints()) {
     restoreInputPoints(traj, inHits, outTrack, outHits, optionals);
   }
-  //
   return true;
 }
 

@@ -9,12 +9,11 @@
 //  of the 3D reconstructed tracks
 ////////////////////////////////////////////////////////////////////////
 
-#include <cmath>
-#include <limits> // std::numeric_limits<>
-#include <optional>
+#include <math.h>
 #include <string>
 
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
@@ -94,12 +93,13 @@ namespace calo {
     bool BeginsOnBoundary(art::Ptr<recob::Track> lar_track);
     bool EndsOnBoundary(art::Ptr<recob::Track> lar_track);
 
-    void GetPitch(art::Ptr<recob::Hit> hit,
-                  std::vector<double> trkx,
-                  std::vector<double> trky,
-                  std::vector<double> trkz,
-                  std::vector<double> trkw,
-                  std::vector<double> trkx0,
+    void GetPitch(detinfo::DetectorPropertiesData const& det_prop,
+                  art::Ptr<recob::Hit> const& hit,
+                  std::vector<double> const& trkx,
+                  std::vector<double> const& trky,
+                  std::vector<double> const& trkz,
+                  std::vector<double> const& trkw,
+                  std::vector<double> const& trkx0,
                   double* xyz3d,
                   double& pitch,
                   double TickT0);
@@ -109,9 +109,10 @@ namespace calo {
     std::string fT0ModuleLabel;
     bool fUseArea;
     bool fSCE;
-    bool fFlipTrack_dQdx; //flip track direction if significant rise of dQ/dx at the track start
-    std::optional<double>
-      fNotOnTrackZcut; ///< Exclude trajectory points with _z_ lower than this [cm]
+    std::optional<double> fNotOnTrackZcut; ///< Exclude trajectory points with
+                                           ///< _z_ lower than this [cm]
+    bool fFlipTrack_dQdx;                  // flip track direction if significant rise of dQ/dx
+                                           // at the track start
     CalorimetryAlg caloAlg;
 
     int fnsps;
@@ -153,8 +154,9 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
 void
 calo::Calorimetry::produce(art::Event& evt)
 {
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   art::Handle<std::vector<recob::Track>> trackListHandle;
@@ -177,7 +179,6 @@ calo::Calorimetry::produce(art::Event& evt)
   std::unique_ptr<art::Assns<recob::Track, anab::Calorimetry>> assn(
     new art::Assns<recob::Track, anab::Calorimetry>);
 
-  //art::FindManyP<recob::SpacePoint> fmsp(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Hit> fmht(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(
     trackListHandle,
@@ -205,7 +206,7 @@ calo::Calorimetry::produce(art::Event& evt)
     if (fmt0.isValid()) {
       std::vector<art::Ptr<anab::T0>> allT0 = fmt0.at(trkIter);
       if (allT0.size()) T0 = allT0[0]->Time();
-      TickT0 = T0 / detprop->SamplingRate();
+      TickT0 = T0 / sampling_rate(clock_data);
     }
 
     std::vector<std::vector<unsigned int>> hits(nplanes);
@@ -245,16 +246,16 @@ calo::Calorimetry::produce(art::Event& evt)
           mf::LogWarning("Calorimetry")
             << "Only one hit in plane " << ipl << " associated with track id " << trkIter;
         }
-        calorimetrycol->push_back(anab::Calorimetry(util::kBogusD,
-                                                    vdEdx,
-                                                    vdQdx,
-                                                    vresRange,
-                                                    deadwire,
-                                                    util::kBogusD,
-                                                    fpitch,
-                                                    recob::tracking::convertCollToPoint(vXYZ),
-                                                    planeID));
-        util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
+        calorimetrycol->emplace_back(util::kBogusD,
+                                     vdEdx,
+                                     vdQdx,
+                                     vresRange,
+                                     deadwire,
+                                     util::kBogusD,
+                                     fpitch,
+                                     recob::tracking::convertCollToPoint(vXYZ),
+                                     planeID);
+        util::CreateAssn(evt, *calorimetrycol, tracklist[trkIter], *assn);
         continue;
       }
 
@@ -271,8 +272,7 @@ calo::Calorimetry::produce(art::Event& evt)
       double DSChg = 0;
       // temp array holding distance betweeen space points
       std::vector<double> spdelta;
-      //int nht = 0; //number of hits
-      fnsps = 0; //number of space points
+      fnsps = 0; // number of space points
       std::vector<double> ChargeBeg;
       std::stack<double> ChargeEnd;
 
@@ -331,14 +331,14 @@ calo::Calorimetry::produce(art::Event& evt)
 
           double t = allHits[hits[ipl][i]]->PeakTime() -
                      TickT0; // Want T0 here? Otherwise ticks to x is wrong?
-          double x = detprop->ConvertTicksToX(t,
+          double x = det_prop.ConvertTicksToX(t,
                                               allHits[hits[ipl][i]]->WireID().Plane,
                                               allHits[hits[ipl][i]]->WireID().TPC,
                                               allHits[hits[ipl][i]]->WireID().Cryostat);
           double w = allHits[hits[ipl][i]]->WireID().Wire;
           if (TickT0) {
             trkx.push_back(sptv[j]->XYZ()[0] -
-                           detprop->ConvertTicksToX(TickT0,
+                           det_prop.ConvertTicksToX(TickT0,
                                                     allHits[hits[ipl][i]]->WireID().Plane,
                                                     allHits[hits[ipl][i]]->WireID().TPC,
                                                     allHits[hits[ipl][i]]->WireID().Cryostat));
@@ -353,9 +353,7 @@ calo::Calorimetry::produce(art::Event& evt)
         }
       }
       for (size_t ihit = 0; ihit < hits[ipl].size();
-           ++ihit) { //loop over all hits on each wire plane
-
-        //std::cout<<ihit<<std::endl;
+           ++ihit) { // loop over all hits on each wire plane
 
         if (!planeID.isValid) {
           plane = allHits[hits[ipl][ihit]]->WireID().Plane;
@@ -445,7 +443,16 @@ calo::Calorimetry::produce(art::Event& evt)
           }
         }
         else
-          GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
+          GetPitch(det_prop,
+                   allHits[hits[ipl][ihit]],
+                   trkx,
+                   trky,
+                   trkz,
+                   trkw,
+                   trkx0,
+                   xyz3d,
+                   pitch,
+                   TickT0);
 
         if (fBadhit) continue;
         if (fNotOnTrackZcut && (xyz3d[2] < fNotOnTrackZcut.value())) continue; //hit not on track
@@ -476,9 +483,9 @@ calo::Calorimetry::produce(art::Event& evt)
         double dQdx = MIPs / pitch;
         double dEdx = 0;
         if (fUseArea)
-          dEdx = caloAlg.dEdx_AREA(allHits[hits[ipl][ihit]], pitch, T0);
+          dEdx = caloAlg.dEdx_AREA(clock_data, det_prop, *allHits[hits[ipl][ihit]], pitch, T0);
         else
-          dEdx = caloAlg.dEdx_AMP(allHits[hits[ipl][ihit]], pitch, T0);
+          dEdx = caloAlg.dEdx_AMP(clock_data, det_prop, *allHits[hits[ipl][ihit]], pitch, T0);
 
         Kin_En = Kin_En + dEdx * pitch;
 
@@ -496,7 +503,6 @@ calo::Calorimetry::produce(art::Event& evt)
         fetime.push_back(etime);
         fpitch.push_back(pitch);
         TVector3 v(xyz3d[0], xyz3d[1], xyz3d[2]);
-        //std::cout << "Adding these positions to v and then fXYZ " << xyz3d[0] << " " << xyz3d[1] << " " << xyz3d[2] << "\n" <<std::endl;
         fXYZ.push_back(v);
         fHitIndex.push_back(hitIndex);
         ++fnsps;
@@ -507,7 +513,6 @@ calo::Calorimetry::produce(art::Event& evt)
         vresRange.clear();
         deadwire.clear();
         fpitch.clear();
-        //std::cout << "Adding the aforementioned positions..." << std::endl;
         calorimetrycol->push_back(anab::Calorimetry(util::kBogusD,
                                                     vdEdx,
                                                     vdQdx,
@@ -517,7 +522,7 @@ calo::Calorimetry::produce(art::Event& evt)
                                                     fpitch,
                                                     recob::tracking::convertCollToPoint(vXYZ),
                                                     planeID));
-        util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
+        util::CreateAssn(evt, *calorimetrycol, tracklist[trkIter], *assn);
         continue;
       }
       for (int isp = 0; isp < fnsps; ++isp) {
@@ -582,24 +587,22 @@ calo::Calorimetry::produce(art::Event& evt)
         vdEdx.push_back(fdEdx[i]);
         vdQdx.push_back(fdQdx[i]);
         vXYZ.push_back(fXYZ[i]);
-        if (i != 0 && i != fnsps - 1) { //ignore the first and last point
-                                        // Calculate PIDA
+        if (i != 0 && i != fnsps - 1) { // ignore the first and last point
+          // Calculate PIDA
           Ai = fdEdx[i] * pow(fResRng[i], 0.42);
           nPIDA++;
           PIDA += Ai;
         }
 
         MF_LOG_DEBUG("CaloPrtHit")
-          << std::setw(4)
-          << trkIter
-          //std::cout<<std::setw(4)<< trkIter
-          << std::setw(4) << ipl << std::setw(4) << i << std::setw(4) << fwire[i] << std::setw(6)
-          << (int)ftime[i] << std::setiosflags(std::ios::fixed | std::ios::showpoint)
-          << std::setprecision(2) << std::setw(8) << fResRng[i] << std::setprecision(1)
-          << std::setw(8) << fMIPs[i] << std::setprecision(2) << std::setw(8) << fpitch[i]
-          << std::setw(8) << fdEdx[i] << std::setw(8) << Ai << std::setw(8) << fXYZ[i].x()
-          << std::setw(8) << fXYZ[i].y() << std::setw(8) << fXYZ[i].z() << "\n";
-      } //end looping over 3D points
+          << std::setw(4) << trkIter << std::setw(4) << ipl << std::setw(4) << i << std::setw(4)
+          << fwire[i] << std::setw(6) << (int)ftime[i]
+          << std::setiosflags(std::ios::fixed | std::ios::showpoint) << std::setprecision(2)
+          << std::setw(8) << fResRng[i] << std::setprecision(1) << std::setw(8) << fMIPs[i]
+          << std::setprecision(2) << std::setw(8) << fpitch[i] << std::setw(8) << fdEdx[i]
+          << std::setw(8) << Ai << std::setw(8) << fXYZ[i].x() << std::setw(8) << fXYZ[i].y()
+          << std::setw(8) << fXYZ[i].z() << "\n";
+      } // end looping over 3D points
       if (nPIDA > 0) { PIDA = PIDA / (double)nPIDA; }
       else {
         PIDA = -1;
@@ -624,18 +627,14 @@ calo::Calorimetry::produce(art::Event& evt)
           unsigned int dwire = 100000;
           double mindis = 100000;
           double goodresrange = 0;
-          //hitCtr = 0;
           for (size_t ihit = 0; ihit < hits[ipl].size(); ++ihit) {
-            //	for(art::PtrVector<recob::Hit>::const_iterator hitIter = hitsV.begin();
-            //	    hitIter != hitsV.end();
-            //	    ++hitCtr, hitIter++){
             channel = allHits[hits[ipl][ihit]]->Channel();
             if (channelStatus.IsBad(channel)) continue;
             // grab the space points associated with this hit
             std::vector<art::Ptr<recob::SpacePoint>> sppv = fmspts.at(hits[ipl][ihit]);
             if (sppv.size() < 1) continue;
-            // only use the first space point in the collection, really each hit should
-            // only map to 1 space point
+            // only use the first space point in the collection, really each hit
+            // should only map to 1 space point
             const recob::Track::Point_t xyz{
               sppv[0]->XYZ()[0], sppv[0]->XYZ()[1], sppv[0]->XYZ()[2]};
             double dis1 = (larEnd - xyz).Mag2();
@@ -660,7 +659,6 @@ calo::Calorimetry::produce(art::Event& evt)
           }
         }
       }
-      //std::cout << "Adding at the end but still same fXYZ" << std::endl;
       calorimetrycol->push_back(anab::Calorimetry(Kin_En,
                                                   vdEdx,
                                                   vdQdx,
@@ -671,36 +669,32 @@ calo::Calorimetry::produce(art::Event& evt)
                                                   recob::tracking::convertCollToPoint(vXYZ),
                                                   fHitIndex,
                                                   planeID));
-      util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
+      util::CreateAssn(evt, *calorimetrycol, tracklist[trkIter], *assn);
 
     } //end looping over planes
   }   //end looping over tracks
 
   evt.put(std::move(calorimetrycol));
   evt.put(std::move(assn));
-
-  return;
 }
 
 void
-calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
-                            std::vector<double> trkx,
-                            std::vector<double> trky,
-                            std::vector<double> trkz,
-                            std::vector<double> trkw,
-                            std::vector<double> trkx0,
+calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop,
+                            art::Ptr<recob::Hit> const& hit,
+                            std::vector<double> const& trkx,
+                            std::vector<double> const& trky,
+                            std::vector<double> const& trkz,
+                            std::vector<double> const& trkw,
+                            std::vector<double> const& trkx0,
                             double* xyz3d,
                             double& pitch,
                             double TickT0)
 {
-  //Get 3d coordinates and track pitch for each hit
-  //Find 5 nearest space points and determine xyz and curvature->track pitch
-
-  //std::cout << "Start of get pitch" << std::endl;
+  // Get 3d coordinates and track pitch for each hit
+  // Find 5 nearest space points and determine xyz and curvature->track pitch
 
   // Get services
   art::ServiceHandle<geo::Geometry const> geom;
-  auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   //save distance to each spacepoint sorted by distance
@@ -712,18 +706,17 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
 
   double t0 = hit->PeakTime() - TickT0;
   double x0 =
-    dp->ConvertTicksToX(t0, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
+    det_prop.ConvertTicksToX(t0, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
   double w0 = hit->WireID().Wire;
 
   for (size_t i = 0; i < trkx.size(); ++i) {
     double distance = cet::sum_of_squares((trkw[i] - w0) * wire_pitch, trkx0[i] - x0);
     if (distance > 0) distance = sqrt(distance);
-    //std::cout << "Dis " << distance << ", sqaured " << distance*distance << " = " << wire_pitch*wire_pitch <<"("<<trkw[i]<<"-"<<w0<<")^2 + ("<<trkx0[i]<<"-"<<x0<<")^2"<<std::endl;
     sptmap.insert(std::pair<double, size_t>(distance, i));
     if (w0 - trkw[i] > 0)
-      sptsignmap.insert(std::pair<size_t, int>(i, 1));
+      sptsignmap.emplace(i, 1);
     else
-      sptsignmap.insert(std::pair<size_t, int>(i, -1));
+      sptsignmap.emplace(i, -1);
   }
 
   //x,y,z vs distance
@@ -736,23 +729,19 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
 
   int np = 0;
   for (auto isp = sptmap.begin(); isp != sptmap.end(); isp++) {
-    //    const double *xyz = new double[3];
-    //    xyz = isp->second->XYZ();
     double xyz[3];
     xyz[0] = trkx[isp->second];
     xyz[1] = trky[isp->second];
     xyz[2] = trkz[isp->second];
 
     double distancesign = sptsignmap[isp->second];
-    //std::cout<<np<<" "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2]<<" "<<(*isp).first<<std::endl;
-    if (np == 0 && isp->first > 30) { //hit not on track
+    if (np == 0 && isp->first > 30) { // hit not on track
       xyz3d[0] = std::numeric_limits<double>::lowest();
       xyz3d[1] = std::numeric_limits<double>::lowest();
       xyz3d[2] = std::numeric_limits<double>::lowest();
       pitch = -1;
       return;
     }
-    //std::cout<<np<<" "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2]<<" "<<(*isp).first<<" Plane " << hit->WireID().Plane << " TPC " << hit->WireID().TPC << std::endl;
     if (np < 5) {
       vx.push_back(xyz[0]);
       vy.push_back(xyz[1]);
@@ -763,13 +752,9 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
       break;
     }
     np++;
-    //delete [] xyz;
   }
-  //std::cout<<"np="<<np<<std::endl;
-  if (np >= 2) { //at least two points
-    //std::cout << "At least 2 points.."<<std::endl;
+  if (np >= 2) { // at least two points
     TGraph* xs = new TGraph(np, &vs[0], &vx[0]);
-    //for (int i = 0; i<np; i++) std::cout<<i<<" "<<vs[i]<<" "<<vx[i]<<" "<<vy[i]<<" "<<vz[i]<<std::endl;
     try {
       if (np > 2) { xs->Fit("pol2", "Q"); }
       else {
@@ -782,7 +767,6 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
         pol = (TF1*)xs->GetFunction("pol1");
       xyz3d[0] = pol->Eval(0);
       kx = pol->GetParameter(1);
-      //std::cout<<"X fit "<<xyz3d[0]<<" "<<kx<<std::endl;
     }
     catch (...) {
       mf::LogWarning("Calorimetry::GetPitch") << "Fitter failed";
@@ -802,7 +786,6 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
         pol = (TF1*)ys->GetFunction("pol1");
       xyz3d[1] = pol->Eval(0);
       ky = pol->GetParameter(1);
-      //std::cout<<"Y fit "<<xyz3d[1]<<" "<<ky<<std::endl;
     }
     catch (...) {
       mf::LogWarning("Calorimetry::GetPitch") << "Fitter failed";
@@ -822,7 +805,6 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
         pol = (TF1*)zs->GetFunction("pol1");
       xyz3d[2] = pol->Eval(0);
       kz = pol->GetParameter(1);
-      //std::cout<<"Z fit "<<xyz3d[2]<<" "<<kz<<std::endl;
     }
     catch (...) {
       mf::LogWarning("Calorimetry::GetPitch") << "Fitter failed";
@@ -873,13 +855,12 @@ calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit,
     xyz3d[1] = xyz3d[1] + posOffsets.Y();
     xyz3d[2] = xyz3d[2] + posOffsets.Z();
 
-    //Correct pitch for SCE
+    // Correct pitch for SCE
     TVector3 dir = {pitch * kx - dirOffsets.X() + posOffsets.X(),
                     pitch * ky + dirOffsets.Y() - posOffsets.Y(),
                     pitch * kz + dirOffsets.Z() - posOffsets.Z()};
     pitch = dir.Mag();
   }
-  //std::cout << "At end of get pitch " << xyz3d[0] << " " << xyz3d[1] << " " << xyz3d[2] << " " << x0 << " " << std::endl;
 }
 
 namespace calo {

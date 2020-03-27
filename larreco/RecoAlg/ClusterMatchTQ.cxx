@@ -18,30 +18,28 @@
 
 #include "TH1D.h"
 
-struct CluLen {
-  int index;
-  float length;
-};
+namespace {
+  struct CluLen {
+    int index;
+    float length;
+  };
 
-bool
-SortByLength(CluLen const& c1, CluLen const& c2)
-{
-  return (c1.length > c2.length);
-}
+  bool
+  SortByLength(CluLen const& c1, CluLen const& c2)
+  {
+    return c1.length > c2.length;
+  }
 
-bool
-SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
-{
-  return h1->WireID().Wire < h2->WireID().Wire;
+  bool
+  SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
+  {
+    return h1->WireID().Wire < h2->WireID().Wire;
+  }
 }
 
 namespace cluster {
 
-  ClusterMatchTQ::ClusterMatchTQ(fhicl::ParameterSet const& pset) { this->reconfigure(pset); }
-
-  //---------------------------------------------------------------------
-  void
-  ClusterMatchTQ::reconfigure(fhicl::ParameterSet const& pset)
+  ClusterMatchTQ::ClusterMatchTQ(fhicl::ParameterSet const& pset)
   {
     fKSCut = pset.get<double>("KSCut");
     fEnableU = pset.get<bool>("EnableU");
@@ -50,22 +48,20 @@ namespace cluster {
   }
 
   //---------------------------------------------------------------------
-  void
-  ClusterMatchTQ::ClusterMatch(const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
-                               const art::FindManyP<recob::Hit>& fm)
+  std::vector<std::vector<unsigned int>>
+  ClusterMatchTQ::MatchedClusters(const detinfo::DetectorClocksData& clockdata,
+                                  const detinfo::DetectorPropertiesData& detProp,
+                                  const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
+                                  const art::FindManyP<recob::Hit>& fm) const
   {
-
-    matchedclusters.clear();
+    std::vector<std::vector<unsigned int>> matchedclusters;
 
     // get services
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
     int nplanes = geom->Nplanes();
-    int nts = detprop->NumberTimeSamples();
+    int nts = detProp.NumberTimeSamples();
 
-    std::vector<std::vector<TH1D*>> signals(nplanes);
+    std::vector<std::vector<TH1D>> signals(nplanes);
 
     std::vector<std::vector<unsigned int>> Cls(nplanes);
     std::vector<std::vector<CluLen>> clulens(nplanes);
@@ -81,16 +77,16 @@ namespace cluster {
 
       CluLen clulen;
       clulen.index = iclu;
-      clulen.length = sqrt(pow((w0 - w1) * wire_pitch, 2) +
-                           pow(detprop->ConvertTicksToX(t0,
-                                                        clusterlist[iclu]->Plane().Plane,
-                                                        clusterlist[iclu]->Plane().TPC,
-                                                        clusterlist[iclu]->Plane().Cryostat) -
-                                 detprop->ConvertTicksToX(t1,
-                                                          clusterlist[iclu]->Plane().Plane,
-                                                          clusterlist[iclu]->Plane().TPC,
-                                                          clusterlist[iclu]->Plane().Cryostat),
-                               2));
+
+      auto const x0 = detProp.ConvertTicksToX(t0,
+                                              clusterlist[iclu]->Plane().Plane,
+                                              clusterlist[iclu]->Plane().TPC,
+                                              clusterlist[iclu]->Plane().Cryostat);
+      auto const x1 = detProp.ConvertTicksToX(t1,
+                                              clusterlist[iclu]->Plane().Plane,
+                                              clusterlist[iclu]->Plane().TPC,
+                                              clusterlist[iclu]->Plane().Cryostat);
+      clulen.length = std::hypot((w0 - w1) * wire_pitch, x0 - x1);
 
       switch (clusterlist[iclu]->View()) {
       case geo::kU:
@@ -126,7 +122,7 @@ namespace cluster {
         for (auto theHit = hitlist.begin(); theHit != hitlist.end(); theHit++) {
 
           double time = (*theHit)->PeakTime();
-          time -= detprop->GetXTicksOffset(
+          time -= detProp.GetXTicksOffset(
             (*theHit)->WireID().Plane, (*theHit)->WireID().TPC, (*theHit)->WireID().Cryostat);
 
           double charge = (*theHit)->Integral();
@@ -137,7 +133,7 @@ namespace cluster {
           }
         }
         if (sigint.Integral()) sigint.Scale(1. / sigint.GetBinContent(sigint.GetNbinsX()));
-        signals[i].push_back(new TH1D(sigint));
+        signals[i].push_back(sigint);
       }
     }
 
@@ -163,13 +159,13 @@ namespace cluster {
             if (matched[Cls[i][c1]] == 1 && matched[Cls[j][c2]] == 1) continue;
             // KS test between two views in time
             double ks = 0;
-            if (signals[i][c1]->Integral() && signals[j][c2]->Integral())
-              ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
+            if (signals[i][c1].Integral() && signals[j][c2].Integral())
+              ks = signals[i][c1].KolmogorovTest(&signals[j][c2]);
             else {
               mf::LogWarning("ClusterMatchTQ")
                 << "One of the two clusters appears to be empty: " << clusterlist[Cls[i][c1]]->ID()
                 << " " << clusterlist[Cls[j][c2]]->ID() << " " << i << " " << j << " " << c1 << " "
-                << c2 << " " << signals[i][c1]->Integral() << " " << signals[j][c2]->Integral();
+                << c2 << " " << signals[i][c1].Integral() << " " << signals[j][c2].Integral();
             }
             //hks->Fill(ks);
             int imatch = -1;   //track candidate index
@@ -253,11 +249,6 @@ namespace cluster {
       }
     }
 
-    for (int i = 0; i < nplanes; ++i) {
-      for (size_t j = 0; j < signals[i].size(); ++j) {
-        delete signals[i][j];
-      }
-    }
-
-  } //ClusterMatch
+    return matchedclusters;
+  }
 } //namespace cluster

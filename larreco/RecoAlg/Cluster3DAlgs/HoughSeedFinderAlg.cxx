@@ -51,20 +51,6 @@ namespace lar_cluster3d {
     , m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
     , m_displayHist(false)
   {
-    this->reconfigure(pset);
-
-    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    //    auto const* detectorProperties = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    //    m_detector = detectorProperties->provider();
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  HoughSeedFinderAlg::~HoughSeedFinderAlg() {}
-
-  void
-  HoughSeedFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
-  {
     m_minimum3DHits = pset.get<size_t>("Minimum3DHits", 5);
     m_thetaBins = pset.get<int>("ThetaBins", 360);
     m_rhoBins = pset.get<int>("HalfRhoBins", 75);
@@ -77,9 +63,10 @@ namespace lar_cluster3d {
     m_maxLoopsPerCluster = pset.get<int>("MaxLoopsPerCluster", 3);
     m_maximumGap = pset.get<double>("MaximumGap", 5.);
     m_displayHist = pset.get<bool>("DisplayHoughHist", false);
-
-    m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
+    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
   }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
 
   class AccumulatorValues {
     /**

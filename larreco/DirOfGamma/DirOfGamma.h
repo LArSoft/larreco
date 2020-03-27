@@ -9,6 +9,9 @@
 #define DirOfGamma_h
 
 #include "lardataobj/RecoBase/Hit.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 #include "canvas/Persistency/Common/Ptr.h"
 
@@ -25,21 +28,21 @@ namespace ems {
 
 class ems::Hit2D {
 public:
-  Hit2D(art::Ptr<recob::Hit> src);
+  Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src);
 
   TVector2 const&
-  GetPointCm(void) const
+  GetPointCm() const
   {
     return fPoint;
   }
   double
-  GetCharge(void) const
+  GetCharge() const
   {
     return fCharge;
   }
 
   art::Ptr<recob::Hit> const&
-  GetHitPtr(void) const
+  GetHitPtr() const
   {
     return fHit;
   }
@@ -63,7 +66,7 @@ public:
   void SortLess();
 
   double
-  GetTotCharge(void) const
+  GetTotCharge() const
   {
     return fTotCharge;
   }
@@ -75,13 +78,13 @@ public:
   }
 
   std::vector<Hit2D*> const&
-  GetHits2D(void) const
+  GetHits2D() const
   {
     return fHits2D;
   }
 
   const TVector2&
-  GetCenter(void) const
+  GetCenter() const
   {
     return fCenter2D;
   }
@@ -101,55 +104,55 @@ public:
   EndPoint(const Hit2D& center, const std::vector<Hit2D*>& hits, unsigned int nbins);
 
   TVector2 const&
-  GetPosition(void) const
+  GetPosition() const
   {
     return fCenter2D.GetPointCm();
   }
 
-  double GetAsymmetry(void) const;
+  double GetAsymmetry() const;
 
   double
-  GetMaxCharge(void) const
+  GetMaxCharge() const
   {
     return fMaxCharge;
   }
 
   Bin2D const&
-  MaxChargeBin(void) const
+  MaxChargeBin() const
   {
     return fBins[fMaxChargeIdBin];
   }
 
   std::vector<Bin2D> const&
-  GetBins2D(void) const
+  GetBins2D() const
   {
     return fBins;
   }
 
   art::Ptr<recob::Hit> const&
-  GetHit(void) const
+  GetHit() const
   {
     return fCenter2D.GetHitPtr();
   }
 
   const std::vector<art::Ptr<recob::Hit>>
-  GetIniHits(void) const
+  GetIniHits() const
   {
     return MaxChargeBin().GetIniHits();
   }
 
   size_t const&
-  GetPlane(void) const
+  GetPlane() const
   {
     return fPlane;
   }
   size_t const&
-  GetTPC(void) const
+  GetTPC() const
   {
     return fTpc;
   }
   size_t const&
-  GetCryo(void) const
+  GetCryo() const
   {
     return fCryo;
   }
@@ -177,7 +180,10 @@ private:
 
 class ems::DirOfGamma {
 public:
-  DirOfGamma(const std::vector<art::Ptr<recob::Hit>>& src, unsigned int nbins, unsigned int idcl);
+  DirOfGamma(const detinfo::DetectorPropertiesData& detProp,
+             const std::vector<art::Ptr<recob::Hit>>& src,
+             unsigned int nbins,
+             unsigned int idcl);
   ~DirOfGamma()
   {
     for (unsigned int i = 0; i < fPoints2D.size(); ++i)
@@ -185,19 +191,19 @@ public:
   }
 
   TVector2 const&
-  GetBaryCenterCm(void) const
+  GetBaryCenterCm() const
   {
     return fBaryCenter;
   }
 
   std::vector<Hit2D*> const&
-  GetHits2D(void) const
+  GetHits2D() const
   {
     return fPoints2D;
   }
 
   std::vector<EndPoint> const&
-  GetCandidates(void) const
+  GetCandidates() const
   {
     return fCandidates;
   }
@@ -214,37 +220,37 @@ public:
   }
 
   const size_t
-  GetIdCandidate(void)
+  GetIdCandidate()
   {
     return fCandidateID;
   }
 
   art::Ptr<recob::Hit> const&
-  GetFirstHit(void) const
+  GetFirstHit() const
   {
     return fStartHit;
   }
 
   std::vector<art::Ptr<recob::Hit>> const&
-  GetHits(void)
+  GetHits()
   {
     return fHits;
   }
 
   TVector2 const&
-  GetFirstPoint(void) const
+  GetFirstPoint() const
   {
     return fStartPoint;
   }
 
   std::vector<art::Ptr<recob::Hit>> const&
-  GetIniHits(void) const
+  GetIniHits() const
   {
     return fIniHits;
   }
 
   size_t const
-  GetIdCl(void) const
+  GetIdCl() const
   {
     return fIdCl;
   }
@@ -263,15 +269,15 @@ private:
   std::vector<art::Ptr<recob::Hit>> fIniHits;
   std::vector<art::Ptr<recob::Hit>> fHits;
 
-  void FindInitialPart(void);
+  void FindInitialPart();
 
-  void FillBins(void);
+  void FillBins();
 
-  bool FindCandidates(void);
-  void ComputeBaryCenter(void);
-  void ComputeMaxDist(void);
-  void ComputeMaxCharge(void);
-  void ComputeFinalValues(void);
+  bool FindCandidates();
+  void ComputeBaryCenter();
+  void ComputeMaxDist();
+  void ComputeMaxCharge();
+  void ComputeFinalValues();
 
   TVector2 fBaryCenter;
 

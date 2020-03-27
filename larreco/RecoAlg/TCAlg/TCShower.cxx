@@ -5,7 +5,7 @@
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
@@ -73,7 +73,10 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  FindShowerStart(TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  FindShowerStart(detinfo::DetectorPropertiesData const& detProp,
+                  TCSlice& slc,
+                  ShowerStruct3D& ss3,
+                  bool prt)
   {
     // The shower ChgPos and Dir were found by the calling function but Dir
     // may be inconsistent with the 2D shower directions
@@ -100,7 +103,7 @@ namespace tca {
       auto& ss = slc.cots[cid - 1];
       // Find the position, direction and projection in this plane
       auto& stj = slc.tjs[ss.ShowerTjID - 1];
-      auto chgCtrTP = MakeBareTP(slc, ss3.ChgPos, ss3.Dir, stj.CTP);
+      auto chgCtrTP = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, stj.CTP);
       // projection too small in this view?
       if (chgCtrTP.Delta < 0.5) continue;
       auto& startTP = stj.Pts[0];
@@ -131,7 +134,7 @@ namespace tca {
     auto& ss = slc.cots[useCID - 1];
     auto& stj = slc.tjs[ss.ShowerTjID - 1];
 
-    auto chgCtrTP = MakeBareTP(slc, ss3.ChgPos, ss3.Dir, stj.CTP);
+    auto chgCtrTP = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, stj.CTP);
     if (ss3.Vx3ID > 0) {
       auto& vx3 = slc.vtx3s[ss3.Vx3ID - 1];
       ss3.Start[0] = vx3.X;
@@ -297,7 +300,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  FindShowers3D(TCSlice& slc)
+  FindShowers3D(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Find 2D showers using 3D-matched trajectories. This returns true if showers were found
     // which requires re-doing the 3D trajectory match
@@ -320,7 +323,7 @@ namespace tca {
 
     if (prt2S) {
       PrintPFPs("FSi", slc);
-      PrintAllTraj("FSi", slc, USHRT_MAX, 0);
+      PrintAllTraj(detProp, "FSi", slc, USHRT_MAX, 0);
     }
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
@@ -399,7 +402,7 @@ namespace tca {
     SaveAllCots(slc, "R3D");
     for (auto& ss3 : slc.showers) {
       if (ss3.ID == 0) continue;
-      FindParent(fcnLabel, slc, ss3, prt3S);
+      FindParent(detProp, fcnLabel, slc, ss3, prt3S);
     } // ss3
     // Reconcile pfp and shower assns again
     Reconcile3D(fcnLabel, slc, true, prt3S);
@@ -918,158 +921,7 @@ namespace tca {
     return true;
 
   } // CompleteIncompleteShower
-  /*
-  ////////////////////////////////////////////////
-  void Match2DShowers(std::string inFcnLabel, TCSlice& slc, bool prt)
-  {
-    // Match 2D showers using position and direction to create 3D showers
 
-    std::string fcnLabel = inFcnLabel + ".M2DS";
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel;
-
-    float fomCut = 2;
-
-    ChkAssns(fcnLabel, slc);
-
-    // sort the showers by decreasing energy and increasing AspectRatio so that the 3D direction is defined
-    // by the first matching pair
-    std::vector<SortEntry> sortVec;
-    for(unsigned short indx = 0; indx < slc.cots.size(); ++indx) {
-      auto& ss = slc.cots[indx];
-      if(ss.ID == 0) continue;
-      // already matched?
-      if(ss.SS3ID > 0) continue;
-      if(ss.TjIDs.empty()) continue;
-      SortEntry se;
-      se.index = indx;
-      se.length = ss.Energy / ss.AspectRatio;
-      sortVec.push_back(se);
-    } // indx
-    if(sortVec.size() < 2) return;
-    std::sort(sortVec.begin(), sortVec.end(), greaterThan);
-
-    // Look for a 3D match using the 2D shower charge centers
-    for(unsigned short ii = 0; ii < sortVec.size() - 1; ++ii) {
-      unsigned short iIndx = sortVec[ii].index;
-      auto& iss = slc.cots[iIndx];
-      // already matched?
-      if(iss.SS3ID > 0) continue;
-      Trajectory& istj = slc.tjs[iss.ShowerTjID - 1];
-      geo::PlaneID iplaneID = DecodeCTP(iss.CTP);
-      for(unsigned short jj = 0; jj < sortVec.size(); ++jj) {
-        if(iss.SS3ID > 0) break;
-        unsigned short jIndx = sortVec[jj].index;
-        ShowerStruct& jss = slc.cots[jIndx];
-        // already matched?
-        if(iss.SS3ID > 0) break;
-        if(jss.SS3ID > 0) continue;
-        if(jss.CTP == iss.CTP) continue;
-        Trajectory& jstj = slc.tjs[jss.ShowerTjID - 1];
-        TrajPoint3 tp3;
-        if(!MakeTp3(slc, istj.Pts[1], jstj.Pts[1], tp3, true)) continue;
-        float fomij = Match3DFOM(fcnLabel, slc, iss.ID, jss.ID, prt);
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" i2S"<<iss.ID<<" j2S"<<jss.ID<<" fomij "<<fomij<<" fomCut "<<fomCut;
-        if(fomij > fomCut) continue;
-        geo::PlaneID jplaneID = DecodeCTP(jss.CTP);
-        if(slc.nPlanes == 2) {
-          ShowerStruct3D ss3 = CreateSS3(slc);
-          ss3.ChgPos = tp3.Pos;
-          ss3.Dir = tp3.Dir;
-          ss3.CotIDs.resize(2);
-          ss3.CotIDs[0] = iss.ID;
-          ss3.CotIDs[1] = jss.ID;
-          ss3.Energy.resize(2);
-          ss3.Energy[0] = iss.Energy;
-          ss3.Energy[1] = jss.Energy;
-          ss3.MatchFOM = fomij;
-          ss3.PFPIndex = USHRT_MAX;
-          if(!StoreShower(fcnLabel, slc, ss3)) continue;
-          if(prt) mf::LogVerbatim("TC")<<" new 2-plane TPC 3S"<<ss3.ID<<" with fomij "<<fomij;
-          continue;
-        } // 2-plane TPC
-        float bestFOM = fomCut;
-        unsigned short bestck = USHRT_MAX;
-        for(unsigned short ck = 0; ck < slc.cots.size(); ++ck) {
-          ShowerStruct& kss = slc.cots[ck];
-          if(kss.ID == iss.ID || kss.ID == jss.ID) continue;
-          if(kss.CTP == iss.CTP || kss.CTP == jss.CTP) continue;
-          if(kss.ID == 0) continue;
-          if(kss.TjIDs.empty()) continue;
-          if(kss.SS3ID > 0) continue;
-          Trajectory& kstj = slc.tjs[kss.ShowerTjID - 1];
-          TrajPoint3 iktp3;
-          MakeTp3(slc, istj.Pts[1], kstj.Pts[1], iktp3, true);
-          float fomik = Match3DFOM(fcnLabel, slc, iss.ID, kss.ID, prt);
-          if(fomik > bestFOM) continue;
-          float sep = PosSep(tp3.Pos, iktp3.Pos);
-          if(sep > 50) {
-            if(prt) mf::LogVerbatim("TC")<<" 2S"<<iss.ID<<" 2S"<<jss.ID<<" 2S"<<kss.ID<<" Large stp[1] point separation "<<(int)sep;
-            continue;
-          }
-          bestFOM = fomik;
-          bestck = ck;
-        } // ck
-        // 3-plane TPC below
-        ShowerStruct3D ss3 = CreateSS3(slc);
-        // Define ss3 using the tp3 found with the first pair
-        ss3.ChgPos = tp3.Pos;
-        ss3.Dir = tp3.Dir;
-        ss3.MatchFOM = bestFOM;
-        if(bestck == USHRT_MAX) {
-          // showers match in 2 planes
-          ss3.CotIDs.resize(2);
-          ss3.CotIDs[0] = iss.ID;
-          ss3.CotIDs[1] = jss.ID;
-          ss3.Energy[iplaneID.Plane] = iss.Energy;
-          ss3.Energy[jplaneID.Plane] = jss.Energy;
-          if(prt) mf::LogVerbatim("TC")<<" new 2-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" with FOM "<<ss3.MatchFOM<<" try to complete it";
-          // ignore this 3D match if the shower can't be completed
-          if(!CompleteIncompleteShower(fcnLabel, slc, ss3, prt)) continue;
-          iss.SS3ID = ss3.ID;
-          jss.SS3ID = ss3.ID;
-        } else {
-          // showers match in 3 planes
-          unsigned short ck = bestck;
-          ShowerStruct& kss = slc.cots[ck];
-          ss3.CotIDs.resize(3);
-          ss3.CotIDs[0] = iss.ID;
-          ss3.CotIDs[1] = jss.ID;
-          ss3.CotIDs[2] = kss.ID;
-          geo::PlaneID kplaneID = DecodeCTP(kss.CTP);
-          ss3.Energy[iplaneID.Plane] = iss.Energy;
-          ss3.Energy[jplaneID.Plane] = jss.Energy;
-          ss3.Energy[kplaneID.Plane] = kss.Energy;
-          slc.cots[ck].SS3ID = ss3.ID;
-          if(prt) mf::LogVerbatim("TC")<<" new 3-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" 2S"<<slc.cots[ck].ID<<" with FOM "<<ss3.MatchFOM;
-        }
-        ss3.MatchFOM = 0.5 * (fomij + bestFOM);
-        // sort the IDs
-        std::sort(ss3.CotIDs.begin(), ss3.CotIDs.end());
-        // Set the 3S -> 2S assns and store it
-        if(!StoreShower(fcnLabel, slc, ss3)) {
-          MakeShowerObsolete(fcnLabel, slc, ss3, prt);
-          continue;
-        }
-        // make a reference to the stored shower
-        auto& nss3 = slc.showers[slc.showers.size() - 1];
-        if(nss3.NeedsUpdate) UpdateShower(fcnLabel, slc, nss3, prt);
-        // reconcile tj -> 2S -> 3S and tj -> pfps
-        if(!Reconcile3D(fcnLabel, slc, nss3, prt)) {
-          MakeShowerObsolete(fcnLabel, slc, nss3, prt);
-          continue;
-        }
-        if(nss3.NeedsUpdate) UpdateShower(fcnLabel, slc, nss3, prt);
-        if(prt) mf::LogVerbatim("TC")<<" 3S"<<nss3.ID<<" updated";
-        break;
-      } // cj
-    } // ci
-
-    ChkAssns(fcnLabel, slc);
-
-    if(prt) PrintShowers("M2DS", slc);
-
-  } // Match2DShowers
-*/
   ////////////////////////////////////////////////
   bool
   UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
@@ -1370,7 +1222,11 @@ namespace tca {
 
   ////////////////////////////////////////////////
   float
-  Match3DFOM(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+             std::string inFcnLabel,
+             TCSlice& slc,
+             ShowerStruct3D& ss3,
+             bool prt)
   {
     float fom = 0;
     float cnt = 0;
@@ -1378,7 +1234,7 @@ namespace tca {
       unsigned short icid = ss3.CotIDs[ii];
       for (unsigned short jj = ii + 1; jj < ss3.CotIDs.size(); ++jj) {
         unsigned short jcid = ss3.CotIDs[jj];
-        fom += Match3DFOM(inFcnLabel, slc, icid, jcid, prt);
+        fom += Match3DFOM(detProp, inFcnLabel, slc, icid, jcid, prt);
         ++cnt;
       } // cj
     }   // ci
@@ -1388,14 +1244,20 @@ namespace tca {
 
   ////////////////////////////////////////////////
   float
-  Match3DFOM(std::string inFcnLabel, TCSlice& slc, int icid, int jcid, int kcid, bool prt)
+  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+             std::string inFcnLabel,
+             TCSlice& slc,
+             int icid,
+             int jcid,
+             int kcid,
+             bool prt)
   {
     if (icid == 0 || icid > (int)slc.cots.size()) return 100;
     if (jcid == 0 || jcid > (int)slc.cots.size()) return 100;
     if (kcid == 0 || kcid > (int)slc.cots.size()) return 100;
 
-    float ijfom = Match3DFOM(inFcnLabel, slc, icid, jcid, prt);
-    float jkfom = Match3DFOM(inFcnLabel, slc, jcid, kcid, prt);
+    float ijfom = Match3DFOM(detProp, inFcnLabel, slc, icid, jcid, prt);
+    float jkfom = Match3DFOM(detProp, inFcnLabel, slc, jcid, kcid, prt);
 
     return 0.5 * (ijfom + jkfom);
 
@@ -1403,7 +1265,12 @@ namespace tca {
 
   ////////////////////////////////////////////////
   float
-  Match3DFOM(std::string inFcnLabel, TCSlice& slc, int icid, int jcid, bool prt)
+  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+             std::string inFcnLabel,
+             TCSlice& slc,
+             int icid,
+             int jcid,
+             bool prt)
   {
     // returns a Figure of Merit for a 3D match of two showers
     if (icid == 0 || icid > (int)slc.cots.size()) return 100;
@@ -1427,8 +1294,8 @@ namespace tca {
     geo::PlaneID jPlnID = DecodeCTP(jss.CTP);
 
     // compare match at the charge center
-    float ix = tcc.detprop->ConvertTicksToX(istj.Pts[1].Pos[1] / tcc.unitsPerTick, iPlnID);
-    float jx = tcc.detprop->ConvertTicksToX(jstj.Pts[1].Pos[1] / tcc.unitsPerTick, jPlnID);
+    float ix = detProp.ConvertTicksToX(istj.Pts[1].Pos[1] / tcc.unitsPerTick, iPlnID);
+    float jx = detProp.ConvertTicksToX(jstj.Pts[1].Pos[1] / tcc.unitsPerTick, jPlnID);
     float pos1fom = std::abs(ix - jx) / 10;
 
     float mfom = energyAsym * pos1fom;
@@ -1721,7 +1588,11 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  FindParent(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  FindParent(detinfo::DetectorPropertiesData const& detProp,
+             std::string inFcnLabel,
+             TCSlice& slc,
+             ShowerStruct3D& ss3,
+             bool prt)
   {
     // look for a parent pfp for the shower.The 2D showers associated with it
     // The parent should be at the start of the shower (shend = 0) if it is well-defined
@@ -1864,7 +1735,7 @@ namespace tca {
           break;
         } // cid
         if (ssid == 0) continue;
-        auto tpFrom = MakeBareTP(slc, pos, pToS, inCTP);
+        auto tpFrom = MakeBareTP(detProp, slc, pos, pToS, inCTP);
         auto& ss = slc.cots[ssid - 1];
         auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
         float sep = PosSep(tpFrom.Pos, stp1.Pos);
@@ -1955,7 +1826,7 @@ namespace tca {
     unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
     ss3.Vx3ID = pfp.Vx3ID[pend];
 
-    if (SetParent(fcnLabel, slc, pfp, ss3, prt) && UpdateShower(fcnLabel, slc, ss3, prt)) {
+    if (SetParent(detProp, fcnLabel, slc, pfp, ss3, prt) && UpdateShower(fcnLabel, slc, ss3, prt)) {
       if (prt) mf::LogVerbatim("TC") << fcnLabel << " 3S" << ss3.ID << " successful update";
       return true;
     }
@@ -1972,7 +1843,12 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  SetParent(std::string inFcnLabel, TCSlice& slc, PFPStruct& pfp, ShowerStruct3D& ss3, bool prt)
+  SetParent(detinfo::DetectorPropertiesData const& detProp,
+            std::string inFcnLabel,
+            TCSlice& slc,
+            PFPStruct& pfp,
+            ShowerStruct3D& ss3,
+            bool prt)
   {
     // set the pfp as the parent of ss3. The calling function should do the error recovery
     if (pfp.ID == 0 || ss3.ID == 0) return false;
@@ -2001,7 +1877,7 @@ namespace tca {
         // Don't define it to be the parent if it is short and the pfp projection in this plane is low
         auto pos = PosAtEnd(pfp, 0);
         auto dir = DirAtEnd(pfp, 0);
-        auto tp = MakeBareTP(slc, pos, dir, tj.CTP);
+        auto tp = MakeBareTP(detProp, slc, pos, dir, tj.CTP);
         unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         if (tp.Delta > 0.5 || npts > 20) {
           if (prt)
@@ -4348,7 +4224,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  PrintShowers(std::string fcnLabel, TCSlice& slc)
+  PrintShowers(detinfo::DetectorPropertiesData const& detProp, std::string fcnLabel, TCSlice& slc)
   {
     if (slc.showers.empty()) return;
     mf::LogVerbatim myprt("TC");
@@ -4366,7 +4242,7 @@ namespace tca {
       std::vector<float> projInPlane(slc.nPlanes);
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-        auto tp = MakeBareTP(slc, ss3.ChgPos, ss3.Dir, inCTP);
+        auto tp = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, inCTP);
         myprt << " " << PrintPos(slc, tp.Pos);
         projInPlane[plane] = tp.Delta;
       } // plane

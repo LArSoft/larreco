@@ -6,54 +6,38 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorClocksData.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Cluster.h"
 
-struct pfpStuff {
-  art::Ptr<recob::PFParticle> pfp;
-  art::Ptr<recob::Track> trk;
-  art::Ptr<recob::Vertex> vtx;
-  std::vector<art::Ptr<recob::Hit>> hits;
+namespace {
+  struct pfpStuff {
+    art::Ptr<recob::PFParticle> pfp;
+    art::Ptr<recob::Track> trk;
+    art::Ptr<recob::Vertex> vtx;
+    std::vector<art::Ptr<recob::Hit>> hits;
+    std::vector<int> clsIDs;
+    double score;
+  };
 
-  std::vector<int> clsIDs;
+  bool
+  comparePFP(const pfpStuff& l, const pfpStuff& r)
+  {
+    art::Ptr<recob::Vertex> const& lvtx = l.vtx;
+    art::Ptr<recob::Vertex> const& rvtx = r.vtx;
 
-  double score;
-};
+    double const lz = l.hits.size();
+    double const rz = r.hits.size();
 
-bool
-comparePFP(const pfpStuff& l, const pfpStuff& r)
-{
+    // RSF: USED TO BE 50
+    constexpr int hitthres = 80;
 
-  art::Ptr<recob::Vertex> lvtx = l.vtx;
-  art::Ptr<recob::Vertex> rvtx = r.vtx;
+    if (lz > hitthres && rz <= hitthres) return false;
 
-  double lz = l.hits.size();
-  double rz = r.hits.size();
+    if (lz <= hitthres && rz > hitthres) return true;
 
-  // RSF: USED TO BE 50
-  int hitthres = 80; // TODO: ADJUST THIS THRESHOLD
-
-  if (lz > hitthres && rz <= hitthres)
-    return false;
-  else if (lz <= hitthres && rz > hitthres)
-    return true;
-  return lvtx->position().Z() > rvtx->position().Z();
-
-  //  return l.score > r.score;
-}
-
-bool
-compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r)
-{
-
-  int lwire = l->WireID().asWireID().Wire;
-  int rwire = r->WireID().asWireID().Wire;
-  /*
-  double ltick = l->PeakTime();
-  double rtick = r->PeakTime();
-  */
-  return lwire > rwire;
+    return lvtx->position().Z() > rvtx->position().Z();
+  }
 }
 
 namespace shower {
@@ -64,25 +48,25 @@ namespace shower {
   {}
 
   int
-  TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle>> pfplist,
-                           std::vector<art::Ptr<recob::Vertex>> vertexlist,
-                           std::vector<art::Ptr<recob::Cluster>> clusterlist,
-                           std::vector<art::Ptr<recob::Hit>> hitlist,
-                           art::FindManyP<recob::Hit> cls_fm,
-                           art::FindManyP<recob::Cluster> clspfp_fm,
-                           art::FindManyP<recob::Vertex> vtxpfp_fm,
-                           art::FindManyP<recob::PFParticle> hit_fm,
-                           art::FindManyP<recob::Cluster> hitcls_fm,
-                           art::FindManyP<recob::Track> trkpfp_fm,
-                           art::FindManyP<anab::Calorimetry> fmcal)
+  TCShowerAlg::makeShowers(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           std::vector<art::Ptr<recob::PFParticle>> const& pfplist,
+                           std::vector<art::Ptr<recob::Vertex>> const& vertexlist,
+                           std::vector<art::Ptr<recob::Cluster>> const& clusterlist,
+                           std::vector<art::Ptr<recob::Hit>> const& hitlist,
+                           art::FindManyP<recob::Hit> const& cls_fm,
+                           art::FindManyP<recob::Cluster> const& clspfp_fm,
+                           art::FindManyP<recob::Vertex> const& vtxpfp_fm,
+                           art::FindManyP<recob::PFParticle> const& hit_fm,
+                           art::FindManyP<recob::Cluster> const& hitcls_fm,
+                           art::FindManyP<recob::Track> const& trkpfp_fm,
+                           art::FindManyP<anab::Calorimetry> const& fmcal)
   {
-
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
     dEdx.resize(2);
     dEdxErr.resize(2);
 
-    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<pfpStuff> allpfps;
@@ -122,7 +106,7 @@ namespace shower {
 
         allpfps.push_back(thispfp);
 
-        double tick = detprop->ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0, 0, 2));
+        double tick = detProp.ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0, 0, 2));
         int wire = geom->WireCoordinate(
           thispfp.vtx->position().Y(), thispfp.vtx->position().Z(), geo::PlaneID(0, 0, 2));
 
@@ -154,8 +138,6 @@ namespace shower {
       std::vector<art::Ptr<recob::Hit>> pfphits = allpfps[i].hits;
       std::vector<art::Ptr<recob::Cluster>> pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
 
-      //      if (pfphits.size() == 0) continue;
-
       std::cout << "pfp " << allpfps[i].pfp->Self() + 1 << " hits " << pfphits.size() << std::endl;
 
       TVector3 vtx;
@@ -172,7 +154,6 @@ namespace shower {
         shwDir = -pfptrk->EndDirection<TVector3>();
       }
 
-      //      int tolerance = 100; // how many shower like cluster you need to define a shower
       int tolerance = 60;         // how many shower like cluster you need to define a shower
       double pullTolerance = 0.7; // hits should be evenly distributed around the track
       double maxDist = 20;        // how far a shower like cluster can be from the track
@@ -183,7 +164,6 @@ namespace shower {
       // this is going to take some restructuring
 
       if (pfphits.size() < 30) continue;
-      //      if (pfphits.size() < 15) continue;
       if (pfphits.size() > 500) continue;
       // adjust tolerances for short tracks
       if (pfphits.size() < 90) {
@@ -215,9 +195,9 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_wire2;
 
       for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane) {
-        trk_tick1[*iPlane] = detprop->ConvertXToTicks(pfpStart[0], *iPlane);
+        trk_tick1[*iPlane] = detProp.ConvertXToTicks(pfpStart[0], *iPlane);
         trk_wire1[*iPlane] = geom->WireCoordinate(pfpStart[1], pfpStart[2], *iPlane);
-        trk_tick2[*iPlane] = detprop->ConvertXToTicks(pfpPt2[0], *iPlane);
+        trk_tick2[*iPlane] = detProp.ConvertXToTicks(pfpPt2[0], *iPlane);
         trk_wire2[*iPlane] = geom->WireCoordinate(pfpPt2[1], pfpPt2[2], *iPlane);
       }
 
@@ -227,8 +207,8 @@ namespace shower {
         if (clusterlist[j]->ID() > 0 && cls_hitlist.size() > 10) continue;
         if (cls_hitlist.size() > 50) continue;
 
-        bool isGoodCluster =
-          false; // true if the hit belongs to a cluster that should be added to the shower
+        bool isGoodCluster = false; // true if the hit belongs to a cluster that
+                                    // should be added to the shower
 
         bool skipit = false; // skip clusters already in the pfp
         for (size_t k = 0; k < allpfps[i].clsIDs.size(); ++k) {
@@ -237,8 +217,15 @@ namespace shower {
         if (skipit) continue;
 
         for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
-          int isGoodHit = goodHit(
-            cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+          int isGoodHit = goodHit(clockData,
+                                  detProp,
+                                  cls_hitlist[jj],
+                                  maxDist,
+                                  minDistVert,
+                                  trk_wire1,
+                                  trk_tick1,
+                                  trk_wire2,
+                                  trk_tick2);
 
           if (isGoodHit == -1) {
             isGoodCluster = false;
@@ -256,7 +243,9 @@ namespace shower {
             nShowerHits++;
 
             int showerHitPullAdd = 0;
-            goodHit(cls_hitlist[jj],
+            goodHit(clockData,
+                    detProp,
+                    cls_hitlist[jj],
                     maxDist,
                     minDistVert,
                     trk_wire1,
@@ -287,8 +276,15 @@ namespace shower {
           std::vector<art::Ptr<recob::Cluster>> hit_clslist = hitcls_fm.at(hitlist[k].key());
           if (hit_clslist.size()) continue;
 
-          int isGoodHit = goodHit(
-            hitlist[k], maxDist * 2, minDistVert * 2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+          int isGoodHit = goodHit(clockData,
+                                  detProp,
+                                  hitlist[k],
+                                  maxDist * 2,
+                                  minDistVert * 2,
+                                  trk_wire1,
+                                  trk_tick1,
+                                  trk_wire2,
+                                  trk_tick2);
           if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits))
             showerHits.push_back(hitlist[k]);
         } // loop over hits
@@ -296,7 +292,6 @@ namespace shower {
         // loop over clusters to see if any fall within the shower
         for (size_t k = 0; k < clusterlist.size(); ++k) {
           std::vector<art::Ptr<recob::Hit>> cls_hitlist = cls_fm.at(clusterlist[k].key());
-          //	  if (clusterlist[k]->ID() < 0) continue;
           if (clusterlist[k]->ID() > 0 && cls_hitlist.size() > 50) continue;
 
           double thisDist = maxDist;
@@ -315,8 +310,15 @@ namespace shower {
           // are the cluster hits close?
           for (size_t kk = 0; kk < cls_hitlist.size(); ++kk) {
             nhits++;
-            int isGoodHit = goodHit(
-              cls_hitlist[kk], thisDist, thisMin, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+            int isGoodHit = goodHit(clockData,
+                                    detProp,
+                                    cls_hitlist[kk],
+                                    thisDist,
+                                    thisMin,
+                                    trk_wire1,
+                                    trk_tick1,
+                                    trk_wire2,
+                                    trk_tick2);
             if (isGoodHit == -1) {
               ngoodhits = 0;
               break;
@@ -340,72 +342,6 @@ namespace shower {
 
       } // decide if shower
 
-      /*
-      // get dE/dx
-
-      //      auto vhit = fmthm.at(tracklist[i].key());
-      //      auto vmeta = fmthm.data(tracklist[i].key());
-
-      TVector3 dir = trkPt2-trkStart;
-      dir = dir.Unit();
-
-      unsigned int bestplanetemp = 0;
-      //      double minpitch = 999;
-
-      for (unsigned int plane = 0; plane < geom->MaxPlanes(); ++plane) {
-	std::vector<float> vQ;
-	double pitch = 0;
-	double totQ = 0;
-	double avgT = 0;
-	int nhits = 0;
-
-	for (size_t h = 0; h < vhit.size(); ++h) {
-	  unsigned int thisplane = vhit[h]->WireID().planeID().Plane;
-	  if (thisplane != plane) continue;
-
-	  if (!pitch) { // find pitch if it hasn't been calculated
-	    double wirePitch = geom->WirePitch(vhit[h]->WireID().planeID());
-	    double angleToVert = geom->WireAngleToVertical(geom->Plane(vhit[h]->WireID().planeID()).View(), vhit[h]->WireID().planeID()) - 0.5 * ::util::pi<>();
-
-	    double cosgamma = std::abs(std::sin(angleToVert) * dir[1] + std::cos(angleToVert) * dir[2] );
-	    if (cosgamma > 0) pitch = wirePitch/cosgamma;
-
-	    if (pitch < minpitch) {
-	      minpitch = pitch;
-	      bestplanetemp = plane;
-	    }
-	  } // calculate pit h
-	  double x = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.X();
-	  double y = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.Y();
-	  double z = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.Z();
-
-	  double x0 = tracklist[i]->Vertex().X();
-	  double y0 = tracklist[i]->Vertex().Y();
-	  double z0 = tracklist[i]->Vertex().Z();
-
-	  double dist = sqrt( pow(x-x0,2) + pow(y-y0,2) + pow(z-z0,2) );
-	  if (dist > 5) continue;
-
-	  vQ.push_back(vhit[h]->Integral());
-	  totQ += vhit[h]->Integral();
-	  avgT += vhit[h]->PeakTime();
-	  ++nhits;
-
-	} // loop through hits
-	if (totQ) {
-	  double dQdx = TMath::Median(vQ.size(), &vQ[0])/pitch;
-	  dEdx[plane] = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, plane);
-	}
-
-      } // loop through planes
-
-      if (showerCandidate) {
-	shwDir = (trkPt2-trkStart).Unit();
-	shwvtx = tracklist[i]->Vertex();
-	bestplane = int(bestplanetemp);
-	break;
-      }
-      */
       if (showerCandidate) {
         std::cout << "THIS IS THE SHOWER PFP: " << allpfps[i].pfp->Self() + 1 << std::endl;
         break;
@@ -424,17 +360,27 @@ namespace shower {
   // return 0 otherwise
 
   int
-  TCShowerAlg::goodHit(art::Ptr<recob::Hit> hit,
-                       double maxDist,
-                       double minDistVert,
-                       std::map<geo::PlaneID, double> trk_wire1,
-                       std::map<geo::PlaneID, double> trk_tick1,
-                       std::map<geo::PlaneID, double> trk_wire2,
-                       std::map<geo::PlaneID, double> trk_tick2) const
+  TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
+                       detinfo::DetectorPropertiesData const& detProp,
+                       art::Ptr<recob::Hit> const& hit,
+                       double const maxDist,
+                       double const minDistVert,
+                       std::map<geo::PlaneID, double> const& trk_wire1,
+                       std::map<geo::PlaneID, double> const& trk_tick1,
+                       std::map<geo::PlaneID, double> const& trk_wire2,
+                       std::map<geo::PlaneID, double> const& trk_tick2) const
   {
-
     int pull = 0;
-    return goodHit(hit, maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, pull);
+    return goodHit(clockData,
+                   detProp,
+                   hit,
+                   maxDist,
+                   minDistVert,
+                   trk_wire1,
+                   trk_tick1,
+                   trk_wire2,
+                   trk_tick2,
+                   pull);
 
   } // goodHit
 
@@ -444,34 +390,34 @@ namespace shower {
   // return 0 otherwise
 
   int
-  TCShowerAlg::goodHit(art::Ptr<recob::Hit> hit,
+  TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
+                       detinfo::DetectorPropertiesData const& detProp,
+                       art::Ptr<recob::Hit> const& hit,
                        double maxDist,
-                       double minDistVert,
-                       std::map<geo::PlaneID, double> trk_wire1,
-                       std::map<geo::PlaneID, double> trk_tick1,
-                       std::map<geo::PlaneID, double> trk_wire2,
-                       std::map<geo::PlaneID, double> trk_tick2,
+                       double const minDistVert,
+                       std::map<geo::PlaneID, double> const& trk_wire1,
+                       std::map<geo::PlaneID, double> const& trk_tick1,
+                       std::map<geo::PlaneID, double> const& trk_wire2,
+                       std::map<geo::PlaneID, double> const& trk_tick2,
                        int& pull) const
   {
-
-    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry const> geom;
 
     double wirePitch = geom->WirePitch(hit->WireID());
-    double tickToDist = detprop->DriftVelocity(detprop->Efield(), detprop->Temperature());
-    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+    double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
+    tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
     double UnitsPerTick = tickToDist / wirePitch;
 
     double x0 = hit->WireID().Wire;
     double y0 = hit->PeakTime() * UnitsPerTick;
 
-    double x1 = trk_wire1[hit->WireID()];
-    double y1 = trk_tick1[hit->WireID()] * UnitsPerTick;
+    double x1 = trk_wire1.at(hit->WireID());
+    double y1 = trk_tick1.at(hit->WireID()) * UnitsPerTick;
 
-    double x2 = trk_wire2[hit->WireID()];
-    double y2 = trk_tick2[hit->WireID()] * UnitsPerTick;
+    double x2 = trk_wire2.at(hit->WireID());
+    double y2 = trk_tick2.at(hit->WireID()) * UnitsPerTick;
 
-    double distToVert = std::sqrt(pow(x0 - x1, 2) + pow(y0 - y1, 2));
+    double distToVert = std::hypot(x0 - x1, y0 - y1);
     if (distToVert < minDistVert) return -1;
 
     if (x2 > x1) {
@@ -482,14 +428,14 @@ namespace shower {
     }
 
     // exclude cluster if it's "behind" the vertex
-    double a = std::sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
-    double b = std::sqrt(pow(x0 - x1, 2) + pow(y0 - y1, 2));
-    double c = std::sqrt(pow(x0 - x2, 2) + pow(y0 - y2, 2));
+    double a = std::hypot(x2 - x1, y2 - y1);
+    double b = std::hypot(x0 - x1, y0 - y1);
+    double c = std::hypot(x0 - x2, y0 - y2);
     double costheta = -(pow(c, 2) - pow(a, 2) - pow(b, 2)) / (2 * a * b);
     if (costheta < 0) return -1;
 
-    double dist = std::abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) /
-                  std::sqrt(pow((y2 - y1), 2) + pow((x2 - x1), 2));
+    double dist =
+      std::abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) / std::hypot(y2 - y1, x2 - x1);
 
     if (dist < maxDist) {
       if (((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) > 0)

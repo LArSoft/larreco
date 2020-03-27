@@ -33,7 +33,8 @@ namespace cmtool {
   }
 
   void
-  CMManagerBase::SetClusters(const std::vector<std::vector<util::PxHit>>& clusters)
+  CMManagerBase::SetClusters(util::GeometryUtilities const& gser,
+                             const std::vector<std::vector<util::PxHit>>& clusters)
   {
 
     TStopwatch localWatch;
@@ -58,9 +59,8 @@ namespace cmtool {
 
       if ((*_in_clusters.rbegin()).SetHits(c) < 3) continue;
       (*_in_clusters.rbegin()).DisableFANN();
-      //(*_in_clusters.rbegin()).FillParams(true,true,true,true,true,false);
-      (*_in_clusters.rbegin()).FillParams(false, false, false, false, false, false);
-      (*_in_clusters.rbegin()).FillPolygon();
+      (*_in_clusters.rbegin()).FillParams(gser, false, false, false, false, false, false);
+      (*_in_clusters.rbegin()).FillPolygon(gser);
     }
 
     if (_time_report) {
@@ -90,7 +90,7 @@ namespace cmtool {
   }
 
   void
-  CMManagerBase::Process()
+  CMManagerBase::Process(util::GeometryUtilities const& gser)
   {
 
     if (!(_in_clusters.size())) return;
@@ -120,7 +120,7 @@ namespace cmtool {
 
       localWatch.Start();
 
-      keep_going = IterationProcess();
+      keep_going = IterationProcess(gser);
 
       if (_time_report)
         std::cout << Form("  CMManagerBase Time Report: IterationProcess = %g [s]",

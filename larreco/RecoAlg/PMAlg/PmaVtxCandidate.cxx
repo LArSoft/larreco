@@ -22,9 +22,6 @@
 
 #include "TMath.h"
 
-const double pma::VtxCandidate::kMaxDistToTrack = 4.0; // max. dist. track to center to create vtx
-const double pma::VtxCandidate::kMinDistToNode = 2.0;  // min. dist. to node needed to split segment
-
 bool
 pma::VtxCandidate::Has(pma::Track3D* trk) const
 {
@@ -65,7 +62,7 @@ pma::VtxCandidate::IsAttached(const pma::VtxCandidate& other) const
 }
 
 bool
-pma::VtxCandidate::HasLoops(void) const
+pma::VtxCandidate::HasLoops() const
 {
   for (size_t t = 0; t < fAssigned.size(); t++) {
     pma::Track3D const* trk_t = fAssigned[t].first.Track()->GetRoot();
@@ -203,7 +200,7 @@ pma::VtxCandidate::Add(const pma::TrkCandidate& trk)
 }
 
 double
-pma::VtxCandidate::ComputeMse2D(void)
+pma::VtxCandidate::ComputeMse2D()
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -340,7 +337,7 @@ pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 }
 
 double
-pma::VtxCandidate::Compute(void)
+pma::VtxCandidate::Compute()
 {
   std::vector<pma::Segment3D*> segments;
   std::vector<std::pair<TVector3, TVector3>> lines;
@@ -412,7 +409,9 @@ pma::VtxCandidate::Compute(void)
 }
 
 bool
-pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl& tracks, pma::TrkCandidateColl& src)
+pma::VtxCandidate::JoinTracks(detinfo::DetectorPropertiesData const& detProp,
+                              pma::TrkCandidateColl& tracks,
+                              pma::TrkCandidateColl& src)
 {
   if (tracksJoined) {
     mf::LogError("pma::VtxCandidate") << "Tracks already attached to the vertex.";
@@ -553,7 +552,7 @@ pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl& tracks, pma::TrkCandidateCo
             cryo = cryo1;
           }
 
-          trk->InsertNode(fCenter, ++idx, tpc, cryo);
+          trk->InsertNode(detProp, fCenter, ++idx, tpc, cryo);
         }
         else {
           if (d1 < d0) {
@@ -565,7 +564,7 @@ pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl& tracks, pma::TrkCandidateCo
           }
         }
 
-        pma::Track3D* t0 = trk->Split(idx); // makes both tracks attached to each other
+        pma::Track3D* t0 = trk->Split(detProp, idx); // makes both tracks attached to each other
 
         if (t0) {
           mf::LogVerbatim("pma::VtxCandidate")
@@ -609,7 +608,7 @@ pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl& tracks, pma::TrkCandidateCo
             cryo = cryo1;
           }
 
-          trk->InsertNode(fCenter, ++idx, tpc, cryo);
+          trk->InsertNode(detProp, fCenter, ++idx, tpc, cryo);
         }
         else {
           if (d1 < d0) {

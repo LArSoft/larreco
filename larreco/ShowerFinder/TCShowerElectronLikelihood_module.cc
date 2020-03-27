@@ -13,9 +13,11 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
+#include "cetlib/pow.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -37,15 +39,17 @@ namespace shower {
     explicit TCShowerElectronLikelihood(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void analyze(const art::Event& evt);
+    void beginJob() override;
+    void analyze(const art::Event& evt) override;
 
-    void getShowerProfile(std::vector<art::Ptr<recob::Hit>> showerhits,
+    void getShowerProfile(detinfo::DetectorClocksData const& clockdata,
+                          detinfo::DetectorPropertiesData const& detProp,
+                          std::vector<art::Ptr<recob::Hit>> showerhits,
                           TVector3 shwvtx,
                           TVector3 shwdir);
     void findEnergyBin();
-    void getLongLikelihood();
-    void getTranLikelihood();
+    double getLongLikelihood();
+    double getTranLikelihood();
 
     void resetProfiles();
 
@@ -91,14 +95,6 @@ namespace shower {
     double energyChi2;
     int maxt;
 
-    double longLikelihood;
-    double tranLikelihood;
-    double tranLikelihood_1;
-    double tranLikelihood_2;
-    double tranLikelihood_3;
-    double tranLikelihood_4;
-    double tranLikelihood_5;
-
     const int LBINS = 20;
     const int LMIN = 0;
     const int LMAX = 5;
@@ -106,16 +102,6 @@ namespace shower {
     const int TBINS = 20;
     const int TMIN = -5;
     const int TMAX = 5;
-
-    /*
-    const int EBINS = 10;
-    const double EMIN = 0.5;
-    const double EMAX = 10.5;
-    */
-
-    // unused const int EBINS = 20;
-    // unused const double EMIN = 0.5;
-    // unused const double EMAX = 20.5;
 
     const double X0 = 14;
 
@@ -147,43 +133,37 @@ shower::TCShowerElectronLikelihood::TCShowerElectronLikelihood(fhicl::ParameterS
       << "cannot find the root template file: \n"
       << fTemplateFile << "\n bail ungracefully.\n";
 
-  TFile* file = TFile::Open(fROOTfile.c_str());
+  std::unique_ptr<TFile> file{TFile::Open(fROOTfile.c_str())};
 
-  longTemplate = (TH3F*)file->Get("tcshowertemplate/fLongitudinal");
-  tranTemplate = (TH3F*)file->Get("tcshowertemplate/fTransverse");
-  tranTemplate_1 = (TH3F*)file->Get("tcshowertemplate/fTransverse_1");
-  tranTemplate_2 = (TH3F*)file->Get("tcshowertemplate/fTransverse_2");
-  tranTemplate_3 = (TH3F*)file->Get("tcshowertemplate/fTransverse_3");
-  tranTemplate_4 = (TH3F*)file->Get("tcshowertemplate/fTransverse_4");
-  tranTemplate_5 = (TH3F*)file->Get("tcshowertemplate/fTransverse_5");
+  longTemplate = file->Get<TH3F>("tcshowertemplate/fLongitudinal");
+  tranTemplate = file->Get<TH3F>("tcshowertemplate/fTransverse");
+  tranTemplate_1 = file->Get<TH3F>("tcshowertemplate/fTransverse_1");
+  tranTemplate_2 = file->Get<TH3F>("tcshowertemplate/fTransverse_2");
+  tranTemplate_3 = file->Get<TH3F>("tcshowertemplate/fTransverse_3");
+  tranTemplate_4 = file->Get<TH3F>("tcshowertemplate/fTransverse_4");
+  tranTemplate_5 = file->Get<TH3F>("tcshowertemplate/fTransverse_5");
 
-  longTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoLong2D");
-  tranTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D");
-  tranTemplateProf2D_1 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_1");
-  tranTemplateProf2D_2 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_2");
-  tranTemplateProf2D_3 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_3");
-  tranTemplateProf2D_4 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_4");
-  tranTemplateProf2D_5 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_5");
+  longTemplateProf2D = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoLong2D");
+  tranTemplateProf2D = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D");
+  tranTemplateProf2D_1 = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D_1");
+  tranTemplateProf2D_2 = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D_2");
+  tranTemplateProf2D_3 = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D_3");
+  tranTemplateProf2D_4 = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D_4");
+  tranTemplateProf2D_5 = file->Get<TProfile2D>("tcshowertemplate/fShowerProfileRecoTrans2D_5");
 
   longProfile = new TH1F("longProfile", "longitudinal shower profile;t;Q", LBINS, LMIN, LMAX);
   tranProfile = new TH1F("tranProfile", "transverse shower profile;dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
 
   tranProfile_1 = new TH1F(
     "tranProfile_1", "transverse shower profile [0 <= t < 1];dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
   tranProfile_2 = new TH1F(
     "tranProfile_2", "transverse shower profile [1 <= t < 2];dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
   tranProfile_3 = new TH1F(
     "tranProfile_3", "transverse shower profile [2 <= t < 3];dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
   tranProfile_4 = new TH1F(
     "tranProfile_4", "transverse shower profile [3 <= t < 4];dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
   tranProfile_5 = new TH1F(
     "tranProfile_5", "transverse shower profile [4 <= t < 5];dist (cm);Q", TBINS, TMIN, TMAX);
-  ;
 } // TCShowerElectronLikelihood
 
 // -------------------------------------------------
@@ -193,7 +173,6 @@ shower::TCShowerElectronLikelihood::beginJob()
 {
 
   art::ServiceHandle<art::TFileService const> tfs;
-  //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
   energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
   longLikelihoodHist = tfs->make<TH1F>("longLikelihoodHist", "longitudinal likelihood", 20, 0, 2);
@@ -220,7 +199,6 @@ shower::TCShowerElectronLikelihood::beginJob()
 void
 shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
 {
-
   resetProfiles();
 
   art::Handle<std::vector<recob::Hit>> hitListHandle;
@@ -240,17 +218,20 @@ shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
   if (showerlist.size()) {
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
     std::vector<art::Ptr<recob::Hit>> showerhits = shwfm.at(0);
-    getShowerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+    getShowerProfile(
+      clock_data, det_prop, showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
 
     maxt = std::ceil((90 - showerlist[0]->ShowerStart().Z()) / X0);
 
     findEnergyBin();
-    getLongLikelihood();
-    getTranLikelihood();
 
-    longLikelihoodHist->Fill(longLikelihood);
-    tranLikelihoodHist->Fill(tranLikelihood);
+    longLikelihoodHist->Fill(getLongLikelihood());
+    tranLikelihoodHist->Fill(getTranLikelihood());
 
     // check true shower energy
     if (mclist.size()) {
@@ -259,8 +240,6 @@ shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
         if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 &&
             mctruth->GetNeutrino().CCNC() == 0) {
           double elep = mctruth->GetNeutrino().Lepton().E();
-          //	  std::cout << "true shower energy: " << elep << std::endl;
-          //	  std::cout << "energy guess:       " << bestE << " (" << bestchi2 << ")" << std::endl;
           energyDist->Fill(elep - energyGuess);
         } // cc nue
       }   // neutrinoset
@@ -273,9 +252,6 @@ shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
   tranProfHist_3 = tranProfile_3;
   tranProfHist_4 = tranProfile_4;
   tranProfHist_5 = tranProfile_5;
-
-  //fTree->Fill();
-
 } // analyze
 
 // -------------------------------------------------
@@ -295,36 +271,25 @@ shower::TCShowerElectronLikelihood::resetProfiles()
   energyGuess = -9999;
   energyChi2 = -9999;
   maxt = -9999;
-
-  longLikelihood = -9999;
-  tranLikelihood = -9999;
-  tranLikelihood_1 = -9999;
-  tranLikelihood_2 = -9999;
-  tranLikelihood_3 = -9999;
-  tranLikelihood_4 = -9999;
-  tranLikelihood_5 = -9999;
-
-  return;
-
 } // resetProfiles
 
 // -------------------------------------------------
 
 void
-shower::TCShowerElectronLikelihood::getShowerProfile(std::vector<art::Ptr<recob::Hit>> showerhits,
+shower::TCShowerElectronLikelihood::getShowerProfile(detinfo::DetectorClocksData const& clockdata,
+                                                     detinfo::DetectorPropertiesData const& detProp,
+                                                     std::vector<art::Ptr<recob::Hit>> showerhits,
                                                      TVector3 shwvtx,
                                                      TVector3 shwdir)
 {
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry const> geom;
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
-  double shwVtxTime = detprop->ConvertXToTicks(shwvtx[0], collectionPlane);
+  double shwVtxTime = detProp.ConvertXToTicks(shwvtx[0], collectionPlane);
   double shwVtxWire = geom->WireCoordinate(shwvtx[1], shwvtx[2], collectionPlane);
 
-  double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
+  double shwTwoTime = detProp.ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
   double shwTwoWire =
     geom->WireCoordinate(shwvtx[1] + shwdir[1], shwvtx[2] + shwdir[2], collectionPlane);
 
@@ -332,8 +297,8 @@ shower::TCShowerElectronLikelihood::getShowerProfile(std::vector<art::Ptr<recob:
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
 
     double wirePitch = geom->WirePitch(showerhits[i]->WireID());
-    double tickToDist = detprop->DriftVelocity(detprop->Efield(), detprop->Temperature());
-    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+    double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
+    tickToDist *= 1.e-3 * sampling_rate(clockdata); // 1e-3 is conversion of 1/us to 1/ns
 
     double xvtx = shwVtxTime * tickToDist;
     double yvtx = shwVtxWire * wirePitch;
@@ -349,18 +314,18 @@ shower::TCShowerElectronLikelihood::getShowerProfile(std::vector<art::Ptr<recob:
 
     double ldist = std::abs((ytwoorth - yvtx) * xhit - (xtwoorth - xvtx) * yhit + xtwoorth * yvtx -
                             ytwoorth * xvtx) /
-                   std::sqrt(pow((ytwoorth - yvtx), 2) + pow((xtwoorth - xvtx), 2));
+                   std::hypot(ytwoorth - yvtx, xtwoorth - xvtx);
     double tdist = ((ytwo - yvtx) * xhit - (xtwo - xvtx) * yhit + xtwo * yvtx - ytwo * xvtx) /
-                   std::sqrt(pow((ytwo - yvtx), 2) + pow((xtwo - xvtx), 2));
+                   std::hypot(ytwo - yvtx, xtwo - xvtx);
 
-    double to3D = 1. / sqrt(pow(xvtx - xtwo, 2) +
-                            pow(yvtx - ytwo, 2)); // distance between two points in 3D space is one
+    double to3D = 1. / std::hypot(xvtx - xtwo,
+                                  yvtx - ytwo); // distance between two points in 3D space is one
     ldist *= to3D;
     tdist *= to3D;
     double t = ldist / X0;
 
-    double Q =
-      showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
+    double Q = showerhits[i]->Integral() *
+               fCalorimetryAlg.LifetimeCorrection(clockdata, detProp, showerhits[i]->PeakTime());
 
     longProfile->Fill(t, Q);
     tranProfile->Fill(tdist, Q);
@@ -403,24 +368,15 @@ shower::TCShowerElectronLikelihood::findEnergyBin()
   int lbins = longTemplate->GetNbinsX();
   int tbins = tranTemplate->GetNbinsX();
 
-  //  lbins = floor(lbins/2); // only use the first half of the bins
-
-  TProfile* ltemp;
-  TProfile* ttemp_1;
-  TProfile* ttemp_2;
-  TProfile* ttemp_3;
-  TProfile* ttemp_4;
-  TProfile* ttemp_5;
-
   for (int i = 0; i < ebins; ++i) {
     double thischi2 = 0;
 
-    ltemp = (TProfile*)longTemplateProf2D->ProfileX("_x", i + 1, i + 1);
-    ttemp_1 = (TProfile*)tranTemplateProf2D_1->ProfileX("_x_1", i + 1, i + 1);
-    ttemp_2 = (TProfile*)tranTemplateProf2D_2->ProfileX("_x_2", i + 1, i + 1);
-    ttemp_3 = (TProfile*)tranTemplateProf2D_3->ProfileX("_x_3", i + 1, i + 1);
-    ttemp_4 = (TProfile*)tranTemplateProf2D_4->ProfileX("_x_4", i + 1, i + 1);
-    ttemp_5 = (TProfile*)tranTemplateProf2D_5->ProfileX("_x_5", i + 1, i + 1);
+    TProfile* ltemp = longTemplateProf2D->ProfileX("_x", i + 1, i + 1);
+    TProfile* ttemp_1 = tranTemplateProf2D_1->ProfileX("_x_1", i + 1, i + 1);
+    TProfile* ttemp_2 = tranTemplateProf2D_2->ProfileX("_x_2", i + 1, i + 1);
+    TProfile* ttemp_3 = tranTemplateProf2D_3->ProfileX("_x_3", i + 1, i + 1);
+    TProfile* ttemp_4 = tranTemplateProf2D_4->ProfileX("_x_4", i + 1, i + 1);
+    TProfile* ttemp_5 = tranTemplateProf2D_5->ProfileX("_x_5", i + 1, i + 1);
 
     int nlbins = 0;
     int ntbins = 0;
@@ -429,7 +385,7 @@ shower::TCShowerElectronLikelihood::findEnergyBin()
       double obs = longProfile->GetBinContent(j + 1);
       double exp = ltemp->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++nlbins;
       }
     } // loop through longitudinal bins
@@ -438,35 +394,35 @@ shower::TCShowerElectronLikelihood::findEnergyBin()
       double obs = tranProfile_1->GetBinContent(j + 1);
       double exp = ttemp_1->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++ntbins;
       }
 
       obs = tranProfile_2->GetBinContent(j + 1);
       exp = ttemp_2->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++ntbins;
       }
 
       obs = tranProfile_3->GetBinContent(j + 1);
       exp = ttemp_3->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++ntbins;
       }
 
       obs = tranProfile_4->GetBinContent(j + 1);
       exp = ttemp_4->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++ntbins;
       }
 
       obs = tranProfile_5->GetBinContent(j + 1);
       exp = ttemp_5->GetBinContent(j + 1);
       if (obs != 0) {
-        thischi2 += pow(obs - exp, 2) / exp;
+        thischi2 += cet::square(obs - exp) / exp;
         ++ntbins;
       }
     } // loop through longitudinal bins
@@ -482,21 +438,17 @@ shower::TCShowerElectronLikelihood::findEnergyBin()
 
   energyChi2 = chi2min;
   energyGuess = bestbin + 1;
-
-  return;
-
 } // findEnergyBin
 
 // -------------------------------------------------
 
-void
+double
 shower::TCShowerElectronLikelihood::getLongLikelihood()
 {
-
-  if (energyGuess < 0) return;
+  if (energyGuess < 0) return -9999.;
   int energyBin = energyGuess;
 
-  longLikelihood = 0;
+  double longLikelihood = 0.;
   int nbins = 0;
 
   for (int i = 0; i < LBINS; ++i) {
@@ -514,25 +466,22 @@ shower::TCShowerElectronLikelihood::getLongLikelihood()
   longLikelihood /= nbins;
 
   std::cout << longLikelihood << std::endl;
-
-  return;
-
+  return longLikelihood;
 } // getLongLikelihood
 
 // -------------------------------------------------
 
-void
+double
 shower::TCShowerElectronLikelihood::getTranLikelihood()
 {
-
-  if (energyGuess < 0) return;
+  if (energyGuess < 0) return -9999.;
   int energyBin = energyGuess;
 
-  tranLikelihood_1 = 0;
-  tranLikelihood_2 = 0;
-  tranLikelihood_3 = 0;
-  tranLikelihood_4 = 0;
-  tranLikelihood_5 = 0;
+  double tranLikelihood_1 = 0;
+  double tranLikelihood_2 = 0;
+  double tranLikelihood_3 = 0;
+  double tranLikelihood_4 = 0;
+  double tranLikelihood_5 = 0;
 
   double qval;
   int qbin, binentries, totentries;
@@ -592,23 +541,11 @@ shower::TCShowerElectronLikelihood::getTranLikelihood()
 
   } // loop through
 
-  /*
-  std::cout << tranLikelihood_1 << std::endl;
-  std::cout << tranLikelihood_2 << std::endl;
-  std::cout << tranLikelihood_3 << std::endl;
-  std::cout << tranLikelihood_4 << std::endl;
-  std::cout << tranLikelihood_5 << std::endl;
-  */
-
-  tranLikelihood =
-    tranLikelihood_1 + tranLikelihood_2 + tranLikelihood_3 + tranLikelihood_4 + tranLikelihood_5;
-
-  tranLikelihood /= nbins;
-
+  double const tranLikelihood =
+    (tranLikelihood_1 + tranLikelihood_2 + tranLikelihood_3 + tranLikelihood_4 + tranLikelihood_5) /
+    nbins;
   std::cout << tranLikelihood << std::endl;
-
-  return;
-
+  return tranLikelihood;
 } // getTranLikelihood
 
 // -------------------------------------------------

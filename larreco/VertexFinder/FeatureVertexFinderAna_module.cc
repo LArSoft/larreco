@@ -9,23 +9,18 @@
 // for real data (when the time comes)
 //////////////////////////////////////////////////////////////////////////////////////////
 
-// ########################
-// ### LArSoft Includes ###
-// ########################
+// LArSoft
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 
-// ##########################
-// ### Basic C++ Includes ###
-// ##########################
+// C++
 #include <string>
 
-// ##########################
-// ### Framework Includes ###
-// ##########################
+// Framework
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
@@ -37,30 +32,23 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-// #####################
-// ### ROOT Includes ###
-// #####################
+// ROOT
 #include "TH1F.h"
 #include "TH2D.h"
 
-// ====================================================================================
-// ====================================================================================
-
 namespace vertex {
 
-  // Base class for creation of verticies
   class FeatureVertexFinderAna : public art::EDAnalyzer {
   public:
     explicit FeatureVertexFinderAna(fhicl::ParameterSet const& pset);
 
   private:
-    // providing read write access to the event
-    void analyze(const art::Event& evt);
-    void beginJob();
+    void analyze(const art::Event& evt) override;
+    void beginJob() override;
 
-    std::string fLArG4ModuleLabel;      //<---LArG4 Module Label
-    std::string fGenieModuleLabel;      //<---Genie Module Label
-    std::string fVertexModuleLabel;     //<---Vertex Module Label
+    std::string fLArG4ModuleLabel;
+    std::string fGenieModuleLabel;
+    std::string fVertexModuleLabel;
     std::string fEndPoint2dModuleLabel; //<---2d Vertex Module Label (EndPoint2d)
 
     // Outputting histograms for analysis
@@ -133,10 +121,7 @@ namespace vertex {
     TH2D* fRecoCheck3dVtxZvsZ;
 
   }; // End class VertexFinderAna
-  // ====================================================================================
-  // ====================================================================================
 
-  //------------------------------------------------------------------
   FeatureVertexFinderAna::FeatureVertexFinderAna(fhicl::ParameterSet const& pset) : EDAnalyzer(pset)
   {
     fLArG4ModuleLabel = pset.get<std::string>("LArGeantModuleLabel");
@@ -145,15 +130,13 @@ namespace vertex {
     fEndPoint2dModuleLabel = pset.get<std::string>("EndPoint2dModuleLabel");
   }
 
-  //-------------------------------------------------
   void
   FeatureVertexFinderAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
-    // ====================================
-    // ==== Outputting TH1F Histograms ====
-    // ====================================
+
+    // Outputting TH1F Histograms
     fRun = tfs->make<TH1F>("fRun", "Run Number", 1000, 0, 1000);
     fEvt = tfs->make<TH1F>("fEvt", "Event Number", 1000, 0, 1000);
     fTruthVtxXPos = tfs->make<TH1F>("fTruthVtxXPos", "Truth Vertex X Position", 400, 0, 200);
@@ -268,103 +251,67 @@ namespace vertex {
       "fRecoCheck3dVtxYvsY", "(Reco Y - True Y)/True Y vs True Y", 400, -100, 100, 120, -20, 20);
     fRecoCheck3dVtxZvsZ = tfs->make<TH2D>(
       "fRecoCheck3dVtxZvsZ", "(Reco Z - True Z)/True Z vs True Z", 1000, -10, 1000, 120, -20, 20);
-
-    return;
   }
 
-  // ====================================================================================
-  // ============================== Access the event ====================================
-  // ====================================================================================
   void
   FeatureVertexFinderAna::analyze(const art::Event& evt)
   {
-
-    // ###############################
-    // ### Filling Run/Event Histo ###
-    // ###############################
+    // Filling Run/Event Histo
     fRun->Fill(evt.run());
     fEvt->Fill(evt.id().event());
 
-    // ##############################################
-    // ### Getting the Geant Information Directly ###
-    // ##############################################
+    // Getting the Geant Information Directly
     art::Handle<std::vector<simb::MCParticle>> mcParticleHandle;
     evt.getByLabel(fLArG4ModuleLabel, mcParticleHandle);
 
-    // #######################################
-    // ### Getting MC Truth Info from simb ###
-    // #######################################
+    // Getting MC Truth Info from simb
     art::Handle<std::vector<simb::MCTruth>> mctruthListHandle;
     evt.getByLabel(fGenieModuleLabel, mctruthListHandle);
 
-    // ############################################
-    // ### Getting information from BackTrackerService ###
-    // ############################################
+    // Getting information from BackTrackerService
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
-    // ####################################
-    // ### Getting Geometry Information ###
-    // ####################################
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
-    // ###################################
-    // ### Getting Detector Properties ###
-    // ###################################
-    const detinfo::DetectorProperties* detp =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-    // ######################################################
-    // ### Getting 2d Vertex information (vertex2dHandle) ###
-    // ######################################################
+    // Getting 2d Vertex information (vertex2dHandle)
     art::Handle<std::vector<recob::EndPoint2D>> vertex2dHandle;
     evt.getByLabel(fEndPoint2dModuleLabel, vertex2dHandle);
 
-    // ##################################################
-    // ### Getting the 3d Vertex (vertex3dListHandle) ###
-    // ##################################################
+    // Getting the 3d Vertex (vertex3dListHandle)
     art::Handle<std::vector<recob::Vertex>> vertex3dListHandle;
     evt.getByLabel(fVertexModuleLabel, vertex3dListHandle);
 
-    // ==========================================================
-    // === Detector numbers that are useful (to be set later) ===
-    // ==========================================================
-    //size_t nplanes = 0;
+    // Detector numbers that are useful (to be set later)
     std::vector<double> WirePitch_CurrentPlane(geom->Views().size(),
                                                0.); //<---Setting the Wire pitch for each plane
                                                     // Right now assuming only 3 planes
-    // ##############################
-    // ### get the wire pitch for each view ###
-    // ##############################
+    // get the wire pitch for each view
     size_t vn = 0;
     for (auto v : geom->Views()) {
       WirePitch_CurrentPlane[vn] = geom->WirePitch(v);
       ++vn;
     }
 
-    // ##################################################
-    // ### Calculating the Timetick to CM conversion  ###
-    // ##################################################
-    float TimeTick = detp->SamplingRate() / 1000.; //<---To get units of microsecond...not nanosec
-    float DriftVelocity = detp->DriftVelocity(detp->Efield(), detp->Temperature());
-
+    // Calculating the Timetick to CM conversion
+    float TimeTick =
+      sampling_rate(clock_data) / 1000.; //<---To get units of microsecond...not nanosec
+    float DriftVelocity = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
     float TimetoCm = TimeTick * DriftVelocity;
 
-    // ===========================================================================================================
-    // ==================================== Looping over MC information ==========================================
-    // ===========================================================================================================
+    // Looping over MC information
 
-    // ##################################
-    // ### Getting MC Truth simb Info ###
-    // ##################################
+    // Getting MC Truth simb Info
     art::PtrVector<simb::MCTruth> mclist;
     for (unsigned int ii = 0; ii < mctruthListHandle->size(); ++ii) {
       art::Ptr<simb::MCTruth> mctparticle(mctruthListHandle, ii);
       mclist.push_back(mctparticle);
     }
 
-    // ##############################################
-    // ### Variables for truth vertex information ###
-    // ##############################################
+    // Variables for truth vertex information
     float truth_vertex[5] = {0.}; //<---Truth x,y,z information
 
     uint32_t VtxWireNum[3] = {0}; //<---Wire number in each plane ( WireNum[plane#] )
@@ -373,54 +320,43 @@ namespace vertex {
     double VtxWireNum_InCM[3] = {0.};  //<---Wire number in each plane in CM ( WireNum[plane#] )
     double VtxTimeTick_InCM[3] = {0.}; //<---Time tick in each plane in CM   ( TimeTick[plane#] )
 
-    // ###################################
-    // ### Finding the MC truth vertex ###
-    // ###################################
+    // Finding the MC truth vertex
     for (unsigned int i = 0; i < mclist.size(); ++i) {
       art::Ptr<simb::MCTruth> mc(mclist[i]);
       simb::MCParticle neut(mc->GetParticle(i));
 
-      // ############################################
-      // ### Filling the vertex x,y,z information ###
-      // ############################################
+      // Filling the vertex x,y,z information
       truth_vertex[0] = neut.Vx();
       truth_vertex[1] = neut.Vy();
       truth_vertex[2] = neut.Vz();
 
     } // end i loop
 
-    // ### Filling Histograms ###
+    // Filling Histograms
     fTruthVtxXPos->Fill(truth_vertex[0]);
     fTruthVtxYPos->Fill(truth_vertex[1]);
     fTruthVtxZPos->Fill(truth_vertex[2]);
 
-    // ##############################
-    // ### Looping over geo::PlaneIDs ###
-    // ##############################
+    // Looping over geo::PlaneIDs
     for (auto const& pid : geom->IteratePlaneIDs()) {
-      // ############################################################################
-      // ### Calculating the nearest wire the vertex corresponds to in each plane ###
-      // ############################################################################
-
+      // Calculating the nearest wire the vertex corresponds to in each plane
       try {
-        //                  geom->NearestWire(worldLoc[3], Plane#, TPC#, Cyrostat#)
         VtxWireNum[pid.Plane] = geom->NearestWire(truth_vertex, pid.Plane, pid.TPC, pid.Cryostat);
       }
       catch (...) {
         mf::LogWarning("FeatureVertexFinderAna") << "Can't find nearest wire";
         continue;
       }
-      //             detp->ConvertXToTicks(xpos, plane#, TPC#, Cyrostat#)
       VtxTimeTick[pid.Plane] =
-        (detp->ConvertXToTicks(truth_vertex[0], pid.Plane, pid.TPC, pid.Cryostat) +
-         detp->GetXTicksOffset(pid.Plane, pid.TPC, pid.Cryostat));
+        det_prop.ConvertXToTicks(truth_vertex[0], pid.Plane, pid.TPC, pid.Cryostat) +
+        det_prop.GetXTicksOffset(pid.Plane, pid.TPC, pid.Cryostat);
 
-      // ======================== Translating each of these in cm =====================
+      // Translating each of these in cm
       VtxWireNum_InCM[pid.Plane] = VtxWireNum[pid.Plane] * WirePitch_CurrentPlane[pid.Plane];
       VtxTimeTick_InCM[pid.Plane] = VtxTimeTick[pid.Plane] * TimetoCm;
     } //<---End pid loop
 
-    // ### Filling Histograms ###
+    // Filling Histograms
     fTruthWireNumberPlane0->Fill(VtxWireNum[0]);
     fTruthTimeTickPlane0->Fill(VtxTimeTick[0]);
     fTruthWireNumberPlane1->Fill(VtxWireNum[1]);
@@ -435,14 +371,11 @@ namespace vertex {
     fTruthWireInCmPlane2->Fill(VtxWireNum_InCM[2]);
     fTruthTimeInCmPlane2->Fill(VtxTimeTick_InCM[2]);
 
-    // ===================================================================================================================
-    // ==================================== Looping over EndPoint2d information ==========================================
-    // ===================================================================================================================
+    // Looping over EndPoint2d information
 
     art::PtrVector<recob::EndPoint2D> vert2d;
 
     // Variables for Vertex2d
-
     double Vertex2d_TimeTick[10000] = {
       0.}; //<---Vertex2d Time Tick for the current plane ( TimeTick[#2d] )
     double Vertex2d_Wire[10000] = {0.}; //<---Veretx2d Wire # ( Wire[#2d] )
@@ -457,41 +390,29 @@ namespace vertex {
          vertexWstrengthplane1 =
            false; //, vertexWstrengthplane2 = false;   //commented out, Wes, 12.4.13
 
-    // ######################################
-    // ### Loop over the EndPoint2d List  ###
-    // ######################################
+    // Loop over the EndPoint2d List
     for (size_t ii = 0; ii < vertex2dHandle->size(); ++ii) {
       art::Ptr<recob::EndPoint2D> vertex(vertex2dHandle, ii);
       vert2d.push_back(vertex);
     }
 
-    // ############################################
-    // ### If we have 2d vertex, loop over them ###
-    // ############################################
+    // If we have 2d vertex, loop over them
     if (vert2d.size() > 0) {
 
-      // ##############################
-      // ### Looping over geo::PlaneIDs ###
-      // ##############################
+      // Looping over geo::PlaneIDs
       for (auto const& pid : geom->IteratePlaneIDs()) {
         for (size_t ww = 0; ww < vert2d.size(); ++ww) {
-          //std::cout<<"plane = "<<plane<<std::endl;
-          //std::cout<<"vert2d[ww]->WireID().Plane = "<<vert2d[ww]->WireID().Plane<<std::endl;
           // Only look at this 2d vertex if it is in the current plane
           if (vert2d[ww]->WireID().planeID() != pid) { continue; }
 
           Vertex2d_TimeTick[n2dVtx] = vert2d[ww]->DriftTime();
           Vertex2d_Wire[n2dVtx] = vert2d[ww]->WireID().Wire;
 
-          // ======================== Translating each of these in cm =====================
+          // Translating each of these in cm
           Vertex2d_Wire_InCM[n2dVtx] = Vertex2d_Wire[n2dVtx] * WirePitch_CurrentPlane[pid.Plane];
-          //std::cout<<"Vertex2d_Wire[n2dVtx] = "<<Vertex2d_Wire[n2dVtx]<<" , WirePitch_CurrentPlane[plane] = "<<WirePitch_CurrentPlane[plane]<<std::endl;
-          //std::cout<<"Vertex2d_Wire_InCM[n2dVtx] = "<<Vertex2d_Wire_InCM[n2dVtx]<<std::endl;
           Vertex2d_TimeTick_InCM[n2dVtx] = Vertex2d_TimeTick[n2dVtx] * TimetoCm;
 
-          // ###########################################################################
-          // ### Checking how well we did in reconstructing the vertex (Reco - True) ###
-          // ###########################################################################
+          // Checking how well we did in reconstructing the vertex (Reco - True)
 
           float RecoCheck_TimeTick = Vertex2d_TimeTick[n2dVtx] - VtxTimeTick[pid.Plane];
           float RecoCheck_WireNum = Vertex2d_Wire[n2dVtx] - VtxWireNum[pid.Plane];
@@ -502,8 +423,6 @@ namespace vertex {
           if (vert2d[ww]->Strength() > -1) {
             if (pid.Plane == 0) {
               vertexWstrengthplane0 = true;
-              //std::cout<<"Filling Plane 0 "<<std::endl;
-              //std::cout<<"Vertex2d_Wire[n2dVtx] = "<<Vertex2d_Wire[n2dVtx]<<std::endl;
 
               fTwoDWireNumberPlane0->Fill(Vertex2d_Wire[n2dVtx]);
               fTwoDTimeTickPlane0->Fill(Vertex2d_TimeTick[n2dVtx]);
@@ -540,7 +459,6 @@ namespace vertex {
             } //<---End Plane 1
 
             if (pid.Plane == 2) {
-              //vertexWstrengthplane2 = true;
               fTwoDWireNumberPlane2->Fill(Vertex2d_Wire[n2dVtx]);
               fTwoDTimeTickPlane2->Fill(Vertex2d_TimeTick[n2dVtx]);
               fTwoDWireInCmPlane2->Fill(Vertex2d_Wire_InCM[n2dVtx]);
@@ -569,9 +487,7 @@ namespace vertex {
     fTwoDNVtxPlane1->Fill(n2dVtxPlane1);
     fTwoDNVtxPlane2->Fill(n2dVtxPlane2);
 
-    // =================================================================================================================
-    // ==================================== Looping over 3dVertex information ==========================================
-    // =================================================================================================================
+    // Looping over 3dVertex information
     art::PtrVector<recob::Vertex> Vertexlist;
 
     double xyz[3] = {0.};
@@ -588,12 +504,9 @@ namespace vertex {
       for (unsigned int ww = 0; ww < Vertexlist.size(); ww++) {
         Vertexlist[ww]->XYZ(xyz);
 
-        // ###########################################################################
-        // ### Checking how well we did in reconstructing the vertex (Reco - True) ###
-        // ###########################################################################
+        // Checking how well we did in reconstructing the vertex (Reco - True)
 
-        // === Finding the Delta X, Y, Z between Reco vtx and truth ===
-
+        // Finding the Delta X, Y, Z between Reco vtx and truth
         double DeltaX = xyz[0] - truth_vertex[0];
         double DeltaY = xyz[1] - truth_vertex[1];
         double DeltaZ = xyz[2] - truth_vertex[2];
@@ -615,8 +528,6 @@ namespace vertex {
         fRecoCheck3dVtxZvsZ->Fill(xyz[2], DeltaZoverTrueZ);
       }
     }
-
-    return;
   } //<---End access the event
 
   DEFINE_ART_MODULE(FeatureVertexFinderAna)

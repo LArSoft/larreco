@@ -52,6 +52,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoObjects/KHit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -86,6 +88,7 @@ namespace trkf {
     KalmanInputs getPFParticleStuff(const art::Event& evt) const;
     Hits getAllHits(const art::Event& evt) const;
     void createOutputs(const art::Event& evt,
+                       detinfo::DetectorPropertiesData const& detProp,
                        const std::vector<KalmanOutput>& outputs,
                        const KalmanInputs& inputs,
                        std::vector<recob::Track>& tracks,
@@ -199,11 +202,15 @@ trkf::Track3DKalmanHit::produce(art::Event& evt)
   prepareForInput();
   auto inputs = getInput(evt);
 
-  auto outputs = fTKHAlg.makeTracks(inputs);
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+  auto outputs = fTKHAlg.makeTracks(clockData, detProp, inputs);
 
   if (fHist) { fillHistograms(outputs); }
 
   createOutputs(evt,
+                detProp,
                 outputs,
                 inputs,
                 *tracks,
@@ -372,6 +379,7 @@ trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event& evt) const
 void
 trkf::Track3DKalmanHit::createOutputs(
   const art::Event& evt,
+  detinfo::DetectorPropertiesData const& detProp,
   std::vector<KalmanOutput> const& outputs,
   KalmanInputs const& inputs,
   std::vector<recob::Track>& tracks,
@@ -395,6 +403,7 @@ trkf::Track3DKalmanHit::createOutputs(
 
   auto const spacepointId = evt.getProductID<std::vector<recob::SpacePoint>>();
   auto const getter = evt.productGetter(spacepointId);
+
   for (size_t i = 0; i < outputs.size(); ++i) {
     // Recover the kalman tracks double ended queue
     const std::deque<KGTrack>& kalman_tracks = outputs[i].tracks;
@@ -403,7 +412,7 @@ trkf::Track3DKalmanHit::createOutputs(
 
       // Add Track object to collection.
       recob::Track track;
-      kalman_track.fillTrack(track, tracks.size());
+      kalman_track.fillTrack(detProp, track, tracks.size());
       if (track.NumberTrajectoryPoints() < 2) { continue; }
       unsigned int numtrajpts = track.NumberTrajectoryPoints();
       tracks.emplace_back(std::move(track));
@@ -421,7 +430,7 @@ trkf::Track3DKalmanHit::createOutputs(
 
       // Make space points from this track.
       auto nspt = spts.size();
-      fSpacePointAlg.fillSpacePoints(spts, kalman_track.TrackMap());
+      fSpacePointAlg.fillSpacePoints(detProp, spts, kalman_track.TrackMap());
 
       std::vector<art::Ptr<recob::SpacePoint>> sptvec;
       for (auto ispt = nspt; ispt < spts.size(); ++ispt) {

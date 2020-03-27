@@ -17,14 +17,14 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Vertex.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
-
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 
 #include <memory>
 
@@ -305,7 +305,8 @@ private:
   void analyze(art::Event const& e) override;
 
   bool convCluster(art::Event const& evt);
-  double getMinDist(std::vector<art::Ptr<recob::Hit>> const& v,
+  double getMinDist(detinfo::DetectorPropertiesData const& detProp,
+                    std::vector<art::Ptr<recob::Hit>> const& v,
                     TVector3 const& convmc,
                     size_t view,
                     size_t tpc,
@@ -677,6 +678,7 @@ ems::MultiEMShowers::convCluster(art::Event const& evt)
 
   art::FindManyP<recob::Hit> fbc(cluListHandle, evt, fCluModuleLabel);
 
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
   double maxdist = 1.0; // 1 cm
   if (geom->HasTPC(idtpc)) {
     const geo::CryostatGeo& cryostat = geom->Cryostat(cryoid);
@@ -700,7 +702,7 @@ ems::MultiEMShowers::convCluster(art::Event const& evt)
             if (hits.size() < 20) continue;
             if (hits[0]->WireID().Plane != view) continue;
 
-            double dist = getMinDist(hits, convp[conv], view, idtpc.TPC, cryoid);
+            double dist = getMinDist(detProp, hits, convp[conv], view, idtpc.TPC, cryoid);
             if (dist < mindist) {
               mindist = dist;
               clid = c;
@@ -728,7 +730,8 @@ ems::MultiEMShowers::convCluster(art::Event const& evt)
 }
 
 double
-ems::MultiEMShowers::getMinDist(std::vector<art::Ptr<recob::Hit>> const& v,
+ems::MultiEMShowers::getMinDist(detinfo::DetectorPropertiesData const& detProp,
+                                std::vector<art::Ptr<recob::Hit>> const& v,
                                 TVector3 const& convmc,
                                 size_t view,
                                 size_t tpc,
@@ -741,7 +744,8 @@ ems::MultiEMShowers::getMinDist(std::vector<art::Ptr<recob::Hit>> const& v,
   // loop over hits to find the closest to MC 2d vtx
   for (size_t h = 0; h < v.size(); ++h) {
     if ((v[h]->WireID().Plane == view) && (v[h]->WireID().TPC == tpc)) {
-      TVector2 hpoint = pma::WireDriftToCm(v[h]->WireID().Wire, v[h]->PeakTime(), view, tpc, cryo);
+      TVector2 hpoint =
+        pma::WireDriftToCm(detProp, v[h]->WireID().Wire, v[h]->PeakTime(), view, tpc, cryo);
 
       double dist = pma::Dist2(proj, hpoint);
       if (dist < mindist) { mindist = dist; }

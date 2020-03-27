@@ -9,7 +9,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 namespace detinfo {
-  class DetectorProperties;
+  class DetectorPropertiesData;
 }
 namespace geo {
   class GeometryCore;
@@ -50,7 +50,8 @@ namespace reco3d {
 
   class TripletFinder {
   public:
-    TripletFinder(const std::vector<art::Ptr<recob::Hit>>& xhits,
+    TripletFinder(const detinfo::DetectorPropertiesData& detProp,
+                  const std::vector<art::Ptr<recob::Hit>>& xhits,
                   const std::vector<art::Ptr<recob::Hit>>& uhits,
                   const std::vector<art::Ptr<recob::Hit>>& vhits,
                   const std::vector<raw::ChannelID_t>& xbad,
@@ -66,10 +67,10 @@ namespace reco3d {
 
   protected:
     const geo::GeometryCore* geom;
-    const detinfo::DetectorProperties* detprop;
 
     /// Helper for constructor
-    void FillHitMap(const std::vector<art::Ptr<recob::Hit>>& hits,
+    void FillHitMap(const detinfo::DetectorPropertiesData& clockData,
+                    const std::vector<art::Ptr<recob::Hit>>& hits,
                     std::map<geo::TPCID, std::vector<HitOrChan>>& out);
     /// Helper for constructor
     void FillBadMap(const std::vector<raw::ChannelID_t>& bads,

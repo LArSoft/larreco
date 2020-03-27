@@ -90,26 +90,21 @@ namespace trkf {
   void
   SpacePts::produce(art::Event& evt)
   {
-
-    // get services
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
     //////////////////////////////////////////////////////
     // Make a std::unique_ptr<> for the thing you want to put into the event
     // because that handles the memory management for you
     //////////////////////////////////////////////////////
-    std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
-    std::unique_ptr<std::vector<recob::SpacePoint>> spcol(new std::vector<recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>> tspassn(
-      new art::Assns<recob::Track, recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::Track, recob::Cluster>> tcassn(
-      new art::Assns<recob::Track, recob::Cluster>);
-    std::unique_ptr<art::Assns<recob::Track, recob::Hit>> thassn(
-      new art::Assns<recob::Track, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> shassn(
-      new art::Assns<recob::SpacePoint, recob::Hit>);
+    auto tcol = std::make_unique<std::vector<recob::Track>>();
+    auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
+    auto tspassn = std::make_unique<art::Assns<recob::Track, recob::SpacePoint>>();
+    auto tcassn = std::make_unique<art::Assns<recob::Track, recob::Cluster>>();
+    auto thassn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
+    auto shassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
+
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
 
@@ -129,11 +124,11 @@ namespace trkf {
     double Efield_IC = 0.9;   // Electric Field between Induction and Collection planes in kV/cm
     double Temperature = 90.; // LAr Temperature in K
 
-    double driftvelocity = detprop->DriftVelocity(
-      Efield_drift, Temperature); //drift velocity in the drift region (cm/us)
-    double driftvelocity_SI = detprop->DriftVelocity(
+    double driftvelocity =
+      detProp.DriftVelocity(Efield_drift, Temperature); //drift velocity in the drift region (cm/us)
+    double driftvelocity_SI = detProp.DriftVelocity(
       Efield_SI, Temperature); //drift velocity between shield and induction (cm/us)
-    double driftvelocity_IC = detprop->DriftVelocity(
+    double driftvelocity_IC = detProp.DriftVelocity(
       Efield_IC, Temperature); //drift velocity between induction and collection (cm/us)
     double timepitch = driftvelocity * timetick; //time sample (cm)
     double tSI = plane_pitch / driftvelocity_SI /
@@ -180,7 +175,6 @@ namespace trkf {
     art::FindManyP<recob::Hit> fm(clusterListHandle, evt, fClusterModuleLabel);
 
     for (unsigned int ii = 0; ii < clusterListHandle->size(); ++ii) {
-
       art::Ptr<recob::Cluster> cl(clusterListHandle, ii);
 
       // Figure out which View the cluster belongs to
@@ -542,19 +536,19 @@ namespace trkf {
             hitcoord[2] = hit3d.Z();
 
             /*
-	    double yy,zz;
-	    if(geom->ChannelsIntersect(geom->PlaneWireToChannel(0,(int)((Iw/wire_pitch)-3.95)),      geom->PlaneWireToChannel(1,(int)((Cw/wire_pitch)-1.84)),yy,zz))
-	    {
-	    //channelsintersect provides a slightly more accurate set of y and z coordinates. use channelsintersect in case the wires in question do cross.
-	    hitcoord[1] = yy;
-	    hitcoord[2] = zz;
-	    mf::LogInfo("SpacePts: ") << "SpacePoint adding xyz ..." << hitcoord[0] <<","<< hitcoord[1] <<","<< hitcoord[2];
-	    // 	           std::cout<<"wire 1: "<<(Iw/wire_pitch)-3.95<<" "<<(Cw/wire_pitch)-1.84<<std::endl;
-	    //                std::cout<<"Intersect: "<<yy<<" "<<zz<<std::endl;
-	    }
-	    else
-	    continue;
-	  */
+            double yy,zz;
+            if(geom->ChannelsIntersect(geom->PlaneWireToChannel(0,(int)((Iw/wire_pitch)-3.95)),      geom->PlaneWireToChannel(1,(int)((Cw/wire_pitch)-1.84)),yy,zz))
+            {
+            //channelsintersect provides a slightly more accurate set of y and z coordinates. use channelsintersect in case the wires in question do cross.
+            hitcoord[1] = yy;
+            hitcoord[2] = zz;
+            mf::LogInfo("SpacePts: ") << "SpacePoint adding xyz ..." << hitcoord[0] <<","<< hitcoord[1] <<","<< hitcoord[2];
+            //             std::cout<<"wire 1: "<<(Iw/wire_pitch)-3.95<<" "<<(Cw/wire_pitch)-1.84<<std::endl;
+            //                std::cout<<"Intersect: "<<yy<<" "<<zz<<std::endl;
+            }
+            else
+            continue;
+          */
 
             double err[6] = {util::kBogusD};
             recob::SpacePoint mysp(hitcoord,

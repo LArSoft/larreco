@@ -9,33 +9,24 @@
 #ifndef CLUSTERPARAMSALG_H
 #define CLUSTERPARAMSALG_H
 
-//--- std/stl include ---//
 #include <string>
 #include <vector>
 
-//--- LArSoft include ---//
 #include "ClusterParams.h"
 #include "lardata/Utilities/PxUtils.h"
+
 namespace util {
   class GeometryUtilities;
 }
 
-// ... more #include in tempimplementation below
-
 namespace cluster {
 
   class ClusterParamsAlg {
-
   public:
-    /// Default constructor
     ClusterParamsAlg();
-
-    /// Alternative constructor with larutil::PxHit vector
     ClusterParamsAlg(const std::vector<util::PxHit>&);
 
     void Initialize();
-
-    //void SetHits(const std::vector<larutil::PxHit*>&);
 
     void
     SetMinNHits(size_t nhit)
@@ -48,8 +39,6 @@ namespace cluster {
     {
       return fMinNHits;
     }
-
-    // int SetHits(const std::vector<const ::larlite::hit*> &);
 
     int SetHits(const std::vector<util::PxHit>&);
 
@@ -64,11 +53,6 @@ namespace cluster {
     {
       verbose = yes;
     }
-
-    // void SetArgoneutGeometry();
-
-    template <typename Stream>
-    void Report(Stream& stream) const;
 
     template <typename Stream>
     void TimeReport(Stream& stream) const;
@@ -102,11 +86,11 @@ namespace cluster {
       @param override_DoGetFinalSlope     force re-execution of GetFinalSlope()
       @param override_DoEndCharge         force re-execution of GetEndCharges()
     */
-    void FillParams(bool override_DoGetAverages = false,
+    void FillParams(util::GeometryUtilities const& gser,
+                    bool override_DoGetAverages = false,
                     bool override_DoGetRoughAxis = false,
                     bool override_DoGetProfileInfo = false,
                     bool override_DoRefineStartPointsAndDirection = false,
-                    // bool override_DoRefineDirection  =false,
                     bool override_DoGetFinalSlope = false,
                     bool override_DoTrackShowerSep = false,
                     bool override_DoEndCharge = false);
@@ -139,7 +123,6 @@ namespace cluster {
       fRough2DIntercept
       @param override [description]
     */
-    //void GetRoughAxis(bool override=false);
     void GetRoughAxis(bool override = false);
 
     /**
@@ -151,15 +134,14 @@ namespace cluster {
        offaxis_hits
        @param override [description]
     */
-    void GetProfileInfo(bool override = false);
+    void GetProfileInfo(util::GeometryUtilities const& gser, bool override = false);
 
     /**
        Calculates the following variables:
        length
        width
-       @param override [description]
     */
-    void RefineStartPoints(bool override = false);
+    void RefineStartPoints(util::GeometryUtilities const& gser);
 
     /**
        Calculates the following variables:
@@ -169,7 +151,7 @@ namespace cluster {
        direction
        @param override [description]
     */
-    void GetFinalSlope(bool override = false);
+    void GetFinalSlope(util::GeometryUtilities const& gser, bool override = false);
 
     /**
        Calculates the following variables:
@@ -178,11 +160,11 @@ namespace cluster {
        @param override_ force recompute the variables
        @see StartCharge(), EndCharge()
     */
-    void GetEndCharges(bool override_ = false);
+    void GetEndCharges(util::GeometryUtilities const& gser, bool override_ = false);
 
     void RefineDirection(bool override = false);
 
-    void RefineStartPointAndDirection(bool override = false);
+    void RefineStartPointAndDirection(util::GeometryUtilities const& gser, bool override = false);
 
     void TrackShowerSeparation(bool override = false);
 
@@ -192,7 +174,7 @@ namespace cluster {
       fNeuralNetPath = s;
     }
 
-    void FillPolygon();
+    void FillPolygon(util::GeometryUtilities const& gser);
 
     void GetOpeningAngle();
 
@@ -243,7 +225,9 @@ namespace cluster {
      *
      * For more details, see IntegrateFitCharge().
      */
-    double StartCharge(float length = 1., unsigned int nbins = 10);
+    double StartCharge(util::GeometryUtilities const& gser,
+                       float length = 1.,
+                       unsigned int nbins = 10);
 
     /**
      * @brief Returns the expected charge at the end of the cluster
@@ -256,7 +240,9 @@ namespace cluster {
      * See StartCharge() for a detailed explanation.
      * For even more details, see IntegrateFitCharge().
      */
-    double EndCharge(float length = 1., unsigned int nbins = 10);
+    double EndCharge(util::GeometryUtilities const& gser,
+                     float length = 1.,
+                     unsigned int nbins = 10);
 
     /**
      * @brief Returns the number of multiple hits per wire
@@ -274,7 +260,7 @@ namespace cluster {
      * This returns the number of wires with mmore than one hit belonging
      * to this cluster, divided by the cluster length in cm.
      */
-    float MultipleHitDensity();
+    float MultipleHitDensity(util::GeometryUtilities const& gser);
 
     void EnableFANN();
 
@@ -302,8 +288,6 @@ namespace cluster {
     void SetPlane(int p);
 
   protected:
-    util::GeometryUtilities* fGSer;
-
     /// Cut value for # hits: below this value clusters are not evaluated
     size_t fMinNHits;
 
@@ -313,8 +297,7 @@ namespace cluster {
     */
     std::vector<util::PxHit> fHitVector;
 
-    // bool to control debug/verbose mode
-    // defaults to off.
+    // bool to control debug/verbose mode defaults to off.
     bool verbose;
 
     //settable parameters:
@@ -328,8 +311,6 @@ namespace cluster {
     std::vector<double> fCoarseChargeProfile;
 
     std::vector<double> fChargeProfileNew;
-    // double fMaxLinLength;
-    // double fLinBins;
 
     int fCoarseNbins;
     int fProfileNbins;
@@ -339,8 +320,6 @@ namespace cluster {
     double fProjectedLength;
 
     //extreme intercepts using the rough_2d_slope
-    // double fInterHigh;
-    // double fInterLow;
     double fBeginIntercept;
     double fEndIntercept;
     double fInterHigh_side;
@@ -391,7 +370,8 @@ namespace cluster {
      * measured in cm along the cluster axis, starting at the start of the
      * cluster.
      */
-    double IntegrateFitCharge(double from_length,
+    double IntegrateFitCharge(util::GeometryUtilities const& gser,
+                              double from_length,
                               double to_length,
                               unsigned int fit_first_bin,
                               unsigned int fit_end_bin);
@@ -415,8 +395,6 @@ namespace cluster {
 //--- template implementation
 //---
 
-#include <ostream> // std::endl
-
 namespace cluster {
 
   template <typename Stream>
@@ -424,13 +402,13 @@ namespace cluster {
   ClusterParamsAlg::TimeReport(Stream& stream) const
   {
 
-    stream << "  <<ClusterParamsAlg::TimeReport>> starts..." << std::endl;
+    stream << "  <<ClusterParamsAlg::TimeReport>> starts...\n";
     for (size_t i = 0; i < fTimeRecord_ProcName.size(); ++i) {
 
       stream << "    Function: " << fTimeRecord_ProcName[i].c_str()
-             << " ... Time = " << fTimeRecord_ProcTime[i] << " [s]" << std::endl;
+             << " ... Time = " << fTimeRecord_ProcTime[i] << " [s]\n";
     }
-    stream << "  <<ClusterParamsAlg::TimeReport>> ends..." << std::endl;
+    stream << "  <<ClusterParamsAlg::TimeReport>> ends...\n";
   }
 
 } //namespace cluster

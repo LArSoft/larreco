@@ -16,26 +16,23 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-
-#include "canvas/Persistency/Common/FindManyP.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
-
-#include "larcore/Geometry/Geometry.h"
-
 #include "larevt/SpaceCharge/SpaceCharge.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include <TVector3.h>
 #include <memory>
@@ -47,17 +44,8 @@ namespace calo {
 class calo::ShowerCalorimetry : public art::EDProducer {
 public:
   explicit ShowerCalorimetry(fhicl::ParameterSet const& p);
-  // The compiler-generated destructor is fine for non-base
-  // classes without bare pointers or other resource use.
-
-  // Plugins should not be copied or assigned.
-  ShowerCalorimetry(ShowerCalorimetry const&) = delete;
-  ShowerCalorimetry(ShowerCalorimetry&&) = delete;
-  ShowerCalorimetry& operator=(ShowerCalorimetry const&) = delete;
-  ShowerCalorimetry& operator=(ShowerCalorimetry&&) = delete;
 
 private:
-  // Required functions.
   void produce(art::Event& e) override;
 
   art::InputTag fShowerTag;
@@ -83,20 +71,20 @@ calo::ShowerCalorimetry::produce(art::Event& e)
 
   art::ServiceHandle<geo::Geometry> geom;
 
-  //auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clockData);
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   //Make the container for the calo product to put onto the event.
-  std::unique_ptr<std::vector<anab::Calorimetry>> caloPtr(new std::vector<anab::Calorimetry>);
-  std::vector<anab::Calorimetry>& caloVector(*caloPtr);
+  auto caloPtr = std::make_unique<std::vector<anab::Calorimetry>>();
+  auto& caloVector = *caloPtr;
 
   //Make a container for the track<-->calo associations.
   //One entry per track, with entry equal to index in calorimetry collection of associated object.
   std::vector<size_t> assnShowerCaloVector;
-  std::unique_ptr<art::Assns<recob::Shower, anab::Calorimetry>> associationPtr(
-    new art::Assns<recob::Shower, anab::Calorimetry>);
+  auto associationPtr = std::make_unique<art::Assns<recob::Shower, anab::Calorimetry>>();
 
-  //Get the shower handle
   auto showerHandle = e.getValidHandle<std::vector<recob::Shower>>(fShowerTag);
 
   //Turn it into a vector of art pointers
@@ -116,7 +104,7 @@ calo::ShowerCalorimetry::produce(art::Event& e)
     //This wil be used in the calorimetry object later
     float shower_length = shower->Length();
     //Get the hits from this shower
-    std::vector<art::Ptr<recob::Hit>> hits = findHitsFromShowers.at(shower_index);
+    auto const& hits = findHitsFromShowers.at(shower_index);
 
     art::FindManyP<recob::SpacePoint> spFromShowerHits(hits, e, fSpacePointTag);
 
@@ -159,7 +147,7 @@ calo::ShowerCalorimetry::produce(art::Event& e)
         float theHit_Ypos = -999.;
         float theHit_Zpos = -999.;
 
-        std::vector<art::Ptr<recob::SpacePoint>> sp = spFromShowerHits.at(hit_index);
+        auto const& sp = spFromShowerHits.at(hit_index);
         if (!sp.empty()) {
           //only use first space point
           theHit_Xpos = sp[0]->XYZ()[0];
@@ -211,15 +199,15 @@ calo::ShowerCalorimetry::produce(art::Event& e)
           theHit_Zpos += posOffsets.Z();
         }
         xyz[k].SetXYZ(theHit_Xpos, theHit_Ypos, theHit_Zpos);
-        resRange[k] = sqrt(pow(theHit_Xpos - shower->ShowerStart().X(), 2) +
-                           pow(theHit_Ypos - shower->ShowerStart().Y(), 2) +
-                           pow(theHit_Zpos - shower->ShowerStart().Z(), 2));
+        resRange[k] = std::hypot(theHit_Xpos - shower->ShowerStart().X(),
+                                 theHit_Ypos - shower->ShowerStart().Y(),
+                                 theHit_Zpos - shower->ShowerStart().Z());
 
         dQdx[k] = theHit->Integral() / pitch[k];
 
-        //Just for now, use dQdx for dEdx
-        //dEdx[k] = theHit->Integral() / this_pitch;
-        dEdx[k] = caloAlg.dEdx_AREA(*theHit, pitch[k]),
+        // Just for now, use dQdx for dEdx
+        // dEdx[k] = theHit->Integral() / this_pitch;
+        dEdx[k] = caloAlg.dEdx_AREA(clockData, detProp, *theHit, pitch[k]),
 
         kineticEnergy += dEdx[k];
       }
@@ -246,7 +234,7 @@ calo::ShowerCalorimetry::produce(art::Event& e)
     if (assnShowerCaloVector[i] == std::numeric_limits<size_t>::max()) continue;
 
     art::Ptr<recob::Shower> shower_ptr(showerHandle, assnShowerCaloVector[i]);
-    util::CreateAssn(*this, e, caloVector, shower_ptr, *associationPtr, i);
+    util::CreateAssn(e, caloVector, shower_ptr, *associationPtr, i);
   }
 
   //Finish up: Put the objects into the event

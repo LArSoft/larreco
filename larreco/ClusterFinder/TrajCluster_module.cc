@@ -18,7 +18,9 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-//LArSoft includes
+// LArSoft includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -289,6 +291,10 @@ namespace cluster {
     }     // fSpacePointModuleLabel specified
 
     if (nInputHits > 0) {
+      auto const clockData =
+        art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+      auto const detProp =
+        art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
       auto const* geom = lar::providerFrom<geo::Geometry>();
       for (const auto& tpcid : geom->IterateTPCIDs()) {
         // ignore protoDUNE dummy TPCs
@@ -350,12 +356,12 @@ namespace cluster {
               } // Look for debug hit
             }   // iht
           }     // tca::tcc.dbgStp
-          fTCAlg.RunTrajClusterAlg(tpcHits, slcIDs[isl]);
+          fTCAlg.RunTrajClusterAlg(clockData, detProp, tpcHits, slcIDs[isl]);
         } // isl
       }   // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg.FinishEvent();
-      if (tca::tcc.dbgSummary) tca::PrintAll("TCM");
+      if (tca::tcc.dbgSummary) tca::PrintAll(detProp, "TCM");
     } // nInputHits > 0
 
     // Vectors to hold all data products that will go into the event

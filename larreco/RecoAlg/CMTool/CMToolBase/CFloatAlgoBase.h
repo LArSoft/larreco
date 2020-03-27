@@ -15,6 +15,9 @@
 #define RECOTOOL_CFLOATALGOBASE_H
 
 #include "CMAlgoBase.h"
+namespace util {
+  class GeometryUtilities;
+}
 
 namespace cmtool {
 
@@ -25,20 +28,14 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CFloatAlgoBase : public CMAlgoBase {
-
   public:
-    /// Default constructor
-    CFloatAlgoBase() {}
-
-    /// Default destructor
-    virtual ~CFloatAlgoBase() {}
-
     /**
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
     virtual float
-    Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+    Float(util::GeometryUtilities const&,
+          const std::vector<const cluster::ClusterParamsAlg*>& clusters)
     {
       if (clusters.size())
         return 1;

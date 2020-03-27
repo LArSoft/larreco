@@ -14,7 +14,9 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-//LArSoft includes
+// LArSoft includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
 
 // ... more includes in the implementation section
@@ -103,14 +105,16 @@ namespace cluster {
     // fetch the wires needed by CCHitFinder
 
     // make this accessible to ClusterCrawler_module
-    art::ValidHandle<std::vector<recob::Hit>> hitVecHandle =
-      evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
+    auto hitVecHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
 
     // look for clusters in all planes
-    fCCAlg.RunCrawler(*hitVecHandle);
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+    fCCAlg.RunCrawler(clock_data, det_prop, *hitVecHandle);
 
-    std::unique_ptr<std::vector<recob::Hit>> FinalHits(
-      new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
+    auto FinalHits = std::make_unique<std::vector<recob::Hit>>(std::move(fCCAlg.YieldHits()));
 
     // shcol contains the hit collection
     // and its associations to wires and raw digits;

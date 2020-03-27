@@ -16,7 +16,7 @@
 
 namespace cmtool {
 
-  CMergeManager::CMergeManager() : CMManagerBase()
+  CMergeManager::CMergeManager()
   {
     _iter_ctr = 0;
     _merge_algo = nullptr;
@@ -162,9 +162,8 @@ namespace cmtool {
   }
 
   bool
-  CMergeManager::IterationProcess()
+  CMergeManager::IterationProcess(util::GeometryUtilities const& gser)
   {
-
     // Configure input for RunMerge
     CMergeBookKeeper bk;
 
@@ -179,7 +178,6 @@ namespace cmtool {
     std::vector<bool> merge_switch(_tmp_merged_clusters.size(), true);
 
     for (size_t i = 0; i < _tmp_merged_indexes.size(); ++i)
-
       if (_tmp_merged_indexes.at(i).size() == 1) merge_switch.at(i) = false;
 
     ComputePriority(_tmp_merged_clusters);
@@ -221,8 +219,8 @@ namespace cmtool {
         (*_out_clusters.rbegin()).DisableFANN();
 
         if ((*_out_clusters.rbegin()).SetHits(tmp_hits) < 1) continue;
-        (*_out_clusters.rbegin()).FillParams(true, true, true, true, true, false);
-        (*_out_clusters.rbegin()).FillPolygon();
+        (*_out_clusters.rbegin()).FillParams(gser, true, true, true, true, true, false);
+        (*_out_clusters.rbegin()).FillPolygon(gser);
       }
       _book_keeper_v.push_back(bk);
     }

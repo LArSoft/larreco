@@ -9,14 +9,14 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Vertex.h"
-
 #include "larreco/RecoAlg/Geometric3DVertexFitter.h"
 
 #include <memory>
 
 namespace trkf {
-  //
+
   /**
    * @file  larreco/VertexFinder/VertexFitter_module.cc
    * @class trkf::VertexFitter
@@ -37,7 +37,6 @@ namespace trkf {
    * @date    2017
    * @version 1.0
    */
-  //
 
   class VertexFitter : public art::EDProducer {
   public:
@@ -93,7 +92,6 @@ trkf::VertexFitter::VertexFitter(Parameters const& p)
 void
 trkf::VertexFitter::produce(art::Event& e)
 {
-
   using namespace std;
 
   auto outputVertices = make_unique<vector<recob::Vertex>>();
@@ -102,14 +100,15 @@ trkf::VertexFitter::produce(art::Event& e)
     make_unique<art::Assns<recob::Vertex, recob::Track, recob::VertexAssnMeta>>();
 
   const auto& inputPFParticle = e.getValidHandle<vector<recob::PFParticle>>(pfParticleInputTag);
-  auto assocTracks = unique_ptr<art::FindManyP<recob::Track>>(
-    new art::FindManyP<recob::Track>(inputPFParticle, e, trackInputTag));
+  art::FindManyP<recob::Track> const assocTracks{inputPFParticle, e, trackInputTag};
+
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e);
 
   // PtrMakers for Assns
   art::PtrMaker<recob::Vertex> vtxPtrMaker(e);
 
   for (size_t iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
-    //
+
     art::Ptr<recob::PFParticle> pfp(inputPFParticle, iPF);
     if (pfp->IsPrimary() == false || pfp->NumDaughters() < 2) continue;
     vector<art::Ptr<recob::Track>> tracks;
@@ -120,7 +119,7 @@ trkf::VertexFitter::produce(art::Event& e)
       for (size_t jPF = 0; jPF < inputPFParticle->size(); ++jPF) {
         art::Ptr<recob::PFParticle> pfpd(inputPFParticle, jPF);
         if (pfpd->Self() != ipfd) continue;
-        vector<art::Ptr<recob::Track>> pftracks = assocTracks->at(jPF);
+        vector<art::Ptr<recob::Track>> pftracks = assocTracks.at(jPF);
         for (auto t : pftracks) {
           tracks.push_back(t);
         }
@@ -128,26 +127,26 @@ trkf::VertexFitter::produce(art::Event& e)
       }
     }
     if (tracks.size() < 2) continue;
-    //
-    VertexWrapper vtx = fitter.fitTracks(tracks);
+
+    VertexWrapper vtx = fitter.fitTracks(detProp, tracks);
     if (vtx.isValid() == false) continue;
     vtx.setVertexId(outputVertices->size());
-    //
-    auto meta = fitter.computeMeta(vtx, tracks);
-    //
+
+    auto meta = fitter.computeMeta(detProp, vtx, tracks);
+
     // Fill the output collections
-    //
+
     outputVertices->emplace_back(vtx.vertex());
     const art::Ptr<recob::Vertex> aptr = vtxPtrMaker(outputVertices->size() - 1);
     outputPFVxAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-    //
+
     size_t itt = 0;
     for (auto t : tracks) {
       outputVxTkMtAssn->addSingle(aptr, t, meta[itt]);
       itt++;
     }
   }
-  //
+
   e.put(std::move(outputVertices));
   e.put(std::move(outputPFVxAssn));
   e.put(std::move(outputVxTkMtAssn));

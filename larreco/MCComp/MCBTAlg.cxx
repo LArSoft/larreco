@@ -103,7 +103,7 @@ namespace btutil {
   }
 
   std::vector<double>
-  MCBTAlg::MCQ(const WireRange_t& hit) const
+  MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData, const WireRange_t& hit) const
   {
     std::vector<double> res(_num_parts, 0);
 
@@ -111,11 +111,8 @@ namespace btutil {
 
     auto const& ch_info = _event_info[hit.ch];
 
-    const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
-    //auto ts = ::larutil::TimeService::GetME();
-
-    auto itlow = ch_info.lower_bound((unsigned int)(ts->TPCTick2TDC(hit.start)));
-    auto itup = ch_info.upper_bound((unsigned int)(ts->TPCTick2TDC(hit.end)) + 1);
+    auto itlow = ch_info.lower_bound((unsigned int)(clockData.TPCTick2TDC(hit.start)));
+    auto itup = ch_info.upper_bound((unsigned int)(clockData.TPCTick2TDC(hit.end)) + 1);
 
     while (itlow != ch_info.end() && itlow != itup) {
 
@@ -131,9 +128,9 @@ namespace btutil {
   }
 
   std::vector<double>
-  MCBTAlg::MCQFrac(const WireRange_t& hit) const
+  MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData, const WireRange_t& hit) const
   {
-    auto res = MCQ(hit);
+    auto res = MCQ(clockData, hit);
     if (!res.size()) return res;
 
     double sum = 0;
@@ -146,11 +143,12 @@ namespace btutil {
   }
 
   std::vector<double>
-  MCBTAlg::MCQ(const std::vector<WireRange_t>& hit_v) const
+  MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData,
+               const std::vector<WireRange_t>& hit_v) const
   {
     std::vector<double> res(_num_parts, 0);
     for (auto const& h : hit_v) {
-      auto tmp_res = MCQ(h);
+      auto tmp_res = MCQ(clockData, h);
       for (size_t i = 0; i < res.size(); ++i)
         res[i] += tmp_res[i];
     }
@@ -158,9 +156,10 @@ namespace btutil {
   }
 
   std::vector<double>
-  MCBTAlg::MCQFrac(const std::vector<WireRange_t>& hit_v) const
+  MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData,
+                   const std::vector<WireRange_t>& hit_v) const
   {
-    auto res = MCQ(hit_v);
+    auto res = MCQ(clockData, hit_v);
     if (!res.size()) return res;
 
     double sum = 0;

@@ -55,10 +55,6 @@ namespace cluster {
     CLHEP::HepRandomEngine& fEngine;
   };
 
-}
-
-namespace cluster {
-
   //------------------------------------------------------------------------------
   HoughLineFinder::HoughLineFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}

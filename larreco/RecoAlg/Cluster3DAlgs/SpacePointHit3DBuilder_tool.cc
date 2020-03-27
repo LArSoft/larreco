@@ -21,10 +21,10 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -136,8 +136,7 @@ namespace lar_cluster3d {
     // Get instances of the primary data structures needed
     mutable Hit2DVector m_clusterHit2DMasterVec;
 
-    const geo::Geometry* fGeometry;               //< pointer to the Geometry service
-    const detinfo::DetectorProperties* fDetector; //< Pointer to the detector properties
+    const geo::Geometry* fGeometry;
   };
 
   SpacePointHit3DBuilder::SpacePointHit3DBuilder(fhicl::ParameterSet const& pset)
@@ -156,8 +155,6 @@ namespace lar_cluster3d {
 
     if (fDoWireAssns) collector.produces<art::Assns<recob::Wire, recob::Hit>>();
     if (fDoRawDigitAssns) collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -196,10 +193,7 @@ namespace lar_cluster3d {
       m_tupleTree->Branch("HitAsymmetry", "std::vector<float>", &m_hitAsymmetryVec);
     }
 
-    art::ServiceHandle<geo::Geometry const> geometry;
-
-    fGeometry = &*geometry;
-    fDetector = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    fGeometry = art::ServiceHandle<geo::Geometry const>().get();
   }
 
   void
@@ -314,6 +308,11 @@ namespace lar_cluster3d {
     // (note this is already taken care of when converting to position)
     std::map<geo::PlaneID, double> planeOffsetMap;
 
+    auto const clock_data =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+
     // Initialize the plane to hit vector map
     for (size_t cryoIdx = 0; cryoIdx < fGeometry->Ncryostats(); cryoIdx++) {
       for (size_t tpcIdx = 0; tpcIdx < fGeometry->NTPC(); tpcIdx++) {
@@ -321,20 +320,20 @@ namespace lar_cluster3d {
         // Note that plane 0 is assumed the "first" plane and is the reference
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 0)] = 0.;
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 1)] =
-          fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1)) -
-          fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1)) -
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
         planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 2)] =
-          fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2)) -
-          fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2)) -
+          det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0));
 
         std::cout << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 0)]
                   << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 1)]
                   << ", plane 2: " << planeOffsetMap[geo::PlaneID(cryoIdx, tpcIdx, 2)] << std::endl;
         std::cout << "     Det prop plane 0: "
-                  << fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0))
-                  << ", plane 1: " << fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1))
-                  << ", plane 2: " << fDetector->GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2))
-                  << ", Trig: " << fDetector->TriggerOffset() << std::endl;
+                  << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 0))
+                  << ", plane 1: " << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 1))
+                  << ", plane 2: " << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx, tpcIdx, 2))
+                  << ", Trig: " << trigger_offset(clock_data) << std::endl;
       }
     }
 
@@ -355,7 +354,7 @@ namespace lar_cluster3d {
       double hitPeakTime(
         recobHit->PeakTime() -
         planeOffsetMap.at(hitWireID.planeID())); //planeOffsetMap[hitWireID.planeID()]);
-      double xPosition(fDetector->ConvertTicksToX(
+      double xPosition(det_prop.ConvertTicksToX(
         recobHit->PeakTime(), hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat));
 
       m_clusterHit2DMasterVec.emplace_back(0, 0., 0., xPosition, hitPeakTime, hitWireID, recobHit);

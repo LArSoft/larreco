@@ -8,14 +8,24 @@
 //
 
 #include "TVector3.h"
+
 #include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/PtrVector.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Wire.h"
-
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 
@@ -28,13 +38,8 @@ namespace trkf {
   private:
     void produce(art::Event& evt) override;
 
-    // Fcl Attributes.
-
-    std::string fTruthModuleLabel;
-    std::string fHitModuleLabel;
-    std::string fCalDataModuleLabel;
-
-    void GetProjectedEnds(TVector3 xyz,
+    void GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
+                          TVector3 xyz,
                           std::vector<double>& uvw,
                           std::vector<double>& t,
                           int tpc = 0,
@@ -43,59 +48,42 @@ namespace trkf {
     std::map<int, std::vector<double>> ExtractEndPointTimes(
       std::vector<recob::EndPoint2D> EndPoints);
 
-    std::vector<recob::SpacePoint> Get3DFeaturePoints(std::vector<recob::EndPoint2D> EndPoints,
-                                                      art::PtrVector<recob::Hit> Hits);
+    std::vector<recob::SpacePoint> Get3DFeaturePoints(
+      detinfo::DetectorClocksData const& clockData,
+      detinfo::DetectorPropertiesData const& detProp,
+      std::vector<recob::EndPoint2D> const& EndPoints,
+      art::PtrVector<recob::Hit> const& Hits);
 
-    std::vector<recob::Seed> GetValidLines(std::vector<recob::SpacePoint>& sps,
+    std::vector<recob::Seed> GetValidLines(detinfo::DetectorPropertiesData const& detProp,
+                                           std::vector<recob::SpacePoint>& sps,
                                            bool ApplyFilter = true);
 
     void RemoveDuplicatePaths(std::vector<recob::Seed>& Seeds,
                               std::vector<int>& ConnectionPoint1,
                               std::vector<int>& ConnectionPoint2);
 
-    recob::Seed ExtendSeed(recob::Seed TheSeed);
-
-    bool CheckSeedLineInt(recob::Seed& TheSeed);
-
     trkf::SpacePointAlg fSP;
     corner::CornerFinderAlg fCorner;
 
-    double fLineIntThreshold;
+    std::string fHitModuleLabel;
+    std::string fCalDataModuleLabel;
+
     double fLineIntFraction;
+    double fLineIntThreshold;
 
     std::map<int, std::vector<double>> fEndPointTimes;
     art::ServiceHandle<geo::Geometry const> fGeometryHandle;
   };
-}
-
-#include "art/Framework/Core/ModuleMacros.h"
-
-namespace trkf {
-  DEFINE_ART_MODULE(FeatureTracker)
-}
-
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-
-namespace trkf {
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset)
     : EDProducer{pset}
     , fSP(pset.get<fhicl::ParameterSet>("SpacepointPset"))
     , fCorner(pset.get<fhicl::ParameterSet>("CornerPset"))
+    , fHitModuleLabel{pset.get<std::string>("HitModuleLabel")}
+    , fCalDataModuleLabel{pset.get<std::string>("CornerPset.CalDataModuleLabel")}
+    , fLineIntFraction{pset.get<double>("LineIntFraction")}
+    , fLineIntThreshold{pset.get<double>("LineIntThreshold")}
   {
-    fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
-    fLineIntFraction = pset.get<double>("LineIntFraction");
-    fLineIntThreshold = pset.get<double>("LineIntThreshold");
-    fhicl::ParameterSet CornerPset = pset.get<fhicl::ParameterSet>("CornerPset");
-    fCalDataModuleLabel = CornerPset.get<std::string>("CalDataModuleLabel");
-
     produces<std::vector<recob::Seed>>();
   }
 
@@ -126,9 +114,11 @@ namespace trkf {
 
     fEndPointTimes = ExtractEndPointTimes(EndPoints);
 
-    std::vector<recob::SpacePoint> sps = Get3DFeaturePoints(EndPoints, hitvec);
-
-    std::vector<recob::Seed> SeedsToStore = GetValidLines(sps, true);
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+    std::vector<recob::SpacePoint> sps = Get3DFeaturePoints(clockData, detProp, EndPoints, hitvec);
+    std::vector<recob::Seed> SeedsToStore = GetValidLines(detProp, sps, true);
 
     std::unique_ptr<std::vector<recob::Seed>> seeds(new std::vector<recob::Seed>);
 
@@ -159,7 +149,9 @@ namespace trkf {
   //---------------------------------------------------------------------
 
   std::vector<recob::Seed>
-  FeatureTracker::GetValidLines(std::vector<recob::SpacePoint>& spts, bool ApplyFilter)
+  FeatureTracker::GetValidLines(detinfo::DetectorPropertiesData const& detProp,
+                                std::vector<recob::SpacePoint>& spts,
+                                bool ApplyFilter)
   {
     std::vector<recob::Seed> SeedsToReturn;
 
@@ -183,8 +175,8 @@ namespace trkf {
           xyz_j[d] = spts.at(j).XYZ()[d];
         }
 
-        GetProjectedEnds(xyz_i, uvw_i, t_i, 0, 0);
-        GetProjectedEnds(xyz_j, uvw_j, t_j, 0, 0);
+        GetProjectedEnds(detProp, xyz_i, uvw_i, t_i, 0, 0);
+        GetProjectedEnds(detProp, xyz_j, uvw_j, t_j, 0, 0);
 
         bool ThisLineGood = true;
 
@@ -294,15 +286,13 @@ namespace trkf {
   //---------------------------------------------------------------------
 
   void
-  FeatureTracker::GetProjectedEnds(TVector3 xyz,
+  FeatureTracker::GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
+                                   TVector3 xyz,
                                    std::vector<double>& uvw,
                                    std::vector<double>& t,
                                    int tpc,
                                    int cryo)
   {
-
-    const detinfo::DetectorProperties* det =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry const> geo;
 
     int NPlanes = geo->Cryostat(cryo).TPC(tpc).Nplanes();
@@ -312,15 +302,17 @@ namespace trkf {
 
     for (int plane = 0; plane != NPlanes; plane++) {
       uvw[plane] = geo->NearestWire(xyz, plane, tpc, cryo);
-      t[plane] = det->ConvertXToTicks(xyz[0], plane, tpc, cryo);
+      t[plane] = detProp.ConvertXToTicks(xyz[0], plane, tpc, cryo);
     }
   }
 
   //----------------------------------------------------------------------
 
   std::vector<recob::SpacePoint>
-  FeatureTracker::Get3DFeaturePoints(std::vector<recob::EndPoint2D> EndPoints,
-                                     art::PtrVector<recob::Hit> Hits)
+  FeatureTracker::Get3DFeaturePoints(detinfo::DetectorClocksData const& clockData,
+                                     detinfo::DetectorPropertiesData const& detProp,
+                                     std::vector<recob::EndPoint2D> const& EndPoints,
+                                     art::PtrVector<recob::Hit> const& Hits)
   {
 
     art::PtrVector<recob::Hit> HitsForEndPoints;
@@ -342,16 +334,12 @@ namespace trkf {
       }
     }
     std::vector<recob::SpacePoint> spts;
-    fSP.makeSpacePoints(HitsForEndPoints, spts);
-
-    // This is temporary for debugging purposes
-    const detinfo::DetectorProperties* det =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+    fSP.makeSpacePoints(clockData, detProp, HitsForEndPoints, spts);
 
     for (size_t i = 0; i != spts.size(); ++i) {
       for (size_t p = 0; p != 3; ++p) {
         double Closest = 100000;
-        double spt_t = det->ConvertXToTicks(spts.at(i).XYZ()[0], p, 0, 0);
+        double spt_t = detProp.ConvertXToTicks(spts.at(i).XYZ()[0], p, 0, 0);
         for (size_t epTime = 0; epTime != fEndPointTimes[p].size(); ++epTime) {
           if (fabs(fEndPointTimes[p].at(epTime) - spt_t) < Closest) {
             Closest = fabs(fEndPointTimes[p].at(epTime) - spt_t);
@@ -362,85 +350,5 @@ namespace trkf {
     return spts;
   }
 
-  //----------------------------------------------------------------------
-
-  recob::Seed
-  FeatureTracker::ExtendSeed(recob::Seed TheSeed)
-  {
-
-    double ExtendFrac = 1.1;
-
-    // Extend Forward
-    bool SuccessfulExtend = true;
-    while (SuccessfulExtend) {
-      recob::Seed NewSeed = TheSeed;
-      double Dir[3], Err[3];
-      double Pt[3];
-      NewSeed.GetDirection(Dir, Err);
-      NewSeed.GetPoint(Pt, Err);
-      for (size_t i = 0; i != 3; ++i) {
-        Dir[i] *= ExtendFrac;
-        Pt[i] += Dir[i] * (ExtendFrac - 1.) * 0.5;
-        NewSeed.SetPoint(Pt, Err);
-        NewSeed.SetDirection(Dir, Err);
-      }
-      SuccessfulExtend = CheckSeedLineInt(NewSeed);
-      if (SuccessfulExtend) TheSeed = NewSeed;
-    }
-
-    // Extend backward
-    SuccessfulExtend = true;
-    while (SuccessfulExtend) {
-      recob::Seed NewSeed = TheSeed;
-      double Dir[3], Err[3];
-      double Pt[3];
-      NewSeed.GetDirection(Dir, Err);
-      NewSeed.GetPoint(Pt, Err);
-      for (size_t i = 0; i != 3; ++i) {
-        Dir[i] *= ExtendFrac;
-        Pt[i] -= Dir[i] * (ExtendFrac - 1.) * 0.5;
-        NewSeed.SetPoint(Pt, Err);
-        NewSeed.SetDirection(Dir, Err);
-      }
-      SuccessfulExtend = CheckSeedLineInt(NewSeed);
-      if (SuccessfulExtend) TheSeed = NewSeed;
-    }
-    return TheSeed;
-  }
-
-  //---------------------------------------------------
-
-  bool
-  FeatureTracker::CheckSeedLineInt(recob::Seed& TheSeed)
-  {
-
-    double Pt[3], Dir[3], Err[3];
-    TheSeed.GetPoint(Pt, Err);
-    TheSeed.GetDirection(Dir, Err);
-
-    TVector3 endi, endj;
-
-    for (size_t i = 0; i != 3; ++i) {
-      endi[i] = Pt[i] + Dir[i];
-      endj[i] = Pt[i] - Dir[i];
-    }
-
-    std::vector<double> t_i, t_j;
-
-    std::vector<double> uvw_i;
-    std::vector<double> uvw_j;
-
-    GetProjectedEnds(endi, uvw_i, t_i, 0, 0);
-    GetProjectedEnds(endj, uvw_j, t_j, 0, 0);
-
-    for (size_t p = 0; p != uvw_i.size(); ++p) {
-      TH2F const& RawHist = fCorner.GetWireDataHist(p);
-
-      double lineint = fCorner.line_integral(
-        RawHist, uvw_i.at(p), t_i.at(p), uvw_j.at(p), t_j.at(p), fLineIntThreshold);
-      if (lineint < fLineIntFraction) { return false; }
-    }
-    return true;
-  }
-
+  DEFINE_ART_MODULE(FeatureTracker)
 }

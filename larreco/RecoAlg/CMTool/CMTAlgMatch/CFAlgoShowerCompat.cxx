@@ -4,7 +4,7 @@
 namespace cmtool {
 
   //-------------------------------------------------------
-  CFAlgoShowerCompat::CFAlgoShowerCompat() : CFloatAlgoBase()
+  CFAlgoShowerCompat::CFAlgoShowerCompat()
   //-------------------------------------------------------
   {
 
@@ -36,7 +36,8 @@ namespace cmtool {
 
   //----------------------------------------------------------------------------------------------
   float
-  CFAlgoShowerCompat::Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  CFAlgoShowerCompat::Float(util::GeometryUtilities const&,
+                            const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
     _o_ang_avg = 0;

@@ -23,6 +23,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -79,8 +81,6 @@ namespace trkf {
     produces<art::Assns<recob::SpacePoint, recob::Hit>>();
     if (fClusterAssns) produces<art::Assns<recob::SpacePoint, recob::Cluster>>();
 
-    // Report.
-
     mf::LogInfo("SpacePointCheater")
       << "SpacePointCheater configured with the following parameters:\n"
       << "  ClusterModuleLabel = " << fClusterModuleLabel << "\n"
@@ -115,13 +115,10 @@ namespace trkf {
 
       // Make a collection of space points that will be inserted into the event.
 
-      std::unique_ptr<std::vector<art::PtrVector<recob::SpacePoint>>> sptvecs(
-        new std::vector<art::PtrVector<recob::SpacePoint>>);
-      std::unique_ptr<std::vector<recob::SpacePoint>> spts(new std::vector<recob::SpacePoint>);
-      std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> sphitassn(
-        new art::Assns<recob::SpacePoint, recob::Hit>);
-      std::unique_ptr<art::Assns<recob::SpacePoint, recob::Cluster>> spclassn(
-        new art::Assns<recob::SpacePoint, recob::Cluster>);
+      auto sptvecs = std::make_unique<std::vector<art::PtrVector<recob::SpacePoint>>>();
+      auto spts = std::make_unique<std::vector<recob::SpacePoint>>();
+      auto sphitassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
+      auto spclassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Cluster>>();
 
       // Make a hit vector which will be used to store hits to be passed
       // to SpacePointAlg.
@@ -130,6 +127,11 @@ namespace trkf {
       art::FindManyP<recob::Hit> fm(clusterh, evt, fClusterModuleLabel);
 
       // Loop over first cluster.
+
+      auto const clockData =
+        art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+      auto const detProp =
+        art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
       int nclus = clusterh->size();
       for (int iclus = 0; iclus < nclus; ++iclus) {
@@ -188,7 +190,7 @@ namespace trkf {
 
               if (fSptalg.minViews() <= 2) {
                 std::vector<recob::SpacePoint> new_spts;
-                fSptalg.makeMCTruthSpacePoints(hits, new_spts);
+                fSptalg.makeMCTruthSpacePoints(clockData, detProp, hits, new_spts);
 
                 // If we found some space points, insert them into the event.
 
@@ -210,9 +212,8 @@ namespace trkf {
                   for (unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
                     const recob::SpacePoint& spt = (*spts)[ispt];
                     const art::PtrVector<recob::Hit>& hits = fSptalg.getAssociatedHits(spt);
-                    util::CreateAssn(*this, evt, *spts, hits, *sphitassn, ispt);
-                    if (fClusterAssns)
-                      util::CreateAssn(*this, evt, *spts, clusters, *spclassn, ispt);
+                    util::CreateAssn(evt, *spts, hits, *sphitassn, ispt);
+                    if (fClusterAssns) util::CreateAssn(evt, *spts, clusters, *spclassn, ispt);
 
                     // make the PtrVector for this collection of space points
                     // Do not reproduce the following lines
@@ -258,7 +259,7 @@ namespace trkf {
                   // Make three-view space points.
 
                   std::vector<recob::SpacePoint> new_spts;
-                  fSptalg.makeMCTruthSpacePoints(hits, new_spts);
+                  fSptalg.makeMCTruthSpacePoints(clockData, detProp, hits, new_spts);
 
                   // If we found some space points, insert them into the event.
 
@@ -281,9 +282,8 @@ namespace trkf {
                     for (unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
                       const recob::SpacePoint& spt = (*spts)[ispt];
                       const art::PtrVector<recob::Hit>& hits = fSptalg.getAssociatedHits(spt);
-                      util::CreateAssn(*this, evt, *spts, hits, *sphitassn, ispt);
-                      if (fClusterAssns)
-                        util::CreateAssn(*this, evt, *spts, clusters, *spclassn, ispt);
+                      util::CreateAssn(evt, *spts, hits, *sphitassn, ispt);
+                      if (fClusterAssns) util::CreateAssn(evt, *spts, clusters, *spclassn, ispt);
 
                       // make the PtrVector for this collection of space points
                       // Do not reproduce the following lines

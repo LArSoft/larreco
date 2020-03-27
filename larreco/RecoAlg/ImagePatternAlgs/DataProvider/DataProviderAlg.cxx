@@ -34,8 +34,7 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
   , fDownscaleMode(img::DataProviderAlg::kMax)
   , fDriftWindow(10)
   , fCalorimetryAlg(config.CalorimetryAlg())
-  , fGeometry(&*(art::ServiceHandle<geo::Geometry const>()))
-  , fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+  , fGeometry(art::ServiceHandle<geo::Geometry const>().get())
   , fAdcSumOverThr(0)
   , fAdcSumThr(10)
   , // set fixed threshold of 10 ADC counts for counting the sum
@@ -43,7 +42,6 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
   , fNoiseSigma(0)
   , fCoherentSigma(0)
 {
-  fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
   fCalibrateLifetime = config.CalibrateLifetime();
   fCalibrateAmpl = config.CalibrateAmpl();
 
@@ -110,11 +108,14 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
 }
 // ------------------------------------------------------
 
-img::DataProviderAlg::~DataProviderAlg(void) {}
+img::DataProviderAlg::~DataProviderAlg() = default;
 // ------------------------------------------------------
 
 void
-img::DataProviderAlg::resizeView(size_t wires, size_t drifts)
+img::DataProviderAlg::resizeView(detinfo::DetectorClocksData const& clock_data,
+                                 detinfo::DetectorPropertiesData const& det_prop,
+                                 size_t wires,
+                                 size_t drifts)
 {
   fNWires = wires;
   fNDrifts = drifts;
@@ -137,7 +138,7 @@ img::DataProviderAlg::resizeView(size_t wires, size_t drifts)
   fLifetimeCorrFactors.resize(fNDrifts);
   if (fCalibrateLifetime) {
     for (size_t t = 0; t < fNDrifts; ++t) {
-      fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(t);
+      fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(clock_data, det_prop, t);
     }
   }
   else {
@@ -309,7 +310,9 @@ img::DataProviderAlg::setWireData(std::vector<float> const& adc, size_t wireIdx)
 // ------------------------------------------------------
 
 bool
-img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire>& wires,
+img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_data,
+                                       detinfo::DetectorPropertiesData const& det_prop,
+                                       const std::vector<recob::Wire>& wires,
                                        unsigned int plane,
                                        unsigned int tpc,
                                        unsigned int cryo)
@@ -325,9 +328,9 @@ img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire>& wires,
   fAdcAreaOverThr = 0;
 
   size_t nwires = fGeometry->Nwires(plane, tpc, cryo);
-  size_t ndrifts = fDetProp->NumberTimeSamples();
+  size_t ndrifts = det_prop.NumberTimeSamples();
 
-  resizeView(nwires, ndrifts);
+  resizeView(clock_data, det_prop, nwires, ndrifts);
 
   auto const& channelStatus =
     art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
@@ -389,9 +392,8 @@ img::DataProviderAlg::scaleAdcSample(float val) const
     val = fAdcMax;
   }
 
-  return fAdcOffset +
-         fAdcScale *
-           (val - fAdcMin); // shift and scale to the output range, shift to the output min
+  return fAdcOffset + fAdcScale * (val - fAdcMin); // shift and scale to the output range,
+                                                   // shift to the output min
 }
 // ------------------------------------------------------
 void
@@ -418,9 +420,8 @@ img::DataProviderAlg::scaleAdcSamples(std::vector<float>& values) const
     if (data[k + 2] > fAdcMax) { data[k + 2] = fAdcMax; }
     if (data[k + 3] > fAdcMax) { data[k + 3] = fAdcMax; }
 
-    data[k] = fAdcOffset +
-              fAdcScale *
-                (data[k] - fAdcMin); // shift and scale to the output range, shift to the output min
+    data[k] = fAdcOffset + fAdcScale * (data[k] - fAdcMin); // shift and scale to the output
+                                                            // range, shift to the output min
     data[k + 1] = fAdcOffset + fAdcScale * (data[k + 1] - fAdcMin);
     data[k + 2] = fAdcOffset + fAdcScale * (data[k + 2] - fAdcMin);
     data[k + 3] = fAdcOffset + fAdcScale * (data[k + 3] - fAdcMin);

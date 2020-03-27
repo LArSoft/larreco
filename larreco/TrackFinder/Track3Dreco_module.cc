@@ -12,8 +12,8 @@
 
 // C++ includes
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
-#include <math.h>
 #include <string>
 #include <vector>
 
@@ -83,26 +83,20 @@ namespace trkf {
   void
   Track3Dreco::produce(art::Event& evt)
   {
-    // get services
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
-    std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
-    std::unique_ptr<std::vector<recob::SpacePoint>> spacepoints(new std::vector<recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::Track, recob::Cluster>> cassn(
-      new art::Assns<recob::Track, recob::Cluster>);
-    std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>> sassn(
-      new art::Assns<recob::Track, recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> shassn(
-      new art::Assns<recob::SpacePoint, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Track, recob::Hit>> hassn(
-      new art::Assns<recob::Track, recob::Hit>);
+    auto tcol = std::make_unique<std::vector<recob::Track>>();
+    auto spacepoints = std::make_unique<std::vector<recob::SpacePoint>>();
+    auto cassn = std::make_unique<art::Assns<recob::Track, recob::Cluster>>();
+    auto sassn = std::make_unique<art::Assns<recob::Track, recob::SpacePoint>>();
+    auto shassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
+    auto hassn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
 
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
 
-    //  double YC =  (m_TPCHalfZ-5.)*2.; // TPC height in cm
     double YC = (geom->DetHalfHeight()) * 2.; // *ArgoNeuT* TPC active-volume height in cm
     double Angle = geom->Plane(1).Wire(0).ThetaZ(false) -
                    TMath::Pi() / 2.; // wire angle with respect to the vertical direction
@@ -119,13 +113,13 @@ namespace trkf {
     double Temperature = 87.6; // LAr Temperature in K
 
     double driftvelocity =
-      detprop->DriftVelocity(Efield_drift, Temperature); //drift velocity in the drift
-                                                         //region (cm/us)
+      detProp.DriftVelocity(Efield_drift, Temperature); //drift velocity in the drift
+                                                        //region (cm/us)
     double driftvelocity_SI =
-      detprop->DriftVelocity(Efield_SI, Temperature); //drift velocity between shield
-                                                      //and induction (cm/us)
+      detProp.DriftVelocity(Efield_SI, Temperature); //drift velocity between shield
+                                                     //and induction (cm/us)
     double driftvelocity_IC =
-      detprop->DriftVelocity(Efield_IC, Temperature);       //drift velocity between induction
+      detProp.DriftVelocity(Efield_IC, Temperature);        //drift velocity between induction
                                                             //and collection (cm/us)
     double timepitch = driftvelocity * timetick;            //time sample (cm)
     double tSI = plane_pitch / driftvelocity_SI / timetick; //drift time between Shield and
@@ -171,7 +165,6 @@ namespace trkf {
     art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
 
     for (size_t ii = 0; ii < clusterListHandle->size(); ++ii) {
-
       art::Ptr<recob::Cluster> cl(clusterListHandle, ii);
 
       /////////////////////////
@@ -204,7 +197,6 @@ namespace trkf {
            theHit != hitlist.end();
            theHit++) {
         //recover the Hit
-        //      recob::Hit* theHit = (recob::Hit*)(*hitIter);
         time = (*theHit)->PeakTime();
 
         time -= presamplings;
@@ -280,7 +272,6 @@ namespace trkf {
         Ccluster_count.push_back(ii);
         break;
       }
-      //delete the2Dtrack;
       delete pol1;
     } // end of loop over all input clusters
 
@@ -299,22 +290,18 @@ namespace trkf {
       double Ct1_line = Ctimelasts_line[collectionIter];
       std::vector<art::Ptr<recob::Hit>> hitsCtrk = CclusHitlists[collectionIter];
 
-      double collLength =
-        TMath::Sqrt(TMath::Power(Ct1_line - Ct0_line, 2) + TMath::Power(Cw1 - Cw0, 2));
+      double collLength = std::hypot(Ct1_line - Ct0_line, Cw1 - Cw0);
 
       //loop over Induction view 2D tracks
       for (size_t inductionIter = 0; inductionIter < IclusHitlists.size(); ++inductionIter) {
         // Recover previously stored info
         double Iw0 = Iwirefirsts[inductionIter];
         double Iw1 = Iwirelasts[inductionIter];
-        //double It0 = Itimefirsts[inductionIter];
-        //double It1 = Itimelasts[inductionIter];
         double It0_line = Itimefirsts_line[inductionIter];
         double It1_line = Itimelasts_line[inductionIter];
         std::vector<art::Ptr<recob::Hit>> hitsItrk = IclusHitlists[inductionIter];
 
-        double indLength =
-          TMath::Sqrt(TMath::Power(It1_line - It0_line, 2) + TMath::Power(Iw1 - Iw0, 2));
+        double indLength = std::hypot(It1_line - It0_line, Iw1 - Iw0);
 
         bool forward_match = ((std::abs(Ct0_line - It0_line) < ftmatch * timepitch) &&
                               (std::abs(Ct1_line - It1_line) < ftmatch * timepitch));
@@ -328,19 +315,19 @@ namespace trkf {
           TVector3 XYZ0, XYZ1; // track endpoints
           if (forward_match) {
             XYZ0.SetXYZ(Ct0_line,
-                        (Cw0 - Iw0) / (2. * TMath::Sin(Angle)),
-                        (Cw0 + Iw0) / (2. * TMath::Cos(Angle)) - YC / 2. * TMath::Tan(Angle));
+                        (Cw0 - Iw0) / (2. * std::sin(Angle)),
+                        (Cw0 + Iw0) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle));
             XYZ1.SetXYZ(Ct1_line,
-                        (Cw1 - Iw1) / (2. * TMath::Sin(Angle)),
-                        (Cw1 + Iw1) / (2. * TMath::Cos(Angle)) - YC / 2. * TMath::Tan(Angle));
+                        (Cw1 - Iw1) / (2. * std::sin(Angle)),
+                        (Cw1 + Iw1) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle));
           }
           else {
             XYZ0.SetXYZ(Ct0_line,
-                        (Cw0 - Iw1) / (2. * TMath::Sin(Angle)),
-                        (Cw0 + Iw1) / (2. * TMath::Cos(Angle)) - YC / 2. * TMath::Tan(Angle));
+                        (Cw0 - Iw1) / (2. * std::sin(Angle)),
+                        (Cw0 + Iw1) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle));
             XYZ1.SetXYZ(Ct1_line,
-                        (Cw1 - Iw0) / (2. * TMath::Sin(Angle)),
-                        (Cw1 + Iw0) / (2. * TMath::Cos(Angle)) - YC / 2. * TMath::Tan(Angle));
+                        (Cw1 - Iw0) / (2. * std::sin(Angle)),
+                        (Cw1 + Iw0) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle));
           }
 
           //compute track direction in Local co-ordinate system
@@ -512,9 +499,8 @@ namespace trkf {
             double Iw = plane1 == 1 ? w1_match : w1;
 
             const TVector3 hit3d(Ct,
-                                 (Cw - Iw) / (2. * TMath::Sin(Angle)),
-                                 (Cw + Iw) / (2. * TMath::Cos(Angle)) -
-                                   YC / 2. * TMath::Tan(Angle));
+                                 (Cw - Iw) / (2. * std::sin(Angle)),
+                                 (Cw + Iw) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle));
             Double_t hitcoord[3];
             hitcoord[0] = hit3d.X();
             hitcoord[1] = hit3d.Y();
@@ -530,7 +516,7 @@ namespace trkf {
             spacepoints->push_back(mysp);
 
             // associate the hits to the space point
-            util::CreateAssn(*this, evt, *spacepoints, sp_hits, *shassn);
+            util::CreateAssn(evt, *spacepoints, sp_hits, *shassn);
 
           } //loop over min-hits
 
@@ -560,17 +546,17 @@ namespace trkf {
             tcol->push_back(the3DTrack);
 
             // associate the track with its spacepoints
-            util::CreateAssn(*this, evt, *tcol, *spacepoints, *sassn, startSPIndex, endSPIndex);
+            util::CreateAssn(evt, *tcol, *spacepoints, *sassn, startSPIndex, endSPIndex);
 
             // associate the track with its clusters
-            util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *cassn);
+            util::CreateAssn(evt, *tcol, clustersPerTrack, *cassn);
 
             art::FindManyP<recob::Hit> fmhc(clustersPerTrack, evt, fClusterModuleLabel);
 
             // get the hits associated with each cluster and associate those with the track
             for (size_t p = 0; p < clustersPerTrack.size(); ++p) {
               const std::vector<art::Ptr<recob::Hit>>& hits = fmhc.at(p);
-              util::CreateAssn(*this, evt, *tcol, hits, *hassn);
+              util::CreateAssn(evt, *tcol, hits, *hassn);
             }
           }
 

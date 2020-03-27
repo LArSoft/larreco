@@ -12,77 +12,75 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 #include "TVector2.h"
 
 namespace tss {
   class Hit2D;
-  //struct bTrajectory3DOrderLess;
 }
 
 class tss::Hit2D {
-  //friend struct bTrajectory3DOrderLess;
-
 public:
-  Hit2D(void);
-  Hit2D(const art::Ptr<recob::Hit>& src);
-  Hit2D(const tss::Hit2D& src);
+  Hit2D(detinfo::DetectorPropertiesData const& detProp, const art::Ptr<recob::Hit>& src);
 
   art::Ptr<recob::Hit>
-  Hit2DPtr(void) const
+  Hit2DPtr() const
   {
     return fHit;
   }
 
   TVector2 const&
-  Point2D(void) const
+  Point2D() const
   {
     return fPoint2D;
   }
 
   unsigned int
-  Cryo(void) const
+  Cryo() const
   {
     return fHit->WireID().Cryostat;
   }
   unsigned int
-  TPC(void) const
+  TPC() const
   {
     return fHit->WireID().TPC;
   }
   unsigned int
-  View(void) const
+  View() const
   {
     return fPlane;
   }
   unsigned int
-  Wire(void) const
+  Wire() const
   {
     return fWire;
   }
   float
-  PeakTime(void) const
+  PeakTime() const
   {
     return fHit->PeakTime();
   }
   int
-  StartTick(void) const
+  StartTick() const
   {
     return fHit->StartTick();
   }
   int
-  EndTick(void) const
+  EndTick() const
   {
     return fHit->EndTick();
   }
 
   float
-  SummedADC(void) const
+  SummedADC() const
   {
     return fHit->SummedADC();
   }
   float
-  GetAmplitude(void) const
+  GetAmplitude() const
   {
     return fHit->PeakAmplitude();
   }

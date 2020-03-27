@@ -1,14 +1,15 @@
 art_make(LIB_LIBRARIES
+           lardataalg_DetectorInfo
            lardataobj_RecoBase
            lardata_ArtDataHelper
            larcorealg_Geometry
            lardataobj_AnalysisBase
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_UTILITIES}
-           canvas
-           ${MF_MESSAGELOGGER}
+           ${CANVAS}
+           ${CETLIB_EXCEPT}
            ${FHICLCPP}
-           cetlib_except
+           ${MF_MESSAGELOGGER}
            ROOT::Core
            ROOT::Physics
          MODULE_LIBRARIES
@@ -17,8 +18,7 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ROOT::Hist
            ROOT::Physics
-           ${MF_MESSAGELOGGER}
-         )
+           ${MF_MESSAGELOGGER})
 
 install_headers()
 install_fhicl()

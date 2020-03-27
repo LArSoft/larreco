@@ -4,11 +4,15 @@
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Persistency/Common/Assns.h"
 #include "canvas/Persistency/Common/Ptr.h"
+
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 namespace trkmkr {
 
@@ -35,7 +39,7 @@ namespace trkmkr {
     void
     setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo)
     {
-      trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(aTrackFitHitInfo);
+      trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(std::move(aTrackFitHitInfo));
     }
     void
     setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo)
@@ -223,14 +227,13 @@ namespace trkmkr {
     /// per-event initialization; concrete classes may override this function to retrieve other products or associations from the event.
     virtual void
     initEvent(const art::Event& e)
-    {
-      return;
-    }
+    {}
 
     //@{
     /// makeTrack functions with recob::Trajectory as argument; calls the version with recob::TrackTrajectory using a dummy flags vector.
     virtual bool
-    makeTrack(const recob::Trajectory& traj,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const recob::Trajectory& traj,
               const std::vector<recob::TrajectoryPointFlags>& flags,
               const int tkID,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
@@ -239,6 +242,7 @@ namespace trkmkr {
               OptionalOutputs& optionals) const
     {
       return makeTrack(
+        detProp,
         recob::TrackTrajectory(traj, recob::TrackTrajectory::Flags_t(traj.NPoints())),
         tkID,
         inHits,
@@ -247,7 +251,8 @@ namespace trkmkr {
         optionals);
     }
     virtual bool
-    makeTrack(const art::Ptr<recob::Trajectory> traj,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const art::Ptr<recob::Trajectory> traj,
               const std::vector<recob::TrajectoryPointFlags>& flags,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
@@ -255,6 +260,7 @@ namespace trkmkr {
               OptionalOutputs& optionals) const
     {
       return makeTrack(
+        detProp,
         recob::TrackTrajectory(*traj, recob::TrackTrajectory::Flags_t(traj->NPoints())),
         traj.key(),
         inHits,
@@ -266,17 +272,20 @@ namespace trkmkr {
 
     /// makeTrack functions with art::Ptr<recob::TrackTrajectory>; calls the purely virtual version with const recob::TrackTrajectory reference as argument.
     virtual bool
-    makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const art::Ptr<recob::TrackTrajectory> ttraj,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
               std::vector<art::Ptr<recob::Hit>>& outHits,
               OptionalOutputs& optionals) const
     {
-      return makeTrack(*ttraj, ttraj.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(detProp, *ttraj, ttraj.key(), inHits, outTrack, outHits, optionals);
     }
 
-    /// makeTrack functions with const recob::TrackTrajectory reference as argument: purely virtual, to be implemented in concrete classes.
-    virtual bool makeTrack(const recob::TrackTrajectory& ttraj,
+    /// makeTrack functions with const recob::TrackTrajectory reference as
+    /// argument: purely virtual, to be implemented in concrete classes.
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const recob::TrackTrajectory& ttraj,
                            const int tkID,
                            const std::vector<art::Ptr<recob::Hit>>& inHits,
                            recob::Track& outTrack,
@@ -284,25 +293,30 @@ namespace trkmkr {
                            OptionalOutputs& optionals) const = 0;
 
     //@{
-    /// makeTrack functions with recob::Track as argument; calls the version with recob::TrackTrajectory.
+    /// makeTrack functions with recob::Track as argument; calls the version
+    /// with recob::TrackTrajectory.
     virtual bool
-    makeTrack(const art::Ptr<recob::Track> track,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const art::Ptr<recob::Track> track,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
               std::vector<art::Ptr<recob::Hit>>& outHits,
               OptionalOutputs& optionals) const
     {
-      return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(
+        detProp, track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool
-    makeTrack(const recob::Track& track,
+    makeTrack(const detinfo::DetectorPropertiesData& detProp,
+              const recob::Track& track,
               const std::vector<art::Ptr<recob::Hit>>& inHits,
               recob::Track& outTrack,
               std::vector<art::Ptr<recob::Hit>>& outHits,
               OptionalOutputs& optionals) const
     {
-      return makeTrack(track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals);
+      return makeTrack(
+        detProp, track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals);
     }
     //@}
   };

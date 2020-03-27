@@ -28,17 +28,13 @@ namespace cmtool {
      The algorithms are run through CMergeManager.
   */
   class CMAlgoBase {
-
   public:
-    /// Default constructor
     CMAlgoBase()
     {
       _fout = 0;
       _verbose = false;
     }
-
-    /// Default destructor
-    virtual ~CMAlgoBase() {}
+    virtual ~CMAlgoBase() = default;
 
     /// Function to reset the algorithm instance called within CMergeManager/CMatchManager's Reset() ... maybe implemented via child class
     virtual void
@@ -49,19 +45,15 @@ namespace cmtool {
        Optional function: called at the beginning of 1st iteration. This is called per event.
      */
     virtual void
-    EventBegin(const std::vector<cluster::ClusterParamsAlg>& clusters)
-    {
-      if (clusters.size()) return;
-    }
+    EventBegin(const std::vector<cluster::ClusterParamsAlg>&)
+    {}
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     virtual void
     EventEnd()
-    {
-      return;
-    }
+    {}
 
     /**
        Optional function: called at the beggining of each iteration over all pairs of clusters.
@@ -69,19 +61,15 @@ namespace cmtool {
        is called per iteration which may be more than once per event.
      */
     virtual void
-    IterationBegin(const std::vector<cluster::ClusterParamsAlg>& clusters)
-    {
-      if (clusters.size()) return;
-    }
+    IterationBegin(const std::vector<cluster::ClusterParamsAlg>&)
+    {}
 
     /**
        Optional function: called at the end of each iteration over all pairs of clusters.
      */
     virtual void
     IterationEnd()
-    {
-      return;
-    }
+    {}
 
     /**
        Optional function: called after Bool() function is called for all possible cluster
@@ -90,9 +78,7 @@ namespace cmtool {
      */
     virtual void
     Report()
-    {
-      return;
-    }
+    {}
 
     /// Setter function for an output plot TFile pointer
     void

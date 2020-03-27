@@ -20,8 +20,8 @@
 
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardata/ArtDataHelper/ToElement.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/DisambigAlg.h"
 
@@ -29,19 +29,17 @@
 #include <cstdlib>
 #include <map>
 
+#include "range/v3/view.hpp"
+
+using lar::to_element;
+using ranges::view::filter;
+using ranges::view::transform;
+
 namespace apa {
 
-  DisambigAlg::DisambigAlg(fhicl::ParameterSet const& pset)
-    : fAPAGeo(pset.get<fhicl::ParameterSet>("APAGeometryAlg"))
+  DisambigAlg::DisambigAlg(fhicl::ParameterSet const& p)
+    : fAPAGeo(p.get<fhicl::ParameterSet>("APAGeometryAlg"))
   {
-    this->reconfigure(pset);
-  }
-
-  //----------------------------------------------------------
-  void
-  DisambigAlg::reconfigure(fhicl::ParameterSet const& p)
-  {
-
     fCrawl = p.get<bool>("Crawl");
     fUseEndP = p.get<bool>("UseEndP");
     fCompareViews = p.get<bool>("CompareViews");
@@ -53,12 +51,10 @@ namespace apa {
   //----------------------------------------------------------
   //----------------------------------------------------------
   void
-  DisambigAlg::RunDisambig(art::Handle<std::vector<recob::Hit>> ChannelHits)
+  DisambigAlg::RunDisambig(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           art::Handle<std::vector<recob::Hit>> ChannelHits)
   {
-
-    // **tomporarily** here to look at performance without noise hits
-    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-
     fUeffSoFar.clear();
     fVeffSoFar.clear();
     fnUSoFar.clear();
@@ -82,11 +78,11 @@ namespace apa {
     unsigned int skipNoise(0);
     // Map hits by channel/APA, initialize the disambiguation status map
     for (size_t h = 0; h < ChHits.size(); h++) {
-      art::Ptr<recob::Hit> hit = ChHits[h];
+      art::Ptr<recob::Hit> const& hit = ChHits[h];
 
       // **temporary** option to skip noise hits
       try {
-        bt_serv->HitToXYZ(hit);
+        bt_serv->HitToXYZ(clockData, hit);
       }
       catch (...) {
         skipNoise++;
@@ -131,7 +127,7 @@ namespace apa {
       fnDVSoFar[apa] = 0;
 
       // Always run this...
-      this->TrivialDisambig(apa);
+      this->TrivialDisambig(clockData, detProp, apa);
       this->AssessDisambigSoFar(apa);
       mf::LogVerbatim("RunDisambig")
         << "  Trivial Disambig -->  " << fnDUSoFar[apa] << " / " << fnUSoFar[apa] << " U,  "
@@ -147,8 +143,8 @@ namespace apa {
       }
 
       if (fUseEndP) {
-        this->FindChanTimeEndPts(apa);
-        this->UseEndPts(apa); // does the crawl from inside
+        this->FindChanTimeEndPts(detProp, apa);
+        this->UseEndPts(detProp, apa); // does the crawl from inside
         this->AssessDisambigSoFar(apa);
         mf::LogVerbatim("RunDisambig")
           << "  Endpoint Crawl   -->  " << fnDUSoFar[apa] << " / " << fnUSoFar[apa] << " U,  "
@@ -158,8 +154,7 @@ namespace apa {
       if (fCompareViews) {
         unsigned int nDisambig(1);
         while (nDisambig > 0) {
-          nDisambig = 0;
-          nDisambig = this->CompareViews(apa);
+          nDisambig = this->CompareViews(detProp, apa);
           this->Crawl(apa);
         }
         this->AssessDisambigSoFar(apa);
@@ -167,8 +162,6 @@ namespace apa {
           << "  Compare Views    -->  " << fnDUSoFar[apa] << " / " << fnUSoFar[apa] << " U,  "
           << fnDVSoFar[apa] << " / " << fnVSoFar[apa] << " V";
       }
-
-      //this->GatherLeftoverHits()
 
       // For now just buld a simple list to get from the module
       for (size_t i = 0; i < fAPAToDHits[apa].size(); i++)
@@ -180,9 +173,8 @@ namespace apa {
   //-------------------------------------------------
   //-------------------------------------------------
   void
-  DisambigAlg::MakeDisambigHit(art::Ptr<recob::Hit> hit, geo::WireID wid, unsigned int apa)
+  DisambigAlg::MakeDisambigHit(art::Ptr<recob::Hit> const& hit, geo::WireID wid, unsigned int apa)
   {
-
     std::pair<double, double> ChanTime(hit->Channel() * 1., hit->PeakTime() * 1.);
     if (fHasBeenDisambiged[apa][ChanTime]) return;
 
@@ -191,49 +183,47 @@ namespace apa {
       return;
     }
 
-    std::pair<art::Ptr<recob::Hit>, geo::WireID> Dhit(hit, wid);
-    fAPAToDHits[apa].push_back(Dhit);
+    fAPAToDHits[apa].emplace_back(hit, wid);
     fHasBeenDisambiged[apa][ChanTime] = true;
     fChanTimeToWid[ChanTime] = wid;
-    return;
   }
 
   //----------------------------------------------------------
   //----------------------------------------------------------
   bool
-  DisambigAlg::HitsOverlapInTime(art::Ptr<recob::Hit> hitA, art::Ptr<recob::Hit> hitB)
+  DisambigAlg::HitsOverlapInTime(detinfo::DetectorPropertiesData const& detProp,
+                                 recob::Hit const& hitA,
+                                 recob::Hit const& hitB)
   {
-    double AsT = hitA->PeakTimeMinusRMS();
-    double AeT = hitA->PeakTimePlusRMS();
-    double BsT = hitB->PeakTimeMinusRMS();
-    double BeT = hitB->PeakTimePlusRMS();
+    double AsT = hitA.PeakTimeMinusRMS();
+    double AeT = hitA.PeakTimePlusRMS();
+    double BsT = hitB.PeakTimeMinusRMS();
+    double BeT = hitB.PeakTimePlusRMS();
 
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+    if (hitA.View() == geo::kU) {
+      AsT -= detProp.TimeOffsetU();
+      AeT -= detProp.TimeOffsetU();
+    }
+    else if (hitA.View() == geo::kV) {
+      AsT -= detProp.TimeOffsetV();
+      AeT -= detProp.TimeOffsetV();
+    }
+    else if (hitA.View() == geo::kZ) {
+      AsT -= detProp.TimeOffsetZ();
+      AeT -= detProp.TimeOffsetZ();
+    }
 
-    if (hitA->View() == geo::kU) {
-      AsT -= detprop->TimeOffsetU();
-      AeT -= detprop->TimeOffsetU();
+    if (hitB.View() == geo::kU) {
+      BsT += detProp.TimeOffsetU();
+      BeT -= detProp.TimeOffsetU();
     }
-    else if (hitA->View() == geo::kV) {
-      AsT -= detprop->TimeOffsetV();
-      AeT -= detprop->TimeOffsetV();
+    else if (hitB.View() == geo::kV) {
+      BsT -= detProp.TimeOffsetV();
+      BeT -= detProp.TimeOffsetV();
     }
-    else if (hitA->View() == geo::kZ) {
-      AsT -= detprop->TimeOffsetZ();
-      AeT -= detprop->TimeOffsetZ();
-    }
-    if (hitB->View() == geo::kU) {
-      BsT += detprop->TimeOffsetU();
-      BeT -= detprop->TimeOffsetU();
-    }
-    else if (hitB->View() == geo::kV) {
-      BsT -= detprop->TimeOffsetV();
-      BeT -= detprop->TimeOffsetV();
-    }
-    else if (hitA->View() == geo::kZ) {
-      AsT -= detprop->TimeOffsetZ();
-      AeT -= detprop->TimeOffsetZ();
+    else if (hitA.View() == geo::kZ) { // FIXME: Shouldn't this be hitB, BsT, and BeT?
+      AsT -= detProp.TimeOffsetZ();
+      AeT -= detProp.TimeOffsetZ();
     }
 
     return (AsT <= BsT && BsT <= AeT) || (AsT <= BeT && BeT <= AeT) || (BsT <= AsT && AsT <= BeT) ||
@@ -243,14 +233,15 @@ namespace apa {
   //----------------------------------------------------------
   //----------------------------------------------------------
   void
-  DisambigAlg::TrivialDisambig(unsigned int apa)
+  DisambigAlg::TrivialDisambig(detinfo::DetectorClocksData const& clockData,
+                               detinfo::DetectorPropertiesData const& detProp,
+                               unsigned int apa)
   {
-
     // Loop through ambiguous hits (U/V) in this APA
-    for (size_t h = 0; h < fAPAToUVHits[apa].size(); h++) {
-      const art::Ptr<recob::Hit> hit = fAPAToUVHits[apa][h];
-      raw::ChannelID_t chan = hit->Channel();
-      unsigned int peakT = hit->PeakTime();
+    for (auto const& hitPtr : fAPAToUVHits[apa]) {
+      auto const& hit = *hitPtr;
+      raw::ChannelID_t chan = hit.Channel();
+      unsigned int peakT = hit.PeakTime();
 
       std::vector<geo::WireID> hitwids = geom->ChannelToWire(chan);
       std::vector<bool> IsReasonableWid(hitwids.size(), false);
@@ -278,18 +269,11 @@ namespace apa {
         raw::ChannelID_t ZminChan = geom->NearestChannel(Min, 2, tpc, cryo);
         raw::ChannelID_t ZmaxChan = geom->NearestChannel(Max, 2, tpc, cryo);
 
-        for (size_t z = 0; z < fAPAToZHits[apa].size(); z++) {
-          raw::ChannelID_t chan = fAPAToZHits[apa][z]->Channel();
+        for (auto const& zhit : fAPAToZHits[apa] | transform(to_element)) {
+          raw::ChannelID_t chan = zhit.Channel();
           if (chan <= ZminChan || ZmaxChan <= chan) continue;
-          art::Ptr<recob::Hit> zhit = fAPAToZHits[apa][z];
 
-          // 	try{ bt_serv->HitToXYZ(zhit); }
-          // 	catch(...){
-          // 	  mf::LogWarning("DisambigAlg")<<"skipping a noise collection hit";
-          // 	  continue;
-          // 	}
-
-          if (this->HitsOverlapInTime(hit, zhit)) {
+          if (this->HitsOverlapInTime(detProp, hit, zhit)) {
             IsReasonableWid[w] = true;
             nPossibleWids++;
             break;
@@ -301,7 +285,7 @@ namespace apa {
       if (nPossibleWids == 0) {
         std::vector<double> xyz;
         try {
-          xyz = bt_serv->HitToXYZ(hit);
+          xyz = bt_serv->HitToXYZ(clockData, hit);
         } // TEMPORARY
         catch (...) {
           continue;
@@ -309,11 +293,11 @@ namespace apa {
         ///\ todo: Figure out why sometimes non-noise hits dont match any Z hits at all.
         mf::LogWarning("UniqueTimeSeg")
           << "U/V hit inconsistent with Z info; peak time is " << peakT << " in APA " << apa
-          << " on channel " << hit->Channel();
+          << " on channel " << hit.Channel();
       }
       else if (nPossibleWids == 1) {
         for (size_t d = 0; d < hitwids.size(); d++)
-          if (IsReasonableWid[d]) this->MakeDisambigHit(hit, hitwids[d], apa);
+          if (IsReasonableWid[d]) this->MakeDisambigHit(hitPtr, hitwids[d], apa);
       }
       else if (nPossibleWids == 2) {
         ///\ todo: Add mechanism to at least eliminate the wids that aren't even possible, for the benefit of future methods
@@ -327,12 +311,11 @@ namespace apa {
   unsigned int
   DisambigAlg::MakeCloseHits(int ext, geo::WireID Dwid, double Dmin, double Dmax)
   {
-
-    // Function to look, on a channel *ext* channels away from
-    // a disambiguated hit channel, for hits with time windows
-    // touching range *Dmin to Dmax*. If found, make such a
-    // hit to have a wireID adjacent to supplied *wid*.
-    // Returns number of NEW hits made.
+    // Function to look, on a channel *ext* channels away from a
+    // disambiguated hit channel, for hits with time windows touching
+    // range *Dmin to Dmax*. If found, make such a hit to have a
+    // wireID adjacent to supplied *wid*.  Returns number of NEW hits
+    // made.
 
     raw::ChannelID_t Dchan =
       geom->PlaneWireToChannel(Dwid.Plane, Dwid.Wire, Dwid.TPC, Dwid.Cryostat);
@@ -432,17 +415,13 @@ namespace apa {
   //----------------------------------------------------------
   //----------------------------------------------------------
   unsigned int
-  DisambigAlg::FindChanTimeEndPts(unsigned int apa)
+  DisambigAlg::FindChanTimeEndPts(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
   {
-
     ///\ todo: Clean up and break down into two functions.
     ///\ todo: Make the conditions more robust to some spotty hits around a potential endpoint.
 
     double pi = 3.14159265;
     double fMaxEndPRadRange = fMaxEndPDegRange / 180. * (2 * pi);
-
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     for (size_t h = 0; h < fAPAToHits[apa].size(); h++) {
       art::Ptr<recob::Hit> centhit = fAPAToHits[apa][h];
@@ -454,10 +433,10 @@ namespace apa {
       std::vector<double> ChanTimeCenter(2, 0.);
       unsigned int relchan = centhit->Channel() - fAPAGeo.FirstChannelInView(centhit->Channel());
       ChanTimeCenter[0] = relchan * geom->WirePitch(view);
-      ChanTimeCenter[1] = detprop->ConvertTicksToX(centhit->PeakTime(),
-                                                   plane,
-                                                   apa * 2, // tpc doesnt matter
-                                                   centhit->WireID().Cryostat);
+      ChanTimeCenter[1] = detProp.ConvertTicksToX(centhit->PeakTime(),
+                                                  plane,
+                                                  apa * 2, // tpc doesnt matter
+                                                  centhit->WireID().Cryostat);
       //std::vector< art::Ptr<recob::Hit> > CloseHits;
       std::vector<std::vector<double>> CloseHitsChanTime;
       std::vector<double> FurthestCloseChanTime(2, 0.); //double maxDist = 0.;
@@ -477,17 +456,16 @@ namespace apa {
         unsigned int relchanclose =
           closehit->Channel() - fAPAGeo.FirstChannelInView(closehit->Channel());
         ChanTimeClose[0] = relchanclose * geom->WirePitch(view);
-        ChanTimeClose[1] = detprop->ConvertTicksToX(closehit->PeakTime(),
-                                                    plane,
-                                                    apa * 2, // tpc doesnt matter
-                                                    closehit->WireID().Cryostat);
+        ChanTimeClose[1] = detProp.ConvertTicksToX(closehit->PeakTime(),
+                                                   plane,
+                                                   apa * 2, // tpc doesnt matter
+                                                   closehit->WireID().Cryostat);
         if (ChanTimeClose == ChanTimeCenter) continue; // move on if the same one
 
         double ChanDist = ChanTimeClose[0] - ChanTimeCenter[0];
         if (ChanDist > ChanDistRange / 2) ChanDist = ChanDistRange - ChanDist;
 
-        double distance =
-          std::sqrt(std::pow(ChanDist, 2) + std::pow(ChanTimeClose[1] - ChanTimeCenter[1], 2));
+        double distance = std::hypot(ChanDist, ChanTimeClose[1] - ChanTimeCenter[1]);
 
         if (distance <= fCloseHitsRadius) CloseHitsChanTime.push_back(ChanTimeClose);
 
@@ -550,7 +528,7 @@ namespace apa {
   //----------------------------------------------------------
   //----------------------------------------------------------
   void
-  DisambigAlg::UseEndPts(unsigned int apa)
+  DisambigAlg::UseEndPts(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
   {
 
     ///\ todo: This function could be made much cleaner and more compact
@@ -559,43 +537,43 @@ namespace apa {
       mf::LogVerbatim("UseEndPts") << "          APA " << apa << " has no endpoints.";
       return;
     }
-    std::vector<art::Ptr<recob::Hit>> endPts = fAPAToEndPHits[apa];
+    std::vector<art::Ptr<recob::Hit>> const& endPts = fAPAToEndPHits[apa];
 
     std::vector<std::vector<art::Ptr<recob::Hit>>> EndPMatch;
     unsigned short nZendPts(0);
-    for (size_t ep = 0; ep < endPts.size(); ep++) {
-      if (endPts[ep]->View() != geo::kZ) continue;
-      art::Ptr<recob::Hit> Zhit = endPts[ep];
-      art::Ptr<recob::Hit> Uhit(Zhit), Vhit(Zhit);
+
+    auto on_z_plane = [](art::Ptr<recob::Hit> const& hit) { return hit->View() == geo::kZ; };
+    auto not_on_z_plane = [](art::Ptr<recob::Hit> const& hit) { return hit->View() != geo::kZ; };
+    for (auto const& ZHitPtr : endPts | filter(on_z_plane)) {
+      auto const& ZHit = *ZHitPtr;
+      art::Ptr<recob::Hit> Uhit = ZHitPtr;
+      art::Ptr<recob::Hit> Vhit = ZHitPtr;
       unsigned short Umatch(0), Vmatch(0);
-      nZendPts++;
+      ++nZendPts;
 
       // look for U and V hits overlapping in time
-      for (size_t p = 0; p < endPts.size(); p++) {
-        if (endPts[p]->View() == geo::kU) {
-          if (this->HitsOverlapInTime(Zhit, endPts[p])) {
-            Uhit = endPts[p];
-            //endPts.erase(endPts.begin()+p);
-            Umatch++;
-          }
+      for (auto const& hitPtr : endPts | filter(not_on_z_plane)) {
+        auto const& hit = *hitPtr;
+        if (not HitsOverlapInTime(detProp, ZHit, hit)) continue;
+
+        if (hit.View() == geo::kU) {
+          Uhit = hitPtr;
+          Umatch++;
         }
-        else if (endPts[p]->View() == geo::kV) {
-          if (this->HitsOverlapInTime(Zhit, endPts[p])) {
-            Vhit = endPts[p];
-            //endPts.erase(endPts.begin()+p);
-            Vmatch++;
-          }
+        else if (hit.View() == geo::kV) {
+          Vhit = hitPtr;
+          Vmatch++;
         }
       }
 
       TVector3 tpcCenter(0, 0, 0);
-      unsigned int tpc(endPts[ep]->WireID().TPC), cryo(endPts[ep]->WireID().Cryostat);
+      unsigned int tpc(ZHit.WireID().TPC), cryo(ZHit.WireID().Cryostat);
       tpcCenter = geom->Cryostat(cryo).TPC(tpc).LocalToWorld(tpcCenter);
 
       if (Umatch == 1 && Vmatch == 1) {
 
         std::vector<double> yzEndPt =
-          fAPAGeo.ThreeChanPos(Uhit->Channel(), Vhit->Channel(), endPts[ep]->Channel());
+          fAPAGeo.ThreeChanPos(Uhit->Channel(), Vhit->Channel(), ZHit.Channel());
         double intersect[3] = {tpcCenter[0], yzEndPt[0], yzEndPt[1]};
 
         geo::WireID Uwid = fAPAGeo.NearestWireIDOnChan(intersect, Uhit->Channel(), 0, tpc, cryo);
@@ -606,7 +584,7 @@ namespace apa {
       else if (Umatch == 1 && Vmatch != 1) {
 
         std::vector<geo::WireIDIntersection> widIntersects;
-        fAPAGeo.APAChannelsIntersect(Uhit->Channel(), Zhit->Channel(), widIntersects);
+        fAPAGeo.APAChannelsIntersect(Uhit->Channel(), ZHit.Channel(), widIntersects);
         if (widIntersects.size() == 0)
           continue;
         else if (widIntersects.size() == 1) {
@@ -623,7 +601,7 @@ namespace apa {
       else if (Umatch == 1 && Vmatch != 1) {
 
         std::vector<geo::WireIDIntersection> widIntersects;
-        fAPAGeo.APAChannelsIntersect(Vhit->Channel(), Zhit->Channel(), widIntersects);
+        fAPAGeo.APAChannelsIntersect(Vhit->Channel(), ZHit.Channel(), widIntersects);
         if (widIntersects.size() == 0)
           continue;
         else if (widIntersects.size() == 1) {
@@ -631,17 +609,11 @@ namespace apa {
           geo::WireID Vwid = fAPAGeo.NearestWireIDOnChan(intersect, Vhit->Channel(), 0, tpc, cryo);
           this->MakeDisambigHit(Vhit, Vwid, apa);
         }
-        else {
-          for (size_t i = 0; i < widIntersects.size(); i++) {
-            // compare to V hit times, see if only one makes sense
-          }
-        }
       }
-
-      //endPts.erase(endPts.begin()+ep);
     }
 
-    if (nZendPts == 0 && endPts.size() == 2 && this->HitsOverlapInTime(endPts[0], endPts[1])) {
+    if (nZendPts == 0 && endPts.size() == 2 &&
+        this->HitsOverlapInTime(detProp, *endPts[0], *endPts[1])) {
       std::vector<geo::WireIDIntersection> widIntersects;
       fAPAGeo.APAChannelsIntersect(endPts[0]->Channel(), endPts[1]->Channel(), widIntersects);
       if (widIntersects.size() == 1) {
@@ -660,11 +632,6 @@ namespace apa {
           fAPAGeo.NearestWireIDOnChan(intersect, endPts[1]->Channel(), plane1, tpc, cryo);
         this->MakeDisambigHit(endPts[1], wid1, apa);
       }
-      else if (widIntersects.size() > 1) {
-        for (size_t i = 0; i < widIntersects.size(); i++) {
-          // compare to V hit times, see if only one makes sense
-        }
-      }
     }
 
     this->Crawl(apa);
@@ -675,7 +642,6 @@ namespace apa {
   void
   DisambigAlg::AssessDisambigSoFar(unsigned int apa)
   {
-
     unsigned int nU(0), nV(0);
     for (size_t h = 0; h < fAPAToUVHits[apa].size(); h++) {
       art::Ptr<recob::Hit> hit = fAPAToUVHits[apa][h];
@@ -705,32 +671,30 @@ namespace apa {
   //----------------------------------------------------------
   //----------------------------------------------------------
   unsigned int
-  DisambigAlg::CompareViews(unsigned int apa)
+  DisambigAlg::CompareViews(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
   {
-
     unsigned int nDisambiguations(0);
 
     // loop through all hits that are still ambiguous
-    for (size_t h = 0; h < fAPAToUVHits[apa].size(); h++) {
-      art::Ptr<recob::Hit> ambighit = fAPAToUVHits[apa][h];
-      raw::ChannelID_t ambigchan = ambighit->Channel();
-      std::pair<double, double> ambigChanTime(ambigchan * 1., ambighit->PeakTime());
+    for (auto const& ambighitPtr : fAPAToUVHits[apa]) {
+      auto const& ambighit = *ambighitPtr;
+      raw::ChannelID_t ambigchan = ambighit.Channel();
+      std::pair<double, double> ambigChanTime(ambigchan * 1., ambighit.PeakTime());
       if (fHasBeenDisambiged[apa][ambigChanTime]) continue;
-      geo::View_t view = ambighit->View();
+      geo::View_t view = ambighit.View();
       std::vector<geo::WireID> ambigwids = geom->ChannelToWire(ambigchan);
       std::vector<unsigned int> widDcounts(ambigwids.size(), 0);
       std::vector<unsigned int> widAcounts(ambigwids.size(), 0);
 
       // loop through hits in the other view which are close in time
-      for (size_t i = 0; i < fAPAToUVHits[apa].size(); i++) {
-        art::Ptr<recob::Hit> hit = fAPAToUVHits[apa][i];
-        if (hit->View() == view || !this->HitsOverlapInTime(ambighit, hit)) continue;
+      for (auto const& hit : fAPAToUVHits[apa] | transform(to_element)) {
+        if (hit.View() == view || !this->HitsOverlapInTime(detProp, ambighit, hit)) continue;
 
         // An other-view-hit overlaps in time, see what
         // wids of the ambiguous hit's channels it overlaps
-        raw::ChannelID_t chan = hit->Channel();
+        raw::ChannelID_t chan = hit.Channel();
         std::vector<geo::WireID> wids = geom->ChannelToWire(chan);
-        std::pair<double, double> ChanTime(chan * 1., hit->PeakTime());
+        std::pair<double, double> ChanTime(chan * 1., hit.PeakTime());
         geo::WireIDIntersection widIntersect; // only so we can use the function
         if (fHasBeenDisambiged[apa][ChanTime]) {
           for (size_t a = 0; a < ambigwids.size(); a++)
@@ -758,17 +722,10 @@ namespace apa {
         Acount += widAcounts[a];
       for (size_t d = 0; d < widDcounts.size(); d++) {
         if (Dcount == widDcounts[d] && Dcount > 0 && Acount == 0) {
-          this->MakeDisambigHit(ambighit, ambigwids[d], apa);
+          this->MakeDisambigHit(ambighitPtr, ambigwids[d], apa);
           nDisambiguations++;
         }
       }
-      for (size_t a = 0; a < widAcounts.size(); a++) {
-        if (Acount == widAcounts[a] && Acount == 1) {
-          //this->MakeDisambigHit(ambighit, ambigwids[a], apa);
-          //nDisambiguations++;
-        }
-      }
-
     } // end loop through still ambiguous hits
 
     return nDisambiguations;

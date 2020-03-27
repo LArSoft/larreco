@@ -12,13 +12,17 @@
 #include "lardataobj/RecoBase/VertexAssnMeta.h"
 #include "larreco/RecoAlg/VertexWrapper.h"
 
+namespace detinfo {
+  class DetectorPropertiesData;
+}
+
 namespace trkf {
-  //
+
   using SMatrixSym22 = recob::tracking::SMatrixSym22;
   using SVector2 = recob::tracking::SVector2;
   using SMatrixSym33 = recob::tracking::SMatrixSym33;
   using SVector3 = recob::tracking::SVector3;
-  //
+
   /**
    * @file  larreco/RecoAlg/Geometric3DVertexFitter.h
    * @class trkf::Geometric3DVertexFitter
@@ -44,11 +48,9 @@ namespace trkf {
    * @date    2017
    * @version 1.0
    */
-  //
+
   class Geometric3DVertexFitter {
-    //
   public:
-    //
     struct Config {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
@@ -60,7 +62,7 @@ namespace trkf {
         Comment(
           "Cut on maximum impact parameter significance to use the track in the vertex fit.")};
     };
-    //
+
     struct TracksFromVertexSorter {
       TracksFromVertexSorter(const recob::tracking::Point_t& vtxPos) : vtxPos_(vtxPos) {}
       bool
@@ -74,7 +76,7 @@ namespace trkf {
     private:
       const recob::tracking::Point_t& vtxPos_;
     };
-    //
+
     struct ParsCovsOnPlane {
       ParsCovsOnPlane(const SVector2& p1,
                       const SVector2& p2,
@@ -96,51 +98,85 @@ namespace trkf {
       prop = std::make_unique<TrackStatePropagator>(p);
     }
 
-    VertexWrapper fitPFP(size_t iPF,
+    VertexWrapper fitPFP(detinfo::DetectorPropertiesData const& detProp,
+                         size_t iPF,
                          const art::ValidHandle<std::vector<recob::PFParticle>>& inputPFParticle,
                          const std::unique_ptr<art::FindManyP<recob::Track>>& assocTracks) const;
-    VertexWrapper fitTracks(const std::vector<art::Ptr<recob::Track>>& arttracks) const;
-    VertexWrapper fitTracks(TrackRefVec& tracks) const;
-    VertexWrapper fitTracksWithVtx(const std::vector<art::Ptr<recob::Track>>& tracks,
+    VertexWrapper fitTracks(detinfo::DetectorPropertiesData const& detProp,
+                            const std::vector<art::Ptr<recob::Track>>& arttracks) const;
+    VertexWrapper fitTracks(detinfo::DetectorPropertiesData const& detProp,
+                            TrackRefVec& tracks) const;
+    VertexWrapper fitTracksWithVtx(detinfo::DetectorPropertiesData const& detProp,
+                                   const std::vector<art::Ptr<recob::Track>>& tracks,
                                    const recob::tracking::Point_t& vtxPos) const;
-    VertexWrapper fitTracksWithVtx(TrackRefVec& tracks,
+    VertexWrapper fitTracksWithVtx(detinfo::DetectorPropertiesData const& detProp,
+                                   TrackRefVec& tracks,
                                    const recob::tracking::Point_t& vtxPos) const;
-    VertexWrapper closestPointAlongTrack(const recob::Track& track,
+    VertexWrapper closestPointAlongTrack(detinfo::DetectorPropertiesData const& detProp,
+                                         const recob::Track& track,
                                          const recob::Track& other) const;
-    VertexWrapper fitTwoTracks(const recob::Track& tk1, const recob::Track& tk2) const;
-    //
-    void addTrackToVertex(VertexWrapper& vtx, const recob::Track& tk) const;
-    //
-    std::vector<recob::VertexAssnMeta> computeMeta(const VertexWrapper& vtx);
+    VertexWrapper fitTwoTracks(detinfo::DetectorPropertiesData const& detProp,
+                               const recob::Track& tk1,
+                               const recob::Track& tk2) const;
+
+    void addTrackToVertex(detinfo::DetectorPropertiesData const& detProp,
+                          VertexWrapper& vtx,
+                          const recob::Track& tk) const;
+
+    std::vector<recob::VertexAssnMeta> computeMeta(detinfo::DetectorPropertiesData const& detProp,
+                                                   const VertexWrapper& vtx);
     std::vector<recob::VertexAssnMeta> computeMeta(
+      detinfo::DetectorPropertiesData const& detProp,
       const VertexWrapper& vtx,
       const std::vector<art::Ptr<recob::Track>>& arttracks);
-    std::vector<recob::VertexAssnMeta> computeMeta(const VertexWrapper& vtx,
+    std::vector<recob::VertexAssnMeta> computeMeta(detinfo::DetectorPropertiesData const& detProp,
+                                                   const VertexWrapper& vtx,
                                                    const TrackRefVec& trks);
-    //
-    double chi2(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double ip(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double ipErr(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double sip(const VertexWrapper& vtx, const recob::Track& tk) const;
+
+    double chi2(detinfo::DetectorPropertiesData const& detProp,
+                const VertexWrapper& vtx,
+                const recob::Track& tk) const;
+    double ip(detinfo::DetectorPropertiesData const& detProp,
+              const VertexWrapper& vtx,
+              const recob::Track& tk) const;
+    double ipErr(detinfo::DetectorPropertiesData const& detProp,
+                 const VertexWrapper& vtx,
+                 const recob::Track& tk) const;
+    double sip(detinfo::DetectorPropertiesData const& detProp,
+               const VertexWrapper& vtx,
+               const recob::Track& tk) const;
     double pDist(const VertexWrapper& vtx, const recob::Track& tk) const;
-    //
-    VertexWrapper unbiasedVertex(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double chi2Unbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double ipUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double ipErrUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double sipUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
-    double pDistUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
+
+    VertexWrapper unbiasedVertex(detinfo::DetectorPropertiesData const& detProp,
+                                 const VertexWrapper& vtx,
+                                 const recob::Track& tk) const;
+    double chi2Unbiased(detinfo::DetectorPropertiesData const& detProp,
+                        const VertexWrapper& vtx,
+                        const recob::Track& tk) const;
+    double ipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                      const VertexWrapper& vtx,
+                      const recob::Track& tk) const;
+    double ipErrUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                         const VertexWrapper& vtx,
+                         const recob::Track& tk) const;
+    double sipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                       const VertexWrapper& vtx,
+                       const recob::Track& tk) const;
+    double pDistUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                         const VertexWrapper& vtx,
+                         const recob::Track& tk) const;
 
   private:
     std::unique_ptr<TrackStatePropagator> prop;
     int debugLevel;
     double sipCut;
-    //
+
     double chi2(const ParsCovsOnPlane& pcp) const;
     double ip(const ParsCovsOnPlane& pcp) const;
     double ipErr(const ParsCovsOnPlane& pcp) const;
     double sip(const ParsCovsOnPlane& pcp) const;
-    ParsCovsOnPlane getParsCovsOnPlane(const trkf::VertexWrapper& vtx,
+    ParsCovsOnPlane getParsCovsOnPlane(detinfo::DetectorPropertiesData const& detProp,
+                                       const trkf::VertexWrapper& vtx,
                                        const recob::Track& tk) const;
     std::pair<TrackState, double>
     weightedAverageState(ParsCovsOnPlane& pcop) const
@@ -152,9 +188,8 @@ namespace trkf {
                                                        SMatrixSym22& cov1,
                                                        SMatrixSym22& cov2,
                                                        recob::tracking::Plane& target) const;
-    //
   };
-  //
+
 }
 
 #endif

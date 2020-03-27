@@ -44,24 +44,26 @@
 #include "TH1D.h"
 #include "TMath.h"
 
-struct CluLen {
-  int index;
-  float length;
-};
+namespace {
+  struct CluLen {
+    int index;
+    float length;
+  };
 
-bool
-myfunction(CluLen c1, CluLen c2)
-{
-  return (c1.length > c2.length);
-}
-
-struct SortByWire {
   bool
-  operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
+  myfunction(CluLen c1, CluLen c2)
   {
-    return h1->Channel() < h2->Channel();
+    return (c1.length > c2.length);
   }
-};
+
+  struct SortByWire {
+    bool
+    operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
+    {
+      return h1->Channel() < h2->Channel();
+    }
+  };
+}
 
 ///vertex reconstruction
 namespace vertex {
@@ -71,8 +73,8 @@ namespace vertex {
     explicit VertexFinder2D(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void produce(art::Event& evt);
+    void beginJob() override;
+    void produce(art::Event& evt) override;
 
     TH1D* dtIC;
 
@@ -109,10 +111,11 @@ namespace vertex {
   void
   VertexFinder2D::produce(art::Event& evt)
   {
-
     art::ServiceHandle<geo::Geometry const> geom;
-    const detinfo::DetectorProperties* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
 
@@ -121,16 +124,17 @@ namespace vertex {
     // wire angle with respect to the vertical direction
     double Angle = geom->Plane(1).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
 
-    // Parameters temporary defined here, but possibly to be retrieved somewhere in the code
-    double timetick = detprop->SamplingRate() * 1.e-3; //time sample in us
-    double presamplings = detprop->TriggerOffset();    //trigger offset
+    // Parameters temporary defined here, but possibly to be retrieved somewhere
+    // in the code
+    double timetick = sampling_rate(clockData) * 1.e-3; // time sample in us
+    double presamplings = trigger_offset(clockData);
 
-    double wire_pitch = geom->WirePitch();       //wire pitch in cm
-    double Efield_drift = detprop->Efield();     // Electric Field in the drift region in kV/cm
-    double Temperature = detprop->Temperature(); // LAr Temperature in K
+    double wire_pitch = geom->WirePitch();      //wire pitch in cm
+    double Efield_drift = detProp.Efield();     // Electric Field in the drift region in kV/cm
+    double Temperature = detProp.Temperature(); // LAr Temperature in K
 
     //drift velocity in the drift region (cm/us)
-    double driftvelocity = detprop->DriftVelocity(Efield_drift, Temperature);
+    double driftvelocity = detProp.DriftVelocity(Efield_drift, Temperature);
 
     //time sample (cm)
     double timepitch = driftvelocity * timetick;
@@ -175,15 +179,12 @@ namespace vertex {
       float w1 = clusters[iclu]->EndWire();
       float t0 = clusters[iclu]->StartTick();
       float t1 = clusters[iclu]->EndTick();
-      //      t0 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
-      //      t1 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
 
       CluLen clulen;
       clulen.index = iclu;
-      clulen.length = sqrt(pow((w0 - w1) * wire_pitch, 2) +
-                           pow(detprop->ConvertTicksToX(t0, clusters[iclu]->View(), 0, 0) -
-                                 detprop->ConvertTicksToX(t1, clusters[iclu]->View(), 0, 0),
-                               2));
+      clulen.length = std::hypot((w0 - w1) * wire_pitch,
+                                 detProp.ConvertTicksToX(t0, clusters[iclu]->View(), 0, 0) -
+                                   detProp.ConvertTicksToX(t1, clusters[iclu]->View(), 0, 0));
 
       switch (clusters[iclu]->View()) {
 
@@ -211,7 +212,6 @@ namespace vertex {
           TF1* pol1 = (TF1*)the2Dtrack->GetFunction("pol1");
           double par[2];
           pol1->GetParameters(par);
-          //std::cout<<iclu<<" "<<par[1]<<" "<<clusters[iclu]->dTdW()<<std::endl;
           dtdwstart.push_back(par[1]);
         }
         catch (...) {
@@ -295,7 +295,6 @@ namespace vertex {
                 (std::abs(ww0 - wb2) < 10 || std::abs(ww0 - we2) < 10)) {
               if (std::abs(ww0 - wb) > 15 && std::abs(ww0 - we) > 15) replace = false;
             }
-            //std::cout<<c1<<" "<<c2<<" "<<ww0<<" "<<wb1<<" "<<wb2<<" "<<wb<<" "<<we<<std::endl;
           }
           if (lclu1 < lclu) {
             if (c1 != -1 && !deltaraylike && enoughhits) {
@@ -347,9 +346,7 @@ namespace vertex {
             t1 = clusters[c2]->EndTick();
           }
           double k2 = dtdwstart[c2];
-          //	  std::cout<<c1<<" "<<w1<<" "<<t1<<" "<<k1<<" "<<std::endl;
-          //	  std::cout<<c2<<" "<<w2<<" "<<t2<<" "<<k2<<" "<<std::endl;
-          //calculate the vertex
+          // calculate the vertex
           if (std::abs(k1 - k2) < 0.5) {
             vtx_w.push_back(w1);
             vtx_t.push_back(t1);
@@ -395,7 +392,7 @@ namespace vertex {
                                  totalQ);
         epcol->push_back(vertex);
 
-        util::CreateAssn(*this, evt, *epcol, hits, *assnep);
+        util::CreateAssn(evt, *epcol, hits, *assnep);
       }
       else {
         //no cluster found
@@ -414,7 +411,7 @@ namespace vertex {
       It0 *= timepitch;
       double Ct0 = vtx_t[1] - presamplings;
       Ct0 *= timepitch;
-      vtxcoord[0] = detprop->ConvertTicksToX(vtx_t[1], 1, 0, 0);
+      vtxcoord[0] = detProp.ConvertTicksToX(vtx_t[1], 1, 0, 0);
       vtxcoord[1] = (Cw0 - Iw0) / (2. * std::sin(Angle));
       vtxcoord[2] = (Cw0 + Iw0) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle);
 
@@ -451,25 +448,9 @@ namespace vertex {
     recob::Vertex the3Dvertex(vtxcoord, vcol->size());
     vcol->push_back(the3Dvertex);
 
-    if (vShowers_vec.size() > 0) {
-      util::CreateAssn(*this, evt, *vcol, vShowers_vec, *assnsh);
-      // get the hits associated with each track and associate those with the vertex
-      ///\todo uncomment following lines when the shower vector actually contains showers from the art::Event
-      // 	  for(size_t p = 0; p < vShowers_vec.size(); ++p){
-      // 	    std::vector< art::Ptr<recob::Hit> > hits = fms.at(p);
-      // 	    util::CreateAssn(*this, evt, *vcol, hits, *assnh);
-      // 	  }
-    }
+    if (vShowers_vec.size() > 0) { util::CreateAssn(evt, *vcol, vShowers_vec, *assnsh); }
 
-    if (vTracks_vec.size() > 0) {
-      util::CreateAssn(*this, evt, *vcol, vTracks_vec, *assntr);
-      // get the hits associated with each track and associate those with the vertex
-      ///\todo uncomment following lines when the track vector actually contains tracks from the art::Event
-      // 	  for(size_t p = 0; p < vTracks_vec.size(); ++p){
-      // 	    std::vector< art::Ptr<recob::Hit> > hits = fmt.at(p);
-      // 	    util::CreateAssn(*this, evt, *vcol, hits, *assnh);
-      // 	  }
-    }
+    if (vTracks_vec.size() > 0) { util::CreateAssn(evt, *vcol, vTracks_vec, *assntr); }
 
     MF_LOG_VERBATIM("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     MF_LOG_VERBATIM("Summary") << "VertexFinder2D Summary:";

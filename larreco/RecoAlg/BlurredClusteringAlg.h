@@ -61,7 +61,8 @@ public:
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
   std::vector<std::vector<double>> ConvertRecobHitsToVector(
-    std::vector<art::Ptr<recob::Hit>> const& hits);
+    std::vector<art::Ptr<recob::Hit>> const& hits,
+    int readoutWindowSize);
 
   /// Find clusters in the histogram
   int FindClusters(std::vector<std::vector<double>> const& image,
@@ -172,7 +173,6 @@ private:
 
   // art service handles
   art::ServiceHandle<geo::Geometry const> fGeom;
-  detinfo::DetectorProperties const* fDetProp;
   lariov::ChannelStatusProvider const& fChanStatus{
     art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
 };

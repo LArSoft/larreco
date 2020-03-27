@@ -16,7 +16,6 @@
 // LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
@@ -51,14 +50,15 @@ namespace DUNE {
     explicit MuonTrackingEff(fhicl::ParameterSet const& pset);
 
   private:
-    void beginJob();
-    void endJob();
-    void beginRun(const art::Run& run);
-    void analyze(const art::Event& evt);
+    void beginJob() override;
+    void endJob() override;
+    void beginRun(const art::Run& run) override;
+    void analyze(const art::Event& evt) override;
 
     void processEff(const art::Event& evt, bool& isFiducial);
 
-    void truthMatcher(std::vector<art::Ptr<recob::Hit>> AllHits,
+    void truthMatcher(detinfo::DetectorClocksData const& clockData,
+                      std::vector<art::Ptr<recob::Hit>> AllHits,
                       std::vector<art::Ptr<recob::Hit>> track_hits,
                       const simb::MCParticle*& MCparticle,
                       double& Purity,
@@ -261,11 +261,6 @@ namespace DUNE {
     float fFidVolZmin;
     float fFidVolZmax;
 
-    detinfo::DetectorProperties const* detprop =
-      lar::providerFrom<detinfo::DetectorPropertiesService>();
-    detinfo::DetectorClocks const* ts = lar::providerFrom<detinfo::DetectorClocksService>();
-    double XDriftVelocity = detprop->DriftVelocity() * 1e-3; //cm/ns
-    double WindowSize = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
     art::ServiceHandle<geo::Geometry const> geom;
 
     //My histograms
@@ -1238,7 +1233,10 @@ namespace DUNE {
     art::Handle<std::vector<recob::Hit>> HitHandle;
     if (event.get(tmp_TrackHits[0].id(), HitHandle)) art::fill_ptr_vector(AllHits, HitHandle);
 
-    //Loop over reco tracks
+    auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(event);
+
+    // Loop over reco tracks
     for (int i = 0; i < NRecoTracks; i++) {
       art::Ptr<recob::Track> track = TrackList[i];
       std::vector<art::Ptr<recob::Hit>> TrackHits = track_hits.at(i);
@@ -1246,7 +1244,8 @@ namespace DUNE {
       double tmpCompleteness = 0.;
       const simb::MCParticle* particle;
 
-      truthMatcher(AllHits, TrackHits, particle, tmpPurity, tmpCompleteness, tmpTotalRecoEnergy);
+      truthMatcher(
+        clockData, AllHits, TrackHits, particle, tmpPurity, tmpCompleteness, tmpTotalRecoEnergy);
 
       if (!particle) {
         std::cout << "ERROR: Truth matcher didn't find a particle!" << std::endl;
@@ -1385,23 +1384,23 @@ namespace DUNE {
         h_Criteria_NMuonTrack_num->Fill(Criteria, static_cast<double>(NMuonTracks));
 
         /*std::cout << "Track too long!" << std::endl;
-    			art::ServiceHandle<cheat::BackTracker const> bt2;
-   			const sim::ParticleList& plist2 = bt2->ParticleList();
-    			simb::MCParticle *particle2=0;
+                        art::ServiceHandle<cheat::BackTracker const> bt2;
+                        const sim::ParticleList& plist2 = bt2->ParticleList();
+                        simb::MCParticle *particle2=0;
 
-       			std::cout << "EventCounter: " << EventCounter << std::endl;
-			for( sim::ParticleList::const_iterator ipar2 = plist2.begin(); ipar2!=plist2.end(); ++ipar2)
-			{
-      			 particle2 = ipar2->second;
-			std::cout << "particle2->TrackId(): " << particle2->TrackId() << std::endl;
-			std::cout << "particle2->PdgCode(): " << particle2->PdgCode() << std::endl;
-			std::cout << "particle2->Momentum().P(): " << particle2->Momentum().P() << std::endl;
-			std::cout << "tuthLength(particle2): " << truthLength(particle2) << std::endl;
-			std::cout << "particle2->Position(): (x,y,z): " << particle2->Vx() << "\t" << particle2->Vy() << "\t" << particle2->Vz() << std::endl;
-			std::cout << "particle2->Momentum(): (Px,Py,Pz): " << particle2->Momentum().Px() << "\t" << particle2->Momentum().Py() << "\t" << particle2->Momentum().Pz() << std::endl;
-			std::cout << "particle2->Position().T(): " << particle2->Position().T() << std::endl;
-			std::cout << "" << std::endl;
-			}*/
+                        std::cout << "EventCounter: " << EventCounter << std::endl;
+                        for( sim::ParticleList::const_iterator ipar2 = plist2.begin(); ipar2!=plist2.end(); ++ipar2)
+                        {
+                         particle2 = ipar2->second;
+                        std::cout << "particle2->TrackId(): " << particle2->TrackId() << std::endl;
+                        std::cout << "particle2->PdgCode(): " << particle2->PdgCode() << std::endl;
+                        std::cout << "particle2->Momentum().P(): " << particle2->Momentum().P() << std::endl;
+                        std::cout << "tuthLength(particle2): " << truthLength(particle2) << std::endl;
+                        std::cout << "particle2->Position(): (x,y,z): " << particle2->Vx() << "\t" << particle2->Vy() << "\t" << particle2->Vz() << std::endl;
+                        std::cout << "particle2->Momentum(): (Px,Py,Pz): " << particle2->Momentum().Px() << "\t" << particle2->Momentum().Py() << "\t" << particle2->Momentum().Pz() << std::endl;
+                        std::cout << "particle2->Position().T(): " << particle2->Position().T() << std::endl;
+                        std::cout << "" << std::endl;
+                        }*/
       }
       //Reco failed at least one of the above criteria
       if (CompletenessLeadingMuon < 0.5 || PurityLeadingMuon < 0.5 ||
@@ -1575,27 +1574,33 @@ namespace DUNE {
   }
   //========================================================================
   void
-  MuonTrackingEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> AllHits,
+  MuonTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                std::vector<art::Ptr<recob::Hit>> AllHits,
                                 std::vector<art::Ptr<recob::Hit>> track_hits,
                                 const simb::MCParticle*& MCparticle,
                                 double& Purity,
                                 double& Completeness,
                                 double& TotalRecoEnergy)
   {
-
-    //std::cout<<"truthMatcher..."<<std::endl;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    std::map<int, double>
-      trkID_E; //map that connects TrackID and energy for each hit <trackID, energy>
-    for (size_t j = 0; j < track_hits.size(); ++j) { //loop over all the hits in this track
+    std::map<int, double> trkID_E; // map that connects TrackID and energy for
+                                   // each hit <trackID, energy>
+    for (size_t j = 0; j < track_hits.size(); ++j) {
       art::Ptr<recob::Hit> hit = track_hits[j];
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(
-        hit); //TrackIDE contains TrackID, energy and energyFrac. A hit can have several TrackIDs (so this hit is associated with multiple MC truth track IDs (EM shower IDs are negative). If a hit ahs multiple trackIDs, "energyFrac" contains the fraction of the energy of for each ID compared to the total energy of the hit. "energy" contains only the energy associated with the specific ID in that case. This requires MC truth info!
-      for (size_t k = 0; k < TrackIDs.size(); k++) { //Loop over the TrackIDs of each hit
+      std::vector<sim::TrackIDE> TrackIDs =
+        bt_serv->HitToTrackIDEs(clockData,
+                                hit); // TrackIDE contains TrackID, energy and energyFrac. A hit can
+      // have several TrackIDs (so this hit is associated with multiple
+      // MC truth track IDs (EM shower IDs are negative). If a hit ahs
+      // multiple trackIDs, "energyFrac" contains the fraction of the
+      // energy of for each ID compared to the total energy of the hit.
+      // "energy" contains only the energy associated with the specific
+      // ID in that case. This requires MC truth info!
+      for (size_t k = 0; k < TrackIDs.size(); k++) {
         trkID_E[TrackIDs[k].trackID] +=
-          TrackIDs[k]
-            .energy; //sum up the energy for each TrackID and store <TrackID, energy> in "TrkID_E"
+          TrackIDs[k].energy; // sum up the energy for each TrackID and store
+                              // <TrackID, energy> in "TrkID_E"
       }
     }
 
@@ -1604,49 +1609,53 @@ namespace DUNE {
     double TotalEnergyTrack = 0.0;
     int TrackID = -999;
     double PartialEnergyTrackID =
-      0.0; // amount of energy deposited by the particle that deposited more energy... tomato potato... blabla
-    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition
-    //!since we are looking for muons/pions/protons this should be enough
+      0.0; // amount of energy deposited by the particle that deposited more
+           // energy... tomato potato... blabla
+    //! if the collection of hits have more than one particle associate save the
+    //! particle w/ the highest energy deposition since we are looking for
+    //! muons/pions/protons this should be enough
     if (!trkID_E.size()) {
       MCparticle = 0;
-      return; //Ghost track???
+      return; // Ghost track???
     }
-    for (
-      std::map<int, double>::iterator ii = trkID_E.begin(); ii != trkID_E.end();
-      ++ii) { //trkID_E contains the trackID (first) and corresponding energy (second) for a specific track, summed up over all events. here looping over all trekID_E's
-      TotalEnergyTrack +=
-        ii->second; //and summing up the energy of all hits in the track (TotalEnergyTrack)
-      if (
-        (ii->second) >
-        max_E) { //looking for the trakID with the highest energy in the track.  this is PartialEnergyTrackID and max_E then
+    for (std::map<int, double>::iterator ii = trkID_E.begin(); ii != trkID_E.end();
+         ++ii) {                      // trkID_E contains the trackID (first) and corresponding
+                                      // energy (second) for a specific track, summed up over all
+                                      // events. here looping over all trekID_E's
+      TotalEnergyTrack += ii->second; // and summing up the energy of all hits
+                                      // in the track (TotalEnergyTrack)
+      if ((ii->second) > max_E) {     // looking for the trakID with the highest energy in the
+                                      // track.  this is PartialEnergyTrackID and max_E then
         PartialEnergyTrackID = ii->second;
         max_E = ii->second;
-        TrackID =
-          ii->first; //saving trackID of the ID with the highest energy contribution in the track to assign it to MCparticle later
-        if (TrackID < 0) E_em += ii->second; //IDs of em shower particles are negative
+        TrackID = ii->first;                 // saving trackID of the ID with the highest energy
+                                             // contribution in the track to assign it to
+                                             // MCparticle later
+        if (TrackID < 0) E_em += ii->second; // IDs of em shower particles are negative
       }
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
-    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of
-    //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
-    //we don't want to track gammas or any other EM activity
+    // In the current simulation, we do not save EM Shower daughters in GEANT.
+    // But we do save the energy deposition in TrackIDEs. If the energy
+    // deposition is from a particle that is the daughter of an EM particle, the
+    // negative of the parent track ID is saved in TrackIDE for the daughter
+    // particle we don't want to track gammas or any other EM activity
     if (TrackID < 0) { return; }
 
-    //Purity = (PartialEnergyTrackID+E_em)/TotalEnergyTrack;
+    // Purity = (PartialEnergyTrackID+E_em)/TotalEnergyTrack;
     Purity = PartialEnergyTrackID / TotalEnergyTrack;
 
-    //completeness
+    // completeness
     TotalRecoEnergy = 0;
-    for (
-      size_t k = 0; k < AllHits.size();
-      ++k) { //loop over all hits (all hits in all tracks of the event, not only the hits in the track we were looking at before)
+    for (size_t k = 0; k < AllHits.size();
+         ++k) { // loop over all hits (all hits in all tracks of the event, not
+                // only the hits in the track we were looking at before)
       art::Ptr<recob::Hit> hit = AllHits[k];
-      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
-      for (size_t l = 0; l < TrackIDs.size(); ++l) { //and over all track IDs of the hits
+      std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
+      for (size_t l = 0; l < TrackIDs.size(); ++l) { // and over all track IDs of the hits
         if (TrackIDs[l].trackID == TrackID)
-          TotalRecoEnergy +=
-            TrackIDs[l]
-              .energy; //and sum up the energy fraction of all hits that correspond ot the saved trackID
+          TotalRecoEnergy += TrackIDs[l].energy; // and sum up the energy fraction of all hits
+                                                 // that correspond ot the saved trackID
       }
     }
     Completeness = PartialEnergyTrackID / TotalRecoEnergy;
@@ -1738,21 +1747,6 @@ namespace DUNE {
                                     pow((MCparticle->Vz(MCHit - 1) - MCparticle->Vz(MCHit)), 2));
       geo::TPCID tpcid = geom->FindTPCAtPosition(tmpPosArray);
       if (tpcid.isValid) {
-        // -- Check if hit is within drift window...
-        /* geo::CryostatGeo const& cryo = geom->Cryostat(tpcid.Cryostat);
-        geo::TPCGeo      const& tpc  = cryo.TPC(tpcid.TPC);
-        double XPlanePosition      = tpc.PlaneLocation(0)[0];
-	std::cout << "XPlanePosition: " << XPlanePosition << std::endl;
-
-        double DriftTimeCorrection = fabs( tmpPosition[0] - XPlanePosition ) / XDriftVelocity;
-	std::cout << "DriftTimeCorrection: " << DriftTimeCorrection << std::endl;
-	std::cout << "tmpPosition[0]: " << tmpPosition[0] << std::endl;
-	std::cout << "XDriftVelocity: " << XDriftVelocity << std::endl;
-	std::cout << "MCparticle->T(): " << MCparticle->T() << std::endl;
-        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection;
-	std::cout << "TimeAtPlane: " << TimeAtPlane << "\t" << "detprop->TriggerOffset(): " << detprop->TriggerOffset() << std::endl;
-	std::cout << "WindowSize: " << WindowSize << std::endl;
-        if( TimeAtPlane < detprop->TriggerOffset() || TimeAtPlane > detprop->TriggerOffset() + WindowSize ){ std::cout << "BYE" << std::endl; continue;} */
         LastHit = MCHit;
         if (!BeenInVolume) {
           BeenInVolume = true;

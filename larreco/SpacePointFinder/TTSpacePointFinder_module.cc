@@ -25,6 +25,8 @@
 #include "art/Framework/Principal/Event.h"
 
 // LArSoft Includes
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -65,7 +67,9 @@ namespace sppt {
   void
   TTSpacePointFinder::beginRun(art::Run& run)
   {
-    fSpptAlg.setTimeOffsets();
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();
+    fSpptAlg.setTimeOffsets(detProp);
     fSpptAlg.fillCoordinatesArrays();
   }
 
@@ -73,12 +77,9 @@ namespace sppt {
   void
   TTSpacePointFinder::produce(art::Event& evt)
   {
-
     //initialize our spacepoint collection
-    std::unique_ptr<std::vector<recob::SpacePoint>> spptCollection(
-      new std::vector<recob::SpacePoint>);
-    std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit>>>> spptAssociatedHits(
-      new std::vector<std::vector<art::Ptr<recob::Hit>>>);
+    auto spptCollection = std::make_unique<std::vector<recob::SpacePoint>>();
+    auto spptAssociatedHits = std::make_unique<std::vector<std::vector<art::Ptr<recob::Hit>>>>();
 
     // Read in the hits. Note, we will reorder hit vector, so we do in fact need a copy.
     art::Handle<std::vector<recob::Hit>> hitHandle_U;
@@ -100,8 +101,10 @@ namespace sppt {
                                        << hitVec_U.size() << " u hits, " << hitVec_V.size()
                                        << " v hits, " << hitVec_Y.size() << " y hits.";
 
-    //now, call the space point alg
-    fSpptAlg.createSpacePoints(hitVec_U, hitVec_V, hitVec_Y, spptCollection, spptAssociatedHits);
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
+    fSpptAlg.createSpacePoints(
+      detProp, hitVec_U, hitVec_V, hitVec_Y, spptCollection, spptAssociatedHits);
 
     mf::LogInfo("TTSpacePointFinder")
       << "Finished spacepoint alg. Created " << spptCollection->size() << " spacepoints.";
@@ -120,8 +123,7 @@ namespace sppt {
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> spptAssns(
       new art::Assns<recob::SpacePoint, recob::Hit>);
     for (unsigned int isppt = 0; isppt < spptCollection->size(); isppt++) {
-      util::CreateAssn(
-        *this, evt, *spptCollection, spptAssociatedHits->at(isppt), *spptAssns, isppt);
+      util::CreateAssn(evt, *spptCollection, spptAssociatedHits->at(isppt), *spptAssns, isppt);
     }
 
     //finally, put things on the event

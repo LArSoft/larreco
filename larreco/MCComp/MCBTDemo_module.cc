@@ -15,6 +15,7 @@
 
 #include "MCBTAlg.h"
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -40,10 +41,7 @@ private:
   // Declare member data here.
 };
 
-MCBTDemo::MCBTDemo(fhicl::ParameterSet const& p)
-  : EDAnalyzer(p) // ,
-                  // More initializers here.
-{}
+MCBTDemo::MCBTDemo(fhicl::ParameterSet const& p) : EDAnalyzer(p) {}
 
 void
 MCBTDemo::analyze(art::Event const& e)
@@ -83,6 +81,7 @@ MCBTDemo::analyze(art::Event const& e)
 
     // Loop over reconstructed tracks and find charge fraction
     art::FindManyP<recob::Hit> hit_coll_v(trkHandle, e, "trackkalmanhit");
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
 
     for (size_t i = 0; i < trkHandle->size(); ++i) {
 
@@ -97,9 +96,8 @@ MCBTDemo::analyze(art::Event const& e)
         hits.emplace_back(h_ptr->Channel(), h_ptr->StartTick(), h_ptr->EndTick());
       }
 
-      auto mcq_v = alg_mct.MCQ(hits);
-
-      auto mcq_frac_v = alg_mct.MCQFrac(hits);
+      auto mcq_v = alg_mct.MCQ(clockData, hits);
+      auto mcq_frac_v = alg_mct.MCQFrac(clockData, hits);
 
       std::cout << "Track " << i << " "
                 << "Y plane Charge from first MCTrack: " << mcq_v[0]

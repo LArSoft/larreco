@@ -17,10 +17,12 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -29,8 +31,6 @@
 #include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Vertex.h"
-
-#include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/TCShowerAlg.h"
 
@@ -50,14 +50,15 @@ public:
   TCShower& operator=(TCShower&&) = delete;
 
 private:
-  // Required functions.
   void produce(art::Event& e) override;
 
-  // Selected optional functions.
-  void beginJob() override;
-
-  int getShowersWithSlices(art::Event& evt, art::Ptr<recob::Slice> thisslice);
-  int getShowersWithoutSlices(art::Event& evt);
+  int getShowersWithSlices(art::Event const& evt,
+                           detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           art::Ptr<recob::Slice> const& thisslice);
+  int getShowersWithoutSlices(art::Event const& evt,
+                              detinfo::DetectorClocksData const& clockData,
+                              detinfo::DetectorPropertiesData const& detProp);
 
   shower::TCShowerAlg fTCAlg;
 
@@ -81,7 +82,6 @@ shower::TCShower::TCShower(fhicl::ParameterSet const& pset)
   , fVertexModuleLabel(pset.get<std::string>("VertexModuleLabel", "trajcluster"))
   , fCalorimetryModuleLabel(pset.get<std::string>("CalorimetryModuleLabel"))
 {
-
   produces<std::vector<recob::Shower>>();
   produces<art::Assns<recob::Shower, recob::Hit>>();
   produces<art::Assns<recob::Slice, recob::Shower>>();
@@ -92,11 +92,9 @@ shower::TCShower::TCShower(fhicl::ParameterSet const& pset)
 void
 shower::TCShower::produce(art::Event& evt)
 {
-  std::unique_ptr<std::vector<recob::Shower>> showers(new std::vector<recob::Shower>);
-  std::unique_ptr<art::Assns<recob::Shower, recob::Hit>> hitShowerAssociations(
-    new art::Assns<recob::Shower, recob::Hit>);
-  std::unique_ptr<art::Assns<recob::Slice, recob::Shower>> sliceShowerAssociations(
-    new art::Assns<recob::Slice, recob::Shower>);
+  auto showers = std::make_unique<std::vector<recob::Shower>>();
+  auto hitShowerAssociations = std::make_unique<art::Assns<recob::Shower, recob::Hit>>();
+  auto sliceShowerAssociations = std::make_unique<art::Assns<recob::Slice, recob::Shower>>();
 
   // slices
   art::Handle<std::vector<recob::Slice>> sliceListHandle;
@@ -104,68 +102,70 @@ shower::TCShower::produce(art::Event& evt)
   if (evt.getByLabel(fSliceModuleLabel, sliceListHandle))
     art::fill_ptr_vector(slicelist, sliceListHandle);
 
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const detProp =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+
   int foundShower = -1;
 
-  if (slicelist.size()) { // use slices
+  if (empty(slicelist)) { // no slices
+    foundShower = getShowersWithoutSlices(evt, clockData, detProp);
+
+    if (foundShower) {
+      showers->emplace_back(fTCAlg.shwDir,
+                            fTCAlg.dcosVtxErr,
+                            fTCAlg.shwvtx,
+                            fTCAlg.xyzErr,
+                            fTCAlg.totalEnergy,
+                            fTCAlg.totalEnergyErr,
+                            fTCAlg.dEdx,
+                            fTCAlg.dEdxErr,
+                            fTCAlg.bestplane,
+                            0);
+      showers->back().set_id(showers->size() - 1);
+
+      util::CreateAssn(evt, *showers, fTCAlg.showerHits, *hitShowerAssociations);
+    }
+  }
+  else { // use slices
     for (size_t i = 0; i < slicelist.size(); ++i) {
       std::cout << "---------- slice " << i << " ----------" << std::endl;
 
-      foundShower = getShowersWithSlices(evt, slicelist[i]);
+      foundShower = getShowersWithSlices(evt, clockData, detProp, slicelist[i]);
 
       if (foundShower) {
         std::cout << "FOUND SHOWER " << foundShower << std::endl;
         std::cout << "shower hits " << fTCAlg.showerHits.size() << std::endl;
 
-        showers->push_back(recob::Shower(fTCAlg.shwDir,
-                                         fTCAlg.dcosVtxErr,
-                                         fTCAlg.shwvtx,
-                                         fTCAlg.xyzErr,
-                                         fTCAlg.totalEnergy,
-                                         fTCAlg.totalEnergyErr,
-                                         fTCAlg.dEdx,
-                                         fTCAlg.dEdxErr,
-                                         fTCAlg.bestplane,
-                                         0));
+        showers->emplace_back(fTCAlg.shwDir,
+                              fTCAlg.dcosVtxErr,
+                              fTCAlg.shwvtx,
+                              fTCAlg.xyzErr,
+                              fTCAlg.totalEnergy,
+                              fTCAlg.totalEnergyErr,
+                              fTCAlg.dEdx,
+                              fTCAlg.dEdxErr,
+                              fTCAlg.bestplane,
+                              0);
         showers->back().set_id(showers->size() - 1);
 
-        util::CreateAssn(
-          *this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()));
-        util::CreateAssn(*this, evt, *showers, slicelist[i], *sliceShowerAssociations);
+        util::CreateAssn(evt, *showers, fTCAlg.showerHits, *hitShowerAssociations);
+        util::CreateAssn(evt, *showers, slicelist[i], *sliceShowerAssociations);
       }
-
     } // loop through slices
   }   // with slices
-  else {
-    foundShower = getShowersWithoutSlices(evt);
-
-    if (foundShower) {
-      showers->push_back(recob::Shower(fTCAlg.shwDir,
-                                       fTCAlg.dcosVtxErr,
-                                       fTCAlg.shwvtx,
-                                       fTCAlg.xyzErr,
-                                       fTCAlg.totalEnergy,
-                                       fTCAlg.totalEnergyErr,
-                                       fTCAlg.dEdx,
-                                       fTCAlg.dEdxErr,
-                                       fTCAlg.bestplane,
-                                       0));
-      showers->back().set_id(showers->size() - 1);
-
-      util::CreateAssn(
-        *this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()));
-    }
-
-  } // no slices
 
   evt.put(std::move(showers));
   evt.put(std::move(hitShowerAssociations));
   evt.put(std::move(sliceShowerAssociations));
-
 } // produce
 
 // -----------------------------------------------------
 int
-shower::TCShower::getShowersWithSlices(art::Event& evt, art::Ptr<recob::Slice> thisslice)
+shower::TCShower::getShowersWithSlices(art::Event const& evt,
+                                       detinfo::DetectorClocksData const& clockData,
+                                       detinfo::DetectorPropertiesData const& detProp,
+                                       art::Ptr<recob::Slice> const& thisslice)
 {
   art::Handle<std::vector<recob::Hit>> hitListHandle;
   evt.getByLabel(fHitModuleLabel, hitListHandle);
@@ -206,7 +206,6 @@ shower::TCShower::getShowersWithSlices(art::Event& evt, art::Ptr<recob::Slice> t
   std::vector<art::Ptr<recob::PFParticle>> pfplist = pfpslice_fm.at(thisslice.key());
 
   for (size_t i = 0; i < pfplist.size(); ++i) {
-    //    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());
     std::vector<art::Ptr<recob::Vertex>> thisvtxlist = vtxpfp_fm.at(pfplist[i].key());
     // get all verticies with slice-pfparticle, pfparticle-vertex
     for (size_t j = 0; j < thisvtxlist.size(); ++j) {
@@ -222,7 +221,9 @@ shower::TCShower::getShowersWithSlices(art::Event& evt, art::Ptr<recob::Slice> t
 
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
 
-  return fTCAlg.makeShowers(pfplist,
+  return fTCAlg.makeShowers(clockData,
+                            detProp,
+                            pfplist,
                             vertexlist,
                             clusterlist,
                             hitlist,
@@ -237,9 +238,10 @@ shower::TCShower::getShowersWithSlices(art::Event& evt, art::Ptr<recob::Slice> t
 
 // -----------------------------------------------------
 int
-shower::TCShower::getShowersWithoutSlices(art::Event& evt)
+shower::TCShower::getShowersWithoutSlices(art::Event const& evt,
+                                          detinfo::DetectorClocksData const& clockData,
+                                          detinfo::DetectorPropertiesData const& detProp)
 {
-
   // pfparticles
   art::Handle<std::vector<recob::PFParticle>> pfpListHandle;
   std::vector<art::Ptr<recob::PFParticle>> pfplist;
@@ -272,7 +274,9 @@ shower::TCShower::getShowersWithoutSlices(art::Event& evt)
 
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
 
-  return fTCAlg.makeShowers(pfplist,
+  return fTCAlg.makeShowers(clockData,
+                            detProp,
+                            pfplist,
                             vertexlist,
                             clusterlist,
                             hitlist,
@@ -283,17 +287,6 @@ shower::TCShower::getShowersWithoutSlices(art::Event& evt)
                             hitcls_fm,
                             trkpfp_fm,
                             fmcal);
-
-  return 0;
 }
-
-// -----------------------------------------------------
-void
-shower::TCShower::beginJob()
-{
-  art::ServiceHandle<art::TFileService const> tfs;
-}
-
-// -----------------------------------------------------
 
 DEFINE_ART_MODULE(shower::TCShower)

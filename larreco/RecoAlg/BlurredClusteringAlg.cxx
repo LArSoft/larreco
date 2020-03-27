@@ -15,8 +15,7 @@
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardata/ArtDataHelper/ToElement.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "RtypesCore.h"
@@ -29,6 +28,8 @@
 #include "TStyle.h"
 #include "TVector2.h"
 #include "TVirtualPad.h"
+
+#include "range/v3/view.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -52,7 +53,6 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   , fKernelWidth{2 * fBlurWire + 1}
   , fKernelHeight{2 * fBlurTick * fMaxTickWidthBlur + 1}
   , fAllKernels{MakeKernels()}
-  , fDetProp{lar::providerFrom<detinfo::DetectorPropertiesService>()}
 {}
 
 cluster::BlurredClusteringAlg::~BlurredClusteringAlg()
@@ -134,15 +134,17 @@ cluster::BlurredClusteringAlg::ConvertBinsToClusters(
 
 std::vector<std::vector<double>>
 cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
-  std::vector<art::Ptr<recob::Hit>> const& hits)
+  std::vector<art::Ptr<recob::Hit>> const& hits,
+  int const readoutWindowSize)
 {
   // Define the size of this particular plane -- dynamically to avoid huge histograms
-  int lowerTick = fDetProp->ReadOutWindowSize(), upperTick{}, lowerWire = fGeom->MaxWires(),
-      upperWire{};
-  for (auto const& hit : hits) {
-    int histWire = GlobalWire(hit->WireID());
-    if (hit->PeakTime() < lowerTick) lowerTick = hit->PeakTime();
-    if (hit->PeakTime() > upperTick) upperTick = hit->PeakTime();
+  int lowerTick = readoutWindowSize, upperTick{}, lowerWire = fGeom->MaxWires(), upperWire{};
+  using lar::to_element;
+  using ranges::view::transform;
+  for (auto const& hit : hits | transform(to_element)) {
+    int histWire = GlobalWire(hit.WireID());
+    if (hit.PeakTime() < lowerTick) lowerTick = hit.PeakTime();
+    if (hit.PeakTime() > upperTick) upperTick = hit.PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
     if (histWire > upperWire) upperWire = histWire;
   }

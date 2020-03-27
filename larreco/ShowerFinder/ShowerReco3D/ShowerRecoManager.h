@@ -17,9 +17,20 @@
 #include <vector>
 
 #include "lardata/Utilities/PxUtils.h"
+
 namespace cmtool {
   class CMatchManager;
 }
+
+namespace geo {
+  class GeometryCore;
+}
+
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
+
 namespace recob {
   class Shower;
 }
@@ -37,13 +48,9 @@ namespace showerreco {
      doxygen documentation!
   */
   class ShowerRecoManager {
-
   public:
     /// Default constructor
     ShowerRecoManager();
-
-    /// Default destructor
-    ~ShowerRecoManager() {}
 
     void
     Algo(ShowerRecoAlgBase* alg)
@@ -59,10 +66,16 @@ namespace showerreco {
 
     void Reset();
 
-    ClusterAss_t Reconstruct(const std::vector<std::vector<util::PxHit>>& clusters,
+    ClusterAss_t Reconstruct(geo::GeometryCore const& geom,
+                             detinfo::DetectorClocksData const& clockData,
+                             detinfo::DetectorPropertiesData const& detProp,
+                             const std::vector<std::vector<util::PxHit>>& clusters,
                              std::vector<::recob::Shower>& showers);
 
-    void Reconstruct(const std::vector<std::vector<util::PxHit>>& clusters,
+    void Reconstruct(geo::GeometryCore const& geom,
+                     detinfo::DetectorClocksData const& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     const std::vector<std::vector<util::PxHit>>& clusters,
                      const ClusterAss_t& ass,
                      std::vector<::recob::Shower>& showers);
 
@@ -82,7 +95,11 @@ namespace showerreco {
     /// Cluster matching code
     ::cmtool::CMatchManager* fMatchMgr;
 
-    void Process(const ClusterAss_t& ass, std::vector<::recob::Shower>& showers);
+    void Process(geo::GeometryCore const& geom,
+                 detinfo::DetectorClocksData const& clockData,
+                 detinfo::DetectorPropertiesData const& detProp,
+                 const ClusterAss_t& ass,
+                 std::vector<::recob::Shower>& showers);
   };
 }
 

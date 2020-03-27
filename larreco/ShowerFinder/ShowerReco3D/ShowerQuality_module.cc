@@ -18,6 +18,7 @@
 
 #include "ShowerRecoException.h"
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCShower.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -29,8 +30,6 @@
 #include "TTree.h"
 
 #include <map>
-
-class ShowerQuality;
 
 class ShowerQuality : public art::EDAnalyzer {
 public:
@@ -351,8 +350,6 @@ ShowerQuality::beginJob()
 void
 ShowerQuality::analyze(art::Event const& e)
 {
-  //auto geo = larutil::Geometry::GetME();
-
   // Retrieve mcshower data product
   auto mcsHandle = GetDataOrDie<std::vector<sim::MCShower>>(e, fMCShowerProducer);
   auto resHandle = GetDataOrDie<std::vector<recob::Shower>>(e, fShowerProducer);
@@ -362,10 +359,6 @@ ShowerQuality::analyze(art::Event const& e)
   const std::vector<sim::SimChannel>& ev_simch(*schHandle);
 
   if (!(ev_shower.size())) return;
-
-  //auto clsHandle = GetDataOrDie<recob::Cluster>  (e,fClusterProducer);
-
-  //art::FindManyP<recob::Hit>     hit_m     (resHandle, e, fShowerProducer);
 
   // Get the whole clusters + associated clusters
   art::Handle<std::vector<recob::Cluster>> clsHandle;
@@ -415,9 +408,10 @@ ShowerQuality::analyze(art::Event const& e)
     }
   }
 
-  if (!fBTAlg.BuildMap(g4_trackid_v, ev_simch, ev_cluster_hit)) {
-    std::cerr << "\033[93m[ERROR]\033[00m <<ShowerQuality::analyze>> Failed to build back-tracking "
-                 "map for MC..."
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+  if (!fBTAlg.BuildMap(clockData, g4_trackid_v, ev_simch, ev_cluster_hit)) {
+    std::cerr << "\033[93m[ERROR]\033[00m <<ShowerQuality::analyze>> Failed to "
+                 "build back-tracking map for MC..."
               << std::endl;
     return;
   }
@@ -439,13 +433,11 @@ ShowerQuality::analyze(art::Event const& e)
       w_v.reserve(ass_hit.size() + w_v.size());
 
       for (auto const& hit_ptr : ass_hit) {
-
-        w_v.push_back(
-          ::btutil::WireRange_t(hit_ptr->Channel(), hit_ptr->StartTick(), hit_ptr->EndTick()));
+        w_v.emplace_back(hit_ptr->Channel(), hit_ptr->StartTick(), hit_ptr->EndTick());
       }
     }
 
-    auto mcq_v = fBTAlg.BTAlg().MCQ(w_v);
+    auto mcq_v = fBTAlg.BTAlg().MCQ(clockData, w_v);
 
     auto& shower_mcq_v = shower_mcq_vv[shower_index];
 

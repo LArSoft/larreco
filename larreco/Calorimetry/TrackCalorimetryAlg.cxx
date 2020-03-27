@@ -12,7 +12,7 @@
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataalg/DetectorInfo/LArProperties.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -22,18 +22,13 @@
 calo::TrackCalorimetryAlg::TrackCalorimetryAlg(fhicl::ParameterSet const& p)
   : caloAlg(p.get<fhicl::ParameterSet>("CalorimetryAlg"))
 {
-  this->reconfigure(p);
-}
-
-void
-calo::TrackCalorimetryAlg::reconfigure(fhicl::ParameterSet const& p)
-{
-  caloAlg.reconfigure(p.get<fhicl::ParameterSet>("CalorimetryAlg"));
   fNHitsToDetermineStart = p.get<unsigned int>("NHitsToDetermineStart", 3);
 }
 
 void
 calo::TrackCalorimetryAlg::ExtractCalorimetry(
+  detinfo::DetectorClocksData const& clock_data,
+  detinfo::DetectorPropertiesData const& det_prop,
   std::vector<recob::Track> const& trackVector,
   std::vector<recob::Hit> const& hitVector,
   std::vector<std::vector<size_t>> const& hit_indices_per_track,
@@ -41,9 +36,7 @@ calo::TrackCalorimetryAlg::ExtractCalorimetry(
   std::vector<size_t>& assnTrackCaloVector,
   Providers_t providers)
 {
-  auto const& geom = *(providers.get<geo::GeometryCore>());
-  //  auto const& larp = *(providers.get<detinfo::LArProperties>());
-  auto const& detprop = *(providers.get<detinfo::DetectorProperties>());
+  auto const& geom = *providers.get<geo::GeometryCore>();
 
   //loop over the track list
   for (size_t i_track = 0; i_track < trackVector.size(); i_track++) {
@@ -67,7 +60,7 @@ calo::TrackCalorimetryAlg::ExtractCalorimetry(
         track.NumberTrajectoryPoints());
       for (size_t i_trjpt = 0; i_trjpt < track.NumberTrajectoryPoints(); i_trjpt++) {
         double x_pos = track.LocationAtPoint(i_trjpt).X();
-        float tick = detprop.ConvertXToTicks(x_pos, (int)i_plane, 0, 0);
+        float tick = det_prop.ConvertXToTicks(x_pos, (int)i_plane, 0, 0);
         traj_points_in_plane[i_trjpt] =
           std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), i_plane), tick);
       }
@@ -75,7 +68,9 @@ calo::TrackCalorimetryAlg::ExtractCalorimetry(
       HitPropertiesMultiset_t HitPropertiesMultiset;
       //now loop through hits
       for (auto const& i_hit : hit_indices_per_plane[i_plane])
-        AnalyzeHit(hitVector[i_hit],
+        AnalyzeHit(clock_data,
+                   det_prop,
+                   hitVector[i_hit],
                    track,
                    traj_points_in_plane,
                    path_length_fraction_vec,
@@ -103,8 +98,7 @@ public:
     float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(j.first.Plane);
     float dt_i = i.second - hit.PeakTime();
     float dt_j = j.second - hit.PeakTime();
-
-    return (std::sqrt(dw_i * dw_i + dt_i * dt_i) < std::sqrt(dw_j * dw_j + dt_j * dt_j));
+    return std::hypot(dw_i, dt_i) < std::hypot(dw_j, dt_j);
   }
 
 private:
@@ -130,6 +124,8 @@ calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(recob::Track const& tr
 
 void
 calo::TrackCalorimetryAlg::AnalyzeHit(
+  detinfo::DetectorClocksData const& clock_data,
+  detinfo::DetectorPropertiesData const& det_prop,
   recob::Hit const& hit,
   recob::Track const& track,
   std::vector<std::pair<geo::WireID, float>> const& traj_points_in_plane,
@@ -146,7 +142,7 @@ calo::TrackCalorimetryAlg::AnalyzeHit(
 
   HitPropertiesMultiset.emplace(hit.Integral(),
                                 hit.Integral() / pitch,
-                                caloAlg.dEdx_AREA(hit, pitch),
+                                caloAlg.dEdx_AREA(clock_data, det_prop, hit, pitch),
                                 pitch,
                                 track.LocationAtPoint<TVector3>(traj_iter),
                                 path_length_fraction_vec[traj_iter]);

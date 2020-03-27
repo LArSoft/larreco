@@ -12,7 +12,8 @@
 #include <iomanip>
 #include <string>
 
-//Framework includes
+// Framework includes
+#include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -24,9 +25,10 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//LArSoft includes
+// LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -36,20 +38,15 @@
 #include "nug4/ParticleNavigation/ParticleList.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 
-#include "art/Framework/Core/EDAnalyzer.h"
-
 namespace pfpf {
 
   class PFPAna : public art::EDAnalyzer {
-
   public:
     explicit PFPAna(fhicl::ParameterSet const& pset);
-    virtual ~PFPAna();
 
   private:
-    /// read access to event
-    void analyze(const art::Event& evt);
-    void beginJob();
+    void analyze(const art::Event& evt) override;
+    void beginJob() override;
 
     TH1F* fNClusters;
     TH1F* fNHitInCluster;
@@ -63,7 +60,6 @@ namespace pfpf {
     TH1F* fNuKE_pion;
     TH1F* fNuKE_kaon;
     TH1F* fNuKE_prot;
-    //  TH1F* fNuEP2;
     TH1F* fNuEP2_elec;
     TH1F* fNuEP2_muon;
     TH1F* fNuEP2_pion;
@@ -102,7 +98,6 @@ namespace pfpf {
     std::vector<float> fProtKERange;
     short fTrackWeightOption;
     bool fMergeDaughters;
-    //  float fMergeAngleCut;
     bool fSkipCosmics;
     short fPrintLevel;
 
@@ -128,13 +123,9 @@ namespace pfpf {
   {}
 
   //------------------------------------------------------------------
-  PFPAna::~PFPAna() {}
-
   void
   PFPAna::beginJob()
   {
-
-    // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
 
     fNClusters = tfs->make<TH1F>("fNoClustersInEvent", "Number of Clusters", 40, 0, 400);
@@ -186,7 +177,6 @@ namespace pfpf {
   void
   PFPAna::analyze(const art::Event& evt)
   {
-
     // code stolen from TrackAna_module.cc
     art::ServiceHandle<geo::Geometry const> geom;
     if (geom->Nplanes() > 3) return;
@@ -196,7 +186,7 @@ namespace pfpf {
     evt.getByLabel(fHitsModuleLabel, hitListHandle);
     std::vector<art::Ptr<recob::Hit>> allhits;
     art::fill_ptr_vector(allhits, hitListHandle);
-    if (allhits.size() == 0) return;
+    if (empty(allhits)) return;
 
     // get clusters and cluster-hit associations
     art::Handle<std::vector<recob::Cluster>> clusterListHandle;
@@ -213,8 +203,6 @@ namespace pfpf {
       art::Ptr<recob::Vertex> vertex(vertexListHandle, ii);
       recoVtxList.push_back(vertex);
       vertex->XYZ(xyz);
-      //  mf::LogVerbatim("PFPAna")
-      //    <<"Reco Vtx "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2];
     }
 
     // get PFParticles
@@ -259,6 +247,9 @@ namespace pfpf {
     float neutEnergy = -1.;
     int neutIntType = -1;
     int neutCCNC = -1;
+
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
     for (sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
       assert(part != 0);
@@ -281,8 +272,6 @@ namespace pfpf {
         neutEnergy = 1000. * theNeutrino.Nu().E();
         neutIntType = theNeutrino.InteractionType();
         neutCCNC = theNeutrino.CCNC();
-        //  mf::LogVerbatim("PFPAna")
-        //    <<"True Vtx "<<part->Vx()<<" "<<part->Vy()<<" "<<part->Vz();
         for (unsigned short iv = 0; iv < recoVtxList.size(); ++iv) {
           recoVtxList[iv]->XYZ(xyz);
           fNuVtx_dx->Fill(part->Vx() - xyz[0]);
@@ -337,10 +326,10 @@ namespace pfpf {
                                   << " Proc " << part->Process();
     }
 
-    if (plist2.size() == 0) return;
+    if (empty(plist2)) return;
 
     // get the hits (in all planes) that are matched to the true tracks
-    hlist2 = bt_serv->TrackIdsToHits_Ps(tidlist, allhits);
+    hlist2 = bt_serv->TrackIdsToHits_Ps(clockData, tidlist, allhits);
     if (hlist2.size() != plist2.size()) {
       mf::LogError("PFPAna") << "MC particle list size " << plist2.size()
                              << " != size of MC particle true hits lists " << hlist2.size();
@@ -509,7 +498,8 @@ namespace pfpf {
             // as well as the daughter list, so subtract one from the count
             --nTru[plane];
             mom = (*rit).second;
-            //  mf::LogVerbatim("PFPAna")<<"new mom "<<mom<<" nTru "<<nTru[plane];
+            //  mf::LogVerbatim("PFPAna")<<"new mom "<<mom<<" nTru
+            //  "<<nTru[plane];
           } // (*rit).first == mom
           ++rit;
         } // rit
@@ -686,4 +676,4 @@ namespace pfpf {
 
   DEFINE_ART_MODULE(PFPAna)
 
-} //end namespace
+} // end namespace

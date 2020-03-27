@@ -25,6 +25,10 @@ class TFile;
 #include "lardata/Utilities/PxUtils.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
+namespace util {
+  class GeometryUtilities;
+}
+
 namespace cmtool {
 
   class CPriorityAlgoBase;
@@ -35,7 +39,6 @@ namespace cmtool {
      The book-keeping of merged cluster sets are done by CMergeBookKeeper.
   */
   class CMManagerBase {
-
   public:
     /// Enum to specify message output level
     enum CMMSGLevel_t {
@@ -49,12 +52,11 @@ namespace cmtool {
       kNone
     };
 
-  public:
     /// Default constructor
     CMManagerBase();
 
     /// Default destructor
-    virtual ~CMManagerBase() {}
+    virtual ~CMManagerBase() = default;
 
     /// Method to enable debug mode (lots of couts)
     void
@@ -88,8 +90,8 @@ namespace cmtool {
     }
 
     /// A simple method to add a cluster
-    void SetClusters(const std::vector<std::vector<util::PxHit>>& clusters);
-    //void SetClusters(const std::vector<std::vector<larutil::PxHit> > &clusters);
+    void SetClusters(util::GeometryUtilities const& gser,
+                     const std::vector<std::vector<util::PxHit>>& clusters);
 
     /// A simple method to add a cluster
     void SetClusters(const std::vector<cluster::ClusterParamsAlg>& clusters);
@@ -109,7 +111,7 @@ namespace cmtool {
     }
 
     /// A method to execute the main action, to be called per event
-    void Process();
+    void Process(util::GeometryUtilities const& gser);
 
     /// A setter for an analysis output file
     void
@@ -133,7 +135,7 @@ namespace cmtool {
     {}
 
     /// FMWK function called @ iterative loop inside Process()
-    virtual bool IterationProcess() = 0;
+    virtual bool IterationProcess(util::GeometryUtilities const& gser) = 0;
 
     /// FMWK function called @ end of iterative loop inside Process()
     virtual void

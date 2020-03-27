@@ -30,25 +30,32 @@ pma::PMAlgStitching::PMAlgStitching(const pma::PMAlgStitching::Config& config)
 
 // CPA stitching wrapper
 void
-pma::PMAlgStitching::StitchTracksCPA(pma::TrkCandidateColl& tracks)
+pma::PMAlgStitching::StitchTracksCPA(const detinfo::DetectorClocksData& clockData,
+                                     const detinfo::DetectorPropertiesData& detProp,
+                                     pma::TrkCandidateColl& tracks)
 {
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for CPA stitching.";
-  StitchTracks(tracks, true);
+  StitchTracks(clockData, detProp, tracks, true);
 }
 
 // APA stitching wrapper
 void
-pma::PMAlgStitching::StitchTracksAPA(pma::TrkCandidateColl& tracks)
+pma::PMAlgStitching::StitchTracksAPA(const detinfo::DetectorClocksData& clockData,
+                                     const detinfo::DetectorPropertiesData& detProp,
+                                     pma::TrkCandidateColl& tracks)
 {
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for APA stitching.";
-  StitchTracks(tracks, false);
+  StitchTracks(clockData, detProp, tracks, false);
 }
 
 // Main function of the algorithm
 // isCPA = true  : attempt to stitch tracks across the cathode.
 //       = false : attempt to stitch tracks across the anode.
 void
-pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl& tracks, bool isCPA)
+pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockData,
+                                  const detinfo::DetectorPropertiesData& detProp,
+                                  pma::TrkCandidateColl& tracks,
+                                  bool isCPA)
 {
 
   unsigned int minTrkLength = 2 * fNodesFromEnd + 3;
@@ -230,43 +237,48 @@ pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl& tracks, bool isCPA)
       if (flip1) {
 
         std::vector<pma::Track3D*> newTracks;
-        if (t1->Flip(newTracks)) { mf::LogInfo("pma::PMAlgStitching") << "Track 1 flipped."; }
+        if (t1->Flip(detProp, newTracks)) {
+          mf::LogInfo("pma::PMAlgStitching") << "Track 1 flipped.";
+        }
         else {
           mf::LogInfo("pma::PMAlgStitching") << "Unable to flip Track 1.";
           canMerge = false;
         }
-        for (const auto ts :
-             newTracks) { // there may be a new track even if entire flip was not possible
+        for (const auto ts : newTracks) { // there may be a new track even if
+                                          // entire flip was not possible
           tracks.tracks().emplace_back(ts, -1, tid1);
         }
       }
       if (flip2) {
 
         std::vector<pma::Track3D*> newTracks;
-        if (bestTrkMatch->Flip(newTracks)) {
+        if (bestTrkMatch->Flip(detProp, newTracks)) {
           mf::LogInfo("pma::PMAlgStitching") << "Track 2 flipped.";
         }
         else {
           mf::LogInfo("pma::PMAlgStitching") << "Unable to flip Track 1.";
           canMerge = false;
         }
-        for (const auto ts :
-             newTracks) { // there may be a new track even if entire flip was not possible
+        for (const auto ts : newTracks) { // there may be a new track even if
+                                          // entire flip was not possible
           tracks.tracks().emplace_back(ts, -1, tid2);
         }
       }
 
-      t1->GetRoot()->ApplyDriftShiftInTree(-xBestShift);
-      bestTrkMatch->GetRoot()->ApplyDriftShiftInTree(+xBestShift);
+      t1->GetRoot()->ApplyDriftShiftInTree(clockData, detProp, -xBestShift);
+      bestTrkMatch->GetRoot()->ApplyDriftShiftInTree(clockData, detProp, +xBestShift);
 
       if (canMerge) {
         mf::LogInfo("pma::PMAlgStitching") << "Merging tracks...";
         int idx1 = tracks.getCandidateIndex(t1);
         int idx2 = tracks.getCandidateIndex(bestTrkMatch);
-        if (
-          reverse) // merge current track to another track, do not increase the outer loop index t (next after current track jumps in at t)
+        if (reverse) // merge current track to another track, do not increase
+                     // the outer loop index t (next after current track jumps
+                     // in at t)
         {
-          if (tracks.setTreeOriginAtFront(t1)) { tracks.merge((size_t)idx2, (size_t)idx1); }
+          if (tracks.setTreeOriginAtFront(detProp, t1)) {
+            tracks.merge((size_t)idx2, (size_t)idx1);
+          }
           else {
             mf::LogWarning("pma::PMAlgStitching") << "   could not merge.";
             ++t;
@@ -274,7 +286,7 @@ pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl& tracks, bool isCPA)
         }
         else // merge to the current track, do not increase the outer loop index t (maybe something else will match to the extended track)
         {
-          if (tracks.setTreeOriginAtFront(bestTrkMatch)) {
+          if (tracks.setTreeOriginAtFront(detProp, bestTrkMatch)) {
             tracks.merge((size_t)idx1, (size_t)idx2);
           }
           else {
