@@ -140,7 +140,7 @@ namespace reco_tool
     if (!fitResult){
       int fitResult2=fMarqFitAlg->gshf::MarqFitAlg::cal_perr(&p[0],&y[0],nParams,roiSize,&perr[0]);
       if (!fitResult2){
-	float NDF = roiSize - nParams;
+	NDF = roiSize - nParams;
 	chi2PerNDF = chiSqr / NDF;
 	int parIdx = 0;
 	for(size_t i=0;i<fhc_vec.size();i++){
