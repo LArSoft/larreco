@@ -46,9 +46,9 @@ namespace reco_tool
 
         // Search for candidate hits on the input waveform
         virtual void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&, // Waveform (with range info) to analyze
-                                       size_t,                                               // waveform start tick
-                                       size_t,                                               // channel #
-                                       size_t,                                               // Event count (for histograms)
+                                       const size_t,                                               // waveform start tick
+                                       const size_t,                                               // channel #
+                                       const size_t,                                               // Event count (for histograms)
                                        HitCandidateVec&) const = 0;                          // output candidate hits
 
         virtual void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,

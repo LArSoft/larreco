@@ -274,7 +274,7 @@ void GausHitFinder::produce(art::Event& evt)
     //for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
     //{
     tbb::parallel_for(static_cast<std::size_t>(0),wireVecHandle->size(),
-		      [&](size_t& wireIter){//size_t wireIter, art::Handle<std::vector<recob::Wire>> wireVecHandle){
+		      [&](size_t& wireIter){
 
 	// ####################################
         // ### Getting this particular wire ###

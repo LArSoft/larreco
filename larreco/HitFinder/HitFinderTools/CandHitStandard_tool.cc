@@ -23,9 +23,9 @@ public:
     void configure(const fhicl::ParameterSet& pset) override;
 
     void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
-                           size_t,
-                           size_t,
-                           size_t,
+                           const size_t,
+                           const size_t,
+                           const size_t,
                            HitCandidateVec&) const override;
 
     void MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
@@ -36,8 +36,8 @@ private:
 
     void findHitCandidates(std::vector<float>::const_iterator,
                            std::vector<float>::const_iterator,
-                           size_t,
-                           size_t,
+                           const size_t,
+                           const size_t,
                            HitCandidateVec&) const;
 
     // Member variables from the fhicl file
@@ -68,9 +68,9 @@ void CandHitStandard::configure(const fhicl::ParameterSet& pset)
 }
 
 void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
-                                        size_t                                               roiStartTick,
-                                        size_t                                               channel,
-                                        size_t                                               eventCount,
+                                        const size_t                                         roiStartTick,
+                                        const size_t                                         channel,
+                                        const size_t                                         eventCount,
                                         HitCandidateVec&                                     hitCandidateVec) const
 {
     // Recover the actual waveform
@@ -78,7 +78,7 @@ void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::
     
     // Recover the plane index for this method
     std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
-    size_t                   plane = wids[0].Plane;
+    const size_t             plane = wids[0].Plane;
 
     // Use the recursive version to find the candidate hits
     findHitCandidates(waveform.begin(),waveform.end(),roiStartTick,plane,hitCandidateVec);
@@ -88,8 +88,8 @@ void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::
 
 void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator startItr,
                                         std::vector<float>::const_iterator stopItr,
-                                        size_t                             roiStartTick,
-                                        size_t                             planeIdx,
+                                        const size_t                       roiStartTick,
+                                        const size_t                       planeIdx,
                                         HitCandidateVec&                   hitCandidateVec) const
 {
     // Need a minimum number of ticks to do any work here
