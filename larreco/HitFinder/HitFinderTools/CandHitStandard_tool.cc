@@ -75,7 +75,7 @@ void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::
 {
     // Recover the actual waveform
     const Waveform& waveform = dataRange.data();
-    
+
     // Recover the plane index for this method
     std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
     const size_t             plane = wids[0].Plane;
@@ -166,7 +166,7 @@ void CandHitStandard::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t:
 {
     // If no hits then nothing to do here
     if (hitCandidateVec.empty()) return;
-    
+
     // The idea is to group hits that "touch" so they can be part of common fit, those that
     // don't "touch" are fit independently. So here we build the output vector to achieve that
     HitCandidateVec groupedHitVec;

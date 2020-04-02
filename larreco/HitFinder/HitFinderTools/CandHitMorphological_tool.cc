@@ -175,7 +175,7 @@ void CandHitMorphological::findHitCandidates(const recob::Wire::RegionsOfInteres
     // We get this from our waveform algs too...
     Waveform rawDerivativeVec;
     Waveform derivativeVec;
-    
+
     // Recover the actual waveform
     const Waveform& waveform = dataRange.data();
 

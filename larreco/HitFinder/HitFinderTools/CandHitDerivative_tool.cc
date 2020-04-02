@@ -134,7 +134,7 @@ void CandHitDerivative::findHitCandidates(const recob::Wire::RegionsOfInterest_t
     // We get this from our waveform algs too...
     Waveform rawDerivativeVec;
     Waveform derivativeVec;
-    
+
     // Recover the actual waveform
     const Waveform& waveform = dataRange.data();
 
