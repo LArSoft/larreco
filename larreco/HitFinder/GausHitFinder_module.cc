@@ -476,7 +476,7 @@ void GausHitFinder::produce(art::Event& evt)
                                                  NDF                               // dof
                                                  );
 
-                    filteredHitVec.push_back(hitcreator.copy());
+                    if (filteredHitCol) filteredHitVec.push_back(hitcreator.copy());
 
                     const recob::Hit hit(hitcreator.move());
 
