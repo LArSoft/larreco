@@ -28,7 +28,6 @@
 #include <string>
 #include <memory> // std::unique_ptr()
 #include <utility> // std::move()
-#include <vector>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -73,6 +72,7 @@ private:
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
 
     bool                fFilterHits;
+    bool                fFillHists;
 
     std::string         fCalDataModuleLabel;
     std::string         fAllHitsInstanceName;
@@ -110,6 +110,7 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     fCalDataModuleLabel  = pset.get< std::string >("CalDataModuleLabel");
     fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
     fFilterHits          = pset.get< bool        >("FilterHits",false);
+    fFillHists           = pset.get< bool        >("FillHists",false);
 
     if (fFilterHits) {
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
@@ -191,8 +192,10 @@ void GausHitFinder::beginJob()
 
     // ======================================
     // === Hit Information for Histograms ===
-    fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
-    fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
+    if (fFillHists) {
+      fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
+      fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
+    }
 }
 
 //  This algorithm uses the fact that deconvolved signals are very smooth
@@ -204,9 +207,6 @@ void GausHitFinder::produce(art::Event& evt)
     //==================================================================================================
 
     TH1::AddDirectory(kFALSE);
-
-
-
 
     // Instantiate and Reset a stop watch
     //TStopwatch StopWatch;
@@ -362,7 +362,7 @@ void GausHitFinder::produce(art::Event& evt)
                         NDF        = 2;
                     }
 
-                    //fFirstChi2->Fill(chi2PerNDF);
+                    if (fFillHists) fFirstChi2->Fill(chi2PerNDF);
                 }
 
                 // #######################################################
@@ -533,7 +533,7 @@ void GausHitFinder::produce(art::Event& evt)
 			filthitstruct_vec.push_back(filthitstruct_local);
 		      }
 
-		//                fChi2->Fill(chi2PerNDF);
+		    if (fFillHists) fChi2->Fill(chi2PerNDF);
 		}
 	    }//<---End loop over merged candidate hits
 
@@ -545,7 +545,6 @@ void GausHitFinder::produce(art::Event& evt)
     for(size_t i=0; i<hitstruct_vec.size(); i++){
       allHitCol.emplace_back(hitstruct_vec[i].hit_tbb, hitstruct_vec[i].wire_tbb);
     }
-
 
     for(size_t j=0; j<filthitstruct_vec.size(); j++){
       filteredHitCol->emplace_back(filthitstruct_vec[j].hit_tbb, filthitstruct_vec[j].wire_tbb);
