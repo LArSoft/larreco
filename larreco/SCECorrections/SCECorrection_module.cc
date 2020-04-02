@@ -65,7 +65,6 @@ class sce::SCECorrection : public art::EDProducer {
 
     bool fCorrectNoT0Tag;
     bool fCorrectSCE;
-    // TODO: bool fCorrectNonContained;
 
     std::string fPFPLabel;
     std::string fTrackLabel;
@@ -91,12 +90,12 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
   fGeom(lar::providerFrom<geo::Geometry>()),
   fSCE(lar::providerFrom<spacecharge::SpaceChargeService>())
 {
-  fCorrectNoT0Tag    = p.get<bool>("CorrectNoT0Tag");
-  fCorrectSCE        = p.get<bool>("CorrectSCE");
-  fPFPLabel          = p.get<std::string>("PFPLabel");
-  fTrackLabel        = p.get<std::string>("TrackLabel");
-  fT0Labels          = p.get<std::vector<std::string> >("T0Labels");
-  fT0LabelsCorrectT0 = p.get<std::vector<bool> >("T0LabelsCorrectT0");
+  fCorrectNoT0Tag     = p.get<bool>("CorrectNoT0Tag");
+  fCorrectSCE         = p.get<bool>("CorrectSCE");
+  fPFPLabel           = p.get<std::string>("PFPLabel");
+  fTrackLabel         = p.get<std::string>("TrackLabel");
+  fT0Labels           = p.get<std::vector<std::string> >("T0Labels");
+  fT0LabelsCorrectT0  = p.get<std::vector<bool> >("T0LabelsCorrectT0");
 
   produces<std::vector<anab::T0> >();
   produces<std::vector<recob::Slice> >();
@@ -190,7 +189,6 @@ void sce::SCECorrection::produce(art::Event& evt)
   art::FindManyP<recob::Hit>                        fmSlcHit(sliceHandle, evt, fPFPLabel);
   art::FindManyP<larpandoraobj::PFParticleMetadata> fmPFPMeta(pfpHandle, evt, fPFPLabel);
 
-  //TODO: generalise
   if (!fmPFPTrack.isValid()){
     std::cout<<"PFPTrack assn not valid"<<std::endl;
     return;
@@ -205,10 +203,6 @@ void sce::SCECorrection::produce(art::Event& evt)
     sliceCollection->push_back(newSlice);
     art::Ptr<recob::Slice> newSlicePtr = slicePtrMaker(sliceCollection->size()-1);
 
-    // Initialise some stuff
-    std::vector<art::Ptr< anab::T0> > sliceT0s;
-    std::vector<unsigned int> sliceT0Labels;
-
     // Get the pfps and hits associated to the slice
     std::vector<art::Ptr<recob::PFParticle> > slicePFPs = fmSlicePFP.at(slice.key());
 
@@ -217,7 +211,7 @@ void sce::SCECorrection::produce(art::Event& evt)
 
     std::pair<art::Ptr<anab::T0>, bool> sliceT0CorrectPair = getSliceBestT0(sliceT0CorrectMap);
 
-    if (sliceT0CorrectPair.first.isNull() && fCorrectNoT0Tag){
+    if (sliceT0CorrectPair.first.isNull() && !fCorrectNoT0Tag){
       continue;
     }
 
@@ -258,9 +252,12 @@ void sce::SCECorrection::produce(art::Event& evt)
 
         geo::Point_t vtxPos(pfpVertex->position());
         //Find the closest SP to the vertex
+        // If the PFP has no space points, look in the whole event
+        std::vector<art::Ptr<recob::SpacePoint> vtxSPs = pfpSPs.size() ? pfpSPs: allSpacePoints;
+
         double minVtxSPDist = std::numeric_limits<double>::max();
         art::Ptr<recob::SpacePoint> spPtr;
-        for (auto const& sp: allSpacePoints){ //TODO: Make slice SPs
+        for (auto const& sp: vtxSPs){
           geo::Point_t spPos{sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]};
           geo::Vector_t vtxSPDiff = vtxPos - spPos;
           if (vtxSPDiff.Mag2() < minVtxSPDist){
