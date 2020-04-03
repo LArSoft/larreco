@@ -54,7 +54,6 @@
 #include "TMath.h"
 
 #include "tbb/tbb.h"
-#include "tbb/blocked_range.h"
 #include "tbb/concurrent_vector.h"
 
 namespace hit{
@@ -237,8 +236,8 @@ void GausHitFinder::produce(art::Event& evt)
       art::Ptr<recob::Wire> wire_tbb;
     };
 
-    tbb::concurrent_vector<struct hitstruct> hitstruct_vec;
-    tbb::concurrent_vector<struct hitstruct> filthitstruct_vec;
+    tbb::concurrent_vector<hitstruct> hitstruct_vec;
+    tbb::concurrent_vector<hitstruct> filthitstruct_vec;
 
 //    if (fAllHitsInstanceName != "") filteredHitCol = &hcol;
 
@@ -480,12 +479,9 @@ void GausHitFinder::produce(art::Event& evt)
 
                     const recob::Hit hit(hitcreator.move());
 
-		    hitstruct hitstruct_local;
-		    hitstruct_local.hit_tbb=std::move(hit);
-		    hitstruct_local.wire_tbb=wire;
-
                     // This loop will store ALL hits
-		    hitstruct_vec.push_back(hitstruct_local);
+		    hitstruct tmp{std::move(hit),wire};
+		    hitstruct_vec.push_back(std::move(tmp));
 
                     numHits++;
                 } // <---End loop over gaussians
@@ -527,10 +523,8 @@ void GausHitFinder::produce(art::Event& evt)
                     // Copy the hits we want to keep to the filtered hit collection
                     for(const auto& filteredHit : filteredHitVec)
 		      if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit)){
-			hitstruct filthitstruct_local;
-			filthitstruct_local.hit_tbb=filteredHit;
-			filthitstruct_local.wire_tbb=wire;
-			filthitstruct_vec.push_back(filthitstruct_local);
+			hitstruct tmp{std::move(filteredHit),wire};
+			filthitstruct_vec.push_back(std::move(tmp));
 		      }
 
 		    if (fFillHists) fChi2->Fill(chi2PerNDF);
