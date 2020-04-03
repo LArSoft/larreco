@@ -132,7 +132,7 @@ void sce::SCECorrection::produce(art::Event& evt)
 
   // auto t0SliceAssn       = std::make_unique<art::Assns<anab::T0, recob::Slice> >();
   auto t0PFPAssn         = std::make_unique<art::Assns<anab::T0, recob::PFParticle> >();
-  auto sliceHitAssn        = std::make_unique<art::Assns<recob::Slice, recob::Hit> >();
+  auto sliceHitAssn      = std::make_unique<art::Assns<recob::Slice, recob::Hit> >();
   auto pfpSliceAssn      = std::make_unique<art::Assns<recob::PFParticle, recob::Slice> >();
   auto pfpVtxAssn        = std::make_unique<art::Assns<recob::PFParticle, recob::Vertex> >();
   auto pfpSPAssn         = std::make_unique<art::Assns<recob::PFParticle, recob::SpacePoint> >();
@@ -365,10 +365,6 @@ void sce::SCECorrection::produce(art::Event& evt)
   } // slice
 
   // std::cout<<"Test: SPs: "<<spCollection->size()<<std::endl;
-
-  // Order the PFPs so the id matched the position in the vector
-  std::sort(pfpCollection->begin(), pfpCollection->end(),
-      [](recob::PFParticle lhs, recob::PFParticle rhs) {return lhs.Self() < rhs.Self();});
 
   // Put all the things we just produced into the event
   evt.put(std::move(t0Collection));
