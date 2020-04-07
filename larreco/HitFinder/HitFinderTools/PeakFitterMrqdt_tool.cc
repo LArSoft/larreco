@@ -46,7 +46,7 @@ namespace reco_tool
 
     const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
   };
-  
+
   //--------------------------
   //constructor
 
@@ -72,10 +72,10 @@ namespace reco_tool
   }
 
   //------------------------
-  void PeakFitterMrqdt::findPeakParameters(const std::vector<float>&                      signal, 
-					   const ICandidateHitFinder::HitCandidateVec& fhc_vec, 
-					   PeakParamsVec&                              mhpp_vec, 
-					   double&                                     chi2PerNDF, 
+  void PeakFitterMrqdt::findPeakParameters(const std::vector<float>&                      signal,
+					   const ICandidateHitFinder::HitCandidateVec& fhc_vec,
+					   PeakParamsVec&                              mhpp_vec,
+					   double&                                     chi2PerNDF,
 					   int&                                        NDF) const
   {
     if(fhc_vec.empty()) return;
@@ -140,12 +140,12 @@ namespace reco_tool
     if (!fitResult){
       int fitResult2=fMarqFitAlg->gshf::MarqFitAlg::cal_perr(&p[0],&y[0],nParams,roiSize,&perr[0]);
       if (!fitResult2){
-	float NDF = roiSize - nParams;
+	NDF = roiSize - nParams;
 	chi2PerNDF = chiSqr / NDF;
 	int parIdx = 0;
 	for(size_t i=0;i<fhc_vec.size();i++){
 
-	  /* stand alone method  
+	  /* stand alone method
 	  mhpp_vec[i].peakAmplitude      = p[parIdx + 0];
 	  mhpp_vec[i].peakAmplitudeError = perr[parIdx + 0];
 	  mhpp_vec[i].peakCenter         = p[parIdx + 1] + 0.5 + float(startTime);
@@ -153,17 +153,17 @@ namespace reco_tool
 	  mhpp_vec[i].peakSigma          = p[parIdx + 2];
 	  mhpp_vec[i].peakSigmaError     = perr[parIdx + 2];
 	  */
-	  
-	  PeakFitParams_t mhpp;	  
+
+	  PeakFitParams_t mhpp;
 	  mhpp.peakAmplitude      = p[parIdx + 0];
           mhpp.peakAmplitudeError = perr[parIdx + 0];
           mhpp.peakCenter         = p[parIdx + 1] + 0.5 + float(startTime); //shift by 0.5 to account for bin width
           mhpp.peakCenterError    = perr[parIdx + 1];
           mhpp.peakSigma          = std::abs(p[parIdx + 2]);
           mhpp.peakSigmaError     = perr[parIdx + 2];
-  
+
 	  mhpp_vec.emplace_back(mhpp);
-	  
+
 	  parIdx += 3;
 
 	}

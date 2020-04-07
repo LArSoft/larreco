@@ -25,6 +25,7 @@ art_make(LIB_LIBRARIES
            ROOT::Hist
            ROOT::MathCore
            ROOT::Physics
+           ${TBB}
          )
 
 install_headers()
