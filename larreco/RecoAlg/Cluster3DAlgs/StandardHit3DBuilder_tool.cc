@@ -881,14 +881,17 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         float hit2Peak  = hit2->getTimeTicks();
         float hit2Sigma = hit2->getHit()->RMS();
 
-        // ad hoc correction for most bad fits...
-//        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
-//        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
+        // "Long hits" are an issue... so we deal with these differently
+        int   hit1NDF   = hit1->getHit()->DegreesOfFreedom();
+        int   hit2NDF   = hit2->getHit()->DegreesOfFreedom();
 
+        // Basically, allow the range to extend to the nearest end of the snippet
+        if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
+        if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
+
+        // The "hit sigma" is the gaussian fit sigma of the hit, we need to expand a bit to allow hit overlap efficiency
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
-        
-//        if (m_outputHistograms) m_deltaTimeVec.push_back(hit1Peak - hit2Peak);
 
         // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
@@ -896,13 +899,14 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
             // Check to see that hit peak times are consistent with each other
             float hit1SigSq     = hit1Sigma * hit1Sigma;
             float hit2SigSq     = hit2Sigma * hit2Sigma;
-            float avePeakTime   = (hit1Peak / hit1SigSq + hit2Peak / hit2SigSq) * hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
             float deltaPeakTime = std::fabs(hit1Peak - hit2Peak);
             float sigmaPeakTime = std::sqrt(hit1SigSq + hit2SigSq);
 
             // delta peak time consistency check here
             if (deltaPeakTime < m_deltaPeakTimeSig * sigmaPeakTime)    // 2 sigma consistency? (do this way to avoid divide)
             {
+                float oneOverWghts  = hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
+                float avePeakTime   = (hit1Peak / hit1SigSq + hit2Peak / hit2SigSq) * oneOverWghts;
                 float totalCharge   = hit1->getHit()->Integral() + hit2->getHit()->Integral();
                 float hitChiSquare  = std::pow((hit1Peak - avePeakTime),2) / hit1SigSq
                                     + std::pow((hit2Peak - avePeakTime),2) / hit2SigSq;
@@ -1047,8 +1051,13 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
 
                     float hitRMS   = hit2D->getHit()->RMS();
-                    float weight   = 1. / (hitRMS * hitRMS);
                     float peakTime = hit2D->getTimeTicks();
+
+                    // Basically, allow the range to extend to the nearest end of the snippet
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) 
+                        hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+
+                    float weight = 1. / (hitRMS * hitRMS);
 
                     avePeakTime += peakTime * weight;
                     xPosition   += hit2D->getXPosition() * weight;
@@ -1072,7 +1081,12 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
 
                 for(const auto& hit2D : hitVector)
                 {
-                    float hitRMS    = hit2D->getHit()->RMS();
+                    float hitRMS = hit2D->getHit()->RMS();
+
+                    // Basically, allow the range to extend to the nearest end of the snippet
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) 
+                        hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+
                     float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                     float peakTime  = hit2D->getTimeTicks();
                     float deltaTime = peakTime - avePeakTime;
@@ -1093,8 +1107,14 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 // First task is to get the min/max values for the common overlap region
                 for(const auto& hit2D : hitVector)
                 {
-                    int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
-                    int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
+                    float range = 2. * hit2D->getHit()->RMS();
+
+                    // Basically, allow the range to extend to the nearest end of the snippet
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) 
+                        range = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+                    
+                    int hitStart = hit2D->getHit()->PeakTime() - range - 0.5;
+                    int hitStop  = hit2D->getHit()->PeakTime() + range + 0.5;
                     
                     lowMinIndex = std::min(hitStart,    lowMinIndex);
                     lowMaxIndex = std::max(hitStart,    lowMaxIndex);
@@ -1652,7 +1672,7 @@ void StandardHit3DBuilder::makeWireAssns(const art::Event& evt, art::Assns<recob
         
         if (!(chanWireItr != channelToWireMap.end()))
         {
-            std::cout << "******>> Did not find channel to wire match! Skipping..." << std::endl;
+            mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
             continue;
         }
         
@@ -1698,8 +1718,8 @@ void StandardHit3DBuilder::makeRawDigitAssns(const art::Event& evt, art::Assns<r
         
         if (!(chanRawDigitItr != channelToRawDigitMap.end()))
         {
-            std::cout << "******>> Did not find channel to RawDigit match! Skipping..." << std::endl;
-            continue;
+            mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
+           continue;
         }
         
         rawDigitAssns.addSingle(chanRawDigitItr->second, hitPtrPair.second);
