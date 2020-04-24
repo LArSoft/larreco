@@ -303,17 +303,17 @@ void StandardHit3DBuilder::produces(art::ProducesCollector& collector)
 
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTagVec      = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",      std::vector<art::InputTag>()={"gaushit"});
-    m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",     true);
-    m_numSigmaPeakTime     = pset.get<float                     >("NumSigmaPeakTime",     3.  );
-    m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",  6.  );
-    m_LongHitStretchFctr   = pset.get<float                     >("DeltaPeakTimeSig",     1.5) ;
-    m_deltaPeakTimeSig     = pset.get<float                     >("DeltaPeakTimeSig",     1.7 );
-    m_zPosOffset           = pset.get<float                     >("ZPosOffset",           0.0 );
-    m_invalidTPCVec        = pset.get<std::vector<int>          >("InvalidTPCVec",        std::vector<int>());
-    m_wirePitchScaleFactor = pset.get<float                     >("WirePitchScaleFactor", 1.9 );
-    m_maxHit3DChiSquare    = pset.get<float                     >("MaxHitChiSquare",      6.0 );
-    m_outputHistograms     = pset.get<bool                      >("OutputHistograms",     false );
+    m_hitFinderTagVec      = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",       std::vector<art::InputTag>()={"gaushit"});
+    m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",      true);
+    m_numSigmaPeakTime     = pset.get<float                     >("NumSigmaPeakTime",      3.  );
+    m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",   6.  );
+    m_LongHitStretchFctr   = pset.get<float                     >("LongHitsStretchFactor", 1.5 ) ;
+    m_deltaPeakTimeSig     = pset.get<float                     >("DeltaPeakTimeSig",      1.7 );
+    m_zPosOffset           = pset.get<float                     >("ZPosOffset",            0.0 );
+    m_invalidTPCVec        = pset.get<std::vector<int>          >("InvalidTPCVec",         std::vector<int>());
+    m_wirePitchScaleFactor = pset.get<float                     >("WirePitchScaleFactor",  1.9 );
+    m_maxHit3DChiSquare    = pset.get<float                     >("MaxHitChiSquare",       6.0 );
+    m_outputHistograms     = pset.get<bool                      >("OutputHistograms",      false );
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
