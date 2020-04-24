@@ -234,6 +234,7 @@ private:
     float                                m_numSigmaPeakTime;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
+    float                                m_LongHitStretchFctr;
     std::vector<int>                     m_invalidTPCVec;
     float                                m_wirePitchScaleFactor;  ///< Scaling factor to determine max distance allowed between candidate pairs
     float                                m_maxHit3DChiSquare;     ///< Provide ability to select hits based on "chi square"
@@ -306,6 +307,7 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",     true);
     m_numSigmaPeakTime     = pset.get<float                     >("NumSigmaPeakTime",     3.  );
     m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",  6.  );
+    m_LongHitStretchFctr   = pset.get<float                     >("DeltaPeakTimeSig",     1.5) ;
     m_deltaPeakTimeSig     = pset.get<float                     >("DeltaPeakTimeSig",     1.7 );
     m_zPosOffset           = pset.get<float                     >("ZPosOffset",           0.0 );
     m_invalidTPCVec        = pset.get<std::vector<int>          >("InvalidTPCVec",        std::vector<int>());
@@ -886,8 +888,10 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         int   hit2NDF   = hit2->getHit()->DegreesOfFreedom();
 
         // Basically, allow the range to extend to the nearest end of the snippet
-        if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
-        if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
+        //if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
+        //if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
+        if (hit1NDF < 2) hit1Sigma *= m_LongHitStretchFctr; // This sets the range to the width of the pulse
+        if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr; 
 
         // The "hit sigma" is the gaussian fit sigma of the hit, we need to expand a bit to allow hit overlap efficiency
         float hit1Width = hitWidthSclFctr * hit1Sigma;
@@ -1054,8 +1058,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float peakTime = hit2D->getTimeTicks();
 
                     // Basically, allow the range to extend to the nearest end of the snippet
-                    if (hit2D->getHit()->DegreesOfFreedom() < 2)
-                        hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) hitRMS *= m_LongHitStretchFctr;
+                        //hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
                     float weight = 1. / (hitRMS * hitRMS);
 
@@ -1084,8 +1088,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float hitRMS = hit2D->getHit()->RMS();
 
                     // Basically, allow the range to extend to the nearest end of the snippet
-                    if (hit2D->getHit()->DegreesOfFreedom() < 2)
-                        hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) hitRMS *= m_LongHitStretchFctr;
+                        //hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
                     float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                     float peakTime  = hit2D->getTimeTicks();
@@ -1110,8 +1114,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float range = 2. * hit2D->getHit()->RMS();
 
                     // Basically, allow the range to extend to the nearest end of the snippet
-                    if (hit2D->getHit()->DegreesOfFreedom() < 2)
-                        range = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
+                    if (hit2D->getHit()->DegreesOfFreedom() < 2) range *= m_LongHitStretchFctr;
+                        //range = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
                     int hitStart = hit2D->getHit()->PeakTime() - range - 0.5;
                     int hitStop  = hit2D->getHit()->PeakTime() + range + 0.5;
@@ -1519,6 +1523,8 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt) const
     if (!m_weHaveAllBeenHereBefore)
     {
         mf::LogDebug("Cluster3D") << debugMessage << std::endl;
+
+        std::cout << debugMessage << std::endl;
 
         m_weHaveAllBeenHereBefore = true;
     }
