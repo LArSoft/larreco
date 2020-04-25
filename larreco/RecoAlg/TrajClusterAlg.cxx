@@ -678,13 +678,14 @@ namespace tca {
 
     if(tcc.JTMaxHitSep2 <= 0) return;
     if(!tcc.useAlg[kJunkTj]) return;
+    unsigned short plane = DecodeCTP(inCTP).Plane;
+    if(slc.lastWire[plane] - 3 < slc.firstWire[plane]) return;
 
     // shouldn't have to do this but...
     for(auto& slHit : slc.slHits) if(slHit.InTraj < 0) slHit.InTraj = 0;
 
     bool prt = false;
 
-    unsigned short plane = DecodeCTP(inCTP).Plane;
     std::vector<unsigned int> tHits;
     // Stay well away from the last wire in the plane
     for(unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 3; ++iwire) {

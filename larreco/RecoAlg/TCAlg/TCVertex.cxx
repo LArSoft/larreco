@@ -1909,7 +1909,8 @@ namespace tca {
     AT.Transpose(A);
     TMatrixD ATA = AT * A;
     double *det = 0;
-    ATA.Invert(det);
+    try{ ATA.Invert(det); }
+    catch(...) { return false; }
     if(det == NULL) return false;
     TVectorD vxPos = ATA * AT * b;
     vx.PosErr[0] = sqrt(ATA[0][0]);
