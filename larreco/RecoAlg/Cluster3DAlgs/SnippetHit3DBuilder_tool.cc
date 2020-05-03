@@ -154,16 +154,16 @@ private:
     /**
      *  @brief This builds a list of candidate hit pairs from lists of hits on two planes
      */
-    using HitMatchPair       = std::pair<const reco::ClusterHit2D*,reco::ClusterHit3D>;
-    using HitMatchPairVec    = std::vector<HitMatchPair>;
-    using HitMatchPairVecMap = std::map<geo::WireID,HitMatchPairVec>;
+    using HitMatchTriplet       = std::tuple<const reco::ClusterHit2D*,const reco::ClusterHit2D*,const reco::ClusterHit3D>;
+    using HitMatchTripletVec    = std::vector<HitMatchTriplet>;
+    using HitMatchTripletVecMap = std::map<geo::WireID,HitMatchTripletVec>;
 
-    int findGoodHitPairs(SnippetHitMap::iterator&, SnippetHitMap::iterator&, SnippetHitMap::iterator&, HitMatchPairVecMap&) const;
+    int findGoodHitPairs(SnippetHitMap::iterator&, SnippetHitMap::iterator&, SnippetHitMap::iterator&, HitMatchTripletVecMap&) const;
 
     /**
      *  @brief This algorithm takes lists of hit pairs and finds good triplets
      */
-    void findGoodTriplets(HitMatchPairVecMap&, HitMatchPairVecMap&, reco::HitPairList&, bool = false) const;
+    void findGoodTriplets(HitMatchTripletVecMap&, HitMatchTripletVecMap&, reco::HitPairList&, bool = false) const;
 
     /**
      *  @brief Make a HitPair object by checking two hits
@@ -666,9 +666,9 @@ size_t SnippetHit3DBuilder::BuildHitPairMapByTPC(PlaneSnippetHitMapItrPairVec& s
         SnippetHitMap::iterator snippetHitMapItr2End   = SetEndIterator( snippetHitMapItr2Start,        snippetHitMapItrVec[2].second, firstSnippetItr->first.second);
 
         // Since we'll use these many times in the internal loops, pre make the pairs for the second set of hits
-        size_t             curHitListSize(hitPairList.size());
-        HitMatchPairVecMap pair12Map;
-        HitMatchPairVecMap pair13Map;
+        size_t                curHitListSize(hitPairList.size());
+        HitMatchTripletVecMap pair12Map;
+        HitMatchTripletVecMap pair13Map;
 
         size_t n12Pairs = findGoodHitPairs(firstSnippetItr, snippetHitMapItr1Start, snippetHitMapItr1End, pair12Map);
         size_t n13Pairs = findGoodHitPairs(firstSnippetItr, snippetHitMapItr2Start, snippetHitMapItr2End, pair13Map);
@@ -681,16 +681,16 @@ size_t SnippetHit3DBuilder::BuildHitPairMapByTPC(PlaneSnippetHitMapItrPairVec& s
 
         nTriplets += hitPairList.size() - curHitListSize;
 
-        snippetHitMapItrVec[0].first++;
+        snippetHitMapItrVec.front().first++;
     }
 
     return hitPairList.size();
 }
 
-int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator&  firstSnippetItr,
-                                          SnippetHitMap::iterator&  startItr,
-                                          SnippetHitMap::iterator&  endItr,
-                                          HitMatchPairVecMap&       hitMatchMap) const
+int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator& firstSnippetItr,
+                                          SnippetHitMap::iterator& startItr,
+                                          SnippetHitMap::iterator& endItr,
+                                          HitMatchTripletVecMap&   hitMatchMap) const
 {
     int numPairs(0);
 
@@ -722,9 +722,14 @@ int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator&  firstSnippet
                 // pair returned with a negative ave time is signal of failure
                 if (!makeHitPair(pair, hit1, hit2, m_hitWidthSclFctr)) continue;
 
+                std::vector<const recob::Hit*> recobHitVec = {nullptr,nullptr,nullptr};
+
+                recobHitVec[hit1->WireID().Plane] = hit1->getHit();
+                recobHitVec[hit2->WireID().Plane] = hit2->getHit();
+
                 geo::WireID wireID = hit2->WireID();
 
-                hitMatchMap[wireID].emplace_back(hit2,pair);
+                hitMatchMap[wireID].emplace_back(hit1,hit2,pair);
 
                 numPairs++;
             }
@@ -736,7 +741,7 @@ int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator&  firstSnippet
     return numPairs;
 }
 
-void SnippetHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPairVecMap& pair13Map, reco::HitPairList& hitPairList, bool tagged) const
+void SnippetHit3DBuilder::findGoodTriplets(HitMatchTripletVecMap& pair12Map, HitMatchTripletVecMap& pair13Map, reco::HitPairList& hitPairList, bool tagged) const
 {
     // Build triplets from the two lists of hit pairs
     if (!pair12Map.empty())
@@ -751,7 +756,7 @@ void SnippetHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMat
         // Initial population of this map with the pair13Map hits
         for(const auto& pair13 : pair13Map)
         {
-            for(const auto& hit2Dhit3DPair : pair13.second) usedPairMap[&hit2Dhit3DPair.second] = false;
+            for(const auto& hit2Dhit3DPair : pair13.second) usedPairMap[&std::get<2>(hit2Dhit3DPair)] = false;
         }
 
         // The outer loop is over all hit pairs made from the first two plane combinations
@@ -763,7 +768,7 @@ void SnippetHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMat
             // hit times on those wires
             for(const auto& hit2Dhit3DPair12 : pair12.second)
             {
-                const reco::ClusterHit3D& pair1  = hit2Dhit3DPair12.second;
+                const reco::ClusterHit3D& pair1  = std::get<2>(hit2Dhit3DPair12);
 
                 // populate the map with initial value
                 usedPairMap[&pair1] = false;
@@ -775,8 +780,11 @@ void SnippetHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMat
 
                     for(const auto& hit2Dhit3DPair13 : pair13.second)
                     {
-                        const reco::ClusterHit2D* hit2  = hit2Dhit3DPair13.first;
-                        const reco::ClusterHit3D& pair2 = hit2Dhit3DPair13.second;
+                        // Protect against double counting
+                        if (std::get<0>(hit2Dhit3DPair12) != std::get<0>(hit2Dhit3DPair13)) continue;
+
+                        const reco::ClusterHit2D* hit2  = std::get<1>(hit2Dhit3DPair13);
+                        const reco::ClusterHit3D& pair2 = std::get<2>(hit2Dhit3DPair13);
 
                         // If success try for the triplet
                         reco::ClusterHit3D triplet;
