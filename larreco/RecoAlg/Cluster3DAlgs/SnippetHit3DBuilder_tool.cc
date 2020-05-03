@@ -1678,7 +1678,7 @@ void SnippetHit3DBuilder::makeWireAssns(const art::Event& evt, art::Assns<recob:
 
         if (!(chanWireItr != channelToWireMap.end()))
         {
-            mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
+            //mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
             continue;
         }
 
@@ -1724,7 +1724,7 @@ void SnippetHit3DBuilder::makeRawDigitAssns(const art::Event& evt, art::Assns<ra
 
         if (!(chanRawDigitItr != channelToRawDigitMap.end()))
         {
-            mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
+            //mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
            continue;
         }
 

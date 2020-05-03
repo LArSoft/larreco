@@ -296,7 +296,7 @@ void CandHitMorphological::findHitCandidates(const recob::Wire::RegionsOfInteres
 void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStartItr,    Waveform::const_iterator derivStopItr,
                                              Waveform::const_iterator erosionStartItr,  Waveform::const_iterator erosionStopItr,
                                              Waveform::const_iterator dilationStartItr, Waveform::const_iterator dilationStopItr,
-                                             const size_t                   roiStartTick,
+                                             const size_t             roiStartTick,
                                              float                    dilationThreshold,
                                              HitCandidateVec&         hitCandidateVec) const
 {
