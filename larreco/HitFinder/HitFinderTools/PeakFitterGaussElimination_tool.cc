@@ -18,10 +18,6 @@ class PeakFitterGaussElimination : IPeakFitter
 public:
     explicit PeakFitterGaussElimination(const fhicl::ParameterSet& pset);
 
-    ~PeakFitterGaussElimination();
-
-    void configure(const fhicl::ParameterSet& pset) override;
-
     void findPeakParameters(const std::vector<float>&,
                             const ICandidateHitFinder::HitCandidateVec&,
                             PeakParamsVec&,
@@ -39,15 +35,6 @@ private:
 //----------------------------------------------------------------------
 // Constructor.
 PeakFitterGaussElimination::PeakFitterGaussElimination(const fhicl::ParameterSet& pset)
-{
-    configure(pset);
-}
-
-PeakFitterGaussElimination::~PeakFitterGaussElimination()
-{
-}
-
-void PeakFitterGaussElimination::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
     fStepSize = pset.get<float>("StepSize", 0.1);

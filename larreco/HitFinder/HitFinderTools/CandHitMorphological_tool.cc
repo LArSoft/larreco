@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 /// \file   CandHitMorphological.cc
 /// \author T. Usher
+// MT note: This implementation is not thread-safe. 
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
@@ -23,10 +24,6 @@ class CandHitMorphological : ICandidateHitFinder
 {
 public:
     explicit CandHitMorphological(const fhicl::ParameterSet& pset);
-
-    ~CandHitMorphological();
-
-    void configure(const fhicl::ParameterSet& pset) override;
 
     void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            const size_t,
@@ -76,18 +73,18 @@ private:
     Waveform::const_iterator findStopTick(Waveform::const_iterator, Waveform::const_iterator)  const;
 
     // some fhicl control variables
-    size_t               fPlane;                //< Identifies the plane this tool is meant to operate on
-    float                fDilationThreshold;    //< Dilation threshold
-    float                fDilationFraction;     //< Fraction of max dilation to set for min dilation
-    float                fErosionFraction;      //< Fraction of max dilation value to set min erosion
-    int                  fMinDeltaTicks;        //< minimum ticks from max to min to consider
-    float                fMinDeltaPeaks;        //< minimum maximum to minimum peak distance
-    float                fMinHitHeight;         //< Drop candidate hits with height less than this
-    size_t               fNumInterveningTicks;  //< Number ticks between candidate hits to merge
-    int                  fStructuringElement;   //< Window size for morphologcial filter
-    bool                 fOutputHistograms;     //< If true will generate summary style histograms
-    bool                 fOutputWaveforms;      //< If true will output waveform related info <<< very big output file!
-    float                fFitNSigmaFromCenter;  //< Limit ticks to fit to NSigma from hit center; not applied if zero or negative
+    const size_t               fPlane;                //< Identifies the plane this tool is meant to operate on
+    const float                fDilationThreshold;    //< Dilation threshold
+    const float                fDilationFraction;     //< Fraction of max dilation to set for min dilation
+    const float                fErosionFraction;      //< Fraction of max dilation value to set min erosion
+    const int                  fMinDeltaTicks;        //< minimum ticks from max to min to consider
+    const float                fMinDeltaPeaks;        //< minimum maximum to minimum peak distance
+    const float                fMinHitHeight;         //< Drop candidate hits with height less than this
+    const size_t               fNumInterveningTicks;  //< Number ticks between candidate hits to merge
+    const int                  fStructuringElement;   //< Window size for morphologcial filter
+    const bool                 fOutputHistograms;     //< If true will generate summary style histograms
+    const bool                 fOutputWaveforms;      //< If true will output waveform related info <<< very big output file!
+    const float                fFitNSigmaFromCenter;  //< Limit ticks to fit to NSigma from hit center; not applied if zero or negative
 
     art::TFileDirectory* fHistDirectory;
 
@@ -99,6 +96,9 @@ private:
     TH1F*                fMaxDilationHist;       //< Keep track of the maximum dilation
     TH1F*                fMaxDilEroRatHist;      //< Ratio of the maxima of the two
 
+    //MT note: The mutable data members are only used in the histogram filling functions
+    //and histogram filling can only be done in single-threaded mode.
+    //Will need to consider design changes if this behavior changes. 
     mutable size_t       fLastChannel;           //< Kludge to keep track of last channel when histogramming in effect
     mutable size_t       fChannelCnt;            //< Counts the number of times a channel is used (assumed in order)
 
@@ -110,32 +110,31 @@ private:
 
 //----------------------------------------------------------------------
 // Constructor.
-CandHitMorphological::CandHitMorphological(const fhicl::ParameterSet& pset)
+CandHitMorphological::CandHitMorphological(const fhicl::ParameterSet& pset):
+    fPlane              (pset.get< size_t >("Plane",               0)),
+    fDilationThreshold  (pset.get< float  >("DilationThreshold",   4.)),
+    fDilationFraction   (pset.get< float  >("DilationFraction",    0.75)),
+    fErosionFraction    (pset.get< float  >("ErosionFraction",     0.2)),
+    fMinDeltaTicks      (pset.get< int    >("MinDeltaTicks",       0)),
+    fMinDeltaPeaks      (pset.get< float  >("MinDeltaPeaks",       0.025)),
+    fMinHitHeight       (pset.get< float  >("MinHitHeight",        1.0)),
+    fNumInterveningTicks(pset.get< size_t >("NumInterveningTicks", 6)),
+    fStructuringElement (pset.get< int    >("StructuringElement",  20)),
+    fOutputHistograms   (pset.get< bool   >("OutputHistograms",    false)),
+    fOutputWaveforms    (pset.get< bool   >("OutputWaveforms",     false)),
+    fFitNSigmaFromCenter(pset.get< float  >("FitNSigmaFromCenter", 5.))
 {
-    configure(pset);
-}
 
-CandHitMorphological::~CandHitMorphological()
-{
-}
-
-void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
-{
-    // Recover our parameters
-    fPlane               = pset.get< size_t >("Plane",               0);
-    fDilationThreshold   = pset.get< float  >("DilationThreshold",   4.);
-    fDilationFraction    = pset.get< float  >("DilationFraction",    0.75);
-    fErosionFraction     = pset.get< float  >("ErosionFraction",     0.2);
-    fMinDeltaTicks       = pset.get< int    >("MinDeltaTicks",       0);
-    fMinDeltaPeaks       = pset.get< float  >("MinDeltaPeaks",       0.025);
-    fMinHitHeight        = pset.get< float  >("MinHitHeight",        1.0);
-    fNumInterveningTicks = pset.get< size_t >("NumInterveningTicks", 6);
-    fStructuringElement  = pset.get< int    >("StructuringElement",  20);
-    fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
-    fOutputWaveforms     = pset.get< bool   >("OutputWaveforms",     false);
-    fFitNSigmaFromCenter = pset.get< float  >("FitNSigmaFromCenter", 5.);
-
-    // Recover the baseline tool
+if (art::Globals::instance()->nthreads() > 1u) {
+  if (fOutputHistograms) {
+         throw art::Exception(art::errors::Configuration) << "Cannot fill histograms when multiple threads configured, please set fOutputHistograms to false or change number of threads to 1\n";
+     }
+  
+  if (fOutputWaveforms) {
+         throw art::Exception(art::errors::Configuration) << "Cannot write output waveforms when multiple threads configured, please set fOutputHistograms to false or change number of threads to 1\n";
+  }
+  }
+  // Recover the baseline tool
     fWaveformTool = art::make_tool<reco_tool::IWaveformTool> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
 
     // Set the last channel to some nonsensical value
@@ -414,7 +413,7 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator startItr,
         for(const auto& tuple : candHitParamsVec)
         {
             // Create a new hit candidate and store away
-            HitCandidate_t hitCandidate;
+            HitCandidate hitCandidate;
 
             Waveform::const_iterator candStartItr = std::get<0>(tuple);
             Waveform::const_iterator maxItr       = std::get<1>(tuple);
