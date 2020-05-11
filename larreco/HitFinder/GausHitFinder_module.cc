@@ -129,6 +129,7 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset, art::ProcessingFra
     if (fFillHists && art::Globals::instance()->nthreads() > 1u) { 
       throw art::Exception(art::errors::Configuration) << "Cannot fill histograms when multiple threads configured, please set fFillHists to false or change number of threads to 1\n";
     }
+    async<art::InEvent>();
     if (fFilterHits) {
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
     }
