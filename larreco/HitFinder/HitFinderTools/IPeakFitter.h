@@ -35,7 +35,7 @@ namespace reco_tool
         };
 
         using PeakParamsVec = std::vector<PeakFitParams_t>;
-
+        virtual ~IPeakFitter() = default;
         // Get parameters for input candidate peaks
         virtual void findPeakParameters(const std::vector<float>&,
                                         const ICandidateHitFinder::HitCandidateVec&,
