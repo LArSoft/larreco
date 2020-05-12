@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 /// \file   CandHitDerivative.cc
 /// \author T. Usher
+//note for MT: this implementation is not thread-safe 
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
@@ -23,10 +24,6 @@ class CandHitDerivative : ICandidateHitFinder
 {
 public:
     explicit CandHitDerivative(const fhicl::ParameterSet& pset);
-
-    ~CandHitDerivative();
-
-    void configure(const fhicl::ParameterSet& pset) override;
 
     void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            const size_t,
@@ -83,16 +80,6 @@ private:
 // Constructor.
 CandHitDerivative::CandHitDerivative(const fhicl::ParameterSet& pset)
 {
-    configure(pset);
-}
-
-CandHitDerivative::~CandHitDerivative()
-{
-}
-
-void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
-{
-    // Recover our parameters
     fPlane               = pset.get< size_t >("Plane",               0);
     fMinDeltaTicks       = pset.get< int    >("MinDeltaTicks",       0);
     fMaxDeltaTicks       = pset.get< int    >("MaxDeltaTicks",       30);
@@ -265,7 +252,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         }
 
         // Create a new hit candidate and store away
-        HitCandidate_t hitCandidate;
+        HitCandidate hitCandidate;
 
         Waveform::const_iterator peakItr = std::min_element(maxItr,minItr,[](const auto& left, const auto& right){return std::fabs(left) < std::fabs(right);});
 
