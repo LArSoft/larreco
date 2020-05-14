@@ -41,11 +41,10 @@ namespace cluster {
    * constructed cluster, or to create another one.
    */
   class ClusterCreator {
-    public:
+  public:
+    // destructor, copy and move constructor and assignment as default
 
-      // destructor, copy and move constructor and assignment as default
-
-      /**
+    /**
        * @brief Constructor: computes some information from hit list
        * @param algo a configured and initialized algorithm set
        * @param start_wire wire coordinate of the start of the cluster
@@ -80,24 +79,21 @@ namespace cluster {
        * - `width`: a measure of the cluster width
        *
        */
-      ClusterCreator(
-        ClusterParamsAlgBase& algo,
-        float start_wire,
-        float sigma_start_wire,
-        float start_tick,
-        float sigma_start_tick,
-        float end_wire,
-        float sigma_end_wire,
-        float end_tick,
-        float sigma_end_tick,
-        recob::Cluster::ID_t ID,
-        geo::View_t view,
-        geo::PlaneID const& plane,
-        recob::Cluster::SentryArgument_t sentry = recob::Cluster::Sentry
-        );
+    ClusterCreator(ClusterParamsAlgBase& algo,
+                   float start_wire,
+                   float sigma_start_wire,
+                   float start_tick,
+                   float sigma_start_tick,
+                   float end_wire,
+                   float sigma_end_wire,
+                   float end_tick,
+                   float sigma_end_tick,
+                   recob::Cluster::ID_t ID,
+                   geo::View_t view,
+                   geo::PlaneID const& plane,
+                   recob::Cluster::SentryArgument_t sentry = recob::Cluster::Sentry);
 
-
-      /**
+    /**
        * @brief Prepares the constructed hit to be moved away
        * @return a right-value reference to the constructed hit
        *
@@ -111,10 +107,13 @@ namespace cluster {
        *     recob::Cluster single_cluster(cluster.move()); // wrong! cluster is empty now
        *
        */
-      recob::Cluster&& move() { return std::move(cluster); }
+    recob::Cluster&&
+    move()
+    {
+      return std::move(cluster);
+    }
 
-
-      /**
+    /**
        * @brief Returns the constructed wire
        * @return a constant reference to the constructed wire
        *
@@ -128,14 +127,17 @@ namespace cluster {
        *     recob::Cluster single_cluster(cluster.copy()); // copied again
        *
        */
-      recob::Cluster const& copy() const { return cluster; }
+    recob::Cluster const&
+    copy() const
+    {
+      return cluster;
+    }
 
-    protected:
+  protected:
+    /// Local instance of the cluster being constructed
+    recob::Cluster cluster;
 
-      /// Local instance of the cluster being constructed
-      recob::Cluster cluster;
-
-      /**
+    /**
        * @brief Creates a cluster from direct information and a hit list
        * @param algo a configured and initialized algorithm set
        * @param start_wire wire coordinate of the start of the cluster
@@ -170,24 +172,21 @@ namespace cluster {
        * - `width`: a measure of the cluster width
        *
        */
-      recob::Cluster CreateCluster(
-        ClusterParamsAlgBase& algo,
-        float start_wire,
-        float sigma_start_wire,
-        float start_tick,
-        float sigma_start_tick,
-        float end_wire,
-        float sigma_end_wire,
-        float end_tick,
-        float sigma_end_tick,
-        recob::Cluster::ID_t ID,
-        geo::View_t view,
-        geo::PlaneID const& plane,
-        recob::Cluster::SentryArgument_t sentry = recob::Cluster::Sentry
-        );
+    recob::Cluster CreateCluster(ClusterParamsAlgBase& algo,
+                                 float start_wire,
+                                 float sigma_start_wire,
+                                 float start_tick,
+                                 float sigma_start_tick,
+                                 float end_wire,
+                                 float sigma_end_wire,
+                                 float end_tick,
+                                 float sigma_end_tick,
+                                 recob::Cluster::ID_t ID,
+                                 geo::View_t view,
+                                 geo::PlaneID const& plane,
+                                 recob::Cluster::SentryArgument_t sentry = recob::Cluster::Sentry);
 
   }; // class ClusterCreator
-
 
 } // namespace cluster
 

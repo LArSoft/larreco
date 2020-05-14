@@ -17,7 +17,9 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
-namespace recob { class Hit; }
+namespace recob {
+  class Hit;
+}
 
 /// Cluster reconstruction namespace
 namespace cluster {
@@ -34,21 +36,20 @@ namespace cluster {
    *
    * In addition to the standard interface, GetParams() is also available.
    */
-  class LazyClusterParamsAlg: public ClusterParamsAlgBase {
-      public:
+  class LazyClusterParamsAlg : public ClusterParamsAlgBase {
+  public:
     using Measure_t = ClusterParamsAlgBase::Measure_t;
 
     /// Constructor: references to the parameters (no copy is performed!)
-    LazyClusterParamsAlg(cluster_params const& new_params):
-      params(new_params) {}
+    LazyClusterParamsAlg(cluster_params const& new_params) : params(new_params) {}
 
     /// Destructor
     virtual ~LazyClusterParamsAlg() = default;
 
-
     /// Restores the class to post-configuration, pre-initialization state; dummy
-    virtual void Clear() override {}
-
+    virtual void
+    Clear() override
+    {}
 
     /**
      * @brief Sets the list of input hits
@@ -58,8 +59,9 @@ namespace cluster {
      * The parameters have already been computed.
      * This function is dummy.
      */
-    virtual void SetHits(std::vector<recob::Hit const*> const& hits) override {}
-
+    virtual void
+    SetHits(std::vector<recob::Hit const*> const& hits) override
+    {}
 
     //@{
     /**
@@ -106,7 +108,6 @@ namespace cluster {
     virtual Measure_t EndOpeningAngle() override;
     //@}
 
-
     /// @name Cluster charge
     /// @{
     /**
@@ -151,10 +152,8 @@ namespace cluster {
 
     /// @}
 
-
     /// Returns the number of hits in the cluster
     virtual size_t NHits() override;
-
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
@@ -175,11 +174,14 @@ namespace cluster {
      */
     virtual float Width() override;
 
-
     /// Returns the original precomputed parameters
-    cluster_params const& GetParams() const { return params; }
+    cluster_params const&
+    GetParams() const
+    {
+      return params;
+    }
 
-      protected:
+  protected:
     cluster_params const& params; ///< the parameters, already computed
 
   }; //class LazyClusterParamsAlg

@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CMALGOBASE_H
 #define RECOTOOL_CMALGOBASE_H
 
-#include <vector>
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include <vector>
 
 class TFile;
 
@@ -30,58 +30,85 @@ namespace cmtool {
   class CMAlgoBase {
 
   public:
-
     /// Default constructor
-    CMAlgoBase(){ _fout = 0; _verbose = false; }
+    CMAlgoBase()
+    {
+      _fout = 0;
+      _verbose = false;
+    }
 
     /// Default destructor
-    virtual ~CMAlgoBase(){}
+    virtual ~CMAlgoBase() {}
 
     /// Function to reset the algorithm instance called within CMergeManager/CMatchManager's Reset() ... maybe implemented via child class
-    virtual void Reset(){}
+    virtual void
+    Reset()
+    {}
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
      */
-    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg> &clusters)
-    { if(clusters.size()) return; }
+    virtual void
+    EventBegin(const std::vector<cluster::ClusterParamsAlg>& clusters)
+    {
+      if (clusters.size()) return;
+    }
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
-    virtual void EventEnd()
-    {return;}
+    virtual void
+    EventEnd()
+    {
+      return;
+    }
 
     /**
        Optional function: called at the beggining of each iteration over all pairs of clusters.
        This provides all clusters' information in case the algorithm need them. Note this
        is called per iteration which may be more than once per event.
      */
-    virtual void IterationBegin(const std::vector<cluster::ClusterParamsAlg> &clusters)
-    { if(clusters.size()) return;}
+    virtual void
+    IterationBegin(const std::vector<cluster::ClusterParamsAlg>& clusters)
+    {
+      if (clusters.size()) return;
+    }
 
     /**
        Optional function: called at the end of each iteration over all pairs of clusters.
      */
-    virtual void IterationEnd()
-    {return; }
+    virtual void
+    IterationEnd()
+    {
+      return;
+    }
 
     /**
        Optional function: called after Bool() function is called for all possible cluster
        pairs by CMergeManager/CMatchManager IFF run with verbosity level kPerIteration.
        Maybe useful for debugging.
      */
-    virtual void Report()
-    {return;}
+    virtual void
+    Report()
+    {
+      return;
+    }
 
     /// Setter function for an output plot TFile pointer
-    void SetAnaFile(TFile* fout) { _fout = fout; }
+    void
+    SetAnaFile(TFile* fout)
+    {
+      _fout = fout;
+    }
 
     /// Setter function for verbosity
-    virtual void SetVerbose(bool doit=true) { _verbose = doit; }
+    virtual void
+    SetVerbose(bool doit = true)
+    {
+      _verbose = doit;
+    }
 
   protected:
-
     /// TFile pointer to an output file
     TFile* _fout;
 

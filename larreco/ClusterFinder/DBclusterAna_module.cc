@@ -14,38 +14,36 @@
 
 //Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "fhiclcpp/ParameterSet.h"
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
-#include "nug4/ParticleNavigation/ParticleList.h"
-#include "nug4/ParticleNavigation/EmEveIdCalculator.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RawData/RawDigit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
+#include "nug4/ParticleNavigation/EmEveIdCalculator.h"
+#include "nug4/ParticleNavigation/ParticleList.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
 
 #include "art/Framework/Core/EDAnalyzer.h"
 
 ///Cluster finding and building
 namespace cluster {
 
-
   class DBclusterAna : public art::EDAnalyzer {
 
   public:
-
     explicit DBclusterAna(fhicl::ParameterSet const& pset);
     virtual ~DBclusterAna();
 
@@ -60,12 +58,12 @@ namespace cluster {
     TH1F* fNoParticles_trackid_per_event;
     TH1F* fNoParticles_pdg_per_event;
     TH1F* fCl_for_Muon;
-   /*  TH1F* fCl_for_Electron; */
-   /*  TH1F* fCl_for_Positron; */
-   /*  TH1F* fCl_for_Pion_111; */
-   /*  TH1F* fCl_for_Pion_211; */
-   /*  TH1F* fCl_for_Pion_m211;*/
-   /*  TH1F* fCl_for_Proton;   */
+    /*  TH1F* fCl_for_Electron; */
+    /*  TH1F* fCl_for_Positron; */
+    /*  TH1F* fCl_for_Pion_111; */
+    /*  TH1F* fCl_for_Pion_211; */
+    /*  TH1F* fCl_for_Pion_m211;*/
+    /*  TH1F* fCl_for_Proton;   */
     TH1F* fNoClustersInEvent;
     TH1F* fPercentNoise;
     TH1F* fno_of_clusters_per_track;
@@ -97,48 +95,55 @@ namespace cluster {
     std::string fCalDataModuleLabel;
     std::string fGenieGenModuleLabel;
 
-
-
   }; // class DBclusterAna
 
 }
 
-namespace cluster{
+namespace cluster {
 
   //--------------------------------------------------------------------
   DBclusterAna::DBclusterAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
-    , fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel")        )
-    , fHitsModuleLabel          (pset.get< std::string >("HitsModuleLabel")         )
-    , fLArG4ModuleLabel         (pset.get< std::string >("LArGeantModuleLabel")     )
-    , fClusterFinderModuleLabel (pset.get< std::string >("ClusterFinderModuleLabel"))
-    , fCalDataModuleLabel       (pset.get< std::string >("CalDataModuleLabel")      )
-    , fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel")     )
-  {
-
-
-  }
+    , fDigitModuleLabel(pset.get<std::string>("DigitModuleLabel"))
+    , fHitsModuleLabel(pset.get<std::string>("HitsModuleLabel"))
+    , fLArG4ModuleLabel(pset.get<std::string>("LArGeantModuleLabel"))
+    , fClusterFinderModuleLabel(pset.get<std::string>("ClusterFinderModuleLabel"))
+    , fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel"))
+    , fGenieGenModuleLabel(pset.get<std::string>("GenieGenModuleLabel"))
+  {}
 
   //------------------------------------------------------------------
-  DBclusterAna::~DBclusterAna()
-  {
+  DBclusterAna::~DBclusterAna() {}
 
-  }
-
-  void DBclusterAna::beginJob()
+  void
+  DBclusterAna::beginJob()
   {
 
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
 
-    fNoParticles_pdg_per_event = tfs->make<TH1F>("fNoParticles_pdg_per_event","Average # of Particles per cluster for each event", 500,0 ,5);
-    fNoParticles_pdg=tfs->make<TH1F>("fNoParticles_pdg","Number of Particles in a Cluster for each cluster", 500,0 ,5);
-    fNoParticles_trackid=tfs->make<TH1F>("fNoParticles_trackid","Number of different TrackIDs in a Cluster", 300,0 ,30);
+    fNoParticles_pdg_per_event = tfs->make<TH1F>(
+      "fNoParticles_pdg_per_event", "Average # of Particles per cluster for each event", 500, 0, 5);
+    fNoParticles_pdg = tfs->make<TH1F>(
+      "fNoParticles_pdg", "Number of Particles in a Cluster for each cluster", 500, 0, 5);
+    fNoParticles_trackid = tfs->make<TH1F>(
+      "fNoParticles_trackid", "Number of different TrackIDs in a Cluster", 300, 0, 30);
 
-    fNoParticles_trackid_mother=tfs->make<TH1F>("fNoParticles_trackid_mother","Number of different TrackIDs in a Cluster(using mother)for each cluster", 300,0 ,30);
+    fNoParticles_trackid_mother =
+      tfs->make<TH1F>("fNoParticles_trackid_mother",
+                      "Number of different TrackIDs in a Cluster(using mother)for each cluster",
+                      300,
+                      0,
+                      30);
 
-    fNoParticles_trackid_per_event=tfs->make<TH1F>("fNoParticles_trackid_per_event","Avg Number of different TrackIDs per Cluster per event", 300,0 ,30);
-    fCl_for_Muon=tfs->make<TH1F>("fCl_for_Muon","Number of Clusters for Muon per plane (pdg)", 1500,0 ,15);
+    fNoParticles_trackid_per_event =
+      tfs->make<TH1F>("fNoParticles_trackid_per_event",
+                      "Avg Number of different TrackIDs per Cluster per event",
+                      300,
+                      0,
+                      30);
+    fCl_for_Muon =
+      tfs->make<TH1F>("fCl_for_Muon", "Number of Clusters for Muon per plane (pdg)", 1500, 0, 15);
     //  fCl_for_Electron=tfs->make<TH1F>("fCl_for_Electron","Number of Clusters for Electron  (pdg)", 1500,0 ,15);
     //  fCl_for_Positron=tfs->make<TH1F>("fCl_for_Positron","Number of Clusters for Positron", 1500,0 ,15);
     //  fCl_for_Pion_111=tfs->make<TH1F>("fCl_for_Pion_111","Number of Clusters for Pion (111)", 1500,0 ,15);
@@ -146,38 +151,133 @@ namespace cluster{
     //  fCl_for_Pion_m211=tfs->make<TH1F>("fCl_for_Pion_m211","Number of Clusters for Pion (-211)", 1500,0 ,15);
     // fCl_for_Proton=tfs->make<TH1F>("fCl_for_Proton","Number of Clusters for Proton", 1500,0 ,15);
 
-    fNoClustersInEvent=tfs->make<TH1F>("fNoClustersInEvent","Number of Clusters in an Event", 50,0 ,50);
+    fNoClustersInEvent =
+      tfs->make<TH1F>("fNoClustersInEvent", "Number of Clusters in an Event", 50, 0, 50);
 
-    fPercentNoise=tfs->make<TH1F>("fPercentNoise","% of hits that were marked as Noise by DBSCAN",250,0 ,25);
+    fPercentNoise =
+      tfs->make<TH1F>("fPercentNoise", "% of hits that were marked as Noise by DBSCAN", 250, 0, 25);
 
-    fno_of_clusters_per_track=tfs->make<TH1F>("fno_of_clusters_per_track","Number of Clusters per TrackID per plane", 1500,0 ,15);
+    fno_of_clusters_per_track = tfs->make<TH1F>(
+      "fno_of_clusters_per_track", "Number of Clusters per TrackID per plane", 1500, 0, 15);
 
-    fPercent_lost_muon_hits=tfs->make<TH1F>("fPercent_lost_muon_hits","Number of muon hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_electron_hits=tfs->make<TH1F>("fPercent_lost_electron_hits","Number of electron hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_positron_hits=tfs->make<TH1F>("fPercent_lost_positron_hits","Number of positron hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_111_hits=tfs->make<TH1F>("fPercent_lost_111_hits","Number of pion(111) hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_211_hits=tfs->make<TH1F>("fPercent_lost_211_hits","Number of pion(211) hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_m211_hits=tfs->make<TH1F>("fPercent_lost_m211_hits","Number of pion(-211) hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_2212_hits=tfs->make<TH1F>("fPercent_lost_2212_hits","Number of proton hits excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_2112_hits=tfs->make<TH1F>("fPercent_lost_2112_hits","Number of neutron hits excluded by dbscan in % (per Event)", 10000,0 ,100);
+    fPercent_lost_muon_hits =
+      tfs->make<TH1F>("fPercent_lost_muon_hits",
+                      "Number of muon hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_electron_hits =
+      tfs->make<TH1F>("fPercent_lost_electron_hits",
+                      "Number of electron hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_positron_hits =
+      tfs->make<TH1F>("fPercent_lost_positron_hits",
+                      "Number of positron hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_111_hits =
+      tfs->make<TH1F>("fPercent_lost_111_hits",
+                      "Number of pion(111) hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_211_hits =
+      tfs->make<TH1F>("fPercent_lost_211_hits",
+                      "Number of pion(211) hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_m211_hits =
+      tfs->make<TH1F>("fPercent_lost_m211_hits",
+                      "Number of pion(-211) hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_2212_hits =
+      tfs->make<TH1F>("fPercent_lost_2212_hits",
+                      "Number of proton hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_2112_hits =
+      tfs->make<TH1F>("fPercent_lost_2112_hits",
+                      "Number of neutron hits excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
 
-    fPercent_lost_muon_energy=tfs->make<TH1F>("fPercent_lost_muon_energy"," muon energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_electron_energy=tfs->make<TH1F>("fPercent_lost_electron_energy","electron energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_positron_energy=tfs->make<TH1F>("fPercent_lost_positron_energy"," positron energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_111_energy=tfs->make<TH1F>("fPercent_lost_111_energy","pion(111) energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_211_energy=tfs->make<TH1F>("fPercent_lost_211_energy","pion(211) energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_m211_energy=tfs->make<TH1F>("fPercent_lost_m211_energy"," pion(-211) energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_2212_energy=tfs->make<TH1F>("fPercent_lost_2212_energy","proton energy excluded by dbscan in % (per Event)", 10000,0 ,100);
-    fPercent_lost_2112_energy=tfs->make<TH1F>("fPercent_lost_2112_energy","neutron energy excluded by dbscan in % (per Event)", 10000,0 ,100);
+    fPercent_lost_muon_energy = tfs->make<TH1F>("fPercent_lost_muon_energy",
+                                                " muon energy excluded by dbscan in % (per Event)",
+                                                10000,
+                                                0,
+                                                100);
+    fPercent_lost_electron_energy =
+      tfs->make<TH1F>("fPercent_lost_electron_energy",
+                      "electron energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_positron_energy =
+      tfs->make<TH1F>("fPercent_lost_positron_energy",
+                      " positron energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_111_energy =
+      tfs->make<TH1F>("fPercent_lost_111_energy",
+                      "pion(111) energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_211_energy =
+      tfs->make<TH1F>("fPercent_lost_211_energy",
+                      "pion(211) energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_m211_energy =
+      tfs->make<TH1F>("fPercent_lost_m211_energy",
+                      " pion(-211) energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
+    fPercent_lost_2212_energy = tfs->make<TH1F>("fPercent_lost_2212_energy",
+                                                "proton energy excluded by dbscan in % (per Event)",
+                                                10000,
+                                                0,
+                                                100);
+    fPercent_lost_2112_energy =
+      tfs->make<TH1F>("fPercent_lost_2112_energy",
+                      "neutron energy excluded by dbscan in % (per Event)",
+                      10000,
+                      0,
+                      100);
 
-    fEnergy=tfs->make<TH1F>("fEnergy","energy for each voxel", 100000,0 ,0.0005);
+    fEnergy = tfs->make<TH1F>("fEnergy", "energy for each voxel", 100000, 0, 0.0005);
 
-    fbrian_in = tfs->make<TH2F>("fbrian_in", ";# Electrons deposited; # Electrons detected by hitfinder", 1000,     0, 10000000, 1000, 0, 10000000);
-    fbrian_coll = tfs->make<TH2F>("fbrian_coll", ";# Electrons deposited; # Electrons detected by hitfinder", 1000,     0, 10000000, 1000, 0, 10000000);
-
+    fbrian_in = tfs->make<TH2F>("fbrian_in",
+                                ";# Electrons deposited; # Electrons detected by hitfinder",
+                                1000,
+                                0,
+                                10000000,
+                                1000,
+                                0,
+                                10000000);
+    fbrian_coll = tfs->make<TH2F>("fbrian_coll",
+                                  ";# Electrons deposited; # Electrons detected by hitfinder",
+                                  1000,
+                                  0,
+                                  10000000,
+                                  1000,
+                                  0,
+                                  10000000);
   }
 
-  void DBclusterAna::analyze(const art::Event& evt)
+  void
+  DBclusterAna::analyze(const art::Event& evt)
   {
 
     std::cout << "run    : " << evt.run() << std::endl;
@@ -186,26 +286,26 @@ namespace cluster{
     //----------------------------------------------------------------
 
     /* This is basically a module for studying MC efficiency/purity. Kick out now if not MC. EC, 8-Oct-2010 */
-    if (evt.isRealData())
-      {
-        std::cout<<"**** DBclusterAna: Bailing. Don't call this module if you're not MC. "<<std::endl;
-        exit (1);
-      }
+    if (evt.isRealData()) {
+      std::cout << "**** DBclusterAna: Bailing. Don't call this module if you're not MC. "
+                << std::endl;
+      exit(1);
+    }
 
-    art::ServiceHandle<geo::Geometry const>      geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
-    art::Handle< std::vector<raw::RawDigit>  > rdListHandle;
-    evt.getByLabel(fDigitModuleLabel,rdListHandle);
-    art::Handle< std::vector<recob::Hit> > hitListHandle;
-    evt.getByLabel(fHitsModuleLabel,hitListHandle);
-    art::Handle< std::vector<simb::MCTruth> > mctruthListHandle;
-    evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle);
-    art::Handle< std::vector<recob::Cluster> > clusterListHandle;
-    evt.getByLabel(fClusterFinderModuleLabel,clusterListHandle);
-    art::Handle< std::vector<recob::Wire> > wireListHandle;
-    evt.getByLabel(fCalDataModuleLabel,wireListHandle);
+    art::Handle<std::vector<raw::RawDigit>> rdListHandle;
+    evt.getByLabel(fDigitModuleLabel, rdListHandle);
+    art::Handle<std::vector<recob::Hit>> hitListHandle;
+    evt.getByLabel(fHitsModuleLabel, hitListHandle);
+    art::Handle<std::vector<simb::MCTruth>> mctruthListHandle;
+    evt.getByLabel(fGenieGenModuleLabel, mctruthListHandle);
+    art::Handle<std::vector<recob::Cluster>> clusterListHandle;
+    evt.getByLabel(fClusterFinderModuleLabel, clusterListHandle);
+    art::Handle<std::vector<recob::Wire>> wireListHandle;
+    evt.getByLabel(fCalDataModuleLabel, wireListHandle);
 
     art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterFinderModuleLabel);
 
@@ -215,8 +315,8 @@ namespace cluster{
 
     art::PtrVector<raw::RawDigit> rawdigits;
 
-    for (size_t ii = 0; ii <  rdListHandle->size(); ++ii){
-      art::Ptr<raw::RawDigit> rawdigit(rdListHandle,ii);
+    for (size_t ii = 0; ii < rdListHandle->size(); ++ii) {
+      art::Ptr<raw::RawDigit> rawdigit(rdListHandle, ii);
       rawdigits.push_back(rawdigit);
     }
 
@@ -230,7 +330,7 @@ namespace cluster{
 
     //check_particleList(_particleList[0]);
     //std::cout<<"checking trackID: ";
-    for ( auto i = _particleList.begin(); i != _particleList.end(); ++i ){
+    for (auto i = _particleList.begin(); i != _particleList.end(); ++i) {
       int trackID = (*i).first;
       mc_trackids.push_back(trackID);
     }
@@ -244,11 +344,10 @@ namespace cluster{
     //   }
     // std::cout<<"I have in total "<<mc_trackids.size()<<" different tracks"<<std::endl;
 
-
     //----------------------------------------------------------------
     art::PtrVector<simb::MCTruth> mclist;
-    for (size_t ii = 0; ii <  mctruthListHandle->size(); ++ii){
-      art::Ptr<simb::MCTruth> mctparticle(mctruthListHandle,ii);
+    for (size_t ii = 0; ii < mctruthListHandle->size(); ++ii) {
+      art::Ptr<simb::MCTruth> mctparticle(mctruthListHandle, ii);
       mclist.push_back(mctparticle);
     }
 
@@ -259,32 +358,29 @@ namespace cluster{
     //       hits.push_back(hitHolder);
     //     }
     //--------------------------------------------------
-    std::vector< art::Ptr<recob::Hit> > hits_vec;
+    std::vector<art::Ptr<recob::Hit>> hits_vec;
 
     //--------------------------------------------------
-    std::vector< art::Ptr<recob::Hit> > hits;
+    std::vector<art::Ptr<recob::Hit>> hits;
     art::fill_ptr_vector(hits, hitListHandle);
     //---------------------------------------------------
 
     art::PtrVector<recob::Cluster> clusters;
-    for (unsigned int ii = 0; ii <  clusterListHandle->size(); ++ii){
-      art::Ptr<recob::Cluster> clusterHolder(clusterListHandle,ii);
+    for (unsigned int ii = 0; ii < clusterListHandle->size(); ++ii) {
+      art::Ptr<recob::Cluster> clusterHolder(clusterListHandle, ii);
       clusters.push_back(clusterHolder);
     }
 
-    std::cout<<"in Efficiency, clusters.size()= "<<clusters.size()<<std::endl;
+    std::cout << "in Efficiency, clusters.size()= " << clusters.size() << std::endl;
 
     //---------------------------------------------------------------
     art::PtrVector<recob::Wire> wirelist;
 
-    for (size_t ii = 0; ii <  wireListHandle->size(); ++ii){
-      art::Ptr<recob::Wire> wireHolder(wireListHandle,ii);
+    for (size_t ii = 0; ii < wireListHandle->size(); ++ii) {
+      art::Ptr<recob::Wire> wireHolder(wireListHandle, ii);
 
       wirelist.push_back(wireHolder);
-
     }
-
-
 
     //...........................................................................
     // How many different particles do we have in a cluster???
@@ -297,34 +393,35 @@ namespace cluster{
     // take each TrackID and count in how many clusters it appears
     //.........................................................................
 
-    double no_of_particles_in_cluster=0;
-    double sum_vec_trackid=0;
-    double no_of_clusters=0;
-    double total_no_hits_in_clusters=0;
+    double no_of_particles_in_cluster = 0;
+    double sum_vec_trackid = 0;
+    double no_of_clusters = 0;
+    double total_no_hits_in_clusters = 0;
     //unsigned int plane=0;
     //art::Ptr<raw::RawDigit > _rawdigit; // unused
     //art::Ptr<raw::RawDigit > _rawdigit2; // unused
     std::vector<int> vec_pdg;
-    std::vector<int> vec_trackid,vec_trackid_mother, vec_trackid_mother_en;
+    std::vector<int> vec_trackid, vec_trackid_mother, vec_trackid_mother_en;
     std::vector<int> all_trackids;
     std::vector<int> ids;
-    std::vector<int>::iterator it,it2,it3,it4,it5,it6,it7,it8;
-    int no_cl_for_muon=0;
-    int no_cl_for_electron=0;
-    int no_cl_for_positron=0;
-    int no_cl_for_pion_111=0;
-    int no_cl_for_pion_211=0;
-    int no_cl_for_pion_m211=0;
-    int no_cl_for_proton=0;
-    double noCluster=0;
+    std::vector<int>::iterator it, it2, it3, it4, it5, it6, it7, it8;
+    int no_cl_for_muon = 0;
+    int no_cl_for_electron = 0;
+    int no_cl_for_positron = 0;
+    int no_cl_for_pion_111 = 0;
+    int no_cl_for_pion_211 = 0;
+    int no_cl_for_pion_m211 = 0;
+    int no_cl_for_proton = 0;
+    double noCluster = 0;
     //  int muon=0,electron=0,positron=0,pion=0;
-    double _hit_13=0,_hit_11=0,_hit_m_11=0,_hit_111=0,_hit_211=0,_hit_m211=0,_hit_2212=0,_hit_2112=0;
-    double _en_13=0,_en_11=0,_en_m11=0,_en_111=0,_en_211=0,_en_m211=0,_en_2212=0,_en_2112=0;
+    double _hit_13 = 0, _hit_11 = 0, _hit_m_11 = 0, _hit_111 = 0, _hit_211 = 0, _hit_m211 = 0,
+           _hit_2212 = 0, _hit_2112 = 0;
+    double _en_13 = 0, _en_11 = 0, _en_m11 = 0, _en_111 = 0, _en_211 = 0, _en_m211 = 0,
+           _en_2212 = 0, _en_2112 = 0;
     std::vector<double> diff_vec;
 
-    double hit_energy=0;
-    double total_Q_cluster_hits=0;
-
+    double hit_energy = 0;
+    double total_Q_cluster_hits = 0;
 
     /*
       for(unsigned int i = 0; i < hits.size(); ++i) {
@@ -332,337 +429,310 @@ namespace cluster{
       }
     */
 
-    if(clusters.size()!=0 && hits.size()!=0){
-      for(unsigned int plane=0;plane<geom->Nplanes();++plane){
+    if (clusters.size() != 0 && hits.size() != 0) {
+      for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
         geo::View_t view = geom->Plane(plane).View();
         //art::PtrVector<recob::Cluster>::const_iterator clusterIter = clusters.begin();
-        for(size_t j = 0; j < clusters.size(); ++j){
+        for (size_t j = 0; j < clusters.size(); ++j) {
 
-  	  //	std::cout<<"I AM ON PLANE #"<<plane<<std::endl;
-  	  if( clusters[j]->View() == view){
+          //	std::cout<<"I AM ON PLANE #"<<plane<<std::endl;
+          if (clusters[j]->View() == view) {
 
-  	    //std::cout<<"working on cluster # "<<j<<std::endl;
-  	    std::vector< art::Ptr<recob::Hit> > _hits = fmh.at(j);
-  	    art::Ptr<recob::Hit> _hits_ptr; //
+            //std::cout<<"working on cluster # "<<j<<std::endl;
+            std::vector<art::Ptr<recob::Hit>> _hits = fmh.at(j);
+            art::Ptr<recob::Hit> _hits_ptr; //
 
-  	    //delete
-  	    //std::cout<<"_hits.size()= "<<_hits.size()<<std::endl;
-  	    for(size_t p = 0; p<_hits.size(); ++p){
-  	      _hits_ptr=_hits[p];
-  	      hits_vec.push_back(_hits_ptr);
-  	      //std::cout<<"hit # "<<p<<" charge= "<<_hits[p]->Integral()<<std::endl;
-  	      total_Q_cluster_hits += _hits[p]->Integral();
-  	    }
+            //delete
+            //std::cout<<"_hits.size()= "<<_hits.size()<<std::endl;
+            for (size_t p = 0; p < _hits.size(); ++p) {
+              _hits_ptr = _hits[p];
+              hits_vec.push_back(_hits_ptr);
+              //std::cout<<"hit # "<<p<<" charge= "<<_hits[p]->Integral()<<std::endl;
+              total_Q_cluster_hits += _hits[p]->Integral();
+            }
 
+            std::vector<art::Ptr<recob::Hit>>::iterator itr = hits_vec.begin();
 
-  	    std::vector< art::Ptr<recob::Hit> >::iterator itr = hits_vec.begin();
+            //std::cout<<"hits_vec.size()= "<<hits_vec.size()<<std::endl;
+            while (itr != hits_vec.end()) {
+              //std::cout<<"working on hit # "<<itr-hits_vec.begin()<<" charge= "<<_hits[itr-hits_vec.begin()]->Integral()<<std::endl;
+              diff_vec.clear();
+              //std::cout<<"same?, q= "<<hits_vec[itr-hits_vec.begin()]->Integral()<<std::endl;
 
+              hit_energy = _hits[itr - hits_vec.begin()]->Integral();
 
-  	    //std::cout<<"hits_vec.size()= "<<hits_vec.size()<<std::endl;
-  	    while(itr != hits_vec.end()) {
-  	      //std::cout<<"working on hit # "<<itr-hits_vec.begin()<<" charge= "<<_hits[itr-hits_vec.begin()]->Integral()<<std::endl;
-  	      diff_vec.clear();
-  	      //std::cout<<"same?, q= "<<hits_vec[itr-hits_vec.begin()]->Integral()<<std::endl;
+              std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
 
-  	      hit_energy=_hits[itr-hits_vec.begin()]->Integral();
+              std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(*itr);
 
-  	      std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
+              std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
 
-  	      std::vector<sim::TrackIDE> eveides   = bt_serv->HitToEveTrackIDEs(*itr);
+              while (idesitr != trackides.end()) {
 
-  	      std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
+                //int eveID = _particleList.EveId( (*idesitr).trackID );
 
-  	      while( idesitr != trackides.end() ){
+                // std::cout<<"track id: " << (*idesitr).trackID<<" contributed " << (*idesitr).energyFrac<< " to the current hit and has eveID: " << eveID<<std::endl;
 
-  		//int eveID = _particleList.EveId( (*idesitr).trackID );
+                // double energy=voxelData.Energy(i);
+                // std::cout<<"check4-3"<<std::endl;
+                // std::cout<<"energy= "<<energy<<std::endl;
+                // fEnergy->Fill(energy);
 
-  		// std::cout<<"track id: " << (*idesitr).trackID<<" contributed " << (*idesitr).energyFrac<< " to the current hit and has eveID: " << eveID<<std::endl;
+                vec_trackid.push_back((*idesitr).trackID);
 
-  		// double energy=voxelData.Energy(i);
-  		// std::cout<<"check4-3"<<std::endl;
-  		// std::cout<<"energy= "<<energy<<std::endl;
-  		// fEnergy->Fill(energy);
+                //for( unsigned int i=0; i<_particleList.size(); ++i )
+                // {
+                // 			  // const sim::ParticleList* particleList = _particleList[i];
+                // 			  //particleList = _particleList[i];
+                //
+                //
+                // 			  // 	double energyTrackID=voxelData.Energy[trackID];
+                // 			  //  	std::cout<<"ENERGY OF PRIMARY TRACKID= "<<energyTrackID<<std::endl;
+                const simb::MCParticle* particle = _particleList.at((*idesitr).trackID);
+                //
+                int pdg = particle->PdgCode();
+                // std::cout<<"pdg= "<<pdg<<std::endl;
+                //
+                // 			  double energy2=voxelData.Energy(i);
+                // 			  // std::cout<<"energy2= "<<energy2<<std::endl;
+                //
+                // 			  // std::cout<<"part eng= "<<particle->E()<<std::endl;
+                if (pdg == 13 || pdg == -13) {
+                  _hit_13++;
+                  _en_13 += hit_energy * ((*idesitr).energyFrac);
+                  // std::cout<<"_en_13= "<<_en_13<<std::endl;
+                }
+                // 			  if(pdg==11){_hit_11++;
+                // 			    _en_11+=energy2;
+                // 			    // std::cout<<"in clus: _en_11="<<_en_11<<std::endl;
+                // 			  }
+                // 			  if(pdg==-11){_hit_m_11++;
+                // 			    _en_m11+=energy2;}
+                // 			  if(pdg==111){_hit_111++;
+                // 			    _en_111+=energy2;}
+                // 			  if(pdg==22){_hit_22++;
+                // 			    _en_22+=energy2;}
+                // 			  if(pdg==211){_hit_211++;
+                // 			    _en_211+=energy2;}
+                // 			  if(pdg==-211){_hit_m211++;
+                // 			    _en_m211+=energy2;}
+                // 			  if(pdg==2212){_hit_2212++;
+                // 			    _en_2212+=energy2;}
+                // 			  if(pdg==2112){_hit_2112++;
+                // 			    _en_2112+=energy2;}
+                //
+                // 			  //std::cout<<"True PDG= "<<pdg<<std::endl;
+                // 			  vec_pdg.push_back(pdg);
+                // 			  // std::cout<<"_en_11= "<<_en_11<<std::endl;
+                // 			  //while particle is not a primary particle and going up in a chain of trackIDs is not going to change its pdg code, go up the chain.
+                // 			  while ( (! _particleList.IsPrimary( trackID )) && (((_particleList.at(particle->Mother()))->PdgCode())==pdg))
+                // 			    {
+                // 			      trackID = particle->Mother();
+                // 			      //std::cout<<"((NOt a PRIMARY ORIGINALLY!!! ) trackID= "<<trackID<<std::endl;
+                // 			      particle = _particleList.at( trackID );
+                // 			      pdg= particle->PdgCode();
+                // 			      //	 std::cout<<"(NOt a PRIMARY ORIGINALLY!!! ) The PDG from HIT is: "<<pdg<<std::endl;
+                //
+                // 			    }
+                //
+                // 			  // std::cout<<"The PDG from HIT is: "<<pdg<<std::endl;
+                // 			  //std::cout<<"after mother trackid= "<<trackID<<std::endl;
+                // 			  vec_trackid_mother.push_back(trackID);
+                // 			  if(energy>(7e-5)){ vec_trackid_mother_en.push_back(trackID);}
+                // 			}
 
-  		vec_trackid.push_back((*idesitr).trackID);
+                idesitr++;
+              }
 
-  		//for( unsigned int i=0; i<_particleList.size(); ++i )
-  		// {
-  		// 			  // const sim::ParticleList* particleList = _particleList[i];
-  		// 			  //particleList = _particleList[i];
-  		//
-  		//
-  		// 			  // 	double energyTrackID=voxelData.Energy[trackID];
-  		// 			  //  	std::cout<<"ENERGY OF PRIMARY TRACKID= "<<energyTrackID<<std::endl;
-  		const simb::MCParticle* particle = _particleList.at( (*idesitr).trackID);
-  		//
-  		int pdg = particle->PdgCode();
-  		// std::cout<<"pdg= "<<pdg<<std::endl;
-  		//
-  		// 			  double energy2=voxelData.Energy(i);
-  		// 			  // std::cout<<"energy2= "<<energy2<<std::endl;
-  		//
-  		// 			  // std::cout<<"part eng= "<<particle->E()<<std::endl;
-  		if(pdg==13 || pdg==-13){
-  		  _hit_13++;
-  		  _en_13+=hit_energy*((*idesitr).energyFrac);
-  		  // std::cout<<"_en_13= "<<_en_13<<std::endl;
-  		}
-  		// 			  if(pdg==11){_hit_11++;
-  		// 			    _en_11+=energy2;
-  		// 			    // std::cout<<"in clus: _en_11="<<_en_11<<std::endl;
-  		// 			  }
-  		// 			  if(pdg==-11){_hit_m_11++;
-  		// 			    _en_m11+=energy2;}
-  		// 			  if(pdg==111){_hit_111++;
-  		// 			    _en_111+=energy2;}
-  		// 			  if(pdg==22){_hit_22++;
-  		// 			    _en_22+=energy2;}
-  		// 			  if(pdg==211){_hit_211++;
-  		// 			    _en_211+=energy2;}
-  		// 			  if(pdg==-211){_hit_m211++;
-  		// 			    _en_m211+=energy2;}
-  		// 			  if(pdg==2212){_hit_2212++;
-  		// 			    _en_2212+=energy2;}
-  		// 			  if(pdg==2112){_hit_2112++;
-  		// 			    _en_2112+=energy2;}
-  		//
-  		// 			  //std::cout<<"True PDG= "<<pdg<<std::endl;
-  		// 			  vec_pdg.push_back(pdg);
-  		// 			  // std::cout<<"_en_11= "<<_en_11<<std::endl;
-  		// 			  //while particle is not a primary particle and going up in a chain of trackIDs is not going to change its pdg code, go up the chain.
-  		// 			  while ( (! _particleList.IsPrimary( trackID )) && (((_particleList.at(particle->Mother()))->PdgCode())==pdg))
-  		// 			    {
-  		// 			      trackID = particle->Mother();
-  		// 			      //std::cout<<"((NOt a PRIMARY ORIGINALLY!!! ) trackID= "<<trackID<<std::endl;
-  		// 			      particle = _particleList.at( trackID );
-  		// 			      pdg= particle->PdgCode();
-  		// 			      //	 std::cout<<"(NOt a PRIMARY ORIGINALLY!!! ) The PDG from HIT is: "<<pdg<<std::endl;
-  		//
-  		// 			    }
-  		//
-  		// 			  // std::cout<<"The PDG from HIT is: "<<pdg<<std::endl;
-  		// 			  //std::cout<<"after mother trackid= "<<trackID<<std::endl;
-  		// 			  vec_trackid_mother.push_back(trackID);
-  		// 			  if(energy>(7e-5)){ vec_trackid_mother_en.push_back(trackID);}
-  		// 			}
+              ////////////////////////////////////////////
 
+              // int numberPrimaries = particleList->NumberOfPrimaries();
+              // 	     std::cout<<"no of PRIMARIES: "<<numberPrimaries<<std::endl;
+              // 	    for ( int i = 0; i != numberPrimaries; ++i )
+              // 	    {
+              // 	    const simb::MCParticle* primaryParticle = particleList->Primary(i);
+              // 			int trackID = primaryParticle->TrackId();
+              // 		std::cout<<"from PRIMARY trackID= "<<trackID<<std::endl;
+              // 	double energy=voxelData.Energy[trackID];
+              // 	std::cout<<"ENERGY OF PRIMARY TRACKID= "<<energy<<std::endl;
+              // 	    }
 
+              //////////////////////////////////////////////
 
-  		idesitr++;
+              // std::cout<<"check--3"<<std::endl;
 
-  	      }
+              itr++;
 
-  	      ////////////////////////////////////////////
+            } //loop thru hits
+            //std::cout<<"check--4"<<std::endl;
 
-  	      // int numberPrimaries = particleList->NumberOfPrimaries();
-  	      // 	     std::cout<<"no of PRIMARIES: "<<numberPrimaries<<std::endl;
-  	      // 	    for ( int i = 0; i != numberPrimaries; ++i )
-  	      // 	    {
-  	      // 	    const simb::MCParticle* primaryParticle = particleList->Primary(i);
-  	      // 			int trackID = primaryParticle->TrackId();
-  	      // 		std::cout<<"from PRIMARY trackID= "<<trackID<<std::endl;
-  	      // 	double energy=voxelData.Energy[trackID];
-  	      // 	std::cout<<"ENERGY OF PRIMARY TRACKID= "<<energy<<std::endl;
-  	      // 	    }
+            //  std::cout<<"vec_pdg("<<vec_pdg.size()<<")= " ;
+            for (unsigned int i = 0; i < vec_pdg.size(); ++i) {
 
-  	      //////////////////////////////////////////////
+              // std::cout<<vec_pdg[i]<<" ";
+            }
+            //std::cout<<std::endl;
+            //  std::cout<<"vec_trackid("<<vec_trackid.size()<<")= ";
+            // 	  for(unsigned int ii=0;ii<vec_trackid.size();++ii){
 
-  	      // std::cout<<"check--3"<<std::endl;
+            // 	     std::cout<<vec_trackid[ii]<<" ";
 
-  	      itr++;
+            // 	  }
 
-  	    }//loop thru hits
-  	    //std::cout<<"check--4"<<std::endl;
+            // std::cout<<"vec_trackid_mother("<<vec_trackid_mother.size()<<")= ";
+            // 	  for(unsigned int ii=0;ii<vec_trackid_mother.size();++ii){
 
-  	    //  std::cout<<"vec_pdg("<<vec_pdg.size()<<")= " ;
-  	    for(unsigned int i=0;i<vec_pdg.size();++i){
+            // 	     std::cout<<vec_trackid_mother[ii]<<" ";
 
-  	      // std::cout<<vec_pdg[i]<<" ";
+            // 	  }
 
-  	    }
-  	    //std::cout<<std::endl;
-  	    //  std::cout<<"vec_trackid("<<vec_trackid.size()<<")= ";
-  	    // 	  for(unsigned int ii=0;ii<vec_trackid.size();++ii){
+            it = find(vec_pdg.begin(), vec_pdg.end(), 13);
+            if (it != vec_pdg.end()) {
+              // std::cout<<"matched found at position="<<int(it-vec_pdg.begin())<<std::endl;
+              no_cl_for_muon++;
+            }
+            else {
+              // std::cout<<"no match!"<<std::endl;
+            }
 
-  	    // 	     std::cout<<vec_trackid[ii]<<" ";
+            it2 = find(vec_pdg.begin(), vec_pdg.end(), 11);
+            if (it2 != vec_pdg.end()) { no_cl_for_electron++; }
 
-  	    // 	  }
+            it3 = find(vec_pdg.begin(), vec_pdg.end(), -11);
+            if (it3 != vec_pdg.end()) { no_cl_for_positron++; }
 
-  	    // std::cout<<"vec_trackid_mother("<<vec_trackid_mother.size()<<")= ";
-  	    // 	  for(unsigned int ii=0;ii<vec_trackid_mother.size();++ii){
+            it4 = find(vec_pdg.begin(), vec_pdg.end(), 111);
+            if (it4 != vec_pdg.end()) { no_cl_for_pion_111++; }
+            it6 = find(vec_pdg.begin(), vec_pdg.end(), 211);
+            if (it6 != vec_pdg.end()) { no_cl_for_pion_211++; }
+            it7 = find(vec_pdg.begin(), vec_pdg.end(), -211);
+            if (it7 != vec_pdg.end()) { no_cl_for_pion_m211++; }
+            it8 = find(vec_pdg.begin(), vec_pdg.end(), 2212);
+            if (it8 != vec_pdg.end()) { no_cl_for_proton++; }
 
-  	    // 	     std::cout<<vec_trackid_mother[ii]<<" ";
+            // std::cout<<std::endl;
+            //std::cout<<"numberParticles= "<<numberParticles<<std::endl;
+            //  std::cout<<"size of vec_pdg= "<<vec_pdg.size()<<std::endl;
+            sort(vec_pdg.begin(), vec_pdg.end());
+            vec_pdg.erase(unique(vec_pdg.begin(), vec_pdg.end()), vec_pdg.end());
+            // std::cout<<" NO OF PARTICLES IN THIS CLUSTER IS: "<<vec_pdg.size()<<std::endl;
+            //  std::cout<<"They are: ";
+            // 	  for(unsigned int ii=0;ii<vec_pdg.size();++ii){
+            //  	     std::cout<<vec_pdg[ii]<<" ";
+            //  	  }
+            //  	  std::cout<<std::endl;
 
-  	    // 	  }
+            //same for vec_trackid:
 
+            sort(vec_trackid.begin(), vec_trackid.end());
+            vec_trackid.erase(unique(vec_trackid.begin(), vec_trackid.end()), vec_trackid.end());
+            //  std::cout<<" NO OF DIFFERENT TRACKIDS IN THIS CLUSTER IS: "<<vec_trackid.size()<<std::endl;
+            // std::cout<<"They are: ";
+            for (unsigned int ii = 0; ii < vec_trackid.size(); ++ii) {
+              //   std::cout<<vec_trackid[ii]<<" ";
+              all_trackids.push_back(vec_trackid[ii]);
+              //mytracklist.push_back(vec_trackid[i]);
+            }
+            // std::cout<<std::endl;
+            //...............................................................
+            //Also Make vec_trackid_mother unique:
 
-  	    it=find(vec_pdg.begin(),vec_pdg.end(),13);
-  	    if(it!=vec_pdg.end()){
-  	      // std::cout<<"matched found at position="<<int(it-vec_pdg.begin())<<std::endl;
-  	      no_cl_for_muon++;
-  	    }
-  	    else{
-  	      // std::cout<<"no match!"<<std::endl;
-  	    }
-
-  	    it2=find(vec_pdg.begin(),vec_pdg.end(),11);
-  	    if(it2!=vec_pdg.end()){
-  	      no_cl_for_electron++;
-  	    }
-
-  	    it3=find(vec_pdg.begin(),vec_pdg.end(),-11);
-  	    if(it3!=vec_pdg.end()){
-  	      no_cl_for_positron++;
-  	    }
-
-  	    it4=find(vec_pdg.begin(),vec_pdg.end(),111);
-  	    if(it4!=vec_pdg.end()){
-  	      no_cl_for_pion_111++;
-  	    }
-  	    it6=find(vec_pdg.begin(),vec_pdg.end(),211);
-  	    if(it6!=vec_pdg.end()){
-  	      no_cl_for_pion_211++;
-  	    }
-  	    it7=find(vec_pdg.begin(),vec_pdg.end(),-211);
-  	    if(it7!=vec_pdg.end()){
-  	      no_cl_for_pion_m211++;
-  	    }
-  	    it8=find(vec_pdg.begin(),vec_pdg.end(),2212);
-  	    if(it8!=vec_pdg.end()){
-  	      no_cl_for_proton++;
-  	    }
-
-  	    // std::cout<<std::endl;
-  	    //std::cout<<"numberParticles= "<<numberParticles<<std::endl;
-  	    //  std::cout<<"size of vec_pdg= "<<vec_pdg.size()<<std::endl;
-  	    sort( vec_pdg.begin(), vec_pdg.end() );
-  	    vec_pdg.erase( unique( vec_pdg.begin(), vec_pdg.end() ), vec_pdg.end() );
-  	    // std::cout<<" NO OF PARTICLES IN THIS CLUSTER IS: "<<vec_pdg.size()<<std::endl;
-  	    //  std::cout<<"They are: ";
-  	    // 	  for(unsigned int ii=0;ii<vec_pdg.size();++ii){
-  	    //  	     std::cout<<vec_pdg[ii]<<" ";
-  	    //  	  }
-  	    //  	  std::cout<<std::endl;
-
-  	    //same for vec_trackid:
-
-  	    sort( vec_trackid.begin(), vec_trackid.end() );
-  	    vec_trackid.erase( unique( vec_trackid.begin(), vec_trackid.end() ), vec_trackid.end() );
-  	    //  std::cout<<" NO OF DIFFERENT TRACKIDS IN THIS CLUSTER IS: "<<vec_trackid.size()<<std::endl;
-  	    // std::cout<<"They are: ";
-  	    for(unsigned int ii=0;ii<vec_trackid.size();++ii){
-  	      //   std::cout<<vec_trackid[ii]<<" ";
-  	      all_trackids.push_back(vec_trackid[ii]);
-  	      //mytracklist.push_back(vec_trackid[i]);
-  	    }
-  	    // std::cout<<std::endl;
-  	    //...............................................................
-  	    //Also Make vec_trackid_mother unique:
-
-  	    sort( vec_trackid_mother.begin(), vec_trackid_mother.end() );
-  	    vec_trackid_mother.erase( unique( vec_trackid_mother.begin(), vec_trackid_mother.end() ), vec_trackid_mother.end() );
-  	    // std::cout<<" NO OF DIFFERENT TRACKIDS_MOTHER IN THIS CLUSTER IS: "<<vec_trackid_mother.size()<<std::endl;
-  	    // std::cout<<"They are: ";
-  	    /*
+            sort(vec_trackid_mother.begin(), vec_trackid_mother.end());
+            vec_trackid_mother.erase(unique(vec_trackid_mother.begin(), vec_trackid_mother.end()),
+                                     vec_trackid_mother.end());
+            // std::cout<<" NO OF DIFFERENT TRACKIDS_MOTHER IN THIS CLUSTER IS: "<<vec_trackid_mother.size()<<std::endl;
+            // std::cout<<"They are: ";
+            /*
   	      for(unsigned int ii=0;ii<vec_trackid_mother.size();++ii){
   	      std::cout<<vec_trackid_mother[ii]<<" ";
 
   	      }
   	    */
-  	    // std::cout<<std::endl;
+            // std::cout<<std::endl;
 
-  	    //........................................................................
+            //........................................................................
 
-  	    //Also Make vec_trackid_mother_en unique:
+            //Also Make vec_trackid_mother_en unique:
 
-  	    sort( vec_trackid_mother_en.begin(), vec_trackid_mother_en.end() );
-  	    vec_trackid_mother_en.erase( unique( vec_trackid_mother_en.begin(), vec_trackid_mother_en.end() ), vec_trackid_mother_en.end() );
-  	    // std::cout<<" NO OF DIFFERENT TRACKIDS_MOTHER_en IN THIS CLUSTER IS: "<<vec_trackid_mother_en.size()<<std::endl;
-  	    // std::cout<<"They are: ";
-  	    /*
+            sort(vec_trackid_mother_en.begin(), vec_trackid_mother_en.end());
+            vec_trackid_mother_en.erase(
+              unique(vec_trackid_mother_en.begin(), vec_trackid_mother_en.end()),
+              vec_trackid_mother_en.end());
+            // std::cout<<" NO OF DIFFERENT TRACKIDS_MOTHER_en IN THIS CLUSTER IS: "<<vec_trackid_mother_en.size()<<std::endl;
+            // std::cout<<"They are: ";
+            /*
   	      for(unsigned int ii=0;ii<vec_trackid_mother_en.size();++ii){
   	      std::cout<<vec_trackid_mother_en[ii]<<" ";
 
   	      }
   	    */
-  	    //  std::cout<<std::endl;
+            //  std::cout<<std::endl;
 
-  	    //........................................................................
+            //........................................................................
 
+            // Q: How many clusters it takes to contain a certain particle?
+            for (unsigned int ii = 0; ii < mc_trackids.size(); ++ii) {
+              it5 = find(vec_trackid.begin(), vec_trackid.end(), mc_trackids[ii]);
+              if (it5 != vec_trackid.end()) {
+                // std::cout<<"found match for: "<<mc_trackids[ii]<<" at position: "<<it5-vec_trackid.begin()<<std::endl;
+                ids.push_back(mc_trackids[ii]); //then make it unique
+                noCluster++;
+              }
+            }
 
-  	    // Q: How many clusters it takes to contain a certain particle?
-  	    for(unsigned int ii=0;ii<mc_trackids.size();++ii){
-  	      it5=find(vec_trackid.begin(),vec_trackid.end(),mc_trackids[ii]);
-  	      if(it5!=vec_trackid.end()){
-  		// std::cout<<"found match for: "<<mc_trackids[ii]<<" at position: "<<it5-vec_trackid.begin()<<std::endl;
-  		ids.push_back(mc_trackids[ii]);//then make it unique
-  		noCluster++;
-  	      }
-  	    }
+            // std::cout<<"noCluster = "<< noCluster<<std::endl;
 
-  	    // std::cout<<"noCluster = "<< noCluster<<std::endl;
+            fNoParticles_pdg->Fill(vec_pdg.size());
 
+            // std::cout<<"LOOK ->> vec_trackid.size()= "<<vec_trackid.size()<<std::endl;
+            fNoParticles_trackid->Fill(vec_trackid.size());
 
+            fNoParticles_trackid_mother->Fill(vec_trackid_mother.size());
 
+            no_of_clusters++;
+            // std::cout<<"MUON IS CONTAINED IN "<<no_cl_for_muon<<" CLUSTERS"<<std::endl;
 
-  	    fNoParticles_pdg->Fill(vec_pdg.size());
+            no_of_particles_in_cluster += vec_pdg.size();
+            sum_vec_trackid += vec_trackid_mother.size();
+            total_no_hits_in_clusters += _hits.size();
 
-  	    // std::cout<<"LOOK ->> vec_trackid.size()= "<<vec_trackid.size()<<std::endl;
-  	    fNoParticles_trackid->Fill(vec_trackid.size());
+            vec_pdg.clear();
 
-  	    fNoParticles_trackid_mother->Fill(vec_trackid_mother.size());
+            vec_trackid.clear();
 
-  	    no_of_clusters++;
-  	    // std::cout<<"MUON IS CONTAINED IN "<<no_cl_for_muon<<" CLUSTERS"<<std::endl;
+            vec_trackid_mother.clear();
 
-  	    no_of_particles_in_cluster+=vec_pdg.size();
-  	    sum_vec_trackid+=vec_trackid_mother.size();
-  	    total_no_hits_in_clusters+=_hits.size();
+            vec_trackid_mother_en.clear();
 
-  	    vec_pdg.clear();
+          } //end if cluster is in correct view
+          //clusterIter++;
 
-  	    vec_trackid.clear();
-
-  	    vec_trackid_mother.clear();
-
-  	    vec_trackid_mother_en.clear();
-
-
-  	  }//end if cluster is in correct view
-  	  //clusterIter++;
-
-  	  hits_vec.clear();
-  	}//for each cluster
+          hits_vec.clear();
+        } //for each cluster
 
         // std::cout<<"sum_vec_trackid= "<<sum_vec_trackid<<std::endl;
 
-        sort( all_trackids.begin(), all_trackids.end() );
-        all_trackids.erase( unique( all_trackids.begin(), all_trackids.end() ), all_trackids.end() );
+        sort(all_trackids.begin(), all_trackids.end());
+        all_trackids.erase(unique(all_trackids.begin(), all_trackids.end()), all_trackids.end());
         //	  std::cout<<" NO OF DIFFERENT TRACKIDS IN THIS EVENT IS: "<<all_trackids.size()<<std::endl;
         // std::cout<<"They are: ";
-        for(unsigned int ii=0;ii<all_trackids.size();++ii){
-  	// std::cout<<all_trackids[ii]<<" ";
-
+        for (unsigned int ii = 0; ii < all_trackids.size(); ++ii) {
+          // std::cout<<all_trackids[ii]<<" ";
         }
         // std::cout<<std::endl;
 
         //now I have a vector(all_trackids) that only contains unique trackids
         //go to it and search for each trackid in every cluster
 
-
-
-        sort(ids.begin(),ids.end() );
-        ids.erase( unique( ids.begin(), ids.end() ), ids.end() );
+        sort(ids.begin(), ids.end());
+        ids.erase(unique(ids.begin(), ids.end()), ids.end());
         // std::cout<<"**NEW**  NO OF USED TRACKIDS IN THIS EVENT IS: "<<ids.size()<<std::endl;
-        double no_of_clusters_per_track=noCluster/ids.size();
+        double no_of_clusters_per_track = noCluster / ids.size();
         //  std::cout<<"alright so i have no_of_clusters_per_track= "<<no_of_clusters_per_track<<std::endl;
-
-
 
         //Filling Histograms:
 
-        if(no_cl_for_muon!=0){
-  	fCl_for_Muon->Fill(no_cl_for_muon);}
+        if (no_cl_for_muon != 0) { fCl_for_Muon->Fill(no_cl_for_muon); }
         //  if(no_cl_for_electron!=0){
         //    fCl_for_Electron->Fill(no_cl_for_electron);}
         //  if(no_cl_for_positron!=0){
@@ -678,14 +748,14 @@ namespace cluster{
 
         fno_of_clusters_per_track->Fill(no_of_clusters_per_track);
 
-        no_cl_for_muon=0;
-        no_cl_for_electron=0;
-        no_cl_for_positron=0;
-        no_cl_for_pion_111=0;
-        no_cl_for_pion_211=0;
-        no_cl_for_pion_m211=0;
-        no_cl_for_proton=0;
-        noCluster=0;
+        no_cl_for_muon = 0;
+        no_cl_for_electron = 0;
+        no_cl_for_positron = 0;
+        no_cl_for_pion_111 = 0;
+        no_cl_for_pion_211 = 0;
+        no_cl_for_pion_m211 = 0;
+        no_cl_for_proton = 0;
+        noCluster = 0;
         //   std::cout<<"*************************************************"<<std::endl;
         //  std::cout<<"*************************************************"<<std::endl;
         // std::cout<<"                  NEW PLANE                      "<<std::endl;
@@ -693,21 +763,19 @@ namespace cluster{
         //  std::cout<<"*************************************************"<<std::endl;
         ids.clear();
 
-      }//for each plane
+      } //for each plane
       //std::cout<<"no_of_particles_in_cluster= "<<no_of_particles_in_cluster<<std::endl;
       //std::cout<<" no_of_clusters (with hits that are non-zero)= "<< no_of_clusters<<std::endl;
-      double result=no_of_particles_in_cluster/no_of_clusters;
+      double result = no_of_particles_in_cluster / no_of_clusters;
 
       // std::cout<<"FINALLY NO OF PARTICLES PER CLUSTER IS: "<<result<<std::endl;
       // std::cout<<"Sum of all hits in clusters= "<<total_no_hits_in_clusters<<std::endl;
-      double no_noise_hits=hits.size()-total_no_hits_in_clusters;
+      double no_noise_hits = hits.size() - total_no_hits_in_clusters;
       // std::cout<<"No of hits marked as noise= "<< no_noise_hits<<std::endl;
-      double percent_noise=double(no_noise_hits/hits.size())*100;
+      double percent_noise = double(no_noise_hits / hits.size()) * 100;
       //  std::cout<<"%%%%%%%%% NOISE IS: "<< percent_noise<<std::endl;
 
-
-
-      double no_trackid_per_cl_per_event  = sum_vec_trackid/no_of_clusters;
+      double no_trackid_per_cl_per_event = sum_vec_trackid / no_of_clusters;
       // std::cout<<"sum_vec_trackid= "<<sum_vec_trackid<<" no_of_clusters: "<<no_of_clusters<<" no_trackid_per_cl_per_event= "<<no_trackid_per_cl_per_event<<std::endl;
       fNoParticles_trackid_per_event->Fill(no_trackid_per_cl_per_event);
       fNoParticles_pdg_per_event->Fill(result);
@@ -720,12 +788,8 @@ namespace cluster{
       /////////////////////////////////////////////////////////////////
       //-----------------------------------------------------------------
 
-
-
-
-
       //-----------------------------------------------------------------------
-      for( unsigned int i = 0; i < mclist.size(); ++i ){
+      for (unsigned int i = 0; i < mclist.size(); ++i) {
         //art::Ptr<const simb::MCTruth> mc(mctruthListHandle,i);
         art::Ptr<simb::MCTruth> mc(mclist[i]);
         // simb::MCTruth mcp(*(mclist[i]));// We don't ever use this. EC, 6-Oct-2010.
@@ -734,25 +798,19 @@ namespace cluster{
         //  TParticle part(mc->GetParticle(1));
         //  std::cout<<"part.Gte<PDG()->PdgCode()= "<<part.GetPDG()->PdgCode()<<std::endl;
 
-        for(int ii = 0; ii < mc->NParticles(); ++ii){
-  	simb::MCParticle part(mc->GetParticle(ii));
-  	std::cout<<"FROM MC TRUTH,the particle's pdg code is: "<<part.PdgCode()<<std::endl;
-  	std::cout<<"with energy= "<<part.E();
-  	if(abs(part.PdgCode()) == 13){std::cout<<" I have a muon!!!"<<std::endl;
-  	  // std::cout<<"with energy= "<<part.Energy();
-  	}
-  	if(abs(part.PdgCode()) == 111){std::cout<<" I have a pi zero!!!"<<std::endl;}
-
+        for (int ii = 0; ii < mc->NParticles(); ++ii) {
+          simb::MCParticle part(mc->GetParticle(ii));
+          std::cout << "FROM MC TRUTH,the particle's pdg code is: " << part.PdgCode() << std::endl;
+          std::cout << "with energy= " << part.E();
+          if (abs(part.PdgCode()) == 13) {
+            std::cout << " I have a muon!!!" << std::endl;
+            // std::cout<<"with energy= "<<part.Energy();
+          }
+          if (abs(part.PdgCode()) == 111) { std::cout << " I have a pi zero!!!" << std::endl; }
         }
-
       }
 
       //-----------------------------------------------------------------------
-
-
-
-
-
     }
 
     //  std::cout<<std::endl;
@@ -770,8 +828,10 @@ namespace cluster{
 
     // std::cout<<"Take care of "<<hits.size()<<" hits"<<std::endl;
     // std::cout<<"_en_11= "<<_en_11<<" _en_13= "<<_en_13<<std::endl;
-    double hit_13=0,hit_11=0,hit_m_11=0,hit_111=0,hit_211=0,hit_m211=0,hit_2212=0,hit_2112=0;
-    double en_13=0,en_11=0,en_m11=0,en_111=0,en_211=0,en_m211=0,en_2212=0,en_2112=0;
+    double hit_13 = 0, hit_11 = 0, hit_m_11 = 0, hit_111 = 0, hit_211 = 0, hit_m211 = 0,
+           hit_2212 = 0, hit_2112 = 0;
+    double en_13 = 0, en_11 = 0, en_m11 = 0, en_111 = 0, en_211 = 0, en_m211 = 0, en_2212 = 0,
+           en_2112 = 0;
     //int no_hits=0;
     //unsigned int plane_k=0;
     //double total_eng_hits_p0=0;
@@ -780,44 +840,37 @@ namespace cluster{
     // geo::View_t view_ind = geom->Plane(0).View();
     //   geo::View_t view_coll = geom->Plane(1).View();
 
-    std::vector< art::Ptr<recob::Hit> >::iterator itr = hits.begin();
-    while(itr != hits.end()) {
+    std::vector<art::Ptr<recob::Hit>>::iterator itr = hits.begin();
+    while (itr != hits.end()) {
 
       std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
-      std::vector<sim::TrackIDE> eveides   = bt_serv->HitToEveTrackIDEs(*itr);
+      std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(*itr);
 
       std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
 
-      hit_energy=hits[itr-hits.begin()]->Integral();
+      hit_energy = hits[itr - hits.begin()]->Integral();
 
-      while( idesitr != trackides.end() ){
+      while (idesitr != trackides.end()) {
 
         //std::cout<<"0:TOTAL ENERGY FROM HITS for P=0 = "<<total_eng_hits_p0<<std::endl;
         //std::cout<<"0:TOTAL ENERGY FROM HITS for P=1 = "<<total_eng_hits_p1<<std::endl;
 
-
-        const simb::MCParticle* particle = _particleList.at( (*idesitr).trackID);
+        const simb::MCParticle* particle = _particleList.at((*idesitr).trackID);
 
         int pdg = particle->PdgCode();
         //std::cout<<"pdg= "<<pdg<<std::endl;
 
-
-
-
         diff_vec.clear();
-
-
-
-
 
         //  double energy3=voxelData.Energy(i);
         // 	      //std::cout<<"plane= "<<plane_k<<std::endl;
         // 	      if(plane_k==0){total_eng_hits_p0+=energy3;}
         // 	      if(plane_k==1){total_eng_hits_p1+=energy3;}
 
-
-        if(pdg==13 || pdg==-13){hit_13++;
-  	en_13+=hit_energy*((*idesitr).energyFrac);}
+        if (pdg == 13 || pdg == -13) {
+          hit_13++;
+          en_13 += hit_energy * ((*idesitr).energyFrac);
+        }
         //  if(pdg==11){hit_11++;
         // 		en_11+=energy3;
         // 		//  std::cout<<"in hits: en_11="<<en_11<<std::endl;
@@ -846,28 +899,18 @@ namespace cluster{
       } //trackIDs
 
       itr++;
-    }  //hits
+    } //hits
     //  std::cout<<"True PDG= "<<pdg<<std::endl;
-
-
 
     // std::cout<<"hit_13= "<<hit_13<<"  "<<"hit_11= "<<hit_11<<"  "<<"hit_m_11= "<<hit_m_11<<"  "<<"hit_111= "<<hit_111<<"  "<<"hit_22= "<<hit_22<<"  ";
 
     // int sum=hit_13+hit_11+hit_m_11+hit_111+hit_22;
     // std::cout<<"sum= "<<sum<<" no_hits= "<<no_hits<<" DIFF= "<<sum-no_hits<<std::endl;
 
-
-
-
     // std::cout<<"PLANE_K= "<<plane_k<<std::endl;
-
-
 
     //std::cout<<"TOTAL ENERGY FROM HITS for P=0 = "<<total_eng_hits_p0<<std::endl;
     //std::cout<<"TOTAL ENERGY FROM HITS for P=1 = "<<total_eng_hits_p1<<std::endl;
-
-
-
 
     // std::cout<<"After hits,PLANE_K= "<<plane_k<<std::endl;
     //  }//plane
@@ -897,16 +940,16 @@ namespace cluster{
     // 	std::cout<<"WE MISSED % of -211 hits= "<<100-((_hit_m211/hit_m211)*100)<<"%"<<std::endl;
     // 	std::cout<<"WE MISSED % of 2212 hits= "<<100-((_hit_2212/hit_2212)*100)<<"%"<<std::endl;
 
-    if(hit_13!=0){	fPercent_lost_muon_hits->Fill(100-((_hit_13/hit_13)*100));}
-    if(hit_11!=0){	fPercent_lost_electron_hits->Fill(100-((_hit_11/hit_11)*100));}
-    if(hit_m_11!=0){	fPercent_lost_positron_hits->Fill(100-((_hit_m_11/hit_m_11)*100));}
-    if(hit_111!=0){	fPercent_lost_111_hits->Fill(100-((_hit_111/hit_111)*100));}
+    if (hit_13 != 0) { fPercent_lost_muon_hits->Fill(100 - ((_hit_13 / hit_13) * 100)); }
+    if (hit_11 != 0) { fPercent_lost_electron_hits->Fill(100 - ((_hit_11 / hit_11) * 100)); }
+    if (hit_m_11 != 0) { fPercent_lost_positron_hits->Fill(100 - ((_hit_m_11 / hit_m_11) * 100)); }
+    if (hit_111 != 0) { fPercent_lost_111_hits->Fill(100 - ((_hit_111 / hit_111) * 100)); }
 
-    if(hit_211!=0){	fPercent_lost_211_hits->Fill(100-((_hit_211/hit_211)*100));}
+    if (hit_211 != 0) { fPercent_lost_211_hits->Fill(100 - ((_hit_211 / hit_211) * 100)); }
 
-    if(hit_m211!=0){ fPercent_lost_m211_hits->Fill(100-((_hit_m211/hit_m211)*100));}
-    if(hit_2212!=0){	fPercent_lost_2212_hits->Fill(100-((_hit_2212/hit_2212)*100));}
-    if(hit_2112!=0){	fPercent_lost_2112_hits->Fill(100-((_hit_2112/hit_2112)*100));}
+    if (hit_m211 != 0) { fPercent_lost_m211_hits->Fill(100 - ((_hit_m211 / hit_m211) * 100)); }
+    if (hit_2212 != 0) { fPercent_lost_2212_hits->Fill(100 - ((_hit_2212 / hit_2212) * 100)); }
+    if (hit_2112 != 0) { fPercent_lost_2112_hits->Fill(100 - ((_hit_2112 / hit_2112) * 100)); }
 
     //  std::cout<<"*** _en_11= "<<_en_11<<" en_11= "<<en_11<<std::endl;
     // 	std::cout<<"WE MISSED % of muon energy= "<<100-((_en_13/en_13)*100)<<"%"<<std::endl;
@@ -920,29 +963,25 @@ namespace cluster{
     // 	std::cout<<"WE MISSED % of 2112 energy= "<<100-((_en_2112/en_2112)*100)<<"%"<<std::endl;
     // if(en_13==0){std::cout<<"NO MU IN THIS EVENT (en) $$$$$$$$$$$$$$$$$"<<std::endl;}
     //if(hit_13==0){std::cout<<"NO MU IN THIS EVENT (hit)$$$$$$$$$$$$$$$$$"<<std::endl;}
-    std::cout<<"****** mu E from clusters = "<<_en_13<<std::endl;
-    std::cout<<"****** mu E from hits = "<<en_13<<std::endl;
+    std::cout << "****** mu E from clusters = " << _en_13 << std::endl;
+    std::cout << "****** mu E from hits = " << en_13 << std::endl;
 
-    if(en_13!=0){	fPercent_lost_muon_energy->Fill(100-((_en_13/en_13)*100));}
-    if(en_11!=0){	fPercent_lost_electron_energy->Fill(100-((_en_11/en_11)*100));}
-    if(en_m11!=0){	fPercent_lost_positron_energy->Fill(100-((_en_m11/en_m11)*100));
+    if (en_13 != 0) { fPercent_lost_muon_energy->Fill(100 - ((_en_13 / en_13) * 100)); }
+    if (en_11 != 0) { fPercent_lost_electron_energy->Fill(100 - ((_en_11 / en_11) * 100)); }
+    if (en_m11 != 0) {
+      fPercent_lost_positron_energy->Fill(100 - ((_en_m11 / en_m11) * 100));
       // std::cout<<"POSITRON E= "<<100-((_en_m11/en_m11)*100)<<std::endl;
     }
-    if(en_111!=0){	fPercent_lost_111_energy->Fill(100-((_en_111/en_111)*100));}
-    if(en_211!=0){	fPercent_lost_211_energy->Fill(100-((_en_211/en_211)*100));}
-    if(en_m211!=0){ fPercent_lost_m211_energy->Fill(100-((_en_m211/en_m211)*100));}
-    if(en_2212!=0){	fPercent_lost_2212_energy->Fill(100-((_en_2212/en_2212)*100));}
-    if(en_2112!=0){	fPercent_lost_2112_energy->Fill(100-((_en_2112/en_2112)*100));}
-
-
-
-
+    if (en_111 != 0) { fPercent_lost_111_energy->Fill(100 - ((_en_111 / en_111) * 100)); }
+    if (en_211 != 0) { fPercent_lost_211_energy->Fill(100 - ((_en_211 / en_211) * 100)); }
+    if (en_m211 != 0) { fPercent_lost_m211_energy->Fill(100 - ((_en_m211 / en_m211) * 100)); }
+    if (en_2212 != 0) { fPercent_lost_2212_energy->Fill(100 - ((_en_2212 / en_2212) * 100)); }
+    if (en_2112 != 0) { fPercent_lost_2112_energy->Fill(100 - ((_en_2112 / en_2112) * 100)); }
 
     /////////////////////////////////////////////////////////////////////////////////
     //-----------------------------------------------------------------------
 
     //  FOR BRIAN:
-
 
     //-------------------------------------------------------------------
 
@@ -970,8 +1009,6 @@ namespace cluster{
     // 	  for(std::vector<const recob::Wire*>::iterator wireIter = wirelist.begin();
     // 	      wireIter != wirelist.end();  wireIter++) {
 
-
-
     // 	    _rawdigit2 = (*wireIter)->RawDigit();
     // 	    sim::SimDigit* simdigit = dynamic_cast< sim::SimDigit*>(_rawdigit2);
     // 	    int numberOfElectrons = simdigit->NumberOfElectrons();
@@ -985,22 +1022,17 @@ namespace cluster{
     // 	    if(pl==1)  {
     // 	      Total_Elec_p1 += numberOfElectrons;}
 
-
-
     // 	  }//loop wires
-
 
     // 	  std::cout<<"NO OF ELECTRONS, p0 = "<< Total_Elec_p0<<std::endl;
     // 	  std::cout<<"NO OF ELECTRONS, p1 = "<< Total_Elec_p1<<std::endl;
 
     //now determine number of electrons for hits
 
-
     //----------------------------------------------------------------------------------------
     // Now, do the same thing for the found hits and compare the number of ionization electrons.
 
     //----------------------------------------------------------------------------------------
-
 
     //  _electrons=0;
     //   electrons=0;
@@ -1015,7 +1047,6 @@ namespace cluster{
     //   unsigned int plane=0;
     //   double Tno_ele_p0=0;
     //   double Tno_ele_p1=0;
-
 
     //for(unsigned int j = 0; j < hits.size(); ++j) // {
     //
@@ -1089,10 +1120,8 @@ namespace cluster{
     //     sum0=0;
     //   }//hits
 
-
     //  std::cout<<"***TOTAL for p0 is: "<< Tno_ele_p0<<std::endl;
     //   std::cout<<"***TOTAL for p1 is: "<< Tno_ele_p1<<std::endl;
-
 
     //-------------------first part FOR BRIAN done---------------------------
 
@@ -1201,20 +1230,11 @@ namespace cluster{
     //   std::cout<<"(wires)TOTAL for p1 is: "<< Tno_ele_p1_w<<std::endl;
     //   fbrian_in->Fill(Tno_ele_p0_w, Tno_ele_p0 );
     //   fbrian_coll->Fill(Tno_ele_p1_w, Tno_ele_p1 );
-
-
   }
-
-
 
 } //end namespace
 
-
-
-
-
-
-namespace cluster{
+namespace cluster {
 
   DEFINE_ART_MODULE(DBclusterAna)
 

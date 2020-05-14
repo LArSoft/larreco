@@ -25,7 +25,6 @@ namespace cmtool {
   class CFAlgoTimeProf : public CFloatAlgoBase {
 
   public:
-
     /// Default constructor
     CFAlgoTimeProf();
 
@@ -38,7 +37,7 @@ namespace cmtool {
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
-    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
+    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters);
 
     virtual void Report();
 
@@ -67,10 +66,8 @@ namespace cmtool {
      */
     //virtual void IterationEnd();
 
-   private:
-
-    float TProfCompare(std::vector<util::PxHit> hita ,std::vector<util::PxHit> hitb);
-
+  private:
+    float TProfCompare(std::vector<util::PxHit> hita, std::vector<util::PxHit> hitb);
 
     /*
 (Form("sig_a"),Form("sig_a"),nts,0,nts);
@@ -78,9 +75,7 @@ namespace cmtool {
     TH1D* sigb(Form("sig_b"),Form("sig_b"),nts,0,nts);
     TH1D* sigintb(Form("sigint_b"),Form("sigint_b"),nts,0,nts);
     */
-
   };
 }
 #endif
 /** @} */ // end of doxygen group
-

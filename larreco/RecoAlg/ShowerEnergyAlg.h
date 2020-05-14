@@ -11,32 +11,33 @@
 
 // Framework
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 // larsoft
 #include "lardataobj/RecoBase/Hit.h"
-namespace detinfo { class DetectorProperties; }
+namespace detinfo {
+  class DetectorProperties;
+}
 
 namespace shower {
   class ShowerEnergyAlg;
 }
 
 class shower::ShowerEnergyAlg {
- public:
-
+public:
   ShowerEnergyAlg(fhicl::ParameterSet const& pset);
 
   /// Finds the total energy deposited by the shower in this view
-  double ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane) const;
+  double ShowerEnergy(std::vector<art::Ptr<recob::Hit>> const& hits, int plane) const;
 
- private:
-
+private:
   double fUGradient, fUIntercept;
   double fVGradient, fVIntercept;
   double fZGradient, fZIntercept;
 
   detinfo::DetectorProperties const* detprop = nullptr;
-
 };
 
 #endif

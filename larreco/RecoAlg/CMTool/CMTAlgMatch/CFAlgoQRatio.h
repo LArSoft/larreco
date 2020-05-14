@@ -25,7 +25,6 @@ namespace cmtool {
   class CFAlgoQRatio : public CFloatAlgoBase {
 
   public:
-
     /// Default constructor
     CFAlgoQRatio();
 
@@ -42,7 +41,7 @@ namespace cmtool {
        Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
-    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
+    virtual float Float(const std::vector<const cluster::ClusterParamsAlg*>& clusters);
 
     /**
        Optional function: called after each iterative approach if a manager class is
@@ -54,13 +53,15 @@ namespace cmtool {
     virtual void Reset();
 
     /// Setter for the minimum value for charge ratio (below this value Float() returns -1)
-    void SetQRatioCut(float cut) { _qratio_cut = cut; }
+    void
+    SetQRatioCut(float cut)
+    {
+      _qratio_cut = cut;
+    }
 
   protected:
-
     float _qratio_cut;
   };
 }
 #endif
 /** @} */ // end of doxygen group
-

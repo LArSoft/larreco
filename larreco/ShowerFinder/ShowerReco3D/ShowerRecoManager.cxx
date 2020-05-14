@@ -12,33 +12,34 @@
 
 namespace showerreco {
 
-  ShowerRecoManager::ShowerRecoManager()
-    : fShowerAlgo(nullptr)
-    , fMatchMgr(nullptr)
+  ShowerRecoManager::ShowerRecoManager() : fShowerAlgo(nullptr), fMatchMgr(nullptr)
   {
-    fMatch    = true;
+    fMatch = true;
     //auto geom = ::larutil::Geometry::GetME();
     art::ServiceHandle<geo::Geometry const> geom;
     fMatchMgr = new ::cmtool::CMatchManager(geom->Nplanes());
   }
 
-  void ShowerRecoManager::Reset()
+  void
+  ShowerRecoManager::Reset()
   {
-    if(fShowerAlgo) fShowerAlgo->Reset();
+    if (fShowerAlgo) fShowerAlgo->Reset();
     fMatchMgr->Reset();
   }
 
-  ClusterAss_t ShowerRecoManager::Reconstruct (const std::vector<std::vector<util::PxHit> >& clusters,
-					       std::vector< ::recob::Shower>& showers)
+  ClusterAss_t
+  ShowerRecoManager::Reconstruct(const std::vector<std::vector<util::PxHit>>& clusters,
+                                 std::vector<::recob::Shower>& showers)
   {
     showers.clear();
     fMatchMgr->SetClusters(clusters);
 
     ClusterAss_t res_ass;
     // Run matching & retrieve matched cluster indices
-    try{
+    try {
       fMatchMgr->Process();
-    }catch( ::cmtool::CMTException &e){
+    }
+    catch (::cmtool::CMTException& e) {
       e.what();
       return res_ass;
     }
@@ -49,29 +50,30 @@ namespace showerreco {
     return res_ass;
   }
 
-  void ShowerRecoManager::Reconstruct (const std::vector<std::vector<util::PxHit> >& clusters,
-				       const ClusterAss_t& ass,
-				       std::vector< ::recob::Shower>& showers)
+  void
+  ShowerRecoManager::Reconstruct(const std::vector<std::vector<util::PxHit>>& clusters,
+                                 const ClusterAss_t& ass,
+                                 std::vector<::recob::Shower>& showers)
   {
     showers.clear();
     fMatchMgr->SetClusters(clusters);
 
-    Process(ass,showers);
+    Process(ass, showers);
   }
 
-  void ShowerRecoManager::Process(const ClusterAss_t& ass,
-				  std::vector< ::recob::Shower>& showers)
+  void
+  ShowerRecoManager::Process(const ClusterAss_t& ass, std::vector<::recob::Shower>& showers)
   {
 
-    for(auto const& pair : ass) {
+    for (auto const& pair : ass) {
 
-      std::vector< ::cluster::ClusterParamsAlg> cpans;
+      std::vector<::cluster::ClusterParamsAlg> cpans;
 
       cpans.reserve(pair.size());
 
-      for(auto const& index : pair)
+      for (auto const& index : pair)
 
-	cpans.push_back(fMatchMgr->GetInputClusters()[index]);
+        cpans.push_back(fMatchMgr->GetInputClusters()[index]);
 
       fShowerAlgo->AppendInputClusters(cpans);
     }

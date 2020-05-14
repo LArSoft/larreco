@@ -16,9 +16,9 @@
 
 #include "canvas/Persistency/Common/Ptr.h"
 
-#include "lardataobj/Simulation/SimChannel.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "MCBTAlg.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/Simulation/SimChannel.h"
 
 #include <cstddef>
 #include <utility>
@@ -33,23 +33,21 @@ namespace btutil {
   class MCMatchAlg {
 
   public:
-
     /// Default constructor
     MCMatchAlg();
 
     /// Default destructor
     virtual ~MCMatchAlg(){};
 
+    /// Constructs needed information for Reco=>MC matching
+    bool BuildMap(const std::vector<unsigned int>& g4_trackid_v,
+                  const std::vector<sim::SimChannel>& simch_v,
+                  const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
     /// Constructs needed information for Reco=>MC matching
-    bool BuildMap(const std::vector< unsigned int>     &g4_trackid_v,
-		  const std::vector<sim::SimChannel> &simch_v,
-		  const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v);
-
-    /// Constructs needed information for Reco=>MC matching
-    bool BuildMap(const std::vector<std::vector< unsigned int> > &g4_trackid_v,
-		  const std::vector<sim::SimChannel> &simch_v,
-		  const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v);
+    bool BuildMap(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+                  const std::vector<sim::SimChannel>& simch_v,
+                  const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
     /**
        For a specified MC object (via index in MCShower/MCTrack), returns best-matched clusters
@@ -62,8 +60,7 @@ namespace btutil {
        For a specified cluster, compute the correctness for the specified
        MC object
      */
-    double ClusterCorrectness(const size_t cluster_index,
-			      const size_t mcshower_index) const;
+    double ClusterCorrectness(const size_t cluster_index, const size_t mcshower_index) const;
 
     /**
        Similar to ClusterCorrectness() function except this one computes the correctness for multiple
@@ -71,39 +68,41 @@ namespace btutil {
        across plane to represent one 3D reco object. The return is a pair of best-matched MC object
        and correctness.
      */
-    std::pair<size_t,double> ShowerCorrectness(const std::vector<unsigned int> cluster_indices) const;
-
+    std::pair<size_t, double> ShowerCorrectness(
+      const std::vector<unsigned int> cluster_indices) const;
 
     ///For a specified cluster, compute cluster efficiency and purity in terms of specified MC object
-    std::pair<double,double>  ClusterEP(const size_t cluster_index,
-					const size_t mcshower_index) const;
+    std::pair<double, double> ClusterEP(const size_t cluster_index,
+                                        const size_t mcshower_index) const;
 
     /**
        For a specified MC object, compute the best-matched cluster's efficiency and purity from
        the specified plane ID. Internally this function calls BestClusters() to find the best
        cluster on each plane, then calls ClusterEP() to retrieve the efficiency and purity.
      */
-    std::pair<double,double> BestClusterEP(const size_t mcshower_index,
-					   const size_t plane_id) const;
+    std::pair<double, double> BestClusterEP(const size_t mcshower_index,
+                                            const size_t plane_id) const;
 
     /// BTAlgo getter
-    const MCBTAlg& BTAlg() const { return fBTAlgo; }
+    const MCBTAlg&
+    BTAlg() const
+    {
+      return fBTAlgo;
+    }
 
   protected:
-
-    bool BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v);
+    bool BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v);
 
     /// MCBTAlg instance
     MCBTAlg fBTAlgo;
 
     std::vector<size_t> _view_to_plane;
 
-    std::vector<std::vector<double> > _summed_mcq;
-    std::vector<std::vector<double> > _cluster_mcq_v;
+    std::vector<std::vector<double>> _summed_mcq;
+    std::vector<std::vector<double>> _cluster_mcq_v;
 
     std::vector<unsigned char> _cluster_plane_id;
-    std::vector<std::vector<int> > _bmatch_id;
-
+    std::vector<std::vector<int>> _bmatch_id;
   };
 }
 #endif

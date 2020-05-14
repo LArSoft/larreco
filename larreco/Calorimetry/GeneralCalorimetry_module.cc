@@ -11,42 +11,39 @@
 
 #include <string>
 
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/fwd.h"
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/ParameterSet.h"
 
 ///calorimetry
 namespace calo {
 
-    class GeneralCalorimetry : public art::EDProducer {
+  class GeneralCalorimetry : public art::EDProducer {
 
-    public:
+  public:
+    explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
 
-      explicit GeneralCalorimetry(fhicl::ParameterSet const& pset);
+  private:
+    void produce(art::Event& evt);
 
-    private:
+    std::string fTrackModuleLabel; ///< module creating the track objects and assns to hits
+    double fADCToElectrons;        ///< filled using the detinfo::DetectorPropertiesService service
+    geo::View_t fCollectionView;   ///< view of the collection plane
+    unsigned int fCollectionPlane; ///< plane of the collection plane
+    art::ServiceHandle<geo::Geometry const> fGeo;
 
-      void produce(art::Event& evt);
+    CalorimetryAlg caloAlg;
 
-      std::string    fTrackModuleLabel; ///< module creating the track objects and assns to hits
-      double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service
-      geo::View_t    fCollectionView;   ///< view of the collection plane
-      unsigned int   fCollectionPlane;  ///< plane of the collection plane
-      art::ServiceHandle<geo::Geometry const> fGeo;
-
-      CalorimetryAlg caloAlg;
-
-
-    }; // class GeneralCalorimetry
+  }; // class GeneralCalorimetry
 
 }
 
@@ -55,31 +52,32 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
   : EDProducer{pset}
   , fCollectionView(geo::kUnknown)
   , fCollectionPlane(0)
-  , caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
+  , caloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
 {
   auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  fADCToElectrons = 1./dp->ElectronsToADC();
+  fADCToElectrons = 1. / dp->ElectronsToADC();
 
   // determine the view of the collection plane
   // just look at one cryostat, the first TPC and loop over those
   // planes
   geo::TPCID FirstTPC(0, 0);
-  for(unsigned int p = 0; p < fGeo->Nplanes(FirstTPC); ++p){
-    geo::PlaneID planeid{ FirstTPC, p };
-    if(fGeo->SignalType(planeid) == geo::kCollection){
+  for (unsigned int p = 0; p < fGeo->Nplanes(FirstTPC); ++p) {
+    geo::PlaneID planeid{FirstTPC, p};
+    if (fGeo->SignalType(planeid) == geo::kCollection) {
       fCollectionView = fGeo->View(planeid);
       fCollectionPlane = p;
     }
   }
 
-  fTrackModuleLabel = pset.get< std::string >("TrackModuleLabel");
+  fTrackModuleLabel = pset.get<std::string>("TrackModuleLabel");
 
-  produces< std::vector<anab::Calorimetry>              >();
-  produces< art::Assns<recob::Track, anab::Calorimetry> >();
+  produces<std::vector<anab::Calorimetry>>();
+  produces<art::Assns<recob::Track, anab::Calorimetry>>();
 }
 
 //------------------------------------------------------------------------------------//
-void calo::GeneralCalorimetry::produce(art::Event& evt)
+void
+calo::GeneralCalorimetry::produce(art::Event& evt)
 {
   /*************************************************************/
   /*                          WARNING                          */
@@ -172,7 +170,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
   return;
 }
 
-namespace calo{
+namespace calo {
 
   DEFINE_ART_MODULE(GeneralCalorimetry)
 

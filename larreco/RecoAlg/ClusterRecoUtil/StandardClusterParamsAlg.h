@@ -18,10 +18,8 @@
 #include <vector>
 
 // LArSoft libraries
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
-
-
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
 /// Cluster reconstruction namespace
 namespace cluster {
@@ -33,8 +31,8 @@ namespace cluster {
    * This class wraps ClusterParamsAlg class, designed in the context of shower
    * reconstruction, to expose a standard ClusterParamsBaseAlg interface.
    */
-  class StandardClusterParamsAlg: public ClusterParamsAlgBase {
-      public:
+  class StandardClusterParamsAlg : public ClusterParamsAlgBase {
+  public:
     using Measure_t = ClusterParamsAlgBase::Measure_t;
 
     /// Constructor
@@ -43,10 +41,8 @@ namespace cluster {
     /// Destructor
     virtual ~StandardClusterParamsAlg() = default;
 
-
     /// Restores the class to post-configuration, pre-initialization state
     virtual void Clear() override;
-
 
     /**
      * @brief Sets the list of input hits
@@ -61,20 +57,20 @@ namespace cluster {
      */
     virtual void SetHits(std::vector<recob::Hit const*> const& hits) override;
 
-
     /**
      * @brief Sets the list of input hits
      * @param hits list of hits (hits will not be modified)
      * @throw undefined in case of error, this method can throw (anything)
      * @see ClusterParamsAlgBase::SetHits(std::vector<recob::Hit> const&)
      */
-    virtual void SetHits(std::vector<recob::Hit> const& hits) override
-      { ClusterParamsAlgBase::SetHits(hits); }
-
+    virtual void
+    SetHits(std::vector<recob::Hit> const& hits) override
+    {
+      ClusterParamsAlgBase::SetHits(hits);
+    }
 
     /// Set the verbosity level
     virtual void SetVerbose(int level = 1) override;
-
 
     //@{
     /**
@@ -121,7 +117,6 @@ namespace cluster {
     virtual Measure_t EndOpeningAngle() override;
     //@}
 
-
     /// @name Cluster charge
     /// @{
     /**
@@ -166,10 +161,8 @@ namespace cluster {
 
     /// @}
 
-
     /// Returns the number of hits in the cluster
     virtual size_t NHits() override;
-
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
@@ -190,13 +183,11 @@ namespace cluster {
      */
     virtual float Width() override;
 
-
     /// Returns the number of input hits
     size_t NInputHits() const;
 
-      protected:
+  protected:
     ClusterParamsAlg algo; ///< the actual algorithm class
-
 
   }; //class StandardClusterParamsAlg
 

@@ -35,7 +35,11 @@ namespace tca {
   void Find3DVertices(TCSlice& slc);
   void CompleteIncomplete3DVertices(TCSlice& slc);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
-  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
+  bool RefineVtxPosition(TCSlice& slc,
+                         const Trajectory& tj,
+                         unsigned short& nearPt,
+                         short nPtsToChk,
+                         bool prt);
   unsigned short TPNearVertex(const TCSlice& slc, const TrajPoint& tp);
   bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt);
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt);

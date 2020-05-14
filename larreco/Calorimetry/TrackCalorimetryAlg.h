@@ -10,96 +10,112 @@
 */
 #include <iostream>
 
-#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/CoreUtils/ProviderPack.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
-#include <set>
 #include "TVector3.h"
+#include <set>
 
-namespace anab { class Calorimetry; }
-namespace detinfo { class DetectorProperties; class LArProperties; }
-namespace fhicl { class ParameterSet; }
-namespace geo { struct PlaneID; struct WireID; }
-namespace recob { class Hit; class Track; }
+namespace anab {
+  class Calorimetry;
+}
+namespace detinfo {
+  class DetectorProperties;
+  class LArProperties;
+}
+namespace fhicl {
+  class ParameterSet;
+}
+namespace geo {
+  struct PlaneID;
+  struct WireID;
+}
+namespace recob {
+  class Hit;
+  class Track;
+}
 
-namespace calo{
+namespace calo {
   class TrackCalorimetryAlg;
 }
 
-class calo::TrackCalorimetryAlg{
- public:
-  using Providers_t = lar::ProviderPack<
-    geo::GeometryCore, detinfo::LArProperties, detinfo::DetectorProperties
-    >;
+class calo::TrackCalorimetryAlg {
+public:
+  using Providers_t =
+    lar::ProviderPack<geo::GeometryCore, detinfo::LArProperties, detinfo::DetectorProperties>;
 
   TrackCalorimetryAlg(fhicl::ParameterSet const& p);
   void reconfigure(fhicl::ParameterSet const& p);
 
   void ExtractCalorimetry(std::vector<recob::Track> const&,
-			  std::vector<recob::Hit> const&,
-			  std::vector< std::vector<size_t> > const&,
-			  std::vector<anab::Calorimetry>&,
-			  std::vector<size_t>&,
-			  Providers_t providers
-			  );
+                          std::vector<recob::Hit> const&,
+                          std::vector<std::vector<size_t>> const&,
+                          std::vector<anab::Calorimetry>&,
+                          std::vector<size_t>&,
+                          Providers_t providers);
 
- private:
-
+private:
   CalorimetryAlg caloAlg;
-  unsigned int   fNHitsToDetermineStart;
+  unsigned int fNHitsToDetermineStart;
 
-  struct HitProperties{
-    HitProperties(){}
-    HitProperties(float q, float dqdx, float dedx, float p, TVector3 pos, float pf):
-      charge(q), dQdx(dqdx), dEdx(dedx), pitch(p), xyz(pos), path_fraction(pf) {}
+  struct HitProperties {
+    HitProperties() {}
+    HitProperties(float q, float dqdx, float dedx, float p, TVector3 pos, float pf)
+      : charge(q), dQdx(dqdx), dEdx(dedx), pitch(p), xyz(pos), path_fraction(pf)
+    {}
     float charge;
     float dQdx;
     float dEdx;
     float pitch;
     TVector3 xyz;
     float path_fraction;
-    void Print() const
+    void
+    Print() const
     {
-      std::cout << "\tCharge " << charge
-		<< "  dQdx " << dQdx
-		<< "  dEdx " << dEdx
-		<< "  pitch " << pitch
-		<< "  (x,y,z) (" << xyz.X() << "," << xyz.Y() << "," << xyz.Z() << ")"
-		<< " path_fraction " << path_fraction << std::endl;
+      std::cout << "\tCharge " << charge << "  dQdx " << dQdx << "  dEdx " << dEdx << "  pitch "
+                << pitch << "  (x,y,z) (" << xyz.X() << "," << xyz.Y() << "," << xyz.Z() << ")"
+                << " path_fraction " << path_fraction << std::endl;
     }
   };
-  struct HitPropertySorter{
-    bool operator() (HitProperties const& i, HitProperties const& j) const { return i.path_fraction < j.path_fraction; }
+  struct HitPropertySorter {
+    bool
+    operator()(HitProperties const& i, HitProperties const& j) const
+    {
+      return i.path_fraction < j.path_fraction;
+    }
   };
 
-  typedef std::multiset<HitProperties,HitPropertySorter> HitPropertiesMultiset_t;
+  typedef std::multiset<HitProperties, HitPropertySorter> HitPropertiesMultiset_t;
   //typedef std::multimap<float,HitProperties> HitPropertiesMultiset_t;
 
-  void ClearInternalVectors() {}
-  void ReserveInternalVectors(size_t s) {}
+  void
+  ClearInternalVectors()
+  {}
+  void
+  ReserveInternalVectors(size_t s)
+  {}
 
   std::vector<float> CreatePathLengthFractionVector(recob::Track const& track);
 
   void AnalyzeHit(recob::Hit const&,
-		  recob::Track const&,
-		  std::vector< std::pair<geo::WireID,float> > const&,
-		  std::vector<float> const&,
-		  HitPropertiesMultiset_t &,
-		  geo::GeometryCore const&);
+                  recob::Track const&,
+                  std::vector<std::pair<geo::WireID, float>> const&,
+                  std::vector<float> const&,
+                  HitPropertiesMultiset_t&,
+                  geo::GeometryCore const&);
 
   bool IsInvertedTrack(HitPropertiesMultiset_t const&);
 
   void MakeCalorimetryObject(HitPropertiesMultiset_t const& hpm,
-			     recob::Track const& track,
-			     size_t const& i_track,
-			     std::vector<anab::Calorimetry>& caloVector,
-			     std::vector<size_t>& assnTrackCaloVector,
-			     geo::PlaneID const& planeID);
+                             recob::Track const& track,
+                             size_t const& i_track,
+                             std::vector<anab::Calorimetry>& caloVector,
+                             std::vector<size_t>& assnTrackCaloVector,
+                             geo::PlaneID const& planeID);
 
   void PrintHitPropertiesMultiset(HitPropertiesMultiset_t const& hpm);
-
 };
 
 #endif

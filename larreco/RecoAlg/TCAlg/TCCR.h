@@ -14,7 +14,7 @@ namespace tca {
   struct TCSlice;
 
   void SaveCRInfo(TCSlice& tcs, PFPStruct& ms, bool prt, bool fIsRealData);
-  int  GetOrigin(TCSlice& tcs, PFPStruct& ms);
+  int GetOrigin(TCSlice& tcs, PFPStruct& ms);
   void ClearCRInfo(TCSlice& tcs);
 }
 

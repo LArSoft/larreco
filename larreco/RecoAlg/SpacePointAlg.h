@@ -59,12 +59,14 @@
 #include <vector>
 
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
-namespace trkf{
+namespace trkf {
   class KHitTrack;
 }
-namespace recob{
+namespace recob {
   class Hit;
   class SpacePoint;
 }
@@ -73,20 +75,51 @@ namespace trkf {
 
   class SpacePointAlg {
   public:
-
     // Constructor.
     SpacePointAlg(const fhicl::ParameterSet& pset);
 
     // Configuration Accessors.
 
-    bool filter() const {return fFilter;}
-    bool merge() const {return fMerge;}
-    double maxDT() const {return fMaxDT;}
-    double maxS() const {return fMaxS;}
-    int minViews() const {return fMinViews;}
-    bool enableU() const {return fEnableU;}
-    bool enableV() const {return fEnableV;}
-    bool enableW() const {return fEnableW;}
+    bool
+    filter() const
+    {
+      return fFilter;
+    }
+    bool
+    merge() const
+    {
+      return fMerge;
+    }
+    double
+    maxDT() const
+    {
+      return fMaxDT;
+    }
+    double
+    maxS() const
+    {
+      return fMaxS;
+    }
+    int
+    minViews() const
+    {
+      return fMinViews;
+    }
+    bool
+    enableU() const
+    {
+      return fEnableU;
+    }
+    bool
+    enableV() const
+    {
+      return fEnableV;
+    }
+    bool
+    enableW() const
+    {
+      return fEnableW;
+    }
 
     // Update configuration parameters.
     void reconfigure(const fhicl::ParameterSet& pset);
@@ -102,79 +135,84 @@ namespace trkf {
 
     // Test whether the specified hits are compatible with a space point.
     // The last two arguments can be used to override the default cuts.
-    bool compatible(const art::PtrVector<recob::Hit>& hits,
-		    bool useMC = false) const;
+    bool compatible(const art::PtrVector<recob::Hit>& hits, bool useMC = false) const;
 
     // Fill a single simple space point using the specified hits.
     // Hits are assumed to be compatible.
     void fillSpacePoint(const art::PtrVector<recob::Hit>& hits,
-			std::vector<recob::SpacePoint>& sptv,
-			int sptid) const;
+                        std::vector<recob::SpacePoint>& sptv,
+                        int sptid) const;
 
     /// Fill a collection of space points.
     void fillSpacePoints(std::vector<recob::SpacePoint>& spts,
-			 std::multimap<double, KHitTrack> const& trackMap) const;
+                         std::multimap<double, KHitTrack> const& trackMap) const;
 
     // Fill a single complex space point using the specified hits.
     // Complex space points allow multiple hits in one plane.
     // Hits are assumed to be compatible.
     void fillComplexSpacePoint(const art::PtrVector<recob::Hit>& hits,
-			       std::vector<recob::SpacePoint> &sptv,
-			       int sptid) const;
+                               std::vector<recob::SpacePoint>& sptv,
+                               int sptid) const;
 
     // Fill a vector of space points from an unsorted collection of hits.
     // Space points are generated for all compatible combinations of hits.
     void makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
-			 std::vector<recob::SpacePoint>& spts) const;
+                         std::vector<recob::SpacePoint>& spts) const;
 
     // Fill a vector of space points compatible with mc truth information
     void makeMCTruthSpacePoints(const art::PtrVector<recob::Hit>& hits,
-				std::vector<recob::SpacePoint>& spts) const;
+                                std::vector<recob::SpacePoint>& spts) const;
 
     // Get hits associated with a particular space point, based on most recent
     // invocation of any make*SpacePoints method.
     const art::PtrVector<recob::Hit>& getAssociatedHits(const recob::SpacePoint& spt) const;
 
     // Clear space point to Hit associations.
-    void clearHitMap() const {fSptHitMap.clear();}
+    void
+    clearHitMap() const
+    {
+      fSptHitMap.clear();
+    }
 
     // Return number of space point to Hit associations.
-    int numHitMap() const {return fSptHitMap.size();}
+    int
+    numHitMap() const
+    {
+      return fSptHitMap.size();
+    }
 
   private:
-
     // This is the real method for calculating space points (each of
     // the public make*SpacePoints methods comes here).
     void makeSpacePoints(const art::PtrVector<recob::Hit>& hits,
-			 std::vector<recob::SpacePoint>& spts,
-			 bool useMC) const;
+                         std::vector<recob::SpacePoint>& spts,
+                         bool useMC) const;
 
     // Configuration paremeters.
 
-    double fMaxDT;          ///< Maximum time difference between planes.
-    double fMaxS;           ///< Maximum space separation between wires.
-    int fMinViews;          ///< Mininum number of views per space point.
-    bool fEnableU;          ///< Enable flag (U).
-    bool fEnableV;          ///< Enable flag (V).
-    bool fEnableW;          ///< Enable flag (W).
-    bool fFilter;           ///< Filter flag.
-    bool fMerge;            ///< Merge flag.
-    bool fPreferColl;       ///< Sort by collection wire.
-    double fTickOffsetU;    ///< Tick offset for plane U.
-    double fTickOffsetV;    ///< Tick offset for plane V.
-    double fTickOffsetW;    ///< Tick offset for plane W.
+    double fMaxDT;       ///< Maximum time difference between planes.
+    double fMaxS;        ///< Maximum space separation between wires.
+    int fMinViews;       ///< Mininum number of views per space point.
+    bool fEnableU;       ///< Enable flag (U).
+    bool fEnableV;       ///< Enable flag (V).
+    bool fEnableW;       ///< Enable flag (W).
+    bool fFilter;        ///< Filter flag.
+    bool fMerge;         ///< Merge flag.
+    bool fPreferColl;    ///< Sort by collection wire.
+    double fTickOffsetU; ///< Tick offset for plane U.
+    double fTickOffsetV; ///< Tick offset for plane V.
+    double fTickOffsetW; ///< Tick offset for plane W.
 
     // Temporary variables.
 
-    struct HitMCInfo
-    {
-      std::vector<int> trackIDs;       ///< Parent trackIDs.
-      std::vector<double> xyz;         ///< Location of ionization (all tracks).
-      std::vector<const recob::Hit*> pchit;   ///< Pointer to nearest neighbor hit (indexed by plane).
-      std::vector<double> dist2;              ///< Distance to nearest neighbor hit (indexed by plane).
+    struct HitMCInfo {
+      std::vector<int> trackIDs;            ///< Parent trackIDs.
+      std::vector<double> xyz;              ///< Location of ionization (all tracks).
+      std::vector<const recob::Hit*> pchit; ///< Pointer to nearest neighbor hit (indexed by plane).
+      std::vector<double> dist2; ///< Distance to nearest neighbor hit (indexed by plane).
     };
     mutable std::map<const recob::Hit*, HitMCInfo> fHitMCMap;
-    mutable std::map<int, art::PtrVector<recob::Hit> > fSptHitMap;
+    mutable std::map<int, art::PtrVector<recob::Hit>> fSptHitMap;
   };
 }
 

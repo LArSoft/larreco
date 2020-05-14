@@ -8,50 +8,47 @@
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
-namespace detinfo { class DetectorProperties; }
-namespace geo { class GeometryCore; }
+namespace detinfo {
+  class DetectorProperties;
+}
+namespace geo {
+  class GeometryCore;
+}
 
 #include <map>
 #include <vector>
 
-namespace recob{class Hit;}
+namespace recob {
+  class Hit;
+}
 
-namespace reco3d
-{
-  struct HitOrChan
-  {
+namespace reco3d {
+  struct HitOrChan {
     HitOrChan(raw::ChannelID_t c) : chan(c), hit(0), xpos(0) {}
     HitOrChan(const recob::Hit* h, double x) : chan(h->Channel()), hit(h), xpos(x) {}
 
     raw::ChannelID_t chan;
     const recob::Hit* hit; // null for bad channel
-    double xpos; // Only set if hit is set
+    double xpos;           // Only set if hit is set
   };
 
-  struct ChannelDoublet
-  {
-    ChannelDoublet(HitOrChan a_, HitOrChan b_, geo::WireIDIntersection p)
-      : a(a_), b(b_), pt(p)
-    {
-    }
+  struct ChannelDoublet {
+    ChannelDoublet(HitOrChan a_, HitOrChan b_, geo::WireIDIntersection p) : a(a_), b(b_), pt(p) {}
 
     HitOrChan a, b;
     geo::WireIDIntersection pt;
   };
 
-  struct XYZ
-  {
+  struct XYZ {
     double x, y, z;
   };
 
-  struct HitTriplet
-  {
+  struct HitTriplet {
     const recob::Hit *x, *u, *v;
     XYZ pt;
   };
 
-  class TripletFinder
-  {
+  class TripletFinder {
   public:
     TripletFinder(const std::vector<art::Ptr<recob::Hit>>& xhits,
                   const std::vector<art::Ptr<recob::Hit>>& uhits,
@@ -59,7 +56,8 @@ namespace reco3d
                   const std::vector<raw::ChannelID_t>& xbad,
                   const std::vector<raw::ChannelID_t>& ubad,
                   const std::vector<raw::ChannelID_t>& vbad,
-                  double distThresh, double distThreshDrift,
+                  double distThresh,
+                  double distThreshDrift,
                   double xhitOffset);
 
     std::vector<HitTriplet> Triplets();
@@ -78,17 +76,15 @@ namespace reco3d
                     std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out);
 
     bool CloseDrift(double xa, double xb) const;
-    bool CloseSpace(geo::WireIDIntersection ra,
-                    geo::WireIDIntersection rb) const;
+    bool CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb) const;
 
     std::vector<ChannelDoublet> DoubletsXU(geo::TPCID tpc);
     std::vector<ChannelDoublet> DoubletsXV(geo::TPCID tpc);
 
-    std::vector<ChannelDoublet>
-    DoubletHelper(geo::TPCID tpc,
-                  const std::vector<HitOrChan>& ahits,
-                  const std::vector<HitOrChan>& bhits,
-                  const std::vector<raw::ChannelID_t>& bbads) const;
+    std::vector<ChannelDoublet> DoubletHelper(geo::TPCID tpc,
+                                              const std::vector<HitOrChan>& ahits,
+                                              const std::vector<HitOrChan>& bhits,
+                                              const std::vector<raw::ChannelID_t>& bbads) const;
 
     double fDistThresh;
     double fDistThreshDrift;

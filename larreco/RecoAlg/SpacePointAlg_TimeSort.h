@@ -24,14 +24,20 @@
 
 // Frmaework includes
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 //boost includes
 #include "boost/multi_array.hpp"
 
-namespace sppt{
+namespace sppt {
 
-  inline bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
+  inline bool
+  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b)
+  {
+    return a->PeakTime() < b->PeakTime();
+  }
 
   class SpacePointAlg_TimeSort {
 
@@ -42,17 +48,17 @@ namespace sppt{
     void setTimeOffsets();
     void fillCoordinatesArrays();
 
-    void createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_V,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
-			   std::unique_ptr<std::vector<recob::SpacePoint> > &spptCollection,
-			   std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > &spptAssociatedHits);
+    void createSpacePoints(
+      std::vector<art::Ptr<recob::Hit>>& hitVec_U,
+      std::vector<art::Ptr<recob::Hit>>& hitVec_V,
+      std::vector<art::Ptr<recob::Hit>>& hitVec_Y,
+      std::unique_ptr<std::vector<recob::SpacePoint>>& spptCollection,
+      std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit>>>>& spptAssociatedHits);
 
   private:
-
-    float          fTimeDiffMax;        /// Maximum allowed time difference
-    float          fYDiffMax;           /// Maximum allowed y-coordinate difference
-    float          fZDiffMax;           /// Maximum allowed z-coordinate difference
+    float fTimeDiffMax; /// Maximum allowed time difference
+    float fYDiffMax;    /// Maximum allowed y-coordinate difference
+    float fZDiffMax;    /// Maximum allowed z-coordinate difference
 
     bool TIME_OFFSET_SET;
     bool COORDINATES_FILLED;
@@ -67,7 +73,7 @@ namespace sppt{
     boost::multi_array<double, 2> coordinates_UY_y;
     boost::multi_array<double, 2> coordinates_UY_z;
 
-    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle) const;
+    void sortHitsByTime(std::vector<art::Ptr<recob::Hit>>& hits_handle) const;
 
   }; //class SpacePointAlg_TimeSort
 

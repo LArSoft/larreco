@@ -16,33 +16,32 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 
 #include <vector>
 
-namespace cluster
-{
+namespace cluster {
   class ClusterMatchTQ {
   public:
-
     ClusterMatchTQ(fhicl::ParameterSet const& pset);
 
     void reconfigure(fhicl::ParameterSet const& p);
 
-    void ClusterMatch(const std::vector<art::Ptr<recob::Cluster> > &clusterlist,
-		      const art::FindManyP<recob::Hit> &fm);
+    void ClusterMatch(const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
+                      const art::FindManyP<recob::Hit>& fm);
 
-    std::vector<std::vector<unsigned int> > matchedclusters;
+    std::vector<std::vector<unsigned int>> matchedclusters;
 
   private:
-
     double fKSCut;
-    bool   fEnableU;
-    bool   fEnableV;
-    bool   fEnableZ;
+    bool fEnableU;
+    bool fEnableV;
+    bool fEnableZ;
 
   }; // class ClusterMatchTQ
 } // namespace cluster

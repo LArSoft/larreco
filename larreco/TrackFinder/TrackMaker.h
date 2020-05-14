@@ -2,13 +2,13 @@
 #define TRACKMAKER_H
 
 #include "art/Framework/Principal/Event.h"
-#include "canvas/Persistency/Common/Ptr.h"
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/TrackFitHitInfo.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/RecoBase/TrackingTypes.h"
 #include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
 
 namespace trkmkr {
 
@@ -32,22 +32,59 @@ namespace trkmkr {
   struct OptionalPointElement {
   public:
     /// set the recob::TrackFitHitInfo unique_ptr
-    void setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo) { trackFitHitInfo = std::make_unique< recob::TrackFitHitInfo >(aTrackFitHitInfo); }
-    void setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo) { trackFitHitInfo = std::make_unique< recob::TrackFitHitInfo >(aTrackFitHitInfo); }
+    void
+    setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo)
+    {
+      trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(aTrackFitHitInfo);
+    }
+    void
+    setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo)
+    {
+      trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(aTrackFitHitInfo);
+    }
     /// check if the recob::TrackFitHitInfo unique_ptr is set
-    bool isTrackFitInfoSet() { return bool(trackFitHitInfo); }
+    bool
+    isTrackFitInfoSet()
+    {
+      return bool(trackFitHitInfo);
+    }
     /// get the recob::TrackFitHitInfo object, and reset the unique_ptr
-    recob::TrackFitHitInfo getTrackFitHitInfo() { auto tmp = *trackFitHitInfo; trackFitHitInfo.reset(); return tmp; }
+    recob::TrackFitHitInfo
+    getTrackFitHitInfo()
+    {
+      auto tmp = *trackFitHitInfo;
+      trackFitHitInfo.reset();
+      return tmp;
+    }
     //
     /// set the recob::SpacePoint unique_ptr
-    void setSpacePoint(recob::SpacePoint&& aSpacePoint) { spacePoint = std::make_unique< recob::SpacePoint >(aSpacePoint); }
-    void setSpacePoint(const recob::SpacePoint& aSpacePoint) { spacePoint = std::make_unique< recob::SpacePoint >(aSpacePoint); }
+    void
+    setSpacePoint(recob::SpacePoint&& aSpacePoint)
+    {
+      spacePoint = std::make_unique<recob::SpacePoint>(aSpacePoint);
+    }
+    void
+    setSpacePoint(const recob::SpacePoint& aSpacePoint)
+    {
+      spacePoint = std::make_unique<recob::SpacePoint>(aSpacePoint);
+    }
     /// check if the recob::SpacePoint unique_ptr is set
-    bool isSpacePointSet() { return bool(spacePoint); }
+    bool
+    isSpacePointSet()
+    {
+      return bool(spacePoint);
+    }
     /// get the recob::SpacePoint object, and release the unique_ptr
-    recob::SpacePoint getSpacePoint() { auto tmp = *spacePoint; spacePoint.reset(); return tmp; }
+    recob::SpacePoint
+    getSpacePoint()
+    {
+      auto tmp = *spacePoint;
+      spacePoint.reset();
+      return tmp;
+    }
+
   private:
-    std::unique_ptr< recob::TrackFitHitInfo > trackFitHitInfo;
+    std::unique_ptr<recob::TrackFitHitInfo> trackFitHitInfo;
     std::unique_ptr<recob::SpacePoint> spacePoint;
   };
 
@@ -72,57 +109,86 @@ namespace trkmkr {
 
   struct OptionalOutputs {
   public:
-    typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit> > SpHitPair;
+    typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit>> SpHitPair;
 
     /// add one OptionalPointElement
-    void addPoint(OptionalPointElement& ope) {
+    void
+    addPoint(OptionalPointElement& ope)
+    {
       if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
-	outTrackFitHitInfos->push_back( ope.getTrackFitHitInfo() );
+        outTrackFitHitInfos->push_back(ope.getTrackFitHitInfo());
       }
     }
     /// add one OptionalPointElement and the corresponding hit
-    void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr) {
+    void
+    addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr)
+    {
       if (isSpacePointsInit() && ope.isSpacePointSet()) {
-	outSpacePointHitPairs->emplace_back(ope.getSpacePoint(), hptr);
+        outSpacePointHitPairs->emplace_back(ope.getSpacePoint(), hptr);
       }
       addPoint(ope);
     }
     /// reset the stored vectors
-    void reset() {
+    void
+    reset()
+    {
       if (isTrackFitInfosInit()) {
-	outTrackFitHitInfos.reset();
-	initTrackFitInfos();
+        outTrackFitHitInfos.reset();
+        initTrackFitInfos();
       }
       if (isSpacePointsInit()) {
-	outSpacePointHitPairs.reset();
-	initSpacePoints();
+        outSpacePointHitPairs.reset();
+        initSpacePoints();
       }
     }
     /// initialize the output vector of TrackFitHitInfos
-    void initTrackFitInfos() {
-      outTrackFitHitInfos = std::make_unique< std::vector<recob::TrackFitHitInfo> >();
+    void
+    initTrackFitInfos()
+    {
+      outTrackFitHitInfos = std::make_unique<std::vector<recob::TrackFitHitInfo>>();
     }
     /// initialize the output vector of SpHitPair
-    void initSpacePoints() {
-      outSpacePointHitPairs = std::make_unique< std::vector<SpHitPair> >();
+    void
+    initSpacePoints()
+    {
+      outSpacePointHitPairs = std::make_unique<std::vector<SpHitPair>>();
     }
     /// check initialization of the output vector of TrackFitHitInfos
-    bool isTrackFitInfosInit() { return bool(outTrackFitHitInfos); }
+    bool
+    isTrackFitInfosInit()
+    {
+      return bool(outTrackFitHitInfos);
+    }
     /// check initialization of the output vector of SpHitPair
-    bool isSpacePointsInit() { return bool(outSpacePointHitPairs); }
+    bool
+    isSpacePointsInit()
+    {
+      return bool(outSpacePointHitPairs);
+    }
     /// get the output vector of TrackFitHitInfos by releasing and moving
-    std::vector<recob::TrackFitHitInfo> trackFitHitInfos() {
-      if (!isTrackFitInfosInit()) throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
-      auto tmp = *outTrackFitHitInfos; outTrackFitHitInfos.reset(); return tmp;
+    std::vector<recob::TrackFitHitInfo>
+    trackFitHitInfos()
+    {
+      if (!isTrackFitInfosInit())
+        throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
+      auto tmp = *outTrackFitHitInfos;
+      outTrackFitHitInfos.reset();
+      return tmp;
     }
     /// get the output vector of SpHitPair by releasing and moving
-    std::vector<SpHitPair> spacePointHitPairs() {
-      if (!isSpacePointsInit()) throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
-      auto tmp = *outSpacePointHitPairs; outSpacePointHitPairs.reset(); return tmp;
+    std::vector<SpHitPair>
+    spacePointHitPairs()
+    {
+      if (!isSpacePointsInit())
+        throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
+      auto tmp = *outSpacePointHitPairs;
+      outSpacePointHitPairs.reset();
+      return tmp;
     }
+
   private:
-    std::unique_ptr< std::vector<recob::TrackFitHitInfo> > outTrackFitHitInfos;
-    std::unique_ptr< std::vector<SpHitPair> > outSpacePointHitPairs;
+    std::unique_ptr<std::vector<recob::TrackFitHitInfo>> outTrackFitHitInfos;
+    std::unique_ptr<std::vector<SpHitPair>> outSpacePointHitPairs;
   };
 
   /**
@@ -155,45 +221,86 @@ namespace trkmkr {
     virtual ~TrackMaker() noexcept = default;
 
     /// per-event initialization; concrete classes may override this function to retrieve other products or associations from the event.
-    virtual void initEvent(const art::Event& e) { return; }
+    virtual void
+    initEvent(const art::Event& e)
+    {
+      return;
+    }
 
     //@{
     /// makeTrack functions with recob::Trajectory as argument; calls the version with recob::TrackTrajectory using a dummy flags vector.
-    virtual bool makeTrack(const recob::Trajectory& traj, const std::vector<recob::TrajectoryPointFlags>& flags,
-			   const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
+    virtual bool
+    makeTrack(const recob::Trajectory& traj,
+              const std::vector<recob::TrajectoryPointFlags>& flags,
+              const int tkID,
+              const std::vector<art::Ptr<recob::Hit>>& inHits,
+              recob::Track& outTrack,
+              std::vector<art::Ptr<recob::Hit>>& outHits,
+              OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(traj,recob::TrackTrajectory::Flags_t(traj.NPoints())), tkID, inHits, outTrack, outHits, optionals);
+      return makeTrack(
+        recob::TrackTrajectory(traj, recob::TrackTrajectory::Flags_t(traj.NPoints())),
+        tkID,
+        inHits,
+        outTrack,
+        outHits,
+        optionals);
     }
-    virtual bool makeTrack(const art::Ptr<recob::Trajectory> traj, const std::vector<recob::TrajectoryPointFlags>& flags,
-			   const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
+    virtual bool
+    makeTrack(const art::Ptr<recob::Trajectory> traj,
+              const std::vector<recob::TrajectoryPointFlags>& flags,
+              const std::vector<art::Ptr<recob::Hit>>& inHits,
+              recob::Track& outTrack,
+              std::vector<art::Ptr<recob::Hit>>& outHits,
+              OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(*traj,recob::TrackTrajectory::Flags_t(traj->NPoints())), traj.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(
+        recob::TrackTrajectory(*traj, recob::TrackTrajectory::Flags_t(traj->NPoints())),
+        traj.key(),
+        inHits,
+        outTrack,
+        outHits,
+        optionals);
     }
     //@}
 
     /// makeTrack functions with art::Ptr<recob::TrackTrajectory>; calls the purely virtual version with const recob::TrackTrajectory reference as argument.
-    virtual bool makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
+    virtual bool
+    makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj,
+              const std::vector<art::Ptr<recob::Hit>>& inHits,
+              recob::Track& outTrack,
+              std::vector<art::Ptr<recob::Hit>>& outHits,
+              OptionalOutputs& optionals) const
     {
       return makeTrack(*ttraj, ttraj.key(), inHits, outTrack, outHits, optionals);
     }
 
     /// makeTrack functions with const recob::TrackTrajectory reference as argument: purely virtual, to be implemented in concrete classes.
-    virtual bool makeTrack(const recob::TrackTrajectory& ttraj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const = 0;
+    virtual bool makeTrack(const recob::TrackTrajectory& ttraj,
+                           const int tkID,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const = 0;
 
     //@{
     /// makeTrack functions with recob::Track as argument; calls the version with recob::TrackTrajectory.
-    virtual bool makeTrack(const art::Ptr<recob::Track> track, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
+    virtual bool
+    makeTrack(const art::Ptr<recob::Track> track,
+              const std::vector<art::Ptr<recob::Hit>>& inHits,
+              recob::Track& outTrack,
+              std::vector<art::Ptr<recob::Hit>>& outHits,
+              OptionalOutputs& optionals) const
     {
       return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
     }
 
-    virtual bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
+    virtual bool
+    makeTrack(const recob::Track& track,
+              const std::vector<art::Ptr<recob::Hit>>& inHits,
+              recob::Track& outTrack,
+              std::vector<art::Ptr<recob::Hit>>& outHits,
+              OptionalOutputs& optionals) const
     {
       return makeTrack(track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals);
     }

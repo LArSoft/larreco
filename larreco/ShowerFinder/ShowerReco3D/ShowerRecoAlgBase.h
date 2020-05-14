@@ -18,8 +18,12 @@
 
 #include "lardata/Utilities/PxUtils.h"
 #include "lardataobj/RecoBase/Shower.h"
-namespace calo { class CalorimetryAlg; }
-namespace cluster { class ClusterParamsAlg; }
+namespace calo {
+  class CalorimetryAlg;
+}
+namespace cluster {
+  class ClusterParamsAlg;
+}
 
 namespace showerreco {
 
@@ -27,10 +31,9 @@ namespace showerreco {
 
     ::util::PxPoint start_point;
     ::util::PxPoint end_point;
-    double             angle_2d;
-    unsigned short     plane_id;
-    std::vector< ::util::PxHit> hit_vector;
-
+    double angle_2d;
+    unsigned short plane_id;
+    std::vector<::util::PxHit> hit_vector;
   };
 
   /**
@@ -38,15 +41,14 @@ namespace showerreco {
      User defined class ShowerRecoAlgBase ... these comments are used to generate
      doxygen documentation!
   */
-  class ShowerRecoAlgBase{
+  class ShowerRecoAlgBase {
 
   public:
-
     /// Default constructor
     ShowerRecoAlgBase();
 
     /// Default destructor
-    virtual ~ShowerRecoAlgBase(){}
+    virtual ~ShowerRecoAlgBase() {}
 
     /// Function to reset algorithm, to be called @ beginning of each event
     virtual void Reset() = 0;
@@ -58,30 +60,40 @@ namespace showerreco {
     std::vector<recob::Shower> Reconstruct();
 
     /// Verbosity switch
-    virtual void Verbose(bool on=true) { fVerbosity=on; }
+    virtual void
+    Verbose(bool on = true)
+    {
+      fVerbosity = on;
+    }
 
     /// Calorimetry algorithm setter
-    void CaloAlgo(::calo::CalorimetryAlg* alg) { fCaloAlg = alg; }
+    void
+    CaloAlgo(::calo::CalorimetryAlg* alg)
+    {
+      fCaloAlg = alg;
+    }
 
   protected:
-
     /// Function to reorganize input cluster information
-    virtual void ProcessInputClusters()
-    { return; }
+    virtual void
+    ProcessInputClusters()
+    {
+      return;
+    }
 
     /// Function to reconstruct one shower
-    virtual ::recob::Shower RecoOneShower(const std::vector<showerreco::ShowerCluster_t>& clusters) = 0;
+    virtual ::recob::Shower RecoOneShower(
+      const std::vector<showerreco::ShowerCluster_t>& clusters) = 0;
 
   protected:
-
     /// Verbosity flag
     bool fVerbosity;
 
     /// Calorimetry algorithm
-    ::calo::CalorimetryAlg *fCaloAlg;
+    ::calo::CalorimetryAlg* fCaloAlg;
 
     /// Input clusters
-    std::vector<std::vector<showerreco::ShowerCluster_t> > fInputClusters;
+    std::vector<std::vector<showerreco::ShowerCluster_t>> fInputClusters;
   };
 }
 

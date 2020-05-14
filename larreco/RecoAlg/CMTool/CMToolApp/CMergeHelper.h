@@ -24,28 +24,33 @@ namespace cmtool {
      User defined class CMergeHelper ... these comments are used to generate
      doxygen documentation!
   */
-  class CMergeHelper{
+  class CMergeHelper {
 
   public:
-
     CMergeManager& GetManager(size_t mgr_id);
 
     void SetAnaFile(TFile* fout);
 
-    void Process(const std::vector<std::vector< ::util::PxHit> >& clusters);
+    void Process(const std::vector<std::vector<::util::PxHit>>& clusters);
 
-    size_t size() const { return _mgr_v.size(); }
+    size_t
+    size() const
+    {
+      return _mgr_v.size();
+    }
 
-    const CMergeBookKeeper& GetResult() const { return _bk; }
+    const CMergeBookKeeper&
+    GetResult() const
+    {
+      return _bk;
+    }
 
-    const std::vector< ::cluster::ClusterParamsAlg>& GetClusters() const;
+    const std::vector<::cluster::ClusterParamsAlg>& GetClusters() const;
 
   protected:
-
-    std::vector< ::cmtool::CMergeManager> _mgr_v;
+    std::vector<::cmtool::CMergeManager> _mgr_v;
 
     CMergeBookKeeper _bk;
-
   };
 }
 
