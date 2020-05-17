@@ -24,10 +24,6 @@ namespace reco_tool
   public:
     explicit PeakFitterMrqdt(const fhicl::ParameterSet& pset);
 
-    ~PeakFitterMrqdt();
-
-    void configure(const fhicl::ParameterSet& pset) override;
-
     void findPeakParameters(const std::vector<float>&,
 			    const ICandidateHitFinder::HitCandidateVec&,
 			    PeakParamsVec&,
@@ -36,11 +32,10 @@ namespace reco_tool
 
   private:
     //Variables from the fhicl file
-    double fMinWidth;
-    double fMaxWidthMult;
-    double fPeakRange;
-    double fAmpRange;
-    bool fFloatBaseline;
+    const double fMinWidth;
+    const double fMaxWidthMult;
+    const double fPeakRange;
+    const double fAmpRange;
 
     std::unique_ptr<gshf::MarqFitAlg> fMarqFitAlg;
 
@@ -51,27 +46,15 @@ namespace reco_tool
   //constructor
 
   PeakFitterMrqdt::PeakFitterMrqdt(const fhicl::ParameterSet & pset)
-  {
-    configure(pset);
-  }
-
-  PeakFitterMrqdt::~PeakFitterMrqdt()
-  {
-  }
-
-  void PeakFitterMrqdt::configure(const fhicl::ParameterSet& pset)
-  {
-    //get parameters
-    fMinWidth = pset.get<double>("MinWidth", 0.5);
-    fMaxWidthMult = pset.get<double>("MaxWidthMult", 3.);
-    fPeakRange = pset.get<double>("PeakRangeFact", 2.);
-    fAmpRange = pset.get<double>("PeakAmpRange", 2.);
-    fFloatBaseline = pset.get< bool >("FloatBaseline", false);
-
-    return;
-  }
+  : fMinWidth(pset.get<double>("MinWidth", 0.5)),
+    fMaxWidthMult(pset.get<double>("MaxWidthMult", 3.)),
+    fPeakRange(pset.get<double>("PeakRangeFact", 2.)),
+    fAmpRange(pset.get<double>("PeakAmpRange", 2.))
+{
+}
 
   //------------------------
+  //output parameters should be replaced with a returned value
   void PeakFitterMrqdt::findPeakParameters(const std::vector<float>&                      signal,
 					   const ICandidateHitFinder::HitCandidateVec& fhc_vec,
 					   PeakParamsVec&                              mhpp_vec,

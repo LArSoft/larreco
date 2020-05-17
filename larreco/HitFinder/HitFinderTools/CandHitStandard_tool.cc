@@ -18,10 +18,6 @@ class CandHitStandard : ICandidateHitFinder
 public:
     explicit CandHitStandard(const fhicl::ParameterSet& pset);
 
-    ~CandHitStandard();
-
-    void configure(const fhicl::ParameterSet& pset) override;
-
     void findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
                            const size_t,
                            const size_t,
@@ -41,30 +37,16 @@ private:
                            HitCandidateVec&) const;
 
     // Member variables from the fhicl file
-    int                      fPlane;                      ///< Plane we are meant to work with
-    float                    fRoiThreshold;               ///< minimum maximum to minimum peak distance
+    const float                    fRoiThreshold;               ///< minimum maximum to minimum peak distance
 
     const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
 };
 
 //----------------------------------------------------------------------
 // Constructor.
-CandHitStandard::CandHitStandard(const fhicl::ParameterSet& pset)
-{
-    configure(pset);
-}
-
-CandHitStandard::~CandHitStandard()
-{
-}
-
-void CandHitStandard::configure(const fhicl::ParameterSet& pset)
-{
-    // Start by recovering the parameters
-    fPlane        = pset.get< int   >("Plane",        0);
-    fRoiThreshold = pset.get< float >("RoiThreshold", 5.);
-
-    return;
+CandHitStandard::CandHitStandard(const fhicl::ParameterSet& pset):
+    fRoiThreshold(pset.get< float >("RoiThreshold", 5.))
+    {
 }
 
 void CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,

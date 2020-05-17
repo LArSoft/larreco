@@ -24,6 +24,7 @@
 
 
 // C/C++ standard library
+#include <atomic>
 #include <algorithm> // std::accumulate()
 #include <string>
 #include <memory> // std::unique_ptr()
@@ -31,12 +32,13 @@
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/SharedProducer.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art_root_io/TFileService.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Utilities/make_tool.h"
+#include "art/Utilities/Globals.h"
 
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
@@ -57,43 +59,48 @@
 #include "tbb/concurrent_vector.h"
 
 namespace hit{
-class GausHitFinder : public art::EDProducer {
+class GausHitFinder : public art::SharedProducer {
 
 public:
 
-    explicit GausHitFinder(fhicl::ParameterSet const& pset);
+    explicit GausHitFinder(fhicl::ParameterSet const& pset, 
+                           art::ProcessingFrame const&);
+
+
+    void produce(art::Event& evt, art::ProcessingFrame const&) override;
+    void beginJob(art::ProcessingFrame const&) override;
 
 private:
+    std::vector<double> FillOutHitParameterVector(const std::vector<double>& input);
 
-    void produce(art::Event& evt) override;
-    void beginJob() override;
+    const bool                fFilterHits;
+    const bool                fFillHists;
 
-    void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
+    const std::string         fCalDataModuleLabel;
+    const std::string         fAllHitsInstanceName;
 
-    bool                fFilterHits;
-    bool                fFillHists;
+    const std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
+    const std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
 
-    std::string         fCalDataModuleLabel;
-    std::string         fAllHitsInstanceName;
+    const size_t              fMaxMultiHit;              ///<maximum hits for multi fit
+    const int                 fAreaMethod;               ///<Type of area calculation
+    const std::vector<double> fAreaNormsVec;             ///<factors for converting area to same units as peak height
+    const double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
 
-    std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
-    std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
+    const std::vector<float>  fPulseHeightCuts;
+    const std::vector<float>  fPulseWidthCuts;
+    const std::vector<float>  fPulseRatioCuts;
 
-    size_t              fMaxMultiHit;              ///<maximum hits for multi fit
-    int                 fAreaMethod;               ///<Type of area calculation
-    std::vector<double> fAreaNormsVec;             ///<factors for converting area to same units as peak height
-    double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
+    std::atomic <size_t>      fEventCount{0};
 
-    std::vector<float>  fPulseHeightCuts;
-    std::vector<float>  fPulseWidthCuts;
-    std::vector<float>  fPulseRatioCuts;
-
-    size_t              fEventCount;
-
+    //only Standard and Morphological implementation is threadsafe. 
     std::vector<std::unique_ptr<reco_tool::ICandidateHitFinder>> fHitFinderToolVec;  ///< For finding candidate hits
+    // only Marqdt implementation is threadsafe. 
     std::unique_ptr<reco_tool::IPeakFitter>                      fPeakFitterTool;    ///< Perform fit to candidate peaks
+    //HitFilterAlg implementation is threadsafe. 
     std::unique_ptr<HitFilterAlg>                                fHitFilterAlg;      ///< algorithm used to filter out noise hits
 
+    //only used when fFillHists is true and in single threaded mode. 
     TH1F* fFirstChi2;
     TH1F* fChi2;
 
@@ -102,30 +109,32 @@ private:
 
 //-------------------------------------------------
 //-------------------------------------------------
-GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
-  : EDProducer{pset},
-    fEventCount(0)
-{
-    fCalDataModuleLabel  = pset.get< std::string >("CalDataModuleLabel");
-    fAllHitsInstanceName = pset.get< std::string >("AllHitsInstanceName","");
-    fFilterHits          = pset.get< bool        >("FilterHits",false);
-    fFillHists           = pset.get< bool        >("FillHists",false);
+GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset, art::ProcessingFrame const&)
+  : SharedProducer{pset},
+    fFilterHits(pset.get< bool>("FilterHits",false)),
+    fFillHists(pset.get<bool>("FillHists",false)),
+    fCalDataModuleLabel(pset.get< std::string >("CalDataModuleLabel")),
+    fAllHitsInstanceName(pset.get< std::string >("AllHitsInstanceName","")),
+    fLongMaxHitsVec(pset.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25})),
+    fLongPulseWidthVec(pset.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16})),
+    fMaxMultiHit(pset.get< int             >("MaxMultiHit")),
+    fAreaMethod(pset.get< int             >("AreaMethod")),
+    fAreaNormsVec(FillOutHitParameterVector(pset.get< std::vector<double> >("AreaNorms"))),
+    fChi2NDF(pset.get< double          >("Chi2NDF")),
+    fPulseHeightCuts(pset.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0})),
+    fPulseWidthCuts(pset.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0})),
+    fPulseRatioCuts(pset.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20}))
 
+{
+    if (fFillHists && art::Globals::instance()->nthreads() > 1u) { 
+      throw art::Exception(art::errors::Configuration) << "Cannot fill histograms when multiple threads configured, please set fFillHists to false or change number of threads to 1\n";
+    }
+    async<art::InEvent>();
     if (fFilterHits) {
         fHitFilterAlg = std::make_unique<HitFilterAlg>(pset.get<fhicl::ParameterSet>("HitFilterAlg"));
     }
 
-    FillOutHitParameterVector(pset.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);
 
-    fLongMaxHitsVec    = pset.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
-    fLongPulseWidthVec = pset.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
-    fMaxMultiHit       = pset.get< int             >("MaxMultiHit");
-    fAreaMethod        = pset.get< int             >("AreaMethod");
-    fChi2NDF           = pset.get< double          >("Chi2NDF");
-
-    fPulseHeightCuts   = pset.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0});
-    fPulseWidthCuts    = pset.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0});
-    fPulseRatioCuts    = pset.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20});
 
     // recover the tool to do the candidate hit finding
     // Recover the vector of fhicl parameters for the ROI tools
@@ -161,12 +170,12 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
 
 //-------------------------------------------------
 //-------------------------------------------------
-void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
-                                              std::vector<double>&       output)
+std::vector<double> GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input)
 {
     if(input.size()==0)
         throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
 
+    std::vector<double> output;
     art::ServiceHandle<geo::Geometry const> geom;
     const unsigned int N_PLANES = geom->Nplanes();
 
@@ -176,14 +185,14 @@ void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
         output = input;
     else
         throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector size !=1 and !=N_PLANES.");
-
+    return output;
 }
 
 
 
 //-------------------------------------------------
 //-------------------------------------------------
-void GausHitFinder::beginJob()
+void GausHitFinder::beginJob(art::ProcessingFrame const&)
 {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -201,8 +210,9 @@ void GausHitFinder::beginJob()
 //  and looks for hits as areas between local minima that have signal above
 //  threshold.
 //-------------------------------------------------
-void GausHitFinder::produce(art::Event& evt)
+void GausHitFinder::produce(art::Event& evt, art::ProcessingFrame const&)
 {
+    unsigned int count = fEventCount.fetch_add(1);
     //==================================================================================================
 
     TH1::AddDirectory(kFALSE);
@@ -313,7 +323,7 @@ void GausHitFinder::produce(art::Event& evt)
             reco_tool::ICandidateHitFinder::HitCandidateVec      hitCandidateVec;
             reco_tool::ICandidateHitFinder::MergeHitCandidateVec mergedCandidateHitVec;
 
-            fHitFinderToolVec.at(plane)->findHitCandidates(range, 0, channel, fEventCount, hitCandidateVec);
+            fHitFinderToolVec.at(plane)->findHitCandidates(range, 0, channel, count, hitCandidateVec);
             fHitFinderToolVec.at(plane)->MergeHitCandidates(range, hitCandidateVec, mergedCandidateHitVec);
 
             // #######################################################
@@ -566,7 +576,7 @@ void GausHitFinder::produce(art::Event& evt)
     }
 
     // Keep track of events processed
-    fEventCount++;
+    //fEventCount++;
 
 } // End of produce()
 
