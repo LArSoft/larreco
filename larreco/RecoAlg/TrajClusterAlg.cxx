@@ -267,6 +267,7 @@ namespace tca {
     // configuration for the current TPC
 
     if(tcc.modes[kDebug] && evt.eventsProcessed == 0) PrintDebugMode();
+    ++evt.eventsProcessed;
 
     return AnalyzeHits();
   } // SetInputHits
@@ -291,7 +292,6 @@ namespace tca {
   {
     // Reconstruct everything using the hits in a slice
 
-    if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
     if(tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
 
