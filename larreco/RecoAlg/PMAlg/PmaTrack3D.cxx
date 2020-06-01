@@ -27,6 +27,39 @@
 
 pma::Track3D::Track3D() = default;
 
+pma::Track3D::Track3D(const Track3D& src)
+  : fMaxHitsPerSeg(src.fMaxHitsPerSeg)
+  , fPenaltyFactor(src.fPenaltyFactor)
+  , fMaxSegStopFactor(src.fMaxSegStopFactor)
+  , fSegStopValue(src.fSegStopValue)
+  , fMinSegStop(src.fMinSegStop)
+  , fMaxSegStop(src.fMaxSegStop)
+  , fSegStopFactor(src.fSegStopFactor)
+  , fPenaltyValue(src.fPenaltyValue)
+  , fEndSegWeight(src.fEndSegWeight)
+  , fHitsRadius(src.fHitsRadius)
+  , fT0(src.fT0)
+  , fT0Flag(src.fT0Flag)
+  , fTag(src.fTag)
+{
+  fHits.reserve(src.fHits.size());
+  for (auto const* hit : src.fHits) {
+    pma::Hit3D* h3d = new pma::Hit3D(*hit);
+    h3d->fParent = this;
+    fHits.push_back(h3d);
+  }
+
+  fNodes.reserve(src.fNodes.size());
+  for (auto const* node : src.fNodes)
+    fNodes.push_back(new pma::Node3D(*node));
+
+  for (auto const* point : src.fAssignedPoints)
+    fAssignedPoints.push_back(new TVector3(*point));
+
+  RebuildSegments();
+  MakeProjection();
+}
+
 pma::Track3D::~Track3D()
 {
   for (size_t i = 0; i < fHits.size(); i++)
