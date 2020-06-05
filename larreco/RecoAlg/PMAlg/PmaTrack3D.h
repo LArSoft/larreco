@@ -77,7 +77,7 @@ public:
   }
 
   Track3D();
-  //  Track3D(const Track3D& src);
+  Track3D(const Track3D& src);
   ~Track3D();
 
   bool Initialize(detinfo::DetectorPropertiesData const& detProp, float initEndSegW = 0.05F);
