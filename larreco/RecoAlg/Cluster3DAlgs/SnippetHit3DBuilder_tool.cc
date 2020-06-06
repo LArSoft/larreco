@@ -60,7 +60,7 @@ struct Hit2DSetCompare
 };
 
 using HitVector                    = std::vector<const reco::ClusterHit2D*>;
-using HitStartEndPair              = std::pair<raw::TDCtick_t,raw::TDCtick_t>; 
+using HitStartEndPair              = std::pair<raw::TDCtick_t,raw::TDCtick_t>;
 using SnippetHitMap                = std::map<HitStartEndPair,HitVector>;
 using PlaneToSnippetHitMap         = std::map<geo::PlaneID, SnippetHitMap>;
 using TPCToPlaneToSnippetHitMap    = std::map<geo::TPCID, PlaneToSnippetHitMap>;
@@ -233,6 +233,7 @@ private:
     std::vector<art::InputTag>           m_hitFinderTagVec;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
+    float                                m_rangeNumSig;
     float                                m_LongHitStretchFctr;
     float                                m_pulseHeightFrac;
     float                                m_PHLowSelection;
@@ -307,6 +308,7 @@ void SnippetHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_hitFinderTagVec      = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",       std::vector<art::InputTag>()={"gaushit"});
     m_enableMonitoring     = pset.get<bool                      >("EnableMonitoring",      true);
     m_hitWidthSclFctr      = pset.get<float                     >("HitWidthScaleFactor",   6.  );
+    m_rangeNumSig          = pset.get<float                     >("RangeNumSigma",         3.  );
     m_LongHitStretchFctr   = pset.get<float                     >("LongHitsStretchFactor", 1.5 );
     m_pulseHeightFrac      = pset.get<float                     >("PulseHeightFraction",   0.5 );
     m_PHLowSelection       = pset.get<float                     >("PHLowSelection",        20. );
@@ -645,7 +647,7 @@ size_t SnippetHit3DBuilder::BuildHitPairMapByTPC(PlaneSnippetHitMapItrPairVec& s
         // Sort so that the earliest hit time will be the first element, etc.
         std::sort(snippetHitMapItrVec.begin(),snippetHitMapItrVec.end(),SetStartTimeOrder());
 
-        // Make sure there are still hits on at least 
+        // Make sure there are still hits on at least
         int nPlanesWithHits(0);
 
         for(auto& pair : snippetHitMapItrVec)
@@ -656,7 +658,7 @@ size_t SnippetHit3DBuilder::BuildHitPairMapByTPC(PlaneSnippetHitMapItrPairVec& s
         // End condition: no more hit snippets
 //        if (snippetHitMapItrVec.front().first == snippetHitMapItrVec.front().second) break;
 
-        // This loop iteration's snippet iterator 
+        // This loop iteration's snippet iterator
         SnippetHitMap::iterator firstSnippetItr = snippetHitMapItrVec.front().first;
 
         // Set iterators to insure we'll be in the overlap ranges
@@ -703,7 +705,7 @@ int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator& firstSnippetI
         // Let's focus on the largest hit in the chain
         if (hit1->getHit()->DegreesOfFreedom() > 1 && hit1->getHit()->PeakAmplitude() < firstPHCut && hit1->getHit()->PeakAmplitude() < m_PHLowSelection) continue;
 
-        // Inside loop iterator 
+        // Inside loop iterator
         SnippetHitMap::iterator secondHitItr = startItr;
 
         // Loop through the input secon hits and make pairs
@@ -889,7 +891,7 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         //if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
         //if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
         if (hit1NDF < 2) hit1Sigma *= m_LongHitStretchFctr; // This sets the range to the width of the pulse
-        if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr; 
+        if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr;
 
         // The "hit sigma" is the gaussian fit sigma of the hit, we need to expand a bit to allow hit overlap efficiency
         float hit1Width = hitWidthSclFctr * hit1Sigma;
@@ -1109,7 +1111,7 @@ bool SnippetHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 // First task is to get the min/max values for the common overlap region
                 for(const auto& hit2D : hitVector)
                 {
-                    float range = 2. * hit2D->getHit()->RMS();
+                    float range = m_rangeNumSig * hit2D->getHit()->RMS();
 
                     // Basically, allow the range to extend to the nearest end of the snippet
                     if (hit2D->getHit()->DegreesOfFreedom() < 2) range *= m_LongHitStretchFctr;
