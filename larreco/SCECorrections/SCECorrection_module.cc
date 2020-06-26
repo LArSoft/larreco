@@ -290,6 +290,7 @@ void sce::SCECorrection::produce(art::Event& evt)
 
           if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
             geo::Vector_t posOffset = fSCE->GetCalPosOffsets(vtxPos, tpcId.TPC);
+            posOffset.SetX(posOffset.X());
             vtxPos += posOffset;
           }
 
@@ -320,6 +321,7 @@ void sce::SCECorrection::produce(art::Event& evt)
 
         if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
           geo::Vector_t posOffset = fSCE->GetCalPosOffsets(spPos, tpcId.TPC);
+          posOffset.SetX(posOffset.X());
           spPos += posOffset;
         }
 
