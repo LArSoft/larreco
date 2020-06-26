@@ -100,6 +100,12 @@ class GnocchiCalorimetry: public art::EDProducer {
         Comment("Which cryostat number the input tracks occupy.")
       };
 
+      fhicl::Atom<float> FieldDistortionCorrectionXSign {
+        Name("FieldDistortionCorrectionXSign"),
+        Comment("Sign of the field distortion correction to be applied in the X direction. Positive by default."),
+        1.
+      };
+
       fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig {
         Name("CaloAlg"),
         Comment("Configuration for the calo::CalorimetryAlg")
@@ -424,9 +430,8 @@ geo::Point_t calo::GnocchiCalorimetry::GetLocation(const recob::Track &track, co
   geo::Point_t loc = track.LocationAtPoint(meta->Index());
 
   if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && !fConfig.TrackIsFieldDistortionCorrected()) {
-    // for some reason, one needs to flip the sign of the x-direction when correcting for field distortion
     geo::Vector_t offset = sce->GetCalPosOffsets(loc, hit->WireID().TPC);
-    loc.SetX(loc.X() - offset.X());
+    loc.SetX(loc.X() + fConfig.FieldDistortionCorrectionXSign() * offset.X());
     loc.SetY(loc.Y() + offset.Y());
     loc.SetZ(loc.Z() + offset.Z());
   }
@@ -442,7 +447,7 @@ geo::Point_t calo::GnocchiCalorimetry::GetLocationAtWires(const recob::Track &tr
   if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && fConfig.TrackIsFieldDistortionCorrected()) {
     // for some reason, one needs to flip the sign of the x-direction when correcting for field distortion
     geo::Vector_t offset = sce->GetPosOffsets(loc);
-    loc.SetX(loc.X() - offset.X());
+    loc.SetX(loc.X() + fConfig.FieldDistortionCorrectionXSign() * offset.X());
     loc.SetY(loc.Y() + offset.Y());
     loc.SetZ(loc.Z() + offset.Z());
   }
@@ -470,12 +475,12 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
     geo::Point_t loc_pdx = loc + track_dir * (geom->WirePitch(hit->View()) / 2.);
 
     geo::Vector_t loc_mdx_offset = sce->GetPosOffsets(loc_mdx);
-    loc_mdx.SetX(loc_mdx.X() - loc_mdx_offset.X());
+    loc_mdx.SetX(loc_mdx.X() + fConfig.FieldDistortionCorrectionXSign() * loc_mdx_offset.X());
     loc_mdx.SetY(loc_mdx.Y() + loc_mdx_offset.Y());
     loc_mdx.SetZ(loc_mdx.Z() + loc_mdx_offset.Z());
 
     geo::Vector_t loc_pdx_offset = sce->GetPosOffsets(loc_pdx);
-    loc_pdx.SetX(loc_pdx.X() - loc_pdx_offset.X());
+    loc_pdx.SetX(loc_pdx.X() + fConfig.FieldDistortionCorrectionXSign() * loc_pdx_offset.X());
     loc_pdx.SetY(loc_pdx.Y() + loc_pdx_offset.Y());
     loc_pdx.SetZ(loc_pdx.Z() + loc_pdx_offset.Z());
 
@@ -506,7 +511,8 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
     locOffsets = sce->GetCalPosOffsets(loc_w, hit->WireID().TPC);
   }
 
-  const TVector3 &dir_corr {pitch*dir.X() - dirOffsets.X() + locOffsets.X(),  pitch*dir.Y() + dirOffsets.Y() - locOffsets.Y(), pitch*dir.Z() + dirOffsets.Z() - locOffsets.Z()};
+  const TVector3 &dir_corr {pitch*dir.X() + fConfig.FieldDistortionCorrectionXSign() * (dirOffsets.X() - locOffsets.X()),  
+                            pitch*dir.Y() + dirOffsets.Y() - locOffsets.Y(), pitch*dir.Z() + dirOffsets.Z() - locOffsets.Z()};
 
   pitch = dir_corr.Mag();
 
