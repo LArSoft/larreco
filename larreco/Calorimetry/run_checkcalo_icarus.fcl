@@ -1,0 +1,68 @@
+#include "services_icarus.fcl"
+#include "services_icarus_simulation.fcl"
+
+#include "calorimetry.fcl"
+
+
+process_name: NuMuEff
+
+services:
+{
+  @table::icarus_basic_services
+  @table::icarus_wirecalibration_services
+  @table::icarus_backtracking_services
+  SpaceChargeService: @local::icarus_spacecharge
+}
+
+#Start each new event with an empty event.
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1        # Number of events to create
+}
+
+outputs:
+{
+  outpid:
+  {
+    module_type: RootOutput
+    fileName:    "%ifb_%tc-%p.root"
+
+    fastCloning: false
+  }
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics:
+{
+  analyzers:
+  {
+    ana: {
+      module_type: CaloChecker
+      TrackLabel: pandoraTrackGausCryo0
+      CaloLabels: [oldcalo, gnewcalo]
+    }
+  }
+
+  producers: {
+    oldcalo:  @local::standard_calodata
+    gnewcalo: @local::standard_gnewcalo
+  }
+
+  runprod: [oldcalo, gnewcalo]
+  stream1:       [ ana]
+  trigger_paths: [ runprod ] 
+  end_paths:     [ stream1 ]
+}
+
+physics.producers.oldcalo.TrackModuleLabel:                  "pandoraTrackGausCryo0"
+physics.producers.oldcalo.SpacePointModuleLabel:             "pandoraGausCryo0"
+physics.producers.oldcalo.CaloAlg.CalAreaConstants: [ 0.02354, 0.02130, 0.02354 ]
+physics.producers.oldcalo.FlipTrack_dQdx: false
+
+physics.producers.gnewcalo.TrackModuleLabel:                  "pandoraTrackGausCryo0"
+physics.producers.gnewcalo.SpacePointModuleLabel:             @erase
+physics.producers.gnewcalo.CaloAlg.CalAreaConstants: [ 0.02354, 0.02130, 0.02354 ]
+
