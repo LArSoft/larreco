@@ -63,11 +63,9 @@ class sce::SCECorrection : public art::EDProducer {
     geo::GeometryCore const* fGeom;
     spacecharge::SpaceCharge const* fSCE;
 
-    bool fCorrectNoT0Tag;
-    bool fCorrectSCE;
+    bool fCorrectNoT0Tag, fCorrectSCE, fSCEXCorrFlip;
 
-    std::string fPFPLabel;
-    std::string fTrackLabel;
+    std::string fPFPLabel, fTrackLabel;
     std::vector<std::string> fT0Labels;
     std::vector<bool> fT0LabelsCorrectT0;
 
@@ -92,6 +90,7 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
 {
   fCorrectNoT0Tag     = p.get<bool>("CorrectNoT0Tag");
   fCorrectSCE         = p.get<bool>("CorrectSCE");
+  fSCEXCorrFlip       = p.get<bool>("SCEXCorrFlip");
   fPFPLabel           = p.get<std::string>("PFPLabel");
   fTrackLabel         = p.get<std::string>("TrackLabel");
   fT0Labels           = p.get<std::vector<std::string> >("T0Labels");
@@ -290,7 +289,9 @@ void sce::SCECorrection::produce(art::Event& evt)
 
           if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
             geo::Vector_t posOffset = fSCE->GetCalPosOffsets(vtxPos, tpcId.TPC);
-            posOffset.SetX(posOffset.X());
+            if (fSCEXCorrFlip){
+              posOffset.SetX(-posOffset.X());
+            }
             vtxPos += posOffset;
           }
 
@@ -321,7 +322,9 @@ void sce::SCECorrection::produce(art::Event& evt)
 
         if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
           geo::Vector_t posOffset = fSCE->GetCalPosOffsets(spPos, tpcId.TPC);
-          posOffset.SetX(posOffset.X());
+          if (fSCEXCorrFlip){
+            posOffset.SetX(-posOffset.X());
+          }
           spPos += posOffset;
         }
 
