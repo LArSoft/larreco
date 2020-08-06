@@ -273,6 +273,8 @@ namespace tca {
   typedef enum {
     kCanSection,
     kNeedsUpdate,
+    kStops,
+    kSmallAngle
   } PFPFlags_t;
 
   struct ShowerPoint {
@@ -592,6 +594,7 @@ namespace tca {
     std::vector<std::pair<unsigned int, unsigned int>> tpcSrcHitRange;
     // list of good wires in the current TPCID
     std::vector<std::vector<bool>> goodWire;
+    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
     std::vector<std::array<unsigned int, 3>> sptHits; ///<  SpacePoint -> Hits assns by plane
     unsigned int event;

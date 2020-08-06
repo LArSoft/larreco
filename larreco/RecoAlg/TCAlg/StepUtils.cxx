@@ -410,6 +410,13 @@ namespace tca {
       lastTP.NTPsFit = 5;
       return;
     } // tracklike with Bragg peak
+    // A short forecast window. No Bragg-peak (which would have been found above) but increasing charge
+    if(!tjf.leavesBeforeEnd && chgIncreasing && !shLike && tjf.nextForecastUpdate < 30) {
+      tj.Strategy.reset();
+      tj.Strategy[kSlowing] = true;
+      lastTP.NTPsFit = 5;
+      return;
+    }
     if(tkLike && tjf.nextForecastUpdate > 100 && tjf.leavesBeforeEnd && tjf.MCSMom < 500) {
       // A long track-like trajectory that has many points fit and the outlook is track-like and
       // it leaves the forecast polygon. Don't change the strategy but decrease the number of points fit
@@ -599,7 +606,8 @@ namespace tca {
       // from the start and it is very large
       FitPar(slc, fctj, 0, maxChgPt, 1, chgFit, 1);
     } else {
-      FitPar(slc, fctj, 0, fctj.Pts.size(), 1, chgFit, 1);
+      // BB 6/13/2020 Don't use the last point
+      FitPar(slc, fctj, 0, fctj.Pts.size()-1, 1, chgFit, 1);
     }
     tjf.chgSlope = chgFit.ParSlp;
     tjf.chgSlopeErr = chgFit.ParSlpErr;
@@ -814,7 +822,7 @@ namespace tca {
         if(prevPtWithHits != USHRT_MAX && tj.Pts[prevPtWithHits].FitChi > 0) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
         // Don't mask hits when doing RevProp. Reduce NTPSFit instead
         tj.MaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.3 * NumPtsWithCharge(slc, tj, false) && !tj.AlgMod[kRvPrp]);
-        // BB April 19, 2018: Don't mask TPs on low MCSMom Tjs
+        // BB Don't mask TPs on low MCSMom Tjs
         if(tj.MaskedLastTP && tj.MCSMom < 30) tj.MaskedLastTP = false;
         if(tcc.dbgStp) {
           mf::LogVerbatim("TC")<<" First fit chisq too large "<<lastTP.FitChi<<" prevPtWithHits chisq "<<tj.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" NumPtsWithCharge "<<NumPtsWithCharge(slc, tj, false)<<" tj.MaskedLastTP "<<tj.MaskedLastTP;
@@ -867,7 +875,7 @@ namespace tca {
           if(lastTP.NTPsFit < 3) newNTPSFit = 2;
           if(newNTPSFit < minPtsFit) newNTPSFit = minPtsFit;
           lastTP.NTPsFit = newNTPSFit;
-          // BB April 19: try to add a last lonely hit on a low MCSMom tj on the last try
+          // BB Try to add a last lonely hit on a low MCSMom tj on the last try
           if(newNTPSFit == minPtsFit && tj.MCSMom < 30) chiCut = 2;
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass<<" chiCut "<<chiCut;
           FitTraj(slc, tj);
@@ -2569,7 +2577,7 @@ namespace tca {
     // 3 = 3D kink fit length (cm) - used in PFPUtils/SplitAtKinks
 
     // don't look for kinks if this looks a high energy electron
-    // BB Jan 2, 2020: Return true if a kink was found but don't set the
+    // BB Return true if a kink was found but don't set the
     // stop-at-kink end flag
     if(tj.Strategy[kStiffEl]) return false;
     // Need at least 2 * kinkCuts[2] points with charge to find a kink
@@ -2753,7 +2761,7 @@ namespace tca {
       if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"CB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
       if(!needsRevProp && firstGoodChgPullPt != USHRT_MAX) {
         // check for hits on a not-dead wire
-        // BB May 20, 2019 Do this more carefully
+        // BB Do this more carefully
         float maxDelta = 2 * tp.DeltaRMS;
         if(FindCloseHits(slc, tp, maxDelta, kAllHits) && !tp.Hits.empty()) {
           // count used and unused hits
@@ -3490,6 +3498,17 @@ namespace tca {
           // Check the MCSMom asymmetry and don't merge if it is higher than the user-specified cut
           float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
           if(doMerge && momAsym > tcc.vtx2DCuts[9]) doMerge = false;
+
+          // be more lenient with short, slowing trajectories
+          if(!doMerge ) {
+            bool isSlowing = (tj1.Strategy[kSlowing] || tj2.Strategy[kSlowing]);
+            bool isShort = (len1 < 40 && len2 < 40);
+            if(isSlowing && isShort && bestDOCA < 0.1 && dang < 0.3) doMerge = true;
+            // Remove the Bragg Peak Flag?
+            if(tj1.EndFlag[end1][kBragg]) tj1.EndFlag[end1][kBragg] = false;
+            if(tj2.EndFlag[end2][kBragg]) tj2.EndFlag[end2][kBragg] = false;
+          } // !doMerge
+
           if(doMerge && (tj1.EndFlag[end1][kAtKink] || tj2.EndFlag[end2][kAtKink])) {
             // don't merge if a kink exists and the tjs are not too long
             if(len1 < 40 && len2 < 40) doMerge = false;
@@ -3614,7 +3633,7 @@ namespace tca {
               mf::LogVerbatim("TC")<<"  New 2V"<<newVx.ID<<" at "<<(int)newVx.Pos[0]<<":"<<(int)(newVx.Pos[1]/tcc.unitsPerTick)<<" Score "<<newVx.Score;
             }
             // check the score and kill it if it is below the cut
-            // BB Oct 1, 2019. Don't kill the vertex in this function since it is
+            // Don't kill the vertex in this function since it is
             // called before short trajectories are reconstructed
             auto& newVx2 = slc.vtxs[slc.vtxs.size() - 1];
             if(newVx2.Score < tcc.vtx2DCuts[7] && CompatibleMerge(slc, tj1, tj2, prt)) {

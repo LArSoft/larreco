@@ -1105,7 +1105,20 @@ namespace tca {
 
     int trID = slc.tjs.size() + 1;
 
+    // Define the Tj StartEnd. StartEnd = 0 means that the trajectory seems to be traveling
+    // in the same order order as the points on the trajectory judging from the pattern of charge
+    // at the beginning and the end
+    float chg0 = 0, cnt0 = 0;
+    float chg1 = 0, cnt1 = 0;
+    unsigned short halfWay = (tj.EndPt[0] + tj.EndPt[1]) / 2;
     for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      if(ipt < halfWay) {
+        chg0 += tj.Pts[ipt].Chg;
+        ++cnt0;
+      } else {
+        chg1 += tj.Pts[ipt].Chg;
+        ++cnt1;
+      }
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
@@ -1121,6 +1134,12 @@ namespace tca {
         }
       } // ii
     } // ipt
+    if(cnt0 > 0 && cnt1 > 0) {
+      // assume that the start end is the end with the lower average charge
+      chg0 /= cnt0;
+      chg1 /= cnt1;
+      if(chg1 > chg0) { tj.StartEnd = 0; } else { tj.StartEnd = 1; }
+    } // valid cnt0 and cnt1
 
     // ensure that inTraj is clean for the ID
     for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
@@ -3226,10 +3245,12 @@ namespace tca {
     float suml = 0;
     for(auto tjid : tjIDs) {
       auto& tj = slc.tjs[tjid - 1];
+      if(tj.MCSMom<= 0) continue;
       float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
       summ += npts * tj.MCSMom;
       suml += npts;
     } // tjid
+    if(suml == 0) return 0;
     return (short)(summ / suml);
   } // MCSMom
 
@@ -4904,7 +4925,7 @@ namespace tca {
       return true;
     }
     if(words.size() == 3 && words[0] == "Reco" && words[1] == "Slice") {
-      tcc.recoSlice = std::stoi(words[1]);
+      tcc.recoSlice = std::stoi(words[2]);
       std::cout<<"Reconstructing Slice "<<tcc.recoSlice<<"\n";
       return true;
     }
@@ -4988,8 +5009,8 @@ namespace tca {
         } // ipt
         outfile.close();
         std::cout<<"Points on T"<<tj.UID<<" dumped to "<<fname<<"\n";
-        tcc.dbgDump = false;
-        return;
+//        tcc.dbgDump = false;
+//        return;
       } // tj
     } // slc
 
@@ -5364,8 +5385,8 @@ namespace tca {
     if(debug.CTP != UINT_MAX && tj.CTP != debug.CTP) return;
     if(printHeader) {
       myprt<<"************ Trajectories ************\n";
-      myprt<<"Tj AngleCode-EndFlag decoder (EF): <AngleCode> + <reason for stopping>";
-      myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory)\n";
+      myprt<<"Tj AngleCode-EndFlag decoder (EF): <AngleCode> + <end flag>";
+      myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory, S=StartEnd)\n";
       myprt<<"     prodID    CTP Pass  Pts     W:T      Ang EF AveQ     W:T      Ang EF AveQ Chg(k) chgRMS  Mom __Vtx__  PDG eLike  Par Pri NuPar   WorkID \n";
       printHeader = false;
     }
@@ -5398,6 +5419,7 @@ namespace tca {
     } else {
       myprt<<" ";
     }
+    if(tj.StartEnd == 0) { myprt<<"S"; } else { myprt<<" "; }
     myprt<<std::setw(5)<<(int)tp0.AveChg;
     unsigned short endPt1 = tj.EndPt[1];
     auto& tp1 = tj.Pts[endPt1];
@@ -5419,6 +5441,7 @@ namespace tca {
     } else {
       myprt<<" ";
     }
+    if(tj.StartEnd == 1) myprt<<"S";
     myprt<<std::setw(5)<<(int)tp1.AveChg;
     myprt<<std::setw(7)<<std::setprecision(1)<<tj.TotChg/1000;
     myprt<<std::setw(7)<<std::setprecision(2)<<tj.ChgRMS;

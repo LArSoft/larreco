@@ -14,6 +14,7 @@
 
 // LArSoft libraries
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
+
 namespace geo { struct TPCID; }
 
 namespace tca {
@@ -44,7 +45,6 @@ namespace tca {
   void KinkFit(const TCSlice& slc, const PFPStruct& pfp, unsigned short atPt, double fitLen, double& dang, double& dangErr);
   bool Split(const TCSlice& slc, PFPStruct& p1, unsigned short atPt, PFPStruct& p2, bool prt);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ValidTwoPlaneMatch(const TCSlice& slc, const PFPStruct& pfp);
   void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt,
@@ -52,6 +52,7 @@ namespace tca {
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   bool MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  bool MakeSmallAngleTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
   bool MakeTp3(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection);
@@ -61,6 +62,7 @@ namespace tca {
   double PosSep(const Point3_t& pos1, const Point3_t& pos2);
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
+  void SetDirection(TCSlice& slc, PFPStruct& pfp);
   void FilldEdx(const TCSlice& slc, PFPStruct& pfp);
   float dEdx(const TCSlice& slc, const TP3D& tp3d);
   void Average_dEdX(const TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms);

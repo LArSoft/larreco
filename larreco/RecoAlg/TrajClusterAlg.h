@@ -24,6 +24,8 @@ namespace fhicl { class ParameterSet; }
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 
 // ROOT libraries
 #include "TMVA/Reader.h"
@@ -42,14 +44,20 @@ namespace tca {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
+    void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits, unsigned int run, unsigned int event);
     void SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
     void SetSourceHits(std::vector<recob::Hit> const& srcHits);
     void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
+    void MakeSpacePointsFromPFP(const tca::PFPStruct& pfp,
+                                const std::vector<unsigned int>& newHitIndex, 
+                                std::vector<recob::SpacePoint>& spts, 
+                                std::vector<unsigned int>& sptsHit);
+    void MakeTrackFromPFP(const tca::PFPStruct& pfp, const std::vector<unsigned int>& newHitIndex,
+                          recob::Track& trk, std::vector<unsigned int>& trkHits);
     void FinishEvent();
-
 
     void DefineShTree(TTree* t);
 

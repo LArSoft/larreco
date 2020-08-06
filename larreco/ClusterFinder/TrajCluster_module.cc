@@ -26,12 +26,13 @@
 #include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/RecoAlg/TCAlg/TCHist.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
 
 //root includes
 #include "TTree.h"
@@ -71,12 +72,6 @@ namespace cluster {
                  art::FindManyP<recob::Hit>& hitFromSlc,
                  std::vector<std::vector<unsigned int>>& tpcHits,
                  std::vector<int>& slcIDs);
-    void GetMCMatchedHits(const std::vector<recob::Hit>& inputHits,
-                          const geo::TPCID& tpcid,
-                          std::vector<std::vector<unsigned int>>& tpcHits,
-                          std::vector<int>& kTIDs);
-
-
     art::InputTag fHitModuleLabel;
     art::InputTag fSliceModuleLabel;
     art::InputTag fSpacePointModuleLabel;
@@ -86,7 +81,10 @@ namespace cluster {
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
     bool fSaveAll2DVertices;
+    bool fMakeSpacePoints;
     unsigned int fEventsProcessed;
+    unsigned int fNumTracks;
+    unsigned int fNumClusters;
   }; // class TrajCluster
 
 } // namespace cluster
@@ -155,6 +153,8 @@ namespace cluster {
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
     fSaveAll2DVertices = false;
     if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
+    fMakeSpacePoints = false;
+    if(pset.has_key("MakeSpacePoints")) fMakeSpacePoints = pset.get<bool>("MakeSpacePoints");
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -177,6 +177,13 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
 
+    produces< std::vector<recob::Track> >();
+    produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+    produces< art::Assns<recob::Track, recob::PFParticle> >();
+    produces< art::Assns<recob::Track, recob::SpacePoint> >();
+
+    produces< std::vector<recob::SpacePoint> >();
+
     produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
     produces< art::Assns<recob::Slice, recob::Hit> >();
@@ -196,16 +203,20 @@ namespace cluster {
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg.DefineShTree(showertree);
     fEventsProcessed = 0;
+    fNumClusters = 0;
+    fNumTracks = 0;
   }
 
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
   {
+    // Print out end of job statistics
+    if(!tca::tcc.modes[tca::kDebug]) return;
     std::vector<unsigned int> const& fAlgModCount = fTCAlg.GetAlgModCount();
     std::vector<std::string> const& fAlgBitNames = fTCAlg.GetAlgBitNames();
     if(fAlgBitNames.size() != fAlgModCount.size()) return;
     mf::LogVerbatim myprt("TC");
-    myprt<<"TrajCluster algorithm counts for "<<fEventsProcessed<<" events\n";
+    myprt<<"Produced "<<fNumTracks<<" tracks and "<<fNumClusters<<" clusters in "<<fEventsProcessed<<" events\n";
     unsigned short icol = 0;
     for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
       if(ib == tca::kKilled) continue;
@@ -276,63 +287,7 @@ namespace cluster {
       } // isp
     } // fSpacePointModuleLabel specified
 
-    // look for kaons
-    // make a list of kaon track IDs and IDs of particles whose parent is a kaon
-    std::vector<int> kTIDs;
-    if(tca::tcc.modes[tca::kStudy1]) {
-      // Don't reconstruct anything unless there is a K in the event
-      nInputHits = 0;
-      art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-      art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-      sim::ParticleList const& plist = pi_serv->ParticleList();
-      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-            const simb::MCParticle* part = (*ipart).second;
-            int trackID = part->TrackId();
-            art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-            int pdg = abs(part->PdgCode());
-            if(pdg == 321) {
-              nInputHits = (*inputHits).size();
-              int TMeV = 1000 * (part->E() - part->Mass());
-              std::cout<<">>>>> TCM found a K with T = "<<TMeV;
-              std::cout<<" in Run:Event "<<evt.run()<<":"<<evt.subRun()<<":"<<evt.event()<<"\n";
-              mf::LogVerbatim myprt("TC");
-              myprt<<">>>>> TCM found a K with T = "<<TMeV<<" MeV, origin "<<theTruth->Origin();
-              myprt<<" trackID "<<trackID<<" EventsProcessed "<<fEventsProcessed;
-              myprt<<" in Run:SubRun:Event "<<evt.run()<<":"<<evt.subRun()<<":"<<evt.event()<<"\n";
-              // add the kaon
-              kTIDs.push_back(trackID);
-              // add the mother
-              myprt<<" Mother "<<part->Mother();
-               // add the daughters
-              kTIDs.push_back(part->Mother());
-              // print some info about the mother
-             for(sim::ParticleList::const_iterator impart = plist.begin(); impart != plist.end(); ++impart) {
-                const simb::MCParticle* mpart = (*impart).second;
-                if(mpart->TrackId() == part->Mother()) {
-                  TMeV = 1000 * (mpart->E() - mpart->Mass());
-                  myprt<<" PDG "<<mpart->PdgCode();
-                  myprt<<" T = "<<TMeV<<"\n";
-                  break;
-                } // found the mother
-             } // mpart
-             for(unsigned short idtr = 0; idtr < part->NumberDaughters(); ++idtr) {
-                int dtrTkID = part->Daughter(idtr);
-                kTIDs.push_back(dtrTkID);
-                myprt<<"  Add dtr "<<dtrTkID;
-                // print info about the daughter
-                for(sim::ParticleList::const_iterator idpart = plist.begin(); idpart != plist.end(); ++idpart) {
-                  const simb::MCParticle* dpart = (*idpart).second;
-                  if(dpart->TrackId() == dtrTkID) {
-                    myprt<<" PDG "<<dpart->PdgCode()<<"\n";
-                    break;
-                  } // found the daughter
-                } // idpart
-              } // idtr
-            } // found a kaon
-      } // ipart
-    } // look for kaons
     ++fEventsProcessed;
- 
     if(nInputHits > 0) {
       auto const* geom = lar::providerFrom<geo::Geometry>();
       for(const auto& tpcid : geom->IterateTPCIDs()) {
@@ -345,10 +300,6 @@ namespace cluster {
           // get hits in this TPC and slice
           art::FindManyP<recob::Hit> hitFromSlc(inputSlices, evt, fSliceModuleLabel);
           GetHits(*inputHits, tpcid, *inputSlices, hitFromSlc, sltpcHits, slcIDs);
-        } else if(kTIDs.size() > 0) {
-          GetMCMatchedHits(*inputHits, tpcid, sltpcHits, kTIDs);
-          slcIDs.resize(1);
-          slcIDs[0] = 1;
         } else {
           // get hits in this TPC
           // All hits are in one "fake" slice
@@ -409,6 +360,8 @@ namespace cluster {
     std::vector<recob::Hit> hitCol;       // output hit collection
     std::vector<recob::Cluster> clsCol;
     std::vector<recob::PFParticle> pfpCol;
+    std::vector<recob::Track> trkCol;
+    std::vector<recob::SpacePoint> sptCol;
     std::vector<recob::Vertex> vx3Col;
     std::vector<recob::EndPoint2D> vx2Col;
     std::vector<recob::Seed> sedCol;
@@ -432,6 +385,8 @@ namespace cluster {
     // PFParticle -> ...
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
       pfp_cls_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Track>>
+      pfp_trk_assn(new art::Assns<recob::PFParticle, recob::Track>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower>>
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>>
@@ -440,6 +395,13 @@ namespace cluster {
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Seed>>
       pfp_sed_assn(new art::Assns<recob::PFParticle, recob::Seed>);
+    // Track -> ...
+    std::unique_ptr<art::Assns<recob::Track, recob::PFParticle>>
+      trk_pfp_assn(new art::Assns<recob::Track, recob::PFParticle>);
+    std::unique_ptr<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>>
+      trk_hit_meta_assn(new art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>);
+    std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>>
+      trk_spt_assn(new art::Assns<recob::Track, recob::SpacePoint>);
     // Slice -> ...
     std::unique_ptr<art::Assns<recob::Slice, recob::Cluster>>
       slc_cls_assn(new art::Assns<recob::Slice, recob::Cluster>);
@@ -449,7 +411,7 @@ namespace cluster {
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
     // www: Hit -> SpacePoint
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>>
-      sp_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
+      spt_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
     // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
     // given a slice index and a vertex ID (not UID)
@@ -766,6 +728,41 @@ namespace cluster {
               } // exception
             } // valid shwIndex
           } // pfp -> Shower
+          // PFParticle -> Track (after making the track)
+          recob::Track trk;
+          std::vector<unsigned int> trkHits;
+          fTCAlg.MakeTrackFromPFP(pfp, newIndex, trk, trkHits);
+          trkCol.push_back(trk);
+          // Track -> PFParticle
+          if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
+          } // fail
+          // Track -> Hit + meta data assn
+          for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
+            recob::TrackHitMeta metadata(iht,-1);
+            if(!util::CreateAssnD(*this, evt, *trk_hit_meta_assn, trkCol.size()-1, trkHits[iht], metadata)) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hits with Track";
+            }
+          } // iht
+
+          if(fMakeSpacePoints) {
+            std::vector<recob::SpacePoint> spts;
+            // each SpacePoint is associated with one hit
+            std::vector<unsigned int> sptsHit;
+            fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
+            for(unsigned int isp = 0; isp < spts.size(); ++isp) {
+              sptCol.push_back(spts[isp]);
+            // Track -> SpacePoint
+            if(!util::CreateAssn(*this, evt, trkCol, sptCol, *trk_spt_assn, sptCol.size()-1, sptCol.size())) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate SpacePoint with Track";
+            } // exception
+              // SpacePoint -> Hit
+              if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
+                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hit with SpacePoint";
+              } // exception
+            } // isp
+          } // fMakeSpacePoints
+
           // PFParticle cosmic tag
           if(tca::tcc.modes[tca::kTagCosmics]) {
             std::vector<float> tempPt1, tempPt2;
@@ -782,6 +779,9 @@ namespace cluster {
           } // cosmic tag
         } // ipfp
       } // isl
+
+      fNumClusters += clsCol.size();
+      fNumTracks += trkCol.size();
 
       // add the hits that weren't used in any slice to hitCol unless this is a
       // special debugging mode and would be a waste of time
@@ -831,7 +831,7 @@ namespace cluster {
           auto & sp_from_hit = spFromHit.at(allHitsIndex);
           for (auto& sp : sp_from_hit) {
             // SpacePoint -> Hit assn
-            if(!util::CreateAssn(*this, evt, hitCol, sp, *sp_hit_assn, newIndex[allHitsIndex])) {
+            if(!util::CreateAssn(*this, evt, hitCol, sp, *spt_hit_assn, newIndex[allHitsIndex])) {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with SpacePoint";
             } // exception
           } // sp
@@ -848,6 +848,8 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(vx2Col)));
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(vx3Col)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(pfpCol)));
+    std::unique_ptr<std::vector<recob::Track> > tcol(new std::vector<recob::Track>(std::move(trkCol)));
+    std::unique_ptr<std::vector<recob::SpacePoint> > spcol(new std::vector<recob::SpacePoint>(std::move(sptCol)));
     std::unique_ptr<std::vector<recob::Seed> > sdcol(new std::vector<recob::Seed>(std::move(sedCol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(shwCol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctCol)));
@@ -876,12 +878,17 @@ namespace cluster {
     evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vx3_assn));
     evt.put(std::move(pfp_sed_assn));
+    evt.put(std::move(tcol));
+    evt.put(std::move(spcol));
+    evt.put(std::move(trk_pfp_assn));
+    evt.put(std::move(trk_hit_meta_assn));
+    evt.put(std::move(trk_spt_assn));
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
-    evt.put(std::move(sp_hit_assn)); // www: association between sp and hit (trjaclust)
+    evt.put(std::move(spt_hit_assn));
   } // TrajCluster::produce()
 
   ////////////////////////////////////////////////
@@ -898,6 +905,59 @@ namespace cluster {
       if(hit.WireID().TPC == tpc) tpcHits[0].push_back(iht);
     }
   } // GetHits
+/*
+  ////////////////////////////////////////////////
+  void TrajCluster::GetMCTrackIDs(int pdgCode, std::vector<int>& TIDList)
+  {
+    // Fill TIDList with a Geant TrackIds for the selected PDG Code
+    TIDList.clear();
+    if(pdgCode != 321 && pdgCode != 2212) return;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    sim::ParticleList const& plist = pi_serv->ParticleList();
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+        const simb::MCParticle* part = (*ipart).second;
+        int trackID = part->TrackId();
+        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+        int pdg = abs(part->PdgCode());
+        if(pdg == pdgCode) {
+          int TMeV = 1000 * (part->E() - part->Mass());
+          if(TMeV < 100) continue;
+          // ignore interacting protons
+          if(pdgCode == 2212 && part->NumberDaughters() > 0) continue;
+          // cleanliness cut
+//          if(part->Process() != "neutronInelastic") continue;
+
+          mf::LogVerbatim myprt("TC");
+          if(pdgCode == 321) {
+            myprt<<">>>>> TCM found a K with T = "<<TMeV<<" MeV, origin "<<theTruth->Origin();
+          } else {
+            myprt<<">>>>> TCM found a proton with T = "<<TMeV<<" MeV, origin "<<theTruth->Origin();
+          }
+          myprt<<" nDtrs "<<part->NumberDaughters();
+          myprt<<" trackID "<<trackID;
+          myprt<<" process "<<part->Process();
+
+          // add the track ID 
+          TIDList.push_back(trackID);
+          // add the kaon mother
+          if(pdgCode == 321) TIDList.push_back(part->Mother());
+          // add the daughters
+         // print some info about the mother
+          for(unsigned short idtr = 0; idtr < part->NumberDaughters(); ++idtr) {
+            int dtrTkID = part->Daughter(idtr);
+            // print info about the daughter
+            for(sim::ParticleList::const_iterator idpart = plist.begin(); idpart != plist.end(); ++idpart) {
+              const simb::MCParticle* dpart = (*idpart).second;
+              if(dpart->TrackId() == dtrTkID && dpart->PdgCode() != 14) {
+                TIDList.push_back(dtrTkID);
+                break;
+              } // found the daughter
+            } // idpart
+          } // idtr
+        } // found a kaon
+    } // ipart
+  } // GetMCTrackIDs
 
   ////////////////////////////////////////////////
   void TrajCluster::GetMCMatchedHits(const std::vector<recob::Hit>& inputHits,
@@ -912,25 +972,59 @@ namespace cluster {
     unsigned int tpc = tpcid.TPC;
     // resize for one slice
     tpcHits.resize(1);
+    // make a local list of hit indices for each MCParticle that we are tracking
+    std::vector<std::vector<unsigned int>> kTIDHits(kTIDs.size());
     for(size_t iht = 0; iht < inputHits.size(); ++iht) {
       auto& hit = inputHits[iht];
-       if(hit.WireID().TPC == tpc) {
-         // Accept it if it is a kaon (or the daughter of a kaon)
-         bool keepIt = false;
-         auto tides = bt_serv->HitToTrackIDEs(hit);
-         for(auto& tide : tides) {
-           int trackID = tide.trackID;
-           if(std::find(kTIDs.begin(), kTIDs.end(), trackID) != kTIDs.end()) keepIt = true;
-         } // tide
-         if(keepIt) tpcHits[0].push_back(iht);
-       } // it.WireID().TPC == tpc)
+        if(hit.WireID().TPC == tpc) {
+          // Accept it if it is a kaon (or the daughter of a kaon)
+          auto tides = bt_serv->HitToTrackIDEs(hit);
+          for(auto& tide : tides) {
+            unsigned short indx = 0;
+            for(indx = 0; indx < kTIDs.size(); ++indx) if(tide.trackID == kTIDs[indx]) break;
+            if(indx == kTIDs.size()) continue;
+            if(tide.energyFrac < 0.5) continue;
+            tpcHits[0].push_back(iht);
+            kTIDHits[indx].push_back(iht);
+          } // tide
+        } // it.WireID().TPC == tpc)
     }
-    std::cout<<" in TPC "<<tpc<<" kTIDs "<<kTIDs.size()<<" found "<<tpcHits[0].size()<<" hits\n";
-    if(!tpcHits[0].empty()) {
-      mf::LogVerbatim("TC")<<" GetMCMatchedHits in TPC "<<tpc<<" Found "<<tpcHits[0].size()<<" hits";
-    }
-   } // GetHits
 
+    if(tpcHits[0].size() > 0) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<" GetMCMatchedHits in TPC "<<tpc<<" Found "<<tpcHits[0].size()<<" hits\n";
+      // iterate over all tracked IDs
+      for(unsigned short indx = 0; indx < kTIDs.size(); ++indx) {
+        // iterate over planes
+        for(unsigned short plane = 0; plane < 3; ++plane) {
+          // initialize
+          unsigned int loWire = INT_MAX;
+          unsigned int loWireHit = 0;
+          unsigned int hiWire = 0;
+          unsigned int hiWireHit = 0;
+          // iterate over the selected hits
+          unsigned short cnt = 0;
+          for(auto& iht : kTIDHits[indx]) {
+            auto& hit = inputHits[iht];
+            if(hit.WireID().Plane != plane) continue;
+            ++cnt;
+            if(hit.WireID().Wire < loWire) { loWire = hit.WireID().Wire; loWireHit = iht; }
+            if(hit.WireID().Wire > hiWire) { hiWire = hit.WireID().Wire; hiWireHit = iht; }
+          } // iht
+          if(loWire == INT_MAX || hiWire == 0) continue;
+          auto& loHit = inputHits[loWireHit];
+          auto& hiHit = inputHits[hiWireHit];
+          myprt<<" kTID "<<kTIDs[indx]<<" "<<cnt;
+          myprt<<" hits from "<<plane<<":"<<loWire<<":"<<(int)loHit.PeakTime();
+          myprt<<" to "<<plane<<":"<<hiWire<<":"<<(int)hiHit.PeakTime();
+          if(indx == 0) myprt<<" Kaon";
+          myprt<<"\n";
+        } // plane
+      } // indx
+    } // tpcHits[0].size() > 0
+
+   } // GetHits
+*/
   ////////////////////////////////////////////////
   void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
                             const geo::TPCID& tpcid,

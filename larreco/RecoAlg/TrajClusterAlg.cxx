@@ -1163,4 +1163,114 @@ namespace tca {
     for(auto& slc : slices) PFPVertexCheck(slc);
   } // FinishEvent
 
+  /////////////////////////////////////////
+  void TrajClusterAlg::MakeSpacePointsFromPFP(const tca::PFPStruct& pfp,
+       const std::vector<unsigned int>& newHitIndex, std::vector<recob::SpacePoint>& spts, 
+       std::vector<unsigned int>& sptsHit)
+  {
+    // Converts a PFPStruct into a set of recob::SpacePoints + hit assn
+
+    spts.clear();
+    sptsHit.clear();
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.ID <= 0) return;
+    auto slcIndx = GetSliceIndex("P", pfp.UID);
+    if(slcIndx.first == USHRT_MAX) return;
+    auto& slc = slices[slcIndx.first];
+
+    int id = 0;
+    for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
+      auto& tp3d = pfp.TP3Ds[pt];
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      // index of the hit in the new hit collection
+      unsigned int nhi = UINT_MAX;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+        if(newHitIndex[ahi] == UINT_MAX) continue;
+        nhi = newHitIndex[ahi];
+        break;
+      } // ii
+      if(nhi == UINT_MAX) continue;
+      Double32_t pos[3] = {tp3d.Pos[0], tp3d.Pos[1], tp3d.Pos[2]};
+      Double32_t err[3] = {0., 0, 0.};
+      ++id;
+      spts.emplace_back(pos, err, 0., id);
+      sptsHit.push_back(nhi);
+    } // pt
+
+  } // MakeSpacePointsFromPFP
+
+  /////////////////////////////////////////
+  void TrajClusterAlg::MakeTrackFromPFP(const tca::PFPStruct& pfp,
+       const std::vector<unsigned int>& newHitIndex, recob::Track& trk, 
+       std::vector<unsigned int>& trkHits)
+  {
+    trkHits.clear();
+    // Converts a PFPStruct into a recob::Track and TrackHitMeta
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.ID <= 0) return;
+    auto slcIndx = GetSliceIndex("P", pfp.UID);
+    if(slcIndx.first == USHRT_MAX) return;
+    auto& slc = slices[slcIndx.first];
+
+    std::vector<recob::Track::Point_t> positions;
+    std::vector<recob::Track::Vector_t> directions;
+    std::vector<recob::TrajectoryPointFlags> tpFlags;
+    using trkflag = recob::TrajectoryPointFlags::flag;
+
+    for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
+      auto& tp3d = pfp.TP3Ds[pt];
+      // construct the flag
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      // index of the hit in the new hit collection
+      unsigned int nhi = UINT_MAX;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+        if(newHitIndex[ahi] == UINT_MAX) continue;
+        nhi = newHitIndex[ahi];
+        break;
+      } // ii
+      if(nhi == UINT_MAX) continue;
+      // Map the Track flag bits from the TP Environment bitset
+      auto mask = recob::TrajectoryPointFlags::makeMask();
+      for(unsigned short ib = 0; ib < 8; ++ib) {
+        if(!tp.Environment[ib]) continue;
+        if(ib == kEnvOverlap) mask.set(recob::TrajectoryPointFlagTraits::Shared);
+        if(ib == kEnvNotGoodWire) mask.set(recob::TrajectoryPointFlagTraits::DetectorIssue);
+        // Not all hits in the multiplet were used in the TP
+        if(ib == kEnvUnusedHits) mask.set(recob::TrajectoryPointFlagTraits::Suspicious);
+      } // ib
+
+      recob::Track::Point_t pos = {tp3d.Pos[0], tp3d.Pos[1], tp3d.Pos[2]};
+      recob::Track::Vector_t dir = {tp3d.Dir[0], tp3d.Dir[1], tp3d.Dir[2]};
+      positions.push_back(pos);
+      directions.push_back(dir);
+      trkHits.push_back(nhi);
+      tpFlags.push_back(recob::TrajectoryPointFlags(nhi, mask));
+    } // pt
+    // Find the average Chi/DOF
+    float cnt = 0.;
+    float chiDOF = 0.;
+    int ndof = 0;
+    for(auto& sf : pfp.SectionFits) {
+      chiDOF += sf.ChiDOF * sf.NPts;
+      cnt += sf.NPts;
+      ndof += sf.NPts - 4;
+    } // sf
+    if(cnt > 0) chiDOF /= cnt;
+
+    // construct the track, which has a trajectory w/o momentum, a stab at PID,
+    // a chisq and not-defined covariance matrix
+    trk = recob::Track(recob::TrackTrajectory(std::move(positions),
+                      std::move(directions),std::move(tpFlags), false),
+                      pfp.PDGCode, chiDOF, ndof,
+                      recob::tracking::SMatrixSym55(),recob::tracking::SMatrixSym55(),
+                      pfp.UID);
+    
+
+  } // MakeTrackFromPFP
+
+
 } // namespace cluster

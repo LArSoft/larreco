@@ -14,6 +14,9 @@ art_make(LIB_LIBRARIES
          MODULE_LIBRARIES
            larcorealg_Geometry
            larreco_Calorimetry
+           larsim_MCCheater_BackTrackerService_service
+           larsim_MCCheater_ParticleInventoryService_service
+           nusimdata_SimulationBase
            ROOT::Core
            ROOT::Hist
            ROOT::Physics
