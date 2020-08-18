@@ -1535,7 +1535,8 @@ namespace tca {
     AT.Transpose(A);
     TMatrixD ATA = AT * A;
     double* det = 0;
-    ATA.Invert(det);
+    try{ ATA.Invert(det); }
+    catch(...) { return sf; }
     sf.DirErr[1] = -sqrt(ATA[2][2]) / norm;
     sf.DirErr[2] = -sqrt(ATA[3][3]) / norm;
 
@@ -1585,17 +1586,15 @@ namespace tca {
            unsigned short sfIndex,
            float& chiDOF)
   {
-    // Fit points in the pfp.TP3Ds vector fromPt. This function returns chiDOF but
+    // Fit points in the pfp.TP3Ds vector fromPt. This function
     // doesn't update the TP3Ds unless sfIndex refers to a valid SectionFit in the pfp.
     // No check is made to ensure that the TP3D SFIndex variable is compatible with sfIndex
 
-    chiDOF = 999;
     if (nPtsFit < 5) return false;
     if (fromPt + nPtsFit > pfp.TP3Ds.size()) return false;
 
     auto sf = FitTP3Ds(detProp, slc, pfp.TP3Ds, fromPt, 1, nPtsFit);
-    chiDOF = sf.ChiDOF;
-    if (chiDOF > 900) return false;
+    if (sf.ChiDOF > 900) return false;
 
     // don't update the pfp?
     if (sfIndex >= pfp.SectionFits.size()) return true;
