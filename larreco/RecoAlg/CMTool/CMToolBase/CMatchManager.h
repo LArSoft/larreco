@@ -30,28 +30,33 @@ namespace cmtool {
   class CMatchManager : public CMManagerBase {
 
   private:
-
     /// Default constructor is private because we need an argument to configure w/ # planes in the detector
     CMatchManager();
 
   public:
-
     CMatchManager(size_t nplanes);
 
     /// Default destructor
-    virtual ~CMatchManager(){}
+    virtual ~CMatchManager() {}
 
     /// Method to reset itself
     virtual void Reset();
 
     /// A simple method to add an algorithm for merging
-    void AddMatchAlgo(CFloatAlgoBase* algo) {_match_algo = algo;}
+    void
+    AddMatchAlgo(CFloatAlgoBase* algo)
+    {
+      _match_algo = algo;
+    }
 
     /// A method to obtain book keeper
-    const CMatchBookKeeper& GetBookKeeper() const { return _book_keeper; }
+    const CMatchBookKeeper&
+    GetBookKeeper() const
+    {
+      return _book_keeper;
+    }
 
   protected:
-
     //
     // FMWK functions override
     //
@@ -63,7 +68,7 @@ namespace cmtool {
     virtual void IterationBegin();
 
     /// FMWK function called @ iterative loop inside Process()
-    virtual bool IterationProcess();
+    virtual bool IterationProcess(util::GeometryUtilities const& gser);
 
     /// FMWK function called @ end of iterative loop inside Process()
     virtual void IterationEnd();
@@ -72,7 +77,6 @@ namespace cmtool {
     virtual void EventEnd();
 
   protected:
-
     /// Book keeper instance
     CMatchBookKeeper _book_keeper;
 
@@ -81,7 +85,6 @@ namespace cmtool {
 
     /// Number of planes
     size_t _nplanes;
-
   };
 }
 

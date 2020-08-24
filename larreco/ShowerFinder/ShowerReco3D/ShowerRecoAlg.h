@@ -1,16 +1,3 @@
-/**
- * \file ShowerRecoAlg.h
- *
- * \ingroup ShowerReco3D
- *
- * \brief Class def header for a class ShowerRecoAlg
- *
- * @author kazuhiro
- */
-
-/** \addtogroup ShowerReco3D
-
-    @{*/
 #ifndef RECOTOOL_SHOWERRECOALG_H
 #define RECOTOOL_SHOWERRECOALG_H
 
@@ -18,55 +5,59 @@
 
 #include "ShowerRecoAlgBase.h"
 #include "lardataobj/RecoBase/Shower.h"
-namespace util { class GeometryUtilities; }
+
+namespace geo {
+  class GeometryCore;
+}
+
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 
 namespace showerreco {
 
-  /**
-     \class ShowerRecoAlg
-     User defined class ShowerRecoAlg ... these comments are used to generate
-     doxygen documentation!
-  */
-  class ShowerRecoAlg : public ShowerRecoAlgBase{
-
+  class ShowerRecoAlg : public ShowerRecoAlgBase {
   public:
-
-    /// Default constructor
-    ShowerRecoAlg();
-
-    /// Default destructor
-    virtual ~ShowerRecoAlg(){}
-
-    /// Function to reset algorithm, to be called @ beginning of each event
-    virtual void Reset() { ShowerRecoAlgBase::Reset(); }
-
     /// Function to decide if to use Area or Pulse Amplitude for calculations
-    void SetUseArea(bool on) { fUseArea = on; }
+    void
+    SetUseArea(bool on)
+    {
+      fUseArea = on;
+    }
 
-    /// Function to decide if to use ModBox (True) or Birks (False) for calorimetry
-    //void SetUseModBox(bool on) { fCaloAlg.setUseModBox(on); }
+    void
+    Verbose(bool verbose)
+    {
+      fVerbosity = verbose;
+    }
+
+    void
+    CaloAlgo(calo::CalorimetryAlg* alg)
+    {
+      fCaloAlg = alg;
+    }
 
     /// Function to set whether to use E correction
-    void setEcorrection(bool on) { _Ecorrection = on; }
-
-  protected:
+    void
+    setEcorrection(bool on)
+    {
+      _Ecorrection = on;
+    }
 
     /// Function to reconstruct a shower
-    virtual ::recob::Shower RecoOneShower(const std::vector< ::showerreco::ShowerCluster_t>& );
-
-  protected:
-
-    util::GeometryUtilities  *fGSer;
+    recob::Shower RecoOneShower(geo::GeometryCore const& geom,
+                                detinfo::DetectorClocksData const& clockData,
+                                detinfo::DetectorPropertiesData const& detProp,
+                                std::vector<showerreco::ShowerCluster_t> const&);
 
   private:
-
-    /// Boolean -> decide if to use energy correction or not
-    bool _Ecorrection;
-
-    double fcalodEdxlength;
-    double fdEdxlength;
-    bool fUseArea;
-
+    calo::CalorimetryAlg* fCaloAlg;
+    bool _Ecorrection{true};
+    bool fVerbosity{true};
+    double fcalodEdxlength{1000};
+    double fdEdxlength{2.4};
+    bool fUseArea{true};
   };
 }
 

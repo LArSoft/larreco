@@ -21,41 +21,41 @@
 // LArSoft Includes
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+namespace detinfo {
+  class DetectorPropertiesData;
+}
 
 // Frmaework includes
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl { class ParameterSet; }
+#include "fhiclcpp/fwd.h"
 
 //boost includes
 #include "boost/multi_array.hpp"
 
-namespace sppt{
-
-  inline bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
+namespace sppt {
 
   class SpacePointAlg_TimeSort {
-
   public:
-    SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset);
+    explicit SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset);
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void setTimeOffsets();
+    void setTimeOffsets(detinfo::DetectorPropertiesData const& detProp);
     void fillCoordinatesArrays();
 
-    void createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_V,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
-			   std::unique_ptr<std::vector<recob::SpacePoint> > &spptCollection,
-			   std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > &spptAssociatedHits);
+    void createSpacePoints(
+      detinfo::DetectorPropertiesData const& detProp,
+      std::vector<art::Ptr<recob::Hit>>& hitVec_U,
+      std::vector<art::Ptr<recob::Hit>>& hitVec_V,
+      std::vector<art::Ptr<recob::Hit>>& hitVec_Y,
+      std::unique_ptr<std::vector<recob::SpacePoint>>& spptCollection,
+      std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit>>>>& spptAssociatedHits);
 
   private:
+    float fTimeDiffMax; /// Maximum allowed time difference
+    float fYDiffMax;    /// Maximum allowed y-coordinate difference
+    float fZDiffMax;    /// Maximum allowed z-coordinate difference
 
-    float          fTimeDiffMax;        /// Maximum allowed time difference
-    float          fYDiffMax;           /// Maximum allowed y-coordinate difference
-    float          fZDiffMax;           /// Maximum allowed z-coordinate difference
-
-    bool TIME_OFFSET_SET;
-    bool COORDINATES_FILLED;
+    bool TIME_OFFSET_SET{false};
+    bool COORDINATES_FILLED{false};
 
     double TIME_OFFSET_U;
     double TIME_OFFSET_V;
@@ -67,7 +67,7 @@ namespace sppt{
     boost::multi_array<double, 2> coordinates_UY_y;
     boost::multi_array<double, 2> coordinates_UY_z;
 
-    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle) const;
+    void sortHitsByTime(std::vector<art::Ptr<recob::Hit>>& hits_handle) const;
 
   }; //class SpacePointAlg_TimeSort
 

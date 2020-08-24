@@ -15,20 +15,21 @@
 
 // Framework includes
 #include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "canvas/Persistency/Common/Ptr.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 #include "nug4/ParticleNavigation/ParticleList.h"
-#include "lardataobj/RecoBase/Hit.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 
 #include "TTree.h"
 
@@ -36,7 +37,9 @@
 
 #include <string>
 
-namespace geo { class Geometry; }
+namespace geo {
+  class Geometry;
+}
 
 ///Detector simulation of raw signals on wires
 namespace hit {
@@ -48,60 +51,60 @@ namespace hit {
 
   private:
     /// read/write access to event
-    void analyze (const art::Event& evt);
+    void analyze(const art::Event& evt);
     void beginJob();
 
-    std::string            fFFTHitFinderModuleLabel;
-    std::string            fLArG4ModuleLabel;
+    std::string fFFTHitFinderModuleLabel;
+    std::string fLArG4ModuleLabel;
 
-      TTree* fHTree;
-      Int_t fRun;
-      Int_t fEvt;
-      Int_t fNp0;
-      Int_t fNp1;
-      Int_t fNp2;
-      Int_t fN3p0;
-      Int_t fN3p1;
-      Int_t fN3p2;
-      Float_t* fTimep0;
-      Float_t* fTimep1;
-      Float_t* fTimep2;
-      Int_t* fWirep0;
-      Int_t* fWirep1;
-      Int_t* fWirep2;
-      Float_t* fChgp0;
-      Float_t* fChgp1;
-      Float_t* fChgp2;
-      Float_t* fXYZp0;
-      Float_t* fXYZp1;
-      Float_t* fXYZp2;
+    TTree* fHTree;
+    Int_t fRun;
+    Int_t fEvt;
+    Int_t fNp0;
+    Int_t fNp1;
+    Int_t fNp2;
+    Int_t fN3p0;
+    Int_t fN3p1;
+    Int_t fN3p2;
+    Float_t* fTimep0;
+    Float_t* fTimep1;
+    Float_t* fTimep2;
+    Int_t* fWirep0;
+    Int_t* fWirep1;
+    Int_t* fWirep2;
+    Float_t* fChgp0;
+    Float_t* fChgp1;
+    Float_t* fChgp2;
+    Float_t* fXYZp0;
+    Float_t* fXYZp1;
+    Float_t* fXYZp2;
 
-      Int_t*  fMCPdg0;
-      Int_t*  fMCTId0;
-      Float_t*  fMCE0;
-      Int_t*  fMCPdg1;
-      Int_t*  fMCTId1;
-      Float_t*  fMCE1;
-      Int_t*  fMCPdg2;
-      Int_t*  fMCTId2;
-      Float_t*  fMCE2;
+    Int_t* fMCPdg0;
+    Int_t* fMCTId0;
+    Float_t* fMCE0;
+    Int_t* fMCPdg1;
+    Int_t* fMCTId1;
+    Float_t* fMCE1;
+    Int_t* fMCPdg2;
+    Int_t* fMCTId2;
+    Float_t* fMCE2;
 
   }; // class HitFinderAna
 
 }
 
-namespace hit{
+namespace hit {
 
   //-------------------------------------------------
-  HitFinderAna::HitFinderAna(fhicl::ParameterSet const& pset)
-    : EDAnalyzer(pset)
+  HitFinderAna::HitFinderAna(fhicl::ParameterSet const& pset) : EDAnalyzer(pset)
   {
-    fFFTHitFinderModuleLabel = pset.get< std::string >("HitsModuleLabel");
-    fLArG4ModuleLabel        = pset.get< std::string >("LArGeantModuleLabel");
+    fFFTHitFinderModuleLabel = pset.get<std::string>("HitsModuleLabel");
+    fLArG4ModuleLabel = pset.get<std::string>("LArGeantModuleLabel");
   }
 
   //-------------------------------------------------
-  void HitFinderAna::beginJob()
+  void
+  HitFinderAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -109,7 +112,7 @@ namespace hit{
     fNp1 = 9000;
     fNp2 = 9000;
 
-    fHTree = tfs->make<TTree>("HTree","HTree");
+    fHTree = tfs->make<TTree>("HTree", "HTree");
     fTimep0 = new Float_t[fNp0];
     fTimep1 = new Float_t[fNp1];
     fTimep2 = new Float_t[fNp2];
@@ -119,9 +122,9 @@ namespace hit{
     fChgp0 = new Float_t[fNp0];
     fChgp1 = new Float_t[fNp1];
     fChgp2 = new Float_t[fNp2];
-    fXYZp0 = new Float_t[fNp0*3];
-    fXYZp1 = new Float_t[fNp1*3];
-    fXYZp2 = new Float_t[fNp2*3];
+    fXYZp0 = new Float_t[fNp0 * 3];
+    fXYZp1 = new Float_t[fNp1 * 3];
+    fXYZp2 = new Float_t[fNp2 * 3];
 
     fMCPdg0 = new Int_t[fNp0];
     fMCPdg1 = new Int_t[fNp1];
@@ -163,24 +166,24 @@ namespace hit{
     fHTree->Branch("HMCEp1", fMCE1, "HMCEp1[HNp1]/F");
     fHTree->Branch("HMCEp2", fMCE2, "HMCEp2[HNp2]/F");
 
-
     return;
-
   }
 
   //-------------------------------------------------
-  void HitFinderAna::analyze(const art::Event& evt)
+  void
+  HitFinderAna::analyze(const art::Event& evt)
   {
 
-    if (evt.isRealData()){
+    if (evt.isRealData()) {
       throw cet::exception("HitFinderAna: ") << "Not for use on Data yet...\n";
     }
 
-    art::Handle< std::vector<recob::Hit> > hitHandle;
-    evt.getByLabel(fFFTHitFinderModuleLabel,hitHandle);
+    art::Handle<std::vector<recob::Hit>> hitHandle;
+    evt.getByLabel(fFFTHitFinderModuleLabel, hitHandle);
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
 
     sim::ParticleList const& _particleList = pi_serv->ParticleList();
 
@@ -188,108 +191,106 @@ namespace hit{
 
     art::ServiceHandle<geo::Geometry const> geom;
 
-    std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
-    for(size_t h = 0; h < hitHandle->size(); ++h)
-      planeIDToHits[hitHandle->at(h).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitHandle, h));
+    std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit>>> planeIDToHits;
+    for (size_t h = 0; h < hitHandle->size(); ++h)
+      planeIDToHits[hitHandle->at(h).WireID().planeID()].push_back(
+        art::Ptr<recob::Hit>(hitHandle, h));
 
-
-    for(auto mapitr : planeIDToHits){
-      fNp0=0;       fN3p0=0;
-      fNp1=0;       fN3p1=0;
-      fNp2=0;       fN3p2=0;
+    for (auto mapitr : planeIDToHits) {
+      fNp0 = 0;
+      fN3p0 = 0;
+      fNp1 = 0;
+      fN3p1 = 0;
+      fNp2 = 0;
+      fN3p2 = 0;
 
       geo::PlaneID pid = mapitr.first;
       auto itr = mapitr.second.begin();
-      while(itr != mapitr.second.end()) {
+      while (itr != mapitr.second.end()) {
 
-	fRun = evt.run();
-	fEvt = evt.id().event();
+        fRun = evt.run();
+        fEvt = evt.id().event();
 
-	std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
-	std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
-	std::vector<double> xyz = bt_serv->HitToXYZ(*itr);
+        std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(clockData, *itr);
+        std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
+        std::vector<double> xyz = bt_serv->HitToXYZ(clockData, *itr);
 
-	if (pid.Plane == 0 && fNp0 < 9000){
-	  fTimep0[fNp0] = (*itr)->PeakTime();
-	  fWirep0[fNp0] = (*itr)->WireID().Wire;
-	  fChgp0[fNp0] = (*itr)->Integral();
+        if (pid.Plane == 0 && fNp0 < 9000) {
+          fTimep0[fNp0] = (*itr)->PeakTime();
+          fWirep0[fNp0] = (*itr)->WireID().Wire;
+          fChgp0[fNp0] = (*itr)->Integral();
 
-	  for (unsigned int kk = 0; kk < 3; ++kk){
-	    fXYZp0[fNp0*3+kk] = xyz[kk];
-	  }
+          for (unsigned int kk = 0; kk < 3; ++kk) {
+            fXYZp0[fNp0 * 3 + kk] = xyz[kk];
+          }
 
+          while (idesitr != trackides.end()) {
+            fMCTId0[fNp0] = (*idesitr).trackID;
+            if (_particleList.find((*idesitr).trackID) != _particleList.end()) {
+              const simb::MCParticle* particle = _particleList.at((*idesitr).trackID);
+              fMCPdg0[fNp0] = particle->PdgCode();
+              fMCE0[fNp0] = particle->E();
+            }
+            idesitr++;
+          }
 
-	  while( idesitr != trackides.end() ){
-	    fMCTId0[fNp0] = (*idesitr).trackID;
-	    if (_particleList.find((*idesitr).trackID) != _particleList.end()){
-	      const simb::MCParticle* particle = _particleList.at( (*idesitr).trackID);
-	      fMCPdg0[fNp0] = particle->PdgCode();
-	      fMCE0[fNp0] = particle->E();
-	    }
-	    idesitr++;
-	  }
+          ++fNp0;
+        }
 
-	  ++fNp0;
-	}
+        else if (pid.Plane == 1 && fNp1 < 9000) {
+          fTimep1[fNp1] = (*itr)->PeakTime();
+          fWirep1[fNp1] = (*itr)->WireID().Wire;
+          fChgp1[fNp1] = (*itr)->Integral();
 
-	else if (pid.Plane == 1 && fNp1 < 9000){
-	  fTimep1[fNp1] = (*itr)->PeakTime();
-	  fWirep1[fNp1] = (*itr)->WireID().Wire;
-	  fChgp1[fNp1] = (*itr)->Integral();
+          for (unsigned int kk = 0; kk < 3; ++kk) {
+            fXYZp1[fNp1 * 3 + kk] = xyz[kk];
+          }
 
-	  for (unsigned int kk = 0; kk < 3; ++kk){
-	    fXYZp1[fNp1*3+kk] = xyz[kk];
-	  }
+          while (idesitr != trackides.end()) {
+            fMCTId1[fNp1] = (*idesitr).trackID;
+            if (_particleList.find((*idesitr).trackID) != _particleList.end()) {
+              const simb::MCParticle* particle = _particleList.at((*idesitr).trackID);
+              fMCPdg1[fNp1] = particle->PdgCode();
+              fMCE1[fNp1] = particle->E();
+            }
+            idesitr++;
+          }
+          ++fNp1;
+        }
 
-	  while( idesitr != trackides.end() ){
-	    fMCTId1[fNp1] = (*idesitr).trackID;
-	    if (_particleList.find((*idesitr).trackID) != _particleList.end()){
-	      const simb::MCParticle* particle = _particleList.at( (*idesitr).trackID);
-	      fMCPdg1[fNp1] = particle->PdgCode();
-	      fMCE1[fNp1] = particle->E();
-	    }
-	    idesitr++;
-	  }
-	  ++fNp1;
-	}
+        else if (pid.Plane == 2 && fNp2 < 9000) {
+          fTimep2[fNp2] = (*itr)->PeakTime();
+          fWirep2[fNp2] = (*itr)->WireID().Wire;
+          fChgp2[fNp2] = (*itr)->Integral();
 
-	else if (pid.Plane == 2  && fNp2 < 9000){
-	  fTimep2[fNp2] = (*itr)->PeakTime();
-	  fWirep2[fNp2] = (*itr)->WireID().Wire;
-	  fChgp2[fNp2] = (*itr)->Integral();
+          for (unsigned int kk = 0; kk < 3; ++kk) {
+            fXYZp2[fNp2 * 3 + kk] = xyz[kk];
+          }
 
-	  for (unsigned int kk = 0; kk < 3; ++kk){
-	    fXYZp2[fNp2*3+kk] = xyz[kk];
-	  }
+          while (idesitr != trackides.end()) {
+            fMCTId2[fNp2] = (*idesitr).trackID;
+            if (_particleList.find((*idesitr).trackID) != _particleList.end()) {
+              const simb::MCParticle* particle = _particleList.at((*idesitr).trackID);
+              fMCPdg2[fNp2] = particle->PdgCode();
+              fMCE2[fNp2] = particle->E();
+            }
+            idesitr++;
+          }
+          ++fNp2;
+        }
 
-	  while( idesitr != trackides.end()){
-	    fMCTId2[fNp2] = (*idesitr).trackID;
-	    if (_particleList.find((*idesitr).trackID) != _particleList.end() ){
-	      const simb::MCParticle* particle = _particleList.at( (*idesitr).trackID);
-	      fMCPdg2[fNp2] = particle->PdgCode();
-	      fMCE2[fNp2] = particle->E();
-	    }
-	    idesitr++;
-	  }
-	  ++fNp2;
-	}
+        fN3p0 = 3 * fNp0;
+        fN3p1 = 3 * fNp1;
+        fN3p2 = 3 * fNp2;
 
-	fN3p0 = 3* fNp0;
-	fN3p1 = 3* fNp1;
-	fN3p2 = 3* fNp2;
-
-	fHTree->Fill();
-	itr++;
+        fHTree->Fill();
+        itr++;
       } // loop on Hits
-    } // loop on map
+    }   // loop on map
 
     return;
-  }//end analyze method
+  } // end analyze method
 
-}//end namespace
+} // end namespace
 
-namespace hit{
-
-  DEFINE_ART_MODULE(HitFinderAna)
-
-} // end of hit namespace
+DEFINE_ART_MODULE(hit::HitFinderAna)

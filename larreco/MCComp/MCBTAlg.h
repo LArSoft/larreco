@@ -16,8 +16,12 @@
 
 #include "lardataobj/Simulation/SimChannel.h"
 
-#include <vector>
 #include <map>
+#include <vector>
+
+namespace detinfo {
+  class DetectorClocksData;
+}
 
 /**
    \class MCBTAlg
@@ -29,32 +33,37 @@ namespace btutil {
   struct WireRange_t {
     unsigned int ch;
     double start, end;
-    WireRange_t() {
-      ch    = std::numeric_limits<unsigned int>::max();
+    WireRange_t()
+    {
+      ch = std::numeric_limits<unsigned int>::max();
       start = end = std::numeric_limits<double>::max();
     }
-    WireRange_t(unsigned int c,double s, double e)
-    { ch = c; start = s; end = e; }
+    WireRange_t(unsigned int c, double s, double e)
+    {
+      ch = c;
+      start = s;
+      end = e;
+    }
   };
 
   typedef std::vector<double> edep_info_t; // vector of energy deposition
 
-  typedef std::map<unsigned int, ::btutil::edep_info_t > ch_info_t; // vector of time (index) for each edep (value)
+  typedef std::map<unsigned int, ::btutil::edep_info_t>
+    ch_info_t; // vector of time (index) for each edep (value)
 
   class MCBTAlg {
 
   public:
-
-    MCBTAlg(){}
+    MCBTAlg() {}
 
     MCBTAlg(const std::vector<unsigned int>& g4_trackid_v,
-	    const std::vector<sim::SimChannel>& simch_v);
+            const std::vector<sim::SimChannel>& simch_v);
 
     void Reset(const std::vector<unsigned int>& g4_trackid_v,
-	       const std::vector<sim::SimChannel>& simch_v);
+               const std::vector<sim::SimChannel>& simch_v);
 
-    void Reset(const std::vector<std::vector<unsigned int> >& g4_trackid_v,
-	       const std::vector<sim::SimChannel>& simch_v);
+    void Reset(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+               const std::vector<sim::SimChannel>& simch_v);
 
     /**
        Returns MC charge sum per MCX for a specified plane
@@ -68,7 +77,8 @@ namespace btutil {
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
     */
-    std::vector<double> MCQ(const WireRange_t& hit) const;
+    std::vector<double> MCQ(detinfo::DetectorClocksData const& clockData,
+                            const WireRange_t& hit) const;
 
     /**
        Relate Hit => MCX.
@@ -77,7 +87,8 @@ namespace btutil {
        range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
     */
-    std::vector<double> MCQFrac(const WireRange_t& hit) const;
+    std::vector<double> MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                const WireRange_t& hit) const;
 
     /**
        Relate Cluster => MCX.
@@ -86,7 +97,8 @@ namespace btutil {
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
     */
-    std::vector<double> MCQ(const std::vector<btutil::WireRange_t>& hit_v) const;
+    std::vector<double> MCQ(detinfo::DetectorClocksData const& clockData,
+                            const std::vector<btutil::WireRange_t>& hit_v) const;
 
     /**
        Relate Cluster => MCX.
@@ -95,23 +107,27 @@ namespace btutil {
        range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
     */
-    std::vector<double> MCQFrac(const std::vector<btutil::WireRange_t>& hit_v) const;
+    std::vector<double> MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                const std::vector<btutil::WireRange_t>& hit_v) const;
 
     size_t Index(const unsigned int g4_track_id) const;
 
-    size_t NumParts() const { return _num_parts-1; }
+    size_t
+    NumParts() const
+    {
+      return _num_parts - 1;
+    }
 
   protected:
-
     void Register(const unsigned int& g4_track_id);
 
     void Register(const std::vector<unsigned int>& g4_track_id);
 
     void ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v);
 
-    std::vector< ::btutil::ch_info_t> _event_info;
+    std::vector<::btutil::ch_info_t> _event_info;
     std::vector<size_t> _trkid_to_index;
-    std::vector<std::vector<double> > _sum_mcq;
+    std::vector<std::vector<double>> _sum_mcq;
     size_t _num_parts;
   };
 }

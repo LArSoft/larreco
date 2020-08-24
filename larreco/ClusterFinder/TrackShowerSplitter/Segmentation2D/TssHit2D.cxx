@@ -9,26 +9,12 @@
 #include "TssHit2D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-tss::Hit2D::Hit2D(void) :
-	fPlane(0), fWire(0),
-	fPoint2D(0, 0)
+tss::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, const art::Ptr<recob::Hit>& src)
+  : fHit(src)
 {
-}
+  fPlane = src->WireID().Plane;
+  fWire = src->WireID().Wire;
 
-tss::Hit2D::Hit2D(const art::Ptr< recob::Hit > & src) :
-	fHit(src)
-{
-	fPlane = src->WireID().Plane;
-	fWire = src->WireID().Wire;
-
-	fPoint2D = pma::WireDriftToCm(
-		fWire, src->PeakTime(), fPlane,
-		src->WireID().TPC, src->WireID().Cryostat);
-}
-
-tss::Hit2D::Hit2D(const tss::Hit2D & src) :
-	fHit(src.fHit),
-	fPlane(src.fPlane), fWire(src.fWire),
-	fPoint2D(src.fPoint2D)
-{
+  fPoint2D = pma::WireDriftToCm(
+    detProp, fWire, src->PeakTime(), fPlane, src->WireID().TPC, src->WireID().Cryostat);
 }

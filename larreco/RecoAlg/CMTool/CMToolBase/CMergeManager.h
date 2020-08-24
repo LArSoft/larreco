@@ -30,32 +30,44 @@ namespace cmtool {
      The book-keeping of merged cluster sets are done by CMergeBookKeeper.
   */
   class CMergeManager : public CMManagerBase {
-
   public:
-
-    /// Default constructor
     CMergeManager();
 
     /// Default destructor
-    virtual ~CMergeManager(){}
+    virtual ~CMergeManager() {}
 
     /// Method to reset itself
     virtual void Reset();
 
     /// A simple method to add an algorithm for merging
-    void AddMergeAlgo(CBoolAlgoBase* algo) {_merge_algo = algo;}
+    void
+    AddMergeAlgo(CBoolAlgoBase* algo)
+    {
+      _merge_algo = algo;
+    }
 
     /// A simple method to add an algorithm for separation
-    void AddSeparateAlgo(CBoolAlgoBase* algo) {_separate_algo = algo;}
+    void
+    AddSeparateAlgo(CBoolAlgoBase* algo)
+    {
+      _separate_algo = algo;
+    }
 
     /// A method to obtain output clusters
-    const std::vector<cluster::ClusterParamsAlg>& GetClusters() const { return _out_clusters; }
+    const std::vector<cluster::ClusterParamsAlg>&
+    GetClusters() const
+    {
+      return _out_clusters;
+    }
 
     /// A method to obtain book keeper
-    const CMergeBookKeeper& GetBookKeeper() const { return _book_keeper; }
+    const CMergeBookKeeper&
+    GetBookKeeper() const
+    {
+      return _book_keeper;
+    }
 
   protected:
-
     //
     // FMWK functions override
     //
@@ -67,7 +79,7 @@ namespace cmtool {
     virtual void IterationBegin();
 
     /// FMWK function called @ iterative loop inside Process()
-    virtual bool IterationProcess();
+    virtual bool IterationProcess(util::GeometryUtilities const& gser);
 
     /// FMWK function called @ end of iterative loop inside Process()
     virtual void IterationEnd();
@@ -76,19 +88,17 @@ namespace cmtool {
     virtual void EventEnd();
 
   protected:
+    void RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                  CMergeBookKeeper& book_keeper) const;
 
-    void RunMerge(const std::vector<cluster::ClusterParamsAlg > &in_clusters,
-		  CMergeBookKeeper &book_keeper) const;
+    void RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                  const std::vector<bool>& merge_flag,
+                  CMergeBookKeeper& book_keeper) const;
 
-    void RunMerge(const std::vector<cluster::ClusterParamsAlg > &in_clusters,
-		  const std::vector<bool> &merge_flag,
-		  CMergeBookKeeper &book_keeper) const;
-
-    void RunSeparate(const std::vector<cluster::ClusterParamsAlg > &in_clusters,
-		     CMergeBookKeeper &book_keeper) const;
+    void RunSeparate(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                     CMergeBookKeeper& book_keeper) const;
 
   protected:
-
     /// Output clusters
     std::vector<cluster::ClusterParamsAlg> _out_clusters;
 
@@ -105,10 +115,9 @@ namespace cmtool {
 
     std::vector<CMergeBookKeeper> _book_keeper_v;
 
-    std::vector<std::vector<unsigned short> > _tmp_merged_indexes;
+    std::vector<std::vector<unsigned short>> _tmp_merged_indexes;
 
     std::vector<cluster::ClusterParamsAlg> _tmp_merged_clusters;
-
   };
 }
 

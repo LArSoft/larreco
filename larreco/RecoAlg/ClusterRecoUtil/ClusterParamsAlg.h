@@ -9,49 +9,50 @@
 #ifndef CLUSTERPARAMSALG_H
 #define CLUSTERPARAMSALG_H
 
-//--- std/stl include ---//
-#include <vector>
 #include <string>
+#include <vector>
 
-//--- LArSoft include ---//
 #include "ClusterParams.h"
 #include "lardata/Utilities/PxUtils.h"
-namespace util { class GeometryUtilities; }
 
-// ... more #include in tempimplementation below
+namespace util {
+  class GeometryUtilities;
+}
 
 namespace cluster {
 
   class ClusterParamsAlg {
-
   public:
-
-    /// Default constructor
     ClusterParamsAlg();
-
-    /// Alternative constructor with larutil::PxHit vector
     ClusterParamsAlg(const std::vector<util::PxHit>&);
 
     void Initialize();
 
-    //void SetHits(const std::vector<larutil::PxHit*>&);
+    void
+    SetMinNHits(size_t nhit)
+    {
+      fMinNHits = nhit;
+    }
 
-    void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
+    size_t
+    MinNHits() const
+    {
+      return fMinNHits;
+    }
 
-    size_t MinNHits() const { return fMinNHits; }
+    int SetHits(const std::vector<util::PxHit>&);
 
-   // int SetHits(const std::vector<const ::larlite::hit*> &);
+    void
+    SetRefineDirectionQMin(double qmin)
+    {
+      fQMinRefDir = qmin;
+    }
 
-    int SetHits(const std::vector<util::PxHit> &);
-
-    void SetRefineDirectionQMin(double qmin){ fQMinRefDir = qmin; }
-
-    void SetVerbose(bool yes=true){ verbose = yes;}
-
-   // void SetArgoneutGeometry();
-
-    template <typename Stream>
-    void Report(Stream& stream) const;
+    void
+    SetVerbose(bool yes = true)
+    {
+      verbose = yes;
+    }
 
     template <typename Stream>
     void TimeReport(Stream& stream) const;
@@ -63,7 +64,7 @@ namespace cluster {
      * clusterParams.hh.   That's why it's here.
      * @param  data  takes a reference to a vector< float>
      */
-    void  GetFANNVector(std::vector<float> & data);
+    void GetFANNVector(std::vector<float>& data);
     // std::vector<float> & GetFANNVector();
 
     /**
@@ -71,8 +72,7 @@ namespace cluster {
      * in a nicely formatted form.
      * @return [description]
      */
-    void  PrintFANNVector();
-
+    void PrintFANNVector();
 
     /**
       Runs all the functions which calculate cluster params
@@ -86,17 +86,20 @@ namespace cluster {
       @param override_DoGetFinalSlope     force re-execution of GetFinalSlope()
       @param override_DoEndCharge         force re-execution of GetEndCharges()
     */
-    void FillParams(bool override_DoGetAverages      =false,
-                    bool override_DoGetRoughAxis     =false,
-                    bool override_DoGetProfileInfo   =false,
-                    bool override_DoRefineStartPointsAndDirection=false,
-            		    // bool override_DoRefineDirection  =false,
-                    bool override_DoGetFinalSlope    =false,
-                    bool override_DoTrackShowerSep   =false,
+    void FillParams(util::GeometryUtilities const& gser,
+                    bool override_DoGetAverages = false,
+                    bool override_DoGetRoughAxis = false,
+                    bool override_DoGetProfileInfo = false,
+                    bool override_DoRefineStartPointsAndDirection = false,
+                    bool override_DoGetFinalSlope = false,
+                    bool override_DoTrackShowerSep = false,
                     bool override_DoEndCharge = false);
 
-    const cluster_params& GetParams() const
-    { return fParams;}
+    const cluster_params&
+    GetParams() const
+    {
+      return fParams;
+    }
 
     /**
        Calculates the following variables:
@@ -111,8 +114,7 @@ namespace cluster {
        N_Wires
        @param override force recalculation of variables
     */
-    void GetAverages(bool override=false);
-
+    void GetAverages(bool override = false);
 
     /**
       Calculates the following variables:
@@ -121,9 +123,7 @@ namespace cluster {
       fRough2DIntercept
       @param override [description]
     */
-    //void GetRoughAxis(bool override=false);
-    void GetRoughAxis(bool override=false);
-
+    void GetRoughAxis(bool override = false);
 
     /**
        Calculates the following variables:
@@ -134,16 +134,14 @@ namespace cluster {
        offaxis_hits
        @param override [description]
     */
-    void GetProfileInfo(bool override=false);
-
+    void GetProfileInfo(util::GeometryUtilities const& gser, bool override = false);
 
     /**
        Calculates the following variables:
        length
        width
-       @param override [description]
     */
-    void RefineStartPoints(bool override=false);
+    void RefineStartPoints(util::GeometryUtilities const& gser);
 
     /**
        Calculates the following variables:
@@ -153,7 +151,7 @@ namespace cluster {
        direction
        @param override [description]
     */
-    void GetFinalSlope(bool override=false);
+    void GetFinalSlope(util::GeometryUtilities const& gser, bool override = false);
 
     /**
        Calculates the following variables:
@@ -162,25 +160,45 @@ namespace cluster {
        @param override_ force recompute the variables
        @see StartCharge(), EndCharge()
     */
-    void GetEndCharges(bool override_ = false);
+    void GetEndCharges(util::GeometryUtilities const& gser, bool override_ = false);
 
-    void RefineDirection(bool override=false);
+    void RefineDirection(bool override = false);
 
-    void RefineStartPointAndDirection(bool override=false);
+    void RefineStartPointAndDirection(util::GeometryUtilities const& gser, bool override = false);
 
-    void TrackShowerSeparation(bool override=false);
+    void TrackShowerSeparation(bool override = false);
 
-    void setNeuralNetPath(std::string s){fNeuralNetPath = s;}
+    void
+    setNeuralNetPath(std::string s)
+    {
+      fNeuralNetPath = s;
+    }
 
-    void FillPolygon();
+    void FillPolygon(util::GeometryUtilities const& gser);
 
     void GetOpeningAngle();
 
-    const util::PxPoint& RoughStartPoint() {return fRoughBeginPoint;}
-    const util::PxPoint& RoughEndPoint() {return fRoughEndPoint;}
+    const util::PxPoint&
+    RoughStartPoint()
+    {
+      return fRoughBeginPoint;
+    }
+    const util::PxPoint&
+    RoughEndPoint()
+    {
+      return fRoughEndPoint;
+    }
 
-    double RoughSlope() {return fRough2DSlope;}
-    double RoughIntercept() {return fRough2DIntercept;}
+    double
+    RoughSlope()
+    {
+      return fRough2DSlope;
+    }
+    double
+    RoughIntercept()
+    {
+      return fRough2DIntercept;
+    }
 
     /**
      * @brief Returns the expected charge at the beginning of the cluster
@@ -207,7 +225,9 @@ namespace cluster {
      *
      * For more details, see IntegrateFitCharge().
      */
-    double StartCharge(float length = 1., unsigned int nbins = 10);
+    double StartCharge(util::GeometryUtilities const& gser,
+                       float length = 1.,
+                       unsigned int nbins = 10);
 
     /**
      * @brief Returns the expected charge at the end of the cluster
@@ -220,7 +240,9 @@ namespace cluster {
      * See StartCharge() for a detailed explanation.
      * For even more details, see IntegrateFitCharge().
      */
-    double EndCharge(float length = 1., unsigned int nbins = 10);
+    double EndCharge(util::GeometryUtilities const& gser,
+                     float length = 1.,
+                     unsigned int nbins = 10);
 
     /**
      * @brief Returns the number of multiple hits per wire
@@ -238,22 +260,34 @@ namespace cluster {
      * This returns the number of wires with mmore than one hit belonging
      * to this cluster, divided by the cluster length in cm.
      */
-    float MultipleHitDensity();
-
+    float MultipleHitDensity(util::GeometryUtilities const& gser);
 
     void EnableFANN();
 
-    void DisableFANN(){enableFANN = false;}
+    void
+    DisableFANN()
+    {
+      enableFANN = false;
+    }
 
-    size_t GetNHits() const {return fHitVector.size();}
-    const std::vector<util::PxHit>& GetHitVector() const {return fHitVector;}
-    int Plane() const {return fPlane;}
+    size_t
+    GetNHits() const
+    {
+      return fHitVector.size();
+    }
+    const std::vector<util::PxHit>&
+    GetHitVector() const
+    {
+      return fHitVector;
+    }
+    int
+    Plane() const
+    {
+      return fPlane;
+    }
     void SetPlane(int p);
 
   protected:
-
-    util::GeometryUtilities  *fGSer;
-
     /// Cut value for # hits: below this value clusters are not evaluated
     size_t fMinNHits;
 
@@ -263,8 +297,7 @@ namespace cluster {
     */
     std::vector<util::PxHit> fHitVector;
 
-    // bool to control debug/verbose mode
-    // defaults to off.
+    // bool to control debug/verbose mode defaults to off.
     bool verbose;
 
     //settable parameters:
@@ -274,12 +307,10 @@ namespace cluster {
     //this is required in RefineDirection
     double fQMinRefDir;
 
-    std::vector< double > fChargeProfile;
-    std::vector< double > fCoarseChargeProfile;
+    std::vector<double> fChargeProfile;
+    std::vector<double> fCoarseChargeProfile;
 
-    std::vector< double > fChargeProfileNew;
-   // double fMaxLinLength;
-   // double fLinBins;
+    std::vector<double> fChargeProfileNew;
 
     int fCoarseNbins;
     int fProfileNbins;
@@ -289,8 +320,6 @@ namespace cluster {
     double fProjectedLength;
 
     //extreme intercepts using the rough_2d_slope
-   // double fInterHigh;
-   // double fInterLow;
     double fBeginIntercept;
     double fEndIntercept;
     double fInterHigh_side;
@@ -307,8 +336,8 @@ namespace cluster {
     bool fFinishedTrackShowerSep;
     bool fFinishedGetEndCharges;
 
-    double fRough2DSlope;        // slope
-    double fRough2DIntercept;    // slope
+    double fRough2DSlope;     // slope
+    double fRough2DIntercept; // slope
     util::PxPoint fRoughBeginPoint;
     util::PxPoint fRoughEndPoint;
     bool enableFANN;
@@ -341,16 +370,16 @@ namespace cluster {
      * measured in cm along the cluster axis, starting at the start of the
      * cluster.
      */
-    double IntegrateFitCharge(
-      double from_length, double to_length,
-      unsigned int fit_first_bin, unsigned int fit_end_bin
-      );
+    double IntegrateFitCharge(util::GeometryUtilities const& gser,
+                              double from_length,
+                              double to_length,
+                              unsigned int fit_first_bin,
+                              unsigned int fit_end_bin);
 
     /// Returns the integral of f(x) = mx + q defined in [x1, x2]
     static double LinearIntegral(double m, double q, double x1, double x2);
 
-    public:
-
+  public:
     cluster::cluster_params fParams;
 
     std::string fNeuralNetPath;
@@ -362,30 +391,24 @@ namespace cluster {
 
 } //namespace cluster
 
-
 //------------------------------------------------------------------------------
 //--- template implementation
 //---
 
-#include <ostream> // std::endl
-
 namespace cluster {
 
   template <typename Stream>
-  void ClusterParamsAlg::TimeReport(Stream& stream) const {
+  void
+  ClusterParamsAlg::TimeReport(Stream& stream) const
+  {
 
-    stream << "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
-    for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
+    stream << "  <<ClusterParamsAlg::TimeReport>> starts...\n";
+    for (size_t i = 0; i < fTimeRecord_ProcName.size(); ++i) {
 
-      stream << "    Function: "
-        << fTimeRecord_ProcName[i].c_str()
-        << " ... Time = "
-        << fTimeRecord_ProcTime[i]
-        << " [s]"
-        << std::endl;
-
+      stream << "    Function: " << fTimeRecord_ProcName[i].c_str()
+             << " ... Time = " << fTimeRecord_ProcTime[i] << " [s]\n";
     }
-    stream<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
+    stream << "  <<ClusterParamsAlg::TimeReport>> ends...\n";
   }
 
 } //namespace cluster

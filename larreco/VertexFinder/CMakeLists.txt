@@ -15,13 +15,13 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            ${MF_MESSAGELOGGER}
          )
 
-
 simple_plugin(FeatureVertexFinder "module"
                 ${MF_MESSAGELOGGER}
                 ${ART_FRAMEWORK_SERVICES_REGISTRY}
                 ROOT::Core
                 ROOT::Hist
                 larcorealg_Geometry
+                lardataalg_DetectorInfo
                 lardataobj_RecoBase
               )
 
