@@ -31,10 +31,12 @@
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 namespace cluster {
   class ClusterTrackAna;
@@ -63,6 +65,7 @@ private:
   simb::Origin_t fTruthOrigin;
   std::vector<int> fSkipPDGCodes;
   short fPrintLevel;
+  bool fSkipHitMatching;
   unsigned int fInTPC;
   float fBadEP;
 
@@ -107,16 +110,19 @@ cluster::ClusterTrackAna::ClusterTrackAna(fhicl::ParameterSet const& pset) : EDA
   fTruthOrigin = (simb::Origin_t)tmp;
   fPrintLevel = pset.get<short>("PrintLevel", 0);
   if(pset.has_key("SkipPDGCodes")) fSkipPDGCodes = pset.get<std::vector<int>>("SkipPDGCodes");
-    fBadEP = pset.get<float>("BadEP", 0.);
-    fInTPC = UINT_MAX;
-    int intpc = pset.get<int>("InTPC", -1);
-    if(intpc >= 0) fInTPC = intpc;
-    // do some initialization
-    Cnts.fill(0.);
-    EPSums.fill(0.);
-    ESums.fill(0.);
-    PSums.fill(0.);
-    } // ClusterTrackAna constructor
+  fBadEP = pset.get<float>("BadEP", 0.);
+  fInTPC = UINT_MAX;
+  int intpc = pset.get<int>("InTPC", -1);
+  if(intpc >= 0) fInTPC = intpc;
+  // do some initialization
+  Cnts.fill(0.);
+  EPSums.fill(0.);
+  ESums.fill(0.);
+  PSums.fill(0.);
+  // just compare MCParticles with reconstructed tracks
+  fSkipHitMatching = pset.get<bool>("SkipHitMatching", false);
+  if(fSkipHitMatching && fTrackModuleLabel == "NA") throw cet::exception("ClusterTrackAna")<<"Bad configuration";
+} // ClusterTrackAna constructor
 
 ////////////////////////////////////////////////
 void cluster::ClusterTrackAna::analyze(art::Event const& evt)
@@ -137,7 +143,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
   bool anySource = (fTruthOrigin == simb::kUnknown);
 
   if(fPrintLevel > 0 && evt.run() != fCurrentRun) {
-    mf::LogVerbatim("ClusterTrackAna")<<"Run: "<<evt.run();
+    mf::LogVerbatim("ClusterTrackAna")<<"Run: "<<evt.run()<<" Evt: "<<evt.event();
     fCurrentRun = evt.run();
   }
 
@@ -173,6 +179,98 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     MCPIs.push_back(mcpi);
   } // ipart
   if(trkIDs.empty()) return;
+
+  if(fSkipHitMatching) {
+    // Compare true and reconstructed end points of a single track
+    if(MCPIs.size() != 1) return;
+    art::Handle<std::vector<recob::Track>> inputTracks;
+    if(!evt.getByLabel(fTrackModuleLabel, inputTracks)) throw cet::exception("ClusterTrackAna")<<"Failed to get a handle to the track collection '"<<fTrackModuleLabel.label()<<"'\n";
+    if((*inputTracks).size() != 1) return;
+    auto& trk = (*inputTracks)[0];
+    auto& mcp = (*mcpHandle)[MCPIs[0]];
+    if(mcp.PdgCode() != 2212) return;
+    short TMeV = 1000 * (mcp.E() - mcp.Mass());
+    mf::LogVerbatim myprt("ClusterTrackAna");
+    myprt<<"True proton "<<TMeV<<" MeV";
+    geo::Vector_t truStart, truEnd, truStartDir;
+    truStart.SetX(mcp.Vx());
+    truStart.SetY(mcp.Vy());
+    truStart.SetZ(mcp.Vz());
+    truStartDir.SetX(mcp.Px());
+    truStartDir.SetY(mcp.Py());
+    truStartDir.SetZ(mcp.Pz());
+    truStartDir = truStartDir.Unit();
+    truEnd.SetX(mcp.EndX());
+    truEnd.SetY(mcp.EndY());
+    truEnd.SetZ(mcp.EndZ());
+    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    myprt<<" len "<<std::fixed<<std::setprecision(1)<<(truEnd - truStart).R();
+    auto mid = (truStart + truEnd)/2;
+    float mom = sqrt(mcp.Px()*mcp.Px() + mcp.Py()*mcp.Py() + mcp.Pz()*mcp.Pz());
+    myprt<<" mom "<<std::setprecision(3)<<mom<<"\n";
+    myprt<<"True dir  "<<truStartDir.X()<<" "<<truStartDir.Y()<<" "<<truStartDir.Z()<<"\n";
+    unsigned int cstat = 0;
+    unsigned int tpc = 5;
+    myprt<<"True Start";
+    myprt<<" "<<std::fixed<<std::setprecision(1)<<truStart.X()<<" "<<truStart.Y()<<" "<<truStart.Z();
+    for(unsigned int plane = 0; plane < 3; ++ plane) {
+      geo::PlaneID planeID(cstat, tpc, plane);//(cstat,tpc,ipl);
+      float wire = geom->WireCoordinate(truStart.Y(), truStart.Z(), planeID);
+      int tick = detprop->ConvertXToTicks(truStart.X(), planeID);
+      myprt<<" "<<plane<<":"<<std::fixed<<std::setprecision(1)<<wire<<":"<<tick;
+    } // plane
+    myprt<<"\n";
+    myprt<<"True mid   "<<std::fixed<<std::setprecision(1)<<mid.X()<<" "<<mid.Y()<<" "<<mid.Z()<<"\n";
+    myprt<<"True End  ";
+    myprt<<" "<<std::fixed<<std::setprecision(1)<<truEnd.X()<<" "<<truEnd.Y()<<" "<<truEnd.Z();
+    for(unsigned int plane = 0; plane < 3; ++ plane) {
+      geo::PlaneID planeID(cstat, tpc, plane);//(cstat,tpc,ipl);
+      float wire = std::nearbyint(geom->WireCoordinate(truEnd.Y(), truEnd.Z(), planeID));
+      int tick = std::nearbyint(detprop->ConvertXToTicks(truEnd.X(), planeID));
+      myprt<<" "<<plane<<std::fixed<<std::setprecision(1)<<":"<<wire<<":"<<tick;
+    } // plane
+    myprt<<"\n";
+    auto goodStart = trk.Vertex() - truStart;
+    auto goodEnd = trk.End() - truEnd;
+    auto badStart = trk.Vertex() - truEnd;
+    auto badEnd = trk.End() - truStart;
+    bool goodRecoDir = (goodStart.Mag2() < badStart.Mag2() && goodEnd.Mag2() < badEnd.Mag2());
+
+    myprt<<"T"<<trk.ID()<<" mom  "<<trk.StartMomentum()<<" chidof "<<trk.Chi2PerNdof();
+    myprt<<" nPts "<<trk.NumberTrajectoryPoints();
+    myprt<<" goodRecoDir? "<<goodRecoDir;
+    myprt<<" len "<<sqrt((trk.End() - trk.Vertex()).Mag2());
+    myprt<<" len "<<trk.Length();
+    myprt<<" Reco-Tru Start "<<sqrt((trk.Vertex() - truStart).Mag2());
+    myprt<<" End "<<sqrt((trk.End() - truEnd).Mag2());
+    myprt<<" dang "<<std::fixed<<std::setprecision(3)<<sqrt((trk.StartDirection() - truStartDir).Mag2());
+    myprt<<"\nEnd Pos "<<trk.End().X()<<" "<<trk.End().Y()<<" "<<trk.End().Z();
+    myprt<<" First valid "<<trk.FirstValidPoint()<<" last "<<trk.LastValidPoint()<<"\n";
+
+    // check the flags
+    for(size_t itp = 1; itp < trk.NumberTrajectoryPoints(); ++itp) {
+      auto& flags = trk.FlagsAtPoint(itp);
+      myprt<<"itp "<<itp<<" flags "<<flags<<"\n";
+    } // itp
+/*
+    // check the hits
+    art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(inputTracks, evt, fTrackModuleLabel); 
+    if(fmthm.isValid()) {
+      auto vhit = fmthm.at(0);
+      auto vmeta = fmthm.data(0);
+      for(size_t ii = 0; ii < vhit.size(); ++ii) {
+        myprt<<ii<<" index "<<vmeta[ii]->Index();
+        myprt<<" vhit "<<vhit[ii].key();
+        if(vhit[ii].key() != UINT_MAX) {
+          myprt<<" hit "<<vhit[ii]->WireID().Plane<<":"<<vhit[ii]->WireID().Wire;
+          myprt<<":"<<(int)vhit[ii]->PeakTime();
+        }
+        myprt<<"\n";
+      } // ii
+    } // fmthm.isValid()
+*/
+    return;
+  } // fSkipHitMatching
 
   // next construct a companion vector of MCParticle indices indexed to the full hit collection
   fHitMCPIndex.resize((*fHitHandle).size(), UINT_MAX);

@@ -963,7 +963,7 @@ namespace tca {
     }
 
     // reduce nPtsFit to the minimum and check for a large angle kink near the ends
-    ChkEndKink(slc, tj, tcc.dbgStp);
+//    ChkEndKink(slc, tj, tcc.dbgStp);
 
     // Look for a charge asymmetry between points on both sides of a high-
     // charge point and trim points in the vicinity

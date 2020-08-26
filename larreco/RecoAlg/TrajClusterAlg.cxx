@@ -1218,30 +1218,35 @@ namespace tca {
     std::vector<recob::Track::Vector_t> directions;
     std::vector<recob::TrajectoryPointFlags> tpFlags;
     using trkflag = recob::TrajectoryPointFlags::flag;
+    // index of the hit in the new hit collection
 
     for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
       auto& tp3d = pfp.TP3Ds[pt];
       // construct the flag
-      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-      // index of the hit in the new hit collection
       unsigned int nhi = UINT_MAX;
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-        if(newHitIndex[ahi] == UINT_MAX) continue;
-        nhi = newHitIndex[ahi];
-        break;
-      } // ii
-      if(nhi == UINT_MAX) continue;
-      // Map the Track flag bits from the TP Environment bitset
       auto mask = recob::TrajectoryPointFlags::makeMask();
-      for(unsigned short ib = 0; ib < 8; ++ib) {
-        if(!tp.Environment[ib]) continue;
-        if(ib == kEnvOverlap) mask.set(recob::TrajectoryPointFlagTraits::Shared);
-        if(ib == kEnvNotGoodWire) mask.set(recob::TrajectoryPointFlagTraits::DetectorIssue);
-        // Not all hits in the multiplet were used in the TP
-        if(ib == kEnvUnusedHits) mask.set(recob::TrajectoryPointFlagTraits::Suspicious);
-      } // ib
+      if(tp3d.TPIndex == USHRT_MAX) {
+        // There is no TP3D -> hit assn for the Start and End TP3D 
+        // but there is no flag that captures this condition. The closest is HitIgnored
+        mask.set(recob::TrajectoryPointFlagTraits::HitIgnored);
+      } else {
+        auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+          if(newHitIndex[ahi] == UINT_MAX) continue;
+          nhi = newHitIndex[ahi];
+          break;
+        } // ii
+        // Map the Track flag bits from the TP Environment bitset
+        for(unsigned short ib = 0; ib < 8; ++ib) {
+          if(!tp.Environment[ib]) continue;
+          if(ib == kEnvOverlap) mask.set(recob::TrajectoryPointFlagTraits::Shared);
+          if(ib == kEnvNotGoodWire) mask.set(recob::TrajectoryPointFlagTraits::DetectorIssue);
+          // Not all hits in the multiplet were used in the TP
+          if(ib == kEnvUnusedHits) mask.set(recob::TrajectoryPointFlagTraits::Suspicious);
+        } // ib
+      } // tp3d.TPIndex != USHRT_MAX
 
       recob::Track::Point_t pos = {tp3d.Pos[0], tp3d.Pos[1], tp3d.Pos[2]};
       recob::Track::Vector_t dir = {tp3d.Dir[0], tp3d.Dir[1], tp3d.Dir[2]};
@@ -1250,26 +1255,19 @@ namespace tca {
       trkHits.push_back(nhi);
       tpFlags.push_back(recob::TrajectoryPointFlags(nhi, mask));
     } // pt
-    // Find the average Chi/DOF
-    float cnt = 0.;
-    float chiDOF = 0.;
-    int ndof = 0;
-    for(auto& sf : pfp.SectionFits) {
-      chiDOF += sf.ChiDOF * sf.NPts;
-      cnt += sf.NPts;
-      ndof += sf.NPts - 4;
-    } // sf
-    if(cnt > 0) chiDOF /= cnt;
+    // All the SectionFit fits are independent so just do a simple sum
+    int ndof = 4 * pfp.SectionFits.size();
+    float chi = 0.;
+    for(auto& sf : pfp.SectionFits) chi += sf.ChiDOF * 4;
 
-    // construct the track, which has a trajectory w/o momentum, a stab at PID,
+    // construct the track, which has a trajectory with "momentum", a stab at a PDGCode,
     // a chisq and not-defined covariance matrix
     trk = recob::Track(recob::TrackTrajectory(std::move(positions),
-                      std::move(directions),std::move(tpFlags), false),
-                      pfp.PDGCode, chiDOF, ndof,
+                      std::move(directions),std::move(tpFlags), true),
+                      pfp.PDGCode, chi, ndof,
                       recob::tracking::SMatrixSym55(),recob::tracking::SMatrixSym55(),
                       pfp.UID);
     
-
   } // MakeTrackFromPFP
 
 

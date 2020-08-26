@@ -41,9 +41,7 @@ namespace tca {
   bool FitSection(const TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
   SectionFit FitTP3Ds(const TCSlice& slc, const std::vector<TP3D>& tp3ds, unsigned short fromPt, short fitDir, unsigned short nPtsFit);
   bool FitTP3Ds(const TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short npts, unsigned short sfIndex, float& chiDOF);
-  void SplitAtKinks(const TCSlice& slc, std::vector<PFPStruct>& pfpVec, bool prt);
   void KinkFit(const TCSlice& slc, const PFPStruct& pfp, unsigned short atPt, double fitLen, double& dang, double& dangErr);
-  bool Split(const TCSlice& slc, PFPStruct& p1, unsigned short atPt, PFPStruct& p2, bool prt);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ValidTwoPlaneMatch(const TCSlice& slc, const PFPStruct& pfp);
@@ -52,10 +50,10 @@ namespace tca {
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   bool MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
-  bool MakeSmallAngleTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  bool MakeSmallAnglePFP(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
-  bool MakeTp3(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection);
+  TP3D MakeTP3D(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
   Vector3_t PointDirection(const Point3_t p1, const Point3_t p2);
@@ -65,14 +63,16 @@ namespace tca {
   void SetDirection(TCSlice& slc, PFPStruct& pfp);
   void FilldEdx(const TCSlice& slc, PFPStruct& pfp);
   float dEdx(const TCSlice& slc, const TP3D& tp3d);
+  double GetPitch(const TP3D& tp3d);
   void Average_dEdX(const TCSlice& slc, const PFPStruct& pfp, float& dEdXAve, float& dEdXRms);
-  TP3D CreateTP3D(const TCSlice& slc, int tjID, unsigned short tjPt);
+  TP3D CreateTP3D(const TCSlice& slc, int tjID, unsigned short tjPt, CTP_t inCTP = 0);
   bool SetSection(const TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);
   float PointPull(const PFPStruct& pfp, const TP3D& tp3d);
   PFPStruct CreatePFP(const TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
   bool StorePFP(TCSlice& slc, PFPStruct& pfp);
+  void DefineStartEnd(const TCSlice& slc, PFPStruct& pfp);
   bool InsideFV(const TCSlice& slc, const PFPStruct& pfp, unsigned short end);
   bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID);
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans);

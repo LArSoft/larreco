@@ -176,11 +176,11 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
+    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
 
     produces< std::vector<recob::Track> >();
     produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
     produces< art::Assns<recob::Track, recob::PFParticle> >();
-    produces< art::Assns<recob::Track, recob::SpacePoint> >();
 
     produces< std::vector<recob::SpacePoint> >();
 
@@ -395,13 +395,13 @@ namespace cluster {
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Seed>>
       pfp_sed_assn(new art::Assns<recob::PFParticle, recob::Seed>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>>
+      pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
     // Track -> ...
     std::unique_ptr<art::Assns<recob::Track, recob::PFParticle>>
       trk_pfp_assn(new art::Assns<recob::Track, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>>
       trk_hit_meta_assn(new art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>);
-    std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>>
-      trk_spt_assn(new art::Assns<recob::Track, recob::SpacePoint>);
     // Slice -> ...
     std::unique_ptr<art::Assns<recob::Slice, recob::Cluster>>
       slc_cls_assn(new art::Assns<recob::Slice, recob::Cluster>);
@@ -752,8 +752,8 @@ namespace cluster {
             fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
             for(unsigned int isp = 0; isp < spts.size(); ++isp) {
               sptCol.push_back(spts[isp]);
-            // Track -> SpacePoint
-            if(!util::CreateAssn(*this, evt, trkCol, sptCol, *trk_spt_assn, sptCol.size()-1, sptCol.size())) {
+            // PFParticle -> SpacePoint
+            if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate SpacePoint with Track";
             } // exception
               // SpacePoint -> Hit
@@ -878,11 +878,11 @@ namespace cluster {
     evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vx3_assn));
     evt.put(std::move(pfp_sed_assn));
+    evt.put(std::move(pfp_spt_assn));
     evt.put(std::move(tcol));
     evt.put(std::move(spcol));
     evt.put(std::move(trk_pfp_assn));
     evt.put(std::move(trk_hit_meta_assn));
-    evt.put(std::move(trk_spt_assn));
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));

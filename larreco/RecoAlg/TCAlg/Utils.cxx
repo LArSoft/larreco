@@ -2560,7 +2560,8 @@ namespace tca {
     if(pfp.TP3Ds.empty()) return hitVec;
 
     for(auto& tp3d : pfp.TP3Ds) {
-      if(tp3d.IsBad) continue;
+      // ignore end points
+      if(tp3d.TPIndex == USHRT_MAX) continue;
       if(tp3d.TjID <= 0) continue;
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
