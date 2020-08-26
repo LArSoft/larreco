@@ -657,19 +657,19 @@ namespace lar_cluster3d {
       theClockFinish.stop();
       theClockTotal.stop();
 
-      m_run = evt.run();https://sbn-docdb.fnal.gov/cgi-bin/private/DisplayMeeting?conferenceid=8646
-      m_event = evt.id().event();
-      m_totalTime = theClockTotal.accumulated_real_time();
-      m_artHitsTime = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::COLLECTARTHITS);
-      m_makeHitsTime = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::BUILDTHREEDHITS);
+      m_run                   = evt.run();
+      m_event                 = evt.id().event();
+      m_totalTime             = theClockTotal.accumulated_real_time();
+      m_artHitsTime           = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::COLLECTARTHITS);
+      m_makeHitsTime          = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::BUILDTHREEDHITS);
       m_buildNeighborhoodTime = m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDHITTOHITMAP);
-      m_dbscanTime = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
-                     m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
-      m_clusterMergeTime = m_clusterMergeAlg->getTimeToExecute();
-      m_pathFindingTime = m_clusterPathAlg->getTimeToExecute();
-      m_finishTime = theClockFinish.accumulated_real_time();
-      m_hits = static_cast<int>(clusterHitToArtPtrMap.size());
-      m_hits3D = static_cast<int>(hitPairList->size());
+      m_dbscanTime            = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
+                                m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
+      m_clusterMergeTime      = m_clusterMergeAlg->getTimeToExecute();
+      m_pathFindingTime       = m_clusterPathAlg->getTimeToExecute();
+      m_finishTime            = theClockFinish.accumulated_real_time();
+      m_hits                  = static_cast<int>(clusterHitToArtPtrMap.size());
+      m_hits3D                = static_cast<int>(hitPairList->size());
       m_pRecoTree->Fill();
 
       mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime
@@ -1225,7 +1225,8 @@ namespace lar_cluster3d {
                                 clusterParameters.getConvexHull().getConvexHullKinkPoints());
         }
         // Otherwise, the cluster has daughters so we handle specially
-        else {https://sbn-docdb.fnal.gov/cgi-bin/privhttps://sbn-docdb.fnal.gov/cgi-bin/private/DisplayMeeting?conferenceid=8646ate/DisplayMeeting?conferenceid=8646
+        else
+        {
           // Set up to keep track of parent/daughters
           IdxToPCAMap idxToPCAMap;
           size_t numTotalDaughters = countUltimateDaughters(clusterParameters);

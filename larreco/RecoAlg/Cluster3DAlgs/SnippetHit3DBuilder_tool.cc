@@ -25,6 +25,7 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
@@ -277,7 +278,6 @@ private:
     mutable bool                         m_weHaveAllBeenHereBefore = false;
 
     const geo::Geometry*                 m_geometry;              //< pointer to the Geometry service
-    const detinfo::DetectorProperties*   m_detector;              //< Pointer to the detector properties
     const lariov::ChannelStatusProvider* m_channelFilter;
 };
 
@@ -320,7 +320,6 @@ void SnippetHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_outputHistograms     = pset.get<bool                      >("OutputHistograms",      false );
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     m_wirePitch[0] = m_geometry->WirePitch(0);
@@ -1487,6 +1486,10 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
     // (note this is already taken care of when converting to position)
     std::map<geo::PlaneID, double> planeOffsetMap;
 
+    // Need the detector properties which needs the clocks
+    auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const det_prop   = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
+
     // Try to output a formatted string
     std::string debugMessage("");
 
@@ -1502,10 +1505,10 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
             // What we want here are the relative offsets between the planes
             // Note that plane 0 is assumed the "first" plane and is the reference
             planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] = 0.;
-            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1))
-                                                           - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
-            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2))
-                                                           - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
+            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] = det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1))
+                                                           - det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
+            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2))
+                                                           - det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
 
             // Should we provide output?
             if (!m_weHaveAllBeenHereBefore)
@@ -1514,7 +1517,7 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
 
                 outputString << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane    2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << "\n";
                 debugMessage += outputString.str();
-                outputString << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << "\n";
+                outputString << "     Det prop plane 0: " << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << det_prop.GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << trigger_offset(clock_data) << "\n";
                 debugMessage += outputString.str();
             }
         }
@@ -1561,7 +1564,7 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
             const geo::PlaneID& planeID = wireID.planeID();
 
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
-            double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
+            double xPosition(det_prop.ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
 
             m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit);
 
