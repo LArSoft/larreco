@@ -1,4 +1,5 @@
 art_make(LIB_LIBRARIES
+           lardataalg_DetectorInfo
            larcorealg_Geometry
            larreco_RecoAlg_TCAlg
            larreco_RecoAlg_PMAlg

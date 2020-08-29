@@ -16,13 +16,21 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
-namespace detinfo { class DetectorProperties; }
-namespace fhicl { class ParameterSet; }
-namespace lariov { class ChannelStatusProvider; }
-namespace geo { struct WireID; }
+#include "lardataobj/RecoBase/Hit.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+namespace detinfo {
+  class DetectorProperties;
+}
+namespace fhicl {
+  class ParameterSet;
+}
+namespace lariov {
+  class ChannelStatusProvider;
+}
+namespace geo {
+  struct WireID;
+}
 
 // ROOT
 #include "TString.h"
@@ -40,7 +48,6 @@ namespace cluster {
 
 class cluster::BlurredClusteringAlg {
 public:
-
   BlurredClusteringAlg(fhicl::ParameterSet const& pset);
   ~BlurredClusteringAlg();
 
@@ -53,41 +60,58 @@ public:
                              std::vector<art::PtrVector<recob::Hit>>& clusters) const;
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
-  std::vector<std::vector<double>> ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit>> const& hits);
+  std::vector<std::vector<double>> ConvertRecobHitsToVector(
+    std::vector<art::Ptr<recob::Hit>> const& hits,
+    int readoutWindowSize);
 
   /// Find clusters in the histogram
-  int FindClusters(std::vector<std::vector<double>> const& image, std::vector<std::vector<int>>& allcluster) const;
+  int FindClusters(std::vector<std::vector<double>> const& image,
+                   std::vector<std::vector<int>>& allcluster) const;
 
   /// Find the global wire position
   int GlobalWire(geo::WireID const& wireID) const;
 
   /// Applies Gaussian blur to image
-  std::vector<std::vector<double>> GaussianBlur(std::vector<std::vector<double>> const& image) const;
+  std::vector<std::vector<double>> GaussianBlur(
+    std::vector<std::vector<double>> const& image) const;
 
   /// Minimum size of cluster to save
-  unsigned int GetMinSize() const noexcept { return fMinSize; }
+  unsigned int
+  GetMinSize() const noexcept
+  {
+    return fMinSize;
+  }
 
   /// Converts a 2D vector in a histogram for the debug pdf
   TH2F* MakeHistogram(std::vector<std::vector<double>> const& image, TString name) const;
 
   /// Save the images for debugging
   /// This version takes the final clusters and overlays on the hit map
-  void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit>> const& allClusters, int pad, int tpc, int plane);
+  void SaveImage(TH2F* image,
+                 std::vector<art::PtrVector<recob::Hit>> const& allClusters,
+                 int pad,
+                 int tpc,
+                 int plane);
 
   /// Save the images for debugging
   void SaveImage(TH2F* image, int pad, int tpc, int plane);
 
   /// Save the images for debugging
   /// This version takes a vector of bins and overlays the relevant bins on the hit map
-  void SaveImage(TH2F* image, std::vector<std::vector<int>> const& allClusterBins, int pad, int tpc, int plane);
+  void SaveImage(TH2F* image,
+                 std::vector<std::vector<int>> const& allClusterBins,
+                 int pad,
+                 int tpc,
+                 int plane);
 
 private:
-
   /// Converts a vector of bins into a hit selection - not all the hits in the bins vector are real hits
-  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(std::vector<std::vector<double>> const& image, std::vector<int> const& bins) const;
+  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(std::vector<std::vector<double>> const& image,
+                                                    std::vector<int> const& bins) const;
 
   /// Converts a bin into a recob::Hit (not all of these bins correspond to recob::Hits - some are fake hits created by the blurring)
-  art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double>> const& image, int bin) const;
+  art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double>> const& image,
+                                            int bin) const;
 
   /// Converts an xbin and a ybin to a global bin number
   int ConvertWireTickToBin(std::vector<std::vector<double>> const& image, int xbin, int ybin) const;
@@ -118,19 +142,19 @@ private:
   std::string fDetector;
 
   // Parameters used in the Blurred Clustering algorithm
-  int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
-  int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
-  double       fSigmaWire;                // sigma for Gaussian kernel in the wire direction
-  double       fSigmaTick;                // sigma for Gaussian kernel in the tick direction
-  int          fMaxTickWidthBlur;         // maximum distance to blur a hit based on its natural width in time
-  int          fClusterWireDistance;      // how far to cluster from seed in wire direction
-  int          fClusterTickDistance;      // how far to cluster from seed in tick direction
-  unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
-  unsigned int fMinNeighbours;            // minumum number of neighbors to keep in the cluster
-  unsigned int fMinSize;                  // minimum size for cluster
-  double       fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
-  double       fTimeThreshold;            // time threshold for clustering
-  double       fChargeThreshold;          // charge threshold for clustering
+  int fBlurWire;            // blur radius for Gauss kernel in the wire direction
+  int fBlurTick;            // blur radius for Gauss kernel in the tick direction
+  double fSigmaWire;        // sigma for Gaussian kernel in the wire direction
+  double fSigmaTick;        // sigma for Gaussian kernel in the tick direction
+  int fMaxTickWidthBlur;    // maximum distance to blur a hit based on its natural width in time
+  int fClusterWireDistance; // how far to cluster from seed in wire direction
+  int fClusterTickDistance; // how far to cluster from seed in tick direction
+  unsigned int fNeighboursThreshold; // min. number of neighbors to add to cluster
+  unsigned int fMinNeighbours;       // minumum number of neighbors to keep in the cluster
+  unsigned int fMinSize;             // minimum size for cluster
+  double fMinSeed;         // minimum seed after blurring needed before clustering proceeds
+  double fTimeThreshold;   // time threshold for clustering
+  double fChargeThreshold; // charge threshold for clustering
 
   // Blurring stuff
   int fKernelWidth, fKernelHeight;
@@ -149,9 +173,8 @@ private:
 
   // art service handles
   art::ServiceHandle<geo::Geometry const> fGeom;
-  detinfo::DetectorProperties const* fDetProp;
-  lariov::ChannelStatusProvider const& fChanStatus{art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
-
+  lariov::ChannelStatusProvider const& fChanStatus{
+    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
 };
 
 #endif

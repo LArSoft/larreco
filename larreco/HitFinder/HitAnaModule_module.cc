@@ -30,7 +30,6 @@
 
 #include <string>
 
-#include "larcore/CoreUtils/ServiceUtil.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -140,20 +139,12 @@ hit::HitAnaModule::analyze(art::Event const& e)
 
   analysisAlg.ClearHitModules();
 
-  //get time service
-  const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
+  // get the data
+  auto const& wireVector = *e.getValidHandle<std::vector<recob::Wire>>(fWireModuleLabel);
+  auto const& mcHitVector = *e.getValidHandle<std::vector<sim::MCHitCollection>>(fMCHitModuleLabel);
 
-  //get the wire data
-  art::Handle<std::vector<recob::Wire>> wireHandle;
-  e.getByLabel(fWireModuleLabel, wireHandle);
-  std::vector<recob::Wire> const& wireVector(*wireHandle);
-
-  //get the MC hits
-  art::Handle<std::vector<sim::MCHitCollection>> mcHitHandle;
-  e.getByLabel(fMCHitModuleLabel, mcHitHandle);
-  std::vector<sim::MCHitCollection> const& mcHitVector(*mcHitHandle);
-
-  //make the association vector. First index is wire index, second is mcHitCollection index
+  // make the association vector. First index is wire index, second is
+  // mcHitCollection index
   std::vector<std::vector<int>> WireMCHitAssocVector;
   createMCAssocVector(wireVector, mcHitVector, WireMCHitAssocVector);
 
@@ -185,9 +176,12 @@ hit::HitAnaModule::analyze(art::Event const& e)
       *(hitHandles[iter]), WireHitAssocVectors[iter], fHitModuleLabels[iter]);
   }
 
-  //run the analzyer alg
+  // get time service
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+
+  // run the analzyer alg
   analysisAlg.AnalyzeWires(
-    wireVector, mcHitVector, WireMCHitAssocVector, ts, eventNumber, runNumber);
+    wireVector, mcHitVector, WireMCHitAssocVector, clock_data, eventNumber, runNumber);
 }
 
 void

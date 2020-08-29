@@ -9,34 +9,46 @@
 #ifndef ShowerEnergyAlg_hxx
 #define ShowerEnergyAlg_hxx
 
+#include <array>
+
 // Framework
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl { class ParameterSet; }
+#include "fhiclcpp/fwd.h"
 
 // larsoft
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
-namespace detinfo { class DetectorProperties; }
+namespace detinfo {
+  class DetectorClocks;
+  class DetectorProperties;
+}
 
 namespace shower {
   class ShowerEnergyAlg;
 }
 
 class shower::ShowerEnergyAlg {
- public:
+public:
+  explicit ShowerEnergyAlg(fhicl::ParameterSet const& pset);
 
-  ShowerEnergyAlg(fhicl::ParameterSet const& pset);
+  /// This overload is preferred as it does not rely on the cached
+  /// DetectorProperties data member.
+  double ShowerEnergy(detinfo::DetectorClocksData const& clockData,
+                      detinfo::DetectorPropertiesData const& detProp,
+                      std::vector<art::Ptr<recob::Hit>> const& hits,
+                      geo::PlaneID::PlaneID_t plane) const;
 
-  /// Finds the total energy deposited by the shower in this view
-  double ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane) const;
-
- private:
-
-  double fUGradient, fUIntercept;
-  double fVGradient, fVIntercept;
-  double fZGradient, fZIntercept;
-
-  detinfo::DetectorProperties const* detprop = nullptr;
-
+private:
+  struct LinearFunction {
+    double gradient;
+    double intercept;
+    double
+    energy_from(double const charge) const noexcept
+    {
+      return charge * gradient + intercept;
+    }
+  };
+  std::array<LinearFunction, 3> const fLinearFunctions;
 };
 
 #endif

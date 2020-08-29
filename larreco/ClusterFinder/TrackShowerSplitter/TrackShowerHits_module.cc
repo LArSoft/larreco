@@ -13,9 +13,10 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 #include "larreco/ClusterFinder/TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
 
@@ -23,162 +24,183 @@
 
 namespace tss {
 
-typedef std::map< unsigned int, std::vector< tss::Hit2D > > view_hitmap;
-typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
-typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
+  typedef std::map<unsigned int, std::vector<tss::Hit2D>> view_hitmap;
+  typedef std::map<unsigned int, view_hitmap> tpc_view_hitmap;
+  typedef std::map<unsigned int, tpc_view_hitmap> cryo_tpc_view_hitmap;
 
-class TrackShowerHits : public art::EDProducer {
-public:
-	explicit TrackShowerHits(fhicl::ParameterSet const & p);
+  class TrackShowerHits : public art::EDProducer {
+  public:
+    explicit TrackShowerHits(fhicl::ParameterSet const& p);
 
-	TrackShowerHits(TrackShowerHits const &) = delete;
-	TrackShowerHits(TrackShowerHits &&) = delete;
-	TrackShowerHits & operator = (TrackShowerHits const &) = delete;
-	TrackShowerHits & operator = (TrackShowerHits &&) = delete;
+    TrackShowerHits(TrackShowerHits const&) = delete;
+    TrackShowerHits(TrackShowerHits&&) = delete;
+    TrackShowerHits& operator=(TrackShowerHits const&) = delete;
+    TrackShowerHits& operator=(TrackShowerHits&&) = delete;
 
-private:
+  private:
+    void produce(art::Event& e) override;
 
-        void produce(art::Event & e) override;
+    cryo_tpc_view_hitmap fHitMap;
+    bool sortHits(const art::Event& evt);
 
-	cryo_tpc_view_hitmap fHitMap;
-	bool sortHits(const art::Event& evt);
+    art::ServiceHandle<geo::Geometry const> fGeom;
 
-	art::ServiceHandle<geo::Geometry const> fGeom;
+    bool fHugeShowers, fShowersBySeg2D;
 
-	bool fHugeShowers, fShowersBySeg2D;
+    tss::SimpleClustering fSimpleClustering;
+    tss::Segmentation2D fSegmentation2D;
 
-	tss::SimpleClustering fSimpleClustering;
-	tss::Segmentation2D fSegmentation2D;
+    std::string fHitModuleLabel;
+  };
+  // ------------------------------------------------------
 
-	std::string fHitModuleLabel;
+  TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const& p)
+    : EDProducer{p}, fSegmentation2D(p.get<fhicl::ParameterSet>("Segmentation2DAlg"))
+  {
+    fHitModuleLabel = p.get<std::string>("HitModuleLabel");
+    fHugeShowers = p.get<bool>("FindHugeShowers");
+    fShowersBySeg2D = p.get<bool>("FindMoreShowers");
 
-};
-// ------------------------------------------------------
+    produces<std::vector<recob::Cluster>>();
+    produces<art::Assns<recob::Cluster, recob::Hit>>();
+  }
+  // ------------------------------------------------------
 
-TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const & p) :
-        EDProducer{p},
-	fSegmentation2D(p.get< fhicl::ParameterSet >("Segmentation2DAlg"))
-{
-        fHitModuleLabel = p.get< std::string >("HitModuleLabel");
-        fHugeShowers = p.get< bool >("FindHugeShowers");
-        fShowersBySeg2D = p.get< bool >("FindMoreShowers");
+  bool
+  TrackShowerHits::sortHits(const art::Event& evt)
+  {
+    auto const detProp =
+      art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
+    fHitMap.clear();
 
-	produces< std::vector<recob::Cluster> >();
-	produces< art::Assns<recob::Cluster, recob::Hit> >();
-}
-// ------------------------------------------------------
+    art::Handle<std::vector<recob::Hit>> hitListHandle;
+    std::vector<art::Ptr<recob::Hit>> hitlist;
+    if (evt.getByLabel(fHitModuleLabel, hitListHandle)) {
+      art::fill_ptr_vector(hitlist, hitListHandle);
 
-bool TrackShowerHits::sortHits(const art::Event& evt)
-{
-	fHitMap.clear();
+      unsigned int cryo, tpc, view;
+      for (auto const& h : hitlist) {
+        cryo = h->WireID().Cryostat;
+        tpc = h->WireID().TPC;
+        view = h->WireID().Plane;
 
-	art::Handle< std::vector<recob::Hit> > hitListHandle;
-	std::vector< art::Ptr<recob::Hit> > hitlist;
-	if (evt.getByLabel(fHitModuleLabel, hitListHandle))
-	{
-		art::fill_ptr_vector(hitlist, hitListHandle);
+        fHitMap[cryo][tpc][view].emplace_back(detProp, h);
+      }
+      return true;
+    }
+    else
+      return false;
+  }
+  // ------------------------------------------------------
 
-		unsigned int cryo, tpc, view;
-		for (auto const& h : hitlist)
-		{
-			cryo = h->WireID().Cryostat;
-			tpc = h->WireID().TPC;
-			view = h->WireID().Plane;
+  void
+  TrackShowerHits::produce(art::Event& evt)
+  {
+    std::unique_ptr<std::vector<recob::Cluster>> clusters(new std::vector<recob::Cluster>);
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> clu2hit(
+      new art::Assns<recob::Cluster, recob::Hit>);
 
-			fHitMap[cryo][tpc][view].emplace_back(tss::Hit2D(h));
-		}
-		return true;
-	}
-	else return false;
-}
-// ------------------------------------------------------
+    if (sortHits(evt)) {
+      unsigned int cidx = 0;
+      const unsigned int emTag = 0x10000;
 
-void TrackShowerHits::produce(art::Event & evt)
-{
-	std::unique_ptr< std::vector< recob::Cluster > > clusters(new std::vector< recob::Cluster >);
-	std::unique_ptr< art::Assns< recob::Cluster, recob::Hit > > clu2hit(new art::Assns< recob::Cluster, recob::Hit >);
+      for (auto tpc_iter = fGeom->begin_TPC_id(); tpc_iter != fGeom->end_TPC_id(); tpc_iter++) {
+        for (const auto& v : fHitMap[tpc_iter->Cryostat][tpc_iter->TPC]) {
+          auto cls = fSimpleClustering.run(v.second);
 
-	if (sortHits(evt))
-	{
-		unsigned int cidx = 0;
-		const unsigned int emTag = 0x10000;
+          if (fHugeShowers) {
+            mf::LogVerbatim("TrackShowerHits") << "Find huge EM showers (cores).";
 
-		for (auto tpc_iter = fGeom->begin_TPC_id();
-		          tpc_iter != fGeom->end_TPC_id();
-		          tpc_iter++)
-		{
-			for (const auto & v : fHitMap[tpc_iter->Cryostat][tpc_iter->TPC])
-			{
-				auto cls = fSimpleClustering.run(v.second);
+            int c = 0, clsSize = cls.size();
+            while (c < clsSize) {
+              if (cls[c].hits().size() < 2) {
+                c++;
+                continue;
+              }
 
-				if (fHugeShowers)
-				{
-					mf::LogVerbatim("TrackShowerHits") << "Find huge EM showers (cores).";
+              std::vector<const tss::Hit2D*> trks, ems;
+              fSegmentation2D.splitHitsNaive(cls[c], trks, ems);
+              cls.erase(cls.begin() + c);
+              clsSize--;
 
-					int c = 0, clsSize = cls.size();
-					while (c < clsSize)
-					{
-						if (cls[c].hits().size() < 2) { c++; continue; }
+              cls.emplace_back(Cluster2D(trks));
+              cls.emplace_back(Cluster2D(ems));
+              cls.back().tagEM(true);
+            }
+          }
 
-						std::vector< const tss::Hit2D* > trks, ems;
-						fSegmentation2D.splitHitsNaive(cls[c], trks, ems);
-						cls.erase(cls.begin() + c);
-						clsSize--;
+          if (fShowersBySeg2D) {
+            mf::LogVerbatim("TrackShowerHits") << "Find EM showers by density of vtxs.";
 
-						cls.emplace_back(Cluster2D(trks));
-						cls.emplace_back(Cluster2D(ems));
-						cls.back().tagEM(true);
-					}
-				}
+            int c = 0, clsSize = cls.size();
+            while (c < clsSize) {
+              if (cls[c].isEM() || (cls[c].hits().size() < 2)) {
+                c++;
+                continue;
+              }
 
-				if (fShowersBySeg2D)
-				{
-					mf::LogVerbatim("TrackShowerHits") << "Find EM showers by density of vtxs.";
+              auto segs = fSegmentation2D.run(cls[c]);
 
-					int c = 0, clsSize = cls.size();
-					while (c < clsSize)
-					{
-						if (cls[c].isEM() || (cls[c].hits().size() < 2)) { c++; continue; }
+              for (const auto& s : segs)
+                cls.emplace_back(Cluster2D(s));
 
-						auto segs = fSegmentation2D.run(cls[c]);
+              cls.erase(cls.begin() + c);
+              clsSize--;
+            }
+          }
 
-						for (const auto & s : segs) cls.emplace_back(Cluster2D(s));
+          for (auto& c : cls) {
+            if (!c.hits().size()) continue; // skip 0-size clusters
 
-						cls.erase(cls.begin() + c);
-						clsSize--;
-					}
-				}
+            if (!c.isEM()) continue; // create clusters only for em parts now
 
-				for (auto & c : cls)
-				{
-					if (!c.hits().size()) continue; // skip 0-size clusters
+            clusters->emplace_back(
+              recob::Cluster(0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             0.0F,
+                             c.hits().size(),
+                             0.0F,
+                             0.0F,
+                             cidx + emTag,
+                             (geo::View_t)c.hits().front()->View(),
+                             c.hits().front()->Hit2DPtr()->WireID().planeID()));
 
-					if (!c.isEM()) continue; // create clusters only for em parts now
+            std::vector<art::Ptr<recob::Hit>> hits2d;
+            hits2d.reserve(c.hits().size());
 
-					clusters->emplace_back(
-						recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-							c.hits().size(), 0.0F, 0.0F, cidx + emTag, (geo::View_t)c.hits().front()->View(), c.hits().front()->Hit2DPtr()->WireID().planeID()));
+            for (auto h2d : c.hits())
+              hits2d.push_back(h2d->Hit2DPtr());
 
-					std::vector< art::Ptr< recob::Hit > > hits2d;
-					hits2d.reserve(c.hits().size());
+            if (hits2d.size()) util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
 
-					for (auto h2d : c.hits()) hits2d.push_back(h2d->Hit2DPtr());
+            ++cidx;
+          }
+        }
+      }
+    }
+    else
+      mf::LogWarning("TrackShowerHits") << "Hits not found in the event.";
 
-					if (hits2d.size()) util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
+    evt.put(std::move(clusters));
+    evt.put(std::move(clu2hit));
+  }
+  // ------------------------------------------------------
 
-					++cidx;
-				}
-			}
-		}
-
-	}
-	else mf::LogWarning("TrackShowerHits") << "Hits not found in the event.";
-
-	evt.put(std::move(clusters));
-	evt.put(std::move(clu2hit));
-}
-// ------------------------------------------------------
-
-DEFINE_ART_MODULE(TrackShowerHits)
+  DEFINE_ART_MODULE(TrackShowerHits)
 
 }

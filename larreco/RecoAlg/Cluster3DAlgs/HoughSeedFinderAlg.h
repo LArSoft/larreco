@@ -12,60 +12,49 @@
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
-namespace geo { class Geometry; }
+#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
+namespace geo {
+  class Geometry;
+}
 
 // ROOT includes
-class TCanvas;
+#include "TCanvas.h"
 class TFrame;
 class TVector3;
 class TVirtualPad;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
+namespace lar_cluster3d {
 
-/**
+  /**
  *  @brief  HoughSeedFinderAlg class
  */
-class HoughSeedFinderAlg : virtual public SeedFinderAlgBase
-{
-public:
+  class HoughSeedFinderAlg : public SeedFinderAlgBase {
+  public:
     /**
      *  @brief  Constructor
      *
      *  @param  pset
      */
-    HoughSeedFinderAlg(fhicl::ParameterSet const &pset);
-
-    /**
-     *  @brief  Destructor
-     */
-    virtual ~HoughSeedFinderAlg();
-
-    /**
-     *  @brief a handler for the case where the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const &pset);
+    HoughSeedFinderAlg(fhicl::ParameterSet const& pset);
 
     /**
      *  @brief Given the list of hits this will search for candidate Seed objects and return them
      */
-    virtual bool findTrackSeeds(reco::HitPairListPtr&      hitPairListPtr,
-                                reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec&    seedHitPairVec) const;
+    bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
+                        reco::PrincipalComponents& inputPCA,
+                        SeedHitPairListPairVec& seedHitPairVec) const override;
 
     /**
      *  @brief Given the list of hits this will return the sets of hits which belong on the same line
      */
-    virtual bool findTrackHits(reco::HitPairListPtr&      hitPairListPtr,
-                               reco::PrincipalComponents& inputPCA,
-                               reco::HitPairListPtrList&  hitPairListPtrList) const;
+    bool findTrackHits(reco::HitPairListPtr& hitPairListPtr,
+                       reco::PrincipalComponents& inputPCA,
+                       reco::HitPairListPtrList& hitPairListPtrList) const;
 
-private:
-
+  private:
     /**
      *  @brief Using Principal Components Axis, look for gaps in a list of 3D hits
      *
@@ -79,59 +68,64 @@ private:
      *  @brief Forward declaration of some of the objects necessary for hough transform
      */
 
-    class  AccumulatorBin;
-    class  SortHoughClusterList;
+    class AccumulatorBin;
+    class SortHoughClusterList;
     struct SortBinIndexList;
 
     // Basic structure for holding our accumlator bins (to avoid a full array)
     // structure will be rho bin for first key, theta bin for second key
-    typedef std::pair<int, int>                BinIndex;
+    typedef std::pair<int, int> BinIndex;
     typedef std::map<BinIndex, AccumulatorBin> RhoThetaAccumulatorBinMap;
-    typedef std::list<BinIndex>                HoughCluster;
-    typedef std::list<HoughCluster >           HoughClusterList;
+    typedef std::list<BinIndex> HoughCluster;
+    typedef std::list<HoughCluster> HoughClusterList;
 
-    void HoughRegionQuery(BinIndex& curBin, RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap, HoughCluster& neighborPts, size_t threshold) const;
+    void HoughRegionQuery(BinIndex& curBin,
+                          RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
+                          HoughCluster& neighborPts,
+                          size_t threshold) const;
 
-    void expandHoughCluster(BinIndex&                  curBin,
-                            HoughCluster&              neighborPts,
-                            HoughCluster&              houghCluster,
+    void expandHoughCluster(BinIndex& curBin,
+                            HoughCluster& neighborPts,
+                            HoughCluster& houghCluster,
                             RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
-                            size_t                     threshold) const;
+                            size_t threshold) const;
 
     void findHoughClusters(const reco::HitPairListPtr& inputHits,
-                           reco::PrincipalComponents&  pca,
-                           int&                        nLoops,
-                           RhoThetaAccumulatorBinMap&  rhoThetaMap,
-                           HoughClusterList&           clusterList) const;
+                           reco::PrincipalComponents& pca,
+                           int& nLoops,
+                           RhoThetaAccumulatorBinMap& rhoThetaMap,
+                           HoughClusterList& clusterList) const;
 
     /**
      *  @brief Given a list of candidate "seed" 3D hits, build the seed and get associated unique 2D hits
      */
     bool buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPairListPair& seedHitPair) const;
 
-    void LineFit2DHits(std::set<const reco::ClusterHit2D*>& hitList, double XOrigin, TVector3& Pos, TVector3& Dir, double& ChiDOF) const;
+    void LineFit2DHits(std::set<const reco::ClusterHit2D*>& hitList,
+                       double XOrigin,
+                       TVector3& Pos,
+                       TVector3& Dir,
+                       double& ChiDOF) const;
 
-    size_t                                         m_minimum3DHits;      ///<
-    int                                            m_thetaBins;          ///<
-    int                                            m_rhoBins;            ///<
-    size_t                                         m_hiThresholdMin;     ///<
-    double                                         m_hiThresholdFrac;    ///<
-    double                                         m_loThresholdFrac;    ///<
-    size_t                                         m_numSeed2DHits;      ///<
-    double                                         m_numAveDocas;        ///<
-    int                                            m_numSkippedHits;     ///<
-    int                                            m_maxLoopsPerCluster; ///<
-    double                                         m_maximumGap;         ///<
+    size_t m_minimum3DHits;   ///<
+    int m_thetaBins;          ///<
+    int m_rhoBins;            ///<
+    size_t m_hiThresholdMin;  ///<
+    double m_hiThresholdFrac; ///<
+    double m_loThresholdFrac; ///<
+    size_t m_numSeed2DHits;   ///<
+    double m_numAveDocas;     ///<
+    int m_numSkippedHits;     ///<
+    int m_maxLoopsPerCluster; ///<
+    double m_maximumGap;      ///<
 
-    geo::Geometry const*                           m_geometry;           // pointer to the Geometry service
-    //    const detinfo::DetectorProperties*            m_detector;           // Pointer to the detector properties
+    geo::Geometry const* m_geometry; // pointer to the Geometry service
+    PrincipalComponentsAlg m_pcaAlg; // For running Principal Components Analysis
 
-    PrincipalComponentsAlg                         m_pcaAlg;             // For running Principal Components Analysis
-
-    bool                                           m_displayHist;
-    mutable std::vector<std::unique_ptr<TCanvas> > m_Canvases;           ///< Graphical trace canvases.
-    mutable std::vector<TVirtualPad*>              m_Pads;               ///< View pads in current canvas.
-};
+    bool m_displayHist;
+    mutable std::vector<std::unique_ptr<TCanvas>> m_Canvases; ///< Graphical trace canvases.
+    mutable std::vector<TVirtualPad*> m_Pads;                 ///< View pads in current canvas.
+  };
 
 } // namespace lar_cluster3d
 #endif

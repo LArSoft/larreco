@@ -19,8 +19,8 @@
 //  Vision and Applications 3, 87 (1990)
 ////////////////////////////////////////////////////////////////////////
 
-#include <string>
 #include <iomanip>
+#include <string>
 
 // art includes
 #include "art/Framework/Core/EDProducer.h"
@@ -35,9 +35,9 @@
 #include "nurandom/RandomUtils/NuRandomService.h"
 
 // LArSoft includes
+#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/HoughBaseAlg.h"
 
 namespace cluster {
@@ -51,33 +51,29 @@ namespace cluster {
 
     std::string fDBScanModuleLabel;
     unsigned int fHoughSeed;
-    HoughBaseAlg fHLAlg;            ///< object that does the Hough Transform
+    HoughBaseAlg fHLAlg; ///< object that does the Hough Transform
     CLHEP::HepRandomEngine& fEngine;
   };
-
-}
-
-namespace cluster {
 
   //------------------------------------------------------------------------------
   HoughLineFinder::HoughLineFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
-    , fDBScanModuleLabel{pset.get< std::string >("DBScanModuleLabel")}
-    , fHoughSeed{pset.get< unsigned int >("HoughSeed", 0)}
-    , fHLAlg(pset.get< fhicl::ParameterSet >("HoughBaseAlg"))
+    , fDBScanModuleLabel{pset.get<std::string>("DBScanModuleLabel")}
+    , fHoughSeed{pset.get<unsigned int>("HoughSeed", 0)}
+    , fHLAlg(pset.get<fhicl::ParameterSet>("HoughBaseAlg"))
     // Create random number engine needed for PPHT;
     // obtain the random seed from NuRandomService,
     // unless overridden in configuration with key "Seed"
     // remember that HoughSeed will override this on each event if specified
-    , fEngine(art::ServiceHandle<rndm::NuRandomService>{}
-              ->createEngine(*this, pset, "Seed"))
+    , fEngine(art::ServiceHandle<rndm::NuRandomService> {}->createEngine(*this, pset, "Seed"))
   {
-    produces< std::vector<recob::Cluster> >();
-    produces< art::Assns<recob::Cluster, recob::Hit> >();
+    produces<std::vector<recob::Cluster>>();
+    produces<art::Assns<recob::Cluster, recob::Hit>>();
   }
 
   //------------------------------------------------------------------------------
-  void HoughLineFinder::produce(art::Event& evt)
+  void
+  HoughLineFinder::produce(art::Event& evt)
   {
     //////////////////////////////////////////////////////
     // here is how to get a collection of objects out of the file
@@ -102,19 +98,16 @@ namespace cluster {
 
     // If a nonzero random number seed has been provided,
     // overwrite the seed already initialized
-    if(fHoughSeed != 0){
-      fEngine.setSeed(fHoughSeed,0);
-    }
+    if (fHoughSeed != 0) { fEngine.setSeed(fHoughSeed, 0); }
 
-    size_t const numclus = fHLAlg.FastTransform(clusIn, *ccol, clusHitsOut, fEngine, evt, fDBScanModuleLabel);
-
+    size_t const numclus =
+      fHLAlg.FastTransform(clusIn, *ccol, clusHitsOut, fEngine, evt, fDBScanModuleLabel);
 
     MF_LOG_DEBUG("HoughLineClusters") << "found " << numclus << "clusters with HoughBaseAlg";
 
-
     mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     mf::LogVerbatim("Summary") << "HoughLineFinder Summary:";
-    for(size_t i = 0; i < ccol->size(); ++i){
+    for (size_t i = 0; i < ccol->size(); ++i) {
       mf::LogVerbatim("Summary") << ccol->at(i);
 
       // associate the hits to this cluster

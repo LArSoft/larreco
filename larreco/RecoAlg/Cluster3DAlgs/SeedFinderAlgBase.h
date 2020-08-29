@@ -17,59 +17,49 @@
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
-typedef std::pair<recob::Seed, reco::HitPairListPtr> SeedHitPairListPair;
-typedef std::vector<SeedHitPairListPair >            SeedHitPairListPairVec;
+namespace lar_cluster3d {
+  typedef std::pair<recob::Seed, reco::HitPairListPtr> SeedHitPairListPair;
+  typedef std::vector<SeedHitPairListPair> SeedHitPairListPairVec;
 
-/**
+  /**
  *  @brief  SeedFinderAlgBase class
  */
-class SeedFinderAlgBase
-{
-public:
-    /**
-     *  @brief Require that a handler is definied in case the algorithm control parameters are to be reset
-     */
-    virtual void reconfigure(fhicl::ParameterSet const &pset) = 0;
-
+  class SeedFinderAlgBase {
+  public:
     /**
      *  @brief Define the interface to take an input list of 3D hits and return seed candidates
      *         so hits are ordered along the axis
      */
-    virtual bool findTrackSeeds(reco::HitPairListPtr&       hitPairListPtr,
-                                reco::PrincipalComponents&  inputPCA,
-                                SeedHitPairListPairVec&     seedHitPairVec) const = 0;
+    virtual bool findTrackSeeds(reco::HitPairListPtr& hitPairListPtr,
+                                reco::PrincipalComponents& inputPCA,
+                                SeedHitPairListPairVec& seedHitPairVec) const = 0;
 
-protected:
-
+  protected:
     /**
      *  @brief Define a comparator which will sort hits by arc length along a PCA axis
      */
-    struct Sort3DHitsByArcLen3D
-    {
-        bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
-        {
-            return left->getArclenToPoca() < right->getArclenToPoca();
-        }
-
+    struct Sort3DHitsByArcLen3D {
+      bool
+      operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+      {
+        return left->getArclenToPoca() < right->getArclenToPoca();
+      }
     };
 
     /**
      *  @brief Define a comparator which will sort hits by the absolute value of arc length
      *         so hits are ordered closed to PCA origin to furthest
      */
-    struct Sort3DHitsByAbsArcLen3D
-    {
-        bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
-        {
-            return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
-        }
-
+    struct Sort3DHitsByAbsArcLen3D {
+      bool
+      operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+      {
+        return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
+      }
     };
 
-private:
-};
+  private:
+  };
 
 } // namespace lar_cluster3d
 #endif

@@ -15,12 +15,16 @@
 #define CLUSTERPARAMSALGBASE_H
 
 // C/C++ standard libraries
+#include <algorithm> // std::transform()
 #include <stdexcept> // std::logic_error
 #include <vector>
-#include <algorithm> // std::transform()
 
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
+
+namespace util {
+  class GeometryUtilities;
+}
 
 /// Cluster reconstruction namespace
 namespace cluster {
@@ -30,29 +34,45 @@ namespace cluster {
 
     /// Type for a simple measurement: value and error
     template <typename T>
-    class Measure_t: public std::pair<T, T> {
+    class Measure_t : public std::pair<T, T> {
       using Base_t = std::pair<T, T>;
-        public:
+
+    public:
       using Data_t = T;
 
       /// Default constructor: initializes to 0
-      Measure_t(): Base_t(Data_t(0), Data_t(0)) {}
+      Measure_t() : Base_t(Data_t(0), Data_t(0)) {}
 
       /// Constructor: initializes to the specified value, error is 0
-      Measure_t(Data_t value): Base_t(value, Data_t(0)) {}
+      Measure_t(Data_t value) : Base_t(value, Data_t(0)) {}
 
       /// Constructor: initializes to the specified value and error
-      Measure_t(Data_t value, Data_t error): Base_t(value, error) {}
+      Measure_t(Data_t value, Data_t error) : Base_t(value, error) {}
 
-      Data_t value() const { return Base_t::first; }
-      Data_t& value() { return Base_t::first; }
+      Data_t
+      value() const
+      {
+        return Base_t::first;
+      }
+      Data_t&
+      value()
+      {
+        return Base_t::first;
+      }
 
-      Data_t error() const { return Base_t::second; }
-      Data_t& error() { return Base_t::second; }
+      Data_t
+      error() const
+      {
+        return Base_t::second;
+      }
+      Data_t&
+      error()
+      {
+        return Base_t::second;
+      }
     }; // Measure_t
 
   } // namespace details
-
 
   /**
    * @brief Algorithm collection class computing cluster parameters
@@ -78,16 +98,11 @@ namespace cluster {
    *
    */
   class ClusterParamsAlgBase {
-      public:
-
+  public:
     /// Type used to return values with errors
     using Measure_t = details::Measure_t<float>;
 
-    // no constructor provided for the abstract class
-
-    /// Virtual destructor. Override freely.
-    virtual ~ClusterParamsAlgBase() {}
-
+    virtual ~ClusterParamsAlgBase() = default;
 
     /**
      * @brief Restores the class to post-configuration, pre-initialization state
@@ -95,8 +110,9 @@ namespace cluster {
      * This function is expected to be called before SetHits(), and the
      * implementation might call it in SetHits() itself.
      */
-    virtual void Clear() {}
-
+    virtual void
+    Clear()
+    {}
 
     /**
      * @brief Sets the list of input hits
@@ -115,7 +131,8 @@ namespace cluster {
      * This is left to the implementation, that might still implement a
      * different strategy.
      */
-    virtual void SetHits(std::vector<recob::Hit const*> const& hits) = 0;
+    virtual void SetHits(util::GeometryUtilities const& gser,
+                         std::vector<recob::Hit const*> const& hits) = 0;
 
     /**
      * @brief Sets the list of input hits
@@ -134,27 +151,40 @@ namespace cluster {
      * If an implementation is concerned with efficiency, it can reimplement
      * this to initialize the algorithm in a more direct way.
      */
-    virtual void SetHits(std::vector<recob::Hit> const& hits)
-      {
-        std::vector<recob::Hit const*> hitptrs;
-        hitptrs.reserve(hits.size());
-        std::transform(hits.begin(), hits.end(), std::back_inserter(hitptrs),
-          [] (recob::Hit const& hit) { return &hit; });
-        SetHits(hitptrs);
-      }
-
+    virtual void
+    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits)
+    {
+      std::vector<recob::Hit const*> hitptrs;
+      hitptrs.reserve(hits.size());
+      std::transform(hits.begin(),
+                     hits.end(),
+                     std::back_inserter(hitptrs),
+                     [](recob::Hit const& hit) { return &hit; });
+      SetHits(gser, hitptrs);
+    }
 
     /// Set the verbosity level
-    virtual void SetVerbose(int level = 1) { verbose = level; }
-
+    virtual void
+    SetVerbose(int level = 1)
+    {
+      verbose = level;
+    }
 
     //@{
     /**
      * @brief Computes the charge on the first and last wire of the track
      * @return the charge in ADC counts, with uncertainty
      */
-    virtual Measure_t StartCharge()       { throw NotImplemented(__func__); }
-    virtual Measure_t EndCharge()         { throw NotImplemented(__func__); }
+    virtual Measure_t
+    StartCharge(util::GeometryUtilities const& gser)
+    {
+      throw NotImplemented(__func__);
+    }
+    virtual Measure_t
+    EndCharge(util::GeometryUtilities const& gser)
+    {
+      throw NotImplemented(__func__);
+    }
     //@}
 
     //@{
@@ -162,8 +192,16 @@ namespace cluster {
      * @brief Computes the angle at the start or end of the cluster
      * @return angle at the start of the cluster, in radians
      */
-    virtual Measure_t StartAngle()        { throw NotImplemented(__func__); }
-    virtual Measure_t EndAngle()          { throw NotImplemented(__func__); }
+    virtual Measure_t
+    StartAngle()
+    {
+      throw NotImplemented(__func__);
+    }
+    virtual Measure_t
+    EndAngle()
+    {
+      throw NotImplemented(__func__);
+    }
     //@}
 
     //@{
@@ -171,10 +209,17 @@ namespace cluster {
      * @brief Computes the opening angle at the start or end of the cluster
      * @return angle at the start of the cluster, in radians
      */
-    virtual Measure_t StartOpeningAngle() { throw NotImplemented(__func__); }
-    virtual Measure_t EndOpeningAngle()   { throw NotImplemented(__func__); }
+    virtual Measure_t
+    StartOpeningAngle()
+    {
+      throw NotImplemented(__func__);
+    }
+    virtual Measure_t
+    EndOpeningAngle()
+    {
+      throw NotImplemented(__func__);
+    }
     //@}
-
 
     /// @name Cluster charge
     /// @{
@@ -183,7 +228,11 @@ namespace cluster {
      * @return total charge of the cluster, in ADC count units
      * @see IntegralStdDev(), SummedADC()
      */
-    virtual Measure_t Integral()          { throw NotImplemented(__func__); }
+    virtual Measure_t
+    Integral()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -192,14 +241,22 @@ namespace cluster {
      *
      * Hit charge is obtained by recob::Hit::Integral().
      */
-    virtual Measure_t IntegralStdDev()    { throw NotImplemented(__func__); }
+    virtual Measure_t
+    IntegralStdDev()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /**
      * @brief Computes the total charge of the cluster from Hit::SummedADC()
      * @return total charge of the cluster, in ADC count units
      * @see SummedADCStdDev(), Integral()
      */
-    virtual Measure_t SummedADC()         { throw NotImplemented(__func__); }
+    virtual Measure_t
+    SummedADC()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -208,14 +265,20 @@ namespace cluster {
      *
      * Hit charge is obtained by recob::Hit::SummedADC().
      */
-    virtual Measure_t SummedADCStdDev()   { throw NotImplemented(__func__); }
+    virtual Measure_t
+    SummedADCStdDev()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /// @}
 
-
     /// Returns the number of hits in the cluster
-    virtual size_t NHits()                { throw NotImplemented(__func__); }
-
+    virtual size_t
+    NHits()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
@@ -226,22 +289,31 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitDensity()      { throw NotImplemented(__func__); }
+    virtual float
+    MultipleHitDensity()
+    {
+      throw NotImplemented(__func__);
+    }
 
     /**
      * @brief Computes the width of the cluster
      * @return width of the cluster
      *
      */
-    virtual float Width()                 { throw NotImplemented(__func__); }
+    virtual float
+    Width(util::GeometryUtilities const&)
+    {
+      throw NotImplemented(__func__);
+    }
 
-
-      protected:
-
+  protected:
     int verbose = 0; ///< verbosity level: 0 is normal, negative is even quieter
 
-    static std::logic_error NotImplemented(std::string function_name)
-      { return std::logic_error(function_name + "() not implemented."); }
+    static std::logic_error
+    NotImplemented(std::string function_name)
+    {
+      return std::logic_error(function_name + "() not implemented.");
+    }
 
   }; //class ClusterParamsAlgBase
 
