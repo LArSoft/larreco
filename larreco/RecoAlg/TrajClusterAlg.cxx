@@ -1273,7 +1273,7 @@ namespace tca {
 
   /////////////////////////////////////////
   void
-  TrajClusterAlg::FinishEvent()
+  TrajClusterAlg::FinishEvent(detinfo::DetectorPropertiesData const& detProp)
   {
     // final steps that involve correlations between slices
     // Stitch PFParticles between TPCs
@@ -1301,8 +1301,8 @@ namespace tca {
 
     StitchPFPs();
     // Ensure that all PFParticles have a start vertex
-    for (auto& slc : slices)
-      PFPVertexCheck(slc);
+    for (auto& slc : slices) PFPVertexCheck(slc);
+    if(tcc.dbgSummary) PrintAll(detProp, "Fin");
   } // FinishEvent
 
   /////////////////////////////////////////

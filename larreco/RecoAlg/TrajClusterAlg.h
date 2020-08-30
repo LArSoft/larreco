@@ -63,7 +63,7 @@ namespace tca {
     void MakeTrackFromPFP(const tca::PFPStruct& pfp, const std::vector<unsigned int>& newHitIndex,
                           recob::Track& trk, std::vector<unsigned int>& trkHits);
 
-    void FinishEvent();
+    void FinishEvent(detinfo::DetectorPropertiesData const& detProp);
 
     void DefineShTree(TTree* t);
 

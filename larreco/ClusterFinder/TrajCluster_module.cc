@@ -375,7 +375,7 @@ namespace cluster {
         } // isl
       }   // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
-      fTCAlg.FinishEvent();
+      fTCAlg.FinishEvent(detProp);
 //      if (tca::tcc.dbgSummary) tca::PrintAll(detProp, "TCM");
     } // nInputHits > 0
 
@@ -783,18 +783,20 @@ namespace cluster {
           recob::Track trk;
           std::vector<unsigned int> trkHits;
           fTCAlg.MakeTrackFromPFP(pfp, newIndex, trk, trkHits);
-          trkCol.push_back(trk);
-          // Track -> PFParticle
-          if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
-          } // fail
-          // Track -> Hit + meta data assn
-          for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
-            recob::TrackHitMeta metadata(iht,-1);
-            if(!util::CreateAssnD(*this, evt, *trk_hit_meta_assn, trkCol.size()-1, trkHits[iht], metadata)) {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hits with Track";
-            }
-          } // iht
+          if(!trkHits.empty()) {
+            trkCol.push_back(trk);
+            // Track -> PFParticle
+            if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
+                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
+            } // fail
+            // Track -> Hit + meta data assn
+            for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
+              recob::TrackHitMeta metadata(iht,-1);
+              if(!util::CreateAssnD(*this, evt, *trk_hit_meta_assn, trkCol.size()-1, trkHits[iht], metadata)) {
+                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hits with Track";
+              }
+            } // iht
+          } // !trkHits.empty()
 
           if(fMakeSpacePoints) {
             std::vector<recob::SpacePoint> spts;
