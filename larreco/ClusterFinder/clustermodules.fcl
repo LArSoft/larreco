@@ -15,6 +15,8 @@ standard_trajcluster:
   HitModuleLabel:           "gaushit"
   SpacePointModuleLabel:    "NA"
   SpacePointHitAssnLabel:    "hitpdune"
+  MakeTracks: true
+  MakeTrackSpacePoints: true
 } # standard_trajcluster
 
 standard_blurredcluster:

@@ -80,7 +80,8 @@ namespace cluster {
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
     bool fSaveAll2DVertices;
-    bool fMakeSpacePoints;
+    bool fMakeTracks;
+    bool fMakeTrackSpacePoints;
     unsigned int fEventsProcessed;
     unsigned int fNumTracks;
     unsigned int fNumClusters;
@@ -154,8 +155,10 @@ namespace cluster {
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns", true);
     fSaveAll2DVertices = false;
     if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
-    fMakeSpacePoints = false;
-    if(pset.has_key("MakeSpacePoints")) fMakeSpacePoints = pset.get<bool>("MakeSpacePoints");
+    fMakeTrackSpacePoints = true;
+    if(pset.has_key("MakeTrackSpacePoints")) fMakeTrackSpacePoints = pset.get<bool>("MakeTrackSpacePoints");
+    fMakeTracks = true;
+    if(pset.has_key("MakeTracks")) fMakeTracks = pset.get<bool>("MakeTracks");
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -780,41 +783,42 @@ namespace cluster {
             } // valid shwIndex
           } // pfp -> Shower
           // PFParticle -> Track (after making the track)
-          recob::Track trk;
-          std::vector<unsigned int> trkHits;
-          fTCAlg.MakeTrackFromPFP(pfp, newIndex, trk, trkHits);
-          if(!trkHits.empty()) {
-            trkCol.push_back(trk);
-            // Track -> PFParticle
-            if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
-                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
-            } // fail
-            // Track -> Hit + meta data assn
-            for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
-              recob::TrackHitMeta metadata(iht,-1);
-              if(!util::CreateAssnD(*this, evt, *trk_hit_meta_assn, trkCol.size()-1, trkHits[iht], metadata)) {
-                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hits with Track";
-              }
-            } // iht
-          } // !trkHits.empty()
-
-          if(fMakeSpacePoints) {
-            std::vector<recob::SpacePoint> spts;
-            // each SpacePoint is associated with one hit
-            std::vector<unsigned int> sptsHit;
-            fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
-            for(unsigned int isp = 0; isp < spts.size(); ++isp) {
-              sptCol.push_back(spts[isp]);
-            // PFParticle -> SpacePoint
-            if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate SpacePoint with Track";
-            } // exception
-              // SpacePoint -> Hit
-              if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
-                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hit with SpacePoint";
+          if(fMakeTracks) {
+            recob::Track trk;
+            std::vector<unsigned int> trkHits;
+            fTCAlg.MakeTrackFromPFP(pfp, newIndex, trk, trkHits);
+            if(!trkHits.empty()) {
+              trkCol.push_back(trk);
+              // Track -> PFParticle
+              if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
+                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
+              } // fail
+              // Track -> Hit + meta data assn
+              for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
+                recob::TrackHitMeta metadata(iht,-1);
+                if(!util::CreateAssnD(*this, evt, *trk_hit_meta_assn, trkCol.size()-1, trkHits[iht], metadata)) {
+                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hits with Track";
+                }
+              } // iht
+            } // !trkHits.empty()
+            if(fMakeTrackSpacePoints) {
+              std::vector<recob::SpacePoint> spts;
+              // each SpacePoint is associated with one hit
+              std::vector<unsigned int> sptsHit;
+              fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
+              for(unsigned int isp = 0; isp < spts.size(); ++isp) {
+                sptCol.push_back(spts[isp]);
+              // PFParticle -> SpacePoint
+              if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
+                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate SpacePoint with Track";
               } // exception
-            } // isp
-          } // fMakeSpacePoints
+                // SpacePoint -> Hit
+                if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
+                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hit with SpacePoint";
+                } // exception
+              } // isp
+            } // fMakeTrackSpacePoints
+          } // fMakeTracks
 
           // PFParticle cosmic tag
           if (tca::tcc.modes[tca::kTagCosmics]) {
