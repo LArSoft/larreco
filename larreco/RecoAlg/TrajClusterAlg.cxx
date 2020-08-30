@@ -38,6 +38,7 @@ namespace tca {
     short userMode = 1;
     if (pset.has_key("Mode")) userMode = pset.get<short>("Mode");
     if (userMode < 0) tcc.modes[kStepDir] = false;
+    tcc.doForecast = true;
     if (pset.has_key("DoForecast")) tcc.doForecast = pset.get<bool>("DoForecast");
     if (pset.has_key("UseChannelStatus")) tcc.useChannelStatus = pset.get<bool>("UseChannelStatus");
     if (pset.has_key("StudyMode")) {
