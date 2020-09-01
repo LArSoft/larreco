@@ -769,7 +769,7 @@ namespace tca {
     if (tcc.JTMaxHitSep2 <= 0) return;
     if (!tcc.useAlg[kJunkTj]) return;
     unsigned short plane = DecodeCTP(inCTP).Plane;
-    if (slc.lastWire[plane] - 3 < slc.firstWire[plane]) return;
+    if ((int)slc.lastWire[plane] - 3 < (int)slc.firstWire[plane]) return;
 
     // shouldn't have to do this but...
     for (auto& slHit : slc.slHits)
@@ -1365,31 +1365,34 @@ namespace tca {
 
     for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
       auto& tp3d = pfp.TP3Ds[pt];
+      if(tp3d.TPIndex >= (*evt.allHits).size()) {
+        std::cout<<"Invalid TPIndex\n";
+        continue;
+      }
       // construct the flag
       unsigned int nhi = UINT_MAX;
       auto mask = recob::TrajectoryPointFlags::makeMask();
-      if(tp3d.TPIndex == USHRT_MAX) {
-        // There is no TP3D -> hit assn for the Start and End TP3D 
-        // but there is no flag that captures this condition. The closest is HitIgnored
-        mask.set(recob::TrajectoryPointFlagTraits::HitIgnored);
-      } else {
-        auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-          if(newHitIndex[ahi] == UINT_MAX) continue;
-          nhi = newHitIndex[ahi];
-          break;
-        } // ii
-        // Map the Track flag bits from the TP Environment bitset
-        for(unsigned short ib = 0; ib < 8; ++ib) {
-          if(!tp.Environment[ib]) continue;
-          if(ib == kEnvOverlap) mask.set(recob::TrajectoryPointFlagTraits::Shared);
-          if(ib == kEnvNotGoodWire) mask.set(recob::TrajectoryPointFlagTraits::DetectorIssue);
-          // Not all hits in the multiplet were used in the TP
-          if(ib == kEnvUnusedHits) mask.set(recob::TrajectoryPointFlagTraits::Suspicious);
-        } // ib
-      } // tp3d.TPIndex != USHRT_MAX
+
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+        if(newHitIndex[ahi] == UINT_MAX) continue;
+        nhi = newHitIndex[ahi];
+        break;
+      } // ii
+      if(nhi == UINT_MAX) {
+        std::cout<<"Invalid nhi in T"<<tp3d.TjID<<" "<<tp3d.TPIndex<<"\n";
+        continue;
+      }
+      // Map the Track flag bits from the TP Environment bitset
+      for(unsigned short ib = 0; ib < 8; ++ib) {
+        if(!tp.Environment[ib]) continue;
+        if(ib == kEnvOverlap) mask.set(recob::TrajectoryPointFlagTraits::Shared);
+        if(ib == kEnvNotGoodWire) mask.set(recob::TrajectoryPointFlagTraits::DetectorIssue);
+        // Not all hits in the multiplet were used in the TP
+        if(ib == kEnvUnusedHits) mask.set(recob::TrajectoryPointFlagTraits::Suspicious);
+      } // ib
 
       recob::Track::Point_t pos = {tp3d.Pos[0], tp3d.Pos[1], tp3d.Pos[2]};
       recob::Track::Vector_t dir = {tp3d.Dir[0], tp3d.Dir[1], tp3d.Dir[2]};

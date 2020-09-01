@@ -1178,6 +1178,7 @@ namespace tca {
     float chg1 = 0, cnt1 = 0;
     unsigned short halfWay = (tj.EndPt[0] + tj.EndPt[1]) / 2;
     for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      if(tj.Pts[ipt].Chg <= 0) continue;
       if(ipt < halfWay) {
         chg0 += tj.Pts[ipt].Chg;
         ++cnt0;

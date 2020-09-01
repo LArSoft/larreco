@@ -157,7 +157,11 @@ namespace tca {
   bool SetMag(Vector3_t& v1, double mag);
   void SetDirection(detinfo::DetectorClocksData const& clockData,
                 detinfo::DetectorPropertiesData const& detProp,TCSlice& slc, PFPStruct& pfp);
-  void FilldEdx(detinfo::DetectorClocksData const& clockData,
+  void SetPFPdEdx(detinfo::DetectorClocksData const& clockData,
+                detinfo::DetectorPropertiesData const& detProp,
+                const TCSlice& slc,
+                PFPStruct& pfp);
+  void SetTP3DdEdx(detinfo::DetectorClocksData const& clockData,
                 detinfo::DetectorPropertiesData const& detProp,
                 const TCSlice& slc,
                 PFPStruct& pfp);
@@ -165,7 +169,7 @@ namespace tca {
              detinfo::DetectorPropertiesData const& detProp,
              const TCSlice& slc,
              const TP3D& tp3d);
-  void Average_dEdX(detinfo::DetectorClocksData const& clockData,
+  void MPV_dEdX(detinfo::DetectorClocksData const& clockData,
                     detinfo::DetectorPropertiesData const& detProp,
                     const TCSlice& slc,
                     PFPStruct& pfp,

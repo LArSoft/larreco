@@ -254,6 +254,7 @@ namespace tca {
     double TPXErr2{1}; ///< (X position error)^2
     float Wire{-1};
     float along{1E6}; ///< distance from the start Pos of the section
+    float dEdx{-1};
     int TjID{0};      ///< ID of the trajectory -> TP3D assn
     CTP_t CTP;
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
@@ -263,7 +264,8 @@ namespace tca {
 
   typedef enum {
     kTP3DGood,    // Is good for fitting and calorimetry
-    kTP3DBad      // Should be removed from the trajectory
+    kTP3DBad,      // Should be removed from the trajectory
+    kTP3DHiDEdx  // Has high dE/dx
   } TP3DFlags_t;
 
   // Struct for 3D trajectory matching
@@ -303,7 +305,8 @@ namespace tca {
     kCanSection,
     kNeedsUpdate,
     kStops,
-    kSmallAngle
+    kSmallAngle,
+    kdEdxDefined        //< Set true if dEdx is defined in the TP3Ds vector
   } PFPFlags_t;
 
   struct ShowerPoint {

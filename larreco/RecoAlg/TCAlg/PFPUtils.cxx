@@ -320,7 +320,7 @@ namespace tca {
       // fill the TP3D points using the 2D trajectory points for Tjs in TjIDs. All
       // points are put in one section
       if (!MakeTP3Ds(detProp, slc, pfpVec[0])) {
-        if (foundMVI) mf::LogVerbatim("TC") << " MakeTP3Ds failed. Too many points already used ";
+        if (foundMVI) mf::LogVerbatim("TC") << " MakeTP3Ds failed. ";
         continue;
       }
       // fit all the points to get the general direction
@@ -360,7 +360,7 @@ namespace tca {
         myprt << " Reco3DRange "
               << Find3DRecoRange(slc, pfp, 0, (unsigned short)tcc.match3DCuts[3], 1);
       } // prt
-      if (foundMVI) { PrintTP3Ds(clockData, detProp, "FF", slc, pfpVec[0], -1); }
+      if (foundMVI && !pfpVec[0].Flags[kSmallAngle]) { PrintTP3Ds(clockData, detProp, "FF", slc, pfpVec[0], -1); }
       for (unsigned short ip = 0; ip < pfpVec.size(); ++ip) {
         auto& pfp = pfpVec[ip];
         // set the end flag bits
@@ -416,11 +416,11 @@ namespace tca {
           KillBadPoints(clockData, detProp, slc, pfp, tcc.match3DCuts[4], foundMVI);
           // Try to remove bad points if there was a ReSection problem
         } // CanSection
-        if (foundMVI) { PrintTP3Ds(clockData, detProp, "RS", slc, pfp, -1); }
+        if (foundMVI && !pfp.Flags[kSmallAngle]) { PrintTP3Ds(clockData, detProp, "RS", slc, pfp, -1); }
         // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
         // inserts new TP3Ds if there are hits in the gaps. This search is only done in a
         // plane if the projection of the pfp results in a large angle where 2D reconstruction
-        // is likely to be poor - not true for TCWork2
+        // is likely to be poor
         FillGaps3D(clockData, detProp, slc, pfp, foundMVI);
         // Check the TP3D -> TP assn, resolve conflicts and set TP -> InPFP
         if (!ReconcileTPs(slc, pfp, foundMVI)) continue;
@@ -432,12 +432,15 @@ namespace tca {
           auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
           if(tp.Environment[kEnvOverlap] || tp.Environment[kEnvUnusedHits]) tp3d.Flags[kTP3DGood] = false;
         } // tp3d
-        FilldEdx(clockData, detProp, slc, pfp);
+        SetPFPdEdx(clockData, detProp, slc, pfp);
         // Set the direction using dE/dx
         SetDirection(clockData, detProp, slc, pfp);
         pfp.PDGCode = PDGCodeVote(clockData, detProp, slc, pfp);
-        if(!StorePFP(slc, pfp)) break;
-        if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds(clockData, detProp, "STORE", slc, pfp, -1);
+        if(!StorePFP(slc, pfp)) {
+          if(tcc.dbgPFP) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
+          break;
+        }
+        if(tcc.dbgPFP && pfp.MVI == debug.MVI && !pfp.Flags[kSmallAngle]) PrintTP3Ds(clockData, detProp, "STORE", slc, pfp, -1);
       } // ip (iterate over split pfps)
     }   // indx (iterate over matchVec entries)
     slc.mallTraj.resize(0);
@@ -1934,7 +1937,7 @@ namespace tca {
     // Find the average dE/dx so we can apply a generous min/max dE/dx cut
     float dEdXAve = 0;
     float dEdXRms = 0;
-    Average_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
+    MPV_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
     float dEdxMin = 0.5, dEdxMax = 50.;
     if (dEdXAve > 0.5) {
       dEdxMin = dEdXAve - maxPull * dEdXRms;
@@ -2104,9 +2107,6 @@ namespace tca {
   {
     // sorts the TP3Ds by the distance from the start of a fit section
 
-    // Don't sort small angle tracks
-    if(pfp.Flags[kSmallAngle]) return true;
-
     if(sfIndex > pfp.SectionFits.size() - 1) return false;
     auto& sf = pfp.SectionFits[sfIndex];
     if (sf.Pos[0] == 0.0 && sf.Pos[1] == 0.0 && sf.Pos[2] == 0.0) return false;
@@ -2184,7 +2184,7 @@ namespace tca {
       float ang1 = std::abs(tj.Pts[tj.EndPt[1]].Ang);
       if(ang0 > 0.1 || ang1 > 0.1) continue;
       // found a small-angle track. Use Tj StartEnd to decide the TP order
-      if(MakeSmallAnglePFP(detProp, slc, pfp)) return true;
+      return MakeSmallAnglePFP(detProp, slc, pfp);
     } // tid
 
     std::vector<TP3D> tp3ds;
@@ -2236,112 +2236,76 @@ namespace tca {
     // is set true. Assume that the calling function, MakeTP3Ds, has decided that this is a
     // small-angle track. 
 
-    std::vector<short> vote(pfp.TjIDs.size(), -1);
-    unsigned short cnt0 = 0, cnt1 = 0;
-    int longTID = 0;
-    int nextLongTID = 0;
-    unsigned short maxPts = 0;
-    unsigned short nextMaxPts = 0;
-    for(unsigned short itj = 0; itj < pfp.TjIDs.size(); ++itj) {
+    if(pfp.TjIDs.size() < 2) return false;
+
+    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
+    if(prt) mf::LogVerbatim("TC")<<" inside MakeSmallAnglePFP P"<<pfp.ID;
+
+    std::vector<SortEntry> sortVec(pfp.TjIDs.size());
+    for (unsigned short itj = 0; itj < pfp.TjIDs.size(); ++itj) {
+      sortVec[itj].index = pfp.TjIDs[itj];
       auto& tj = slc.tjs[pfp.TjIDs[itj] - 1];
-      unsigned short npwc = NumPtsWithCharge(slc, tj, false);
-      // longest Tj
-      if(npwc > maxPts) {
-        maxPts = npwc;
-        longTID = pfp.TjIDs[itj];
-      } // longest
-      // next longest Tj
-      if(npwc > nextMaxPts && npwc <= maxPts && pfp.TjIDs[itj] != longTID) {
-        nextMaxPts = npwc;
-        nextLongTID = pfp.TjIDs[itj];
-      } // next longest
-      vote[itj] = tj.StartEnd;
-      if(tj.StartEnd == 0) ++cnt0;
-      if(tj.StartEnd == 1) ++cnt1;
-    } // tid
-//    std::cout<<"P"<<pfp.ID<<" longTID "<<longTID<<" nextLongTID "<<nextLongTID<<"\n";
-    if(longTID == 0 || nextLongTID == 0) return false;
-    // See if a trajectory needs to be reversed
-    if(!(cnt0 == pfp.TjIDs.size() || cnt1 == pfp.TjIDs.size())) {
-      unsigned short flipMe = USHRT_MAX;
-      if(cnt0 > cnt1) {
-        for(flipMe = 0; flipMe < vote.size(); ++flipMe) if(vote[flipMe] == 1) break;
-      } else {
-        for(flipMe = 0; flipMe < vote.size(); ++flipMe) if(vote[flipMe] == 0) break;
-      }
-      auto& tj = slc.tjs[pfp.TjIDs[flipMe]-1];
-      ReverseTraj(slc, tj);
-    } // See if a trajectory needs to be reversed
-    // Create a TP3D using the end points of the longest and next-longest Tjs
-    auto tlong = slc.tjs[longTID - 1];
+      sortVec[itj].val = NumPtsWithCharge(slc, tj, false);
+    } // ipt
+    std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+    // Use the endpoints of the two longest Tjs to define the PFP end points
+    auto& tlong = slc.tjs[sortVec[0].index - 1];
     auto ltp0 = tlong.Pts[tlong.EndPt[0]];
     auto ltp1 = tlong.Pts[tlong.EndPt[1]];
-    auto nlong = slc.tjs[nextLongTID - 1];
+    auto& nlong = slc.tjs[sortVec[1].index - 1];
     auto nltp0 = nlong.Pts[nlong.EndPt[0]];
     auto nltp1 = nlong.Pts[nlong.EndPt[1]];
-    // temp
-    auto tp3d0 = MakeTP3D(detProp, slc, ltp0, nltp0);
-    auto tp3d1 = MakeTP3D(detProp, slc, ltp1, nltp1);
-    std::cout<<"Start "<<tp3d0.Pos[0]<<" "<<tp3d0.Pos[1]<<" "<<tp3d0.Pos[2]<<"\n";
-    std::cout<<"End   "<<tp3d1.Pos[0]<<" "<<tp3d1.Pos[1]<<" "<<tp3d1.Pos[2]<<"\n";
+    // Find the start and end positions
+    auto start = MakeTP3D(detProp, slc, ltp0, nltp0);
+    auto end = MakeTP3D(detProp, slc, ltp1, nltp1);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"Start "<<start.Pos[0]<<" "<<start.Pos[1]<<" "<<start.Pos[2]
+        <<" End   "<<end.Pos[0]<<" "<<end.Pos[1]<<" "<<end.Pos[2]<<"\n";
+    } // prt
     auto& sf = pfp.SectionFits[0];
     for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-      sf.Dir[xyz] = tp3d1.Pos[xyz] - tp3d0.Pos[xyz];
-      sf.Pos[xyz] = (tp3d1.Pos[xyz] + tp3d0.Pos[xyz]) / 2.;
+      sf.Dir[xyz] = end.Pos[xyz] - start.Pos[xyz];
+      sf.Pos[xyz] = (end.Pos[xyz] + start.Pos[xyz]) / 2.;
     }
     SetMag(sf.Dir, 1.);
-    // Create TP3Ds for the longest Tj
+    sf.ChiDOF = 0.;
+    // set the TP3D along from -length/2 to +length/2
+    double length = PosSep(start.Pos, end.Pos);
+    // Create TP3Ds
     std::vector<TP3D> tp3ds;
-    auto& ltj = slc.tjs[longTID - 1];
-    for(unsigned short ipt = ltj.EndPt[0]; ipt <= ltj.EndPt[1]; ++ipt) {
-      auto tp3d = CreateTP3D(detProp, slc, longTID, ipt);
-      tp3d.SFIndex = 0;
-      // Assume that all points are good
-      tp3d.Flags[kTP3DGood] = true;
-      tp3ds.push_back(tp3d);
-    } // ipt
-    // now insert points for the other Tjs
-    for(auto tid : pfp.TjIDs) {
-      if(tid == longTID) continue;
+    for(unsigned short itj = 0; itj < sortVec.size(); ++itj) {
+      int tid = sortVec[itj].index;
+      double npwc = sortVec[itj].val;
       auto& tj = slc.tjs[tid - 1];
-      float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+      // shift the starting position along the PFP so that TP3D for the
+      // longest Tj is at the start
+      double along = (double)itj * 0.01 * length - length / 2;
+      // and shrink the step size so the TP3D for the longest Tj is at the end
+      double step = (double)itj * 0.98 * length / (npwc - 1);
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
         auto tp3d = CreateTP3D(detProp, slc, tid, ipt);
         tp3d.SFIndex = 0;
+        // Assume that all points are good
         tp3d.Flags[kTP3DGood] = true;
-        // determine the insert position
-        float frac = float(ipt) / npts;
-        int position = std::nearbyint(frac * tp3ds.size());
-//        std::cout<<" pos "<<position<<" length "<<tp3ds.size()<<"\n";
-        tp3ds.insert(tp3ds.begin() + position, tp3d);
+        // define the position. Offset the start position and shrink the step
+        // size so that the TPs for the longest TJ are at each end
+        tp3d.along = along;
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = along * sf.Dir[xyz];
+        tp3d.Dir = sf.Dir;
+        along += step;
+        double delta = tp3d.Pos[0] - tp3d.TPX;
+        sf.ChiDOF += delta * delta / tp3d.TPXErr2;
+        tp3ds.push_back(tp3d);
       } // ipt
     } // tid
-    pfp.Flags[kCanSection] = false;
-    pfp.Flags[kSmallAngle] = true;
-    // Determine positions and calculate ChiDOF
-    sf.ChiDOF = 0;
-    // estimate the position and distance
-    Vector3_t step;
-    double nstep = tp3ds.size() - 1;
-    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-      step[xyz] = (tp3d1.Pos[xyz] - tp3d0.Pos[xyz]) / nstep;
-    } // xyz
-    double stp3 = sqrt(step[0]*step[0] + step[1]*step[1] + step[2]*step[2]);
-    tp3ds[0].Pos = tp3d0.Pos;
-    tp3ds[0].Dir = sf.Dir;
-    tp3ds[0].along = -stp3 * nstep / 2;
-    for(unsigned short ipt = 1; ipt < tp3ds.size(); ++ipt) {
-      auto& tp3d = tp3ds[ipt];
-      auto& ptp3d = tp3ds[ipt-1];
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = ptp3d.Pos[xyz] + step[xyz];
-      tp3d.Dir = sf.Dir;
-      tp3d.along = ptp3d.along + stp3;
-      double delta = tp3d.Pos[0] - tp3d.TPX;
-      sf.ChiDOF += delta * delta / tp3d.TPXErr2;
-    } // ipt
     sf.DirErr[0] = sqrt(sf.DirErr[0]) / (double)tp3ds.size();
     sf.ChiDOF /= (float)(tp3ds.size() - 4);
-    return true;
+    pfp.TP3Ds = tp3ds;
+    pfp.Flags[kCanSection] = false;
+    pfp.Flags[kSmallAngle] = true;
+    return SortSection(pfp, 0);
   } // MakeSmallAnglePFP
 
   /////////////////////////////////////////
@@ -2584,20 +2548,25 @@ namespace tca {
 
   /////////////////////////////////////////
   void SetDirection(detinfo::DetectorClocksData const& clockData,
-                detinfo::DetectorPropertiesData const& detProp,TCSlice& slc, PFPStruct& pfp)
+                detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp)
   {
     // Reverse the PFP if needed so that dE/dx increases from start to end
     // Do a simple average of points in the first (last) half
+
+    if(!pfp.Flags[kdEdxDefined]) SetTP3DdEdx(clockData, detProp, slc, pfp);
+
     float sumNeg = 0, cntNeg = 0, sumPos = 0, cntPos = 0;
     // ignore the end points
-    for(std::size_t ipt = 1; ipt < pfp.TP3Ds.size() - 1; ++ipt) {
+    unsigned short halfwayPt = pfp.TP3Ds.size() / 2;
+    for(unsigned short ipt = 1; ipt < pfp.TP3Ds.size() - 1; ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(!tp3d.Flags[kTP3DGood] || tp3d.TPIndex == USHRT_MAX) continue;
-      if(tp3d.along < 0) {
-        sumNeg += dEdx(clockData, detProp, slc, tp3d);
+      if(tp3d.dEdx < 0.5) continue;
+      if(ipt < halfwayPt) {
+        sumNeg += tp3d.dEdx;
         ++cntNeg;
       } else {
-        sumPos += dEdx(clockData, detProp, slc, tp3d);
+        sumPos += tp3d.dEdx;
         ++cntPos;
       }
     } // ipt
@@ -2613,18 +2582,18 @@ namespace tca {
  } // SetDirection
  
   /////////////////////////////////////////
-  void FilldEdx(detinfo::DetectorClocksData const& clockData,
+  void SetPFPdEdx(detinfo::DetectorClocksData const& clockData,
                 detinfo::DetectorPropertiesData const& detProp,
                 const TCSlice& slc,
                 PFPStruct& pfp)
   {
     // Fills dE/dx variables in the pfp struct
+    if(!pfp.Flags[kdEdxDefined]) SetTP3DdEdx(clockData, detProp, slc, pfp); 
 
     // don't attempt to find dE/dx at the end of a shower
     unsigned short numEnds = 2;
     if (pfp.PDGCode == 1111) numEnds = 1;
 
-    // set dE/dx to 0 to indicate that a valid dE/dx is expected
     for (unsigned short end = 0; end < numEnds; ++end) {
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane)
         pfp.dEdx[end][plane] = 0;
@@ -2649,56 +2618,113 @@ namespace tca {
         if(PosSep2(tp3d.Pos, endPos) > maxSep2) break;
         // require good points
         if(!tp3d.Flags[kTP3DGood]) continue;
-        float dedx = dEdx(clockData, detProp, slc, tp3d);
-        if(dedx < 0.5) continue;
+        if(tp3d.dEdx < 0.5) continue;
         unsigned short plane = DecodeCTP(tp3d.CTP).Plane;
-        pfp.dEdx[end][plane] += dedx;
+        pfp.dEdx[end][plane] += tp3d.dEdx;
         ++cnt[plane];
       } // ii
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        if (cnt[plane] == 0) continue;
-        pfp.dEdx[end][plane] /= cnt[plane];
+        if (cnt[plane] > 0) {
+          pfp.dEdx[end][plane] /= cnt[plane];
+        } else {
+          pfp.dEdx[end][plane] = 0;
+        }
       } // plane
     }   // end
 
-  } // FilldEdx
+  } // SetPFPdEdx
 
   /////////////////////////////////////////
   void
-  Average_dEdX(detinfo::DetectorClocksData const& clockData,
+  MPV_dEdX(detinfo::DetectorClocksData const& clockData,
                detinfo::DetectorPropertiesData const& detProp,
                const TCSlice& slc,
                PFPStruct& pfp,
-               float& dEdXAve,
+               float& dEdXMPV,
                float& dEdXRms)
   {
-    // Return a simple average of dE/dx and rms using ALL points in all planes, not
-    // just those at the ends ala FilldEdx
-    dEdXAve = -1.;
+    // Return a simple average of dE/dx and rms using all points in all planes, not
+    // just those at the ends
+    dEdXMPV = -1.;
     dEdXRms = -1.;
+    if(!pfp.Flags[kdEdxDefined]) SetTP3DdEdx(clockData, detProp, slc, pfp);
+
+    // Poor man's histogram. 50 bins * 1 MeV/cm per bin
+    std::vector<int> hist(50, 0);
+    unsigned short cnt = 0;
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(!tp3d.Flags[kTP3DGood]) continue;
+      if(tp3d.dEdx > 80.) {
+        tp3d.Flags[kTP3DHiDEdx] = true;
+        continue;
+      } else {
+        tp3d.Flags[kTP3DHiDEdx] = false;
+      }
+      if(tp3d.dEdx < 0.5) continue;
+      int bin = std::nearbyint(tp3d.dEdx + 0.5);
+      if(bin > 49) bin = 49;
+      ++hist[bin];
+      ++cnt;
+    } // tp3d
+    if(cnt < 3) return; 
+
+    int maxBin = 0;
+    int maxCnt = 0;
+
+    for(unsigned short bin = 0; bin < hist.size(); ++bin) {
+      if(hist[bin] > maxCnt) {
+        maxCnt = hist[bin];
+        maxBin = bin;
+      }
+    } // bin
+    // construct a maximum dE/dx value for a truncated mean. Set it to
+    // the central value of the max bin + 4 * the expected rms (0.15 * maxBin)
+    float dedxMax = 4 * maxBin;
 
     double sum = 0;
     double sum2 = 0;
-    double cnt = 0;
+    double scnt = 0;
     for(auto& tp3d : pfp.TP3Ds) {
       if(!tp3d.Flags[kTP3DGood]) continue;
-      double dedx = dEdx(clockData, detProp, slc, tp3d);
-      if(dedx < 0.5 || dedx > 80.) continue;
-      sum += dedx;
-      sum2 += dedx * dedx;
-      ++cnt;
-    } // tp3d
-    if (cnt < 3) return;
-    dEdXAve = sum / cnt;
+      if(tp3d.dEdx < 0.5 || tp3d.dEdx > 80.) continue;
+      if(tp3d.dEdx < dedxMax) {
+        sum += tp3d.dEdx;
+        sum2 += tp3d.dEdx * tp3d.dEdx;
+        ++scnt;
+      } else {
+        tp3d.Flags[kTP3DHiDEdx] = true;
+      } 
+    } // dedx
+    if(scnt == 0) return;
+    dEdXMPV = sum / cnt;
     // Use a default rms of 30% of the average
-    dEdXRms = 0.3 * dEdXAve;
-    double arg = sum2 - cnt * dEdXAve * dEdXAve;
+    dEdXRms = 0.3 * dEdXMPV;
+    double arg = sum2 - scnt * dEdXMPV * dEdXMPV;
     if (arg < 0) return;
-    dEdXRms = sqrt(arg) / (cnt - 1);
+    dEdXRms = sqrt(arg) / (scnt - 1);
     // don't return a too-small rms
-    double minRms = 0.05 * dEdXAve;
+    double minRms = 0.05 * dEdXMPV;
     if (dEdXRms < minRms) dEdXRms = minRms;
-  } // Average_dEdX
+  } // MPV_dEdX
+
+  /////////////////////////////////////////
+  void SetTP3DdEdx(detinfo::DetectorClocksData const& clockData,
+               detinfo::DetectorPropertiesData const& detProp,
+               const TCSlice& slc,
+               PFPStruct& pfp) {
+    // Calculate dE/dx for each TP3D, put it into the PFPStruct and set the kdEdxDefined flag
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.Flags[kdEdxDefined]) return;
+
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.Flags[kTP3DGood]) {
+         tp3d.dEdx = dEdx(clockData, detProp, slc, tp3d);
+      } else {
+        tp3d.dEdx = -1;
+      }
+    } // tp3d
+    pfp.Flags[kdEdxDefined] = true;
+  } // SetTP3DdEdx
 
   /////////////////////////////////////////
   float
@@ -3041,11 +3067,11 @@ namespace tca {
     // make some quality checks
     unsigned short nNotSet = 0;
     for(auto& tp3d : pfp.TP3Ds) {
-      if(tp3d.Flags[kTP3DBad]) {
-        std::cout<<"MakePFPTjs found a TP3D with a Bad point flag in P"<<pfp.ID<<"\n";
-        return false;
+      if(tp3d.Flags[kTP3DBad]) return false;
+      if(tp3d.TPIndex == USHRT_MAX) {
+        std::cout<<"StorePFP: P"<<pfp.ID<<" TPIndex is undefined\n";
+        continue;
       }
-      if(tp3d.TPIndex == USHRT_MAX) continue;
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       if (tp.InPFP != pfp.ID) ++nNotSet;
     } // tp3d
@@ -3402,7 +3428,7 @@ namespace tca {
     // try to do better using dE/dx
     float dEdXAve = 0;
     float dEdXRms = 0;
-    Average_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
+    MPV_dEdX(clockData, detProp, slc, pfp, dEdXAve, dEdXRms);
     if (dEdXAve < 0) return 0;
     // looks like a proton if dE/dx is high and the rms is low
     dEdXRms /= dEdXAve;
@@ -3490,7 +3516,8 @@ namespace tca {
     }   // SectionFits
     if (printPts < 0) {
       // print the head if we print all points
-      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull  GB   Path  along dE/dx Signal? Knk3D  Knk2D     T_ipt_P:W:T\n";
+      myprt<<someText<<" Note: GBH = TP3D Flags. G = Good, B = Bad, H = High dE/dx \n";
+      myprt<<someText<<"  ipt SFI ________Pos________  Delta Pull  GBH   Path  along dE/dx S?  Knk2D     T_ipt_P:W:T\n";
     }
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
@@ -3507,20 +3534,17 @@ namespace tca {
       myprt << std::setprecision(1) << std::setw(6) << (tp3d.Pos[0] - tp3d.TPX);
       float pull = PointPull(pfp, tp3d);
       myprt<<std::setprecision(1)<<std::setw(6)<<pull;
-      myprt<<std::setw(3)<<tp3d.Flags[kTP3DGood]<<tp3d.Flags[kTP3DBad];
+      myprt<<std::setw(3)<<tp3d.Flags[kTP3DGood]<<tp3d.Flags[kTP3DBad]<<tp3d.Flags[kTP3DHiDEdx];
       myprt<<std::setw(7)<<std::setprecision(2)<<PosSep(tp3d.Pos, pfp.TP3Ds[0].Pos);
       myprt<<std::setw(7)<<std::setprecision(1)<<tp3d.along;
-      myprt<<std::setw(6)<<std::setprecision(2)<<dEdx(clockData, detProp, slc, tp3d);
+      myprt<<std::setw(6)<<std::setprecision(2)<<tp3d.dEdx;
       // print SignalAtTP in each plane
       myprt << " ";
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
         auto tp = MakeBareTP(detProp, slc, tp3d.Pos, inCTP);
-        myprt << " " << SignalAtTp(tp);
+        myprt<<SignalAtTp(tp);
       } // plane
-      double dang = -1, dangSig = -1;
-      KinkFit(clockData, detProp, slc, pfp, ipt, tcc.kinkCuts[3], dang, dangSig);
-      myprt<<std::setw(7)<<std::setprecision(3)<<dang;
       if(tp3d.TPIndex != USHRT_MAX) {
         // print the 2D TP kink significance
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
@@ -3532,6 +3556,7 @@ namespace tca {
           myprt<<" UNDEFINED";
         }
       } // tp3d.TPIndex != USHRT_MAX
+      if(tp3d.Flags[kTP3DHiDEdx]) myprt<<" Hi_dEdx";
       myprt<<"\n";
     } // ipt
   }   // PrintTP3Ds

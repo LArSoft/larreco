@@ -181,10 +181,10 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
     produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
+    produces< art::Assns<recob::PFParticle, recob::Track> >();
 
     produces< std::vector<recob::Track> >();
     produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
-    produces< art::Assns<recob::Track, recob::PFParticle> >();
 
     produces< std::vector<recob::SpacePoint> >();
 
@@ -424,8 +424,6 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>>
       pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
     // Track -> ...
-    std::unique_ptr<art::Assns<recob::Track, recob::PFParticle>>
-      trk_pfp_assn(new art::Assns<recob::Track, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>>
       trk_hit_meta_assn(new art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>);
     // Slice -> ...
@@ -789,9 +787,9 @@ namespace cluster {
             fTCAlg.MakeTrackFromPFP(pfp, newIndex, trk, trkHits);
             if(!trkHits.empty()) {
               trkCol.push_back(trk);
-              // Track -> PFParticle
-              if(!util::CreateAssn(*this, evt, trkCol, pfpCol, *trk_pfp_assn, pfpCol.size()-1, pfpCol.size())) {
-                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle with Track";
+              // PFParticle -> Track
+              if(!util::CreateAssn(*this, evt, pfpCol, trkCol, *pfp_trk_assn, trkCol.size()-1, trkCol.size())) {
+                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Track with PFParticle";
               } // fail
               // Track -> Hit + meta data assn
               for(unsigned int iht = 0; iht < trkHits.size(); ++iht) {
@@ -940,9 +938,9 @@ namespace cluster {
     evt.put(std::move(pfp_vx3_assn));
     evt.put(std::move(pfp_sed_assn));
     evt.put(std::move(pfp_spt_assn));
+    evt.put(std::move(pfp_trk_assn));
     evt.put(std::move(tcol));
     evt.put(std::move(spcol));
-    evt.put(std::move(trk_pfp_assn));
     evt.put(std::move(trk_hit_meta_assn));
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
