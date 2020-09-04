@@ -24,13 +24,7 @@ namespace geo {
 #include "CLHEP/Random/RandGauss.h"
 
 img::DataProviderAlg::DataProviderAlg(const Config& config)
-  : fCryo(9999)
-  , fTPC(9999)
-  , fPlane(9999)
-  , fNWires(0)
-  , fNDrifts(0)
-  , fNScaledDrifts(0)
-  , fNCachedDrifts(0)
+  : fAlgView{}
   , fDownscaleMode(img::DataProviderAlg::kMax)
   , fDriftWindow(10)
   , fCalorimetryAlg(config.CalorimetryAlg())
@@ -111,41 +105,34 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
 img::DataProviderAlg::~DataProviderAlg() = default;
 // ------------------------------------------------------
 
-void
+img::DataProviderAlgView
 img::DataProviderAlg::resizeView(detinfo::DetectorClocksData const& clock_data,
                                  detinfo::DetectorPropertiesData const& det_prop,
                                  size_t wires,
                                  size_t drifts)
 {
-  fNWires = wires;
-  fNDrifts = drifts;
-  fNScaledDrifts = drifts / fDriftWindow;
+  img::DataProviderAlgView result;
+  result.fNWires = wires;
+  result.fNDrifts = drifts;
+  result.fNScaledDrifts = drifts / fDriftWindow;
+  result.fNCachedDrifts = fDownscaleFullView ? result.fNScaledDrifts : drifts;
 
-  if (fDownscaleFullView) { fNCachedDrifts = fNScaledDrifts; }
-  else {
-    fNCachedDrifts = fNDrifts;
-  }
+  result.fWireChannels.resize(wires, raw::InvalidChannelID);
 
-  fWireChannels.resize(wires);
-  std::fill(fWireChannels.begin(), fWireChannels.end(), raw::InvalidChannelID);
+  result.fWireDriftData.resize(wires, std::vector<float>(result.fNCachedDrifts, fAdcZero));
 
-  fWireDriftData.resize(wires);
-  for (auto& w : fWireDriftData) {
-    w.resize(fNCachedDrifts);
-    std::fill(w.begin(), w.end(), fAdcZero);
-  }
-
-  fLifetimeCorrFactors.resize(fNDrifts);
+  result.fLifetimeCorrFactors.resize(drifts);
   if (fCalibrateLifetime) {
-    for (size_t t = 0; t < fNDrifts; ++t) {
-      fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(clock_data, det_prop, t);
+    for (size_t t = 0; t < drifts; ++t) {
+      result.fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(clock_data, det_prop, t);
     }
   }
   else {
-    for (size_t t = 0; t < fNDrifts; ++t) {
-      fLifetimeCorrFactors[t] = 1.0;
+    for (size_t t = 0; t < drifts; ++t) {
+      result.fLifetimeCorrFactors[t] = 1.0;
     }
   }
+  return result;
 }
 // ------------------------------------------------------
 
@@ -159,16 +146,16 @@ img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
   int d0 = didx - rd;
   if (d0 < 0) { d0 = 0; }
   int d1 = didx + rd;
-  if (d1 >= (int)fNCachedDrifts) { d1 = fNCachedDrifts - 1; }
+  if (d1 >= (int)fAlgView.fNCachedDrifts) { d1 = fAlgView.fNCachedDrifts - 1; }
 
   int w0 = wire - rw;
   if (w0 < 0) { w0 = 0; }
   int w1 = wire + rw;
-  if (w1 >= (int)fNWires) { w1 = fNWires - 1; }
+  if (w1 >= (int)fAlgView.fNWires) { w1 = fAlgView.fNWires - 1; }
 
   float adc, max_adc = 0;
   for (int w = w0; w <= w1; ++w) {
-    auto const* col = fWireDriftData[w].data();
+    auto const* col = fAlgView.fWireDriftData[w].data();
     for (int d = d0; d <= d1; ++d) {
       adc = col[d];
       if (adc > max_adc) { max_adc = adc; }
@@ -179,70 +166,64 @@ img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
 }
 // ------------------------------------------------------
 
-float
-img::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
-{
-  size_t rw = r, rd = r;
-  if (!fDownscaleFullView) { rd *= fDriftWindow; }
-
-  size_t didx = getDriftIndex(drift);
-  int d0 = didx - rd;
-  if (d0 < 0) { d0 = 0; }
-  int d1 = didx + rd;
-  if (d1 >= (int)fNCachedDrifts) { d1 = fNCachedDrifts - 1; }
-
-  int w0 = wire - rw;
-  if (w0 < 0) { w0 = 0; }
-  int w1 = wire + rw;
-  if (w1 >= (int)fNWires) { w1 = fNWires - 1; }
-
-  float sum = 0;
-  for (int w = w0; w <= w1; ++w) {
-    auto const* col = fWireDriftData[w].data();
-    for (int d = d0; d <= d1; ++d) {
-      sum += col[d];
-    }
-  }
-
-  return sum;
-}
+//float img::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
+//{
+//    size_t rw = r, rd = r;
+//    if (!fDownscaleFullView) { rd *= fDriftWindow; }
+//
+//    size_t didx = getDriftIndex(drift);
+//    int d0 = didx - rd; if (d0 < 0) { d0 = 0; }
+//    int d1 = didx + rd; if (d1 >= (int)fNCachedDrifts) { d1 = fNCachedDrifts - 1; }
+//
+//    int w0 = wire - rw; if (w0 < 0) { w0 = 0; }
+//    int w1 = wire + rw; if (w1 >= (int)fNWires) { w1 = fNWires - 1; }
+//
+//    float sum = 0;
+//    for (int w = w0; w <= w1; ++w)
+//    {
+//        auto const * col = fWireDriftData[w].data();
+//        for (int d = d0; d <= d1; ++d) { sum += col[d]; }
+//    }
+//
+//    return sum;
+//}
 // ------------------------------------------------------
-
-void
-img::DataProviderAlg::downscaleMax(std::vector<float>& dst,
+std::vector<float>
+img::DataProviderAlg::downscaleMax(std::size_t dst_size,
                                    std::vector<float> const& adc,
                                    size_t tick0) const
 {
-  size_t kStop = dst.size();
+  size_t kStop = dst_size;
+  std::vector<float> result(dst_size);
   if (adc.size() < kStop) { kStop = adc.size(); }
   for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow) {
     size_t k1 = k0 + fDriftWindow;
 
-    float max_adc = adc[k0] * fLifetimeCorrFactors[k0 + tick0];
+    float max_adc = adc[k0] * fAlgView.fLifetimeCorrFactors[k0 + tick0];
     for (size_t k = k0 + 1; k < k1; ++k) {
-      float ak = adc[k] * fLifetimeCorrFactors[k + tick0];
+      float ak = adc[k] * fAlgView.fLifetimeCorrFactors[k + tick0];
       if (ak > max_adc) max_adc = ak;
     }
-
-    dst[i] = max_adc;
+    result[i] = max_adc;
   }
-  scaleAdcSamples(dst);
+  scaleAdcSamples(result);
+  return result;
 }
 
-void
-img::DataProviderAlg::downscaleMaxMean(std::vector<float>& dst,
+std::vector<float>
+img::DataProviderAlg::downscaleMaxMean(std::size_t dst_size,
                                        std::vector<float> const& adc,
                                        size_t tick0) const
 {
-  size_t kStop = dst.size();
+  size_t kStop = dst_size;
+  std::vector<float> result(dst_size);
   if (adc.size() < kStop) { kStop = adc.size(); }
   for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow) {
     size_t k1 = k0 + fDriftWindow;
-
     size_t max_idx = k0;
-    float max_adc = adc[k0] * fLifetimeCorrFactors[k0 + tick0];
+    float max_adc = adc[k0] * fAlgView.fLifetimeCorrFactors[k0 + tick0];
     for (size_t k = k0 + 1; k < k1; ++k) {
-      float ak = adc[k] * fLifetimeCorrFactors[k + tick0];
+      float ak = adc[k] * fAlgView.fLifetimeCorrFactors[k + tick0];
       if (ak > max_adc) {
         max_adc = ak;
         max_idx = k;
@@ -251,61 +232,63 @@ img::DataProviderAlg::downscaleMaxMean(std::vector<float>& dst,
 
     size_t n = 1;
     if (max_idx > 0) {
-      max_adc += adc[max_idx - 1] * fLifetimeCorrFactors[max_idx - 1 + tick0];
+      max_adc += adc[max_idx - 1] * fAlgView.fLifetimeCorrFactors[max_idx - 1 + tick0];
       n++;
     }
     if (max_idx + 1 < adc.size()) {
-      max_adc += adc[max_idx + 1] * fLifetimeCorrFactors[max_idx + 1 + tick0];
+      max_adc += adc[max_idx + 1] * fAlgView.fLifetimeCorrFactors[max_idx + 1 + tick0];
       n++;
     }
 
-    dst[i] = max_adc / n;
+    result[i] = max_adc / n;
   }
-  scaleAdcSamples(dst);
+  scaleAdcSamples(result);
+  return result;
 }
 
-void
-img::DataProviderAlg::downscaleMean(std::vector<float>& dst,
+std::vector<float>
+img::DataProviderAlg::downscaleMean(std::size_t dst_size,
                                     std::vector<float> const& adc,
                                     size_t tick0) const
 {
-  size_t kStop = dst.size();
+  size_t kStop = dst_size;
+  std::vector<float> result(dst_size);
   if (adc.size() < kStop) { kStop = adc.size(); }
   for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow) {
     size_t k1 = k0 + fDriftWindow;
 
     float sum_adc = 0;
     for (size_t k = k0; k < k1; ++k) {
-      if (k + tick0 < fLifetimeCorrFactors.size())
-        sum_adc += adc[k] * fLifetimeCorrFactors[k + tick0];
+      if (k + tick0 < fAlgView.fLifetimeCorrFactors.size())
+        sum_adc += adc[k] * fAlgView.fLifetimeCorrFactors[k + tick0];
     }
-    dst[i] = sum_adc * fDriftWindowInv;
+    result[i] = sum_adc * fDriftWindowInv;
   }
-  scaleAdcSamples(dst);
+  scaleAdcSamples(result);
+  return result;
 }
 
-bool
-img::DataProviderAlg::setWireData(std::vector<float> const& adc, size_t wireIdx)
+std::optional<std::vector<float>>
+img::DataProviderAlg::setWireData(std::vector<float> const& adc, size_t wireIdx) const
 {
-  if (wireIdx >= fWireDriftData.size()) return false;
-  auto& wData = fWireDriftData[wireIdx];
+  if (wireIdx >= fAlgView.fWireDriftData.size()) return std::nullopt;
+  auto& wData = fAlgView.fWireDriftData[wireIdx];
 
   if (fDownscaleFullView) {
-    if (!adc.empty()) { downscale(wData, adc, 0); }
+    if (!adc.empty()) { return downscale(wData.size(), adc, 0); }
     else {
-      return false;
+      return std::nullopt;
     }
   }
   else {
-    if (adc.empty()) { return false; }
-    else if (adc.size() <= wData.size()) {
-      std::copy(adc.begin(), adc.end(), wData.begin());
-    }
+    if (adc.empty()) { return std::nullopt; }
+    else if (adc.size() <= wData.size())
+      return adc;
     else {
-      std::copy(adc.begin(), adc.begin() + wData.size(), wData.begin());
+      return std::vector<float>(adc.begin(), adc.begin() + wData.size());
     }
   }
-  return true;
+  return std::make_optional(wData);
 }
 // ------------------------------------------------------
 
@@ -330,7 +313,7 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
   size_t nwires = fGeometry->Nwires(plane, tpc, cryo);
   size_t ndrifts = det_prop.NumberTimeSamples();
 
-  resizeView(clock_data, det_prop, nwires, ndrifts);
+  fAlgView = resizeView(clock_data, det_prop, nwires, ndrifts);
 
   auto const& channelStatus =
     art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
@@ -350,12 +333,12 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
           mf::LogWarning("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
           continue; // not critical, maybe other wires are OK, so continue
         }
-
-        if (!setWireData(adc, w_idx)) {
+        auto wire_data = setWireData(adc, w_idx);
+        if (!wire_data) {
           mf::LogWarning("DataProviderAlg") << "Wire data not set.";
           continue; // also not critical, try to set other wires
         }
-
+        fAlgView.fWireDriftData[w_idx] = *wire_data;
         for (auto v : adc) {
           if (v >= fAdcSumThr) {
             fAdcSumOverThr += v;
@@ -363,7 +346,7 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
           }
         }
 
-        fWireChannels[w_idx] = wireChannelNumber;
+        fAlgView.fWireChannels[w_idx] = wireChannelNumber;
         allWrong = false;
       }
     }
@@ -392,8 +375,9 @@ img::DataProviderAlg::scaleAdcSample(float val) const
     val = fAdcMax;
   }
 
-  return fAdcOffset + fAdcScale * (val - fAdcMin); // shift and scale to the output range,
-                                                   // shift to the output min
+  return fAdcOffset +
+         fAdcScale *
+           (val - fAdcMin); // shift and scale to the output range, shift to the output min
 }
 // ------------------------------------------------------
 void
@@ -420,8 +404,9 @@ img::DataProviderAlg::scaleAdcSamples(std::vector<float>& values) const
     if (data[k + 2] > fAdcMax) { data[k + 2] = fAdcMax; }
     if (data[k + 3] > fAdcMax) { data[k + 3] = fAdcMax; }
 
-    data[k] = fAdcOffset + fAdcScale * (data[k] - fAdcMin); // shift and scale to the output
-                                                            // range, shift to the output min
+    data[k] = fAdcOffset +
+              fAdcScale *
+                (data[k] - fAdcMin); // shift and scale to the output range, shift to the output min
     data[k + 1] = fAdcOffset + fAdcScale * (data[k + 1] - fAdcMin);
     data[k + 2] = fAdcOffset + fAdcScale * (data[k + 2] - fAdcMin);
     data[k + 3] = fAdcOffset + fAdcScale * (data[k + 3] - fAdcMin);
@@ -443,18 +428,18 @@ img::DataProviderAlg::applyBlur()
   size_t margin_left = (fBlurKernel.size() - 1) >> 1,
          margin_right = fBlurKernel.size() - margin_left - 1;
 
-  std::vector<std::vector<float>> src(fWireDriftData.size());
-  for (size_t w = 0; w < fWireDriftData.size(); ++w) {
-    src[w] = fWireDriftData[w];
+  std::vector<std::vector<float>> src(fAlgView.fWireDriftData.size());
+  for (size_t w = 0; w < fAlgView.fWireDriftData.size(); ++w) {
+    src[w] = fAlgView.fWireDriftData[w];
   }
 
-  for (size_t w = margin_left; w < fWireDriftData.size() - margin_right; ++w) {
-    for (size_t d = 0; d < fWireDriftData[w].size(); ++d) {
+  for (size_t w = margin_left; w < fAlgView.fWireDriftData.size() - margin_right; ++w) {
+    for (size_t d = 0; d < fAlgView.fWireDriftData[w].size(); ++d) {
       float sum = 0;
       for (size_t i = 0; i < fBlurKernel.size(); ++i) {
         sum += fBlurKernel[i] * src[w + i - margin_left][d];
       }
-      fWireDriftData[w][d] = sum;
+      fAlgView.fWireDriftData[w][d] = sum;
     }
   }
 }
@@ -478,11 +463,11 @@ img::DataProviderAlg::patchFromDownsampledView(size_t wire,
   int d0 = sd - halfSizeD;
   int d1 = sd + halfSizeD;
 
-  int wsize = fWireDriftData.size();
+  int wsize = fAlgView.fWireDriftData.size();
   for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch) {
     auto& dst = patch[wpatch];
     if ((w >= 0) && (w < wsize)) {
-      auto& src = fWireDriftData[w];
+      auto& src = fAlgView.fWireDriftData[w];
       int dsize = src.size();
       for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch) {
         if ((d >= 0) && (d < dsize)) { dst[dpatch] = src[d]; }
@@ -519,10 +504,10 @@ img::DataProviderAlg::patchFromOriginalView(size_t wire,
   if (d0 < 0) d0 = 0;
 
   std::vector<float> tmp(dsize);
-  int wsize = fWireDriftData.size();
+  int wsize = fAlgView.fWireDriftData.size();
   for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch) {
     if ((w >= 0) && (w < wsize)) {
-      auto& src = fWireDriftData[w];
+      auto& src = fAlgView.fWireDriftData[w];
       int src_size = src.size();
       for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch) {
         if ((d >= 0) && (d < src_size)) { tmp[dpatch] = src[d]; }
@@ -534,8 +519,7 @@ img::DataProviderAlg::patchFromOriginalView(size_t wire,
     else {
       std::fill(tmp.begin(), tmp.end(), fAdcZero);
     }
-
-    downscale(patch[wpatch], tmp, d0);
+    patch[wpatch] = downscale(patch[wpatch].size(), tmp, d0);
   }
 
   return true;
@@ -551,9 +535,9 @@ img::DataProviderAlg::addWhiteNoise()
   if (fDownscaleFullView) effectiveSigma /= fDriftWindow;
 
   CLHEP::RandGauss gauss(fRndEngine);
-  std::vector<double> noise(fNCachedDrifts);
-  for (auto& wire : fWireDriftData) {
-    gauss.fireArray(fNCachedDrifts, noise.data(), 0., effectiveSigma);
+  std::vector<double> noise(fAlgView.fNCachedDrifts);
+  for (auto& wire : fAlgView.fWireDriftData) {
+    gauss.fireArray(fAlgView.fNCachedDrifts, noise.data(), 0., effectiveSigma);
     for (size_t d = 0; d < wire.size(); ++d) {
       wire[d] += noise[d];
     }
@@ -570,20 +554,20 @@ img::DataProviderAlg::addCoherentNoise()
   if (fDownscaleFullView) effectiveSigma /= fDriftWindow;
 
   CLHEP::RandGauss gauss(fRndEngine);
-  std::vector<double> amps1(fWireDriftData.size());
-  std::vector<double> amps2(1 + (fWireDriftData.size() / 32));
+  std::vector<double> amps1(fAlgView.fWireDriftData.size());
+  std::vector<double> amps2(1 + (fAlgView.fWireDriftData.size() / 32));
   gauss.fireArray(amps1.size(), amps1.data(), 1., 0.1); // 10% wire-wire ampl. variation
   gauss.fireArray(amps2.size(), amps2.data(), 1., 0.1); // 10% group-group ampl. variation
 
   double group_amp = 1.0;
-  std::vector<double> noise(fNCachedDrifts);
-  for (size_t w = 0; w < fWireDriftData.size(); ++w) {
+  std::vector<double> noise(fAlgView.fNCachedDrifts);
+  for (size_t w = 0; w < fAlgView.fWireDriftData.size(); ++w) {
     if ((w & 31) == 0) {
       group_amp = amps2[w >> 5]; // div by 32
-      gauss.fireArray(fNCachedDrifts, noise.data(), 0., effectiveSigma);
+      gauss.fireArray(fAlgView.fNCachedDrifts, noise.data(), 0., effectiveSigma);
     } // every 32 wires
 
-    auto& wire = fWireDriftData[w];
+    auto& wire = fAlgView.fWireDriftData[w];
     for (size_t d = 0; d < wire.size(); ++d) {
       wire[d] += group_amp * amps1[w] * noise[d];
     }
