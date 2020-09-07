@@ -1211,9 +1211,10 @@ namespace tca {
     // ensure that inTraj is clean for the ID
     for (unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
       if (slc.slHits[iht].InTraj == tj.ID) {
-        mf::LogWarning("TC") << "StoreTraj: Hit " << PrintHit(slc.slHits[iht])
-                             << " thinks it belongs to T" << tj.ID << " but it isn't in the Tj\n";
-        return false;
+//        mf::LogWarning("TC") << "StoreTraj: Hit " << PrintHit(slc.slHits[iht])
+//                             << " thinks it belongs to T" << tj.ID 
+//                             << " but it isn't in the Tj... Fixed";
+        slc.slHits[iht].InTraj = 0;
       }
     } // iht
 

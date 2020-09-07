@@ -519,13 +519,7 @@ namespace tca {
             if (slc.slHits[iht].InTraj != 0) break;
             if (slc.slHits[jht].InTraj != 0) continue;
             // clear out any leftover work inTraj's that weren't cleaned up properly
-            for (auto& slHit : slc.slHits) {
-              if (slHit.InTraj < 0) {
-                std::cout << "RAT: Dirty hit " << PrintHit(slHit) << " EventsProcessed "
-                          << evt.eventsProcessed << " WorkID " << evt.WorkID << "\n";
-                slHit.InTraj = 0;
-              }
-            }
+            for (auto& slHit : slc.slHits) if (slHit.InTraj < 0) slHit.InTraj = 0;
             unsigned int toWire = jwire;
             auto& jHit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
             if (LongPulseHit(jHit)) continue;
@@ -1381,10 +1375,7 @@ namespace tca {
         nhi = newHitIndex[ahi];
         break;
       } // ii
-      if(nhi == UINT_MAX) {
-        std::cout<<"Invalid nhi in T"<<tp3d.TjID<<" "<<tp3d.TPIndex<<"\n";
-        continue;
-      }
+      if(nhi == UINT_MAX) continue;
       // Map the Track flag bits from the TP Environment bitset
       for(unsigned short ib = 0; ib < 8; ++ib) {
         if(!tp.Environment[ib]) continue;
@@ -1408,12 +1399,11 @@ namespace tca {
 
     // construct the track, which has a trajectory with "momentum", a stab at a PDGCode,
     // a chisq and not-defined covariance matrix
+    recob::tracking::SMatrixSym55 cov;
     trk = recob::Track(recob::TrackTrajectory(std::move(positions),
                       std::move(directions),std::move(tpFlags), true),
                       pfp.PDGCode, chi, ndof,
-                      recob::tracking::SMatrixSym55(),recob::tracking::SMatrixSym55(),
-                      pfp.UID);
-    
+                      cov, cov, pfp.UID);
   } // MakeTrackFromPFP
 
 

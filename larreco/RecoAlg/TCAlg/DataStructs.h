@@ -240,7 +240,7 @@ namespace tca {
   struct SectionFit {
     Point3_t Pos{{-10.0, 0.0, 0.0}};   ///< center position of this section
     Vector3_t Dir{{0.0, 0.0, 0.0}};    ///< and direction
-    Vector3_t DirErr{{0.0, 0.0, 0.0}}; ///< and direction error
+    Vector3_t DirErr{{0.01, 0.01, 0.01}}; ///< and direction error
     float ChiDOF{-1};
     unsigned short NPts{0};
     bool NeedsUpdate{true}; ///< set true if the section needs to be updated
