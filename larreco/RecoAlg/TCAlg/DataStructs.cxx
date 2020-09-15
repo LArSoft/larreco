@@ -18,6 +18,7 @@ namespace tca {
     "TEP3D",
     "Junk3D",
     "RTPs3D",
+    "SmallAng3D",
     "Mat3D",
     "MaskHits",
     "MaskBadTPs",
@@ -38,7 +39,6 @@ namespace tca {
     "Merge",
     "LastEndMerge",
     "TEP",
-    "THCEP", // TrimHiChgEndPoints
     "EndKink", // CheckEndKink
     "CHMEH",
     "FillGaps",

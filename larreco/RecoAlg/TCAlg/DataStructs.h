@@ -305,7 +305,6 @@ namespace tca {
     kCanSection,
     kNeedsUpdate,
     kStops,
-    kSmallAngle,
     kdEdxDefined        //< Set true if dEdx is defined in the TP3Ds vector
   } PFPFlags_t;
 
@@ -430,6 +429,7 @@ namespace tca {
     kTEP3D,
     kJunk3D,
     kRTPs3D,
+    kSmallAng3D,
     kMat3D, // 2D algorithms for Tjs here and below
     kMaskHits,
     kMaskBadTPs,
@@ -450,7 +450,6 @@ namespace tca {
     kMerge,
     kLastEndMerge,
     kTEP,
-    kTHCEP,
     kEndKink,
     kCHMEH,
     kFillGaps,

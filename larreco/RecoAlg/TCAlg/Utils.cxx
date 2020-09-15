@@ -1205,7 +1205,11 @@ namespace tca {
       // assume that the start end is the end with the lower average charge
       chg0 /= cnt0;
       chg1 /= cnt1;
-      if(chg1 > chg0) { tj.StartEnd = 0; } else { tj.StartEnd = 1; }
+      if(chg1 > 1.2 * chg0) {
+        tj.StartEnd = 0;
+      } else if(chg0 > 1.2 * chg1) { 
+        tj.StartEnd = 1;
+      }
     } // valid cnt0 and cnt1
 
     // ensure that inTraj is clean for the ID
@@ -1580,49 +1584,6 @@ namespace tca {
     slc.tjs[otj].PDGCode = 13;
     return true;
   } // BraggSplit
-
-  //////////////////////////////////////////
-  void
-  TrimHiChgEndPts(TCSlice& slc, Trajectory& tj, bool prt)
-  {
-    // Trim points at the end if the charge pull is too high
-    if (!tcc.useAlg[kTHCEP]) return;
-    // don't consider long electrons
-    if (tj.PDGCode == 111) return;
-    unsigned short npwc = NumPtsWithCharge(slc, tj, false);
-    // only consider long tjs
-    if (npwc < 50) return;
-    // that don't have a Bragg peak
-    if (tj.EndFlag[1][kBragg]) return;
-
-    // only look at the last points that would have not been considered by GottaKink
-    unsigned short nPtsMax = tcc.kinkCuts[0];
-    if (nPtsMax > 8) nPtsMax = 8;
-
-    // find the first point with a high charge pull starting at nPtsMax points before the end
-    // and count the number of high charge pull points
-    float cntBad = 0;
-    unsigned short firstBad = USHRT_MAX;
-    for (unsigned short ii = 0; ii < nPtsMax; ++ii) {
-      unsigned short ipt = tj.EndPt[1] - nPtsMax + ii;
-      auto& tp = tj.Pts[ipt];
-      if (tp.Chg <= 0) continue;
-      if (tp.ChgPull < 3) continue;
-      ++cntBad;
-      if (firstBad == USHRT_MAX) firstBad = ipt;
-    } // ii
-    if (firstBad == USHRT_MAX) return;
-    // total number of points from the first bad point to the end
-    float cntTot = tj.EndPt[1] - firstBad;
-    // fraction of those poins that are bad
-    float fracBad = cntBad / cntTot;
-    if (fracBad < 0.5) return;
-    if (prt)
-      mf::LogVerbatim("TC") << "THCEP: Trim points starting at " << PrintPos(slc, tj.Pts[firstBad]);
-    for (unsigned short ipt = firstBad; ipt <= tj.EndPt[1]; ++ipt)
-      UnsetUsedHits(slc, tj.Pts[ipt]);
-    tj.AlgMod[kTHCEP] = true;
-  } // TrimHiChgEndPts
 
   //////////////////////////////////////////
   void
@@ -3921,7 +3882,6 @@ namespace tca {
     if (vx2.ID == 0) return;
     if (vx2.Stat[kOnDeadWire]) return;
 
-    if (prt) mf::LogVerbatim("TC") << "UpdateVxEnvironment check Tjs attached to vx2 " << vx2.ID;
 
     std::vector<int> tjlist;
     std::vector<unsigned short> tjends;
@@ -4039,7 +3999,8 @@ namespace tca {
         unsigned short ipt = wire_tjpt[itj][indx].Step;
         tj.Pts[ipt].Environment[kEnvOverlap] = true;
         tj.NeedsUpdate = true;
-        if (prt) mf::LogVerbatim("TC") << " Set kEnvOverlap bit on T" << tj.ID << " ipt " << ipt;
+        if (prt) mf::LogVerbatim("TC") << " Set kEnvOverlap bit on T" << tj.ID 
+                << " TP " <<PrintPos(slc, tj.Pts[ipt]);
       } // itj
     }   // indx
 

@@ -381,7 +381,7 @@ namespace tca {
     }
     if(tjf.outlook < 0) return;
     // Look for a long clean muon in the forecast
-    bool stiffMu = (tkLike && tjf.MCSMom > 600 && tjf.nextForecastUpdate > 100);
+    bool stiffMu = (tkLike && tjf.MCSMom > 600 && tjf.nextForecastUpdate > 100 && !tjf.endBraggPeak);
     if(stiffMu) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: High MCSMom, long forecast. Use the StiffMu strategy";
       tj.Strategy.reset();
@@ -403,7 +403,7 @@ namespace tca {
       lastTP.NTPsFit = 5;
       return;
     } // low MCSMom
-    if(!tjf.leavesBeforeEnd && tjf.endBraggPeak) {
+    if(tjf.endBraggPeak) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Found a Bragg peak. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
@@ -962,9 +962,6 @@ namespace tca {
       return;
     }
 
-    // reduce nPtsFit to the minimum and check for a large angle kink near the ends
-//    ChkEndKink(slc, tj, tcc.dbgStp);
-
     // Look for a charge asymmetry between points on both sides of a high-
     // charge point and trim points in the vicinity
     ChkChgAsymmetry(slc, tj, tcc.dbgStp);
@@ -980,6 +977,7 @@ namespace tca {
     tj.MCSMom = MCSMom(slc, tj);
 
     // See if the points at the stopping end can be included in the Tj
+    unsigned short ipt = tj.EndPt[1];
     ChkStopEndPts(slc, tj, tcc.dbgStp);
 
     // remove any points at the end that don't have charge
@@ -1007,23 +1005,28 @@ namespace tca {
 
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
     if(!isVLA) FillGaps(slc, tj);
+    ipt = tj.EndPt[1];
+    if(tcc.dbgStp) PrintTP("c1", slc, ipt, 0, 0, tj.Pts[ipt]);
 
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<" CheckTraj MCSMom "<<tj.MCSMom<<" isVLA? "<<isVLA<<" NumPtsWithCharge "<<NumPtsWithCharge(slc, tj, false)<<" Min Req'd "<<tcc.minPts[tj.Pass];
 
     // Trim the end points until the TJ meets the quality cuts
     TrimEndPts("CT", slc, tj, tcc.qualityCuts, tcc.dbgStp);
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<" after TEP "<<PrintPos(slc, tj.Pts[tj.EndPt[1]]);
     if(tj.AlgMod[kKilled]) {
       tj.IsGood = false;
       return;
     }
-
-    TrimHiChgEndPts(slc, tj, tcc.dbgStp);
+    ipt = tj.EndPt[1];
+    if(tcc.dbgStp) PrintTP("c2", slc, ipt, 0, 0, tj.Pts[ipt]);
 
     // Check for a Bragg peak at both ends. This may be used by FixBegin.
     ChkStop(slc, tj);
 
     // Update the trajectory parameters at the beginning of the trajectory
     ChkBegin(slc, tj);
+    ipt = tj.EndPt[1];
+    if(tcc.dbgStp) PrintTP("c4", slc, ipt, 0, 0, tj.Pts[ipt]);
 
     // ignore short trajectories
     if(tj.EndPt[1] < 4) return;
@@ -1667,7 +1670,7 @@ namespace tca {
     SetEndPoints(tj);
     // Re-fitting the end might be a good idea but it's probably not necessary. The
     // values of Delta should have already been filled
-
+/* 
     // require a Bragg peak
     ChkStop(slc, tj);
     if(!tj.EndFlag[1][kBragg]) {
@@ -1675,6 +1678,12 @@ namespace tca {
       for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
       SetEndPoints(tj);
     } // no Bragg Peak
+*/
+    if(tcc.dbgStp) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CSEP: Leaving with T"<<tj.ID<<" extent "<<PrintPos(slc, tj.Pts[tj.EndPt[0]]);
+      myprt<<" to "<<PrintPos(slc, tj.Pts[tj.EndPt[1]]);
+    }
 
     UpdateTjChgProperties("CSEP", slc, tj, prt);
 
@@ -3781,7 +3790,6 @@ namespace tca {
       short dpt1 = tj.EndPt[1] - hiPt;
       if(end == 0 && dpt1 <= dpt0) continue;
       if(end == 1 && dpt0 <= dpt1) continue;
-      if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" wire0 "<<wire0<<" Chg "<<big<<" hiPt "<<hiPt;
       float prevChg = big;
       // prepare to do the fit
       Point2_t inPt;

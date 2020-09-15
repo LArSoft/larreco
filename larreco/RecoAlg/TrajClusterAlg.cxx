@@ -624,7 +624,7 @@ namespace tca {
               auto& tj = slc.tjs[slc.tjs.size() - 1];
               PrintTrajectory("RAT", slc, tj, USHRT_MAX);
               if (!InTrajOK(slc, "RAT")) {
-                std::cout << "RAT: InTrajOK major failure. " << tj.ID << "\n";
+                std::cout << "RAT: InTrajOK major failure T" << tj.ID << "\n";
                 return;
               }
             } // dbgStp

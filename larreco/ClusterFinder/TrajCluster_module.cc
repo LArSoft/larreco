@@ -314,10 +314,6 @@ namespace cluster {
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
       auto const* geom = lar::providerFrom<geo::Geometry>();
-      geo::PlaneID plnID9 = geo::PlaneID(0, 9, 2);
-      std::cout<<"Chk "<<detProp.ConvertTicksToX(5400., plnID9)<<" plnID9 "<<plnID9<<"\n";
-      geo::PlaneID plnID1 = geo::PlaneID(0, 1, 2);
-      std::cout<<"Chk "<<detProp.ConvertTicksToX(5400., plnID1)<<" plnID1 "<<plnID1<<"\n";
       for (const auto& tpcid : geom->IterateTPCIDs()) {
         // ignore protoDUNE dummy TPCs
         if (geom->TPC(tpcid).DriftDistance() < 25.0) continue;
@@ -383,7 +379,6 @@ namespace cluster {
       }   // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg.FinishEvent(detProp);
-//      if (tca::tcc.dbgSummary) tca::PrintAll(detProp, "TCM");
     } // nInputHits > 0
 
     // Vectors to hold all data products that will go into the event
@@ -692,7 +687,6 @@ namespace cluster {
         // See if there was a serious reconstruction failure that made the slice invalid
         if (!slc.isValid) continue;
         // make PFParticles
-        std::cout<<"TCM slice "<<isl<<" nPFP "<<slc.pfps.size()<<"\n";
         for (size_t ipfp = 0; ipfp < slc.pfps.size(); ++ipfp) {
           auto& pfp = slc.pfps[ipfp];
           if (pfp.ID <= 0) continue;

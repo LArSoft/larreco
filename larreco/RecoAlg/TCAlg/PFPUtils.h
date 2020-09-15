@@ -89,8 +89,8 @@ namespace tca {
                       const std::vector<TP3D>& tp3ds,
                       unsigned short fromPt,
                       short fitDir,
-                      unsigned short nPtsFit);
-  bool FitTP3Ds(detinfo::DetectorClocksData const& clockData,
+                      unsigned short nPtsFit, bool prt);
+  bool FitPFP(detinfo::DetectorClocksData const& clockData,
                 detinfo::DetectorPropertiesData const& detProp,
                 const TCSlice& slc,
                 PFPStruct& pfp,
@@ -98,24 +98,6 @@ namespace tca {
                 unsigned short npts,
                 unsigned short sfIndex,
                 float& chiDOF);
-  void SplitAtKinks(detinfo::DetectorPropertiesData const& detProp,
-                    const TCSlice& slc,
-                    std::vector<PFPStruct>& pfpVec,
-                    bool prt);
-  void KinkFit(detinfo::DetectorClocksData const& clockData,
-               detinfo::DetectorPropertiesData const& detProp,
-               const TCSlice& slc,
-               const PFPStruct& pfp,
-               unsigned short atPt,
-               double fitLen,
-               double& dang,
-               double& dangErr);
-  bool Split(detinfo::DetectorPropertiesData const& detProp,
-             const TCSlice& slc,
-             PFPStruct& p1,
-             unsigned short atPt,
-             PFPStruct& p2,
-             bool prt);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FillGaps3D(detinfo::DetectorClocksData const& clockData,
                   detinfo::DetectorPropertiesData const& detProp,
@@ -125,22 +107,13 @@ namespace tca {
   bool ValidTwoPlaneMatch(detinfo::DetectorPropertiesData const& detProp,
                           const TCSlice& slc,
                           const PFPStruct& pfp);
-  void AddPointsInRange(detinfo::DetectorClocksData const& clockData,
-                        detinfo::DetectorPropertiesData const& detProp,
-                        TCSlice& slc,
-                        PFPStruct& pfp,
-                        unsigned short fromPt,
-                        unsigned short toPt,
-                        CTP_t inCTP,
-                        float maxPull,
-                        unsigned short& nWires,
-                        unsigned short& nAdd,
-                        bool prt);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
-  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp);
+  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc,
+                 PFPStruct& pfp, bool prt);
   bool MakeSmallAnglePFP(detinfo::DetectorPropertiesData const& detProp,
-                         TCSlice& slc, PFPStruct& pfp);
+                         TCSlice& slc, PFPStruct& pfp,
+                         bool prt);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   TP3D MakeTP3D(detinfo::DetectorPropertiesData const& detProp, 
