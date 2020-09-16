@@ -2804,16 +2804,10 @@ namespace tca {
     auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
     if (tp.Environment[kEnvOverlap]) return 0;
 
-    double dQ = 0.;
-    double time = 0;
-    for (unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-      if (!tp.UseHit[ii]) continue;
-      auto& hit = (*evt.allHits)[slc.slHits[tp.Hits[ii]].allHitsIndex];
-      dQ += hit.Integral();
-    } // ii
+    double dQ = TpSumHitChg(slc, tp);
+    if(dQ == 0) return 0;
     time = tp.Pos[1] / tcc.unitsPerTick;
     geo::PlaneID plnID = DecodeCTP(tp.CTP);
-    if(dQ == 0) return 0;
     double dx = GetPitch(tp3d);
     if(dx <= 0.) return 0;
     double dQdx = dQ / dx;
