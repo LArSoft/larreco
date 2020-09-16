@@ -1,4 +1,5 @@
 art_make(MODULE_LIBRARIES
+  lardataalg_DetectorInfo
   larcorealg_Geometry
   lardataobj_RecoBase
   ${ART_FRAMEWORK_SERVICES_REGISTRY}

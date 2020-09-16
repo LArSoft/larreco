@@ -14,178 +14,175 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "canvas/Persistency/Common/FindManyP.h"
 
-#include "larevt/SpaceCharge/SpaceCharge.h"
-#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
-#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larevt/SpaceCharge/SpaceCharge.h"
+#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 #include "lardataobj/AnalysisBase/T0.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/PFParticleMetadata.h"
+#include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/Slice.h"
-#include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Vertex.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/PFParticleMetadata.h"
 
 namespace sce {
-  class SCECorrection;
+class SCECorrection;
 }
-
 
 class sce::SCECorrection : public art::EDProducer {
   public:
-    explicit SCECorrection(fhicl::ParameterSet const& p);
-    // The compiler-generated destructor is fine for non-base
-    // classes without bare pointers or other resource use.
+  explicit SCECorrection(fhicl::ParameterSet const& p);
+  // The compiler-generated destructor is fine for non-base
+  // classes without bare pointers or other resource use.
 
-    // Plugins should not be copied or assigned.
-    SCECorrection(SCECorrection const&) = delete;
-    SCECorrection(SCECorrection&&) = delete;
-    SCECorrection& operator=(SCECorrection const&) = delete;
-    SCECorrection& operator=(SCECorrection&&) = delete;
+  // Plugins should not be copied or assigned.
+  SCECorrection(SCECorrection const&) = delete;
+  SCECorrection(SCECorrection&&) = delete;
+  SCECorrection& operator=(SCECorrection const&) = delete;
+  SCECorrection& operator=(SCECorrection&&) = delete;
 
-    // Required functions.
-    void produce(art::Event& evt) override;
+  // Required functions.
+  void produce(art::Event& evt) override;
 
   private:
+  // Declare member data here.
+  geo::GeometryCore const* fGeom;
+  spacecharge::SpaceCharge const* fSCE;
 
-    // Declare member data here.
-    detinfo::DetectorProperties const* fDetProp;
-    geo::GeometryCore const* fGeom;
-    spacecharge::SpaceCharge const* fSCE;
+  const bool fCorrectNoT0Tag, fCorrectSCE, fSCEXCorrFlip;
 
-    bool fCorrectNoT0Tag, fCorrectSCE, fSCEXCorrFlip;
+  const std::string fPFPLabel, fTrackLabel;
+  const std::vector<std::string> fT0Labels;
+  const std::vector<bool> fT0LabelsCorrectT0;
 
-    std::string fPFPLabel, fTrackLabel;
-    std::vector<std::string> fT0Labels;
-    std::vector<bool> fT0LabelsCorrectT0;
+  geo::Vector_t applyT0Shift(const double& t0, const geo::TPCID& tpcId) const;
 
-    geo::Vector_t applyT0Shift(const double& t0, const geo::TPCID tpcId) const;
+  std::map<art::Ptr<anab::T0>, bool> getSliceT0s(
+      const art::Event& evt,
+      const std::vector<art::Ptr<recob::PFParticle>>& slicePFPs,
+      const art::Handle<std::vector<recob::PFParticle>>& pfpHandle,
+      const art::Handle<std::vector<recob::Track>>& trackHandle,
+      const art::FindManyP<recob::Track>& fmPFPTrack) const;
 
-    std::map<art::Ptr<anab::T0>, bool> getSliceT0s(
-        const art::Event& evt,
-        const std::vector<art::Ptr<recob::PFParticle> > slicePFPs,
-        const art::Handle<std::vector<recob::PFParticle> >& pfpHandle,
-        const art::Handle<std::vector<recob::Track> >& trackHandle,
-        const art::FindManyP<recob::Track> fmPFPTrack) const;
-
-    std::pair<art::Ptr<anab::T0>, bool> getSliceBestT0(
-        std::map<art::Ptr<anab::T0>, bool> sliceT0CorrectMap);
+  std::pair<art::Ptr<anab::T0>, bool> getSliceBestT0(
+      const std::map<art::Ptr<anab::T0>, bool>& sliceT0CorrectMap) const;
 };
 
 sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
-  : EDProducer{p},
-  fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
-  fGeom(lar::providerFrom<geo::Geometry>()),
-  fSCE(lar::providerFrom<spacecharge::SpaceChargeService>())
+    : EDProducer { p }
+    , fGeom(lar::providerFrom<geo::Geometry>())
+    , fSCE(lar::providerFrom<spacecharge::SpaceChargeService>())
+    , fCorrectNoT0Tag(p.get<bool>("CorrectNoT0Tag"))
+    , fCorrectSCE(p.get<bool>("CorrectSCE"))
+    , fSCEXCorrFlip(p.get<bool>("SCEXCorrFlip"))
+    , fPFPLabel(p.get<std::string>("PFPLabel"))
+    , fTrackLabel(p.get<std::string>("TrackLabel"))
+    , fT0Labels(p.get<std::vector<std::string>>("T0Labels"))
+    , fT0LabelsCorrectT0(p.get<std::vector<bool>>("T0LabelsCorrectT0"))
 {
-  fCorrectNoT0Tag     = p.get<bool>("CorrectNoT0Tag");
-  fCorrectSCE         = p.get<bool>("CorrectSCE");
-  fSCEXCorrFlip       = p.get<bool>("SCEXCorrFlip");
-  fPFPLabel           = p.get<std::string>("PFPLabel");
-  fTrackLabel         = p.get<std::string>("TrackLabel");
-  fT0Labels           = p.get<std::vector<std::string> >("T0Labels");
-  fT0LabelsCorrectT0  = p.get<std::vector<bool> >("T0LabelsCorrectT0");
 
-  produces<std::vector<anab::T0> >();
-  produces<std::vector<recob::Slice> >();
-  produces<std::vector<recob::PFParticle> >();
-  produces<std::vector<recob::SpacePoint> >();
-  produces<std::vector<recob::Cluster> >();
-  produces<std::vector<recob::Vertex> >();
-  produces<std::vector<larpandoraobj::PFParticleMetadata> >();
+  produces<std::vector<anab::T0>>();
+  produces<std::vector<recob::Slice>>();
+  produces<std::vector<recob::PFParticle>>();
+  produces<std::vector<recob::SpacePoint>>();
+  produces<std::vector<recob::Cluster>>();
+  produces<std::vector<recob::Vertex>>();
+  produces<std::vector<larpandoraobj::PFParticleMetadata>>();
 
   // produces<art::Assns<anab::T0, recob::Slice> >();
-  produces<art::Assns<anab::T0, recob::PFParticle> >();
+  produces<art::Assns<anab::T0, recob::PFParticle>>();
   produces<art::Assns<recob::Slice, recob::Hit>>();
 
-  produces<art::Assns<recob::PFParticle, recob::Slice> >();
-  produces<art::Assns<recob::PFParticle, recob::SpacePoint> >();
-  produces<art::Assns<recob::PFParticle, recob::Vertex> >();
-  produces<art::Assns<recob::PFParticle, recob::Cluster> >();
-  produces<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata> >();
-  produces<art::Assns<recob::SpacePoint, recob::Hit> >();
-  produces<art::Assns<recob::Cluster, recob::Hit> >();
+  produces<art::Assns<recob::PFParticle, recob::Slice>>();
+  produces<art::Assns<recob::PFParticle, recob::SpacePoint>>();
+  produces<art::Assns<recob::PFParticle, recob::Vertex>>();
+  produces<art::Assns<recob::PFParticle, recob::Cluster>>();
+  produces<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata>>();
+  produces<art::Assns<recob::SpacePoint, recob::Hit>>();
+  produces<art::Assns<recob::Cluster, recob::Hit>>();
 }
 
 void sce::SCECorrection::produce(art::Event& evt)
 {
   // Implementation of required member function here.
   // auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
-  auto t0Collection      = std::make_unique<std::vector<anab::T0> >();
-  auto pfpCollection     = std::make_unique<std::vector<recob::PFParticle> >();
-  auto clusterCollection = std::make_unique<std::vector<recob::Cluster> >();
-  auto spCollection      = std::make_unique<std::vector<recob::SpacePoint> >();
-  auto vtxCollection     = std::make_unique<std::vector<recob::Vertex> >();
-  auto sliceCollection   = std::make_unique<std::vector<recob::Slice> >();
-  auto pfpMetaCollection = std::make_unique<std::vector<larpandoraobj::PFParticleMetadata> > ();
+  auto t0Collection = std::make_unique<std::vector<anab::T0>>();
+  auto pfpCollection = std::make_unique<std::vector<recob::PFParticle>>();
+  auto clusterCollection = std::make_unique<std::vector<recob::Cluster>>();
+  auto spCollection = std::make_unique<std::vector<recob::SpacePoint>>();
+  auto vtxCollection = std::make_unique<std::vector<recob::Vertex>>();
+  auto sliceCollection = std::make_unique<std::vector<recob::Slice>>();
+  auto pfpMetaCollection = std::make_unique<std::vector<larpandoraobj::PFParticleMetadata>>();
 
   // auto t0SliceAssn       = std::make_unique<art::Assns<anab::T0, recob::Slice> >();
-  auto t0PFPAssn         = std::make_unique<art::Assns<anab::T0, recob::PFParticle> >();
-  auto sliceHitAssn      = std::make_unique<art::Assns<recob::Slice, recob::Hit> >();
-  auto pfpSliceAssn      = std::make_unique<art::Assns<recob::PFParticle, recob::Slice> >();
-  auto pfpVtxAssn        = std::make_unique<art::Assns<recob::PFParticle, recob::Vertex> >();
-  auto pfpSPAssn         = std::make_unique<art::Assns<recob::PFParticle, recob::SpacePoint> >();
-  auto pfpClusterAssn    = std::make_unique<art::Assns<recob::PFParticle, recob::Cluster> >();
-  auto pfpMetaAssn       = std::make_unique<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata> >();
-  auto spHitAssn         = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit> >();
-  auto clusterHitAssn    = std::make_unique<art::Assns<recob::Cluster, recob::Hit> >();
+  auto t0PFPAssn = std::make_unique<art::Assns<anab::T0, recob::PFParticle>>();
+  auto sliceHitAssn = std::make_unique<art::Assns<recob::Slice, recob::Hit>>();
+  auto pfpSliceAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Slice>>();
+  auto pfpVtxAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Vertex>>();
+  auto pfpSPAssn = std::make_unique<art::Assns<recob::PFParticle, recob::SpacePoint>>();
+  auto pfpClusterAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Cluster>>();
+  auto pfpMetaAssn = std::make_unique<art::Assns<recob::PFParticle, larpandoraobj::PFParticleMetadata>>();
+  auto spHitAssn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
+  auto clusterHitAssn = std::make_unique<art::Assns<recob::Cluster, recob::Hit>>();
 
-  art::PtrMaker<anab::T0>                          t0PtrMaker{evt};
-  art::PtrMaker<recob::PFParticle>                 pfpPtrMaker{evt};
-  art::PtrMaker<recob::Cluster>                    clusterPtrMaker{evt};
-  art::PtrMaker<recob::Vertex>                     vtxPtrMaker{evt};
-  art::PtrMaker<recob::Slice>                      slicePtrMaker{evt};
-  art::PtrMaker<recob::SpacePoint>                 spPtrMaker{evt};
-  art::PtrMaker<larpandoraobj::PFParticleMetadata> pfpMetaPtrMaker{evt};
+  art::PtrMaker<anab::T0> t0PtrMaker { evt };
+  art::PtrMaker<recob::PFParticle> pfpPtrMaker { evt };
+  art::PtrMaker<recob::Cluster> clusterPtrMaker { evt };
+  art::PtrMaker<recob::Vertex> vtxPtrMaker { evt };
+  art::PtrMaker<recob::Slice> slicePtrMaker { evt };
+  art::PtrMaker<recob::SpacePoint> spPtrMaker { evt };
+  art::PtrMaker<larpandoraobj::PFParticleMetadata> pfpMetaPtrMaker { evt };
 
   // Get all the slices in the event
-  art::Handle<std::vector<recob::Slice> > sliceHandle;
-  std::vector<art::Ptr<recob::Slice> > allSlices;
+  art::Handle<std::vector<recob::Slice>> sliceHandle;
+  std::vector<art::Ptr<recob::Slice>> allSlices;
   if (evt.getByLabel(fPFPLabel, sliceHandle))
     art::fill_ptr_vector(allSlices, sliceHandle);
 
   // Get all the Clusters in the event
-  art::Handle<std::vector<recob::Cluster> > clusterHandle;
-  std::vector<art::Ptr<recob::Cluster> > allClusters;
+  art::Handle<std::vector<recob::Cluster>> clusterHandle;
+  std::vector<art::Ptr<recob::Cluster>> allClusters;
   if (evt.getByLabel(fPFPLabel, clusterHandle))
     art::fill_ptr_vector(allClusters, clusterHandle);
 
   // Get all the SpacePoints in the event
-  art::Handle<std::vector<recob::SpacePoint> > spHandle;
-  std::vector<art::Ptr<recob::SpacePoint> > allSpacePoints;
+  art::Handle<std::vector<recob::SpacePoint>> spHandle;
+  std::vector<art::Ptr<recob::SpacePoint>> allSpacePoints;
   if (evt.getByLabel(fPFPLabel, spHandle))
     art::fill_ptr_vector(allSpacePoints, spHandle);
 
   // Get all the PFParticles in the event
-  art::Handle<std::vector<recob::PFParticle> > pfpHandle;
-  std::vector<art::Ptr<recob::PFParticle> > allPFParticles;
+  art::Handle<std::vector<recob::PFParticle>> pfpHandle;
+  std::vector<art::Ptr<recob::PFParticle>> allPFParticles;
   if (evt.getByLabel(fPFPLabel, pfpHandle))
     art::fill_ptr_vector(allPFParticles, pfpHandle);
 
   // Get all the Tracks in the event
-  art::Handle<std::vector<recob::Track> > trackHandle;
-  std::vector<art::Ptr<recob::Track> > allTracks;
+  art::Handle<std::vector<recob::Track>> trackHandle;
+  std::vector<art::Ptr<recob::Track>> allTracks;
   if (evt.getByLabel(fTrackLabel, trackHandle))
     art::fill_ptr_vector(allTracks, trackHandle);
 
-  art::FindManyP<recob::PFParticle>                 fmSlicePFP(sliceHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Track>                      fmPFPTrack(pfpHandle, evt, fTrackLabel);
-  art::FindManyP<recob::SpacePoint>                 fmPFPSP(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Cluster>                    fmPFPCluster(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Vertex>                     fmPFPVertex(pfpHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>                        fmClusterHit(clusterHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>                        fmSPHit(spHandle, evt, fPFPLabel);
-  art::FindManyP<recob::Hit>                        fmSliceHit(sliceHandle, evt, fPFPLabel);
+  art::FindManyP<recob::PFParticle> fmSlicePFP(sliceHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Track> fmPFPTrack(pfpHandle, evt, fTrackLabel);
+  art::FindManyP<recob::SpacePoint> fmPFPSP(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Cluster> fmPFPCluster(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Vertex> fmPFPVertex(pfpHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit> fmClusterHit(clusterHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit> fmSPHit(spHandle, evt, fPFPLabel);
+  art::FindManyP<recob::Hit> fmSliceHit(sliceHandle, evt, fPFPLabel);
   art::FindManyP<larpandoraobj::PFParticleMetadata> fmPFPMeta(pfpHandle, evt, fPFPLabel);
 
   // Check the assns that are necessary, others are optional and will be checked
@@ -202,20 +199,23 @@ void sce::SCECorrection::produce(art::Event& evt)
 
   // For each slice, get all the PFPs and tracks and check for T0 tags
   // std::cout<<"Test: Slices: "<<allSlices.size()<<std::endl;
-  for (auto const& slice: allSlices) {
+  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+
+  for (auto const& slice : allSlices) {
 
     //Cretae a new slice
     recob::Slice newSlice(*slice);
     sliceCollection->push_back(newSlice);
-    art::Ptr<recob::Slice> newSlicePtr = slicePtrMaker(sliceCollection->size()-1);
+    art::Ptr<recob::Slice> newSlicePtr = slicePtrMaker(sliceCollection->size() - 1);
 
     // Get the pfps and hits associated to the slice
-    std::vector<art::Ptr<recob::PFParticle> > slicePFPs = fmSlicePFP.at(slice.key());
+    const std::vector<art::Ptr<recob::PFParticle>> slicePFPs = fmSlicePFP.at(slice.key());
 
-    std::map<art::Ptr<anab::T0>, bool> sliceT0CorrectMap = getSliceT0s(
+    const std::map<art::Ptr<anab::T0>, bool> sliceT0CorrectMap = getSliceT0s(
         evt, slicePFPs, pfpHandle, trackHandle, fmPFPTrack);
 
-    std::pair<art::Ptr<anab::T0>, bool> sliceT0CorrectPair = getSliceBestT0(sliceT0CorrectMap);
+    const std::pair<art::Ptr<anab::T0>, bool> sliceT0CorrectPair = getSliceBestT0(sliceT0CorrectMap);
 
     if (sliceT0CorrectPair.first.isNull() && !fCorrectNoT0Tag) {
       continue;
@@ -225,48 +225,48 @@ void sce::SCECorrection::produce(art::Event& evt)
     double t0Offset(0);
     if (!sliceT0CorrectPair.first.isNull()) {
       // Calculate the shift we need to apply for the t0
-      t0Offset = fDetProp->DriftVelocity() * sliceT0CorrectPair.first->Time() / 1e3;
+      t0Offset = detProp.DriftVelocity() * sliceT0CorrectPair.first->Time() / 1e3;
       // Create a new T0
       t0Collection->push_back(*sliceT0CorrectPair.first);
-      newT0Ptr = t0PtrMaker(t0Collection->size()-1);
+      newT0Ptr = t0PtrMaker(t0Collection->size() - 1);
       // t0SliceAssn->addSingle(newT0Ptr, newSlicePtr);
     }
 
     // Make an association with the new slice and the old hits
     if (fmSliceHit.isValid()) {
-      const std::vector<art::Ptr<recob::Hit> > sliceHits = fmSliceHit.at(slice.key());
-      for (const art::Ptr<recob::Hit> &hitPtr: sliceHits) {
+      const std::vector<art::Ptr<recob::Hit>> sliceHits = fmSliceHit.at(slice.key());
+      for (const art::Ptr<recob::Hit>& hitPtr : sliceHits) {
         sliceHitAssn->addSingle(newSlicePtr, hitPtr);
       }
     }
 
     // Correct all PFPs in the slice
-    for (auto const& pfp: slicePFPs) {
+    for (auto const& pfp : slicePFPs) {
 
       // Create new PFPs and associate them to the slice
       recob::PFParticle newPFP(*pfp);
       pfpCollection->push_back(newPFP);
-      art::Ptr<recob::PFParticle> newPFPPtr = pfpPtrMaker(pfpCollection->size()-1);
+      art::Ptr<recob::PFParticle> newPFPPtr = pfpPtrMaker(pfpCollection->size() - 1);
       pfpSliceAssn->addSingle(newPFPPtr, newSlicePtr);
 
       if (!newT0Ptr.isNull()) {
         t0PFPAssn->addSingle(newT0Ptr, newPFPPtr);
       }
 
-      std::vector<art::Ptr<recob::SpacePoint> > pfpSPs = fmPFPSP.at(pfp.key());
+      std::vector<art::Ptr<recob::SpacePoint>> pfpSPs = fmPFPSP.at(pfp.key());
       // Get the vertex associated to the PFP
       if (fmPFPVertex.isValid()) {
-        std::vector<art::Ptr<recob::Vertex> > pfpVertices = fmPFPVertex.at(pfp.key());
-        for (auto const& pfpVertex: pfpVertices) {
+        std::vector<art::Ptr<recob::Vertex>> pfpVertices = fmPFPVertex.at(pfp.key());
+        for (auto const& pfpVertex : pfpVertices) {
 
           geo::Point_t vtxPos(pfpVertex->position());
           //Find the closest SP to the vertex
           // If the PFP has no space points, look in the whole event
-          std::vector<art::Ptr<recob::SpacePoint> > vtxSPs = pfpSPs.size() ? pfpSPs: allSpacePoints;
+          std::vector<art::Ptr<recob::SpacePoint>> vtxSPs = pfpSPs.size() ? pfpSPs : allSpacePoints;
 
           double minVtxSPDist = std::numeric_limits<double>::max();
           art::Ptr<recob::SpacePoint> spPtr;
-          for (auto const& sp: vtxSPs) {
+          for (auto const& sp : vtxSPs) {
             geo::Point_t spPos(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
             geo::Vector_t vtxSPDiff = vtxPos - spPos;
             if (vtxSPDiff.Mag2() < minVtxSPDist) {
@@ -287,9 +287,9 @@ void sce::SCECorrection::produce(art::Event& evt)
             vtxPos += posOffset;
           }
 
-          if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
+          if (fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
             geo::Vector_t posOffset = fSCE->GetCalPosOffsets(vtxPos, tpcId.TPC);
-            if (fSCEXCorrFlip){
+            if (fSCEXCorrFlip) {
               posOffset.SetX(-posOffset.X());
             }
             vtxPos += posOffset;
@@ -299,12 +299,12 @@ void sce::SCECorrection::produce(art::Event& evt)
           recob::Vertex newVtx(vtxPos, pfpVertex->covariance(), pfpVertex->chi2(),
               pfpVertex->ndof(), pfpVertex->ID());
           vtxCollection->push_back(newVtx);
-          art::Ptr<recob::Vertex> newVtxPtr = vtxPtrMaker(vtxCollection->size()-1);
+          art::Ptr<recob::Vertex> newVtxPtr = vtxPtrMaker(vtxCollection->size() - 1);
           pfpVtxAssn->addSingle(newPFPPtr, newVtxPtr);
         }
       }
 
-      for (auto const& sp: pfpSPs) {
+      for (auto const& sp : pfpSPs) {
 
         //Get the spacepoint position in a nicer form
         geo::Point_t spPos(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
@@ -320,35 +320,35 @@ void sce::SCECorrection::produce(art::Event& evt)
           spPos += posOffset;
         }
 
-        if(fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
+        if (fCorrectSCE && fSCE->EnableCalSpatialSCE()) {
           geo::Vector_t posOffset = fSCE->GetCalPosOffsets(spPos, tpcId.TPC);
-          if (fSCEXCorrFlip){
+          if (fSCEXCorrFlip) {
             posOffset.SetX(-posOffset.X());
           }
           spPos += posOffset;
         }
 
         // Create new spacepoint and associate it to the pfp and hit
-        Double32_t spXYZ[3] = {spPos.X(), spPos.Y(), spPos.Z()};
+        Double32_t spXYZ[3] = { spPos.X(), spPos.Y(), spPos.Z() };
         recob::SpacePoint correctedSP(spXYZ, sp->ErrXYZ(), sp->Chisq(), sp->ID());
 
         spCollection->push_back(correctedSP);
-        art::Ptr<recob::SpacePoint> spPtr = spPtrMaker(spCollection->size()-1);
+        art::Ptr<recob::SpacePoint> spPtr = spPtrMaker(spCollection->size() - 1);
         pfpSPAssn->addSingle(newPFPPtr, spPtr);
         spHitAssn->addSingle(spPtr, spHitPtr);
       } // pspSPs
 
       // Create new clusters and associations
       if (fmPFPCluster.isValid() && fmClusterHit.isValid()) {
-        std::vector<art::Ptr<recob::Cluster> > pfpClusters = fmPFPCluster.at(pfp.key());
-        for (auto const& pfpCluster: pfpClusters) {
+        std::vector<art::Ptr<recob::Cluster>> pfpClusters = fmPFPCluster.at(pfp.key());
+        for (auto const& pfpCluster : pfpClusters) {
           recob::Cluster newCluster(*pfpCluster);
           clusterCollection->push_back(newCluster);
-          art::Ptr<recob::Cluster> newClusterPtr = clusterPtrMaker(clusterCollection->size()-1);
+          art::Ptr<recob::Cluster> newClusterPtr = clusterPtrMaker(clusterCollection->size() - 1);
 
-          std::vector<art::Ptr<recob::Hit> > clusterHits = fmClusterHit.at(pfpCluster.key());
+          std::vector<art::Ptr<recob::Hit>> clusterHits = fmClusterHit.at(pfpCluster.key());
           pfpClusterAssn->addSingle(newPFPPtr, newClusterPtr);
-          for (auto const& clusterHit: clusterHits) {
+          for (auto const& clusterHit : clusterHits) {
             clusterHitAssn->addSingle(newClusterPtr, clusterHit);
           }
         }
@@ -356,18 +356,16 @@ void sce::SCECorrection::produce(art::Event& evt)
 
       // Create new PFParticle Metadata objects and associations
       if (fmPFPMeta.isValid()) {
-        const std::vector<art::Ptr<larpandoraobj::PFParticleMetadata> > pfpMetas =
-          fmPFPMeta.at(pfp.key());
-        for (const art::Ptr<larpandoraobj::PFParticleMetadata> &pfpMeta: pfpMetas) {
+        const std::vector<art::Ptr<larpandoraobj::PFParticleMetadata>> pfpMetas = fmPFPMeta.at(pfp.key());
+        for (const art::Ptr<larpandoraobj::PFParticleMetadata>& pfpMeta : pfpMetas) {
           larpandoraobj::PFParticleMetadata newPFPMeta(*pfpMeta);
           pfpMetaCollection->push_back(newPFPMeta);
-          art::Ptr<larpandoraobj::PFParticleMetadata> newPFPMetaPtr =
-            pfpMetaPtrMaker(pfpMetaCollection->size()-1);
+          art::Ptr<larpandoraobj::PFParticleMetadata> newPFPMetaPtr = pfpMetaPtrMaker(pfpMetaCollection->size() - 1);
           pfpMetaAssn->addSingle(newPFPPtr, newPFPMetaPtr);
         }
       }
     } // slicePFPs
-  } // slice
+  }   // slice
 
   // std::cout<<"Test: SPs: "<<spCollection->size()<<std::endl;
 
@@ -392,41 +390,47 @@ void sce::SCECorrection::produce(art::Event& evt)
   evt.put(std::move(pfpMetaAssn));
 }
 
-geo::Vector_t sce::SCECorrection::applyT0Shift(const double& t0Offset, const geo::TPCID tpcId) const{
+geo::Vector_t sce::SCECorrection::applyT0Shift(const double& t0Offset, const geo::TPCID& tpcId) const
+{
 
   const geo::TPCGeo& tpcGeo = fGeom->GetElement(tpcId);
   int driftDirection = tpcGeo.DetectDriftDirection();
 
   switch (std::abs(driftDirection)) {
-    case 1: return geo::Vector_t{t0Offset*driftDirection, 0, 0};
-    case 2: return geo::Vector_t{0, t0Offset*driftDirection, 0};
-    case 3: return geo::Vector_t{0, 0, t0Offset*driftDirection};
-    default: throw cet::exception("SCECorrection") << "Drift direction unknown: " << driftDirection
-             << std::endl;
+  case 1:
+    return geo::Vector_t { t0Offset * driftDirection, 0, 0 };
+  case 2:
+    return geo::Vector_t { 0, t0Offset * driftDirection, 0 };
+  case 3:
+    return geo::Vector_t { 0, 0, t0Offset * driftDirection };
+  default:
+    throw cet::exception("SCECorrection") << "Drift direction unknown: " << driftDirection
+                                          << std::endl;
   }
 }
 
-std::map<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceT0s (
+std::map<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceT0s(
     const art::Event& evt,
-    const std::vector<art::Ptr<recob::PFParticle> > slicePFPs,
-    const art::Handle<std::vector<recob::PFParticle> >& pfpHandle,
-    const art::Handle<std::vector<recob::Track> >& trackHandle,
-    const art::FindManyP<recob::Track> fmPFPTrack) const{
+    const std::vector<art::Ptr<recob::PFParticle>>& slicePFPs,
+    const art::Handle<std::vector<recob::PFParticle>>& pfpHandle,
+    const art::Handle<std::vector<recob::Track>>& trackHandle,
+    const art::FindManyP<recob::Track>& fmPFPTrack) const
+{
 
   std::map<art::Ptr<anab::T0>, bool> pfpT0CorrectMap;
   // Loop over all of the PFPs in the slice
-  for (auto const& pfp: slicePFPs) {
+  for (auto const& pfp : slicePFPs) {
 
     // Loop over all of the T0 labels
     // We will take the first label to have a T0, so the order matters
-    for (unsigned int i=0; i<fT0Labels.size(); i++) {
+    for (unsigned int i = 0; i < fT0Labels.size(); i++) {
       std::string t0Label = fT0Labels.at(i);
 
       // Get the T0
       art::FindManyP<anab::T0> fmPFPT0(pfpHandle, evt, t0Label);
       if (fmPFPT0.isValid()) {
-        std::vector<art::Ptr<anab::T0> > pfpT0s = fmPFPT0.at(pfp.key());
-        if (pfpT0s.size()==1) {
+        std::vector<art::Ptr<anab::T0>> pfpT0s = fmPFPT0.at(pfp.key());
+        if (pfpT0s.size() == 1) {
           pfpT0CorrectMap[pfpT0s.front()] = fT0LabelsCorrectT0.at(i);
           break;
         }
@@ -434,8 +438,8 @@ std::map<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceT0s (
       // If not, Check the track associated to the PFP
       if (!fmPFPTrack.isValid())
         continue;
-      std::vector<art::Ptr<recob::Track> > pfpTracks = fmPFPTrack.at(pfp.key());
-      if (pfpTracks.size()!=1) {
+      std::vector<art::Ptr<recob::Track>> pfpTracks = fmPFPTrack.at(pfp.key());
+      if (pfpTracks.size() != 1) {
         continue;
       }
       art::Ptr<recob::Track> pfpTrack = pfpTracks.front();
@@ -443,19 +447,20 @@ std::map<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceT0s (
       // Check if the track has a T0
       art::FindManyP<anab::T0> fmTrackT0(trackHandle, evt, t0Label);
       if (fmTrackT0.isValid()) {
-        std::vector<art::Ptr<anab::T0> > trackT0s = fmTrackT0.at(pfpTrack.key());
-        if (trackT0s.size()==1) {
+        std::vector<art::Ptr<anab::T0>> trackT0s = fmTrackT0.at(pfpTrack.key());
+        if (trackT0s.size() == 1) {
           pfpT0CorrectMap[trackT0s.front()] = fT0LabelsCorrectT0.at(i);
           break;
         }
       }
     } // fT0Labels
-  } // slicePFPs
+  }   // slicePFPs
   return pfpT0CorrectMap;
 }
 
 std::pair<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceBestT0(
-    std::map<art::Ptr<anab::T0>, bool> sliceT0CorrectMap) {
+    const std::map<art::Ptr<anab::T0>, bool>& sliceT0CorrectMap) const
+{
 
   if (!sliceT0CorrectMap.size()) {
     return std::pair<art::Ptr<anab::T0>, bool>();
@@ -463,7 +468,7 @@ std::pair<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceBestT0(
 
   double minT0 = std::numeric_limits<double>::max();
   std::pair<art::Ptr<anab::T0>, bool> sliceT0CorrectPair;
-  for (auto const& sliceT0CorrectIter: sliceT0CorrectMap) {
+  for (auto const& sliceT0CorrectIter : sliceT0CorrectMap) {
     double t0Time = abs(sliceT0CorrectIter.first->Time());
     if (t0Time < minT0) {
       minT0 = t0Time;
