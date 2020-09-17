@@ -72,7 +72,7 @@ physics:
 
   producers: {
     oldcalo:  @local::standard_calodata
-    gnewcalo: @local::standard_gnewcalo
+    gnewcalo: @local::standard_gnocchicalo
   }
 
   runprod: [oldcalo, gnewcalo]
