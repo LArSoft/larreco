@@ -4,17 +4,18 @@ art_make(LIB_LIBRARIES
            nug4_ParticleNavigation
            nusimdata_SimulationBase
            lardata_RecoObjects
+           lardataalg_DetectorInfo
            larcorealg_Geometry
            larreco_Calorimetry
-           art_Utilities
            ${ART_FRAMEWORK_PRINCIPAL}
+           ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ${ART_PERSISTENCY_PROVENANCE}
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           canvas
-           cetlib
-           cetlib_except
+           ${ART_UTILITIES}
+           ${CANVAS}
+           ${CETLIB_EXCEPT}
+           ${CETLIB}
            ROOT::Core
            ROOT::GenVector
            ROOT::Gpad
@@ -25,8 +26,7 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::RIO
            ROOT::Tree
-           ROOT::TMVA
-        )
+           ROOT::TMVA)
 
 add_subdirectory(TCDebugTools)
 

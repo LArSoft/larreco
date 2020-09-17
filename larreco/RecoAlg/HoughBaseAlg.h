@@ -125,150 +125,137 @@
 #ifndef HOUGHBASEALG_H
 #define HOUGHBASEALG_H
 
-#include <vector>
 #include <array>
 #include <map>
 #include <utility> // std::pair<>
+#include <vector>
 
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
-
 #include "canvas/Persistency/Common/PtrVector.h"
-//--- BEGIN issue #19494 -------------------------------------------------------
-// BulkAllocator.h is currently broken; see issue #19494.
-// When the issue is solved, this may or may not be restored, depending on the
-// solution.
-#if 0
-#include "lardata/Utilities/BulkAllocator.h"
-#endif // 0
-//--- END issue #19494 ---------------------------------------------------------
+#include "fhiclcpp/fwd.h"
 
 #include "lardata/Utilities/CountersMap.h"
 
-namespace CLHEP { class HepRandomEngine; }
-namespace art { class Event; }
-namespace fhicl { class ParameterSet; }
-
+namespace CLHEP {
+  class HepRandomEngine;
+}
+namespace detinfo {
+  class DetectorClocksData;
+  class DetectorPropertiesData;
+}
 namespace recob {
   class Hit;
   class Cluster;
 }
 
-    struct houghCorner
-    {
-      double strength=0;
-      double p0=0;
-      double p1=0;
-      houghCorner(double strengthTemp=0,
-          double p0Temp=0,
-          double p1Temp=0)
-      {
-        strength=strengthTemp;
-        p0=p0Temp;
-        p1=p1Temp;
-      }
+struct houghCorner {
+  double strength = 0;
+  double p0 = 0;
+  double p1 = 0;
+  houghCorner(double strengthTemp = 0, double p0Temp = 0, double p1Temp = 0)
+  {
+    strength = strengthTemp;
+    p0 = p0Temp;
+    p1 = p1Temp;
+  }
 
-      bool operator < (const houghCorner& houghCornerComp) const
-      {
-        return (strength < houghCornerComp.strength);
-      }
-    };
+  bool
+  operator<(const houghCorner& houghCornerComp) const
+  {
+    return (strength < houghCornerComp.strength);
+  }
+};
 
+// This stores information about merged lines
+struct mergedLines {
+  double totalQ = 0;
+  double pMin0 = 0;
+  double pMin1 = 0;
+  double pMax0 = 0;
+  double pMax1 = 0;
+  int clusterNumber = -999999;
+  double showerLikeness = 0;
+  mergedLines(double totalQTemp = 0,
+              double pMin0Temp = 0,
+              double pMin1Temp = 0,
+              double pMax0Temp = 0,
+              double pMax1Temp = 0,
+              double clusterNumberTemp = -999999,
+              double showerLikenessTemp = 0)
+  {
+    totalQ = totalQTemp;
+    pMin0 = pMin0Temp;
+    pMin1 = pMin1Temp;
+    pMax0 = pMax0Temp;
+    pMax1 = pMax1Temp;
+    clusterNumber = clusterNumberTemp;
+    showerLikeness = showerLikenessTemp;
+  }
+};
 
-    // This stores information about merged lines
-    struct mergedLines
-    {
-      double totalQ=0;
-      double pMin0=0;
-      double pMin1=0;
-      double pMax0=0;
-      double pMax1=0;
-      int clusterNumber=-999999;
-      double showerLikeness=0;
-      mergedLines (double totalQTemp=0,
-          double pMin0Temp=0,
-          double pMin1Temp=0,
-          double pMax0Temp=0,
-          double pMax1Temp=0,
-          double clusterNumberTemp=-999999,
-          double showerLikenessTemp=0)
-      {
-        totalQ=totalQTemp;
-        pMin0=pMin0Temp;
-        pMin1=pMin1Temp;
-        pMax0=pMax0Temp;
-        pMax1=pMax1Temp;
-        clusterNumber=clusterNumberTemp;
-        showerLikeness=showerLikenessTemp;
-      }
-    };
+struct protoTrack {
+  int clusterNumber = 999999;
+  int planeNumber = 999999;
+  int oldClusterNumber = 999999;
+  float clusterSlope = 999999;
+  float clusterIntercept = 999999;
+  float totalQ = -999999;
+  float pMin0 = 999999;
+  float pMin1 = 999999;
+  float pMax0 = -999999;
+  float pMax1 = -999999;
+  float iMinWire = 999999;
+  float iMaxWire = -999999;
+  float minWire = 999999;
+  float maxWire = -999999;
+  float isolation = -999999;
+  float showerLikeness = -999999;
+  bool merged = false;
+  bool showerMerged = false;
+  bool mergedLeft = false;
+  bool mergedRight = false;
+  std::vector<art::Ptr<recob::Hit>> hits;
+  protoTrack() {}
 
-
-
-    struct protoTrack
-    {
-      int clusterNumber=999999;
-      int planeNumber=999999;
-      int oldClusterNumber=999999;
-      float clusterSlope=999999;
-      float clusterIntercept=999999;
-      float totalQ=-999999;
-      float pMin0=999999;
-      float pMin1=999999;
-      float pMax0=-999999;
-      float pMax1=-999999;
-      float iMinWire=999999;
-      float iMaxWire=-999999;
-      float minWire=999999;
-      float maxWire=-999999;
-      float isolation=-999999;
-      float showerLikeness=-999999;
-      bool merged=false;
-      bool showerMerged=false;
-      bool mergedLeft=false;
-      bool mergedRight=false;
-      std::vector<art::Ptr<recob::Hit>> hits;
-      protoTrack(){
-      }
-
-      void Init(unsigned int num=999999,
-	  unsigned int pnum=999999,
-          float slope=999999,
-          float intercept=999999,
-          float totalQTemp=-999999,
-          float Min0=999999,
-          float Min1=999999,
-          float Max0=-999999,
-          float Max1=-999999,
-          int    iMinWireTemp=999999,
-          int    iMaxWireTemp=-999999,
-          int    minWireTemp=999999,
-          int    maxWireTemp=-999999,
-          std::vector<art::Ptr<recob::Hit>> hitsTemp=std::vector<art::Ptr<recob::Hit>>())
-      {
-        clusterNumber = num;
-        planeNumber = pnum;
-        oldClusterNumber = num;
-        clusterSlope = slope;
-        clusterIntercept = intercept;
-        totalQ=totalQTemp;
-        pMin0 = Min0;
-        pMin1 = Min1;
-        pMax0 = Max0;
-        pMax1 = Max1;
-        iMinWire = iMinWireTemp;
-        iMaxWire = iMaxWireTemp;
-        minWire = minWireTemp;
-        maxWire = maxWireTemp;
-        merged = false;
-        showerMerged = false;
-        showerLikeness = 0;
-        hits.swap(hitsTemp);
-      }
-    };
-
+  void
+  Init(unsigned int num = 999999,
+       unsigned int pnum = 999999,
+       float slope = 999999,
+       float intercept = 999999,
+       float totalQTemp = -999999,
+       float Min0 = 999999,
+       float Min1 = 999999,
+       float Max0 = -999999,
+       float Max1 = -999999,
+       int iMinWireTemp = 999999,
+       int iMaxWireTemp = -999999,
+       int minWireTemp = 999999,
+       int maxWireTemp = -999999,
+       std::vector<art::Ptr<recob::Hit>> hitsTemp = std::vector<art::Ptr<recob::Hit>>())
+  {
+    clusterNumber = num;
+    planeNumber = pnum;
+    oldClusterNumber = num;
+    clusterSlope = slope;
+    clusterIntercept = intercept;
+    totalQ = totalQTemp;
+    pMin0 = Min0;
+    pMin1 = Min1;
+    pMax0 = Max0;
+    pMax1 = Max1;
+    iMinWire = iMinWireTemp;
+    iMaxWire = iMaxWireTemp;
+    minWire = minWireTemp;
+    maxWire = maxWireTemp;
+    merged = false;
+    showerMerged = false;
+    showerLikeness = 0;
+    hits.swap(hitsTemp);
+  }
+};
 
 namespace cluster {
-
 
   /**
    * @brief CountersMap with access optimized for Hough Transform algorithm
@@ -282,21 +269,15 @@ namespace cluster {
    * In addition to the standard CountersMap interface, a special range
    * increment, increment with max detection and decrement methods are provided.
    */
-  template <
-    typename KEY,
-    typename COUNTER,
-    size_t SIZE,
-    typename ALLOC = std::allocator<std::pair<KEY,std::array<COUNTER, SIZE>>>,
-    unsigned int SUBCOUNTERS=1
-    >
-  class HoughTransformCounters:
-    public lar::CountersMap<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>
-  {
-      public:
-
+  template <typename KEY,
+            typename COUNTER,
+            size_t SIZE,
+            typename ALLOC = std::allocator<std::pair<KEY, std::array<COUNTER, SIZE>>>,
+            unsigned int SUBCOUNTERS = 1>
+  class HoughTransformCounters : public lar::CountersMap<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS> {
+  public:
     /// This class
-    using CounterMap_t
-      = HoughTransformCounters<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>;
+    using CounterMap_t = HoughTransformCounters<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>;
     /// Base class
     using Base_t = lar::CountersMap<KEY, COUNTER, SIZE, ALLOC, SUBCOUNTERS>;
 
@@ -312,11 +293,10 @@ namespace cluster {
     using PairValue_t = std::pair<const_iterator, SubCounter_t>;
 
     /// Default constructor (empty map)
-    HoughTransformCounters(): Base_t() {}
+    HoughTransformCounters() : Base_t() {}
 
     /// Constructor, specifies an allocator
-    HoughTransformCounters(Allocator_t alloc): Base_t(alloc) {}
-
+    HoughTransformCounters(Allocator_t alloc) : Base_t(alloc) {}
 
     /**
      * @brief Sets the specified counter to a count value
@@ -324,23 +304,33 @@ namespace cluster {
      * @param value the count value
      * @return new value of the counter
      */
-    SubCounter_t set(Key_t key, SubCounter_t value)
-      { return Base_t::set(key, value); }
+    SubCounter_t
+    set(Key_t key, SubCounter_t value)
+    {
+      return Base_t::set(key, value);
+    }
 
     /**
      * @brief Increments by 1 the specified counter
      * @param key key of the counter to be increased
      * @return new value of the counter
      */
-    SubCounter_t increment(Key_t key) { return Base_t::increment(key); }
+    SubCounter_t
+    increment(Key_t key)
+    {
+      return Base_t::increment(key);
+    }
 
     /**
      * @brief Decrements by 1 the specified counter
      * @param key key of the counter to be decreased
      * @return new value of the counter
      */
-    SubCounter_t decrement(Key_t key) { return Base_t::decrement(key); }
-
+    SubCounter_t
+    decrement(Key_t key)
+    {
+      return Base_t::decrement(key);
+    }
 
     /**
      * @brief Sets the specified range of counters to a count value
@@ -350,8 +340,11 @@ namespace cluster {
      * @return new value of all the counters
      * @see increment(), decrement(), increment_and_get_max()
      */
-    SubCounter_t set(Key_t key_begin, Key_t key_end, SubCounter_t value)
-      { return unchecked_set_range(key_begin, key_end, value); }
+    SubCounter_t
+    set(Key_t key_begin, Key_t key_end, SubCounter_t value)
+    {
+      return unchecked_set_range(key_begin, key_end, value);
+    }
 
     /**
      * @brief Increments by 1 the specified range of counters
@@ -360,7 +353,6 @@ namespace cluster {
      * @see decrement(), increment_and_get_max()
      */
     void increment(Key_t key_begin, Key_t key_end);
-
 
     /**
      * @brief Increments by 1 the specified counters and returns the maximum
@@ -382,9 +374,11 @@ namespace cluster {
      * Note that if all the counters are at the minimum possible value, no
      * maximum will be returned.
      */
-    PairValue_t increment_and_get_max(Key_t key_begin, Key_t key_end)
-      { return unchecked_add_range_max(key_begin, key_end, +1); }
-
+    PairValue_t
+    increment_and_get_max(Key_t key_begin, Key_t key_end)
+    {
+      return unchecked_add_range_max(key_begin, key_end, +1);
+    }
 
     /**
      * @brief Increments by 1 the specified counters and returns the maximum
@@ -400,10 +394,11 @@ namespace cluster {
      * value is equal to current_max, while the iterator points to the end of
      * the map (end()).
      */
-    PairValue_t increment_and_get_max
-      (Key_t key_begin, Key_t key_end, SubCounter_t current_max)
-      { return unchecked_add_range_max(key_begin, key_end, +1, current_max); }
-
+    PairValue_t
+    increment_and_get_max(Key_t key_begin, Key_t key_end, SubCounter_t current_max)
+    {
+      return unchecked_add_range_max(key_begin, key_end, +1, current_max);
+    }
 
     /**
      * @brief Decrements by 1 the specified range of counters
@@ -412,7 +407,6 @@ namespace cluster {
      * @see increment()
      */
     void decrement(Key_t key_begin, Key_t key_end);
-
 
     /**
      * @brief Returns the largest counter
@@ -448,197 +442,119 @@ namespace cluster {
      */
     PairValue_t get_max() const;
 
-
-      protected:
-
+  protected:
     using CounterKey_t = typename Base_t::CounterKey_t;
 
-
-      private:
-
-    SubCounter_t unchecked_set_range(
-      Key_t key_begin, Key_t key_end, SubCounter_t value,
-      typename BaseMap_t::iterator start
-      );
-    SubCounter_t unchecked_set_range
-      (Key_t key_begin, Key_t key_end, SubCounter_t value);
+  private:
+    SubCounter_t unchecked_set_range(Key_t key_begin,
+                                     Key_t key_end,
+                                     SubCounter_t value,
+                                     typename BaseMap_t::iterator start);
+    SubCounter_t unchecked_set_range(Key_t key_begin, Key_t key_end, SubCounter_t value);
     PairValue_t unchecked_add_range_max(
-      Key_t key_begin, Key_t key_end, SubCounter_t delta,
+      Key_t key_begin,
+      Key_t key_end,
+      SubCounter_t delta,
       typename BaseMap_t::iterator start,
-      SubCounter_t min_max = std::numeric_limits<SubCounter_t>::min()
-      );
-    PairValue_t  unchecked_add_range_max(
-      Key_t key_begin, Key_t key_end, SubCounter_t delta,
-      SubCounter_t min_max = std::numeric_limits<SubCounter_t>::min()
-      );
+      SubCounter_t min_max = std::numeric_limits<SubCounter_t>::min());
+    PairValue_t unchecked_add_range_max(
+      Key_t key_begin,
+      Key_t key_end,
+      SubCounter_t delta,
+      SubCounter_t min_max = std::numeric_limits<SubCounter_t>::min());
 
   }; // class HoughTransformCounters
 
-
-#define FC_DEVELOP 0
-
-  class HoughTransform {
-  public:
-
-    HoughTransform();
-    ~HoughTransform();
-
-    void Init
-      (unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
-    std::array<int,3> AddPointReturnMax(int x, int y);
-    bool SubtractPoint(int x, int y);
-    int  GetCell(int row, int col) const;
-    void SetCell(int row, int col, int value) { m_accum[row].set(col, value); }
-    void GetAccumSize(int &numRows, int &numCols)
-    {
-      numRows = m_accum.size();
-      numCols  = (int) m_rowLength;
-    }
-    int NumAccumulated()                      { return m_numAccumulated; }
-    void GetEquation( float row, float col, float &rho, float &theta) const;
-    int GetMax(int & xmax, int & ymax) const;
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-
-  private:
-
-    /// rho -> # hits (for convenience)
-    typedef HoughTransformCounters<int, signed char, 64> BaseMap_t;
-
-    //--- BEGIN issue #19494 ---------------------------------------------------
-    // BulkAllocator.h is currently broken; see issue #19494 and comment above.
-#if 0
-    /// Special allocator for large chunks of pairs (turns out map won't use it)
-    typedef lar::BulkAllocator<BaseMap_t::allocator_type::value_type>
-      BulkPairAllocator_t;
-    /// Type of map distance (discretized) =># hits,
-    /// #hits stored in counters allocated in blocks
-    typedef HoughTransformCounters<int, signed char, 64, BulkPairAllocator_t>
-      DistancesMap_t;
-#else // !0
-    typedef HoughTransformCounters<int, signed char, 64> DistancesMap_t;
-#endif // 0?
-    //--- END issue #19494 -----------------------------------------------------
-
-    /// Type of the Hough transform (angle, distance) map with custom allocator
-    typedef std::vector<DistancesMap_t> HoughImage_t;
-
-
-    unsigned int m_dx;
-    unsigned int m_dy;
-    unsigned int m_rowLength;
-    unsigned int m_numAngleCells;
-    float m_rhoResolutionFactor;
-    // Note, m_accum is a vector of associative containers,
-    // the vector elements are called by rho, theta is the container key,
-    // the number of hits is the value corresponding to the key
-    HoughImage_t m_accum;  ///< column (map key)=rho, row (vector index)=theta
-    int m_numAccumulated;
-    std::vector<double> m_cosTable;
-    std::vector<double> m_sinTable;
-
-    std::array<int,3> DoAddPointReturnMax(int x, int y, bool bSubtract = false);
-
-
-  }; // class HoughTransform
-
-
-
-
-
   class HoughBaseAlg {
-
   public:
-
     /// Data structure collecting charge information to be filled in cluster
     struct ChargeInfo_t {
-      float integral         = 0.0F;
-      float integral_stddev  = 0.0F;
-      float summedADC        = 0.0F;
+      float integral = 0.0F;
+      float integral_stddev = 0.0F;
+      float summedADC = 0.0F;
       float summedADC_stddev = 0.0F;
 
-      ChargeInfo_t(float in, float in_stdev, float sum, float sum_stdev):
-        integral(in), integral_stddev(in_stdev),
-        summedADC(sum), summedADC_stddev(sum_stdev)
-        {}
+      ChargeInfo_t(float in, float in_stdev, float sum, float sum_stdev)
+        : integral(in), integral_stddev(in_stdev), summedADC(sum), summedADC_stddev(sum_stdev)
+      {}
     }; // ChargeInfo_t
 
+    explicit HoughBaseAlg(fhicl::ParameterSet const& pset);
+    virtual ~HoughBaseAlg() = default;
 
-    HoughBaseAlg(fhicl::ParameterSet const& pset);
-    virtual ~HoughBaseAlg();
-
-    size_t FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
-			 std::vector<recob::Cluster>                    & ccol,
-			 std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
+    size_t FastTransform(const std::vector<art::Ptr<recob::Cluster>>& clusIn,
+                         std::vector<recob::Cluster>& ccol,
+                         std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                          CLHEP::HepRandomEngine& engine,
-			 art::Event                                const& evt,
-			 std::string                               const& label);
+                         art::Event const& evt,
+                         std::string const& label);
 
-    size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits,
+    size_t Transform(const detinfo::DetectorClocksData& clockData,
+                     detinfo::DetectorPropertiesData const& detProp,
+                     std::vector<art::Ptr<recob::Hit>> const& hits,
                      CLHEP::HepRandomEngine& engine,
-                     std::vector<unsigned int>     *fpointId_to_clusterId,
+                     std::vector<unsigned int>* fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
-                     unsigned int *nClusters,
-                     std::vector<protoTrack> *protoTracks);
+                     unsigned int* nClusters,
+                     std::vector<protoTrack>* protoTracks);
 
-
-    // interface to look for lines only on a set of hits,without slope and totalQ arrays
-    size_t FastTransform(
-      std::vector<art::Ptr<recob::Hit>> const& clusIn,
-      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-      CLHEP::HepRandomEngine& engine
-      );
+    // interface to look for lines only on a set of hits,without slope and
+    // totalQ arrays
+    size_t FastTransform(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<art::Ptr<recob::Hit>> const& clusIn,
+                         std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                         CLHEP::HepRandomEngine& engine);
 
     // interface to look for lines only on a set of hits
-    size_t FastTransform(
-      std::vector<art::Ptr<recob::Hit>> const& clusIn,
-      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-      CLHEP::HepRandomEngine& engine,
-      std::vector<double>                    & slope,
-      std::vector<ChargeInfo_t>              & totalQ
-      );
+    size_t FastTransform(detinfo::DetectorClocksData const& clockData,
+                         detinfo::DetectorPropertiesData const& detProp,
+                         std::vector<art::Ptr<recob::Hit>> const& clusIn,
+                         std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                         CLHEP::HepRandomEngine& engine,
+                         std::vector<double>& slope,
+                         std::vector<ChargeInfo_t>& totalQ);
 
+    size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits);
 
-    size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits);
-
-    size_t Transform(std::vector< art::Ptr<recob::Hit> > const& hits,
-		     double                                   & slope,
-		     double                                   & intercept);
-
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
-
-  protected:
-
-    void HLSSaveBMPFile(char const*, unsigned char*, int, int);
-
-  private:
-
-    int    fMaxLines;                      ///< Max number of lines that can be found
-    int    fMinHits;                       ///< Min number of hits in the accumulator to consider
-                                           ///< (number of hits required to be considered a line).
-    int    fSaveAccumulator;               ///< Save bitmap image of accumulator for debugging?
-    int    fNumAngleCells;                 ///< Number of angle cells in the accumulator
-                                           ///< (a measure of the angular resolution of the line finder).
-                                           ///< If this number is too large than the number of votes
-                                           ///< that fall into the "correct" bin will be small and consistent with noise.
-    float  fMaxDistance;                   ///< Max distance that a hit can be from a line to be considered part of that line
-    float  fMaxSlope;                      ///< Max slope a line can have
-    int    fRhoZeroOutRange;               ///< Range in rho over which to zero out area around previously found lines in the accumulator
-    int    fThetaZeroOutRange;             ///< Range in theta over which to zero out area around previously found lines in the accumulator
-    float  fRhoResolutionFactor;           ///< Factor determining the resolution in rho
-    int    fPerCluster;                    ///< Tells the original Hough algorithm to look at clusters individually, or all hits
-                                           ///< at once
-    int    fMissedHits;                    ///< Number of wires that are allowed to be missed before a line is broken up into
-                                           ///< segments
-    float  fMissedHitsDistance;            ///< Distance between hits in a hough line before a hit is considered missed
-    float  fMissedHitsToLineSize;          ///< Ratio of missed hits to line size for a line to be considered a fake
-
-  protected:
+    size_t Transform(detinfo::DetectorPropertiesData const& detProp,
+                     std::vector<art::Ptr<recob::Hit>> const& hits,
+                     double& slope,
+                     double& intercept);
 
     friend class HoughTransformClus;
+
+  private:
+    void HLSSaveBMPFile(char const*, unsigned char*, int, int);
+
+    int fMaxLines;        ///< Max number of lines that can be found
+    int fMinHits;         ///< Min number of hits in the accumulator to consider
+                          ///< (number of hits required to be considered a line).
+    int fSaveAccumulator; ///< Save bitmap image of accumulator for debugging?
+    int fNumAngleCells;   ///< Number of angle cells in the accumulator
+                          ///< (a measure of the angular resolution of the line finder).
+                          ///< If this number is too large than the number of votes
+    ///< that fall into the "correct" bin will be small and consistent with noise.
+    float
+      fMaxDistance; ///< Max distance that a hit can be from a line to be considered part of that line
+    float fMaxSlope; ///< Max slope a line can have
+    int
+      fRhoZeroOutRange; ///< Range in rho over which to zero out area around previously found lines in the accumulator
+    int
+      fThetaZeroOutRange; ///< Range in theta over which to zero out area around previously found lines in the accumulator
+    float fRhoResolutionFactor; ///< Factor determining the resolution in rho
+    int
+      fPerCluster; ///< Tells the original Hough algorithm to look at clusters individually, or all hits
+                   ///< at once
+    int
+      fMissedHits; ///< Number of wires that are allowed to be missed before a line is broken up into
+                   ///< segments
+    float
+      fMissedHitsDistance; ///< Distance between hits in a hough line before a hit is considered missed
+    float
+      fMissedHitsToLineSize; ///< Ratio of missed hits to line size for a line to be considered a fake
   };
 
-
-}// namespace
+} // namespace
 
 #endif // HOUGHBASEALG_H

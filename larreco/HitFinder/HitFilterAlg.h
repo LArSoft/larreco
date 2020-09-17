@@ -21,13 +21,12 @@ namespace hit{
       explicit HitFilterAlg(fhicl::ParameterSet const & p);
       virtual ~HitFilterAlg() {}
 
-      void reconfigure(fhicl::ParameterSet const & p);
       bool IsGoodHit(const recob::Hit& hit) const;
 
     private:
 
-      std::vector<float> fMinPulseHeight;
-      std::vector<float> fMinPulseSigma;
+      const std::vector<float> fMinPulseHeight;
+      const std::vector<float> fMinPulseSigma;
   };
 
 }//end namespace hit

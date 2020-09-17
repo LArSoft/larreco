@@ -1,14 +1,15 @@
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
+           lardataalg_DetectorInfo
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           ${ART_UTILITIES}
+           ${CANVAS}
+           ${CETLIB_EXCEPT}
+           ${MF_MESSAGELOGGER}
            ROOT::Core
            ROOT::Matrix
            ROOT::Physics
-           canvas
-           ${MF_MESSAGELOGGER}
-           cetlib_except
            ROOT::Minuit2
-           ${ART_UTILITIES}
         )
 
 install_headers()

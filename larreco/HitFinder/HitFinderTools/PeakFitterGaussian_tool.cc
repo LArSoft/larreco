@@ -58,10 +58,6 @@ class PeakFitterGaussian : IPeakFitter
 public:
     explicit PeakFitterGaussian(const fhicl::ParameterSet& pset);
 
-    ~PeakFitterGaussian();
-
-    void configure(const fhicl::ParameterSet& pset) override;
-
     void findPeakParameters(const std::vector<float>&,
                             const ICandidateHitFinder::HitCandidateVec&,
                             PeakParamsVec&,
@@ -70,12 +66,12 @@ public:
 
 private:
     // Member variables from the fhicl file
-    double                   fMinWidth;          ///< minimum initial width for gaussian fit
-    double                   fMaxWidthMult;      ///< multiplier for max width for gaussian fit
-    double                   fPeakRange;         ///< set range limits for peak center
-    double                   fAmpRange;          ///< set range limit for peak amplitude
-    bool                     fFloatBaseline;     ///< Allow baseline to "float" away from zero
-    bool                     fOutputHistograms;  ///< If true will generate summary style histograms
+    const double                   fMinWidth;          ///< minimum initial width for gaussian fit
+    const double                   fMaxWidthMult;      ///< multiplier for max width for gaussian fit
+    const double                   fPeakRange;         ///< set range limits for peak center
+    const double                   fAmpRange;          ///< set range limit for peak amplitude
+    const bool                     fFloatBaseline;     ///< Allow baseline to "float" away from zero
+    const bool                     fOutputHistograms;  ///< If true will generate summary style histograms
 
     TH1F*                    fNumCandHitsHist;
     TH1F*                    fROISizeHist;
@@ -97,25 +93,14 @@ private:
 
 //----------------------------------------------------------------------
 // Constructor.
-PeakFitterGaussian::PeakFitterGaussian(const fhicl::ParameterSet& pset)
+PeakFitterGaussian::PeakFitterGaussian(const fhicl::ParameterSet& pset):
+    fMinWidth(pset.get<double>("MinWidth",         0.5)),
+    fMaxWidthMult (pset.get<double>("MaxWidthMult",     3.)),
+    fPeakRange(pset.get<double>("PeakRangeFact",    2.)),
+    fAmpRange(pset.get<double>("PeakAmpRange",     2.)),
+    fFloatBaseline(pset.get< bool >("FloatBaseline",    false)),
+    fOutputHistograms(pset.get< bool >("OutputHistograms", false))
 {
-    configure(pset);
-}
-
-PeakFitterGaussian::~PeakFitterGaussian()
-{
-}
-
-void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
-{
-    // Start by recovering the parameters
-    fMinWidth         = pset.get<double>("MinWidth",         0.5);
-    fMaxWidthMult     = pset.get<double>("MaxWidthMult",     3.);
-    fPeakRange        = pset.get<double>("PeakRangeFact",    2.);
-    fAmpRange         = pset.get<double>("PeakAmpRange",     2.);
-    fFloatBaseline    = pset.get< bool >("FloatBaseline",    false);
-    fOutputHistograms = pset.get< bool >("OutputHistograms", false);
-
     fHistogram = TH1F("PeakFitterHitSignal","",500,0.,500.);
 
     fHistogram.Sumw2();

@@ -12,11 +12,18 @@
 
 // C/C++ standard libraries
 #include <stdexcept> // std::logic_error
-#include <utility> // std::forward()
-
+#include <utility>   // std::forward()
 
 // LArSoft libraries
 #include "lardata/Utilities/Dereference.h" // util::make_pointer()
+
+namespace util {
+  class GeometryUtilities;
+}
+
+namespace recob {
+  class Hit;
+}
 
 /// Cluster reconstruction namespace
 namespace cluster {
@@ -34,15 +41,14 @@ namespace cluster {
    *
    */
   template <class Algo>
-  class ClusterParamsImportWrapper: public Algo {
-      public:
+  class ClusterParamsImportWrapper : public Algo {
+  public:
     using ClusterParamsAlg_t = Algo; ///< type of wrapped class
-
 
     /// Constructor: just forwards all the stuff to the wrapped class
     template <typename... Args>
-    ClusterParamsImportWrapper(Args... args):
-      ClusterParamsAlg_t(std::forward<Args>(args)...) {}
+    ClusterParamsImportWrapper(Args... args) : ClusterParamsAlg_t(std::forward<Args>(args)...)
+    {}
 
     /// @{
     /// @name Hit import functions
@@ -60,13 +66,15 @@ namespace cluster {
      * of pointer to it.
      */
     template <typename Iter>
-    void ImportHits(Iter begin, Iter end)
-      {
-        std::vector<recob::Hit const*> hits;
-        std::transform(begin, end, std::back_inserter(hits),
-          [](auto value) { return lar::util::make_pointer(value); });
-        ClusterParamsAlg_t::SetHits(hits);
-      } // ImportHits()
+    void
+    ImportHits(util::GeometryUtilities const& gser, Iter begin, Iter end)
+    {
+      std::vector<recob::Hit const*> hits;
+      std::transform(begin, end, std::back_inserter(hits), [](auto value) {
+        return lar::util::make_pointer(value);
+      });
+      ClusterParamsAlg_t::SetHits(gser, hits);
+    } // ImportHits()
 
     /**
      * @brief Calls SetHits() with the result of converted hits
@@ -85,16 +93,15 @@ namespace cluster {
      * complete vector will be used to initialize the algorithm.
      */
     template <typename Iter, typename Convert>
-    void ImportHits(Iter begin, Iter end, Convert converter)
-      {
-        std::vector<recob::Hit const*> hits;
-        std::transform(begin, end, std::back_inserter(hits),
-          [converter](auto value)
-            { return lar::util::make_pointer(converter(value)); }
-          );
-        ClusterParamsAlg_t::SetHits(hits);
-      } // ImportHits()
-
+    void
+    ImportHits(Iter begin, Iter end, Convert converter)
+    {
+      std::vector<recob::Hit const*> hits;
+      std::transform(begin, end, std::back_inserter(hits), [converter](auto value) {
+        return lar::util::make_pointer(converter(value));
+      });
+      ClusterParamsAlg_t::SetHits(hits);
+    } // ImportHits()
 
     /**
      * @brief Calls SetHits() with the hits in the sequence
@@ -105,8 +112,11 @@ namespace cluster {
      * of pointer to it.
      */
     template <typename Cont>
-    void ImportHits(Cont cont)
-      { ImportHits(std::begin(cont), std::end(cont)); }
+    void
+    ImportHits(util::GeometryUtilities const& gser, Cont cont)
+    {
+      ImportHits(gser, std::begin(cont), std::end(cont));
+    }
 
     /**
      * @brief Calls SetHits() with the result of converted hits
@@ -124,13 +134,15 @@ namespace cluster {
      * complete vector will be used to initialize the algorithm.
      */
     template <typename Cont, typename Convert>
-    void ImportHits(Cont cont, Convert converter)
-      { ImportHits(std::begin(cont), std::end(cont), converter); }
+    void
+    ImportHits(util::GeometryUtilities const& gser, Cont cont, Convert converter)
+    {
+      ImportHits(gser, std::begin(cont), std::end(cont), converter);
+    }
 
     /// @}
 
   }; //class ClusterParamsImportWrapper
-
 
 } //namespace cluster
 

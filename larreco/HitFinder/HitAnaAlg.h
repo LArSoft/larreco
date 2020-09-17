@@ -15,28 +15,34 @@
  *   (2) to compare those to truth
  */
 
-#include <vector>
-#include <string>
 #include <exception>
+#include <string>
+#include <vector>
 
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 
 class TTree;
-namespace detinfo { class DetectorClocks; }
+namespace detinfo {
+  class DetectorClocksData;
+}
 
-namespace hit{
+namespace hit {
 
-  struct HitInfo{
+  struct HitInfo {
 
     //need a constructor here
-    HitInfo(float pt, float pt_s,
-	    float w,
-	    int st, int et,
-	    float c, float c_s,
-	    float mc, float mc_s,
-	    float gof)
+    HitInfo(float pt,
+            float pt_s,
+            float w,
+            int st,
+            int et,
+            float c,
+            float c_s,
+            float mc,
+            float mc_s,
+            float gof)
       : peaktime(pt)
       , peaktime_sigma(pt_s)
       , rms(w)
@@ -61,7 +67,7 @@ namespace hit{
     float goodness_of_fit;
   };
 
-  struct WireROIInfo{
+  struct WireROIInfo {
     unsigned int event;
     unsigned int run;
     unsigned int channel;
@@ -82,7 +88,7 @@ namespace hit{
     std::vector<float> Hits_wAverageCharge;
     std::vector<float> Hits_wAverageTime;
     std::vector<float> Hits_MeanMultiplicity;
-    std::vector< std::vector<HitInfo> > Hits;
+    std::vector<std::vector<HitInfo>> Hits;
     int NMCHits;
     float MCHits_IntegratedCharge;
     float MCHits_AverageCharge;
@@ -92,19 +98,20 @@ namespace hit{
     float MCHits_wAverageTime;
   };
 
-
-  class HitAnaAlgException : public std::exception{
-    virtual const char* what() const throw(){
+  class HitAnaAlgException : public std::exception {
+    virtual const char*
+    what() const throw()
+    {
       return "HitAnaAlg Exception";
     }
   } hitanaalgexception;
 
-  class HitAnaAlg{
+  class HitAnaAlg {
 
-    typedef std::pair< const std::vector<recob::Hit>& , const std::vector< std::vector<int> >& > HitAssocPair;
+    typedef std::pair<const std::vector<recob::Hit>&, const std::vector<std::vector<int>>&>
+      HitAssocPair;
 
   public:
-
     HitAnaAlg();
 
     void SetWireDataTree(TTree*);
@@ -112,53 +119,54 @@ namespace hit{
     void SetHitDataTree(std::vector<TTree*>& trees);
 
     void AnalyzeWires(std::vector<recob::Wire> const&,
-		      std::vector<sim::MCHitCollection> const&,
-		      std::vector< std::vector<int> > const&,
-		      const detinfo::DetectorClocks *,
-		      unsigned int,
-		      unsigned int);
+                      std::vector<sim::MCHitCollection> const&,
+                      std::vector<std::vector<int>> const&,
+                      detinfo::DetectorClocksData const&,
+                      unsigned int,
+                      unsigned int);
 
-    void LoadHitAssocPair( std::vector<recob::Hit> const&,
-			   std::vector< std::vector<int> > const&,
-			   std::string const&);
+    void LoadHitAssocPair(std::vector<recob::Hit> const&,
+                          std::vector<std::vector<int>> const&,
+                          std::string const&);
 
     void ClearHitModules();
 
   private:
-
     void InitWireData(unsigned int, unsigned int);
     void ClearWireDataHitInfo();
 
     void FillHitInfo(recob::Hit const&, std::vector<HitInfo>&);
 
     void FillWireInfo(recob::Wire const&,
-		      int,
-		      std::vector<sim::MCHitCollection> const&,
-		      std::vector<int> const&,
-		      const detinfo::DetectorClocks *);
+                      int,
+                      std::vector<sim::MCHitCollection> const&,
+                      std::vector<int> const&,
+                      detinfo::DetectorClocksData const&);
 
-    void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int,
-		    std::vector<sim::MCHitCollection> const&,
-		    std::vector<int> const&,
-		    const detinfo::DetectorClocks *);
+    void ProcessROI(lar::sparse_vector<float>::datarange_t const&,
+                    int,
+                    std::vector<sim::MCHitCollection> const&,
+                    std::vector<int> const&,
+                    detinfo::DetectorClocksData const&);
 
-    void ROIInfo(lar::sparse_vector<float>::datarange_t const&,
-		 float&,float&,float&);
+    void ROIInfo(lar::sparse_vector<float>::datarange_t const&, float&, float&, float&);
 
     void FindAndStoreHitsInRange(std::vector<recob::Hit> const&,
-				 std::vector<int> const&,
-				 size_t,size_t,size_t);
+                                 std::vector<int> const&,
+                                 size_t,
+                                 size_t,
+                                 size_t);
     void FindAndStoreMCHitsInRange(std::vector<sim::MCHitCollection> const&,
-				   std::vector<int> const&,
-				   size_t,size_t,
-				   const detinfo::DetectorClocks *);
+                                   std::vector<int> const&,
+                                   size_t,
+                                   size_t,
+                                   detinfo::DetectorClocksData const&);
 
     WireROIInfo wireData;
     std::vector<recob::Hit*> hitData;
 
     std::vector<std::string> HitModuleLabels;
-    std::vector< HitAssocPair > HitProcessingQueue;
-
+    std::vector<HitAssocPair> HitProcessingQueue;
 
     void SetupWireDataTree();
     TTree* wireDataTree;
@@ -167,10 +175,8 @@ namespace hit{
 
     //this is for unit testing...class has no other purpose
     friend class HitAnaAlgTest;
-
   };
 
-}//end namespace hit
-
+} //end namespace hit
 
 #endif

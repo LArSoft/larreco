@@ -5,6 +5,7 @@ art_make(LIB_LIBRARIES
            ROOT::Hist
          MODULE_LIBRARIES
            larcorealg_Geometry
+           lardataalg_DetectorInfo
            lardataobj_RecoBase
            larreco_QuadVtx
            nusimdata_SimulationBase
