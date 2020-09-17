@@ -144,7 +144,7 @@ class GnocchiCalorimetry: public art::EDProducer {
     geo::Point_t GetLocationAtWires(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
     double GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
     double GetCharge(const art::Ptr<recob::Hit> hit);
-    double GetEfield(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
+    double GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
 }; 
 
 } // end namespace calo
@@ -163,6 +163,9 @@ calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param):
 void calo::GnocchiCalorimetry::produce(art::Event &evt) {
   // Get services
   art::ServiceHandle<geo::Geometry const> geom;
+  auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  auto const det_prop =
+    art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
   size_t nplanes = geom->Nplanes();
 
@@ -234,14 +237,14 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
         double charge = GetCharge(hits[hit_index]);
 
         // Get the EField
-        double EField = GetEfield(track, hits[hit_index], thms[hit_index]);
+        double EField = GetEfield(det_prop, track, hits[hit_index], thms[hit_index]);
 
         double dQdx = charge / pitch;
 
         // turn into dEdx
         double dEdx = (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) ? \
-          fCaloAlg.dEdx_AMP(dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField) : \
-         fCaloAlg.dEdx_AREA(dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField);
+          fCaloAlg.dEdx_AMP(clock_data, det_prop, dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField) : \
+         fCaloAlg.dEdx_AREA(clock_data, det_prop, dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField);
 
         // save the length between each pair of hits
         if (xyzs.size() == 0) {
@@ -548,11 +551,10 @@ double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit) {
   return 0.;
 }
 
-double calo::GnocchiCalorimetry::GetEfield(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+double calo::GnocchiCalorimetry::GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
-  double EField = detprop->Efield();
+  double EField = dprop.Efield();
   if (sce->EnableSimEfieldSCE() && fConfig.FieldDistortionEfield()) {
       // Gets relative E field Distortions
       geo::Vector_t EFieldOffsets = sce->GetEfieldOffsets(GetLocation(track, hit, meta));
