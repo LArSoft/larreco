@@ -1,6 +1,5 @@
 add_subdirectory(ShowerReco3D)
 add_subdirectory(job)
-add_subdirectory(ShowerTools)
 
 art_make(MODULE_LIBRARIES
           larreco_RecoAlg
