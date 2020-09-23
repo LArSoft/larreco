@@ -92,4 +92,10 @@ standard_printcalorimetry:
   CaloModuleLabels:  [ "calo" ]
 }
 
+standard_calocheck: {
+  module_type: CaloChecker
+  TrackLabel: track # overwrite with the track producer
+  CaloLabels: [oldcalo, newcalo] # overwrite with the two Calo producers 
+}
+
 END_PROLOG
