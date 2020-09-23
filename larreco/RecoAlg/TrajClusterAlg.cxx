@@ -768,7 +768,7 @@ namespace tca {
     if (tcc.JTMaxHitSep2 <= 0) return;
     if (!tcc.useAlg[kJunkTj]) return;
     unsigned short plane = DecodeCTP(inCTP).Plane;
-    if (slc.lastWire[plane] - 3 < slc.firstWire[plane]) return;
+    if ((int)slc.lastWire[plane] - 3 < (int)slc.firstWire[plane]) return;
 
     // shouldn't have to do this but...
     for (auto& slHit : slc.slHits)
@@ -780,14 +780,17 @@ namespace tca {
     // Stay well away from the last wire in the plane
     for (unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 3; ++iwire) {
       // skip bad wires or no hits on the wire
-      if (slc.wireHitRange[plane][iwire].first == UINT_MAX) continue;
+      if (slc.wireHitRange[plane][iwire].first > slc.slHits.size()) continue;
+      if (slc.wireHitRange[plane][iwire].second > slc.slHits.size()) continue;
       unsigned int jwire = iwire + 1;
-      if (slc.wireHitRange[plane][jwire].first == UINT_MAX) continue;
+      if (slc.wireHitRange[plane][jwire].first > slc.slHits.size()) continue;
+      if (slc.wireHitRange[plane][jwire].second > slc.slHits.size()) continue;
       unsigned int ifirsthit = slc.wireHitRange[plane][iwire].first;
       unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
       for (unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
+        if(iht >= slc.slHits.size()) break;
         auto& islHit = slc.slHits[iht];
         if (islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
@@ -797,6 +800,7 @@ namespace tca {
         if (prt) mf::LogVerbatim("TC") << "FJT: debug iht multiplet size " << iHits.size();
         if (iHits.empty()) continue;
         for (unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
+          if(jht >= slc.slHits.size()) break;
           auto& jslHit = slc.slHits[jht];
           if (jslHit.InTraj != 0) continue;
           if (prt && HitSep2(slc, iht, jht) < 100)
@@ -828,9 +832,11 @@ namespace tca {
             bool hitsAdded = false;
             for (unsigned int kwire = loWire; kwire <= hiWire; ++kwire) {
               if (slc.wireHitRange[plane][kwire].first == UINT_MAX) continue;
+              if (slc.wireHitRange[plane][kwire].second == UINT_MAX) continue;
               unsigned int kfirsthit = slc.wireHitRange[plane][kwire].first;
               unsigned int klasthit = slc.wireHitRange[plane][kwire].second;
               for (unsigned int kht = kfirsthit; kht <= klasthit; ++kht) {
+                if(kht >= slc.slHits.size()) continue;
                 if (slc.slHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if (std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
