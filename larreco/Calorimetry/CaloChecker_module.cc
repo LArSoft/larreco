@@ -231,7 +231,7 @@ void calo::CaloChecker::analyze(const art::Event &evt) {
         if (base_xyz.size() == othr_xyz.size()) {
           for (unsigned i_xyz = 0; i_xyz < base_xyz.size(); i_xyz++) {
             if (abs(base_xyz[i_xyz].X() - othr_xyz[i_xyz].X()) > EPS || 
-                abs(base_xyz[i_xyz].Y() - othr_xyz[i_xyz].Y() > EPS) || 
+                abs(base_xyz[i_xyz].Y() - othr_xyz[i_xyz].Y()) > EPS || 
                 abs(base_xyz[i_xyz].Z() - othr_xyz[i_xyz].Z()) > EPS) { 
               equal = false;
               std::cout << "Track: " << trk_i << " calos (" << fCaloLabels[0] << ") (" << fCaloLabels[i] << ") plane " << plane << ": "; 
