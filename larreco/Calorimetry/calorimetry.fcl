@@ -42,6 +42,20 @@ standard_calomc:
  CaloAlg:	         @local::standard_calorimetryalgmc
 }
 
+standard_gnocchicalo:
+{
+  module_type: "GnocchiCalorimetry"
+  TrackModuleLabel: "track3d"
+  SpacePointModuleLabel: "spacepointfinder"
+  T0ModuleLabel: ""
+  AssocHitModuleLabel: ""
+  ChargeMethod: 1
+  FieldDistortion: false
+  TrackIsFieldDistortionCorrected: false
+  Cryostat: 0
+  CaloAlg: @local::standard_calorimetryalgdata
+}
+
 standard_generalcalorimetry:
 {
  module_type:      "GeneralCalorimetry"
@@ -76,6 +90,12 @@ standard_printcalorimetry:
   module_type:       "PrintCalorimetry"
   TrackModuleLabel:  "track"
   CaloModuleLabels:  [ "calo" ]
+}
+
+standard_calocheck: {
+  module_type: CaloChecker
+  TrackLabel: track # overwrite with the track producer
+  CaloLabels: [oldcalo, newcalo] # overwrite with the two Calo producers 
 }
 
 END_PROLOG
