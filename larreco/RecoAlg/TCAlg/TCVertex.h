@@ -27,18 +27,21 @@ namespace tca {
   extern std::vector<TCSlice> slices;
 
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
-  void Find2DVertices(detinfo::DetectorPropertiesData const& detProp,
-                      TCSlice& slc,
-                      const CTP_t& inCTP,
-                      unsigned short pass);
+  void Find2Vs(detinfo::DetectorPropertiesData const& detProp,
+               TCSlice& slc,
+               const CTP_t& inCTP,
+               unsigned short pass);
+  void FindShortLong2Vs(TCSlice& slc, CTP_t inCTP);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
+  void MakeDecayVertices(TCSlice& slc, const CTP_t& inCTP);
+//  void ChkVxEndSwap(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
   void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
   void Reconcile2Vs(TCSlice& slc);
   bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt);
-  void Find3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
+  void Find3Vs(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   void CompleteIncomplete3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   void CompleteIncomplete3DVerticesInGaps(detinfo::DetectorPropertiesData const& detProp,
                                           TCSlice& slc);
@@ -60,6 +63,7 @@ namespace tca {
   bool StoreVertex(TCSlice& slc, VtxStore& vx);
   bool ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP);
   void ScoreVertices(TCSlice& slc);
+  void KillOrphan2Vs(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   void KillPoorVertices(TCSlice& slc);
   void SetVx2Score(TCSlice& slc);
   void SetVx2Score(TCSlice& slc, VtxStore& vx2);

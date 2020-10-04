@@ -19,6 +19,7 @@ namespace tca {
     "Junk3D",
     "RTPs3D",
     "SmallAng3D",
+    "KillBadPts3D",
     "Mat3D",
     "MaskHits",
     "MaskBadTPs",
@@ -30,16 +31,18 @@ namespace tca {
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
-    "HamBragg",
+    "DecayVx",
     "HamVx",
     "HamVx2",
     "JunkVx",
+    "ShrtLong2V",
     "JunkTj",
     "Killed",
     "Merge",
     "LastEndMerge",
     "TEP",
-    "EndKink", // CheckEndKink
+    "EndPtFit",
+    "THiQEP",
     "CHMEH",
     "FillGaps",
     "UseGhostHits",
@@ -49,7 +52,6 @@ namespace tca {
     "FixBegin",
     "FTBChg",
     "BeginChg",
-    "FixEnd",
     "BraggSplit",
     "UUH",
     "VtxTj",
@@ -59,14 +61,14 @@ namespace tca {
     "NoFitToVx",
     "VxMerge",
     "VxNeutral",
+    "KillOrphan2V",
     "NoKinkChk",
     "ChkStop",
     "ChkStopEP",
     "ChkChgAsym",
     "FTBRvProp",
     "TjHiVx3Score",
-    "VtxHitsSwap",
-    "SplitHiChgHits",
+    "VxEndSwap",
     "ShowerLike",
     "KillInShowerVx",
     "ShowerTj",
@@ -81,17 +83,16 @@ namespace tca {
     "MakePFPTjs",
     "StopShort",
     "Reconcile2Vs",
-    "FTBMod"
+    "FTBMod",
+    "NewCuts"
   };
 
   const std::vector<std::string> EndFlagNames {
-    "Signal",
-    "AtKink",
-    "AtVtx",
-    "Bragg",
-    "AtTj",
-    "OutFV",
-    "NoFitVx"
+    "HitsAfterEnd",
+    "EndKink",
+    "EndBragg",
+    "EndOutFV",
+    "EndNoFitVx"
   };
 
   const std::vector<std::string> VtxBitNames {

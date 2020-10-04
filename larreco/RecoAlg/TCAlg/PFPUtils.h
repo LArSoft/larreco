@@ -56,12 +56,6 @@ namespace tca {
                  const TCSlice& slc,
                  PFPStruct& pfp,
                  bool prt);
-  void CountBadPoints(const TCSlice& slc,
-                      const PFPStruct& pfp,
-                      unsigned short fromPt,
-                      unsigned short toPt,
-                      unsigned short& nBadPts,
-                      unsigned short& firstBadPt);
   void KillBadPoints(detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
                      TCSlice& slc,
@@ -90,6 +84,8 @@ namespace tca {
                       unsigned short fromPt,
                       short fitDir,
                       unsigned short nPtsFit, bool prt);
+  double FitChiDOF(const std::vector<TP3D>& tp3ds, 
+                   const std::vector<double> weights);
   bool FitPFP(detinfo::DetectorClocksData const& clockData,
                 detinfo::DetectorPropertiesData const& detProp,
                 const TCSlice& slc,
@@ -109,6 +105,10 @@ namespace tca {
                           const PFPStruct& pfp);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
+  void SortByX(std::vector<TP3D>& tp3ds);
+  bool Recover(detinfo::DetectorClocksData const& clockData,
+               detinfo::DetectorPropertiesData const& detProp,
+               TCSlice& slc, PFPStruct& pfp, bool prt);
   bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc,
                  PFPStruct& pfp, bool prt);
   bool MakeSmallAnglePFP(detinfo::DetectorPropertiesData const& detProp,
@@ -183,8 +183,7 @@ namespace tca {
                        const TCSlice& slc,
                        const PFPStruct& pfp,
                        unsigned short end);
-  Point3_t PosAtEnd(const PFPStruct& pfp, unsigned short end);
-  Vector3_t DirAtEnd(const PFPStruct& pfp, unsigned short end);
+  TP3D EndTP3D(const PFPStruct& pfp, unsigned short end);
   float Length(const PFPStruct& pfp);
   bool SectionStartEnd(const PFPStruct& pfp,
                        unsigned short sfIndex,

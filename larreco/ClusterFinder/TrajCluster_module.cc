@@ -336,6 +336,8 @@ namespace cluster {
         for (unsigned short isl = 0; isl < sltpcHits.size(); ++isl) {
           auto& tpcHits = sltpcHits[isl];
           if (tpcHits.empty()) continue;
+          if(tca::tcc.modes[tca::kDebug] && tpcHits.size() > 10) 
+              std::cout<<"Found "<<tpcHits.size()<<" hits in TPC "<<tpcid.TPC<<"\n";
           // only reconstruct slices with MC-matched hits?
           // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
           // This assumes that hits with larger LocalIndex are at larger Tick.
@@ -699,8 +701,9 @@ namespace cluster {
           for (unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr)
             dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
-          auto pos = PosAtEnd(pfp, 0);
-          auto dir = DirAtEnd(pfp, 0);
+          auto tp3d0 = EndTP3D(pfp, 0);
+          auto pos = tp3d0.Pos;
+          auto dir = tp3d0.Dir;
           double sp[] = {pos[0], pos[1], pos[2]};
           double sd[] = {dir[0], dir[1], dir[2]};
           double spe[] = {0., 0., 0.};

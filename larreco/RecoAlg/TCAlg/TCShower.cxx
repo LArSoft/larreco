@@ -692,7 +692,7 @@ namespace tca {
         auto& pfp = slc.pfps[pc[0] - 1];
         unsigned short nearEnd = 1 - FarEnd(slc, pfp, ss3.ChgPos);
         float prob = InShowerProb(slc, ss3, pfp);
-        auto pos = PosAtEnd(pfp, nearEnd);
+        auto pos = EndTP3D(pfp, nearEnd).Pos;
         float sep = PosSep(pos, ss3.ChgPos);
         if (prt) {
           mf::LogVerbatim myprt("TC");
@@ -1188,7 +1188,7 @@ namespace tca {
       // shower center should be shower start
       auto& pfp = slc.pfps[ss3.ParentID - 1];
       unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
-      ss3.Start = PosAtEnd(pfp, pend);
+      ss3.Start = EndTP3D(pfp, pend).Pos;
       ss3.Dir = dir;
     }
     else {
@@ -1684,11 +1684,11 @@ namespace tca {
       if (pfpEnergy > energy) continue;
       // find the end that is farthest away
       unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
-      auto pos = PosAtEnd(pfp, pEnd);
+      auto pos = EndTP3D(pfp, pEnd).Pos;
       auto pToS = PointDirection(pos, ss3.ChgPos);
       double costh1 = std::abs(DotProd(pToS, ss3.Dir));
       if (costh1 < 0.4) continue;
-      auto dir = DirAtEnd(pfp, pEnd);
+      auto dir = EndTP3D(pfp, pEnd).Dir;
       float costh2 = DotProd(pToS, dir);
       // distance^2 between the pfp end and the shower start, charge center, and shower end
       float distToStart2 = PosSep2(pos, ss3.Start);
@@ -1750,8 +1750,8 @@ namespace tca {
       tcc.showerParentVars[0] = energy;
       tcc.showerParentVars[1] = pfpEnergy;
       tcc.showerParentVars[2] = MCSMom(slc, pfp.TjIDs);
-      auto startPos = PosAtEnd(pfp, 0);
-      auto endPos = PosAtEnd(pfp, 1);
+      auto startPos = EndTP3D(pfp, 0).Pos;
+      auto endPos = EndTP3D(pfp, 1).Pos;
       tcc.showerParentVars[3] = PosSep(startPos, endPos);
       tcc.showerParentVars[4] = sqrt(distToChgPos2);
       tcc.showerParentVars[5] = acos(costh1);
@@ -1875,8 +1875,9 @@ namespace tca {
           if (!AddTj(fcnLabel, slc, tjid, ss, false, prt)) return false;
         } // parent not in ss
         // Don't define it to be the parent if it is short and the pfp projection in this plane is low
-        auto pos = PosAtEnd(pfp, 0);
-        auto dir = DirAtEnd(pfp, 0);
+        auto tp3d0 = EndTP3D(pfp, 0);
+        auto pos = tp3d0.Pos;
+        auto dir = tp3d0.Dir;
         auto tp = MakeBareTP(detProp, slc, pos, dir, tj.CTP);
         unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         if (tp.Delta > 0.5 || npts > 20) {
@@ -3310,7 +3311,7 @@ namespace tca {
       // ignore Tjs with Bragg peaks
       bool skipit = false;
       for (unsigned short end = 0; end < 2; ++end)
-        if (tj.EndFlag[end][kBragg]) skipit = true;
+        if (tj.EndFlag[end][kEndBragg]) skipit = true;
       if (skipit) continue;
       short npwc = NumPtsWithCharge(slc, tj, false);
       // Don't expect any (primary) electron to be reconstructed as a single trajectory for

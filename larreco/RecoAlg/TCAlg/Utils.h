@@ -68,6 +68,7 @@ namespace tca {
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
+  void SetEndFlags(TCSlice& slc, Trajectory& tj, unsigned short atEnd);
   void FitPar(const TCSlice& slc,
               const Trajectory& tj,
               unsigned short originPt,
@@ -77,8 +78,9 @@ namespace tca {
               unsigned short usePar);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
+  void TrimHiChgEndPts(TCSlice& slc, Trajectory& tj);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
-  void ChkEndKink(TCSlice& slc, Trajectory& tj, bool prt);
+  void ChkEndPtFit(TCSlice& slc, Trajectory& tj);
   void TrimEndPts(std::string fcnLabel,
                   TCSlice& slc,
                   Trajectory& tj,
@@ -364,6 +366,7 @@ namespace tca {
                mf::LogVerbatim& myprt,
                ShowerStruct3D& ss3);
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
+  std::string PackEndFlags(const Trajectory& tj, unsigned short end);
   void PrintTrajectory(std::string someText,
                        const TCSlice& slc,
                        const Trajectory& tj,

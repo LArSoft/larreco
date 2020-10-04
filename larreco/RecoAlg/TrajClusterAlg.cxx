@@ -378,7 +378,8 @@ namespace tca {
     // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
     // 2D and 3D(?) information
     Reconcile2Vs(slc);
-    Find3DVertices(detProp, slc);
+    Find3Vs(detProp, slc);
+    KillOrphan2Vs(detProp, slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
     DefineTjParents(slc, false);
@@ -700,7 +701,7 @@ namespace tca {
       EndMerge(slc, inCTP, lastPass);
       if (!slc.isValid) return;
 
-      Find2DVertices(detProp, slc, inCTP, pass);
+      Find2Vs(detProp, slc, inCTP, pass);
 
     } // pass
 
@@ -722,7 +723,7 @@ namespace tca {
     if (tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
-    Find2DVertices(detProp, slc, inCTP, USHRT_MAX);
+    Find2Vs(detProp, slc, inCTP, USHRT_MAX);
     SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
@@ -737,7 +738,7 @@ namespace tca {
       auto& vx2 = slc.vtxs[ivx];
       if (vx2.ID == 0) continue;
       if (vx2.CTP != inCTP) continue;
-      AttachAnyTrajToVertex(slc, ivx, tcc.dbgStp || tcc.dbg2V);
+      AttachAnyTrajToVertex(slc, ivx, false);
     } // ivx
 
     // Set the kEnvOverlap bit true for all TPs that are close to other
@@ -775,14 +776,17 @@ namespace tca {
     // Stay well away from the last wire in the plane
     for (unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 3; ++iwire) {
       // skip bad wires or no hits on the wire
-      if (slc.wireHitRange[plane][iwire].first == UINT_MAX) continue;
+      if (slc.wireHitRange[plane][iwire].first > slc.slHits.size()) continue;
+      if (slc.wireHitRange[plane][iwire].second > slc.slHits.size()) continue;
       unsigned int jwire = iwire + 1;
-      if (slc.wireHitRange[plane][jwire].first == UINT_MAX) continue;
+      if (slc.wireHitRange[plane][jwire].first > slc.slHits.size()) continue;
+      if (slc.wireHitRange[plane][jwire].second > slc.slHits.size()) continue;
       unsigned int ifirsthit = slc.wireHitRange[plane][iwire].first;
       unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
       for (unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
+        if(iht >= slc.slHits.size()) break;
         auto& islHit = slc.slHits[iht];
         if (islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
@@ -792,6 +796,7 @@ namespace tca {
         if (prt) mf::LogVerbatim("TC") << "FJT: debug iht multiplet size " << iHits.size();
         if (iHits.empty()) continue;
         for (unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
+          if(jht >= slc.slHits.size()) break;
           auto& jslHit = slc.slHits[jht];
           if (jslHit.InTraj != 0) continue;
           if (prt && HitSep2(slc, iht, jht) < 100)
@@ -823,9 +828,11 @@ namespace tca {
             bool hitsAdded = false;
             for (unsigned int kwire = loWire; kwire <= hiWire; ++kwire) {
               if (slc.wireHitRange[plane][kwire].first == UINT_MAX) continue;
+              if (slc.wireHitRange[plane][kwire].second == UINT_MAX) continue;
               unsigned int kfirsthit = slc.wireHitRange[plane][kwire].first;
               unsigned int klasthit = slc.wireHitRange[plane][kwire].second;
               for (unsigned int kht = kfirsthit; kht <= klasthit; ++kht) {
+                if(kht >= slc.slHits.size()) continue;
                 if (slc.slHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if (std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
@@ -1345,7 +1352,7 @@ namespace tca {
   {
     trkHits.clear();
     // Converts a PFPStruct into a recob::Track and TrackHitMeta
-    if(pfp.TP3Ds.empty()) return;
+    if(pfp.TP3Ds.size() < 4) return;
     if(pfp.ID <= 0) return;
     auto slcIndx = GetSliceIndex("P", pfp.UID);
     if(slcIndx.first == USHRT_MAX) return;
@@ -1359,10 +1366,7 @@ namespace tca {
 
     for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
       auto& tp3d = pfp.TP3Ds[pt];
-      if(tp3d.TPIndex >= (*evt.allHits).size()) {
-        std::cout<<"Invalid TPIndex\n";
-        continue;
-      }
+      if(tp3d.TPIndex >= (*evt.allHits).size()) continue;
       // construct the flag
       unsigned int nhi = UINT_MAX;
       auto mask = recob::TrajectoryPointFlags::makeMask();
@@ -1392,6 +1396,10 @@ namespace tca {
       trkHits.push_back(nhi);
       tpFlags.push_back(recob::TrajectoryPointFlags(nhi, mask));
     } // pt
+    if(trkHits.size() < 4) {
+      trkHits.clear();
+      return;
+    }
     // All the SectionFit fits are independent so just do a simple sum
     int ndof = 4 * pfp.SectionFits.size();
     float chi = 0.;

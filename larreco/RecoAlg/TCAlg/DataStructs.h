@@ -74,8 +74,8 @@ namespace tca {
     unsigned short Pass{0}; // Pass in which this vertex was created
     float ChiDOF{0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV,
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = HamBragg, 11 = neutral decay (pizero)
-    //       12 = BraggSplit, 13 = Not Used, 14 = Reconcile2VTs
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = DecayVx, 11 = neutral decay (pizero)
+    //       12 = BraggSplit, 13 = ShrtLong2V, 14 = Reconcile2VTs
     short Topo{0};
     CTP_t CTP{0};
     int ID{0};  ///< set to 0 if killed
@@ -157,7 +157,7 @@ namespace tca {
     double Ang{0};                  // Trajectory angle (-pi, +pi)
     double AngErr{0.1};             // Trajectory angle error
     float KinkSig{-1};              // kink significance = delta angle / angle error
-    float Chg{0};                   // Chargetj2pt
+    float Chg{0};                   // Charge
     float AveChg{-1};               // Average charge of last ~20 TPs
     float ChgPull{0.1};             //  = (Chg - AveChg) / ChgRMS
     float Delta{0};                 // Deviation between trajectory and hits (WSE)
@@ -228,13 +228,6 @@ namespace tca {
     bool leavesBeforeEnd{false}; ///< leaves the forecast envelope before the end
     bool foundShower{false};
     bool endBraggPeak{false};
-  };
-
-  // Temporary 3D trajectory points composed of triplet or doublet wire intersections
-  struct TrajPoint3 {
-    Point3_t Pos{{0.0, 0.0, 0.0}};
-    Vector3_t Dir{{0.0, 0.0, 0.0}};
-    std::vector<Tj2Pt> Tj2Pts; // list of trajectory points
   };
 
   struct SectionFit {
@@ -430,6 +423,7 @@ namespace tca {
     kJunk3D,
     kRTPs3D,
     kSmallAng3D,
+    kKillBadPts3D,
     kMat3D, // 2D algorithms for Tjs here and below
     kMaskHits,
     kMaskBadTPs,
@@ -441,16 +435,18 @@ namespace tca {
     kSplit,
     kComp3DVx,
     kComp3DVxIG,
-    kHamBragg,
+    kDecayVx,
     kHamVx,
     kHamVx2,
     kJunkVx,
+    kShrtLong2V,
     kJunkTj,
     kKilled,
     kMerge,
     kLastEndMerge,
     kTEP,
-    kEndKink,
+    kEndPtFit,  // ChkEndPtFit
+    kTHiQEP,  // TrimHiChgEndPts
     kCHMEH,
     kFillGaps,
     kUseGhostHits,
@@ -460,7 +456,6 @@ namespace tca {
     kFixBegin,
     kFTBChg,
     kBeginChg,
-    kFixEnd,
     kBraggSplit,
     kUUH,
     kVtxTj,
@@ -470,14 +465,14 @@ namespace tca {
     kNoFitToVx,
     kVxMerge,
     kVxNeutral,
+    kKillOrphan2V,
     kNoKinkChk,
     kChkStop,
     kChkStopEP,
     kChkChgAsym,
     kFTBRvProp,
     kTjHiVx3Score,
-    kVtxHitsSwap,
-    kSplitHiChgHits,
+    kVxEndSwap,
     kShowerLike,
     kKillInShowerVx,
     kShowerTj,
@@ -493,6 +488,7 @@ namespace tca {
     kStopShort,
     kReconcile2Vs,
     kFTBMod,
+    kNewCuts,
     kAlgBitSize ///< don't mess with this line
   } AlgBit_t;
 
@@ -505,13 +501,11 @@ namespace tca {
 
   // Stop flag bits
   typedef enum {
-    kSignal,
-    kAtKink,
-    kAtVtx,
-    kBragg,
-    kAtTj,
-    kOutFV,
-    kNoFitVx,
+    kHitsAfterEnd,   ///< There is a hit just DS (end 1) (US = end 0) at the end of the Tj
+    kEndKink,
+    kEndBragg,
+    kEndOutFV,
+    kEndNoFitVx,
     kFlagBitSize ///< don't mess with this line
   } EndFlag_t;
 
@@ -591,13 +585,9 @@ namespace tca {
     bool dbgStp{false};      ///< debug stepping using debug.Cryostat, debug.TPC, etc
     bool dbgMrg{false};
     bool dbg2V{false}; ///< debug 2D vertex finding
-    bool dbgVxNeutral{false};
     bool dbgVxMerge{false};
-    bool dbgVxJunk{false};
     bool dbg3V{false}; ///< debug 3D vertex finding
     bool dbgPFP{false};
-    bool dbgDeltaRayTag{false};
-    bool dbgMuonTag{false};
     bool dbg2S{false};
     bool dbg3S{false};
     bool dbgStitch{false};  ///< debug PFParticle stitching
