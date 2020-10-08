@@ -222,6 +222,7 @@ namespace cluster {
     evt.getByLabel(fHitsModuleLabel, hitListHandle);
     std::vector<art::Ptr<recob::Hit>> allhits;
     art::fill_ptr_vector(allhits, hitListHandle);
+    std::cout<<"ClusterAna nHits "<<allhits.size()<<"\n";
     if (allhits.size() == 0) return;
 
     // get clusters and cluster-hit associations
@@ -237,8 +238,10 @@ namespace cluster {
     art::Handle<std::vector<recob::Vertex>> vertexListHandle;
     double xyz[3] = {0, 0, 0};
     art::PtrVector<recob::Vertex> recoVtxList;
+    std::cout<<"vertexListHandle valid? "<<vertexListHandle.isValid()<<"\n";
     if (vertexListHandle.isValid()) {
       evt.getByLabel(fVertexModuleLabel, vertexListHandle);
+      std::cout<<"3Vs size "<<vertexListHandle->size()<<"\n";
       for (unsigned int ii = 0; ii < vertexListHandle->size(); ++ii) {
         art::Ptr<recob::Vertex> vertex(vertexListHandle, ii);
         recoVtxList.push_back(vertex);

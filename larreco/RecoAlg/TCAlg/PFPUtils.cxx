@@ -35,22 +35,6 @@
 #include "nusimdata/SimulationBase/MCParticle.h"
 
 namespace tca {
-
-  struct SortEntry {
-    unsigned int index;
-    float val;
-  };
-  bool
-  valDecreasings(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val > c2.val);
-  }
-  bool
-  valIncreasings(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val < c2.val);
-  }
-
   /////////////////////////////////////////
   void
   StitchPFPs()
@@ -100,12 +84,14 @@ namespace tca {
             bool gotit = false;
             for (unsigned short e1 = 0; e1 < 2; ++e1) {
               auto tp3d1 = EndTP3D(p1, e1);
+              if(tp3d1.Flags[kTP3DBad]) continue;
               auto pos1 = tp3d1.Pos;
               // require the end to be close to a TPC boundary
               if (InsideFV(slc1, p1, e1)) continue;
               auto dir1 = tp3d1.Dir;
               for (unsigned short e2 = 0; e2 < 2; ++e2) {
                 auto tp3d2 = EndTP3D(p2, e2);
+                if(tp3d2.Flags[kTP3DBad]) continue;
                 auto pos2 = tp3d2.Pos;
                 // require the end to be close to a TPC boundary
                 if (InsideFV(slc2, p2, e2)) continue;
@@ -392,6 +378,7 @@ namespace tca {
       if (foundMVI && !pfpVec[0].AlgMod[kSmallAng3D]) { PrintTP3Ds(clockData, detProp, "FF", slc, pfpVec[0], -1); }
       for (unsigned short ip = 0; ip < pfpVec.size(); ++ip) {
         auto& pfp = pfpVec[ip];
+        if(pfp.TP3Ds.empty()) continue;
         // set the end flag bits
         geo::TPCID tpcid;
         for (unsigned short end = 0; end < 2; ++end) {
@@ -540,7 +527,6 @@ namespace tca {
     std::vector<int> TinP;
     for(auto& pfp : slc.pfps) {
       if(pfp.ID <= 0) continue;
-//      if(pfp.AlgMod[kSmallAng3D]) continue;
       for(std::size_t ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
         auto& tp3d = pfp.TP3Ds[ipt];
         if(tp3d.Flags[kTP3DBad] || tp3d.TPIndex == USHRT_MAX) continue;
@@ -580,7 +566,9 @@ namespace tca {
         if(tp3d.TjID <= 0) continue;
         if(std::find(killme.begin(), killme.end(), tp3d.TjID) == killme.end()) killme.push_back(tp3d.TjID);
       } // tp3d
-    }   // pfp
+    } // pfp
+
+    bool prt = (tcc.dbgPFP);
 
     for (auto tid : killme)
       MakeTrajectoryObsolete(slc, (unsigned int)(tid - 1));
@@ -627,7 +615,10 @@ namespace tca {
         ptjs[plane].Pts.push_back(tp);
       } // tp3d
       // finish defining each of the Tjs and store them
-      for(auto& tj : ptjs) {
+      // new tj ID indexed by plane
+      std::vector<int> tids(ptjs.size(), 0);
+      for(unsigned short plane = 0; plane < ptjs.size(); ++plane) {
+        auto& tj = ptjs[plane];
         if(tj.Pts.size() < 2) continue;
         SetEndPoints(tj);
         tj.PDGCode = pfp.PDGCode;
@@ -636,7 +627,23 @@ namespace tca {
         // associate it with the pfp
         auto& newTj = slc.tjs.back();
         pfp.TjIDs.push_back(newTj.ID);
+        tids[plane] = newTj.ID;
       } // tj
+      // preserve the PFP -> 3V -> 2V -> T assns
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(pfp.Vx3ID[end] <= 0) continue;
+        auto& vx3 = slc.vtx3s[pfp.Vx3ID[end] - 1];
+        for(unsigned short plane = 0; plane < ptjs.size(); ++plane) {
+          if(tids[plane] == 0) continue;
+          if(vx3.Vx2ID[plane] <= 0) continue;
+          auto& vx2 = slc.vtxs[vx3.Vx2ID[plane] - 1];
+          auto& tj = slc.tjs[tids[plane] - 1];
+          auto tend = CloseEnd(slc, tj, vx2.Pos);
+          tj.VtxID[tend] = vx2.ID;
+          if(prt) mf::LogVerbatim("TC") << "MPFPTjs: 3V" << vx3.ID << " -> 2V" << vx2.ID
+                   << " -> T" << tj.ID << "_" << tend << " in plane " << plane;
+        } // plane
+      } // end
     }   // pfp
   }     // MakePFPTjs
 
@@ -806,7 +813,7 @@ namespace tca {
       se.val = mCnt[indx];
       sortVec.push_back(se);
     } // ii
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
 
     matVec.resize(sortVec.size());
 
@@ -958,7 +965,7 @@ namespace tca {
       se.val = mCnt[indx];
       sortVec.push_back(se);
     } // ii
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
 
     matVec.resize(sortVec.size());
 
@@ -1070,7 +1077,7 @@ namespace tca {
       se.val = mCnt[indx];
       sortVec.push_back(se);
     } // ii
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
 
     matVec.resize(sortVec.size());
 
@@ -2162,7 +2169,7 @@ namespace tca {
       sortVec[ii].index = ii;
       sortVec[ii].val = temp[ii].along;
     } // ipt
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
+    std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     for (std::size_t ii = 0; ii < temp.size(); ++ii) {
       // overwrite the tp3d
       auto& tp3d = pfp.TP3Ds[indx[ii]];
@@ -2183,7 +2190,7 @@ namespace tca {
       sortVec[ii].index = ii;
       sortVec[ii].val = tp3ds[ii].TPX;
     } // ii
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
+    std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     auto temp = tp3ds;
     for(std::size_t ii = 0; ii < tp3ds.size(); ++ii) tp3ds[ii] = temp[sortVec[ii].index];
   } // SortByX
@@ -2368,7 +2375,7 @@ namespace tca {
       sortVec[itj].val = NumPtsWithCharge(slc, tj, false);
       if(pfp.TjUIDs[itj] > 0) ++sbCnt;
     } // ipt
-    std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
 
     // Decide whether to use the inflection points to add another section. Inflection
     // points must exist in the two longest Tjs
@@ -2587,7 +2594,7 @@ namespace tca {
       sortVec[ipt].val = slc.mallTraj[ipt].xlo;
     } // ipt
     // sort by increasing xlo
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
+    std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     // put slc.mallTraj into sorted order
     auto tallTraj = slc.mallTraj;
     for (std::size_t ii = 0; ii < sortVec.size(); ++ii)
@@ -2784,6 +2791,7 @@ namespace tca {
                 const TCSlice& slc,
                 PFPStruct& pfp)
   {
+    if(pfp.ID <= 0 || pfp.TP3Ds.empty()) return;
     // Fills dE/dx variables in the pfp struct
     if(!pfp.Flags[kdEdxDefined]) SetTP3DdEdx(clockData, detProp, slc, pfp); 
 
@@ -3516,7 +3524,7 @@ namespace tca {
   TP3D
   EndTP3D(const PFPStruct& pfp, unsigned short end)
   {
-    if(end > 1) {
+    if(end > 1 || pfp.TP3Ds.empty()) {
       TP3D tmp;
       tmp.Flags[kTP3DBad] = true;
       return tmp;

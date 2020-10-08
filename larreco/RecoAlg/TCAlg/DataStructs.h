@@ -33,6 +33,12 @@ namespace recob {
 namespace simb {
   class MCParticle;
 }
+struct SortEntry{
+  unsigned int index;
+  float val;
+};
+
+
 
 namespace tca {
 
@@ -447,10 +453,11 @@ namespace tca {
     kTEP,
     kEndPtFit,  // ChkEndPtFit
     kTHiQEP,  // TrimHiChgEndPts
-    kCHMEH,
+    kTHMEP,
     kFillGaps,
     kUseGhostHits,
     kMrgGhost,
+    kMrgShortJunk,
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
@@ -522,8 +529,9 @@ namespace tca {
 
   // TrajClusterAlg configuration bits
   typedef enum {
-    kStepDir,    ///< step from US -> DS (true) or DS -> US (false)
+    kStepPos,    ///< step from US -> DS (true) or DS -> US (false)
     kTestBeam,   ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
+    kLEPhysics,  ///< Configure for low energy physics processes
     kDebug,      ///< master switch for turning on debug mode
     kStudy1,     ///< call study functions to develop cuts, etc (see TCTruth.cxx)
     kStudy2,     ///< call study functions to develop cuts, etc
@@ -594,7 +602,7 @@ namespace tca {
     bool dbgSummary{false}; ///< print a summary report
     bool dbgDump{false};    /// dump trajectory points
     short nPtsAve;          /// number of points to find AveChg
-    std::bitset<16> modes;  /// See TCMode_t above
+    std::bitset<16> modes;  /// See TCModes_t above
     bool doForecast{true};
     bool useChannelStatus{true};
   };

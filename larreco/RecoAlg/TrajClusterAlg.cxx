@@ -15,6 +15,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
+#include "larreco/RecoAlg/TCAlg/PostStepUtils.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
@@ -33,11 +34,6 @@ namespace tca {
     // set all configurable modes false
     tcc.modes.reset();
 
-    // default mode is stepping US -> DS
-    tcc.modes[kStepDir] = true;
-    short userMode = 1;
-    if (pset.has_key("Mode")) userMode = pset.get<short>("Mode");
-    if (userMode < 0) tcc.modes[kStepDir] = false;
     tcc.doForecast = true;
     if (pset.has_key("DoForecast")) tcc.doForecast = pset.get<bool>("DoForecast");
     if (pset.has_key("UseChannelStatus")) tcc.useChannelStatus = pset.get<bool>("UseChannelStatus");
@@ -45,6 +41,7 @@ namespace tca {
       std::cout << "StudyMode is not valid anymore. Try Study: 1 or Study: 2, etc/n";
     } // old StudyMode
     if (pset.has_key("Study")) {
+      std::string userMode;
       userMode = pset.get<short>("Study");
       if (userMode == 1) tcc.modes[kStudy1] = true;
       if (userMode == 2) tcc.modes[kStudy2] = true;
@@ -101,8 +98,27 @@ namespace tca {
     tcc.vtxScoreWeights = pset.get<std::vector<float>>("VertexScoreWeights");
     tcc.match3DCuts = pset.get<std::vector<float>>("Match3DCuts", {-1, -1, -1, -1, -1});
     tcc.pfpStitchCuts = pset.get<std::vector<float>>("PFPStitchCuts", {-1});
-    // don't search for a neutrino vertex in test beam mode
-    tcc.modes[kTestBeam] = pset.get<bool>("TestBeam", false);
+    // Configure for neutrinos (default = ""), TestBeam or LEPhysics
+    std::string mode = "";
+    pset.get_if_present<std::string>("Mode", mode);
+    // Set the normal stepping mode Pos (lower wire number to higher wire number)
+    tcc.modes[kStepPos] = true;
+    if(mode.length() > 0) {
+      bool okEntry = false;
+      if(mode.find("TestBeam") == 0) {
+        tcc.modes[kTestBeam] = true;
+        okEntry = true;
+      } else if(mode.find("LEPhysics") == 0) {
+        tcc.modes[kLEPhysics] = true;
+        okEntry = true;
+      }
+      // set the minimum 2D vertex score to 0
+      tcc.vtx2DCuts[7] = 0.;
+      if(!okEntry) {
+      throw art::Exception(art::errors::Configuration)
+        << "The specified Mode string "<<mode<<" is invalid";
+      }
+    } // mode defined
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if (tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
 
@@ -447,7 +463,7 @@ namespace tca {
         // decide which way to step given the sign of StepDir
         unsigned int iwire = 0;
         unsigned int jwire = 0;
-        if (tcc.modes[kStepDir]) {
+        if (tcc.modes[kStepPos]) {
           // step DS
           iwire = slc.firstWire[plane] + ii;
           jwire = iwire + 1;
@@ -710,6 +726,8 @@ namespace tca {
 
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
+    // Merge short Tjs into junk Tjs
+    MergeShortWithJunk(slc, inCTP);
     // dressed muons with halo trajectories
     if (tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
       for (auto& tj : slc.tjs) {
@@ -869,7 +887,7 @@ namespace tca {
           // See if this is a ghost trajectory
           if (IsGhost(slc, tHits)) break;
           if (!MakeJunkTraj(slc, tHits)) {
-            if (prt) mf::LogVerbatim() << "FJT: MakeJunkTraj failed";
+            if (prt) mf::LogVerbatim("TC") << "FJT: MakeJunkTraj failed";
             break;
           }
           if (slc.slHits[jht].InTraj > 0) break;

@@ -23,7 +23,7 @@
 #include "TVectorD.h"
 
 namespace tca {
-
+/*
   struct SortEntry {
     unsigned int index;
     float val;
@@ -39,7 +39,7 @@ namespace tca {
   {
     return (c1.val < c2.val);
   }
-
+*/
   //////////////////////////////////////////
   void
   MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP)
@@ -311,7 +311,7 @@ namespace tca {
           if (!TrajClosestApproach(tj1, wint, tint, closePt1, doca1)) continue;
           // dpt1 (and dpt2) will be 0 if the vertex is at the end
           short stepDir = -1;
-          if (tcc.modes[kStepDir]) stepDir = 1;
+          if (tcc.modes[kStepPos]) stepDir = 1;
           short dpt1 = stepDir * (closePt1 - endPt1);
           if (dpt1 < -1) continue;
           short dptCut = 3;
@@ -332,6 +332,23 @@ namespace tca {
           bool fixVxPos = false;
           // fix the vertex position if there is a charge kink here
           if (tj1.EndFlag[end1][kEndKink]) fixVxPos = true;
+          if(tcc.useAlg[kNewCuts]) {
+            if (tj1.AlgMod[kJunkTj]) {
+              // the vertex position is likely wrong if tj1 is junk so put it at the end
+              // of tj2
+              wint = tp2.Pos[0];
+              tint = tp2.Pos[1];
+              fixVxPos = true;
+              requireVtxTjChg = false;
+            } // tj1.AlgMod[kJunkTj]
+            if (tj2.AlgMod[kJunkTj]) {
+              // of tj2
+              wint = tp1.Pos[0];
+              tint = tp1.Pos[1];
+              fixVxPos = true;
+              requireVtxTjChg = false;
+            } // tj2.AlgMod[kJunkTj]
+          } // tcc.useAlg[kNewCuts]
           if (prt)
             mf::LogVerbatim("TC") << " wint:tint " << (int)wint << ":"
                                   << (int)(tint / tcc.unitsPerTick) << " fixVxPos? " << fixVxPos;
@@ -480,6 +497,7 @@ namespace tca {
         if(t2Len > maxShortLen) continue;
         // charge ratio consistent with an overlap
         if(t2.AveChg < 2 * t1.AveChg) continue;
+        if(t2.StepDir != t1.StepDir) ReverseTraj(slc, t2);
         // max separation between the ends of T1 and T2
         float minSep = maxShortLen;
         unsigned short end1 = 2;
@@ -501,18 +519,22 @@ namespace tca {
         float ip20 = PointTrajDOCA(slc, tp20.HitPos[0], tp20.HitPos[1], tp1);
         auto& tp21 = t2.Pts[t2.EndPt[1]];
         float ip21 = PointTrajDOCA(slc, tp21.HitPos[0], tp21.HitPos[1], tp1);
+        if(ip20 > 2 && ip21 > 2) continue;
         unsigned short end2 = 0;
         Point2_t vpos = tp20.HitPos;
         if(ip21 < ip20) {
           end2 = 1;
           vpos = tp21.HitPos;
         }
+        // The vertex should be at the same end for T1 and T2 (if they have the same StepDir)
+        if(end1 != end2) continue;
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" candidate long T"<<t1.ID<<"_"<<end1<<" TP at "<<PrintPos(slc, tp1);
           myprt<<" short T"<<t2.ID<<"_"<<end2<<" TP at "<<PrintPos(slc, t2.Pts[t2.EndPt[end2]]);
           myprt<< " ip20 "<<ip20<< " ip21 "<<ip21;
-          myprt<<"\n Chk tp20 "<<PrintPos(slc, tp20)<<" tp21 "<<PrintPos(slc, tp21);
+          myprt<<" vpos "<<PrintPos(slc, vpos);
+          myprt<<"\n StepDir "<<t1.StepDir<<" "<<t2.StepDir;
         } // prt
         bool success = false;
         // No existing vertices
@@ -534,8 +556,10 @@ namespace tca {
         } // No existing vertices
         // check for existing 2V attachments
         else if(t1.VtxID[end1] > 0 && t1.VtxID[end1] == t2.VtxID[end2]) {
-          slc.vtxs[t1.VtxID[end1]-1].Topo = 13;
-          if(prt) mf::LogVerbatim("TC")<<"  Set 2V"<<slc.vtxs[t1.VtxID[end1]-1].ID<<" Topo = 13";
+          auto& vx2 = slc.vtxs[t1.VtxID[end1]-1];
+          vx2.Topo = 13;
+          if(prt) mf::LogVerbatim("TC")<<"  Set existing 2V"<<vx2.ID
+                  << " at " << PrintPos(slc, vx2.Pos) <<" Topo = 13";
           success = true;
         } // existing correct vertex
         else if(t1.VtxID[end1] > 0 && t1.VtxID[end1] == t2.VtxID[1-end2]) {
@@ -549,7 +573,15 @@ namespace tca {
             << " new Score " << vx2.Score;
           success = true;
         } // Existing 2V attached to the wrong end of T2
-        if(!success) mf::LogVerbatim("TC") << "FSL2Vs: Reconcile 2V attachments btw T" << t1.ID << " and T" << t2.ID;
+        else if(t1.VtxID[end1] > 0) {
+          // reconcile existing vertex attachment with this new vertex
+        }
+        if(success) {
+          break;
+        } else {
+          mf::LogVerbatim("TC") << "FSL2Vs: Reconcile 2V attachments btw T" 
+                << t1.ID << " and T" << t2.ID << " inCTP " << inCTP;
+        }
       } // it2
     } // it1
 
@@ -609,7 +641,7 @@ namespace tca {
       auto& tj = slc.tjs[tjlist[indx] - 1];
       sortVec[indx].val = tj.Pts.size();
     } // indx
-    std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     // re-order the list of Tjs
     auto ttl = tjlist;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii)
@@ -1599,13 +1631,13 @@ namespace tca {
             if (jvx2.Pos[0] < -0.4) continue;
             unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
-            if (dX > tcc.vtx3DCuts[0]) continue;
-            if (prt) {
+            if (prt && dX < 10) {
               mf::LogVerbatim("TC")
                 << "F3V: ipl " << ipl << " i2V" << ivx2.ID << " iX " << vX[ivx] << " jpl " << jpl
                 << " j2V" << jvx2.ID << " jvX " << vX[jvx] << " W:T " << (int)jvx2.Pos[0] << ":"
-                << (int)jvx2.Pos[1] << " dX " << dX;
+                << (int)jvx2.Pos[1] << " dX " << dX << " dX cut " << tcc.vtx3DCuts[0];
             }
+            if (dX > tcc.vtx3DCuts[0]) continue;
             double y = -1000, z = -1000;
             tcc.geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
             if (y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
@@ -1735,7 +1767,7 @@ namespace tca {
       sEntry.val = v3temp[ivx].Score;
       sortVec[ivx] = sEntry;
     } // ivx
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     // create a new vector of selected 3D vertices
     std::vector<Vtx3Store> v3sel;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii) {
@@ -2461,6 +2493,9 @@ namespace tca {
   {
     // kill 2D vertices that have low score and are not attached to a high-score 3D vertex
     if (slc.vtxs.empty()) return;
+    if (tcc.vtxScoreWeights[0] < 0) return;
+    if (tcc.modes[kLEPhysics]) return;
+
     for (auto& vx : slc.vtxs) {
       if (vx.ID == 0) continue;
       if (vx.Score > tcc.vtx2DCuts[7]) continue;
@@ -2575,9 +2610,8 @@ namespace tca {
     constexpr float maxChgRMS = 0.25;
     constexpr float momBin = 50;
 
-    vx2.Score = -1000;
+    vx2.Score = 0;
     vx2.TjChgFrac = 0;
-    if (vx2.ID == 0) return;
     if (tcc.vtxScoreWeights.size() < 4) return;
 
     auto vtxTjIDs = GetVtxTjIDs(slc, vx2);

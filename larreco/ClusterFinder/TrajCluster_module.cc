@@ -490,9 +490,9 @@ namespace cluster {
         } // vx2
         // make Vertices
         for (auto& vx3 : slc.vtx3s) {
+          std::cout<<"TCM: "<<isl<<" 3V"<<vx3.ID<<" Wire "<<vx3.Wire;
+          std::cout<<" ("<<(int)vx3.X<<", "<<(int)vx3.Y<<", "<<(int)vx3.Z<<")\n";
           if (vx3.ID <= 0) continue;
-          // ignore incomplete vertices
-          if (vx3.Wire >= 0) continue;
           unsigned int vtxID = vx3.UID;
           double xyz[3];
           xyz[0] = vx3.X;
@@ -506,7 +506,6 @@ namespace cluster {
           tmp.ID = vx3.ID;
           tmp.vxColIndx = vx3Col.size() - 1;
           vx3StrList.push_back(tmp);
-
         } // vx3
         // Convert the tjs to clusters
         for (auto& tj : slc.tjs) {
@@ -614,6 +613,7 @@ namespace cluster {
             } // exception
           }   // slices exist
           // Make cluster -> 2V and cluster -> 3V assns
+          std::cout<<"TCM "<<isl<<" UT"<<tj.UID<<" clsID "<<clsID<<" VtxIDs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<"\n";
           for (unsigned short end = 0; end < 2; ++end) {
             if (tj.VtxID[end] <= 0) continue;
             for (auto& vx2str : vx2StrList) {
@@ -626,7 +626,10 @@ namespace cluster {
               } // exception
               auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if (vx2.Vx3ID > 0) {
+                std::cout<<" isl "<<isl;
+                std::cout<<" UT"<<tj.UID<<" end "<<end<<" 2V"<<vx2.ID<<" -> 3V"<<vx2.Vx3ID<<"\n";
                 for (auto vx3str : vx3StrList) {
+                  std::cout<<"  vx3str "<<vx3str.slIndx<<" "<<vx3str.ID<<"\n";
                   if (vx3str.slIndx != isl) continue;
                   if (vx3str.ID != vx2.Vx3ID) continue;
                   if (!util::CreateAssnD(
@@ -634,6 +637,7 @@ namespace cluster {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
                       << "Failed to associate cluster " << tj.UID << " with Vertex";
                   } // exception
+                  std::cout<<"Associated UT"<<tj.UID<<" -> 2V"<<vx2.ID<<" -> 3V"<<vx2.Vx3ID<<"\n";
                   break;
                 } // vx3str
               }   // vx2.Vx3ID > 0
