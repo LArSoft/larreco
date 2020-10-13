@@ -103,6 +103,8 @@ namespace tca {
     pset.get_if_present<std::string>("Mode", mode);
     // Set the normal stepping mode Pos (lower wire number to higher wire number)
     tcc.modes[kStepPos] = true;
+    // Turn off LEPhys useAlg for "normal" old reconstruction
+    tcc.useAlg[kLEPhys] = true;
     if(mode.length() > 0) {
       bool okEntry = false;
       if(mode.find("TestBeam") == 0) {
@@ -110,6 +112,7 @@ namespace tca {
         okEntry = true;
       } else if(mode.find("LEPhysics") == 0) {
         tcc.modes[kLEPhysics] = true;
+        tcc.useAlg[kLEPhys] = true;
         okEntry = true;
       }
       // set the minimum 2D vertex score to 0
@@ -459,6 +462,8 @@ namespace tca {
     // the first pass
     float maxHitsRMS = 4 * evt.aveHitRMS[plane];
     for (unsigned short pass = 0; pass < tcc.minPtsFit.size(); ++pass) {
+      // don't try to step with VLA hits
+      if(tcc.useAlg[kNewCuts] && tcc.maxAngleCode[pass] == 2) break;
       for (unsigned int ii = 0; ii < nwires; ++ii) {
         // decide which way to step given the sign of StepDir
         unsigned int iwire = 0;
@@ -519,6 +524,7 @@ namespace tca {
             if (iHitsInMultiplet.empty()) continue;
             // ignore very high multiplicities
             if (iHitsInMultiplet.size() > 4) continue;
+            if (tcc.useAlg[kNewCuts] && iHitsInMultiplet.size() > 3) continue;
           }
           if (iHitsInMultiplet.size() > 1) {
             fromTick = HitsPosTick(slc, iHitsInMultiplet, iqtot, kUnusedHits);
@@ -553,6 +559,7 @@ namespace tca {
               if (jHitsInMultiplet.empty()) continue;
               // ignore very high multiplicities
               if (jHitsInMultiplet.size() > 4) continue;
+              if (tcc.useAlg[kNewCuts] && jHitsInMultiplet.size() > 3) continue;
             }
             hitsRMSTick = HitsRMSTick(slc, jHitsInMultiplet, kUnusedHits);
             if (hitsRMSTick == 0) continue;
@@ -595,6 +602,12 @@ namespace tca {
             }
             if (!sigOK || work.Pts[0].Chg == 0) {
               if (tcc.dbgStp) mf::LogVerbatim("TC") << " No hits at initial trajectory point ";
+              ReleaseHits(slc, work);
+              continue;
+            }
+            if(tcc.useAlg[kNewCuts] && work.Pts[0].Hits.size() > 2) {
+              if (tcc.dbgStp) mf::LogVerbatim("TC") << " Too many hits " 
+                    << work.Pts[0].Hits.size() << " at initial trajectory point ";
               ReleaseHits(slc, work);
               continue;
             }

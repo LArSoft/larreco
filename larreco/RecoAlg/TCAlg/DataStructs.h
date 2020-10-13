@@ -495,6 +495,7 @@ namespace tca {
     kStopShort,
     kReconcile2Vs,
     kFTBMod,
+    kLEPhys,
     kNewCuts,
     kAlgBitSize ///< don't mess with this line
   } AlgBit_t;

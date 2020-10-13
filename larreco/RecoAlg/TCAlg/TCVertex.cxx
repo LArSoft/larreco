@@ -332,7 +332,7 @@ namespace tca {
           bool fixVxPos = false;
           // fix the vertex position if there is a charge kink here
           if (tj1.EndFlag[end1][kEndKink]) fixVxPos = true;
-          if(tcc.useAlg[kNewCuts]) {
+          if(tcc.useAlg[kLEPhys]) {
             if (tj1.AlgMod[kJunkTj]) {
               // the vertex position is likely wrong if tj1 is junk so put it at the end
               // of tj2
@@ -348,7 +348,7 @@ namespace tca {
               fixVxPos = true;
               requireVtxTjChg = false;
             } // tj2.AlgMod[kJunkTj]
-          } // tcc.useAlg[kNewCuts]
+          } // tcc.useAlg[kLEPhys]
           if (prt)
             mf::LogVerbatim("TC") << " wint:tint " << (int)wint << ":"
                                   << (int)(tint / tcc.unitsPerTick) << " fixVxPos? " << fixVxPos;
@@ -471,7 +471,7 @@ namespace tca {
   {
     // Look for long, low-charge T1 that makes a better 2D vertex with a short high-charge T2
     // at the far end of T2 than the near end of T2, relative to the closest end of T1
-    if(!tcc.useAlg[kNewCuts]) return;
+    if(!tcc.useAlg[kLEPhys]) return;
     if(!tcc.useAlg[kShrtLong2V]) return;
 
     bool prt = (inCTP == debug.CTP && (tcc.dbg2V || tcc.dbgAlg[kShrtLong2V]));
@@ -765,7 +765,7 @@ namespace tca {
     // exists, the vertex position is moved to the position of the Bragg peak
     // and the Topo flag is set to 10 (decay vertex)
 
-    if(!tcc.useAlg[kNewCuts]) return;
+    if(!tcc.useAlg[kLEPhys]) return;
     if (!tcc.useAlg[kDecayVx]) return;
     bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kDecayVx]);
     if (prt) mf::LogVerbatim("TC") << "Inside MakeDecayVertices in CTP "<<inCTP;
@@ -824,8 +824,8 @@ namespace tca {
             dtrCandidates.push_back(inTraj);
         } // iht
         if(dtrCandidates.size() > 1) {
-          std::cout<<"MDV found multiple daughter candidates in CTP "<<inCTP;
-          std::cout<<" associated with T"<<tj.ID<<" near "<<PrintPos(slc, endTP.Pos);
+          std::cout<<"MDV: found multiple daughter candidates in CTP "<<inCTP;
+          std::cout<<" associated with T"<<tj.ID<<" near "<<PrintPos(slc, endTP.Pos)<<"\n";
         }
         if(dtrCandidates.size() != 1) continue;
         if(prt) {
@@ -1597,7 +1597,7 @@ namespace tca {
 
     for (unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if (slc.vtxs[ivx].ID <= 0) continue;
-      if (!tcc.useAlg[kNewCuts] && slc.vtxs[ivx].Score < 0.5 * tcc.vtx2DCuts[7]) continue;
+      if (!tcc.useAlg[kLEPhys] && slc.vtxs[ivx].Score < 0.5 * tcc.vtx2DCuts[7]) continue;
       if (slc.vtxs[ivx].Pos[0] < -0.4) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       // Convert 2D vertex time error to X error

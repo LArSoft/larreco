@@ -32,6 +32,7 @@ namespace tca {
       std::cout << " 'P:W:Tick' for single cryostat/TPC detectors (uB, LArIAT, etc)\n";
       std::cout << " 'WorkID <id> <slice index>' where <id> is a tj work ID (< 0) in slice <slice "
                    "index> (default = 0)\n";
+      std::cout << " 'CTP <CTP>' to restrict debug output to CTP\n";
       std::cout << " 'Merge <CTP>' to debug trajectory merging\n";
       std::cout << " '2V <CTP>' to debug 2D vertex finding\n";
       std::cout << " '3V' to debug 3D vertex finding\n";
@@ -94,6 +95,7 @@ namespace tca {
       debug.Plane = std::stoi(words[2]);
       debug.Wire = std::stoi(words[3]);
       debug.Tick = std::stoi(words[4]);
+      debug.CTP = EncodeCTP(debug.Cryostat, debug.TPC, debug.Plane);
       tcc.modes[kDebug] = true;
       tcc.dbgStp = true;
       // also dump this tj
@@ -110,6 +112,13 @@ namespace tca {
       }
       return true;
     } // PFP
+    if (words.size() == 2 && words[0] == "CTP") {
+      debug.CTP = std::stoi(words[1]);
+      auto plnID = DecodeCTP(debug.CTP);
+      debug.Cryostat = plnID.Cryostat;
+      debug.TPC = plnID.TPC;
+      debug.Plane = plnID.Plane;
+    } // CTP
     if (words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
       debug.Slice = 0;
@@ -159,6 +168,10 @@ namespace tca {
     }
     if (words.size() == 2 && words[0] == "2V") {
       debug.CTP = std::stoi(words[1]);
+      auto plnID = DecodeCTP(debug.CTP);
+      debug.Cryostat = plnID.Cryostat;
+      debug.TPC = plnID.TPC;
+      debug.Plane = plnID.Plane;
       tcc.dbg2V = true;
       tcc.modes[kDebug] = true;
       return true;

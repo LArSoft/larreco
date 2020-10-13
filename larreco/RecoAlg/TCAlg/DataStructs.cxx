@@ -85,6 +85,7 @@ namespace tca {
     "StopShort",
     "Reconcile2Vs",
     "FTBMod",
+    "LEPhys",
     "NewCuts"
   };
 

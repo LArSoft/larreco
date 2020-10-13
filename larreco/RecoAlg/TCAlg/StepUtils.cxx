@@ -346,13 +346,13 @@ namespace tca {
 
     auto& lastTP = tj.Pts[tj.EndPt[1]];
 
-    if(!tcc.useAlg[kNewCuts]) {
+    if(!tcc.useAlg[kLEPhys]) {
       // Stay in Slowing strategy if we are in it and keep the number of points fit constant
       if(tj.Strategy[kSlowing]) {
         lastTP.NTPsFit = 5;
         return;
       }
-    } // !tcc.useAlg[kNewCuts]
+    } // !tcc.useAlg[kLEPhys]
 
     float npwc = NumPtsWithCharge(slc, tj, false);
     // Keep using the StiffMu strategy if the tj is long and MCSMom is high
@@ -440,10 +440,10 @@ namespace tca {
       tj.StartEnd = 0;
       return;
     } // StiffEl
-    if(!tcc.useAlg[kNewCuts]) {
+    if(!tcc.useAlg[kLEPhys]) {
       tj.Strategy.reset();
       tj.Strategy[kNormal] = true;
-    } // !tcc.useAlg[kNewCuts]
+    } // !tcc.useAlg[kLEPhys]
     // set to normal
 
   } // SetStrategy
@@ -587,8 +587,8 @@ namespace tca {
       } else {
         // no hits found
         ++nMissed;
-        if(nMissed == 10) {
-          if(doPrt) mf::LogVerbatim("TC")<<"No hits found after 10 steps - break";
+        if(nMissed == 2) {
+          if(doPrt) mf::LogVerbatim("TC")<<"No hits found after 2 steps - break";
           break;
         }
       } // no hits found
@@ -733,6 +733,7 @@ namespace tca {
       maxChi = tcc.maxChi;
       minPtsFit = lastPt / 3;
     }
+    if(tcc.useAlg[kNewCuts] && tj.Strategy[kSlowing] && tj.MCSMom < 50) maxChi = 7;
 
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(slc, lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
@@ -986,7 +987,6 @@ namespace tca {
     if(deltaCut < minDeltaCut) deltaCut = minDeltaCut;
 
     deltaCut *= tcc.projectionErrFactor;
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut<<" dw "<<dw<<" dpos "<<dpos;
 
     if(deltaCut < 0.5) deltaCut = 0.5;
     if(deltaCut > 3) deltaCut = 3;
@@ -999,6 +999,7 @@ namespace tca {
     if(passedDeadWires) deltaCut *= 2;
     // open it up for StiffEl and Slowing strategies
     if(tj.Strategy[kStiffEl] || tj.Strategy[kSlowing]) deltaCut = 3;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut<<" dw "<<dw<<" dpos "<<dpos;
 
     // Create a larger cut to use in case there is nothing close
     float bigDelta = 2 * deltaCut;

@@ -125,9 +125,9 @@ namespace tca {
     // Update the trajectory parameters at the beginning of the trajectory
     ChkBegin(slc, tj);
 
-    // Look for a high charge plateau at the end (kNewCuts)
+    // Look for a high charge plateau at the end (kLEPhys)
     TrimHiChgEndPts(slc, tj);
-    // Look for high multiplicity hits at the end (kNewCuts)
+    // Look for high multiplicity hits at the end (kLEPhys)
     TrimHiMultEndPts(slc, tj);
     // Old algorithm to be removed
     ChkHiMultEndHits(slc, tj);
@@ -137,7 +137,7 @@ namespace tca {
     ChkEndPtFit(slc, tj);
 
     // check for garbage Tjs and ignore the standard quality cuts
-    if(tcc.useAlg[kNewCuts] && npwc < 5 && !isVLA) {
+    if(tcc.useAlg[kLEPhys] && npwc < 5 && !isVLA) {
       float tothits = 0;
       for(auto& tp : tj.Pts) tothits += tp.Hits.size();
       float hitsPerTP = tothits / (float)tj.Pts.size();
@@ -169,7 +169,7 @@ namespace tca {
     // should be used
 
     // don't use this old algorithm
-    if(tcc.useAlg[kNewCuts]) return;
+    if(tcc.useAlg[kLEPhys]) return;
     if(tj.EndFlag[1][kEndKink]) return;
     if(!tcc.useAlg[kChkStopEP]) return;
     if(tj.AlgMod[kJunkTj]) return;
@@ -258,7 +258,7 @@ namespace tca {
     // Re-fitting the end might be a good idea but it's probably not necessary. The
     // values of Delta should have already been filled
 
-    if(!tcc.useAlg[kNewCuts]) {
+    if(!tcc.useAlg[kLEPhys]) {
       // require a Bragg peak
       ChkStop(slc, tj);
       if(!tj.EndFlag[1][kEndBragg]) {
@@ -266,7 +266,7 @@ namespace tca {
         for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
         SetEndPoints(tj);
       } // no Bragg Peak
-    } // !tcc.useAlg[kNewCuts]
+    } // !tcc.useAlg[kLEPhys]
 
     if(tcc.dbgStp) {
       mf::LogVerbatim myprt("TC");
@@ -848,8 +848,9 @@ namespace tca {
   {
     // look for a significant step increase at the end, indicating that two tracks are
     // overlapping in this view. 
-    if(!tcc.useAlg[kNewCuts]) return;
+    if(!tcc.useAlg[kLEPhys]) return;
     if(!tcc.useAlg[kTHiQEP]) return;
+    if(tj.Strategy[kSlowing]) return;
     if(tj.EndFlag[1][kEndBragg]) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 10) return;
 
@@ -876,7 +877,7 @@ namespace tca {
         maxAsym = asym;
         atPt = ipt;
       }
-      if(prt) mf::LogVerbatim("TC")<<"kTHiQEP ipt " << ipt << " " << PrintPos(slc, tpp0)
+      if(prt) mf::LogVerbatim("TC")<<"THiQEP ipt " << ipt << " " << PrintPos(slc, tpp0)
               << " Chg asym " << asym;
       ++cnt;
       if(cnt > 10) break;
@@ -894,8 +895,9 @@ namespace tca {
   TrimHiMultEndPts(TCSlice& slc, Trajectory& tj)
   {
     // Trim high multiplicity points at the end of the trajectory
-    if(!tcc.useAlg[kNewCuts]) return;
+    if(!tcc.useAlg[kLEPhys]) return;
     if(!tcc.useAlg[kTHMEP]) return;
+    if(tj.Strategy[kSlowing]) return;
     if(tj.EndFlag[1][kEndBragg]) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 10) return;
 
@@ -928,7 +930,8 @@ namespace tca {
     if(atPt < 0) return;
     auto& atTP = tj.Pts[atPt];
     if(atTP.Hits.size() == 1) ++atPt;
-    if(prt) mf::LogVerbatim("TC") << " THMEP trim points " << PrintPos(slc, atTP) << " to the end";
+    if(prt) mf::LogVerbatim("TC") << "THMEP: Hit size asymmetry of " << maxAsym 
+              << " exceeds 0.4 at " << PrintPos(slc, atTP) << ". Trim to the end";
     for(short ipt = atPt; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
     SetEndPoints(tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
@@ -939,7 +942,7 @@ namespace tca {
   void ChkHiMultEndHits(TCSlice& slc, Trajectory& tj)
   {
     // mask off high multiplicity TPs at the end
-    if(tcc.useAlg[kNewCuts]) return;
+    if(tcc.useAlg[kLEPhys]) return;
 //    if(!tcc.useAlg[kCHMEH]) return;
     if(tj.EndFlag[1][kEndBragg]) return;
     if(tj.Pts.size() < 10) return;
@@ -1826,7 +1829,6 @@ namespace tca {
           if(jtp.Pos[0] < loPos[0]) loPos = jtp.Pos;
           if(jtp.Pos[0] > hiPos[0]) hiPos = jtp.Pos;
         }
-        mf::LogVerbatim("TC")<<" from "<<PrintPos(slc, loPos)<<" to "<<PrintPos(slc, hiPos);
         unsigned int loWire = std::nearbyint(loPos[0]);
         unsigned int hiWire = std::nearbyint(hiPos[0]);
         float delta = std::abs(hiPos[1] - loPos[1]);

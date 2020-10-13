@@ -309,6 +309,27 @@ namespace cluster {
     }     // fSpacePointModuleLabel specified
 
     if (nInputHits > 0) {
+
+      // look for a debug hit
+      if (tca::tcc.dbgStp) {
+        tca::debug.Hit = UINT_MAX;
+        for (unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+          auto& hit = (*inputHits)[iht];
+          if ((int)hit.WireID().TPC == tca::debug.TPC &&
+              (int)hit.WireID().Plane == tca::debug.Plane &&
+              (int)hit.WireID().Wire == tca::debug.Wire &&
+              hit.PeakTime() > tca::debug.Tick - 10 && hit.PeakTime() < tca::debug.Tick + 10) {
+            std::cout << "TCM found debug hit " << iht;
+            std::cout << " RMS " << hit.RMS();
+            std::cout << " Multiplicity " << hit.Multiplicity();
+            std::cout << " GoodnessOfFit " << hit.GoodnessOfFit();
+            std::cout << "\n";
+            tca::debug.Hit = iht;
+            break;
+          } // Look for debug hit
+        }   // iht
+      }     // tca::tcc.dbgStp
+
       auto const clockData =
         art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
       auto const detProp =
@@ -333,11 +354,11 @@ namespace cluster {
           slcIDs[0] = 1;
         }
         if (sltpcHits.empty()) continue;
-        for (unsigned short isl = 0; isl < sltpcHits.size(); ++isl) {
+        for (unsigned int isl = 0; isl < sltpcHits.size(); ++isl) {
           auto& tpcHits = sltpcHits[isl];
           if (tpcHits.empty()) continue;
           if(tca::tcc.modes[tca::kDebug] && tpcHits.size() > 10) 
-              std::cout<<"Found "<<tpcHits.size()<<" hits in TPC "<<tpcid.TPC<<"\n";
+          std::cout<<"Found "<<tpcHits.size()<<" hits in TPC "<<tpcid.TPC<<"\n";
           // only reconstruct slices with MC-matched hits?
           // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
           // This assumes that hits with larger LocalIndex are at larger Tick.
@@ -357,25 +378,6 @@ namespace cluster {
           // clear the temp vector
           tmp.resize(0);
           sortVec.resize(0);
-          // look for a debug hit
-          if (tca::tcc.dbgStp) {
-            tca::debug.Hit = UINT_MAX;
-            for (unsigned short indx = 0; indx < tpcHits.size(); ++indx) {
-              auto& hit = (*inputHits)[tpcHits[indx]];
-              if ((int)hit.WireID().TPC == tca::debug.TPC &&
-                  (int)hit.WireID().Plane == tca::debug.Plane &&
-                  (int)hit.WireID().Wire == tca::debug.Wire &&
-                  hit.PeakTime() > tca::debug.Tick - 10 && hit.PeakTime() < tca::debug.Tick + 10) {
-                std::cout << "Debug hit " << tpcHits[indx] << " found in slice ID " << slcIDs[isl];
-                std::cout << " RMS " << hit.RMS();
-                std::cout << " Multiplicity " << hit.Multiplicity();
-                std::cout << " GoodnessOfFit " << hit.GoodnessOfFit();
-                std::cout << "\n";
-                tca::debug.Hit = tpcHits[indx];
-                break;
-              } // Look for debug hit
-            }   // iht
-          }     // tca::tcc.dbgStp
           fTCAlg.RunTrajClusterAlg(clockData, detProp, tpcHits, slcIDs[isl]);
         } // isl
       }   // TPC
@@ -490,8 +492,6 @@ namespace cluster {
         } // vx2
         // make Vertices
         for (auto& vx3 : slc.vtx3s) {
-          std::cout<<"TCM: "<<isl<<" 3V"<<vx3.ID<<" Wire "<<vx3.Wire;
-          std::cout<<" ("<<(int)vx3.X<<", "<<(int)vx3.Y<<", "<<(int)vx3.Z<<")\n";
           if (vx3.ID <= 0) continue;
           unsigned int vtxID = vx3.UID;
           double xyz[3];
@@ -613,7 +613,6 @@ namespace cluster {
             } // exception
           }   // slices exist
           // Make cluster -> 2V and cluster -> 3V assns
-          std::cout<<"TCM "<<isl<<" UT"<<tj.UID<<" clsID "<<clsID<<" VtxIDs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<"\n";
           for (unsigned short end = 0; end < 2; ++end) {
             if (tj.VtxID[end] <= 0) continue;
             for (auto& vx2str : vx2StrList) {

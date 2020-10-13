@@ -49,6 +49,8 @@ namespace cluster {
     void analyze(const art::Event& evt) override;
     void beginJob() override;
     void endJob() override;
+    std::string PrintHit(const recob::Hit& hit);
+    int EncodePDGCode(int pdgCode);
 
     TH1F* fNClusters;
     TH1F* fNHitInCluster;
@@ -57,41 +59,41 @@ namespace cluster {
     TH1F* fCRE;
     TH1F* fCRP;
     // Neutrino interactions
-    TH1F* fNuKE_elec;
-    TH1F* fNuKE_muon;
-    TH1F* fNuKE_pion;
-    TH1F* fNuKE_kaon;
-    TH1F* fNuKE_prot;
-    //  TH1F* fNuEP2;
-    TH1F* fNuEP2_elec;
-    TH1F* fNuEP2_muon;
-    TH1F* fNuEP2_pion;
-    TH1F* fNuEP2_kaon;
-    TH1F* fNuEP2_prot;
-    TH1F* fNuE_elec;
-    TH1F* fNuE_muon;
-    TH1F* fNuE_pion;
-    TH1F* fNuE_kaon;
-    TH1F* fNuE_prot;
-    TH1F* fNuP_elec;
-    TH1F* fNuP_muon;
-    TH1F* fNuP_pion;
-    TH1F* fNuP_kaon;
-    TH1F* fNuP_prot;
+    TH1F* fT_elec;
+    TH1F* fT_muon;
+    TH1F* fT_pion;
+    TH1F* fT_kaon;
+    TH1F* fT_prot;
+    //  TH1F* fEP;
+    TH1F* fEP_elec;
+    TH1F* fEP_muon;
+    TH1F* fEP_pion;
+    TH1F* fEP_kaon;
+    TH1F* fEP_prot;
+    TH1F* fE_elec;
+    TH1F* fE_muon;
+    TH1F* fE_pion;
+    TH1F* fE_kaon;
+    TH1F* fE_prot;
+    TH1F* fP_elec;
+    TH1F* fP_muon;
+    TH1F* fP_pion;
+    TH1F* fP_kaon;
+    TH1F* fP_prot;
 
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
 
-    TProfile* fNuEP2_KE_elec;
-    TProfile* fNuEP2_KE_muon;
-    TProfile* fNuEP2_KE_pion;
-    TProfile* fNuEP2_KE_kaon;
-    TProfile* fNuEP2_KE_prot;
+    TProfile* fEP_T_elec;
+    TProfile* fEP_T_muon;
+    TProfile* fEP_T_pion;
+    TProfile* fEP_T_kaon;
+    TProfile* fEP_T_prot;
 
-    std::string fHitsModuleLabel;
-    std::string fClusterModuleLabel;
-    std::string fVertexModuleLabel;
+    art::InputTag fHitsModuleLabel;
+    art::InputTag fClusterModuleLabel;
+    art::InputTag fVertexModuleLabel;
     std::vector<float> fElecKERange;
     std::vector<float> fMuonKERange;
     std::vector<float> fPionKERange;
@@ -99,12 +101,17 @@ namespace cluster {
     std::vector<float> fProtKERange;
     short fTrackWeightOption;
     bool fMergeDaughters;
-    //  float fMergeAngleCut;
     bool fSkipCosmics;
+    bool fSkipMultiTPC;
     short fPrintLevel;
     short moduleID;
 
-    std::ofstream outFile;
+    std::array<std::string, 5> fNames {{"elec", "muon", "pion", "kaon", "prot"}};
+    std::array<float, 5> fEffSum {{0}};
+    std::array<float, 5> fPurSum {{0}};
+    std::array<float, 5> fEffPurSum {{0}};
+    std::array<float, 5> fSum {{0}};
+    unsigned int fNBadEP {0};
 
   }; // class ClusterAna
 
@@ -115,36 +122,19 @@ namespace cluster {
   //--------------------------------------------------------------------
   ClusterAna::ClusterAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
-    , fHitsModuleLabel(pset.get<std::string>("HitsModuleLabel"))
-    , fClusterModuleLabel(pset.get<std::string>("ClusterModuleLabel"))
-    , fVertexModuleLabel(pset.get<std::string>("VertexModuleLabel"))
+    , fHitsModuleLabel(pset.get<art::InputTag>("HitsModuleLabel"))
+    , fClusterModuleLabel(pset.get<art::InputTag>("ClusterModuleLabel"))
+    , fVertexModuleLabel(pset.get<art::InputTag>("VertexModuleLabel"))
     , fElecKERange(pset.get<std::vector<float>>("ElecKERange"))
     , fMuonKERange(pset.get<std::vector<float>>("MuonKERange"))
     , fPionKERange(pset.get<std::vector<float>>("PionKERange"))
     , fKaonKERange(pset.get<std::vector<float>>("KaonKERange"))
     , fProtKERange(pset.get<std::vector<float>>("ProtKERange"))
-    , fTrackWeightOption(pset.get<short>("TrackWeightOption"))
-    , fMergeDaughters(pset.get<bool>("MergeDaughters"))
-    , fSkipCosmics(pset.get<bool>("SkipCosmics"))
+    , fSkipCosmics(pset.get<bool>("SkipCosmics", true))
+    , fSkipMultiTPC(pset.get<bool>("SkipMultiTPC", true))
     , fPrintLevel(pset.get<short>("PrintLevel"))
   {
 
-    if (fPrintLevel == -1) {
-      // encode the clustermodule label into an integer
-      moduleID = 0;
-      size_t found = fClusterModuleLabel.find("traj");
-      if (found != std::string::npos) moduleID = 1;
-      found = fClusterModuleLabel.find("line");
-      if (found != std::string::npos) moduleID = 2;
-      found = fClusterModuleLabel.find("fuzz");
-      if (found != std::string::npos) moduleID = 3;
-      found = fClusterModuleLabel.find("pand");
-      if (found != std::string::npos) moduleID = 4;
-      std::cout << "fClusterModuleLabel " << fClusterModuleLabel << " ID " << moduleID << "\n";
-
-      std::string fileName = fClusterModuleLabel + ".tru";
-      outFile.open(fileName);
-    }
   }
 
   //------------------------------------------------------------------
@@ -152,577 +142,391 @@ namespace cluster {
   ClusterAna::beginJob()
   {
 
+    if (fPrintLevel > 0) {
+      mf::LogVerbatim myprt("ClusterAna");
+      myprt << "ClusterAna: MCParticle selection";
+      if(fSkipCosmics) myprt << ": ignoring Cosmics";
+      if(fSkipMultiTPC) myprt << ": ignoring MCParticles spanning multiple TPCs";
+      myprt << "\n";
+      myprt << "Hit format is <TPC>:<Plane>:<Wire>:<PeakTime>";
+    }
+
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
 
-    fNClusters = tfs->make<TH1F>("fNoClustersInEvent", "Number of Clusters", 40, 0, 400);
-    fNHitInCluster = tfs->make<TH1F>("fNHitInCluster", "NHitInCluster", 100, 0, 100);
+    fT_elec = tfs->make<TH1F>("T_elec", "T(MeV) electron", 500, 0, 2000);
+    fT_muon = tfs->make<TH1F>("T_muon", "T(MeV) muon", 500, 0, 2000);
+    fT_pion = tfs->make<TH1F>("T_pion", "T(MeV) pion", 500, 0, 2000);
+    fT_kaon = tfs->make<TH1F>("T_kaon", "T(MeV) kaon", 500, 0, 2000);
+    fT_prot = tfs->make<TH1F>("T_prot", "T(MeV) proton", 500, 0, 2000);
 
-    if (!fSkipCosmics) {
-      // Cosmic ray histos
-      fCREP2 = tfs->make<TH1F>("CREP2", "CREP2", 50, 0, 1);
-      fCRE = tfs->make<TH1F>("CRE", "CR Efficiency", 50, 0, 1);
-      fCRP = tfs->make<TH1F>("CRP", "CR Purity", 50, 0, 1);
-    }
-    // Neutrino Int histos
-    fNuKE_elec = tfs->make<TH1F>("NuKE_elec", "NuKE electron", 100, 0, 4000);
-    fNuKE_muon = tfs->make<TH1F>("NuKE_muon", "NuKE muon", 100, 0, 4000);
-    fNuKE_pion = tfs->make<TH1F>("NuKE_pion", "NuKE pion", 100, 0, 4000);
-    fNuKE_kaon = tfs->make<TH1F>("NuKE_kaon", "NuKE kaon", 100, 0, 4000);
-    fNuKE_prot = tfs->make<TH1F>("NuKE_prot", "NuKE proton", 100, 0, 4000);
+    fEP_elec = tfs->make<TH1F>("EP_elec", "EP electron", 50, 0, 1);
+    fEP_muon = tfs->make<TH1F>("EP_muon", "EP muon", 50, 0, 1);
+    fEP_pion = tfs->make<TH1F>("EP_pion", "EP pion", 50, 0, 1);
+    fEP_kaon = tfs->make<TH1F>("EP_kaon", "EP kaon", 50, 0, 1);
+    fEP_prot = tfs->make<TH1F>("EP_prot", "EP proton", 50, 0, 1);
 
-    fNuEP2_elec = tfs->make<TH1F>("NuEP2_elec", "NuEP2 electron", 50, 0, 1);
-    fNuEP2_muon = tfs->make<TH1F>("NuEP2_muon", "NuEP2 muon", 50, 0, 1);
-    fNuEP2_pion = tfs->make<TH1F>("NuEP2_pion", "NuEP2 pion", 50, 0, 1);
-    fNuEP2_kaon = tfs->make<TH1F>("NuEP2_kaon", "NuEP2 kaon", 50, 0, 1);
-    fNuEP2_prot = tfs->make<TH1F>("NuEP2_prot", "NuEP2 proton", 50, 0, 1);
+    fE_elec = tfs->make<TH1F>("E_elec", "Efficiency electron", 50, 0, 1);
+    fE_muon = tfs->make<TH1F>("E_muon", "Efficiency muon", 50, 0, 1);
+    fE_pion = tfs->make<TH1F>("E_pion", "Efficiency pion", 50, 0, 1);
+    fE_kaon = tfs->make<TH1F>("E_kaon", "Efficiency kaon", 50, 0, 1);
+    fE_prot = tfs->make<TH1F>("E_prot", "Efficiency proton", 50, 0, 1);
 
-    fNuE_elec = tfs->make<TH1F>("NuE_elec", "Nu Efficiency electron", 50, 0, 1);
-    fNuE_muon = tfs->make<TH1F>("NuE_muon", "Nu Efficiency muon", 50, 0, 1);
-    fNuE_pion = tfs->make<TH1F>("NuE_pion", "Nu Efficiency pion", 50, 0, 1);
-    fNuE_kaon = tfs->make<TH1F>("NuE_kaon", "Nu Efficiency kaon", 50, 0, 1);
-    fNuE_prot = tfs->make<TH1F>("NuE_prot", "Nu Efficiency proton", 50, 0, 1);
+    fP_elec = tfs->make<TH1F>("P_elec", "Purity electron", 50, 0, 1);
+    fP_muon = tfs->make<TH1F>("P_muon", "Purity muon", 50, 0, 1);
+    fP_pion = tfs->make<TH1F>("P_pion", "Purity pion", 50, 0, 1);
+    fP_kaon = tfs->make<TH1F>("P_kaon", "Purity kaon", 50, 0, 1);
+    fP_prot = tfs->make<TH1F>("P_prot", "Purity proton", 50, 0, 1);
 
-    fNuP_elec = tfs->make<TH1F>("NuP_elec", "Nu Purity electron", 50, 0, 1);
-    fNuP_muon = tfs->make<TH1F>("NuP_muon", "Nu Purity muon", 50, 0, 1);
-    fNuP_pion = tfs->make<TH1F>("NuP_pion", "Nu Purity pion", 50, 0, 1);
-    fNuP_kaon = tfs->make<TH1F>("NuP_kaon", "Nu Purity kaon", 50, 0, 1);
-    fNuP_prot = tfs->make<TH1F>("NuP_prot", "Nu Purity proton", 50, 0, 1);
-
-    // True - Reco vertex difference
-    fNuVtx_dx = tfs->make<TH1F>("Vtx dx", "Vtx dx", 80, -10, 10);
-    fNuVtx_dy = tfs->make<TH1F>("Vtx dy", "Vtx dy", 80, -10, 10);
-    fNuVtx_dz = tfs->make<TH1F>("Vtx dz", "Vtx dz", 80, -10, 10);
-
-    fNuEP2_KE_elec = tfs->make<TProfile>("NuEP2_KE_elec", "NuEP2 electron vs KE", 200, 0, 2000);
-    fNuEP2_KE_muon = tfs->make<TProfile>("NuEP2_KE_muon", "NuEP2 muon vs KE", 200, 0, 2000);
-    fNuEP2_KE_pion = tfs->make<TProfile>("NuEP2_KE_pion", "NuEP2 pion vs KE", 200, 0, 2000);
-    fNuEP2_KE_kaon = tfs->make<TProfile>("NuEP2_KE_kaon", "NuEP2 kaon vs KE", 200, 0, 2000);
-    fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot", "NuEP2 proton vs KE", 200, 0, 2000);
+    fEP_T_elec = tfs->make<TProfile>("EP_T_elec", "EP electron vs T", 200, 0, 2000);
+    fEP_T_muon = tfs->make<TProfile>("EP_T_muon", "EP muon vs T", 200, 0, 2000);
+    fEP_T_pion = tfs->make<TProfile>("EP_T_pion", "EP pion vs T", 200, 0, 2000);
+    fEP_T_kaon = tfs->make<TProfile>("EP_T_kaon", "EP kaon vs T", 200, 0, 2000);
+    fEP_T_prot = tfs->make<TProfile>("EP_T_prot", "EP proton vs T", 200, 0, 2000);
   }
 
   void
   ClusterAna::endJob()
   {
-    if (fPrintLevel == -1) outFile.close();
-  }
+    mf::LogVerbatim myprt("ClusterAna");
+    myprt<<"ClusterAna results\n";
+    float totSum = 0;
+    float totEPSum = 0;
+    for(unsigned short indx = 0; indx < 4; ++indx) {
+      if(fSum[indx] == 0) continue;
+        myprt << fNames[indx];
+        float aveEP = fEffPurSum[indx] / fSum[indx];
+        myprt << "EP " <<std::fixed << std::setprecision(2) << aveEP;
+        myprt << " cnt " << (int)fSum[indx] << " ";
+        totSum += fSum[indx];
+        totEPSum += fEffPurSum[indx];
+    } // indx
+    if(totSum > 0) {
+      totEPSum /= totSum;
+      myprt << "AllEP " << totEPSum;
+      myprt << " nBadEP " << fNBadEP;
+    }
+  } // endJob
 
   void
   ClusterAna::analyze(const art::Event& evt)
   {
-    // code stolen from TrackAna_module.cc
-    art::ServiceHandle<geo::Geometry const> geom;
-    if (geom->Nplanes() > 3) {
-      mf::LogError("ClusterAna") << "Too many planes for this code...";
-      return;
-    }
 
-    // get all hits in the event
-    art::Handle<std::vector<recob::Hit>> hitListHandle;
-    evt.getByLabel(fHitsModuleLabel, hitListHandle);
-    std::vector<art::Ptr<recob::Hit>> allhits;
-    art::fill_ptr_vector(allhits, hitListHandle);
-    std::cout<<"ClusterAna nHits "<<allhits.size()<<"\n";
-    if (allhits.size() == 0) return;
+    if(evt.isRealData()) return;
 
-    // get clusters and cluster-hit associations
-    art::Handle<std::vector<recob::Cluster>> clusterListHandle;
-    evt.getByLabel(fClusterModuleLabel, clusterListHandle);
-    art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
-    if (clusterListHandle->size() == 0) {
-      std::cout << "No clusters in event. Hits size " << allhits.size() << "\n";
-      // don't return or the statistics will be off
-    }
+    // get a reference to the hit collection
+    auto allHits = art::Handle<std::vector<recob::Hit>>();
+    if(!evt.getByLabel(fHitsModuleLabel, allHits)) 
+      throw cet::exception("ClusterAna")<<"Failed to get a handle to hit collection '"
+      <<fHitsModuleLabel.label()<<"'\n";
+    if((*allHits).empty()) return;
+    // define a Hit -> MCParticle index assn
+    std::vector<unsigned int> mcpIndex((*allHits).size(), UINT_MAX);
 
-    // get 3D vertices
-    art::Handle<std::vector<recob::Vertex>> vertexListHandle;
-    double xyz[3] = {0, 0, 0};
-    art::PtrVector<recob::Vertex> recoVtxList;
-    std::cout<<"vertexListHandle valid? "<<vertexListHandle.isValid()<<"\n";
-    if (vertexListHandle.isValid()) {
-      evt.getByLabel(fVertexModuleLabel, vertexListHandle);
-      std::cout<<"3Vs size "<<vertexListHandle->size()<<"\n";
-      for (unsigned int ii = 0; ii < vertexListHandle->size(); ++ii) {
-        art::Ptr<recob::Vertex> vertex(vertexListHandle, ii);
-        recoVtxList.push_back(vertex);
-        vertex->XYZ(xyz);
-      } // ii
-    }   // vertexListHandle
-
-    // list of all true particles
+    // get true particles
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    sim::ParticleList const& plist = pi_serv->ParticleList();
-    // list of all true particles that will be considered
-    std::vector<const simb::MCParticle*> plist2;
-    // true (reconstructed) hits for each particle in plist2
-    std::vector<std::vector<art::Ptr<recob::Hit>>> hlist2;
-    // index of cluster matched to each particle in plist2 in each plane
-    std::vector<std::vector<short>> truToCl;
-    // number of true hits in each plane and cluster
-    std::vector<std::vector<unsigned short>> nTruHitInCl;
-    //number of reconstructed hits in all clusters
-    std::vector<unsigned short> nRecHitInCl;
-
-    // calculate average EP2 for every event to facilitate code development
-    // Beam Neutrinos - muons and not-muons
-
-    float aveNuEP2mu = 0.;
-    float numNuEP2mu = 0.;
-    float aveNuEP2nm = 0.;
-    float numNuEP2nm = 0.;
-    // Cosmic Rays
-    float aveCREP2 = 0.;
-    float numCREP2 = 0.;
-
-    // track ID of the neutrino (or single particle)
-    int neutTrackID = -1;
-    std::vector<int> tidlist;
-    float neutEnergy = -1.;
-    int neutIntType = -1;
-    int neutCCNC = -1;
-    bool isNeutrino = false;
-    bool isSingleParticle = false;
-
+    art::ServiceHandle<geo::Geometry const> geom;
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
 
-    for (sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      const simb::MCParticle* part = (*ipart).second;
-      assert(part != 0);
-      int pdg = abs(part->PdgCode());
-      int trackID = part->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      if (fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
-      if (theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
-      if (theTruth->Origin() == simb::kSingleParticle) isSingleParticle = true;
-      float KE = 1000 * (part->E() - part->Mass());
+    // MCParticle -> cluster matching struct and indices
+    // of the first and last hit in ANY plane in the hit collection
+    struct matchStruct {
+      unsigned int mcpi {UINT_MAX};
+      int mcpTrackId {INT_MAX};
+      int tpc {-1};  // -1 = undefined, -2 = don't care
+      std::vector<unsigned int> clsIndex {{UINT_MAX}};
+      std::vector<float> clsTruHitCount {{0}};
+      std::vector<float> mcpTruHitCount {{0}};
+      unsigned int firstHit {UINT_MAX};
+      unsigned int lastHit {UINT_MAX};
+      unsigned short plane;
+    };
+    std::vector<matchStruct> matches;
 
-      // Get the neutrino track ID. Assume that there is only one neutrino
-      // interaction and it is first in the list of BeamNeutrino particles
-      if ((isNeutrino || isSingleParticle) && neutTrackID < 0) {
-        neutTrackID = trackID;
-        if (isNeutrino) {
-          simb::MCNeutrino theNeutrino = theTruth->GetNeutrino();
-          neutEnergy = 1000. * theNeutrino.Nu().E();
-          neutIntType = theNeutrino.InteractionType();
-          neutCCNC = theNeutrino.CCNC();
-        }
-
-        for (unsigned short iv = 0; iv < recoVtxList.size(); ++iv) {
-          recoVtxList[iv]->XYZ(xyz);
-          fNuVtx_dx->Fill(part->Vx() - xyz[0]);
-          fNuVtx_dy->Fill(part->Vy() - xyz[1]);
-          fNuVtx_dz->Fill(part->Vz() - xyz[2]);
-        } // iv
-      }   // theTruth->Origin() == simb::kBeamNeutrino && neutTrackID <
-
-      if (fPrintLevel > 3)
-        mf::LogVerbatim("ClusterAna") << "Origin " << theTruth->Origin() << " trackID " << trackID
-                                      << " PDG " << part->PdgCode() << " KE " << (int)KE << " MeV "
-                                      << " neutTrackID " << neutTrackID << " Mother "
-                                      << part->Mother() << " Proc " << part->Process();
-
-      bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
-
-      if (!isCharged) continue;
-
-      // KE (MeV) cuts
-      if (pdg == 11) {
-        if (fElecKERange[0] < 0) continue;
-        // only allow primary electrons
-        if (part->Process() != "primary") continue;
-        if (KE < fElecKERange[0] || KE > fElecKERange[1]) continue;
-      }
-      if (pdg == 13) {
-        if (fMuonKERange[0] < 0) continue;
-        if (KE < fMuonKERange[0] || KE > fMuonKERange[1]) continue;
-      }
-      if (pdg == 211) {
-        if (fPionKERange[0] < 0) continue;
-        if (KE < fPionKERange[0] || KE > fPionKERange[1]) continue;
-      }
-      if (pdg == 321) {
-        if (fKaonKERange[0] < 0) continue;
-        if (KE < fKaonKERange[0] || KE > fKaonKERange[1]) continue;
-      }
-      if (pdg == 2212) {
-        if (fProtKERange[0] < 0) continue;
-        if (KE < fProtKERange[0] || KE > fProtKERange[1]) continue;
-      }
-      // ignore secondaries from neutron interactions
-      if (part->Process() == "NeutronInelastic") continue;
-      plist2.push_back(part);
-      tidlist.push_back(trackID);
-      // initialize the true->(cluster,plane) association
-      std::vector<short> temp{-1, -1, -1};
-      truToCl.push_back(temp);
-      // initialize the true hit count
-      std::vector<unsigned short> temp2(3);
-      nTruHitInCl.push_back(temp2);
-
-      if (fPrintLevel > 2)
-        mf::LogVerbatim("ClusterAna")
-          << "plist2[" << plist2.size() - 1 << "]"
-          << " Origin " << theTruth->Origin() << " trackID " << trackID << " PDG "
-          << part->PdgCode() << " KE " << (int)KE << " Mother " << part->Mother() + neutTrackID - 1
-          << " Proc " << part->Process();
-    }
-
-    if (plist2.size() == 0) return;
-
-    // get the hits (in all planes) that are matched to the true tracks
-    hlist2 = bt_serv->TrackIdsToHits_Ps(clockData, tidlist, allhits);
-    if (hlist2.size() != plist2.size()) {
-      mf::LogError("ClusterAna") << "MC particle list size " << plist2.size()
-                                 << " != size of MC particle true hits lists " << hlist2.size();
+    // get a handle to the MCParticle collection
+    art::InputTag mcpLabel = "largeant";
+    auto mcps = art::Handle<std::vector<simb::MCParticle>>();
+    if(!evt.getByLabel(mcpLabel, mcps)) {
+      std::cout<<"Failed to get a handle to largeant MCParticle collection\n";
       return;
     }
-    tidlist.clear();
 
-    // vector of (mother, daughter) pairs
-    std::vector<std::pair<unsigned short, unsigned short>> moda;
-    // Deal with mother-daughter tracks
-    if (fMergeDaughters && neutTrackID >= 0) {
-      // Assume that daughters appear later in the list. Step backwards
-      // to accumulate all generations of daughters
-      unsigned short ii, dpl, jj, jpl, kpl;
-      for (ii = 0; ii < plist2.size(); ++ii) {
-        dpl = plist2.size() - 1 - ii;
-        // no mother
-        if (plist2[dpl]->Mother() == 0) continue;
-        // electron
-        if (abs(plist2[dpl]->PdgCode()) == 11) continue;
-        // the actual mother trackID is offset from the neutrino trackID
-        int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
-        // ensure that we are only looking at BeamNeutrino or single particle daughters
-        if (motherID != neutTrackID) continue;
-        // count the number of daughters
-        int ndtr = 0;
-        for (kpl = 0; kpl < plist2.size(); ++kpl) {
-          if (plist2[kpl]->Mother() == motherID) ++ndtr;
-        }
-        // require only one daughter
-        if (ndtr > 1) continue;
-        // find the mother in the list
-        int mpl = -1;
-        for (jj = 0; jj < plist2.size(); ++jj) {
-          jpl = plist2.size() - 1 - jj;
-          if (plist2[jpl]->TrackId() == motherID) {
-            mpl = jpl;
-            break;
-          }
-        } // jpl
-        // mother not found for some reason
-        if (mpl < 0) {
-          mf::LogVerbatim("ClusterAna")
-            << " mother of daughter " << dpl << " not found. mpl = " << mpl;
-          continue;
-        }
-        // ensure that PDG code for mother and daughter are the same
-        if (plist2[dpl]->PdgCode() != plist2[mpl]->PdgCode()) continue;
-        moda.push_back(std::make_pair(mpl, dpl));
-      } //  dpl
-    }   // MergeDaughters
+    for(unsigned int mcpi = 0; mcpi < (*mcps).size(); ++mcpi) {
+      auto& mcp = (*mcps)[mcpi];
+      int tid = mcp.TrackId();
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(tid);
+      if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
+      int pdg = abs(mcp.PdgCode());
+      float TMeV = 1000 * (mcp.E() - mcp.Mass());
+      bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
+      if(!isCharged) continue;
+      bool useIt = true;
+      if (pdg == 11) {
+        if (fElecKERange[0] < 0) useIt = false;
+        // only consider primary electrons
+        if (mcp.Process() != "primary") useIt = false;
+        if (TMeV < fElecKERange[0] || TMeV > fElecKERange[1]) useIt = false;
+      } else if (pdg == 13) {
+        if (fMuonKERange[0] < 0) useIt = false;
+        if (TMeV < fMuonKERange[0] || TMeV > fMuonKERange[1]) useIt = false;
+      } else if (pdg == 211) {
+        if (fPionKERange[0] < 0) useIt = false;
+        if (TMeV < fPionKERange[0] || TMeV > fPionKERange[1]) useIt = false;
+      } else if (pdg == 321) {
+        if (fKaonKERange[0] < 0) useIt = false;
+        if (TMeV < fKaonKERange[0] || TMeV > fKaonKERange[1]) useIt = false;
+      } else if (pdg == 2212) {
+        if (fProtKERange[0] < 0) useIt = false;
+        if (TMeV < fProtKERange[0] || TMeV > fProtKERange[1]) useIt = false;
+      }
+      if(useIt) {
+        matchStruct aMatch;
+        aMatch.mcpi = mcpi;
+        aMatch.mcpTrackId = tid;
+        aMatch.clsIndex.resize(geom->Nplanes());
+        aMatch.clsTruHitCount.resize(geom->Nplanes());
+        aMatch.mcpTruHitCount.resize(geom->Nplanes());
+        matches.push_back(aMatch);        
+      } // useIT
+    } // mcpi
+    if(matches.empty()) return;
 
-    // Now match reconstructed clusters to true particles.
-    art::PtrVector<recob::Cluster> clusters;
-    for (unsigned int ii = 0; ii < clusterListHandle->size(); ++ii) {
-      art::Ptr<recob::Cluster> clusterHolder(clusterListHandle, ii);
-      clusters.push_back(clusterHolder);
+    // next match the hits. Populate mcpIndex and matches hit ranges
+    for(unsigned int iht = 0; iht < (*allHits).size(); ++iht) {
+      auto& hit = (*allHits)[iht];
+      auto tides = bt_serv->HitToTrackIDEs(clockData, hit);
+      for(auto& tide : tides) {
+        if(tide.energyFrac > 0.5) {
+          bool gotit = false;
+          for(auto& match : matches) {
+            if(match.mcpTrackId != tide.trackID) continue;
+            mcpIndex[iht] = match.mcpi;
+            if(match.firstHit == UINT_MAX) match.firstHit = iht;
+            match.lastHit = iht;
+            unsigned int plane = hit.WireID().Plane;
+            ++match.mcpTruHitCount[plane];
+            gotit = true;
+          } // match
+          if(gotit) break;          
+        } // tide.energyFrac > 0.5
+      } // tide
+    } // iht
+
+    // ignore MCParticles that don't have the first/last hit defined or 
+    // that span several TPCs if the user has selected that option. This is done
+    // by setting the match tpc variable to -1 -> ignore this MCParticle
+    for(auto& match : matches) {
+      if(match.mcpi == UINT_MAX) continue;
+      if(match.firstHit == UINT_MAX) continue;
+      auto& fhit = (*allHits)[match.firstHit];
+      match.tpc = fhit.WireID().TPC;
+      if(fSkipMultiTPC) {
+        auto& lhit = (*allHits)[match.lastHit];
+        if((int)lhit.WireID().TPC != match.tpc) {
+          if(fPrintLevel > 2) mf::LogVerbatim("ClusterAna")<<"mcpi "<<match.mcpi<<" isn't Good ";
+          // update the mcpIndex vector
+          for(auto& mcpi : mcpIndex) if(mcpi == match.mcpi) mcpi = UINT_MAX;
+          match.mcpi = UINT_MAX;
+        } // lhit.WireID().TPC != match.tpc
+      } // fSkipMultiTPC
+    } // match
+
+    // get clusters and cluster-hit associations
+    art::Handle<std::vector<recob::Cluster>> allCls;
+    evt.getByLabel(fClusterModuleLabel, allCls);
+    art::FindManyP<recob::Hit> fmh(allCls, evt, fClusterModuleLabel);
+    if (allCls->size() == 0) {
+      std::cout << "No clusters in event. Hits size " << (*allHits).size() << "\n";
+      // don't return or the statistics will be wrong...
     }
 
-    fNClusters->Fill(clusterListHandle->size());
-    nRecHitInCl.resize(clusters.size());
-
-    // get the plane from the view. Perhaps there is a method that does
-    // this somewhere...
-    std::map<geo::View_t, unsigned int> ViewToPlane;
-    for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-      geo::View_t view = geom->Plane(plane).View();
-      ViewToPlane[view] = plane;
-    }
-    for (size_t icl = 0; icl < clusters.size(); ++icl) {
-      unsigned int plane = ViewToPlane[clusters[icl]->View()];
-      std::vector<art::Ptr<recob::Hit>> cluhits = fmh.at(icl);
-      fNHitInCluster->Fill(cluhits.size());
-      nRecHitInCl[icl] = cluhits.size();
-      // count the number of hits matched to each true particle in plist2
-      std::vector<unsigned short> nHitInPl2(plist2.size());
-      for (size_t iht = 0; iht < cluhits.size(); ++iht) {
-
-        // look for this hit in all of the truth hit lists
-        short hitInPl2 = -1;
-        for (unsigned short ipl = 0; ipl < plist2.size(); ++ipl) {
-          unsigned short imat = 0;
-          for (imat = 0; imat < hlist2[ipl].size(); ++imat) {
-            if (cluhits[iht] == hlist2[ipl][imat]) break;
-          } // imat
-          if (imat < hlist2[ipl].size()) {
-            hitInPl2 = ipl;
-            break;
-          }
-        } // ipl
-        if (hitInPl2 < 0) continue;
-        // Assign the hit count to the mother if this is a daughter.
-        // Mother-daughter pairs are entered in the moda vector in reverse
-        // order, so assign daughter hits to the highest generation mother.
-        for (unsigned short imd = 0; imd < moda.size(); ++imd) {
-          if (moda[imd].second == hitInPl2) hitInPl2 = moda[imd].first;
-        }
-        // count
-        ++nHitInPl2[hitInPl2];
-      } // iht
-      // Associate the cluster with the truth particle that has the highest
-      // number of cluster hits
-      unsigned short nhit = 0;
-      short imtru = -1;
-      for (unsigned int ipl = 0; ipl < nHitInPl2.size(); ++ipl) {
-        if (nHitInPl2[ipl] > nhit) {
-          nhit = nHitInPl2[ipl];
-          imtru = ipl;
-        }
-      } // ipl
-      // make the cluster->(true,plane) association and save the
-      // number of true hits in the cluster
-      if (imtru != -1) {
-        // clobber a previously made association?
-        if (nhit > nTruHitInCl[imtru][plane]) {
-          truToCl[imtru][plane] = icl;
-          nTruHitInCl[imtru][plane] = nhit;
-        }
-      } // imtru != 1
-    }   // icl
-
-    // ready to calculate Efficiency, Purity in each plane and EP2
-    for (unsigned short ipl = 0; ipl < plist2.size(); ++ipl) {
-      // ignore daughters
-      bool skipit = false;
-      for (unsigned short ii = 0; ii < moda.size(); ++ii) {
-        if (moda[ii].second == ipl) {
-          skipit = true;
-          break;
-        }
-      } // ii
-      if (skipit) continue;
-      // ignore true particles with few true hits. Outside the detector
-      // or not reconstructable?
-      if (hlist2[ipl].size() < 3) continue;
-
-      int trackID = plist2[ipl]->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      bool isCosmic = (theTruth->Origin() == simb::kCosmicRay);
-      float KE = 1000 * (plist2[ipl]->E() - plist2[ipl]->Mass());
-      int PDG = abs(plist2[ipl]->PdgCode());
-
-      std::vector<short> nTru(geom->Nplanes());
-      std::vector<short> nRec(geom->Nplanes());
-      std::vector<short> nTruRec(geom->Nplanes());
-      std::vector<float> eff(geom->Nplanes());
-      std::vector<float> pur(geom->Nplanes());
-      std::vector<float> ep(geom->Nplanes());
-      for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-        // count the number of true hits in this plane for the true particle.
-        // First count the mother hits
-        for (unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii) {
-          if (ViewToPlane[hlist2[ipl][ii]->View()] == plane) ++nTru[plane];
-        } // ii
-
-        // next look for daughters and count those hits in all generations
-        unsigned short mom = ipl;
-        std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator rit =
-          moda.rbegin();
-        while (rit != moda.rend()) {
-          if ((*rit).first == mom) {
-            unsigned short dau = (*rit).second;
-            for (unsigned short jj = 0; jj < hlist2[dau].size(); ++jj) {
-              if (ViewToPlane[hlist2[dau][jj]->View()] == plane) ++nTru[plane];
-            } // jj
-            // It is likely that one hit appears in the mother list
-            // as well as the daughter list, so subtract one from the count
-            mom = (*rit).second;
-          } // (*rit).first == mom
-          ++rit;
-        } // rit
-
-        if (nTru[plane] == 0) continue;
-        // Ignore short truth clusters
-        if (nTru[plane] < 3) continue;
-        short icl = truToCl[ipl][plane];
-        if (icl < 0) { nRec[plane] = 0; }
-        else {
-          nRec[plane] = nRecHitInCl[icl];
-        }
-        nTruRec[plane] = nTruHitInCl[ipl][plane];
-        eff[plane] = 0;
-        pur[plane] = 0;
-        if (nTru[plane] > 0) eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
-        if (nRec[plane] > 0) pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
-        // do this to prevent histogram under/over flow
-        if (eff[plane] == 0) { eff[plane] = 0.001; }
-        if (pur[plane] == 0) { pur[plane] = 0.001; }
-        if (eff[plane] >= 1) { eff[plane] = 0.999; }
-        if (pur[plane] >= 1) { pur[plane] = 0.999; }
-        ep[plane] = eff[plane] * pur[plane];
-        if (fPrintLevel == -1)
-          outFile << moduleID << " " << evt.id().event() << " " << trackID << " " << PDG << " "
-                  << (int)KE << " " << plane << " " << nTru[plane] << " " << std::setprecision(3)
-                  << eff[plane] << " " << pur[plane] << "\n";
-      } // plane
-      // sort the ep values in ascending order
-      std::vector<float> temp;
-      temp = ep;
-      std::sort(temp.begin(), temp.end());
-      // EP2 is the second highest value
-      unsigned short ii = temp.size() - 2;
-      float ep2 = temp[ii];
-      // find the plane that defined EP2
-      short ep2Plane = 0;
-      short ep2Cluster = 0;
-      for (unsigned short jj = 0; jj < temp.size(); ++jj) {
-        if (ep[jj] == ep2) {
-          ep2Plane = jj;
-          ep2Cluster = truToCl[ipl][ep2Plane];
-          break;
-        }
-      } // jj
-      // find the US and DS ends of the cluster for printing
-      std::array<double, 2> clBeg, clEnd;
-      if (ep2Cluster >= 0) {
-        clBeg[0] = clusters[ep2Cluster]->StartWire();
-        clBeg[1] = clusters[ep2Cluster]->StartTick();
-        clEnd[0] = clusters[ep2Cluster]->EndWire();
-        clEnd[1] = clusters[ep2Cluster]->EndTick();
-      }
-      else {
-        clBeg.fill(0.);
-        clEnd.fill(0.);
-      }
-      // fill histograms
-      if (isCosmic) {
-        fCREP2->Fill(ep2);
-        fCRE->Fill(eff[ep2Plane]);
-        fCRP->Fill(pur[ep2Plane]);
-        aveCREP2 += ep2;
-        numCREP2 += 1.;
-        if (fPrintLevel > 1)
-          mf::LogVerbatim("ClusterAna")
-            << ">>>CREP2 " << std::fixed << std::setprecision(2) << ep2 << " E " << eff[ep2Plane]
-            << std::setprecision(2) << " P " << pur[ep2Plane] << " P:W:T " << ep2Plane << ":"
-            << (int)clBeg[0] << ":" << (int)clBeg[1] << "-" << ep2Plane << ":" << (int)clEnd[0]
-            << ":" << (int)clEnd[1] << " PDG " << PDG << " KE " << (int)KE << " MeV";
-      } // isCosmic
-      else {
-        float wght = 1.;
-        if (fTrackWeightOption == 1) wght = KE;
-        // accumulate statistics for muons and not-muons
-        if (PDG == 13) {
-          aveNuEP2mu += ep2 * wght;
-          numNuEP2mu += wght;
-        }
-        else {
-          aveNuEP2nm += ep2 * wght;
-          numNuEP2nm += wght;
-        }
-        if (PDG == 11) {
-          fNuKE_elec->Fill(KE, wght);
-          fNuE_elec->Fill(eff[ep2Plane], wght);
-          fNuP_elec->Fill(pur[ep2Plane], wght);
-          fNuEP2_elec->Fill(ep2, wght);
-          fNuEP2_KE_elec->Fill(KE, ep2, wght);
-        }
-        else if (PDG == 13) {
-          fNuKE_muon->Fill(KE, wght);
-          fNuE_muon->Fill(eff[ep2Plane], wght);
-          fNuP_muon->Fill(pur[ep2Plane], wght);
-          fNuEP2_muon->Fill(ep2, wght);
-          fNuEP2_KE_muon->Fill(KE, ep2, wght);
-        }
-        else if (PDG == 211) {
-          fNuKE_pion->Fill(KE, wght);
-          fNuE_pion->Fill(eff[ep2Plane], wght);
-          fNuP_pion->Fill(pur[ep2Plane], wght);
-          fNuEP2_pion->Fill(ep2, wght);
-          fNuEP2_KE_pion->Fill(KE, ep2, wght);
-        }
-        else if (PDG == 321) {
-          fNuKE_kaon->Fill(KE, wght);
-          fNuE_kaon->Fill(eff[ep2Plane], wght);
-          fNuP_kaon->Fill(pur[ep2Plane], wght);
-          fNuEP2_kaon->Fill(ep2, wght);
-          fNuEP2_KE_kaon->Fill(KE, ep2, wght);
-        }
-        else if (PDG == 2212) {
-          fNuKE_prot->Fill(KE, wght);
-          fNuE_prot->Fill(eff[ep2Plane], wght);
-          fNuP_prot->Fill(pur[ep2Plane], wght);
-          fNuEP2_prot->Fill(ep2, wght);
-          fNuEP2_KE_prot->Fill(KE, ep2, wght);
-        }
-        if (fPrintLevel > 1)
-          mf::LogVerbatim("ClusterAna")
-            << ">>>NuEP2 " << std::fixed << std::setprecision(2) << ep2 << " E " << eff[ep2Plane]
-            << std::setprecision(2) << " P " << pur[ep2Plane] << " P:W:T " << ep2Plane << ":"
-            << (int)clBeg[0] << ":" << (int)clBeg[1] << "-" << ep2Plane << ":" << (int)clEnd[0]
-            << ":" << (int)clEnd[1] << " PDG " << PDG << " KE " << (int)KE << " MeV ";
-        if (fPrintLevel > 2) {
-          // print out the begin/end true hits
-          mf::LogVerbatim mfp("ClusterAna");
-          mfp << " Truth P:W:T ";
-          for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-            unsigned short loW = 9999;
-            unsigned short loT = 0;
-            unsigned short hiW = 0;
-            unsigned short hiT = 0;
-            for (unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii) {
-              if (ViewToPlane[hlist2[ipl][ii]->View()] == plane) {
-                art::Ptr<recob::Hit> theHit = hlist2[ipl][ii];
-                if (theHit->WireID().Wire < loW) {
-                  loW = theHit->WireID().Wire;
-                  loT = theHit->PeakTime();
-                }
-                if (theHit->WireID().Wire > hiW) {
-                  hiW = theHit->WireID().Wire;
-                  hiT = theHit->PeakTime();
-                }
-              } // correct view
-            }   // ii
-            mfp << plane << ":" << loW << ":" << loT << "-" << plane << ":" << hiW << ":" << hiT
-                << " ";
+    // Match MCParticles -> Clusters
+    for (unsigned int icl = 0; icl < allCls->size(); ++icl) {
+      // Find the best match of this cluster to a MCParticle.
+      // Temporary vector of (mcp index, match count) pairs for this cluster
+      std::vector<std::pair<unsigned int, float>> mcpCnts;
+      auto clsHits = fmh.at(icl);
+      unsigned short plane = USHRT_MAX;
+      for(auto& clsHit : clsHits) {
+        unsigned int iht = clsHit.key();
+        if(plane == USHRT_MAX) plane = (*allHits)[iht].WireID().Plane;
+        // ignore matches to MCParticles that aren't relevant
+        if(mcpIndex[iht] <= 0) continue;
+        // find the index of an existing Cluster -> MCParticle in the temporary vector
+        unsigned short indx = 0;
+        for(indx = 0; indx < mcpCnts.size(); ++ indx) if(mcpCnts[indx].first == mcpIndex[iht]) break;
+        // no match found so add one
+        if(indx == mcpCnts.size()) mcpCnts.push_back(std::make_pair(mcpIndex[iht], 0));
+        ++mcpCnts[indx].second;
+      } // clsHit
+      if(mcpCnts.empty()) continue;
+      // Find the best Cluster -> MCParticle match
+      float bestHitsMatched = 0;
+      unsigned int bestMCPIndex = 0;
+      for(auto& mcpCnt : mcpCnts) {
+        if(mcpCnt.second < bestHitsMatched) continue;
+        bestHitsMatched = mcpCnt.second;
+        bestMCPIndex = mcpCnt.first;
+      } // mcpCnt
+      // compare the number of matched hits for this cluster with an existing
+      // MCParticle -> cluster match
+      unsigned int mcpi = bestMCPIndex;
+      for(auto& match : matches) {
+        if(match.mcpi != mcpi) continue;
+        // Found an existing match. Are there more matched hits?
+        if(match.clsTruHitCount[plane] > bestHitsMatched) continue;
+        // a better match
+        match.clsTruHitCount[plane] = bestHitsMatched;
+        match.clsIndex[plane] = icl;
+        break;
+      } // match
+    } // icl
+    if (fPrintLevel > 2) {
+      mf::LogVerbatim myprt("ClusterAna");
+      for(auto& match : matches) {
+        if(match.mcpi == UINT_MAX) continue;
+        auto& mcp = (*mcps)[match.mcpi];
+        myprt << "TrackId " << mcp.TrackId();
+        myprt << " PDG code " << mcp.PdgCode();
+        int TMeV = 1000 * (mcp.E() - mcp.Mass());
+        myprt << " T " << TMeV << " MeV,";
+        myprt << " Process " << mcp.Process();
+        myprt << " in TPC " << match.tpc;
+        myprt << "\n";
+        if(match.firstHit < (*allHits).size()) {
+          for(unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
+            if(match.mcpTruHitCount[plane] < 3) continue;
+            unsigned int first = UINT_MAX;
+            unsigned int last = UINT_MAX;
+            for(unsigned int iht = match.firstHit; iht <= match.lastHit; ++iht) {
+              if(mcpIndex[iht] != match.mcpi) continue;
+              auto& hit = (*allHits)[iht];
+              if(hit.WireID().Plane != plane) continue;
+              if(first == UINT_MAX) first = iht;
+              last = iht;
+            } // iht
+            myprt << "    Plane " << plane;
+            auto& fhit = (*allHits)[first];
+            myprt << " true hits range " << PrintHit(fhit);
+            auto& lhit = (*allHits)[last];
+            myprt << " - " << PrintHit(lhit);
+            myprt << " mcpTruHitCount " << match.mcpTruHitCount[plane];
+            if(match.clsTruHitCount[plane] > 0) {
+              auto& cls = (*allCls)[match.clsIndex[plane]];
+              myprt << " Cls " <<cls.ID();
+              auto clsHits = fmh.at(match.clsIndex[plane]);
+              myprt << " nRecoHits " << clsHits.size();
+              myprt << " nTruRecoHits " << match.clsTruHitCount[plane] << "\n";
+            } // match.clsTruHitCount[plane] > 0
+            else {
+              myprt<<" *** No MCParticle -> Cluster match\n";
+            }
           } // plane
-        }   // fPrintLevel > 2
-      }     // !isCosmic
-    }       // ipl
+        } // valid firstHit match
+      } // match
+    } // fPrintLevel > 2
 
-    float ave1 = -1.;
-    if (numNuEP2mu > 0.) ave1 = aveNuEP2mu / numNuEP2mu;
+    // Calculate Efficiency and Purity
+    for(auto& match : matches) {
+      if(match.mcpi == UINT_MAX) continue;
+      auto& mcp = (*mcps)[match.mcpi];
+      float TMeV = 1000 * (mcp.E() - mcp.Mass());
+      int indx = EncodePDGCode(mcp.PdgCode());
+      if(indx < 0 || indx > 4) continue;
+      for(unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
+        if(match.mcpTruHitCount[plane] < 3) continue;
+        float eff = 0;
+        float pur = 0;
+        if(match.clsIndex[plane] != UINT_MAX) {
+          auto clsHits = fmh.at(match.clsIndex[plane]);
+          if(clsHits.size() > 0) {
+            eff = match.clsTruHitCount[plane] / match.mcpTruHitCount[plane];
+            pur = match.clsTruHitCount[plane] / (float)clsHits.size();
+          }
+        }
+        float effpur = eff * pur;
+        // accumulate
+        fEffSum[indx] += eff;
+        fPurSum[indx] += pur;
+        fEffPurSum[indx] += effpur;
+        ++fSum[indx];
+        // fill the histograms
+        if(indx == 0) {
+          fT_elec->Fill(TMeV);
+          fE_elec->Fill(eff);
+          fP_elec->Fill(pur);
+          fEP_elec->Fill(effpur);
+          fEP_T_elec->Fill(TMeV, effpur);
+        } else if(indx == 1) {
+          fT_muon->Fill(TMeV);
+          fE_muon->Fill(eff);
+          fP_muon->Fill(pur);
+          fEP_muon->Fill(effpur);
+          fEP_T_muon->Fill(TMeV, effpur);
+        } else if(indx == 2) {
+          fT_pion->Fill(TMeV);
+          fE_pion->Fill(eff);
+          fP_pion->Fill(pur);
+          fEP_pion->Fill(effpur);
+          fEP_T_pion->Fill(TMeV, effpur);
+        } else if(indx == 3) {
+          fT_kaon->Fill(TMeV);
+          fE_kaon->Fill(eff);
+          fP_kaon->Fill(pur);
+          fEP_kaon->Fill(effpur);
+          fEP_T_kaon->Fill(TMeV, effpur);
+        } else if(indx == 4) {
+          fT_prot->Fill(TMeV);
+          fE_prot->Fill(eff);
+          fP_prot->Fill(pur);
+          fEP_prot->Fill(effpur);
+          fEP_T_prot->Fill(TMeV, effpur);
+        }
+        if(effpur < 0.7) ++fNBadEP;
+        if(fPrintLevel > 0 && effpur < 0.7) {
+          mf::LogVerbatim myprt("ClusterAna");
+          myprt << "BadEP evt " << evt.event();
+          myprt << " " << fNames[indx];
+          myprt << " EP " <<std::fixed << std::setprecision(2) << effpur;
+          unsigned int first = UINT_MAX;
+          unsigned int last = UINT_MAX;
+          for(unsigned int iht = match.firstHit; iht <= match.lastHit; ++iht) {
+            auto& hit = (*allHits)[iht];
+            if(hit.WireID().Plane != plane) continue;
+            if(first == UINT_MAX) first = iht;
+            last = iht;
+          } // iht
+          if(first != UINT_MAX) {
+            auto& fhit = (*allHits)[first];
+            auto& lhit = (*allHits)[last];
+            myprt << " true hit range " << PrintHit(fhit) << " - " << PrintHit(lhit);
+            myprt << " nTrueHits " << (int)match.mcpTruHitCount[plane];
+          }
+        } // fPrintLevel > 0 && effpur < 0.7
+      } // plane
+    } // match
 
-    float ave2 = -1.;
-    if (numNuEP2nm > 0.) ave2 = aveNuEP2nm / numNuEP2nm;
-
-    float ave3 = -1.;
-    if (numCREP2 > 0.) ave3 = aveCREP2 / numCREP2;
-
-    if (fPrintLevel > 0) {
-      std::string nuType = "Other";
-      if (neutCCNC == simb::kCC) {
-        if (neutIntType == 1001) nuType = "CCQE";
-        if (neutIntType == 1091) nuType = "DIS";
-        if (neutIntType == 1097) nuType = "COH";
-        if (neutIntType > 1002 && neutIntType < 1091) nuType = "RES";
-      }
-      else if (neutCCNC == simb::kNC) {
-        nuType = "NC";
-      }
-      else {
-        nuType = "Unknown";
-      }
-      mf::LogVerbatim("ClusterAna")
-        << "EvtEP2 " << evt.id().event() << " NuType " << nuType << " Enu " << std::fixed
-        << std::setprecision(0) << neutEnergy << std::right << std::fixed << std::setprecision(2)
-        << " NuMuons " << ave1 << " NuPiKp " << ave2 << " CosmicRays " << ave3 << " CCNC "
-        << neutCCNC << " IntType " << neutIntType;
-    }
   } // analyze
+
+  int
+  ClusterAna::EncodePDGCode(int pdgCode)
+  {
+    pdgCode = abs(pdgCode);
+    if(pdgCode == 11) return 0;
+    if(pdgCode == 13) return 1;
+    if(pdgCode == 211) return 2;
+    if(pdgCode == 321) return 3;
+    if(pdgCode == 2212) return 4;
+    return -1;
+  }
+
+  std::string
+  ClusterAna::PrintHit(const recob::Hit& hit)
+  {
+    return std::to_string(hit.WireID().TPC) + ":" + std::to_string(hit.WireID().Plane) + ":" 
+         + std::to_string(hit.WireID().Wire) + ":" + std::to_string((int)hit.PeakTime());
+  } // PrintHit
 
 } // end namespace
 

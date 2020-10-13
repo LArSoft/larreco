@@ -1461,7 +1461,7 @@ namespace tca {
   {
     // Re-fit the end of the trajectory if it is a long track (made with loose cuts)
     // and the ChiDOF is high
-    if(!tcc.useAlg[kNewCuts]) return;
+    if(!tcc.useAlg[kLEPhys]) return;
     if(!tcc.useAlg[kEndPtFit]) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 20) return;
 
