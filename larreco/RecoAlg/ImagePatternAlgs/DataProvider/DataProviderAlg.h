@@ -36,6 +36,15 @@ namespace detinfo {
 
 namespace img {
   class DataProviderAlg;
+  struct DataProviderAlgView {
+    unsigned int fNWires;
+    unsigned int fNDrifts;
+    unsigned int fNScaledDrifts;
+    unsigned int fNCachedDrifts;
+    std::vector<raw::ChannelID_t> fWireChannels;
+    std::vector<std::vector<float>> fWireDriftData;
+    std::vector<float> fLifetimeCorrFactors;
+  };
 }
 
 /// Base class providing data for training / running image based classifiers. It can be used
@@ -89,6 +98,7 @@ public:
 
   virtual ~DataProviderAlg();
 
+
   bool setWireDriftData(const detinfo::DetectorClocksData& clock_data,
                         const detinfo::DetectorPropertiesData& det_prop,
                         const std::vector<recob::Wire>&
@@ -100,7 +110,7 @@ public:
   std::vector<float> const&
   wireData(size_t widx) const
   {
-    return fWireDriftData[widx];
+    return fAlgView.fWireDriftData[widx];
   }
 
   /// Return patch of data centered on the wire and drift, witht the size in (downscaled) pixels givent
@@ -118,8 +128,8 @@ public:
       ok = patchFromOriginalView(wire, drift, patchSizeW, patchSizeD, patch);
     }
 
-    if (ok) return patch;
-
+    if (ok)
+      return patch;
     throw cet::exception("img::DataProviderAlg") << "Patch filling failed." << std::endl;
   }
 
@@ -130,10 +140,10 @@ public:
   {
     size_t didx = getDriftIndex(drift), widx = (size_t)wire;
 
-    if ((widx < fWireDriftData.size()) && (didx < fNCachedDrifts)) {
-      return fWireDriftData[widx][didx];
+    if ((widx < fAlgView.fWireDriftData.size()) && (didx < fAlgView.fNCachedDrifts)) {
+      return fAlgView.fWireDriftData[widx][didx];
     }
-    return 0;
+      return 0;
   }
 
   double
@@ -151,7 +161,7 @@ public:
   float poolMax(int wire, int drift, size_t r = 0) const;
 
   /// Pool sum of pixels in a patch around the wire/drift pixel.
-  float poolSum(int wire, int drift, size_t r = 0) const;
+  //float poolSum(int wire, int drift, size_t r = 0) const;
 
   unsigned int
   Cryo() const
@@ -172,17 +182,17 @@ public:
   unsigned int
   NWires() const
   {
-    return fNWires;
+    return fAlgView.fNWires;
   }
   unsigned int
   NScaledDrifts() const
   {
-    return fNScaledDrifts;
+    return fAlgView.fNScaledDrifts;
   }
   unsigned int
   NCachedDrifts() const
   {
-    return fNCachedDrifts;
+    return fAlgView.fNCachedDrifts;
   }
   unsigned int
   DriftWindow() const
@@ -206,35 +216,32 @@ public:
   }
 
 protected:
-  unsigned int fCryo, fTPC, fPlane;
-  unsigned int fNWires, fNDrifts, fNScaledDrifts, fNCachedDrifts;
-
-  std::vector<raw::ChannelID_t> fWireChannels; // wire channels (may need this connection...),
-                                               // InvalidChannelID if not used
-  std::vector<std::vector<float>>
-    fWireDriftData;                        // 2D data for entire projection, drifts scaled down
-  std::vector<float> fLifetimeCorrFactors; // precalculated correction factors along full drift
-
+  DataProviderAlgView fAlgView;
   EDownscaleMode fDownscaleMode;
+  //std::function<void (std::vector<float> &, std::vector<float> const &, size_t)> fnDownscale;
 
   size_t fDriftWindow;
   bool fDownscaleFullView;
   float fDriftWindowInv;
 
-  void downscaleMax(std::vector<float>& dst, std::vector<float> const& adc, size_t tick0) const;
-  void downscaleMaxMean(std::vector<float>& dst, std::vector<float> const& adc, size_t tick0) const;
-  void downscaleMean(std::vector<float>& dst, std::vector<float> const& adc, size_t tick0) const;
-  void
-  downscale(std::vector<float>& dst, std::vector<float> const& adc, size_t tick0) const
+  std::vector<float> downscaleMax(std::size_t dst_size,
+                                  std::vector<float> const& adc,
+                                  size_t tick0) const;
+  std::vector<float> downscaleMaxMean(std::size_t dst_size,
+                                      std::vector<float> const& adc,
+                                      size_t tick0) const;
+  std::vector<float> downscaleMean(std::size_t dst_size,
+                                   std::vector<float> const& adc,
+                                   size_t tick0) const;
+  std::vector<float>
+  downscale(std::size_t dst_size, std::vector<float> const& adc, size_t tick0) const
   {
     switch (fDownscaleMode) {
-    case img::DataProviderAlg::kMean: downscaleMean(dst, adc, tick0); break;
-    case img::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
-    case img::DataProviderAlg::kMax: downscaleMax(dst, adc, tick0); break;
-    default:
-      throw cet::exception("img::DataProviderAlg") << "Downscale mode not supported." << std::endl;
-      break;
+    case img::DataProviderAlg::kMean: return downscaleMean(dst_size, adc, tick0);
+    case img::DataProviderAlg::kMaxMean: return downscaleMaxMean(dst_size, adc, tick0);
+    case img::DataProviderAlg::kMax: return downscaleMax(dst_size, adc, tick0);
     }
+    throw cet::exception("img::DataProviderAlg") << "Downscale mode not supported." << std::endl;
   }
 
   size_t
@@ -246,7 +253,8 @@ protected:
       return (size_t)drift;
   }
 
-  bool setWireData(std::vector<float> const& adc, size_t wireIdx);
+  std::optional<std::vector<float>> setWireData(std::vector<float> const& adc,
+                                                size_t wireIdx) const;
 
   bool patchFromDownsampledView(size_t wire,
                                 float drift,
@@ -259,7 +267,7 @@ protected:
                              size_t size_d,
                              std::vector<std::vector<float>>& patch) const;
 
-  virtual void resizeView(detinfo::DetectorClocksData const& clock_data,
+  virtual DataProviderAlgView resizeView(detinfo::DetectorClocksData const& clock_data,
                           detinfo::DetectorPropertiesData const& det_prop,
                           size_t wires,
                           size_t drifts);
@@ -275,7 +283,7 @@ private:
   void scaleAdcSamples(std::vector<float>& values) const;
   std::vector<float> fAmplCalibConst;
   bool fCalibrateAmpl, fCalibrateLifetime;
-
+  unsigned int fCryo = 9999, fTPC = 9999, fPlane = 9999;
   float fAdcMax, fAdcMin, fAdcScale, fAdcOffset, fAdcZero;
   double fAdcSumOverThr, fAdcSumThr;
   size_t fAdcAreaOverThr;
