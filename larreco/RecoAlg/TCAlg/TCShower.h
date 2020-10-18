@@ -149,7 +149,6 @@ namespace tca {
                 const CTP_t& inCTP,
                 std::vector<std::vector<int>>& tjLists,
                 bool prt);
-  void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP);
   void FindNearbyTjs(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   void AddCloseTjsToList(std::string inFcnLabel,
                          TCSlice& slc,

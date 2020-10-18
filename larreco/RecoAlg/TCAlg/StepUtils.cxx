@@ -364,7 +364,13 @@ namespace tca {
     // A showering-electron-like trajectory
     bool chgIncreasing = (tjf.chgSlope > 0);
     // A showering-electron-like trajectory
-    bool shLike = (tjf.outlook > 3 && chgIncreasing && !tkLike);
+    bool shLike = false;
+    if(tcc.useAlg[kLEPhys]) {
+      // large angle tracks can appear to be shower-like due to a higher hit multiplicity
+      shLike = (lastTP.AngleCode < 1 && tjf.outlook > 3 && chgIncreasing && !tkLike);
+    } else {
+      shLike = (tjf.outlook > 3 && chgIncreasing && !tkLike);
+    }
     if(!shLike) shLike = tjf.showerLikeFraction > 0.5;
     float momRat = 0;
     if(tj.MCSMom > 0) momRat = (float)tjf.MCSMom / (float)tj.MCSMom;
@@ -1870,7 +1876,6 @@ namespace tca {
     bool prt = (tcc.dbgStp || tcc.dbgAlg[kMaskBadTPs]);
 
     if(tj.Pts.size() < 3) {
-      //      mf::LogError("TC")<<"MaskBadTPs: Trajectory ID "<<tj.ID<<" too short to mask hits ";
       tj.IsGood = false;
       return;
     }
@@ -1892,7 +1897,8 @@ namespace tca {
         if(cnt == tp.NTPsFit) break;
       } // ii
       if(imBad == USHRT_MAX) return;
-      if(prt) mf::LogVerbatim("TC")<<"MaskBadTPs: lastTP.FitChi "<<lastTP.FitChi<<"  Mask point "<<imBad;
+      if (prt) mf::LogVerbatim("TC") << "MaskBadTPs: lastTP.FitChi " << lastTP.FitChi 
+            << "  Mask point at " << PrintPos(slc, tj.Pts[imBad]);
       // mask the point
       UnsetUsedHits(slc, tj.Pts[imBad]);
       FitTraj(slc, tj);

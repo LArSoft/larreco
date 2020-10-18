@@ -43,6 +43,7 @@ namespace tca {
   void MergeShortWithJunk(TCSlice& slc, CTP_t inCTP);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
+  void TagShowerLike(TCSlice& slc, const CTP_t& inCTP);
 } // namespace
 
 #endif // ifndef POSTSTEPUTILS_H

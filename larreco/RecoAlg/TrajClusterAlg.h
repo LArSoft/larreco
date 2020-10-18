@@ -117,6 +117,7 @@ namespace tca {
                             CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj(TCSlice& slc, CTP_t inCTP);
+    std::vector<unsigned int> FindJTHits(const TCSlice& slc, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText, TCSlice& slc);
 

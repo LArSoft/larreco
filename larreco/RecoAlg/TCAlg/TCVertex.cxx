@@ -79,7 +79,7 @@ namespace tca {
     for (unsigned short it1 = 0; it1 < slc.tjs.size() - 1; ++it1) {
       auto& tj1 = slc.tjs[it1];
       if (tj1.AlgMod[kKilled] || tj1.AlgMod[kHaloTj]) continue;
-      if (tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
+      if (tj1.PDGCode == 11) continue;
       if (tj1.CTP != inCTP) continue;
       if (tj1.AlgMod[kJunkTj]) continue;
       if (TrajLength(tj1) < 10) continue;
@@ -97,7 +97,7 @@ namespace tca {
           auto& tj2 = slc.tjs[tj2id - 1];
           if (tj2.CTP != inCTP) continue;
           if (tj2id == tj1.ID) continue;
-          if (tj2.SSID > 0 || tj2.AlgMod[kShowerLike]) continue;
+          if (tj2.PDGCode == 11) continue;
           float close = maxSep;
           unsigned short closeEnd = USHRT_MAX;
           for (unsigned short end2 = 0; end2 < 2; ++end2) {
@@ -187,7 +187,7 @@ namespace tca {
     for (unsigned short it1 = 0; it1 < slc.tjs.size() - 1; ++it1) {
       auto& tj1 = slc.tjs[it1];
       if (tj1.AlgMod[kKilled] || tj1.AlgMod[kHaloTj]) continue;
-      if (tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
+      if (tj1.PDGCode == 11) continue;
       if (tj1.CTP != inCTP) continue;
       float tj1Len = TrajLength(tj1);
       bool tj1Short = (tj1Len < maxShortTjLen);
@@ -221,7 +221,7 @@ namespace tca {
         for (unsigned short it2 = it1 + 1; it2 < slc.tjs.size(); ++it2) {
           auto& tj2 = slc.tjs[it2];
           if (tj2.AlgMod[kKilled] || tj2.AlgMod[kHaloTj]) continue;
-          if (tj2.SSID > 0 || tj2.AlgMod[kShowerLike]) continue;
+          if (tj2.PDGCode == 11) continue;
           if (tj2.CTP != inCTP) continue;
           if (tj1.VtxID[end1] > 0) continue;
           if (tj1.MCSMom < tcc.vtx2DCuts[5] && tj2.MCSMom < tcc.vtx2DCuts[5]) continue;
@@ -931,7 +931,7 @@ namespace tca {
           if (slc.tjs[it2].AlgMod[kHamVx2]) continue;
           // require that both be in the same CTP
           if (slc.tjs[it2].CTP != inCTP) continue;
-          if (slc.tjs[it2].AlgMod[kShowerLike]) continue;
+          if (slc.tjs[it2].PDGCode == 11) continue;
           if (slc.tjs[it2].AlgMod[kJunkTj]) continue;
           if (slc.tjs[it2].PDGCode == 111) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(slc, slc.tjs[it2], true);
@@ -1100,9 +1100,8 @@ namespace tca {
     for (unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
       if (slc.tjs[it1].CTP != inCTP) continue;
       if (slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
-      if (slc.tjs[it1].AlgMod[kShowerLike]) continue;
+      if (slc.tjs[it1].PDGCode == 11) continue;
       if (slc.tjs[it1].AlgMod[kJunkTj]) continue;
-      if (slc.tjs[it1].PDGCode == 111) continue;
       // minimum length requirements
       unsigned short tj1len = slc.tjs[it1].EndPt[1] - slc.tjs[it1].EndPt[0] + 1;
       if (tj1len < 5) continue;
@@ -2653,7 +2652,7 @@ namespace tca {
       // Shower Tj
       if (tj.AlgMod[kShowerTj]) ++wght;
       // ShowerLike
-      if (tj.AlgMod[kShowerLike]) --wght;
+      if (tj.PDGCode == 11) --wght;
       tjids.push_back(tjid);
       tjwts.push_back(wght);
     } // tjid

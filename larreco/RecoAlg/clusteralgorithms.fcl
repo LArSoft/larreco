@@ -6,12 +6,11 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
-   Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
+   Mode: ""                 # Tracking modes: "" (normal), "LEPhysics", "TestBeam"
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [3, 3, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
-   MinMCSMom: [0, 0, 0]   # Minimum MCSMom for each pass
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
    MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
@@ -19,7 +18,7 @@ standard_trajclusteralg:
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
 #   KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit << OLD
-   KinkCuts: [ 8, 15, 1, 10 ] # << NEW
+   KinkCuts: [ 8, 15, 1, 10 ]
    # 0 Number of points to fit at the end of the trajectory
    # 1 Minimum kink significance
    # 2 Use charge in significance calculation? (yes if > 0)
@@ -32,21 +31,7 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-#               0   1   2   3   4  5    6   7  8  9 10 11 12
-   ShowerTag: [ 1, 100, 10, 50, 2.5, 1, 0, 3, 5, 0.7, 1, 10, -13]
-# 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
-  # 1 Max Tj MCSMom for a shower tag
-  # 2 Max separation
-  # 3 Min energy (MeV)
-  # 4 rms width factor
-  # 5 Min shower 1/2 width (WSE units)
-  # 6 Min ElectronLikelihood (if > 0)
-  # 7 Min Tjs
-  # 8 max parent FOM
-  # 9 max direction FOM
-  # 10 max aspect ratio
-  # 11 not used
-  # 12 Print 2D showers in plane (0,1,2) or all planes (3) or just 3D matching (4)
+   ShowerTag: [ 100, 2, 3 ] # Max MCSMom, Max separation (WSE), Min number of trajectories in a shower
    SaveShowerTree: false
    SaveCRTree: false
    TagCosmics: false
@@ -56,7 +41,7 @@ standard_trajclusteralg:
     # 1 = 3D match weight
     # 2 = Charge fraction of vertex Tjs near the vertex weight
     # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
-   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 30, 0.8, 0.8] # << NEW increase min Score
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 5, 0.8, 0.8]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj

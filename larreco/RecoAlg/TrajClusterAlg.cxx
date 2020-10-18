@@ -46,7 +46,6 @@ namespace tca {
       if (userMode == 1) tcc.modes[kStudy1] = true;
       if (userMode == 2) tcc.modes[kStudy2] = true;
       if (userMode == 3) tcc.modes[kStudy3] = true;
-      if (userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
     if (pset.has_key("SaveShowerTree"))
       tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
@@ -72,7 +71,6 @@ namespace tca {
     tcc.minPtsFit = pset.get<std::vector<unsigned short>>("MinPtsFit");
     tcc.minPts = pset.get<std::vector<unsigned short>>("MinPts");
     tcc.maxAngleCode = pset.get<std::vector<unsigned short>>("MaxAngleCode");
-    tcc.minMCSMom = pset.get<std::vector<short>>("MinMCSMom");
     tcc.maxChi = pset.get<float>("MaxChi", 10);
     tcc.chargeCuts = pset.get<std::vector<float>>("ChargeCuts", {3, 0.15, 0.25});
     tcc.multHitSep = pset.get<float>("MultHitSep", 2.5);
@@ -128,10 +126,9 @@ namespace tca {
     // in the following section we ensure that the fcl vectors are appropriately sized so that later references are valid
     if (tcc.minPtsFit.size() != tcc.minPts.size()) badinput = true;
     if (tcc.maxAngleCode.size() != tcc.minPts.size()) badinput = true;
-    if (tcc.minMCSMom.size() != tcc.minPts.size()) badinput = true;
     if (badinput)
       throw art::Exception(art::errors::Configuration)
-        << "Bad input from fcl file. Vector lengths for MinPtsFit, MaxAngleRange and MinMCSMom "
+        << "Bad input from fcl file. Vector lengths for MinPtsFit and MaxAngleRange "
            "should be defined for each reconstruction pass";
 
     if (tcc.vtx2DCuts.size() < 10)
@@ -186,19 +183,17 @@ namespace tca {
       throw art::Exception(art::errors::Configuration)
         << "ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = "
            "Charge fit chisq cut\n 3 = BraggSplit FOM (optional)";
-    if (tcc.showerTag.size() < 13) {
+    if(tcc.showerTag.size() != 3) {
       std::cout
-        << "ShowerTag must be size 13\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE "
-           "units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min "
-           "total Tps\n 7 = Min Tjs\n 8 = max parent FOM\n 9 = max direction FOM 10 = max "
-           "AspectRatio\n 11 = min Score to preserve a vertex\n 12 = Debug showers in CTP\n";
-      std::cout << " Fixing this problem...";
-      tcc.showerTag.resize(13);
-      // set the min score to 0
-      tcc.showerTag[11] = 0;
-      // turn off printing
-      tcc.showerTag[12] = -1;
-    }
+        <<  "Shower reconstruction code is not available. Reconfiguring ShowerTag to size 3:\n"
+            " [0] = Min MCSMom, default = 100\n"
+            " [1] = Max trajectory separation in WSE units, default = 2 units\n"
+            " [2] = Min number of trajectories for a ShowerLike tag, default = 3\n";
+      tcc.showerTag.resize(3);
+      tcc.showerTag[0] = 100;
+      tcc.showerTag[1] = 2;
+      tcc.showerTag[2] = 3;
+    } // tcc.showerTag.size() != 3
     if (tcc.match3DCuts.size() < 6)
       throw art::Exception(art::errors::Configuration)
         << "Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D "
@@ -304,10 +299,11 @@ namespace tca {
       std::cout << "\n";
       std::cout << "Or specify All to turn all algs off\n";
     }
+/*
     // Configure the TMVA reader for the shower parent BDT
     if (fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0)
       ConfigureMVA(tcc, fMVAShowerParentWeights);
-
+*/
     evt.eventsProcessed = 0;
 
     tcc.caloAlg = &fCaloAlg;
@@ -413,6 +409,7 @@ namespace tca {
       DefinePFPParents(slc, false);
     } // 3D matching requested
     KillPoorVertices(slc);
+/*
     // Use 3D matching information to find showers in 2D. FindShowers3D returns
     // true if the algorithm was successful indicating that the matching needs to be redone
     if (tcc.showerTag[0] == 2 || tcc.showerTag[0] == 4) {
@@ -422,7 +419,7 @@ namespace tca {
         showertree->Fill();
       }
     } // 3D shower code
-
+*/
     if (!slc.isValid) {
       mf::LogVerbatim("TC") << "RunTrajCluster failed in MakeAllTrajClusters";
       return;
@@ -751,7 +748,7 @@ namespace tca {
     }   // dressed muons
 
     // Tag ShowerLike Tjs
-    if (tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
+    TagShowerLike(slc, inCTP);
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
     Find2Vs(detProp, slc, inCTP, USHRT_MAX);
@@ -821,7 +818,15 @@ namespace tca {
         auto& islHit = slc.slHits[iht];
         if (islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
-        GetHitMultiplet(slc, iht, iHits, true);
+        if(tcc.useAlg[kNewCuts]) {
+          iHits = FindJTHits(slc, iht);
+          if(iHits.size() > 3) {
+            std::cout<<slc.TPCID.TPC<<" iHits "<<PrintHit(slc.slHits[iHits[0]])<<" to "
+                  <<PrintHit(slc.slHits[iHits[iHits.size()-1]])<<"";
+          }
+        } else {
+          GetHitMultiplet(slc, iht, iHits, true);
+        }
         prt =
           (tcc.modes[kDebug] && std::find(iHits.begin(), iHits.end(), debug.Hit) != iHits.end());
         if (prt) mf::LogVerbatim("TC") << "FJT: debug iht multiplet size " << iHits.size();
@@ -835,7 +840,11 @@ namespace tca {
                                   << HitSep2(slc, iht, jht);
           if (HitSep2(slc, iht, jht) > tcc.JTMaxHitSep2) continue;
           std::vector<unsigned int> jHits;
-          GetHitMultiplet(slc, jht, jHits, true);
+          if(tcc.useAlg[kNewCuts]) {
+            jHits = FindJTHits(slc, jht);
+          } else {
+            GetHitMultiplet(slc, jht, jHits, true);
+          }
           if (jHits.empty()) continue;
           // check for hit overlap consistency
           if (!TrajHitsOK(slc, iHits, jHits)) continue;
@@ -868,7 +877,11 @@ namespace tca {
                 // this shouldn't be needed but do it anyway
                 if (std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
                 // re-purpose jHits and check for consistency
-                GetHitMultiplet(slc, kht, jHits, true);
+                if(tcc.useAlg[kNewCuts]) {
+                  jHits = FindJTHits(slc, kht);
+                } else {
+                  GetHitMultiplet(slc, kht, jHits, true);
+                }
                 if (!TrajHitsOK(slc, tHits, jHits)) continue;
                 // add them all and update the wire range
                 for (auto jht : jHits) {
@@ -908,6 +921,25 @@ namespace tca {
       }   // iht
     }     // iwire
   }       // FindJunkTraj
+
+  ////////////////////////////////////////////////
+  std::vector<unsigned int>
+  TrajClusterAlg::FindJTHits(const TCSlice& slc, unsigned int iht)
+  {
+    // a helper function for FindJunkTraj
+    std::vector<unsigned int> hitList;
+    if(iht >= slc.slHits.size()) return hitList;
+    auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+    unsigned short plane = hit.WireID().Plane;
+    int wire = hit.WireID().Wire;
+    std::array<int, 2> wireWindow = {wire, wire};
+    Point2_t timeWindow;
+    timeWindow[0] = hit.PeakTime() * tcc.unitsPerTick;
+    timeWindow[1] = timeWindow[0] + sqrt(tcc.JTMaxHitSep2);
+    bool hitsNear = false;
+    return FindCloseHits(slc, wireWindow, timeWindow, plane, kUnusedHits, true, hitsNear);
+  } // FindJTHits
+
 
   ////////////////////////////////////////////////
   void

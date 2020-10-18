@@ -3511,102 +3511,111 @@ namespace tca {
     //   VqqqqQQQQxxxQQQQQQQQ    16   12   0 - 19
     //   VooQQQ                   3    3   0 - 5
     // The average is first calculated using Ave = sum(Q) / npwc
-    // TotChg is calculated using
     tj.TotChg = 0;
     tj.AveChg = 0;
     tj.ChgRMS = 0.5;
 
-    // These variables are used to calculate the average and rms using valid points with charge
-    double vcnt = 0;
-    double vsum = 0;
-    double vsum2 = 0;
-    // Reject a single large charge TP
+    // Reject a single large charge TP if the Tj isn't short
     float bigChg = 0;
-    float cnt = 0;
-    for (unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
+    unsigned short skipPt = USHRT_MAX;
+    // count the number of overlap TPs
+    short nOverlap = 0;
+    // variables used to calculate backup averages in case the Tj is short
+    // or many points are overlapping with a different trajectory
+    short cnt = 0;
+    double sum = 0;
+    double sum2 = 0;
+    for (unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
       auto& tp = tj.Pts[ipt];
-      if(tp.Chg <= 0) continue;
+      if (tp.Chg <= 0) continue;
+      if (tj.Pts[ipt].Environment[kEnvOverlap]) ++nOverlap;
+      if (tp.Chg > bigChg) {
+        bigChg = tp.Chg;
+        skipPt = ipt;
+      } // tp.Chg > bigChg
       ++cnt;
-      if (tp.Chg > bigChg) bigChg = tp.Chg;
+      sum += tp.Chg;
+      sum2 += tp.Chg * tp.Chg;
     } // ipt
-    //  variables for calculating the backup quanties. These are only used if npwc < 3
-    double bcnt = 0;
-    double bsum = 0;
-    double bsum2 = 0;
-    // don't include the end points
+    // there must be at least 3 TPs with charge in a trajectory
+    if(cnt < 3) return;
+    // calculate the average and RMS into the Tj
+    tj.AveChg = sum / (double)cnt;
+    double arg = sum2 - cnt * tj.AveChg * tj.AveChg;
+    double rms = 0.5;
+    if (arg > 0) rms = sqrt(arg / (cnt - 1));
+    // normalize with the average
+    rms /= tj.AveChg;
+    // don't let it be an unrealistically low value. It could be crazy large however.
+    if (rms < 0.1) rms = 0.1;
+    // Don't let the calculated charge RMS dominate until it is well known - after there are 10 TPs.
+    if (cnt < 10) {
+      double defFrac = 1 / cnt;
+      rms = defFrac * 0.5 + (1 - defFrac) * rms;
+    }
+    tj.ChgRMS = rms;
+    tj.TotChg = cnt * tj.AveChg;
+    if(tj.AlgMod[kJunkTj]) {
+      tj.Pts[tj.EndPt[0]].AveChg = tj.AveChg;
+      tj.Pts[tj.EndPt[1]].AveChg = tj.AveChg;
+      return;
+    }
+
+    // See if there are enough points to find a better average and RMS by
+    // ignoring the end points (which may have a Bragg peak or may be low) 
+    // and ignoring the overlapping TPs
+    short nTPsToUse = cnt - 2 - nOverlap;
+    // and maybe ignore an anomalously high-charge point if the point is
+    // not at an end
+    if(skipPt != tj.EndPt[0] && skipPt != tj.EndPt[1]) {
+      float bigPull = (bigChg / tj.AveChg - 1) / tj.ChgRMS;
+      if(bigPull > 2.5 && nTPsToUse > 3) {
+        --nTPsToUse;
+      } else {
+        skipPt = USHRT_MAX;
+      }
+    } // skipPt != ...
+    // Can't do any better
+    if(nTPsToUse < 3) return;
+
+    cnt = 0;
+    sum = 0;
+    sum2 = 0;
+    // these are used as a backup sum in case there are an insufficient number of points
+    // after the cuts.
+    // don't include the end points in the average
     for (unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
       auto& tp = tj.Pts[ipt];
       if (tp.Chg <= 0) continue;
       // ignore the single large charge TP
-      if (cnt > 20 && tp.Chg == bigChg) continue;
-      // accumulate a backup sum in case most of the points are overlapped. Note that
-      // tp.Chg has an angle correction, which is why the hit integral is summed
-      // below. We don't care about this detail for the backup sum
-      bsum += tp.Chg;
-      bsum2 += tp.Chg * tp.Chg;
-      if (tp.Chg > bigChg) bigChg = tp.Chg;
-      ++bcnt;
-      // Skip TPs that overlap with TPs on other Tjs. A correction will be made below
+      if (ipt == skipPt) continue;
+      // Skip TPs that overlap with TPs on other Tjs
       if (tj.Pts[ipt].Environment[kEnvOverlap]) continue;
-      ++vcnt;
       double tpchg = 0;
       for (unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if (!tp.UseHit[ii]) continue;
         unsigned int iht = tp.Hits[ii];
         tpchg += (*evt.allHits)[slc.slHits[iht].allHitsIndex].Integral();
       } // ii
-      vsum += tpchg;
-      vsum2 += tpchg * tpchg;
+      ++cnt;
+      sum += tpchg;
+      sum2 += tpchg * tpchg;
     } // ipt
-
-    if (bcnt == 0) return;
-
-    if (vcnt < 5) {
-      // use the backup sum
-      tj.TotChg = bsum;
-      tj.AveChg = bsum / bcnt;
-      if (vcnt > 2) {
-        double arg = bsum2 - bcnt * tj.AveChg * tj.AveChg;
-        if (arg > 0) tj.ChgRMS = sqrt(arg / (bcnt - 1));
-      }
-      for (auto& tp : tj.Pts)
-        tp.AveChg = tj.AveChg;
-      if (prt)
-        mf::LogVerbatim("TC") << inFcnLabel << ".UpdateTjChgProperties: backup sum Set tj.AveChg "
-                              << (int)tj.AveChg << " ChgRMS " << tj.ChgRMS;
-      return;
-    } // low npwc
-
-    double nWires = tj.EndPt[1] - tj.EndPt[0] + 1;
-    if (nWires < 2) return;
-    // correct for wires missing near vertices.
-    // Count the number of wires between vertices at the ends and the first wire
-    // that has charge. This code assumes that there should be one TP on each wire
-    if (!tj.AlgMod[kPhoton]) {
-      for (unsigned short end = 0; end < 2; ++end) {
-        if (tj.VtxID[end] == 0) continue;
-        auto& tp = tj.Pts[tj.EndPt[end]];
-        auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
-        int dw = std::abs(tp.Pos[0] - vx2.Pos[0]);
-        // This assumes that the vertex is not inside the wire boundaries of the tj
-        nWires += dw;
-      } // end
-    }   // not a photon Tj
-
-    tj.AveChg = vsum / vcnt;
+    tj.AveChg = sum / cnt;
     // calculate the total charge using the tj wire range
+    double nWires = std::abs(tj.Pts[tj.EndPt[1]].Pos[0] - tj.Pts[tj.EndPt[0]].Pos[0]);
     tj.TotChg = nWires * tj.AveChg;
     // calculate the rms
-    double arg = vsum2 - vcnt * tj.AveChg * tj.AveChg;
-    double rms = 0.5;
-    if (arg > 0) rms = sqrt(arg / (vcnt - 1));
+    arg = sum2 - cnt * tj.AveChg * tj.AveChg;
+    rms = 0.5;
+    if (arg > 0) rms = sqrt(arg / (cnt - 1));
     rms /= tj.AveChg;
     // don't let it be an unrealistically low value. It could be crazy large however.
     if (rms < 0.1) rms = 0.1;
     // Don't let the calculated charge RMS dominate until it is well known; after there are 5 - 10 valid TPs.
     // Set the starting charge rms = 0.5
-    if (vcnt < 10) {
-      double defFrac = 1 / vcnt;
+    if (cnt < 10) {
+      double defFrac = 1 / cnt;
       rms = defFrac * 0.5 + (1 - defFrac) * rms;
     }
     tj.ChgRMS = rms;
@@ -3626,7 +3635,7 @@ namespace tca {
 
     // update the local charge average using NPtsAve of the preceding points.
     // Handle short Tjs first.
-    if (vcnt < tcc.nPtsAve) {
+    if (cnt < tcc.nPtsAve) {
       for (auto& tp : tj.Pts)
         tp.AveChg = tj.AveChg;
       return;
@@ -4171,26 +4180,18 @@ namespace tca {
     // Sets the PDG code for the supplied trajectory. Note that the existing
     // PDG code is left unchanged if these cuts are not met
 
+    // this PDGCode is set in TagShowerLike and shouldn't be altereed here
+    if(tj.PDGCode == 11) return;
+
     short npwc = NumPtsWithCharge(slc, tj, false);
     if (npwc < 6) {
       tj.PDGCode = 0;
-      return;
-    }
-
-    if (tj.Strategy[kStiffEl] && ElectronLikelihood(slc, tj) > tcc.showerTag[6]) {
-      tj.PDGCode = 111;
       return;
     }
     if (tj.Strategy[kStiffMu]) {
       tj.PDGCode = 13;
       return;
     }
-
-    if (tcc.showerTag[6] > 0 && ElectronLikelihood(slc, tj) > tcc.showerTag[6]) {
-      tj.PDGCode = 11;
-      return;
-    }
-
     if (tcc.muonTag[0] <= 0) return;
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);

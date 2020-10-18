@@ -570,7 +570,7 @@ namespace cluster {
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
           int clsID = tj.UID;
-          if (tj.AlgMod[tca::kShowerLike]) clsID = -clsID;
+          if (tj.PDGCode == 11) clsID = -clsID;
           // dressed muon - give the halo cluster the same ID as the parent
           if (tj.AlgMod[tca::kHaloTj]) clsID = -tj.ParentID;
           unsigned int nclhits = hitCol.size() - hitColBeginIndex + 1;

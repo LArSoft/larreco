@@ -70,7 +70,6 @@ namespace tca {
     "FTBRvProp",
     "TjHiVx3Score",
     "VxEndSwap",
-    "ShowerLike",
     "KillInShowerVx",
     "ShowerTj",
     "ShwrParent",

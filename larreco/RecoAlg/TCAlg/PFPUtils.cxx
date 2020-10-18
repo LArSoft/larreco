@@ -3176,15 +3176,15 @@ namespace tca {
       if (pfp.ID == 0) continue;
       // already done?
       if (pfp.Vx3ID[end1] > 0) continue;
-      // ignore shower-like pfps
-      if (IsShowerLike(slc, pfp.TjIDs)) continue;
       // count 2D -> 3D matched vertices
       unsigned short cnt3 = 0;
       unsigned short vx3id = 0;
       // list of unmatched 2D vertices that should be merged
       std::vector<int> vx2ids;
+      unsigned short nshLike = 0;
       for (auto tjid : pfp.TjIDs) {
         auto& tj = slc.tjs[tjid - 1];
+        if(tj.PDGCode == 11) ++nshLike;
         if (tj.VtxID[end1] == 0) continue;
         auto& vx2 = slc.vtxs[tj.VtxID[end1] - 1];
         if (vx2.Vx3ID == 0) {
@@ -3194,6 +3194,7 @@ namespace tca {
         if (vx3id == 0) vx3id = vx2.Vx3ID;
         if (vx2.Vx3ID == vx3id) ++cnt3;
       } // tjid
+      if(nshLike > 1) continue;
       if (cnt3 > 1) {
         // ensure it isn't attached at the other end
         if (pfp.Vx3ID[1 - end1] == vx3id) continue;

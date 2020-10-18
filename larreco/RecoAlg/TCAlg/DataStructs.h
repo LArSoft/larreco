@@ -480,7 +480,6 @@ namespace tca {
     kFTBRvProp,
     kTjHiVx3Score,
     kVxEndSwap,
-    kShowerLike,
     kKillInShowerVx,
     kShowerTj,
     kShwrParent,
@@ -537,7 +536,7 @@ namespace tca {
     kStudy1,     ///< call study functions to develop cuts, etc (see TCTruth.cxx)
     kStudy2,     ///< call study functions to develop cuts, etc
     kStudy3,     ///< call study functions to develop cuts, etc
-    kStudy4,     ///< call study functions to develop cuts, etc
+    kShowerTag,  ///< ShowerTag
     kSaveCRTree, ///< save cosmic ray tree
     kTagCosmics, ///< tag cosmic rays
     kSaveShowerTree ///< save shower tree
@@ -568,7 +567,6 @@ namespace tca {
     std::vector<unsigned short> minPtsFit;    ///< Reconstruct in several passes
     std::vector<unsigned short> minPts;       ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> maxAngleCode; ///< max allowed angle code for each pass
-    std::vector<short> minMCSMom;             ///< Min MCSMom for each pass
     std::vector<float> angleRanges;           ///< list of max angles for each angle range
     float wirePitch;
     float unitsPerTick; ///< scale factor from Tick to WSE equivalent units

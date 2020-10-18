@@ -1928,7 +1928,7 @@ namespace tca {
     unsigned short cnt = 0;
     for (auto tid : TjIDs) {
       if (tid <= 0 || tid > (int)slc.tjs.size()) continue;
-      if (slc.tjs[tid - 1].AlgMod[kShowerLike] > 0) ++cnt;
+      if (slc.tjs[tid - 1].PDGCode == 11) ++cnt;
     } // tjid
     return (cnt > 1);
   } // IsInShower
@@ -3285,110 +3285,6 @@ namespace tca {
     }   // tid1
     return false;
   } // DontCluster
-
-  ////////////////////////////////////////////////
-  void
-  TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP)
-  {
-    // Tag Tjs as InShower if they have MCSMom < ShowerTag[1] and there are more than
-    // ShowerTag[6] other Tjs with a separation < ShowerTag[2].
-
-    if (tcc.showerTag[0] <= 0) return;
-    if (slc.tjs.size() > 20000) return;
-    float typicalChgRMS = 0.5 * (tcc.chargeCuts[1] + tcc.chargeCuts[2]);
-
-    bool prt = (tcc.dbgSlc && tcc.dbg2S && inCTP == debug.CTP);
-
-    // clear out old tags and make a list of Tjs to consider
-    std::vector<std::vector<int>> tjLists;
-    std::vector<int> tjids;
-    for (auto& tj : slc.tjs) {
-      if (tj.CTP != inCTP) continue;
-      if (tj.AlgMod[kKilled]) continue;
-      if (tj.AlgMod[kHaloTj]) continue;
-      tj.AlgMod[kShowerLike] = false;
-      if (tj.AlgMod[kShowerTj]) continue;
-      // ignore Tjs with Bragg peaks
-      bool skipit = false;
-      for (unsigned short end = 0; end < 2; ++end)
-        if (tj.EndFlag[end][kEndBragg]) skipit = true;
-      if (skipit) continue;
-      short npwc = NumPtsWithCharge(slc, tj, false);
-      // Don't expect any (primary) electron to be reconstructed as a single trajectory for
-      // more than ~2 radiation lengths ~ 30 cm for uB ~ 100 wires
-      if (npwc > 100) continue;
-      // allow short Tjs.
-      if (npwc > 5) {
-        // Increase the MCSMom cut if the Tj is long and the charge RMS is high to reduce sensitivity
-        // to the fcl configuration. A primary electron may be reconstructed as one long Tj with large
-        // charge rms and possibly high MCSMom or as several nearby shorter Tjs with lower charge rms
-        float momCut = tcc.showerTag[1];
-        if (tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
-        if (tj.MCSMom > momCut) continue;
-      }
-      tjids.push_back(tj.ID);
-    } // tj
-
-    if (tjids.size() < 2) return;
-
-    for (unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
-      Trajectory& tj1 = slc.tjs[tjids[it1] - 1];
-      for (unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
-        Trajectory& tj2 = slc.tjs[tjids[it2] - 1];
-        unsigned short ipt1, ipt2;
-        float doca = tcc.showerTag[2];
-        // Find the separation between Tjs without considering dead wires
-        TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, doca, false);
-        if (doca == tcc.showerTag[2]) continue;
-        // make tighter cuts for user-defined short Tjs
-        // found a close pair. See if one of these is in an existing cluster of Tjs
-        bool inlist = false;
-        for (unsigned short it = 0; it < tjLists.size(); ++it) {
-          bool tj1InList =
-            (std::find(tjLists[it].begin(), tjLists[it].end(), tj1.ID) != tjLists[it].end());
-          bool tj2InList =
-            (std::find(tjLists[it].begin(), tjLists[it].end(), tj2.ID) != tjLists[it].end());
-          if (tj1InList || tj2InList) {
-            // add the one that is not in the list
-            if (!tj1InList) tjLists[it].push_back(tj1.ID);
-            if (!tj2InList) tjLists[it].push_back(tj2.ID);
-            inlist = true;
-            break;
-          }
-          if (inlist) break;
-        } // it
-        // start a new list with this pair?
-        if (!inlist) {
-          std::vector<int> newlist(2);
-          newlist[0] = tj1.ID;
-          newlist[1] = tj2.ID;
-          tjLists.push_back(newlist);
-        }
-      } // it2
-    }   // it1
-    if (tjLists.empty()) return;
-
-    // mark them all as ShowerLike Tjs
-    for (auto& tjl : tjLists) {
-      // ignore small clusters
-      if (tjl.size() < 3) continue;
-      for (auto& tjID : tjl) {
-        auto& tj = slc.tjs[tjID - 1];
-        tj.AlgMod[kShowerLike] = true;
-      } // tjid
-    }   // tjl
-
-    if (prt) {
-      unsigned short nsh = 0;
-      for (auto& tjl : tjLists) {
-        for (auto& tjID : tjl) {
-          auto& tj = slc.tjs[tjID - 1];
-          if (tj.AlgMod[kShowerLike]) ++nsh;
-        } // tjid
-      }   // tjl
-      mf::LogVerbatim("TC") << "TagShowerLike tagged " << nsh << " Tjs vertices in CTP " << inCTP;
-    } // prt
-  }   // TagShowerLike
 
   ////////////////////////////////////////////////
   void

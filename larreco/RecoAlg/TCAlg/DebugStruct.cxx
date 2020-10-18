@@ -112,12 +112,22 @@ namespace tca {
       }
       return true;
     } // PFP
+    if (words.size() == 2 && words[0] == "ShowerTag") {
+      tcc.modes[kShowerTag] = true;
+      debug.CTP = std::stoi(words[1]);
+      auto plnID = DecodeCTP(debug.CTP);
+      debug.Cryostat = plnID.Cryostat;
+      debug.TPC = plnID.TPC;
+      debug.Plane = plnID.Plane;
+      return true;
+    } // ShowerTag
     if (words.size() == 2 && words[0] == "CTP") {
       debug.CTP = std::stoi(words[1]);
       auto plnID = DecodeCTP(debug.CTP);
       debug.Cryostat = plnID.Cryostat;
       debug.TPC = plnID.TPC;
       debug.Plane = plnID.Plane;
+      return true;
     } // CTP
     if (words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
@@ -670,7 +680,7 @@ namespace tca {
       myprt<<"Tj AngleCode-EndFlag decoder (EF): <AngleCode> + <end flag>";
       myprt<<" (B=Bragg Peak, V=Vertex, A=AngleKink, C=ChargeKink, T=Trajectory, S=StartEnd)\n";
       myprt<<"     prodID    CTP  Pts     W:T      Ang EF   AveQ     W:T      Ang EF   ";
-      myprt<<"AveQ Chg(k) chgRMS  Mom __Vtx__  PDG eLike  Par Pri NuPar   WorkID \n";
+      myprt<<"AveQ Chg(k) chgRMS  Mom __Vtx__  PDG WorkID \n";
       printHeader = false;
     }
     auto sIndx = GetSliceIndex("T", tj.UID);
@@ -715,10 +725,6 @@ namespace tca {
     if (tj.VtxID[1] > 0) vxid = slc.vtxs[tj.VtxID[1] - 1].UID;
     myprt << std::setw(4) << vxid;
     myprt << std::setw(5) << tj.PDGCode;
-    myprt << std::setw(7) << std::setprecision(2) << ElectronLikelihood(slc, tj);
-    myprt << std::setw(5) << tj.ParentID;
-    myprt << std::setw(5) << PrimaryID(slc, tj);
-    myprt << std::setw(6) << NeutrinoPrimaryTjID(slc, tj);
     myprt << std::setw(7) << tj.WorkID;
     for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
       if (tj.AlgMod[ib]) myprt << " " << AlgBitNames[ib];
