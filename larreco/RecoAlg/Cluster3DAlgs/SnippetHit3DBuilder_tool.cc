@@ -1590,9 +1590,9 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void SnippetHit3DBuilder::CreateNewRecobHitCollection(art::Event&              event,
-                                                       reco::HitPairList&       hitPairList,
-                                                       std::vector<recob::Hit>& hitPtrVec,
-                                                       RecobHitToPtrMap&        recobHitToPtrMap)
+                                                      reco::HitPairList&       hitPairList,
+                                                      std::vector<recob::Hit>& hitPtrVec,
+                                                      RecobHitToPtrMap&        recobHitToPtrMap)
 {
     // Set up the timing
     cet::cpu_timer theClockBuildNewHits;
