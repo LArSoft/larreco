@@ -29,7 +29,6 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -197,6 +196,7 @@ namespace tca {
     // Match Tjs in 3D and create PFParticles
 
     if (tcc.match3DCuts[0] <= 0) return;
+    if (!tcc.useAlg[kMakePFPTjs]) return;
 
     FillWireIntersections(slc);
 
@@ -232,7 +232,7 @@ namespace tca {
       if (matVec.empty()) continue;
       if (prt) {
         mf::LogVerbatim myprt("TC");
-        myprt << "nit " << nit << " MVI  Count  Tjs\n";
+        myprt << "nit " << nit << " MVI  Count  Tjs in TPC " << slc.TPCID.TPC <<"\n";
         for (unsigned int indx = 0; indx < matVec.size(); ++indx) {
           auto& ms = matVec[indx];
           myprt << std::setw(5) << indx << std::setw(6) << (int)ms.Count;
@@ -342,8 +342,8 @@ namespace tca {
       if (pfpVec[0].SectionFits[0].ChiDOF > 100) {
         if (foundMVI)
           mf::LogVerbatim("TC") << " crazy high ChiDOF P" << pfpVec[0].ID << " "
-                                << pfpVec[0].SectionFits[0].ChiDOF << "\n";
-        if(!Recover(clockData, detProp, slc, pfpVec[0], foundMVI)) continue;
+                                << pfpVec[0].SectionFits[0].ChiDOF;
+        Recover(clockData, detProp, slc, pfpVec[0], foundMVI);
       }
       // sort the points by the distance along the general direction vector
       for(unsigned short sfi = 0; sfi < pfpVec[0].SectionFits.size(); ++sfi) {
@@ -452,8 +452,9 @@ namespace tca {
         // Set the direction using dE/dx
         SetDirection(clockData, detProp, slc, pfp);
         pfp.PDGCode = PDGCodeVote(clockData, detProp, slc, pfp);
-        if(!StorePFP(slc, pfp)) {
-          if(tcc.dbgPFP) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
+        if(pfp.PDGCode == 14) std::cout<<"MPFP: store neutrino";
+        if(!Store(slc, pfp)) {
+          if(tcc.dbgPFP) mf::LogVerbatim("TC")<<" Store failed P"<<pfp.ID;
           break;
         }
         if(tcc.dbgPFP && pfp.MVI == debug.MVI && !pfp.AlgMod[kSmallAng3D]) PrintTP3Ds(clockData, detProp, "STORE", slc, pfp, -1);
@@ -884,6 +885,7 @@ namespace tca {
       // see if we hit the maxCnt limit
       if (std::find(tMaxed.begin(), tMaxed.end(), iTjPt.id) != tMaxed.end()) continue;
       auto& itp = slc.tjs[iTjPt.id - 1].Pts[iTjPt.ipt];
+      if(tcc.useAlg[kNewCuts] && itp.InPFP > 0) continue;
       unsigned int iPlane = iTjPt.plane;
       unsigned int iWire = std::nearbyint(itp.Pos[0]);
       tIDs[iPlane] = iTjPt.id;
@@ -899,6 +901,7 @@ namespace tca {
         // see if we hit the maxCnt limit
         if (std::find(tMaxed.begin(), tMaxed.end(), jTjPt.id) != tMaxed.end()) continue;
         auto& jtp = slc.tjs[jTjPt.id - 1].Pts[jTjPt.ipt];
+        if(tcc.useAlg[kNewCuts] && jtp.InPFP > 0) continue;
         unsigned short jPlane = jTjPt.plane;
         unsigned int jWire = jtp.Pos[0];
         Point2_t ijPos;
@@ -914,6 +917,7 @@ namespace tca {
           // see if we hit the maxCnt limit
           if (std::find(tMaxed.begin(), tMaxed.end(), kTjPt.id) != tMaxed.end()) continue;
           auto& ktp = slc.tjs[kTjPt.id - 1].Pts[kTjPt.ipt];
+          if(tcc.useAlg[kNewCuts] && ktp.InPFP > 0) continue;
           unsigned short kPlane = kTjPt.plane;
           unsigned int kWire = ktp.Pos[0];
           Point2_t ikPos;
@@ -1011,6 +1015,7 @@ namespace tca {
       // see if we hit the maxCnt limit
       if (std::find(tMaxed.begin(), tMaxed.end(), iTjPt.id) != tMaxed.end()) continue;
       auto& itp = slc.tjs[iTjPt.id - 1].Pts[iTjPt.ipt];
+      if(tcc.useAlg[kNewCuts] && itp.InPFP > 0) continue;
       unsigned short iPlane = iTjPt.plane;
       unsigned int iWire = itp.Pos[0];
       bool hitMaxCnt = false;
@@ -1025,6 +1030,7 @@ namespace tca {
         // see if we hit the maxCnt limit
         if (std::find(tMaxed.begin(), tMaxed.end(), jTjPt.id) != tMaxed.end()) continue;
         auto& jtp = slc.tjs[jTjPt.id - 1].Pts[jTjPt.ipt];
+        if(tcc.useAlg[kNewCuts] && jtp.InPFP > 0) continue;
         unsigned short jPlane = jTjPt.plane;
         unsigned int jWire = jtp.Pos[0];
         Point3_t ijPos;
@@ -2196,15 +2202,16 @@ namespace tca {
   } // SortByX
 
   /////////////////////////////////////////
-  bool
+  void
   Recover(detinfo::DetectorClocksData const& clockData,
           detinfo::DetectorPropertiesData const& detProp,
           TCSlice& slc, PFPStruct& pfp, bool prt)
   {
     // try to recover from a poor initial fit
-    if(pfp.AlgMod[kSmallAng3D]) return false;
-    if(pfp.SectionFits.size() != 1) return false;
-    if(pfp.TP3Ds.size() < 20) return false;
+    if(pfp.AlgMod[kSmallAng3D]) return;
+    if(pfp.SectionFits.size() != 1) return;
+    if(pfp.TP3Ds.size() < 20) return;
+    if(!CanSection(slc, pfp)) return;
 /*
     if(slc.nPlanes == 2) return false;
     SortByX(pfp.TP3Ds);
@@ -2255,19 +2262,27 @@ namespace tca {
     return false;
 */
 
+    // make a copy
+    auto p2 = pfp;
     // try two sections
-    pfp.SectionFits.resize(2);
-    unsigned short halfPt = pfp.TP3Ds.size() / 2;
-    for(unsigned short ipt = halfPt; ipt < pfp.TP3Ds.size(); ++ipt) pfp.TP3Ds[ipt].SFIndex = 1;
-    if(!FitSection(clockData, detProp, slc, pfp, 0)) {
-      mf::LogVerbatim("TC")<<"Recover failed";
-      return false;
+    p2.SectionFits.resize(2);
+    unsigned short halfPt = p2.TP3Ds.size() / 2;
+    for(unsigned short ipt = halfPt; ipt < p2.TP3Ds.size(); ++ipt) p2.TP3Ds[ipt].SFIndex = 1;
+    // Confirm that both sections can be reconstructed
+    unsigned short toPt = Find3DRecoRange(slc, p2, 0, 3, 1);
+    if(toPt > p2.TP3Ds.size()) return;
+    toPt = Find3DRecoRange(slc, p2, halfPt, 3, 1);
+    if(toPt > p2.TP3Ds.size()) return;
+    if(!FitSection(clockData, detProp, slc, p2, 0) || !FitSection(clockData, detProp, slc, p2, 1)) {
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt << "Recover failed MVI " << p2.MVI << " in TPC " << p2.TPCID.TPC;
+        for(auto tid : p2.TjIDs) myprt << " T" << tid; 
+      } // prt
+      return;
     }
-    if(!FitSection(clockData, detProp, slc, pfp, 1)) {
-      mf::LogVerbatim("TC")<<"Recover failed";
-      return false;
-    }
-    return true;
+    if(prt) mf::LogVerbatim("TC")<<"Recover: P" << pfp.ID << " success";
+    pfp = p2;
 
   } // Recover
 
@@ -3160,6 +3175,7 @@ namespace tca {
      */
     if (slc.pfps.empty()) return;
     if (tcc.modes[kTestBeam]) return;
+    if (tcc.modes[kLEPhys]) return;
 
     int neutrinoPFPID = 0;
     for (auto& pfp : slc.pfps) {
@@ -3243,7 +3259,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   bool
-  StorePFP(TCSlice& slc, PFPStruct& pfp)
+  Store(TCSlice& slc, PFPStruct& pfp)
   {
     // stores the PFParticle in the slice
     bool neutrinoPFP = (pfp.PDGCode == 12 || pfp.PDGCode == 14);
@@ -3251,6 +3267,7 @@ namespace tca {
       if (pfp.TjIDs.empty()) return false;
       if (pfp.PDGCode != 1111 && pfp.TP3Ds.size() < 2) return false;
     }
+    if(neutrinoPFP) mf::LogVerbatim("TC") << "Found Neutrino P" <<pfp.ID<< " in TPC " << slc.TPCID.TPC;
 
     if(pfp.AlgMod[kSmallAng3D]) {
       // Make the PFP -> TP assn
@@ -3281,7 +3298,7 @@ namespace tca {
 
     slc.pfps.push_back(pfp);
     return true;
-  } // StorePFP
+  } // Store
 
   ////////////////////////////////////////////////
   bool InsideFV(const TCSlice& slc, const PFPStruct& pfp, unsigned short end)

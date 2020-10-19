@@ -8,8 +8,8 @@ standard_trajclusteralg:
 {
    Mode: ""                 # Tracking modes: "" (normal), "LEPhysics", "TestBeam"
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
-   MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
-   MinPts:    [3, 3, 3]     # Min number of points in the trajectory required on each pass
+   MinPtsFit: [4, 3, 3]     # Min number of points in the trajectory fit required on each pass
+   MinPts:    [4, 3, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
@@ -17,7 +17,6 @@ standard_trajclusteralg:
    AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
-#   KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit << OLD
    KinkCuts: [ 8, 15, 1, 10 ]
    # 0 Number of points to fit at the end of the trajectory
    # 1 Minimum kink significance

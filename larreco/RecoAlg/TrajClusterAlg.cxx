@@ -16,7 +16,6 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/PostStepUtils.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -428,7 +427,7 @@ namespace tca {
     // dump a trajectory?
     if (tcc.modes[kDebug] && tcc.dbgDump) DumpTj();
 
-    Finish3DShowers(slc);
+//    Finish3DShowers(slc);
 
     // count algorithm usage
     for (auto& tj : slc.tjs) {

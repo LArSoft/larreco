@@ -18,7 +18,6 @@
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/PostStepUtils.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h" // for tcc
 
 #include <array>
@@ -185,6 +184,7 @@ namespace tca {
 
     // don't do anything if this is test beam data
     if (tcc.modes[kTestBeam]) return;
+    if (tcc.modes[kLEPhys]) return;
 
     // clear old information
     for (auto& tj : slc.tjs) {
@@ -256,7 +256,7 @@ namespace tca {
         neutrinoPFP.Vx3ID[0] = vx3.ID;
         neutrinoPFP.Flags[kNeedsUpdate] = false;
         // the rest of this will be defined later
-        if (!StorePFP(slc, neutrinoPFP)) return;
+        if (!Store(slc, neutrinoPFP)) return;
       }
     } // User wants to make PFParticles
     // a temp vector to ensure that we only consider a vertex once
@@ -3023,6 +3023,20 @@ namespace tca {
   } // KinkSignificance
 
   ////////////////////////////////////////////////
+  bool
+  IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
+  {
+    // Vote for the list of Tjs (assumed associated with a PFParticle) being shower-like
+    if (TjIDs.empty()) return false;
+    unsigned short cnt = 0;
+    for (auto tid : TjIDs) {
+      if (tid <= 0 || tid > (int)slc.tjs.size()) continue;
+      if (slc.tjs[tid - 1].PDGCode == 11) ++cnt;
+    } // tjid
+    return (cnt > 1);
+  } // IsInShower
+
+  ////////////////////////////////////////////////
   float
   ElectronLikelihood(const TCSlice& slc, const Trajectory& tj)
   {
@@ -4484,10 +4498,6 @@ namespace tca {
     if (itj2 > slc.tjs.size() - 1) return false;
     if (slc.tjs[itj1].AlgMod[kKilled] || slc.tjs[itj2].AlgMod[kKilled]) return false;
     if (slc.tjs[itj1].AlgMod[kHaloTj] || slc.tjs[itj2].AlgMod[kHaloTj]) return false;
-
-    // Merging shower Tjs requires merging the showers as well.
-    if (slc.tjs[itj1].AlgMod[kShowerTj] || slc.tjs[itj2].AlgMod[kShowerTj])
-      return MergeShowerTjsAndStore(slc, itj1, itj2, doPrt);
 
     // Ensure that the order of 3D-matched Tjs is consistent with the convention that
     unsigned short pfp1 = GetPFPIndex(slc, slc.tjs[itj1].ID);

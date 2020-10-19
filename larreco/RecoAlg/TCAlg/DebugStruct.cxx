@@ -11,7 +11,6 @@
 #include "lardataobj/RecoBase/Hit.h" // for Hit
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
-#include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h" // for tcc
 
 

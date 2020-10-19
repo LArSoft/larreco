@@ -115,7 +115,6 @@ namespace tca {
                     unsigned short tjEnd,
                     ShowerStruct& ss,
                     bool prt);
-  bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs);
   float InShowerProb(TCSlice& slc, const ShowerStruct3D& ss3, const PFPStruct& pfp);
   float InShowerProb(TCSlice& slc, const ShowerStruct& ss, const Trajectory& tj);
   void ShowerParams(double showerEnergy, double& shMaxAlong, double& shE95Along);

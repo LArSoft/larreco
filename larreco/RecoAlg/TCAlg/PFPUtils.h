@@ -106,7 +106,7 @@ namespace tca {
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void SortByX(std::vector<TP3D>& tp3ds);
-  bool Recover(detinfo::DetectorClocksData const& clockData,
+  void Recover(detinfo::DetectorClocksData const& clockData,
                detinfo::DetectorPropertiesData const& detProp,
                TCSlice& slc, PFPStruct& pfp, bool prt);
   bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc,
@@ -159,7 +159,7 @@ namespace tca {
   PFPStruct CreatePFP(const TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
-  bool StorePFP(TCSlice& slc, PFPStruct& pfp);
+  bool Store(TCSlice& slc, PFPStruct& pfp);
   bool InsideFV(const TCSlice& slc, const PFPStruct& pfp, unsigned short end);
   bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID);
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans);

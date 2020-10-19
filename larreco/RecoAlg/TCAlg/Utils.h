@@ -158,6 +158,7 @@ namespace tca {
                                 const TrajPoint& fromTp,
                                 const TrajPoint& toTp,
                                 const float& maxDelta);
+  bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs);
   float ElectronLikelihood(const TCSlice& slc, const Trajectory& tj);
   float KinkSignificance(TCSlice& slc,
                          Trajectory& tj1,

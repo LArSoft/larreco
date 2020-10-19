@@ -1920,20 +1920,6 @@ namespace tca {
   } // SetParent
 
   ////////////////////////////////////////////////
-  bool
-  IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
-  {
-    // Vote for the list of Tjs (assumed associated with a PFParticle) being shower-like
-    if (TjIDs.empty()) return false;
-    unsigned short cnt = 0;
-    for (auto tid : TjIDs) {
-      if (tid <= 0 || tid > (int)slc.tjs.size()) continue;
-      if (slc.tjs[tid - 1].PDGCode == 11) ++cnt;
-    } // tjid
-    return (cnt > 1);
-  } // IsInShower
-
-  ////////////////////////////////////////////////
   void
   ShowerParams(double showerEnergy, double& shMaxAlong, double& along95)
   {

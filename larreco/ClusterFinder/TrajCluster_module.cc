@@ -31,7 +31,6 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
-#include "larreco/RecoAlg/TCAlg/TCHist.h"
 
 //root includes
 #include "TTree.h"
@@ -809,17 +808,21 @@ namespace cluster {
               // each SpacePoint is associated with one hit
               std::vector<unsigned int> sptsHit;
               fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
-              for(unsigned int isp = 0; isp < spts.size(); ++isp) {
-                sptCol.push_back(spts[isp]);
-              // PFParticle -> SpacePoint
-              if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
-                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate SpacePoint with Track";
-              } // exception
-                // SpacePoint -> Hit
-                if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
-                  throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate Hit with SpacePoint";
-                } // exception
-              } // isp
+              if(!spts.empty()) {
+                for(unsigned int isp = 0; isp < spts.size(); ++isp) {
+                  sptCol.push_back(spts[isp]);
+                  // PFParticle -> SpacePoint
+                  if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
+                    throw art::Exception(art::errors::ProductRegistrationFailure)
+                      << "Failed to associate SpacePoint with Track";
+                  } // exception
+                  // SpacePoint -> Hit
+                  if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
+                    throw art::Exception(art::errors::ProductRegistrationFailure)
+                      << "Failed to associate Hit with SpacePoint";
+                  } // exception
+                } // isp
+              } // !spts.empty()
             } // fMakeTrackSpacePoints
           } // fMakeTracks
 
