@@ -28,7 +28,5 @@ art_make(LIB_LIBRARIES
            ROOT::Tree
            ROOT::TMVA)
 
-add_subdirectory(TCDebugTools)
-
 install_headers()
 install_source()

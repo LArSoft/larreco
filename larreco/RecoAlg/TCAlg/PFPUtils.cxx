@@ -72,12 +72,8 @@ namespace tca {
         if (slc1.ID != slc2.ID) continue;
         for (auto& p1 : slc1.pfps) {
           if (p1.ID <= 0) continue;
-          // Can't stitch shower PFPs
-          if (p1.PDGCode == 1111) continue;
           for (auto& p2 : slc2.pfps) {
             if (p2.ID <= 0) continue;
-            // Can't stitch shower PFPs
-            if (p2.PDGCode == 1111) continue;
             float maxSep2 = tcc.pfpStitchCuts[0];
             float maxCth = tcc.pfpStitchCuts[1];
             bool gotit = false;
@@ -2810,11 +2806,7 @@ namespace tca {
     // Fills dE/dx variables in the pfp struct
     if(!pfp.Flags[kdEdxDefined]) SetTP3DdEdx(clockData, detProp, slc, pfp); 
 
-    // don't attempt to find dE/dx at the end of a shower
-    unsigned short numEnds = 2;
-    if (pfp.PDGCode == 1111) numEnds = 1;
-
-    for (unsigned short end = 0; end < numEnds; ++end) {
+    for (unsigned short end = 0; end < 2; ++end) {
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane)
         pfp.dEdx[end][plane] = 0;
     } // end
@@ -2823,7 +2815,7 @@ namespace tca {
     float maxSep2 = 5 * tcc.wirePitch;
     maxSep2 *= maxSep2;
 
-    for (unsigned short end = 0; end < numEnds; ++end) {
+    for (unsigned short end = 0; end < 2; ++end) {
       std::vector<float> cnt(slc.nPlanes);
       short dir = 1 - 2 * end;
       auto endPos = EndTP3D(pfp, end).Pos;
@@ -3174,17 +3166,18 @@ namespace tca {
 
      */
     if (slc.pfps.empty()) return;
-    if (tcc.modes[kTestBeam]) return;
-    if (tcc.modes[kLEPhys]) return;
+    if (tcc.modes[kModeTestBeam]) return;
+    if (tcc.modes[kModeLEPhysics]) return;
 
     int neutrinoPFPID = 0;
     for (auto& pfp : slc.pfps) {
       if (pfp.ID == 0) continue;
-      if (!tcc.modes[kTestBeam] && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) {
+      if (neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) {
         neutrinoPFPID = pfp.ID;
         break;
       }
     } // pfp
+    if(prt) mf::LogVerbatim("TC") << "DefinePFPParents: neutrino P" << neutrinoPFPID;
 
     // define the end vertex if the Tjs have end vertices
     constexpr unsigned short end1 = 1;
@@ -3267,8 +3260,7 @@ namespace tca {
       if (pfp.TjIDs.empty()) return false;
       if (pfp.PDGCode != 1111 && pfp.TP3Ds.size() < 2) return false;
     }
-    if(neutrinoPFP) mf::LogVerbatim("TC") << "Found Neutrino P" <<pfp.ID<< " in TPC " << slc.TPCID.TPC;
-
+    if(neutrinoPFP) mf::LogVerbatim("TC")<<"found Neutrino PFP P"<<pfp.ID;
     if(pfp.AlgMod[kSmallAng3D]) {
       // Make the PFP -> TP assn
       for(auto& tp3d : pfp.TP3Ds) {

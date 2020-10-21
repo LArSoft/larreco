@@ -336,8 +336,8 @@ namespace tca {
     int ID{0};
     int UID{0};      ///< unique global ID
     int ParentID{0}; // The ID of a parent Tj - the one at the start of the shower
-    int TruParentID{0};
-    int SS3ID{0};           // ID of a ShowerStruct3D to which this 2D shower is matched
+ //   int TruParentID{0};
+//    int SS3ID{0};           // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate{true}; // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
   };
 
@@ -529,17 +529,10 @@ namespace tca {
 
   // TrajClusterAlg configuration bits
   typedef enum {
-    kStepPos,    ///< step from US -> DS (true) or DS -> US (false)
-    kTestBeam,   ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
-    kLEPhysics,  ///< Configure for low energy physics processes
-    kDebug,      ///< master switch for turning on debug mode
-    kStudy1,     ///< call study functions to develop cuts, etc (see TCTruth.cxx)
-    kStudy2,     ///< call study functions to develop cuts, etc
-    kStudy3,     ///< call study functions to develop cuts, etc
-    kShowerTag,  ///< ShowerTag
-    kSaveCRTree, ///< save cosmic ray tree
-    kTagCosmics, ///< tag cosmic rays
-    kSaveShowerTree ///< save shower tree
+    kModeStepPos,    ///< step from US -> DS (true) or DS -> US (false)
+    kModeTestBeam,   ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
+    kModeLEPhysics,  ///< Configure for low energy physics processes
+    kModeDebug,      ///< master switch for turning on debug mode
   } TCModes_t;
 
   extern const std::vector<std::string> AlgBitNames;
@@ -672,10 +665,6 @@ namespace tca {
     std::vector<VtxStore> vtxs;   ///< 2D vertices
     std::vector<Vtx3Store> vtx3s; ///< 3D vertices
     std::vector<PFPStruct> pfps;
-    std::vector<ShowerStruct> cots; // Clusters of Trajectories that define 2D showers
-    std::vector<DontClusterStruct>
-      dontCluster;                       // pairs of Tjs that shouldn't clustered in one shower
-    std::vector<ShowerStruct3D> showers; // 3D showers
     bool isValid{false};                 // set false if this slice failed reconstruction
   };
 

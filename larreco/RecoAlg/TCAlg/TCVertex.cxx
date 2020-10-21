@@ -311,7 +311,7 @@ namespace tca {
           if (!TrajClosestApproach(tj1, wint, tint, closePt1, doca1)) continue;
           // dpt1 (and dpt2) will be 0 if the vertex is at the end
           short stepDir = -1;
-          if (tcc.modes[kStepPos]) stepDir = 1;
+          if (tcc.modes[kModeStepPos]) stepDir = 1;
           short dpt1 = stepDir * (closePt1 - endPt1);
           if (dpt1 < -1) continue;
           short dptCut = 3;
@@ -767,7 +767,7 @@ namespace tca {
 
     if(!tcc.useAlg[kLEPhys]) return;
     if (!tcc.useAlg[kDecayVx]) return;
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kDecayVx]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kDecayVx]);
     if (prt) mf::LogVerbatim("TC") << "Inside MakeDecayVertices in CTP "<<inCTP;
 
     unsigned short plane = DecodeCTP(inCTP).Plane;
@@ -902,9 +902,9 @@ namespace tca {
 
     if (!tcc.useAlg[kHamVx2]) return;
     // This wasn't written for test beam events
-    if (tcc.modes[kTestBeam]) return;
+    if (tcc.modes[kModeTestBeam]) return;
 
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx2]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx2]);
     if (prt) mf::LogVerbatim("TC") << "Inside HamVx2";
 
     for (unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
@@ -1094,7 +1094,7 @@ namespace tca {
 
     if (!tcc.useAlg[kHamVx]) return;
 
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx]);
     if (prt) { mf::LogVerbatim("TC") << "Inside HamVx inCTP " << inCTP; }
 
     for (unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
@@ -1217,7 +1217,7 @@ namespace tca {
 
     constexpr float docaCut = 4;
 
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kSplitTjCVx]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kSplitTjCVx]);
     if (prt) mf::LogVerbatim("TC") << "Inside SplitTrajCrossingVertices inCTP " << inCTP;
 
     geo::PlaneID planeID = DecodeCTP(inCTP);
@@ -1596,7 +1596,7 @@ namespace tca {
 
     for (unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if (slc.vtxs[ivx].ID <= 0) continue;
-      if (!tcc.useAlg[kLEPhys] && slc.vtxs[ivx].Score < 0.5 * tcc.vtx2DCuts[7]) continue;
+      if (!tcc.useAlg[kNewCuts] && slc.vtxs[ivx].Score < 0.5 * tcc.vtx2DCuts[7]) continue;
       if (slc.vtxs[ivx].Pos[0] < -0.4) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       // Convert 2D vertex time error to X error
@@ -2493,7 +2493,6 @@ namespace tca {
     // kill 2D vertices that have low score and are not attached to a high-score 3D vertex
     if (slc.vtxs.empty()) return;
     if (tcc.vtxScoreWeights[0] < 0) return;
-    if (tcc.modes[kLEPhysics]) return;
 
     for (auto& vx : slc.vtxs) {
       if (vx.ID == 0) continue;
@@ -2719,7 +2718,7 @@ namespace tca {
     if (!tcc.useAlg[kComp3DVxIG]) return;
     if (slc.nPlanes != 3) return;
 
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVxIG]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVxIG]);
     if (prt) mf::LogVerbatim("TC") << "Inside CI3DVIG:";
 
     for (unsigned short iv3 = 0; iv3 < slc.vtx3s.size(); ++iv3) {
@@ -2816,7 +2815,7 @@ namespace tca {
     if (!tcc.useAlg[kComp3DVx]) return;
     if (slc.nPlanes != 3) return;
 
-    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVx]);
+    bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVx]);
 
     float maxdoca = 3;
     if (prt) mf::LogVerbatim("TC") << "Inside CI3DV with maxdoca set to " << maxdoca;

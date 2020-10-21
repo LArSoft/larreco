@@ -66,22 +66,22 @@ namespace tca {
     } // ib
     if (strng.find("3V") == 0) {
       tcc.dbg3V = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     if (strng.find("3S") != std::string::npos) {
       tcc.dbg3S = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     if (strng.find("Stitch") != std::string::npos) {
       tcc.dbgStitch = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     if (strng.find("Sum") != std::string::npos) {
       tcc.dbgSummary = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
 
@@ -95,7 +95,7 @@ namespace tca {
       debug.Wire = std::stoi(words[3]);
       debug.Tick = std::stoi(words[4]);
       debug.CTP = EncodeCTP(debug.Cryostat, debug.TPC, debug.Plane);
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       tcc.dbgStp = true;
       // also dump this tj
       tcc.dbgDump = true;
@@ -103,7 +103,7 @@ namespace tca {
     } // nums.size() == 5
     if (words[0] == "PFP" || words[0] == "MVI") {
       tcc.dbgPFP = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       // Use debug.Hit to identify the matchVec index
       if (words.size() > 2) {
         debug.MVI = std::stoi(words[1]);
@@ -111,15 +111,6 @@ namespace tca {
       }
       return true;
     } // PFP
-    if (words.size() == 2 && words[0] == "ShowerTag") {
-      tcc.modes[kShowerTag] = true;
-      debug.CTP = std::stoi(words[1]);
-      auto plnID = DecodeCTP(debug.CTP);
-      debug.Cryostat = plnID.Cryostat;
-      debug.TPC = plnID.TPC;
-      debug.Plane = plnID.Plane;
-      return true;
-    } // ShowerTag
     if (words.size() == 2 && words[0] == "CTP") {
       debug.CTP = std::stoi(words[1]);
       auto plnID = DecodeCTP(debug.CTP);
@@ -131,7 +122,7 @@ namespace tca {
     if (words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
       debug.Slice = 0;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       tcc.dbgDump = true;
       return true;
     }
@@ -141,14 +132,14 @@ namespace tca {
       // default to sub-slice index 0
       debug.Slice = 0;
       if (words.size() > 2) debug.Slice = std::stoi(words[2]);
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       // dbgStp is set true after debug.WorkID is found
       tcc.dbgStp = false;
       return true;
     } // words.size() == 3 && words[0] == "WorkID"
     if (words.size() == 3 && words[0] == "Reco" && words[1] == "TPC") {
       tcc.recoTPC = std::stoi(words[2]);
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       std::cout << "Reconstructing only in TPC " << tcc.recoTPC << "\n";
       return true;
     }
@@ -165,14 +156,14 @@ namespace tca {
       debug.Wire = std::stoi(words[1]);
       debug.Tick = std::stoi(words[2]);
       debug.CTP = EncodeCTP(debug.Cryostat, debug.TPC, debug.Plane);
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       tcc.dbgStp = true;
       return true;
     }
     if (words.size() == 2 && words[0] == "Merge") {
       debug.CTP = std::stoi(words[1]);
       tcc.dbgMrg = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     if (words.size() == 2 && words[0] == "2V") {
@@ -182,13 +173,13 @@ namespace tca {
       debug.TPC = plnID.TPC;
       debug.Plane = plnID.Plane;
       tcc.dbg2V = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     if (words.size() == 2 && words[0] == "2S") {
       debug.CTP = std::stoi(words[1]);
       tcc.dbg2S = true;
-      tcc.modes[kDebug] = true;
+      tcc.modes[kModeDebug] = true;
       return true;
     }
     // Slice could apply to several debug options.
@@ -320,14 +311,14 @@ namespace tca {
     }
     std::cout << "\n";
     std::cout << "TrajCluster configuration modes:";
-    if(tcc.modes[kStepPos]) {
+    if(tcc.modes[kModeStepPos]) {
       std::cout << " StepPos"; 
     } else {
        std::cout << " StepNeg";
     }
-    if(tcc.modes[kTestBeam]) {
+    if(tcc.modes[kModeTestBeam]) {
       std::cout<<", TestBeam";
-    } else if(tcc.modes[kLEPhysics]) {
+    } else if(tcc.modes[kModeLEPhysics]) {
       std::cout<<", LEPhysics";
     } else {
       std::cout<<", Neutrino (default)";
@@ -342,7 +333,6 @@ namespace tca {
     bool prt2V = false;
     bool prtT = false;
     bool prtP = false;
-    bool prtS3 = false;
     for (size_t isl = 0; isl < slices.size(); ++isl) {
       if (debug.Slice >= 0 && int(isl) != debug.Slice) continue;
       auto& slc = slices[isl];
@@ -350,24 +340,11 @@ namespace tca {
       if (!slc.vtxs.empty()) prt2V = true;
       if (!slc.tjs.empty()) prtT = true;
       if (!slc.pfps.empty()) prtP = true;
-      if (!slc.showers.empty()) prtS3 = true;
     } // slc
     mf::LogVerbatim myprt("TC");
     myprt << "Debug report from caller " << someText << "\n";
     someText = "";
     myprt << " 'prodID' = <sliceID>:<subSliceIndex>:<productID>/<productUID>\n";
-    if (prtS3) {
-      myprt << "************ Showers ************\n";
-      myprt << "     prodID      Vtx  parUID  ___ChgPos____ ______Dir_____ ____posInPln____ "
-               "___projInPln____ 2D shower UIDs\n";
-      for (size_t isl = 0; isl < slices.size(); ++isl) {
-        if (debug.Slice >= 0 && int(isl) != debug.Slice) continue;
-        auto& slc = slices[isl];
-        if (slc.showers.empty()) continue;
-        for (auto& ss3 : slc.showers)
-          Print3S(detProp, someText, myprt, ss3);
-      } // slc
-    }   // prtS3
     if (prtP) {
       bool printHeader = true;
       for (size_t isl = 0; isl < slices.size(); ++isl) {
@@ -377,7 +354,7 @@ namespace tca {
         for (auto& pfp : slc.pfps)
           PrintP(someText, myprt, pfp, printHeader);
       } // slc
-    }   // prtS3
+    }   // prtP
     if (prt3V) {
       bool printHeader = true;
       for (size_t isl = 0; isl < slices.size(); ++isl) {
@@ -625,47 +602,6 @@ namespace tca {
       if (vx2.Stat[ib]) myprt << " " << VtxBitNames[ib];
     myprt << "\n";
   } // Print2V
-
-  ////////////////////////////////////////////////
-  void
-  Print3S(detinfo::DetectorPropertiesData const& detProp,
-          std::string someText,
-          mf::LogVerbatim& myprt,
-          ShowerStruct3D& ss3)
-  {
-    if (ss3.ID <= 0) return;
-    auto sIndx = GetSliceIndex("3S", ss3.UID);
-    if (sIndx.first == USHRT_MAX) return;
-    auto& slc = slices[sIndx.first];
-    std::string str =
-      std::to_string(slc.ID) + ":" + std::to_string(sIndx.first) + ":" + std::to_string(ss3.ID);
-    str += "/" + std::to_string(ss3.UID);
-    myprt << std::fixed << std::setw(12) << str;
-    str = "--";
-    if (ss3.Vx3ID > 0) str = "3V" + std::to_string(slc.vtx3s[ss3.Vx3ID - 1].UID);
-    myprt << std::setw(6) << str;
-    for (unsigned short xyz = 0; xyz < 3; ++xyz)
-      myprt << std::setprecision(0) << std::setw(5) << ss3.ChgPos[xyz];
-    for (unsigned short xyz = 0; xyz < 3; ++xyz)
-      myprt << std::setprecision(2) << std::setw(5) << ss3.Dir[xyz];
-    std::vector<float> projInPlane(slc.nPlanes);
-    for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-      auto tp = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, inCTP);
-      myprt << " " << PrintPos(slc, tp.Pos);
-      projInPlane[plane] = tp.Delta;
-    } // plane
-    for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      myprt << std::setprecision(2) << std::setw(5) << projInPlane[plane];
-    } // plane
-    for (auto cid : ss3.CotIDs) {
-      auto& ss = slc.cots[cid - 1];
-      str = "2SU" + std::to_string(ss.UID);
-      myprt << std::setw(5) << str;
-    } // ci
-    if (ss3.NeedsUpdate) myprt << " *** Needs update";
-    myprt << "\n";
-  } // Print3S
 
   ////////////////////////////////////////////////
   void
@@ -1009,49 +945,6 @@ namespace tca {
       PrintTPHeader(someText);
       for (unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt)
         PrintTP(someText, slc, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
-      // See if this trajectory is a shower Tj
-      if (tj.AlgMod[kShowerTj]) {
-        for (unsigned short ic = 0; ic < slc.cots.size(); ++ic) {
-          if (slc.cots[ic].TjIDs.empty()) continue;
-          // only print out the info for the correct Tj
-          if (slc.cots[ic].ShowerTjID != tj.ID) continue;
-          const ShowerStruct& ss = slc.cots[ic];
-          mf::LogVerbatim myprt("TC");
-          myprt << "cots index " << ic << " ";
-          myprt << someText << " Envelope";
-          if (ss.Envelope.empty()) { myprt << " NA"; }
-          else {
-            for (auto& vtx : ss.Envelope)
-              myprt << " " << (int)vtx[0] << ":" << (int)(vtx[1] / tcc.unitsPerTick);
-          }
-          myprt << " Energy " << (int)ss.Energy;
-          myprt << " Area " << std::fixed << std::setprecision(1) << (int)ss.EnvelopeArea
-                << " ChgDensity " << ss.ChgDensity;
-          myprt << "\nInShower TjIDs";
-          for (auto& tjID : ss.TjIDs) {
-            myprt << " " << tjID;
-          } // tjID
-
-          myprt << "\n";
-          myprt << "NearTjIDs";
-          for (auto& tjID : ss.NearTjIDs) {
-            myprt << " " << tjID;
-          } // tjID
-          myprt << "\n";
-          myprt << "\n";
-          myprt << "Angle " << std::fixed << std::setprecision(2) << ss.Angle << " +/- "
-                << ss.AngleErr;
-          myprt << " AspectRatio " << std::fixed << std::setprecision(2) << ss.AspectRatio;
-          myprt << " DirectionFOM " << std::fixed << std::setprecision(2) << ss.DirectionFOM;
-          if (ss.ParentID > 0) { myprt << " Parent Tj " << ss.ParentID << " FOM " << ss.ParentFOM; }
-          else {
-            myprt << " No parent";
-          }
-          myprt << " TruParentID " << ss.TruParentID << " SS3ID " << ss.SS3ID << "\n";
-          if (ss.NeedsUpdate) myprt << "*********** This shower needs to be updated ***********";
-          myprt << "................................................";
-        } // ic
-      }   // Shower Tj
     }
     else {
       // just print one traj point

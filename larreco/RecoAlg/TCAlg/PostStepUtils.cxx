@@ -1102,7 +1102,7 @@ namespace tca {
 
     // Ensure that all tjs are in the same order
     short tccStepDir = 1;
-    if(!tcc.modes[kStepPos]) tccStepDir = -1;
+    if(!tcc.modes[kModeStepPos]) tccStepDir = -1;
     for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != inCTP) continue;
@@ -2045,7 +2045,6 @@ namespace tca {
     if (slc.tjs.size() > 20000) return;
     float typicalChgRMS = 0.5 * (tcc.chargeCuts[1] + tcc.chargeCuts[2]);
 
-    bool prt = (tcc.modes[kShowerTag] && inCTP == debug.CTP);
     unsigned int minClusterSize = tcc.showerTag[2];
 
     // clear out old tags and make a list of Tjs to consider
@@ -2077,12 +2076,6 @@ namespace tca {
       tjids.push_back(tj.ID);
     } // tj
     if (tjids.size() < minClusterSize) return;
-
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt << "TagShowerLike candidates";
-      for (auto tid : tjids) myprt << " T" << tid;
-    } // prt
 
     for (unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
       Trajectory& tj1 = slc.tjs[tjids[it1] - 1];
@@ -2130,17 +2123,6 @@ namespace tca {
         tj.PDGCode = 11;
       } // tjid
     }   // tjl
-
-    if (prt) {
-      unsigned short nsh = 0;
-      for (auto& tjl : tjLists) {
-        for (auto& tjID : tjl) {
-          auto& tj = slc.tjs[tjID - 1];
-          if (tj.PDGCode == 11) ++nsh;
-        } // tjid
-      }   // tjl
-      mf::LogVerbatim("TC") << "TagShowerLike tagged " << nsh << " Tjs vertices in CTP " << inCTP;
-    } // prt
   }   // TagShowerLike
 
 } // namespace

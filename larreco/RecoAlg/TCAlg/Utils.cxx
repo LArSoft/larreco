@@ -183,8 +183,8 @@ namespace tca {
 */
 
     // don't do anything if this is test beam data
-    if (tcc.modes[kTestBeam]) return;
-    if (tcc.modes[kLEPhys]) return;
+    if (tcc.modes[kModeTestBeam]) return;
+    if (tcc.modes[kModeLEPhysics]) return;
 
     // clear old information
     for (auto& tj : slc.tjs) {
@@ -193,6 +193,7 @@ namespace tca {
       if (tj.AlgMod[kDeltaRay] || tj.AlgMod[kHaloTj]) continue;
       tj.ParentID = 0;
     } // tj
+    mf::LogVerbatim("TC")<<"inside DefineTJParents";
 
     // sort vertice by decreasing score
     std::vector<int> temp;
@@ -256,6 +257,7 @@ namespace tca {
         neutrinoPFP.Vx3ID[0] = vx3.ID;
         neutrinoPFP.Flags[kNeedsUpdate] = false;
         // the rest of this will be defined later
+        mf::LogVerbatim("TC")<<"store neutrinoPFP";
         if (!Store(slc, neutrinoPFP)) return;
       }
     } // User wants to make PFParticles
@@ -1174,7 +1176,7 @@ namespace tca {
     // Don't clobber the ParentID if it was defined by the calling function
     if (tj.ParentID == 0) tj.ParentID = trID;
     slc.tjs.push_back(tj);
-    if (tcc.modes[kDebug] && tcc.dbgSlc && debug.Hit != UINT_MAX) {
+    if (tcc.modes[kModeDebug] && tcc.dbgSlc && debug.Hit != UINT_MAX) {
       // print some debug info
       for (unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
         for (unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
@@ -2567,13 +2569,6 @@ namespace tca {
     // Put hits (which are indexed into slHits) in each trajectory point into a flat vector
     std::vector<unsigned int> hitVec;
 
-    // special handling for shower trajectories. UseHit isn't valid
-    if (tj.AlgMod[kShowerTj]) {
-      for (auto& tp : tj.Pts)
-        hitVec.insert(hitVec.end(), tp.Hits.begin(), tp.Hits.end());
-      return hitVec;
-    } // shower Tj
-
     // reserve under the assumption that there will be one hit per point
     hitVec.reserve(tj.Pts.size());
     for (unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -3238,9 +3233,6 @@ namespace tca {
   SetEndPoints(Trajectory& tj)
   {
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
-
-    // don't mess with showerTjs or halo tjs
-    if (tj.AlgMod[kShowerTj] || tj.AlgMod[kHaloTj]) return;
 
     tj.EndPt[0] = 0;
     tj.EndPt[1] = 0;
@@ -4262,7 +4254,7 @@ namespace tca {
       } // cnt too low
     }   // plane
 
-    if (tcc.modes[kDebug]) {
+    if (tcc.modes[kModeDebug]) {
       std::cout << "Analyze hits aveHitRMS";
       std::cout << std::fixed << std::setprecision(1);
       for (auto rms : evt.aveHitRMS)
@@ -4352,7 +4344,7 @@ namespace tca {
       if (evt.wireHitRange[pln][wire].first == UINT_MAX) evt.wireHitRange[pln][wire].first = iht;
       evt.wireHitRange[pln][wire].second = iht;
     } // iht
-    if (nBadWireFix > 0 && tcc.modes[kDebug]) {
+    if (nBadWireFix > 0 && tcc.modes[kModeDebug]) {
       std::cout << "FillWireHitRange found hits on " << nBadWireFix
                 << " wires that were declared not-good by the ChannelStatus service. Fixed it...\n";
     }
@@ -4459,7 +4451,7 @@ namespace tca {
     }   // plane
 
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if (tcc.modes[kDebug] && (int)tpc == debug.TPC) {
+    if (tcc.modes[kModeDebug] && (int)tpc == debug.TPC) {
       // Note that this function is called before the slice is pushed into slices so the index
       // isn't decremented by 1
       std::cout << "Slice ID/Index " << slc.ID << "/" << slices.size() << " tpc " << tpc
@@ -4682,27 +4674,6 @@ namespace tca {
       return tmp;
     } // P -> T
 
-    if (type1Name == "P" && uid <= slc.pfps.size() && (type2Name == "2S" || type2Name == "3S")) {
-      // return a list of 3D or 2D showers with the assn 3S -> 2S -> T -> P<ID> or 2S -> T -> P.
-      auto& pfp = slc.pfps[uid - 1];
-      // First form a list of 2S -> T -> P<ID>
-      std::vector<int> ssid;
-      for (auto& ss : slc.cots) {
-        if (ss.ID <= 0) continue;
-        auto shared = SetIntersection(ss.TjIDs, pfp.TjIDs);
-        if (!shared.empty() && std::find(ssid.begin(), ssid.end(), ss.ID) == ssid.end())
-          ssid.push_back(ss.ID);
-      } // ss
-      if (type2Name == "2S") return ssid;
-      for (auto& ss3 : slc.showers) {
-        if (ss3.ID <= 0) continue;
-        auto shared = SetIntersection(ss3.CotIDs, ssid);
-        if (!shared.empty() && std::find(tmp.begin(), tmp.end(), ss3.ID) == tmp.end())
-          tmp.push_back(ss3.ID);
-      } // ss3
-      return tmp;
-    } // 3S -> 2S -> T -> P
-
     if (type1Name == "2V" && uid <= slc.vtxs.size() && type2Name == "T") {
       // 2V -> T
       for (auto& tj : slc.tjs) {
@@ -4751,65 +4722,6 @@ namespace tca {
       return tmp;
     } // 3V -> 2V
 
-    if (type1Name == "3S" && uid <= slc.showers.size() && type2Name == "T") {
-      // 3S -> T
-      auto& ss3 = slc.showers[uid - 1];
-      if (ss3.ID == 0) return tmp;
-      for (auto cid : ss3.CotIDs) {
-        auto& ss = slc.cots[cid - 1];
-        if (ss.ID == 0) continue;
-        tmp.insert(tmp.end(), ss.TjIDs.begin(), ss.TjIDs.end());
-      } // cid
-      return tmp;
-    } // 3S -> T
-
-    // This isn't strictly necessary but do it for consistency
-    if (type1Name == "2S" && uid <= slc.cots.size() && type2Name == "T") {
-      // 2S -> T
-      auto& ss = slc.cots[uid - 1];
-      return ss.TjIDs;
-    } // 2S -> T
-
-    if (type1Name == "3S" && uid <= slc.showers.size() && type2Name == "P") {
-      // 3S -> P
-      auto& ss3 = slc.showers[uid - 1];
-      if (ss3.ID == 0) return tmp;
-      for (auto cid : ss3.CotIDs) {
-        auto& ss = slc.cots[cid - 1];
-        if (ss.ID == 0) continue;
-        for (auto tid : ss.TjIDs) {
-          auto& tj = slc.tjs[tid - 1];
-          if (tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
-          if (!tj.AlgMod[kMat3D]) continue;
-          for (auto& pfp : slc.pfps) {
-            if (pfp.ID <= 0) continue;
-            if (std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tj.ID) == pfp.TjIDs.end()) continue;
-            if (std::find(tmp.begin(), tmp.end(), pfp.ID) == tmp.end()) tmp.push_back(pfp.ID);
-          } // pf
-        }   // tid
-      }     // cid
-      return tmp;
-    } // 3S -> P
-
-    if (type1Name == "T" && uid <= slc.tjs.size() && type2Name == "2S") {
-      // T -> 2S
-      for (auto& ss : slc.cots) {
-        if (ss.ID == 0) continue;
-        if (std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) != ss.TjIDs.end()) tmp.push_back(ss.ID);
-      } // ss
-      return tmp;
-    } // T -> 2S
-
-    if (type1Name == "T" && uid <= slc.tjs.size() && type2Name == "3S") {
-      // T -> 3S
-      for (auto& ss : slc.cots) {
-        if (ss.ID == 0) continue;
-        if (std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) == ss.TjIDs.end()) continue;
-        if (ss.SS3ID > 0) tmp.push_back(ss.SS3ID);
-      } // ss
-      return tmp;
-    } // T -> 3S
-
     return tmp;
   } // GetAssns
 
@@ -4833,7 +4745,7 @@ namespace tca {
     bool success = StartTraj(slc, tj, fromWire, fromTick, toWire, toTick, tCTP, pass);
     if (!success) return false;
     // turn on debugging using the WorkID?
-    if (tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID)
+    if (tcc.modes[kModeDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID)
       tcc.dbgStp = true;
     if (tcc.dbgStp) {
       auto& tp = tj.Pts[0];
@@ -4886,7 +4798,7 @@ namespace tca {
     tp.AngErr = 0.1;
     tj.Pts.push_back(tp);
     // turn on debugging using the WorkID?
-    if (tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID)
+    if (tcc.modes[kModeDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID)
       tcc.dbgStp = true;
     if (tcc.dbgStp) {
       auto& tp = tj.Pts[0];
@@ -4927,16 +4839,6 @@ namespace tca {
           if (slc.vtx3s[indx].UID == uID) { return std::make_pair(isl, indx); }
         }
       } // 3V
-      if (typeName == "2S") {
-        for (unsigned short indx = 0; indx < slc.cots.size(); ++indx) {
-          if (slc.cots[indx].UID == uID) { return std::make_pair(isl, indx); }
-        }
-      } // 2S
-      if (typeName == "3S") {
-        for (unsigned short indx = 0; indx < slc.showers.size(); ++indx) {
-          if (slc.showers[indx].UID == uID) { return std::make_pair(isl, indx); }
-        }
-      } // T
     }   // isl
     return std::make_pair(USHRT_MAX, USHRT_MAX);
   } // GetSliceIndex

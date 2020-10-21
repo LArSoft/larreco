@@ -36,20 +36,6 @@ namespace tca {
     tcc.doForecast = true;
     if (pset.has_key("DoForecast")) tcc.doForecast = pset.get<bool>("DoForecast");
     if (pset.has_key("UseChannelStatus")) tcc.useChannelStatus = pset.get<bool>("UseChannelStatus");
-    if (pset.has_key("StudyMode")) {
-      std::cout << "StudyMode is not valid anymore. Try Study: 1 or Study: 2, etc/n";
-    } // old StudyMode
-    if (pset.has_key("Study")) {
-      std::string userMode;
-      userMode = pset.get<short>("Study");
-      if (userMode == 1) tcc.modes[kStudy1] = true;
-      if (userMode == 2) tcc.modes[kStudy2] = true;
-      if (userMode == 3) tcc.modes[kStudy3] = true;
-    } // new Study mode
-    if (pset.has_key("SaveShowerTree"))
-      tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
-    if (pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
-    if (pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
     std::vector<std::string> skipAlgsVec;
     if (pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
     std::vector<std::string> debugConfigVec;
@@ -99,16 +85,16 @@ namespace tca {
     std::string mode = "";
     pset.get_if_present<std::string>("Mode", mode);
     // Set the normal stepping mode Pos (lower wire number to higher wire number)
-    tcc.modes[kStepPos] = true;
+    tcc.modes[kModeStepPos] = true;
     // Turn off LEPhys useAlg for "normal" old reconstruction
-    tcc.useAlg[kLEPhys] = true;
+    tcc.useAlg[kModeLEPhysics] = true;
     if(mode.length() > 0) {
       bool okEntry = false;
       if(mode.find("TestBeam") == 0) {
-        tcc.modes[kTestBeam] = true;
+        tcc.modes[kModeTestBeam] = true;
         okEntry = true;
       } else if(mode.find("LEPhysics") == 0) {
-        tcc.modes[kLEPhysics] = true;
+        tcc.modes[kModeLEPhysics] = true;
         tcc.useAlg[kLEPhys] = true;
         okEntry = true;
       }
@@ -216,7 +202,7 @@ namespace tca {
 
     // configure algorithm debugging. Configuration for debugging standard stepping
     // is done in Utils/AnalyzeHits when the input hit collection is passed to SetInputHits
-    tcc.modes[kDebug] = false;
+    tcc.modes[kModeDebug] = false;
     tcc.dbgAlg.reset();
     for (auto strng : debugConfigVec) {
       // try to interpret this as a C:T:P:W:Tick specification or something similar
@@ -225,12 +211,12 @@ namespace tca {
         for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
           if (strng == AlgBitNames[ib]) {
             tcc.dbgAlg[ib] = true;
-            tcc.modes[kDebug] = true;
+            tcc.modes[kModeDebug] = true;
             break;
           }
         } // ib
         // print some instructions and quit if there was a failure
-        if (!tcc.modes[kDebug]) {
+        if (!tcc.modes[kModeDebug]) {
           std::cout << "DecodeDebugString failed: " << strng << "\n";
           DecodeDebugString("instruct");
           exit(1);
@@ -332,7 +318,7 @@ namespace tca {
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
 
-    if(tcc.modes[kDebug] && evt.eventsProcessed == 0) PrintDebugMode();
+    if(tcc.modes[kModeDebug] && evt.eventsProcessed == 0) PrintDebugMode();
     ++evt.eventsProcessed;
 
     return AnalyzeHits();
@@ -408,26 +394,13 @@ namespace tca {
       DefinePFPParents(slc, false);
     } // 3D matching requested
     KillPoorVertices(slc);
-/*
-    // Use 3D matching information to find showers in 2D. FindShowers3D returns
-    // true if the algorithm was successful indicating that the matching needs to be redone
-    if (tcc.showerTag[0] == 2 || tcc.showerTag[0] == 4) {
-      FindShowers3D(detProp, slc);
-      if (tcc.modes[kSaveShowerTree]) {
-        std::cout << "SHOWER TREE STAGE NUM SIZE: " << stv.StageNum.size() << std::endl;
-        showertree->Fill();
-      }
-    } // 3D shower code
-*/
     if (!slc.isValid) {
       mf::LogVerbatim("TC") << "RunTrajCluster failed in MakeAllTrajClusters";
       return;
     }
 
     // dump a trajectory?
-    if (tcc.modes[kDebug] && tcc.dbgDump) DumpTj();
-
-//    Finish3DShowers(slc);
+    if (tcc.modes[kModeDebug] && tcc.dbgDump) DumpTj();
 
     // count algorithm usage
     for (auto& tj : slc.tjs) {
@@ -464,7 +437,7 @@ namespace tca {
         // decide which way to step given the sign of StepDir
         unsigned int iwire = 0;
         unsigned int jwire = 0;
-        if (tcc.modes[kStepPos]) {
+        if (tcc.modes[kModeStepPos]) {
           // step DS
           iwire = slc.firstWire[plane] + ii;
           jwire = iwire + 1;
@@ -489,7 +462,7 @@ namespace tca {
           return;
         }
         for (unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
-          tcc.dbgStp = (tcc.modes[kDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
+          tcc.dbgStp = (tcc.modes[kModeDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
           if (tcc.dbgStp) {
             mf::LogVerbatim("TC") << "+++++++ Pass " << pass << " Found debug hit "
                                   << slices.size() - 1 << ":" << PrintHit(slc.slHits[iht])
@@ -669,7 +642,7 @@ namespace tca {
           if (!tp.UseHit[ii]) continue;
           unsigned int iht = tp.Hits[ii];
           if (slc.slHits[iht].InTraj == 0) ++nAvailable;
-          tcc.dbgStp = (tcc.modes[kDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
+          tcc.dbgStp = (tcc.modes[kModeDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
           if (tcc.dbgStp) {
             mf::LogVerbatim("TC") << "+++++++ Seed debug hit " << slices.size() - 1 << ":"
                                   << PrintHit(slc.slHits[iht]) << " iht " << iht;
@@ -827,7 +800,7 @@ namespace tca {
           GetHitMultiplet(slc, iht, iHits, true);
         }
         prt =
-          (tcc.modes[kDebug] && std::find(iHits.begin(), iHits.end(), debug.Hit) != iHits.end());
+          (tcc.modes[kModeDebug] && std::find(iHits.begin(), iHits.end(), debug.Hit) != iHits.end());
         if (prt) mf::LogVerbatim("TC") << "FJT: debug iht multiplet size " << iHits.size();
         if (iHits.empty()) continue;
         for (unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
@@ -1314,10 +1287,10 @@ namespace tca {
     if (!FillWireHitRange(clockData, detProp, slc)) return false;
     slc.isValid = true;
     slices.push_back(slc);
-    if (tcc.modes[kDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {
+    if (tcc.modes[kModeDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {
       tcc.dbgSlc = ((int)(slices.size() - 1) == debug.Slice);
       if (tcc.dbgSlc) std::cout << "Enabled debugging in sub-slice " << slices.size() - 1 << "\n";
-      if (tcc.modes[kDebug] && (unsigned int)debug.Cryostat == cstat &&
+      if (tcc.modes[kModeDebug] && (unsigned int)debug.Cryostat == cstat &&
           (unsigned int)debug.TPC == tpc && debug.Plane >= 0) {
         debug.CTP = EncodeCTP(
           (unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
