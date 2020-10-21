@@ -1,7 +1,6 @@
 #include "showeralgorithms.fcl"
 #include "clusteralgorithms.fcl"
 #include "calorimetry.fcl" 
-#include "showertools.fcl" 
 
 BEGIN_PROLOG
 
@@ -124,32 +123,5 @@ standard_neutrinoshowereff:
     FidVolCutY:		      10
     FidVolCutZ:		      10	
 }
-
-standard_tracs_shower: {
-
-    module_type: "TRACS"
-
-    ShowerFinderTools: [
-         @local::showerpfpvertexstartposition,
-         @local::showerpcadirection,
-         @local::showerlinearenergy,
-         @local::shower3Dtrackhitfinder, 
-         @local::showerpmatrackfinder,
-         @local::showerstandardcalodedx
-          ]
-
-    PFParticleModuleLabel:      "pandora"
-    SecondInteration:           false
-    AllowPartialShowers:        false
-    Verbose:                    false
-    
-    ShowerStartPositionLabel: "ShowerStartPosition"
-    ShowerDirectionLabel:     "ShowerDirection"
-    ShowerEnergyLabel:        "ShowerEnergy"
-    ShowerLengthLabel:        "ShowerLength"
-    ShowerdEdxLabel:          "ShowerdEdx"
-    ShowerBestPlaneLabel:     "ShowerBestPlane"
-}
-
 
 END_PROLOG

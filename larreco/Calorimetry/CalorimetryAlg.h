@@ -79,6 +79,28 @@ namespace calo {
                     unsigned int plane,
                     double T0 = 0) const;
 
+    double dEdx_AMP(detinfo::DetectorClocksData const& clock_data,
+                    detinfo::DetectorPropertiesData const& det_prop,
+                    recob::Hit const& hit,
+                    double pitch,
+                    double T0,
+                    double EField) const;
+    double dEdx_AMP(detinfo::DetectorClocksData const& clock_data,
+                    detinfo::DetectorPropertiesData const& det_prop,
+                    double dQ,
+                    double time,
+                    double pitch,
+                    unsigned int plane,
+                    double T0,
+                    double EField) const;
+    double dEdx_AMP(detinfo::DetectorClocksData const& clock_data,
+                    detinfo::DetectorPropertiesData const& det_prop,
+                    double dQdx,
+                    double time,
+                    unsigned int plane,
+                    double T0,
+                    double EField) const;
+
     // FIXME: How may of these are actually used?
     double dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
                      detinfo::DetectorPropertiesData const& det_prop,
@@ -98,6 +120,28 @@ namespace calo {
                      double time,
                      unsigned int plane,
                      double T0 = 0) const;
+
+    double dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
+                     detinfo::DetectorPropertiesData const& det_prop,
+                     recob::Hit const& hit,
+                     double pitch,
+                     double T0,
+                     double EField) const;
+    double dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
+                     detinfo::DetectorPropertiesData const& det_prop,
+                     double dQ,
+                     double time,
+                     double pitch,
+                     unsigned int plane,
+                     double T0,
+                     double EField) const;
+    double dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
+                     detinfo::DetectorPropertiesData const& det_prop,
+                     double dQdx,
+                     double time,
+                     unsigned int plane,
+                     double T0,
+                     double EField) const;
 
     double
     ElectronsFromADCPeak(double adc, unsigned short plane) const
@@ -124,6 +168,12 @@ namespace calo {
                             double dQdx_e,
                             double time,
                             double T0 = 0) const;
+    double dEdx_from_dQdx_e(detinfo::DetectorClocksData const& clock_data,
+                            detinfo::DetectorPropertiesData const& det_prop,
+                            double dQdx_e,
+                            double time,
+                            double T0,
+                            double EField) const;
 
     std::vector<double> const fCalAmpConstants;
     std::vector<double> const fCalAreaConstants;
