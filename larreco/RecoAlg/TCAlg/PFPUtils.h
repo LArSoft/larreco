@@ -136,13 +136,12 @@ namespace tca {
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp);
+  bool MakeSmallAnglePFP(detinfo::DetectorPropertiesData const& detProp,
+                         TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
-  bool MakeTp3(TCSlice& slc,
-               const TrajPoint& itp,
-               const TrajPoint& jtp,
-               TrajPoint3& tp3,
-               bool findDirection);
+  TP3D MakeTP3D(detinfo::DetectorPropertiesData const& detProp, 
+                TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double
   DotProd(const Vector3_t& v1, const Vector3_t& v2)

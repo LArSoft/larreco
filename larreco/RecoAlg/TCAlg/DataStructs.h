@@ -298,6 +298,7 @@ namespace tca {
   typedef enum {
     kCanSection,
     kNeedsUpdate,
+    kSmallAngle
   } PFPFlags_t;
 
   struct ShowerPoint {
