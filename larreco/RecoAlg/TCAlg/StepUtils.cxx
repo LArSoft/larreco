@@ -22,13 +22,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-struct SortEntry{
-  unsigned int index;
-  float val;
-};
-
-bool valsDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
-
 namespace tca {
 
   //////////////////////////////////////////
@@ -139,8 +132,9 @@ namespace tca {
           float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
           float maxWireSkip = tcc.maxWireSkipNoSignal;
           if(sigOK) maxWireSkip = tcc.maxWireSkipWithSignal;
-          if(tj.PDGCode == 13) maxWireSkip = tcc.muonTag[2];
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" StepAway: no hits found at ltp "<<PrintPos(slc, ltp)<<" nMissedWires "<<std::fixed<<std::setprecision(1)<<nMissedWires<<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip<<" tj.PDGCode "<<tj.PDGCode;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" StepAway: no hits found at ltp "<<PrintPos(slc, ltp)
+              <<" nMissedWires "<<std::fixed<<std::setprecision(1)<<nMissedWires
+              <<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip<<" tj.PDGCode "<<tj.PDGCode;
           if(nMissedWires > maxWireSkip) {
             // We passed a number of wires without adding hits and are ready to quit.
             // First see if there is one good unused hit on the end TP and if so use it

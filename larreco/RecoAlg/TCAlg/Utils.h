@@ -32,6 +32,9 @@ namespace recob {
   class Hit;
 }
 
+bool valsDecreasing(const SortEntry& c1, const SortEntry& c2);
+bool valsIncreasing(const SortEntry& c1, const SortEntry& c2);
+
 namespace tca {
 
   typedef enum {
