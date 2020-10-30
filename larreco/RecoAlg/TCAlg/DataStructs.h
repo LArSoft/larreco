@@ -33,6 +33,10 @@ namespace recob {
 namespace simb {
   class MCParticle;
 }
+struct SortEntry {
+  unsigned int index;
+  float val;
+};
 
 namespace tca {
 
@@ -258,9 +262,14 @@ namespace tca {
     CTP_t CTP;
     unsigned short TPIndex{USHRT_MAX}; ///< and the TP index
     unsigned short SFIndex{USHRT_MAX}; ///< and the section fit index
-    bool IsGood{true};                 ///< TP can be used in the fit and for calorimetry
-    bool IsBad{false};                 ///< TP shouldnt be associated with the PFParticle
+    std::bitset<8> Flags;     //< see TP3DFlags_t
   };
+
+  typedef enum {
+    kTP3DGood,    // Is good for fitting and calorimetry
+    kTP3DBad,      // Should be removed from the trajectory
+    kTP3DHiDEdx  // Has high dE/dx
+  } TP3DFlags_t;
 
   // Struct for 3D trajectory matching
   struct MatchStruct {

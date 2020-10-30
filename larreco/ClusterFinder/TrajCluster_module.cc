@@ -471,14 +471,12 @@ namespace cluster {
           xyz[1] = vx3.Y;
           xyz[2] = vx3.Z;
           vx3Col.emplace_back(xyz, vtxID);
-
           // fill the mapping struct
           slcVxStruct tmp;
           tmp.slIndx = isl;
           tmp.ID = vx3.ID;
           tmp.vxColIndx = vx3Col.size() - 1;
           vx3StrList.push_back(tmp);
-
         } // vx3
         // Convert the tjs to clusters
         for (auto& tj : slc.tjs) {

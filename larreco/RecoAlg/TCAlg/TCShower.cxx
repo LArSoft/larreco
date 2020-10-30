@@ -26,22 +26,6 @@
 
 #include "TMVA/Reader.h"
 
-struct SortEntry {
-  unsigned int index;
-  float length;
-};
-
-bool
-greaterThan(SortEntry c1, SortEntry c2)
-{
-  return (c1.length > c2.length);
-}
-bool
-lessThan(SortEntry c1, SortEntry c2)
-{
-  return (c1.length < c2.length);
-}
-
 namespace tca {
 
   ////////////////////////////////////////////////
@@ -1071,10 +1055,10 @@ namespace tca {
       shpt.RotPos[0] = cs * xx - sn * yy;
       shpt.RotPos[1] = sn * xx + cs * yy;
       sortVec[indx].index = indx;
-      sortVec[indx].length = shpt.RotPos[0];
+      sortVec[indx].val = shpt.RotPos[0];
       ++indx;
     } // shpt
-    std::sort(sortVec.begin(), sortVec.end(), lessThan);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     // put the points vector into the sorted order
     auto tPts = ss.ShPts;
     for (unsigned short ii = 0; ii < ss.ShPts.size(); ++ii)
@@ -2565,9 +2549,9 @@ namespace tca {
     std::vector<SortEntry> sortVec(sids.size());
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii) {
       sortVec[ii].index = ii;
-      sortVec[ii].length = tpList[ii].Pos[0];
+      sortVec[ii].val = tpList[ii].Pos[0];
     }
-    std::sort(sortVec.begin(), sortVec.end(), lessThan);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     auto tsids = sids;
     auto ttpList = tpList;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii) {
@@ -2808,11 +2792,11 @@ namespace tca {
         if (ss.CTP != inCTP) continue;
         SortEntry se;
         se.index = ss.ID - 1;
-        se.length = ss.Energy;
+        se.val = ss.Energy;
         sortVec.push_back(se);
       } // ss
       if (sortVec.size() < 2) return;
-      std::sort(sortVec.begin(), sortVec.end(), greaterThan);
+      std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
       for (unsigned short ii = 0; ii < sortVec.size() - 1; ++ii) {
         ShowerStruct& iss = slc.cots[sortVec[ii].index];
         if (iss.ID == 0) continue;

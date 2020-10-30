@@ -35,18 +35,8 @@
 #include <utility>
 #include <vector>
 
-namespace {
-  struct SortEntry {
-    unsigned int index;
-    float val;
-  };
-
-  bool
-  valDecreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val > c2.val);
-  }
-}
+bool valsDecreasing (const SortEntry& c1, const SortEntry& c2) { return c1.val > c2.val;}
+bool valsIncreasing (const SortEntry& c1, const SortEntry& c2) { return c1.val < c2.val;}
 
 namespace tca {
 
@@ -250,7 +240,7 @@ namespace tca {
       sortVec[indx].index = indx;
       sortVec[indx].val = vx3.Score;
     } // indx
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     // put them into order
     auto vlist = temp;
     for (unsigned short indx = 0; indx < temp.size(); ++indx)
@@ -2743,7 +2733,7 @@ namespace tca {
     if (pfp.TP3Ds.empty()) return hitVec;
 
     for (auto& tp3d : pfp.TP3Ds) {
-      if (tp3d.IsBad) continue;
+      if (tp3d.Flags[kTP3DBad]) continue;
       if (tp3d.TjID <= 0) continue;
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       for (unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {

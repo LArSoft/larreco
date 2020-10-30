@@ -46,11 +46,13 @@ namespace tca {
   void Match3Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
   bool SptInTPC(const std::array<unsigned int, 3>& sptHits, unsigned int tpc);
   void Match2Planes(TCSlice& slc, std::vector<MatchStruct>& matVec);
-  bool Update(detinfo::DetectorPropertiesData const& detProp,
+  bool Update(detinfo::DetectorClocksData const& clockData,
+              detinfo::DetectorPropertiesData const& detProp,
               const TCSlice& slc,
               PFPStruct& pfp,
               bool prt);
-  bool ReSection(detinfo::DetectorPropertiesData const& detProp,
+  bool ReSection(detinfo::DetectorClocksData const& clockData,
+                 detinfo::DetectorPropertiesData const& detProp,
                  const TCSlice& slc,
                  PFPStruct& pfp,
                  bool prt);
@@ -60,11 +62,6 @@ namespace tca {
                       unsigned short toPt,
                       unsigned short& nBadPts,
                       unsigned short& firstBadPt);
-  void KillBadPoints(detinfo::DetectorPropertiesData const& detProp,
-                     TCSlice& slc,
-                     PFPStruct& pfp,
-                     float pullCut,
-                     bool prt);
   bool CanSection(const TCSlice& slc, const PFPStruct& pfp);
   unsigned short Find3DRecoRange(const TCSlice& slc,
                                  const PFPStruct& pfp,
@@ -75,7 +72,8 @@ namespace tca {
                 unsigned short sfIndex,
                 unsigned short& fromPt,
                 unsigned short& npts);
-  bool FitSection(detinfo::DetectorPropertiesData const& detProp,
+  bool FitSection(detinfo::DetectorClocksData const& clockData,
+                  detinfo::DetectorPropertiesData const& detProp,
                   const TCSlice& slc,
                   PFPStruct& pfp,
                   unsigned short sfIndex);
@@ -92,28 +90,7 @@ namespace tca {
                 unsigned short npts,
                 unsigned short sfIndex,
                 float& chiDOF);
-  void SplitAtKinks(detinfo::DetectorPropertiesData const& detProp,
-                    const TCSlice& slc,
-                    std::vector<PFPStruct>& pfpVec,
-                    bool prt);
-  void KinkFit(detinfo::DetectorPropertiesData const& detProp,
-               const TCSlice& slc,
-               const PFPStruct& pfp,
-               unsigned short atPt,
-               double fitLen,
-               double& dang,
-               double& dangErr);
-  bool Split(detinfo::DetectorPropertiesData const& detProp,
-             const TCSlice& slc,
-             PFPStruct& p1,
-             unsigned short atPt,
-             PFPStruct& p2,
-             bool prt);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void TrimEndPts(detinfo::DetectorPropertiesData const& detProp,
-                  TCSlice& slc,
-                  PFPStruct& pfp,
-                  bool prt);
   void FillGaps3D(detinfo::DetectorClocksData const& clockData,
                   detinfo::DetectorPropertiesData const& detProp,
                   TCSlice& slc,
@@ -135,9 +112,13 @@ namespace tca {
                         bool prt);
   unsigned short InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
-  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc, PFPStruct& pfp);
+  void Recover(detinfo::DetectorClocksData const& clockData,
+               detinfo::DetectorPropertiesData const& detProp,
+               TCSlice& slc, PFPStruct& pfp, bool prt);
+  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc,
+                 PFPStruct& pfp, bool prt);
   bool MakeSmallAnglePFP(detinfo::DetectorPropertiesData const& detProp,
-                         TCSlice& slc, PFPStruct& pfp);
+                         TCSlice& slc, PFPStruct& pfp, bool prt);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   TP3D MakeTP3D(detinfo::DetectorPropertiesData const& detProp, 
