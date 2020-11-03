@@ -603,10 +603,7 @@ namespace cluster {
               } // exception
               auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if (vx2.Vx3ID > 0) {
-                std::cout<<" isl "<<isl;
-                std::cout<<" UT"<<tj.UID<<" end "<<end<<" 2V"<<vx2.ID<<" -> 3V"<<vx2.Vx3ID<<"\n";
                 for (auto vx3str : vx3StrList) {
-                  std::cout<<"  vx3str "<<vx3str.slIndx<<" "<<vx3str.ID<<"\n";
                   if (vx3str.slIndx != isl) continue;
                   if (vx3str.ID != vx2.Vx3ID) continue;
                   if (!util::CreateAssnD(
@@ -614,7 +611,6 @@ namespace cluster {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
                       << "Failed to associate cluster " << tj.UID << " with Vertex";
                   } // exception
-                  std::cout<<"Associated UT"<<tj.UID<<" -> 2V"<<vx2.ID<<" -> 3V"<<vx2.Vx3ID<<"\n";
                   break;
                 } // vx3str
               }   // vx2.Vx3ID > 0

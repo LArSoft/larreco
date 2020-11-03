@@ -27,6 +27,7 @@
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 namespace detinfo {
   class DetectorClocksData;
+  class DetectorPropertiesData;
 }
 
 // ROOT libraries
@@ -64,8 +65,6 @@ namespace tca {
                           recob::Track& trk, std::vector<unsigned int>& trkHits);
 
     void FinishEvent(detinfo::DetectorPropertiesData const& detProp);
-
-    void DefineShTree(TTree* t);
 
     unsigned short
     GetSlicesSize() const

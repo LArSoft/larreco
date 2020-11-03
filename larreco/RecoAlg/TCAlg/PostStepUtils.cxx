@@ -19,6 +19,8 @@
 #include <string>                                          // for basic_string
 #include <utility>                                         // for pair
 #include <vector>                                          // for vector
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -121,10 +123,8 @@ namespace tca {
 
     // Check for a Bragg peak at both ends. This may be used by FixBegin.
     ChkStop(slc, tj);
-
     // Update the trajectory parameters at the beginning of the trajectory
     ChkBegin(slc, tj);
-
     // Look for a high charge plateau at the end (kLEPhys)
     TrimHiChgEndPts(slc, tj);
     // Look for high multiplicity hits at the end (kLEPhys)
@@ -283,6 +283,94 @@ namespace tca {
   ////////////////////////////////////////////////
   void ChkBegin(TCSlice& slc, Trajectory& tj)
   {
+    // Check the beginning of the tracjectory. The first points may not belong to this
+    // trajectory since they were added when there was little information
+    if(!tcc.useAlg[kFixBegin]) return;
+    if(tj.AlgMod[kJunkTj]) return;
+    // don't do anything if this tj has been modified by ReversePropagate
+    if(tj.AlgMod[kRvPrp]) return;
+    // don't bother with really short tjs
+    if(tj.Pts.size() < 5) return;
+
+    if(!tcc.useAlg[kNewCuts]) {
+      ChkBeginOld(slc, tj);
+      return;
+    } // !tcc.useAlg[kNewCuts]
+
+    unsigned short hiDeltaPt = USHRT_MAX;
+    float hiDelta = 0;
+    unsigned short hiAsymPt = USHRT_MAX;
+    float hiAsym = 0.3;
+    unsigned short noChgPt = USHRT_MAX;
+    unsigned short unusedHitsPt = USHRT_MAX;
+    unsigned short cnt = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
+      auto& tp1 = tj.Pts[ipt];
+      auto& tp2 = tj.Pts[ipt+1];
+      if(tp1.Chg <= 0) noChgPt = ipt;
+      if(tp1.Delta > hiDelta) {
+        hiDelta = tp1.Delta;
+        hiDeltaPt = ipt;
+      } // Delta
+      // The asymmetry will be messed up if there is a Bragg peak at
+      // the beginning
+      if(tp1.Chg > 0 && tp2.Chg > 0 && ipt > tj.EndPt[0]+2 && ipt < tj.EndPt[1]-2) {
+        auto& tp1m = tj.Pts[ipt-1];
+        auto& tp2p = tj.Pts[ipt+2];
+        if(tp1m.Chg > 0 && tp2p.Chg > 0) {
+          float num = std::abs(tp1.Chg + tp1m.Chg - tp2.Chg - tp2p.Chg);
+          float den =          tp1.Chg + tp1m.Chg + tp2.Chg + tp2p.Chg;
+          float asym = num / den;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<ipt<<" "<<PrintPos(slc,tp1)<<" asym "<<asym;
+          if(asym > hiAsym) {
+            hiAsym = asym;
+            hiAsymPt = ipt;
+          } // asym > hiAsym
+
+        } // tp11.Chg > 0 && tp21.Chg > 0
+      } // tp1.Chg > 0 && tp2.Chg > 0
+      for (unsigned short ii = 0; ii < tp1.Hits.size(); ++ii) {
+        if (tp1.UseHit[ii]) continue;
+        unusedHitsPt = ipt;
+        break;
+      } // ii
+      ++cnt;
+      if(cnt == 20) break; 
+    } // ipt
+
+    unsigned short firstGoodPt = tj.EndPt[0];
+    if(hiDeltaPt < tj.Pts.size() && hiDeltaPt > firstGoodPt) firstGoodPt = hiDeltaPt;
+    if(hiAsymPt < tj.Pts.size() && hiAsymPt > firstGoodPt) firstGoodPt = hiAsymPt;
+    if(noChgPt < tj.Pts.size() && noChgPt > firstGoodPt) firstGoodPt = noChgPt;
+    if(unusedHitsPt < tj.Pts.size() && hiDeltaPt > unusedHitsPt) firstGoodPt = unusedHitsPt;
+    if(tcc.dbgStp) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CBC: T"<<tj.ID;
+      myprt<<" hiDeltaPt "<<hiDeltaPt;
+      myprt<<" hiAsymPt "<<hiAsymPt;
+      myprt<<" noChgPt "<<noChgPt;
+      myprt<<" unusedHitsPt "<<unusedHitsPt;
+      myprt<<" --> firstGoodPt "<<firstGoodPt<<" at "<<PrintPos(slc, tj.Pts[firstGoodPt]);
+    }
+    if(firstGoodPt == tj.EndPt[0]) return;
+    ++firstGoodPt;
+
+    // lop off the points before firstPtFit and reverse propagate
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"  clobber TPs "<<PrintPos(slc, tj.Pts[0])
+      <<" to "<<PrintPos(slc, tj.Pts[firstGoodPt])<<" and ReversePropagate ";
+    // first save the first TP on this trajectory. We will try to re-use it if
+    // it isn't used during reverse propagation
+    seeds.push_back(tj.Pts[0]);
+    for(unsigned short ipt = 0; ipt <= firstGoodPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
+    SetEndPoints(tj);
+    tj.AlgMod[kFTBRvProp] = true;
+    ReversePropagate(slc, tj);
+    ChkStopEnd1(slc, tj, tcc.dbgStp);
+
+  }  // ChkBegin
+  ////////////////////////////////////////////////
+  void ChkBeginOld(TCSlice& slc, Trajectory& tj)
+  {
     // Check the parameters at the start of the trajectory. The first
     // points may not belong to this trajectory since they were added when there was
     // little information. This information may be updated later if ReversePropagate is used
@@ -404,6 +492,113 @@ namespace tca {
     if(!tj.AlgMod[kRvPrp]) FixBegin(slc, tj, atPt);
   } // ChkBegin
 
+  //////////////////////////////////////////
+  void
+  ChkBeginChg(TCSlice& slc, unsigned short itj)
+  {
+    // This function is called after the beginning of the tj has been inspected to see if
+    // reverse propagation was warranted. Trajectory points at the beginning were removed by
+    // this process.
+    // A search has been made for a Bragg peak with nothing
+    // found. Here we look for a charge pattern like the following, where C means large charge
+    // and c means lower charge:
+    // CCCCCCccccccc
+    // The charge in the two regions should be fairly uniform.
+
+    // This function may split the trajectory so it needs to have been stored
+    if (itj > slc.tjs.size() - 1) return;
+    auto& tj = slc.tjs[itj];
+
+    if (!tcc.useAlg[kBeginChg]) return;
+//    if (tj.EndFlag[0][kEndBragg]) return;
+    if (tj.AlgMod[kFTBRvProp]) return;
+    if (tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
+    if (tj.Pts.size() < 20) return;
+
+    bool prt = (tcc.dbgSlc && (tcc.dbgStp || tcc.dbgAlg[kBeginChg]));
+
+    // look for a large drop between the average charge near the beginning
+    float chg2 = tj.Pts[tj.EndPt[0] + 2].AveChg;
+    // and the average charge 15 points away
+    float chg15 = tj.Pts[tj.EndPt[0] + 15].AveChg;
+    if (chg2 < 3 * chg15) return;
+
+    // find the point where the charge falls below the mid-point
+    float midChg = 0.5 * (chg2 + chg15);
+
+    unsigned short breakPt = USHRT_MAX;
+    for (unsigned short ipt = tj.EndPt[0] + 3; ipt < 15; ++ipt) {
+      float chgm2 = tj.Pts[ipt - 2].Chg;
+      if (chgm2 == 0) continue;
+      float chgm1 = tj.Pts[ipt - 1].Chg;
+      if (chgm1 == 0) continue;
+      float chgp1 = tj.Pts[ipt + 1].Chg;
+      if (chgp1 == 0) continue;
+      float chgp2 = tj.Pts[ipt + 2].Chg;
+      if (chgp2 == 0) continue;
+      if (chgm2 > midChg && chgm1 > midChg && chgp1 < midChg && chgp2 < midChg) {
+        breakPt = ipt;
+        break;
+      }
+    } // breakPt
+    if (breakPt == USHRT_MAX) return;
+    // check the charge and rms before and after the split
+    std::array<double, 2> cnt, sum, sum2;
+    for (unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if (tp.Chg <= 0) continue;
+      unsigned short end = 0;
+      if (ipt > breakPt) end = 1;
+      ++cnt[end];
+      sum[end] += tp.Chg;
+      sum2[end] += tp.Chg * tp.Chg;
+    } // ipt
+    for (unsigned short end = 0; end < 2; ++end) {
+      if (cnt[end] < 3) return;
+      double ave = sum[end] / cnt[end];
+      double arg = sum2[end] - cnt[end] * ave * ave;
+      if (arg <= 0) return;
+      sum2[end] = sqrt(arg / (cnt[end] - 1));
+      sum2[end] /= ave;
+      sum[end] = ave;
+    } // region
+    bool doSplit = true;
+    // don't split if this looks like an electron - no significant improvement
+    // in the charge rms before and after
+    if (tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
+    if (prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt << "CBC: T" << tj.ID << " chgRMS " << tj.ChgRMS;
+      myprt << " AveChg before split point " << (int)sum[0] << " rms " << sum2[0];
+      myprt << " after " << (int)sum[1] << " rms " << sum2[1] << " doSplit? " << doSplit;
+    } // prt
+    if (!doSplit) return;
+    // Create a vertex at the break point
+    VtxStore aVtx;
+    aVtx.Pos = tj.Pts[breakPt].Pos;
+    aVtx.NTraj = 2;
+    aVtx.Pass = tj.Pass;
+    aVtx.Topo = 8;
+    aVtx.ChiDOF = 0;
+    aVtx.CTP = tj.CTP;
+    aVtx.ID = slc.vtxs.size() + 1;
+    aVtx.Stat[kFixed] = true;
+    unsigned short ivx = slc.vtxs.size();
+    if (!StoreVertex(slc, aVtx)) return;
+    if (!SplitTraj(slc, itj, breakPt, ivx, prt)) {
+      if (prt) mf::LogVerbatim("TC") << "CBC: Failed to split trajectory";
+      MakeVertexObsolete("CBC", slc, slc.vtxs[ivx], false);
+      return;
+    }
+    SetVx2Score(slc);
+    slc.tjs[itj].AlgMod[kBeginChg] = true;
+
+    if (prt)
+      mf::LogVerbatim("TC") << "CBC: Split T" << tj.ID << " at "
+                            << PrintPos(slc, tj.Pts[breakPt].Pos) << "\n";
+
+  } // ChkBeginChg
+
   ////////////////////////////////////////////////
   void FixBegin(TCSlice& slc, Trajectory& tj, unsigned short atPt)
   {
@@ -468,6 +663,18 @@ namespace tca {
       if(ipt == 0) break;
     } // ii
     if(maskedPts) SetEndPoints(tj);
+    // ensure that the first two points have charge
+    if(tcc.useAlg[kNewCuts]) {
+      auto& nextTP = tj.Pts[tj.EndPt[0] + 1];
+      if(nextTP.Chg <= 0) {
+        auto& firstTP = tj.Pts[tj.EndPt[0]];
+        UnsetUsedHits(slc, firstTP);
+        SetEndPoints(tj);
+        if(tcc.dbgStp) {
+          mf::LogVerbatim("TC") << " Mask the first point " << PrintPos(slc, firstTP) << " as well";
+        } // tcc.dbgStp
+      } // starting wires aren't consecutive
+    } // tcc.useAlg[kNewCuts]
     tj.AlgMod[kFixBegin] = true;
   } // FixBegin
 
@@ -852,7 +1059,7 @@ namespace tca {
     // overlapping in this view. 
     if(!tcc.useAlg[kLEPhys]) return;
     if(!tcc.useAlg[kTHiQEP]) return;
-    if(tj.Strategy[kSlowing]) return;
+    if(!tcc.useAlg[kNewCuts] && tj.Strategy[kSlowing]) return;
     if(tj.EndFlag[1][kEndBragg]) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 10) return;
 
@@ -945,10 +1152,8 @@ namespace tca {
   {
     // mask off high multiplicity TPs at the end
     if(tcc.useAlg[kLEPhys]) return;
-//    if(!tcc.useAlg[kCHMEH]) return;
     if(tj.EndFlag[1][kEndBragg]) return;
     if(tj.Pts.size() < 10) return;
-//    if(tj.Pts[tj.EndPt[1]].AngleCode == 0) return;
     // find the average multiplicity in the first half
     unsigned short aveMult= 0;
     unsigned short ipt, nhalf = tj.Pts.size() / 2;
@@ -1050,6 +1255,8 @@ namespace tca {
         if(sep21 < sep20) end2 = 1;
         // don't merge if there is a kink
         if(tj1.EndFlag[end1][kEndKink] || tj2.EndFlag[end2][kEndKink]) continue;
+        // or a bragg peak
+        if(tj1.EndFlag[end1][kEndBragg] || tj2.EndFlag[end2][kEndBragg]) continue;
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<"LEM: T"<<tj1.ID<<"_"<<PrintPos(slc, tp1);
@@ -1075,7 +1282,7 @@ namespace tca {
         tj2.EndFlag[end2][kEndBragg] = false;
         unsigned int it1 = tj1.ID - 1;
         unsigned int it2 = tj2.ID - 1;
-        if(!MergeAndStore(slc, it1, it2, tcc.dbgMrg)) continue;
+        if(!MergeAndStore(slc, it1, it2, prt)) continue;
         // set the AlgMod bit
         auto& ntj = slc.tjs[slc.tjs.size() - 1];
         ntj.AlgMod[kLastEndMerge] = true;
@@ -1095,7 +1302,7 @@ namespace tca {
     // Merges trajectories end-to-end or makes vertices. Does a more careful check on the last pass
 
     if(slc.tjs.size() < 2) return;
-    if(!tcc.useAlg[kMerge]) return;
+    if(!tcc.useAlg[kEndMerge]) return;
 
     bool prt = (tcc.dbgMrg && tcc.dbgSlc && inCTP == debug.CTP);
     if(prt) mf::LogVerbatim("TC")<<"inside EndMerge slice "<<slices.size()-1<<" inCTP "<<inCTP<<" nTjs "<<slc.tjs.size()<<" lastPass? "<<lastPass;
@@ -1161,6 +1368,10 @@ namespace tca {
             unsigned short end2 = 1 - end1;
             // check for a vertex at this end
             if(tj2.VtxID[end2] > 0) continue;
+            if(tcc.useAlg[kNewCuts]) {
+              if(tj1.EndFlag[end1][kEndBragg]) continue;
+              if(tj2.EndFlag[end2][kEndBragg]) continue;
+            }
             TrajPoint& tp2 = tj2.Pts[tj2.EndPt[end2]];
             TrajPoint& tp2OtherEnd = tj2.Pts[tj2.EndPt[end1]];
             // ensure that the other end isn't closer
@@ -1381,8 +1592,8 @@ namespace tca {
             }
             if(didMerge) {
               // Set the end merge flag for the killed trajectories to aid tracing merges
-              tj1.AlgMod[kMerge] = true;
-              tj2.AlgMod[kMerge] = true;
+              tj1.AlgMod[kEndMerge] = true;
+              tj2.AlgMod[kEndMerge] = true;
               iterate = true;
             } // Merge and store successfull
             else {
@@ -1452,8 +1663,8 @@ namespace tca {
             aVtx.NTraj = 2;
             aVtx.Pass = slc.tjs[it1].Pass;
             aVtx.Topo = end1 + end2;
-            tj1.AlgMod[kMerge] = true;
-            tj2.AlgMod[kMerge] = true;
+            tj1.AlgMod[kEndMerge] = true;
+            tj2.AlgMod[kEndMerge] = true;
             if(!StoreVertex(slc, aVtx)) continue;
             SetVx2Score(slc);
             if(prt) {
@@ -1482,8 +1693,8 @@ namespace tca {
               }
               if(didMerge) {
                 // Set the end merge flag for the killed trajectories to aid tracing merges
-                tj1.AlgMod[kMerge] = true;
-                tj1.AlgMod[kMerge] = true;
+                tj1.AlgMod[kEndMerge] = true;
+                tj1.AlgMod[kEndMerge] = true;
                 iterate = true;
               } // Merge and store successfull
               else {
@@ -1511,7 +1722,6 @@ namespace tca {
     tj.EndFlag[1][kEndBragg] = false;
     if(!tcc.useAlg[kChkStop]) return;
     if(tcc.chkStopCuts[0] < 0) return;
-
     if(tj.Strategy[kStiffEl]) return;
 
     // ignore trajectories that are very large angle at both ends
@@ -1601,9 +1811,111 @@ namespace tca {
         if(tj.PDGCode == 11) tj.PDGCode = 0;
         // Put the charge at the end into tp.AveChg
         tj.Pts[tj.EndPt[end]].AveChg = outVec[0];
+        // update MCSMom, ignoring the points near the end
+        if(tcc.useAlg[kNewCuts]) tj.MCSMom = MCSMom(slc, tj);
       } // itStops
     } // end
   } // ChkStop
+
+  //////////////////////////////////////////
+  void
+  FindBraggPeaks(TCSlice& slc, Trajectory& tj)
+  {
+    // A Bragg peak detection algorithm that is called after stepping
+    // is done. This algorithm searches for consecutive TPs where the charge
+    // is greater than the average charge and the charge ratio decreases by 5% on 
+    // the next TP for 3 wires, followed by a TP with a more normal charge. The
+    // trajectory is truncated if a Bragg peak is found. ChkStop identifies Bragg
+    // peaks at the ends, while this algorithm identifies peaks in the central
+    // part of the trajectory.
+    if(!tcc.useAlg[kFindBraggPeaks]) return;
+    if(NumPtsWithCharge(slc, tj, false) < 20) return;
+
+    bool prt = tcc.dbgStp;
+
+    std::vector<std::pair<unsigned short, short>> peakDir;
+    // count the occurrences of a higher than normal charge decrease
+    // on adjacent wires. nHi is the number of consecutive points where
+    // the charge decrease is higher than normal
+    unsigned short nHiFall = 0;
+    unsigned short nHiRise = 0;
+    // also keep track of the highest charge point
+    float hiChgFall = tj.AveChg;
+    short hiChgPtFall = SHRT_MAX;
+    float hiChgRise = tj.AveChg;
+    short hiChgPtRise = SHRT_MAX;
+    for(unsigned short ipt1 = tj.EndPt[0]; ipt1 < tj.EndPt[1]; ++ipt1) {
+      unsigned short ipt2 = ipt1 + 1;
+      auto& tp1 = tj.Pts[ipt1];
+      auto& tp2 = tj.Pts[ipt2];
+      // require charge on adjacent wires
+      if(std::abs(tp1.Pos[0] - tp2.Pos[0]) > 1.2 || tp1.Chg <= 0 || tp2.Chg <= 0) {
+        nHiFall = 0; hiChgFall = tj.AveChg; hiChgPtFall = SHRT_MAX;
+        nHiRise = 0; hiChgRise = tj.AveChg; hiChgPtRise = SHRT_MAX;
+        continue;
+      }
+      float chgRat = tp1.Chg / tp2.Chg;
+      // look for a consistently falling charge pattern
+      if(chgRat > 1.05) {
+        ++nHiFall;
+        // monitor the max charge point
+        if(tp1.Chg > hiChgFall) {
+          hiChgFall = tp1.Chg;
+          hiChgPtFall = ipt1;
+        } // tp1.Chg > hiChg
+      } // chgRat12 > 1.05
+      if(nHiFall > 3 && tp2.Chg < tj.AveChg && hiChgPtFall != SHRT_MAX) {
+        // add to the list of Bragg candidates
+        peakDir.push_back(std::make_pair(hiChgPtFall, 1));
+      }
+      if(tp2.Chg < tj.AveChg) {
+        nHiFall = 0; hiChgFall = tj.AveChg; hiChgPtFall = SHRT_MAX;
+      }
+      // now look for a consistently increasing charge pattern
+      chgRat = 1 / chgRat;
+      if(chgRat > 1.05) {
+        ++nHiRise;
+        // monitor the max charge point
+        if(tp2.Chg > hiChgRise) {
+          hiChgRise = tp2.Chg;
+          hiChgPtRise = ipt2;
+        } // tp1.Chg > hiChg
+      } // chgRat12 > 1.05
+      if(nHiRise > 3 && tp2.Chg < tj.AveChg && hiChgPtRise != SHRT_MAX) {
+        // add to the list of Bragg candidates
+        peakDir.push_back(std::make_pair(hiChgPtRise, -1));
+      }
+      if(tp2.Chg < tj.AveChg) {
+        nHiRise = 0; hiChgRise = tj.AveChg; hiChgPtRise = SHRT_MAX;
+      }
+/*
+      if (prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"FBP: ipt1 "<<ipt1<<" "<<PrintPos(slc, tp1);
+        myprt<<std::setprecision(2);
+        myprt<<" Fall chgRat "<<1/chgRat<<" nHi "<<nHiFall<<" hiChgPtFall "<<hiChgPtFall;
+        myprt<<" Rise chgRat "<<chgRat<<" nHi "<<nHiRise<<" hiChgPtFall "<<hiChgPtRise;
+      } // prt
+*/
+    } // ipt1
+
+    for(auto pd : peakDir) {
+      // ignore peaks at the ends
+      if(pd.first < tj.EndPt[0] + 5) continue;
+      if(pd.first > tj.EndPt[1] - 5) continue;
+      mf::LogVerbatim("TC") << "FindBraggPeaks found an interior peak in T" << tj.ID
+          << " near " << PrintPos(slc, tj.Pts[pd.first]);
+    } // pd
+
+    if (prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Bragg Peak list";
+      for(auto pd : peakDir) {
+        myprt<<" "<<PrintPos(slc, tj.Pts[pd.first])<<"_"<<pd.second;
+      }
+    } // prt
+
+  } // FindBraggPeaks
 
   //////////////////////TY://////////////////////////
   bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt){
@@ -1981,7 +2293,7 @@ namespace tca {
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
     if (prt) mf::LogVerbatim("TC") << " Inside ChkChgAsymmetry T" << tj.ID;
     // ignore long tjs
-    if (npts > 50) return;
+//    if (npts > 50) return;
     // ignore short tjs
     if (npts < 8) return;
     // require the charge pull > 5
@@ -2124,5 +2436,180 @@ namespace tca {
       } // tjid
     }   // tjl
   }   // TagShowerLike
+
+  ////////////////////////////////////////////////
+  void
+  FindSmallKinks(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
+  {
+    // Look for Tjs that have a significant angle difference btw the
+    // start and end in each plane then form lists of TPs on those that have
+    // a large but sub-threshold significance for a kink. Match the kink TP positions
+    // in 3D, split the trajectories and create 2D vertices
+    if(!tcc.useAlg[kSmallKink]) return;
+
+    bool prt = (tcc.dbgAlg[kSmallKink]);
+    unsigned int cstat = slc.TPCID.Cryostat;
+    unsigned int tpc = slc.TPCID.TPC;
+
+    // max separation of 3 WSE
+    float maxSep = 3;
+
+    //  plane    kinkcandidate       Tj ID, tj point
+    std::vector<std::vector<std::pair<int, unsigned short>>> kinkList(slc.nPlanes);
+    for(auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.EndPt[1] - tj.EndPt[0] < 20) continue;
+      float dang = DeltaAngle(tj.Pts[tj.EndPt[0]].Ang, tj.Pts[tj.EndPt[1]].Ang);
+      if(dang < 0.3) continue;
+      if(prt) mf::LogVerbatim("TC") << "FSK: T" << tj.ID << " in CTP " << tj.CTP << " dang " << dang;
+      unsigned short iptMax = USHRT_MAX;
+      float sigMax = maxSep;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        if(tp.KinkSig < sigMax) continue;
+        sigMax = tp.KinkSig;
+        iptMax = ipt;
+      } // ipt
+      if(iptMax == USHRT_MAX) continue;
+      auto& tp = tj.Pts[iptMax];
+      if(prt) mf::LogVerbatim("TC")<<"  "<<PrintPos(slc, tp)<<" max Kink Sig "<<sigMax;
+      unsigned short plane = DecodeCTP(tj.CTP).Plane;
+      kinkList[plane].push_back(std::make_pair(tj.ID, iptMax));
+    } // tj
+
+    // There needs to be a small kink in at least two planes
+    unsigned short nKinkInPln = 0;
+    for(auto& kl : kinkList) if(!kl.empty()) ++nKinkInPln;
+    if(nKinkInPln < 2) return;
+
+    // consider small kinks pair-wise. Search in the 3rd plane for a nearby
+    // Tj and form a list of <Tj,split point>
+    struct MatchedKinks {
+      int tid1 {-1};  // undefined
+      int tid2 {-1};
+      int tid3 {-1};  //
+      unsigned short ipt1;
+      unsigned short ipt2;
+      unsigned short ipt3;
+      float kinkSig;
+    }; 
+    std::vector<MatchedKinks> splitList;
+    for(unsigned short pln1 = 0; pln1 < slc.nPlanes-1; ++pln1) {
+      if(kinkList[pln1].empty()) continue;
+      geo::PlaneID pln1ID = geo::PlaneID(cstat, tpc, pln1);
+      for(unsigned short pln2 = pln1 + 1; pln2 < slc.nPlanes; ++pln2) {
+        if(kinkList[pln2].empty()) continue;
+        geo::PlaneID pln2ID = geo::PlaneID(cstat, tpc, pln2);
+        for(unsigned short ik1 = 0; ik1 < kinkList[pln1].size(); ++ik1) {
+          auto& kl1 = kinkList[pln1][ik1];
+          // already used kink?
+          if(kl1.first == 0) continue;
+          auto& tp1 = slc.tjs[kl1.first - 1].Pts[kl1.second];
+          unsigned int wir1 = std::nearbyint(tp1.Pos[0]);
+          double x1 = detProp.ConvertTicksToX(tp1.Pos[1]/tcc.unitsPerTick, pln1ID);
+          for(unsigned short ik2 = 0; ik2 < kinkList[pln2].size(); ++ik2) {
+            auto& kl2 = kinkList[pln2][ik2];
+            if(kl2.first == 0) continue;
+            auto& tp2 = slc.tjs[kl2.first - 1].Pts[kl2.second];
+            unsigned int wir2 = std::nearbyint(tp2.Pos[0]);
+            double x2 = detProp.ConvertTicksToX(tp2.Pos[1]/tcc.unitsPerTick, pln2ID);
+            double dx = std::abs(x1 - x2);
+            if(dx > 1.5) continue;
+            if (prt) mf::LogVerbatim("TC")<<"FSK: X small kink match T"<<kl1.first<<" and T"<<kl2.first << " dx " << dx;
+            double y, z;
+            tcc.geom->IntersectionPoint(wir1, wir2, pln1, pln2, cstat, tpc, y, z);
+            if (y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
+            // add them to the split list
+            MatchedKinks mk;
+            mk.tid1 = kl1.first;
+            mk.ipt1 = kl1.second;
+            mk.tid2 = kl2.first;
+            mk.ipt2 = kl2.second;
+            mk.kinkSig = tp1.KinkSig + tp2.KinkSig;
+            if (slc.nPlanes > 2) {
+              unsigned int pln3 = 3 - pln1 - pln2;
+              float wir3 = tcc.geom->WireCoordinate(y, z, pln3, tpc, cstat);
+              if(wir3 < 10) continue;
+              double time = detProp.ConvertXToTicks(0.5*(x1+x2), (int)pln3, (int)tpc, (int)cstat);
+              time *= tcc.unitsPerTick;
+              std::array<int, 2> wireWindow;
+              Point2_t timeWindow;
+              wireWindow[0] = wir3;
+              wireWindow[1] = wir3;
+              timeWindow[0] = time - maxSep;
+              timeWindow[1] = time + maxSep;
+              bool hitsNear;
+              std::vector<unsigned int> closeHits =
+                FindCloseHits(slc, wireWindow, timeWindow, pln3, kAllHits, true, hitsNear);
+              if(closeHits.empty()) continue;
+              std::vector<int> tList;
+              Point2_t posInPln3;
+              posInPln3[0] = wir3;
+              posInPln3[1] = time;
+              // set mk.tid3 = 0 to indicate that there are hits near the
+              // projected position but we don't yet know if there is a long
+              // trajectory that should be split
+              if(closeHits.size() > 2) mk.tid3 = 0;
+              for(auto iht : closeHits) {
+                if(slc.slHits[iht].InTraj <= 0) continue;
+                int tid = slc.slHits[iht].InTraj;
+                // ensure that the Tj is reasonably long
+                auto& tj = slc.tjs[tid - 1];
+                if(tj.EndPt[1] - tj.EndPt[0] < 20) continue;
+                // ensure that the kink point isn't near an end
+                if(PosSep(tj.Pts[tj.EndPt[0]].Pos, posInPln3) < maxSep) continue;
+                if(PosSep(tj.Pts[tj.EndPt[1]].Pos, posInPln3) < maxSep) continue;
+                if(std::find(tList.begin(), tList.end(), tid) == tList.end()) tList.push_back(tid);
+              } // iht
+              if(tList.size() == 1) {
+                // only one longish track. Find the closest point
+                auto& tj = slc.tjs[tList[0]-1];
+                float sep = maxSep;
+                TrajClosestApproach(tj, wir3, time, mk.ipt3, sep);
+                if(sep < maxSep) {
+                  mk.tid3 = tList[0];
+                  mk.kinkSig += tj.Pts[mk.ipt3].KinkSig;
+                }
+              } // tList.size() == 1
+              if(prt) {
+                mf::LogVerbatim myprt("TC");
+                myprt <<  " -> P:W:T " << pln3 <<":" << wir3 << ":" <<(int)(time/tcc.unitsPerTick);
+                myprt << " nClose hits "<<closeHits.size();
+                myprt << " close tjs";
+                for(auto tid : tList) myprt<<" T"<<tid;
+              } // prt
+            } // slc.nPlanes > 2
+            splitList.push_back(mk);
+            // declare the small kinks invalid
+            kl1.first = 0;
+            kl2.first = 0;
+          } // kl2
+        } // kl1
+      } // pln2
+    } // pln1
+    if (splitList.empty()) return;
+    if (prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"FSK: splitList\n";
+      for(auto mk : splitList) {
+        myprt<<" T"<<mk.tid1<<"_"<<mk.ipt1;
+        myprt<<" T"<<mk.tid2<<"_"<<mk.ipt2;
+        myprt<<" T"<<mk.tid3<<"_"<<mk.ipt3;
+        myprt<<" significance "<<mk.kinkSig;
+      } // mk
+    } // prt
+    for(auto mk : splitList) {
+      unsigned short nsp = 0;
+      if(mk.tid1 >= 0) ++nsp;
+      if(mk.tid2 >= 0) ++nsp;
+      if(mk.tid3 >= 0) ++nsp;
+      if(nsp != slc.nPlanes) continue;
+      if(mk.tid1 > 0) SplitTraj(slc, (unsigned short)(mk.tid1 - 1), mk.ipt1, prt);
+      if(mk.tid2 > 0) SplitTraj(slc, (unsigned short)(mk.tid2 - 1), mk.ipt2, prt);
+      if(mk.tid3 > 0) SplitTraj(slc, (unsigned short)(mk.tid3 - 1), mk.ipt3, prt);
+    } // mk
+
+  } // FindSmallKinks
 
 } // namespace

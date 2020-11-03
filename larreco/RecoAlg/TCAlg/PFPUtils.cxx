@@ -222,7 +222,7 @@ namespace tca {
         Match3Planes(slc, matVec);
       }
       else {
-        // look for match doublets requiring a dead region in the 3rd plane for 3-plane TPCs
+        // look for match doublets
         Match2Planes(slc, matVec);
       }
       if (matVec.empty()) continue;
@@ -405,7 +405,6 @@ namespace tca {
           prevPFP.Vx3ID[1] = vx3.ID;
         } // ip > 0
         // remove really bad TP3Ds
-//        KillBadPoints(clockData, detProp, slc, pfp, 500., foundMVI);
         // check for a valid two-plane match with a Tj in the third plane for long pfps.
         // For short pfps, it is possible that a Tj would be too short to be reconstructed
         // in the third plane.
@@ -425,8 +424,6 @@ namespace tca {
         }
         else if (pfp.Flags[kCanSection]) {
           if (!ReSection(clockData, detProp, slc, pfp, foundMVI)) continue;
-//          KillBadPoints(clockData, detProp, slc, pfp, tcc.match3DCuts[4], foundMVI);
-          // Try to remove bad points if there was a ReSection problem
         } // CanSection
         if (foundMVI && !pfp.AlgMod[kSmallAng3D]) { PrintTP3Ds(clockData, detProp, "RS", slc, pfp, -1); }
         // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
@@ -1241,7 +1238,6 @@ namespace tca {
         unsigned short nPtsNext = nPts;
         if (!FitPFP(clockData, detProp, slc, pfp, fromPt, nPts, USHRT_MAX, chiDOF)) {
           nPtsNext += 1.5 * nPtsToAdd;
-          mf::LogVerbatim("TC")<<" FitPFP failed "<<chiDOF;
         }
         else if (chiDOF < chiLo) {
           // low chiDOF
@@ -1363,69 +1359,6 @@ namespace tca {
   } // resection
 
   /////////////////////////////////////////
-  void
-  KillBadPoints(detinfo::DetectorClocksData const& clockData,
-                detinfo::DetectorPropertiesData const& detProp,
-                TCSlice& slc,
-                PFPStruct& pfp,
-                float pullCut,
-                bool prt)
-  {
-    // Remove TP3Ds that have been declared Bad by an algorithm or that have
-    // Delta > pullCut in all sections
-    if(!tcc.useAlg[kKillBadPts3D]) return;
-    if(pfp.Flags[kStops]) return;
-    if(pfp.AlgMod[kSmallAng3D]) return;
-
-    // Determine the fraction of points that would be killed using pullCut
-    for(unsigned short iter = 0; iter < 2; ++iter) {
-      float nKeep = 0.;
-      float cnt = 0.;
-      float avePull = 0.;
-      float maxPull = 0.;
-      for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
-        auto& tp3d = pfp.TP3Ds[ipt];
-        if(tp3d.Flags[kTP3DBad]) continue;
-        float pull = PointPull(pfp, tp3d);
-        avePull += pull;
-        if(pull > maxPull) maxPull = pull;
-        if(pull < pullCut) ++nKeep;
-        ++cnt;
-      } // tp3d
-      if(cnt == 0) return;
-      avePull /= cnt;
-      if(prt) mf::LogVerbatim("TC")<<"KBP P"<<pfp.ID<<" iter "<<iter
-        <<" avePull "<<avePull
-        <<" wants to keep "<<nKeep/cnt
-        <<" of TP3Ds. maxPull = "<<maxPull
-        <<" using pullCut "<<pullCut;
-      if(nKeep/cnt < 0.9) {
-        // We would be killing too many points so adjust the pullCut
-        pullCut = avePull + 0.9 * (maxPull - avePull);
-      } else if(iter == 0) {
-        break;
-      }
-    } // iter
-
-    unsigned short nbad = 0;
-    for(auto& tp3d : pfp.TP3Ds) {
-      if(tp3d.Flags[kTP3DBad] || PointPull(pfp, tp3d) > pullCut) {
-        ++nbad;
-        pfp.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
-        tp3d.Flags[kTP3DBad] = true;
-      } // bad
-    } // tp3d
-    if(prt) mf::LogVerbatim("TC")<<"KBP killing "<<nbad<<" bad points using pullCut "<<pullCut;
-    if (nbad == 0) return;
-    pfp.Flags[kNeedsUpdate] = true;
-    std::vector<TP3D> ntp3ds;
-    for(auto& tp3d : pfp.TP3Ds) if(!tp3d.Flags[kTP3DBad]) ntp3ds.push_back(tp3d);
-    pfp.TP3Ds = ntp3ds;
-    Update(clockData, detProp, slc, pfp, prt);
-
-  } // KillBadPoints
-
-  /////////////////////////////////////////
   bool
   CanSection(const TCSlice& slc, const PFPStruct& pfp)
   {
@@ -1544,11 +1477,6 @@ namespace tca {
 
     SectionFit sf;
     sf.ChiDOF = FLT_MAX;
-    if(nPtsFit < 5) return sf;
-    if(!(fitDir == -1 || fitDir == 1)) return sf;
-    if(fitDir ==  1 && fromPt + nPtsFit > tp3ds.size()) return sf;
-    if(fitDir == -1 && fromPt < 3) return sf;
-
     // put the offset, cosine-like and sine-like components in a vector
     std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -1560,8 +1488,6 @@ namespace tca {
       // the "sine-like" component
       ocs[plane][2] = tcc.geom->WireCoordinate(0, 1, planeID) - ocs[plane][0];
     } // plane
-
-    const unsigned int nvars = 4;
 
     // count the number of TPs in each plane
     std::vector<unsigned short> cntInPln(slc.nPlanes, 0);
@@ -1603,7 +1529,7 @@ namespace tca {
     // The X origin is the average X of all the points
     x0 /= (double)nPtsFit;
 
-    TMatrixD A(nPtsFit, nvars);
+    TMatrixD A(nPtsFit, 4);
     TVectorD w(nPtsFit);
     for(unsigned short cnt = 0; cnt < useTP3Ds.size(); ++cnt) {
       auto& tp3d = useTP3Ds[cnt];
@@ -2208,55 +2134,6 @@ namespace tca {
     if(pfp.SectionFits.size() != 1) return;
     if(pfp.TP3Ds.size() < 20) return;
     if(!CanSection(slc, pfp)) return;
-/*
-    if(slc.nPlanes == 2) return false;
-    SortByX(pfp.TP3Ds);
-    // make a space point using two nearby TP3Ds and then look for missing TPs in
-    // the other plane
-    unsigned int cstat = slc.TPCID.Cryostat;
-    unsigned int tpc = slc.TPCID.TPC;
-    std::vector<std::pair<int, unsigned short>> tjCnts;
-    for(unsigned short ipt = 1; ipt < pfp.TP3Ds.size(); ++ipt) {
-      auto& tp3d1 = pfp.TP3Ds[ipt-1];
-      auto& tp3d2 = pfp.TP3Ds[ipt];
-      if(tp3d1.CTP == tp3d2.CTP) continue;
-      auto& tp1 = slc.tjs[tp3d1.TjID - 1].Pts[tp3d1.TPIndex];
-      auto& tp2 = slc.tjs[tp3d2.TjID - 1].Pts[tp3d2.TPIndex];
-      Point3_t pt3;
-      unsigned int pln1 = DecodeCTP(tp3d1.CTP).Plane;
-      unsigned int wire1 = std::nearbyint(tp3d1.Wire);
-      unsigned int pln2 = DecodeCTP(tp3d2.CTP).Plane;
-      unsigned int wire2 = std::nearbyint(tp3d2.Wire);
-      unsigned int pln3 = 3 - pln1 - pln2;
-      tcc.geom->IntersectionPoint(wire1, wire2, pln1, pln2, cstat, tpc, pt3[1], pt3[2]);
-      pt3[0] = 0.5 * (tp3d1.TPX + tp3d2.TPX);
-      auto inCTP = EncodeCTP(cstat, tpc, pln3);
-      auto tp = MakeBareTP(detProp, slc, pt3, inCTP);
-      // set a generous search window in WSE units
-      float window = 30;
-      FindCloseHits(slc, tp, window, kUsedHits);
-      if(tp.Hits.empty()) continue;
-      unsigned int iht = tp.Hits[0];
-      int tjid = slc.slHits[iht].InTraj;
-      // ignore the known Tjs
-      if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjid) != pfp.TjIDs.end()) continue;
-      unsigned short indx = 0;
-      for(indx = 0; indx < tjCnts.size(); ++indx) if(tjCnts[indx].first == tjid) break;
-      if(indx == tjCnts.size()) tjCnts.push_back(std::make_pair(tjid, 0));
-      ++tjCnts[indx].second;
-      std::cout<<"chk "<<PrintPos(slc, tp1)<<" "<<PrintPos(slc, tp2);
-      std::cout<<" -> "<<PrintPos(slc, tp)<<" nhits "<<tp.Hits.size();
-      std::cout<<" T"<<tjid<<"\n";
-    } // ipt
-
-    for(auto& tjCnt : tjCnts) {
-      std::cout<<"T"<<tjCnt.first<<" cnt "<<tjCnt.second;
-      auto& tj = slc.tjs[tjCnt.first - 1];
-      std::cout<<" npwc "<<NumPtsWithCharge(slc, tj, false)<<"\n";
-    } // tjCnt
-
-    return false;
-*/
 
     // make a copy
     auto p2 = pfp;
@@ -2417,13 +2294,6 @@ namespace tca {
       auto& ltp1 = tlong.Pts[tEndPt];
       auto& ntp0 = nlong.Pts[nStartPt];
       auto& ntp1 = nlong.Pts[nEndPt];
-/*
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"sfi "<<isf<<" long T"<<tlong.ID<<" start "<<tStartPt<<" end "<<tEndPt;
-        myprt<<" next T"<<nlong.ID<<" start "<<nStartPt<<" end "<<nEndPt;
-      }
-*/
       // Get the 3D end points
       auto start = MakeTP3D(detProp, slc, ltp0, ntp0);
       auto end = MakeTP3D(detProp, slc, ltp1, ntp1);
@@ -2495,13 +2365,6 @@ namespace tca {
         } else {
           sf2pts.push_back(tp3d);
         }
-/*
-        if(prt) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<"T"<<tid<<" sfi "<<sfi<<" along "<<tp3d.along;
-          myprt<<" delta "<<delta;
-        } // prt
-*/
       } // ipt
     } // tid
     if(pfp.TP3Ds.size() < 4) return false;

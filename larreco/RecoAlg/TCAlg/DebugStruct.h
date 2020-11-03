@@ -44,10 +44,6 @@ namespace tca {
                Vtx3Store& vx3,
                bool& printHeader);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader);
-  void Print3S(detinfo::DetectorPropertiesData const& detProp,
-               std::string someText,
-               mf::LogVerbatim& myprt,
-               ShowerStruct3D& ss3);
   void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
   std::string PackEndFlags(const Trajectory& tj, unsigned short end);
   void PrintTrajectory(std::string someText,

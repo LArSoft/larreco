@@ -79,7 +79,6 @@ namespace tca {
               ParFit& pFit,
               unsigned short usePar);
   bool InTrajOK(TCSlice& slc, std::string someText);
-  void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   void ChkEndPtFit(TCSlice& slc, Trajectory& tj);
   void TrimEndPts(std::string fcnLabel,
                   TCSlice& slc,
@@ -125,6 +124,10 @@ namespace tca {
                  unsigned short itj,
                  unsigned short pos,
                  unsigned short ivx,
+                 bool prt);
+  bool SplitTraj(TCSlice& slc,
+                 unsigned short itj,
+                 unsigned short atPt,
                  bool prt);
   bool SplitTraj(detinfo::DetectorPropertiesData const& detProp,
                  TCSlice& slc,

@@ -67,9 +67,12 @@ namespace tca {
       unsigned short npwc = NumPtsWithCharge(slc, tj, false);
       // analyze the Tj when there are 6 points to see if we should stop
       if(npwc == 6 && StopShort(slc, tj, tcc.dbgStp)) break;
-      // Get a forecast of what is ahead.
-      bool getForecast = (tcc.doForecast && !tj.AlgMod[kRvPrp] && npwc == tjfs[tjfs.size() - 1].nextForecastUpdate);
-      if(!getForecast && tj.Pts[tj.EndPt[1]].FitChi > 2) getForecast = true;
+      // Get a forecast of what is ahead. The Strategy is set elsewhere for
+      // reverse propagation
+      bool getForecast = false;
+      if(!tj.AlgMod[kRvPrp]) {
+        getForecast = (npwc == tjfs.back().nextForecastUpdate || tj.Pts[tj.EndPt[1]].FitChi > 2);
+      } // not doing reverse propagation
       if(getForecast) {
         Forecast(slc, tj);
         SetStrategy(slc, tj);
@@ -1251,7 +1254,8 @@ namespace tca {
       SetEndPoints(tj);
     }
 
-    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: Prepping Tj "<<tj.ID<<" incoming StepDir "<<tj.StepDir;
+    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: Prepping Tj "<<tj.ID<<" incoming StepDir "<<tj.StepDir
+          << " and Strategy " <<tj.Strategy;
 
     short stepDir = tj.StepDir;
 
@@ -1296,6 +1300,8 @@ namespace tca {
     auto saveStrategy = tjWork.Strategy;
     tjWork.Strategy.reset();
     tjWork.Strategy[kNormal] = true;
+    // set nextForecastUpdate large so that Forecast isn't called
+    tjfs.back().nextForecastUpdate = tj.Pts.size();
     // Reduce the number of fitted points to a small number
     unsigned short lastPt = tjWork.Pts.size() - 1;
     if(lastPt < 4) return;
@@ -2086,7 +2092,7 @@ namespace tca {
     if(fitPt == USHRT_MAX) {
       if(tcc.dbgStp) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"GKv2 fitPt not valid. Counted "<<cnt<<" points. Need "<<nPtsFit;
+        myprt<<"GK: fitPt not valid. Counted "<<cnt<<" points. Need "<<nPtsFit;
       } // tcc.dbgStp
       return false;
     }
@@ -2097,7 +2103,7 @@ namespace tca {
     bool prevPtHasKink = (tj.Pts[fitPt - 1].KinkSig > tcc.kinkCuts[1]);
     if(tcc.dbgStp) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"GKv2 fitPt "<<fitPt<<" "<<PrintPos(slc, tj.Pts[fitPt]);
+      myprt<<"GK: fitPt "<<fitPt<<" "<<PrintPos(slc, tj.Pts[fitPt]);
       myprt<<std::fixed<<std::setprecision(5);
       myprt<<" KinkSig "<<std::setprecision(5)<<tj.Pts[fitPt].KinkSig;
       myprt<<" prevPt significance "<<tj.Pts[fitPt - 1].KinkSig;
@@ -2136,10 +2142,10 @@ namespace tca {
     unsigned short kinkRegionLengthMin = 1 + nPtsFit / 5;
     if(tj.Strategy[kStiffMu]) kinkRegionLengthMin = 1 + nPtsFit / 3;
     if(kinkRegionLength < kinkRegionLengthMin) {
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GKv2: kink region too short "<<kinkRegionLength<<" Min "<<kinkRegionLengthMin;
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK: kink region too short "<<kinkRegionLength<<" Min "<<kinkRegionLengthMin;
       return false;
     }
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GKv2:   kink at "<<PrintPos(slc, tj.Pts[maxKinkPt])<<std::setprecision(3)<<" maxSig "<<maxSig<<" kinkRegionLength "<<kinkRegionLength<<" Min "<<kinkRegionLengthMin;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK:   kink at "<<PrintPos(slc, tj.Pts[maxKinkPt])<<std::setprecision(3)<<" maxSig "<<maxSig<<" kinkRegionLength "<<kinkRegionLength<<" Min "<<kinkRegionLengthMin;
     // don't alter the tj unless doTrim is true
     if(!doTrim) return true;
     // trim the points
@@ -2149,7 +2155,7 @@ namespace tca {
     float lastChg = tj.Pts[tj.EndPt[1]].Chg;
     float prevChg = tj.Pts[tj.EndPt[1] - 1].Chg;
     float chgAsym = std::abs(lastChg - prevChg) / (lastChg + prevChg);
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GKv2: last point after trim "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" chgAsym "<<chgAsym;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GK: last point after trim "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" chgAsym "<<chgAsym;
     if(chgAsym > 0.1) {
       UnsetUsedHits(slc, tj.Pts[tj.EndPt[1]]);
       SetEndPoints(tj);

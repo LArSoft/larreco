@@ -33,8 +33,6 @@ namespace tca {
     // set all configurable modes false
     tcc.modes.reset();
 
-    tcc.doForecast = true;
-    if (pset.has_key("DoForecast")) tcc.doForecast = pset.get<bool>("DoForecast");
     if (pset.has_key("UseChannelStatus")) tcc.useChannelStatus = pset.get<bool>("UseChannelStatus");
     std::vector<std::string> skipAlgsVec;
     if (pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
@@ -375,6 +373,9 @@ namespace tca {
       ReconstructAllTraj(detProp, slc, inCTP);
       if (!slc.isValid) return;
     } // plane
+    // Look for below-threshold kinks on Tjs in all planes and try to
+    // match the kink points in 3D
+    FindSmallKinks(detProp, slc);
     // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
     // 2D and 3D(?) information
     Reconcile2Vs(slc);
@@ -627,8 +628,11 @@ namespace tca {
                 return;
               }
             } // dbgStp
-            CheckTrajBeginChg(slc, slc.tjs.size() - 1);
-            BraggSplit(slc, slc.tjs.size() - 1);
+            if(!tcc.useAlg[kNewCuts]) {
+              // This seems like the wrong place to do this
+              ChkBeginChg(slc, slc.tjs.size() - 1);
+              BraggSplit(slc, slc.tjs.size() - 1);
+            }
             break;
           } // jht
         }   // iht
@@ -1199,48 +1203,6 @@ namespace tca {
                       firstHit.WireID());
 
   } // MergeTPHits
-
-  /////////////////////////////////////////
-  void
-  TrajClusterAlg::DefineShTree(TTree* t)
-  {
-    showertree = t;
-
-    showertree->Branch("run", &evt.run, "run/I");
-    showertree->Branch("subrun", &evt.subRun, "subrun/I");
-    showertree->Branch("event", &evt.event, "event/I");
-
-    showertree->Branch("BeginWir", &stv.BeginWir);
-    showertree->Branch("BeginTim", &stv.BeginTim);
-    showertree->Branch("BeginAng", &stv.BeginAng);
-    showertree->Branch("BeginChg", &stv.BeginChg);
-    showertree->Branch("BeginVtx", &stv.BeginVtx);
-
-    showertree->Branch("EndWir", &stv.EndWir);
-    showertree->Branch("EndTim", &stv.EndTim);
-    showertree->Branch("EndAng", &stv.EndAng);
-    showertree->Branch("EndChg", &stv.EndChg);
-    showertree->Branch("EndVtx", &stv.EndVtx);
-
-    showertree->Branch("MCSMom", &stv.MCSMom);
-
-    showertree->Branch("PlaneNum", &stv.PlaneNum);
-    showertree->Branch("TjID", &stv.TjID);
-    showertree->Branch("IsShowerTj", &stv.IsShowerTj);
-    showertree->Branch("ShowerID", &stv.ShowerID);
-    showertree->Branch("IsShowerParent", &stv.IsShowerParent);
-    showertree->Branch("StageNum", &stv.StageNum);
-    showertree->Branch("StageName", &stv.StageName);
-
-    showertree->Branch("Envelope", &stv.Envelope);
-    showertree->Branch("EnvPlane", &stv.EnvPlane);
-    showertree->Branch("EnvStage", &stv.EnvStage);
-    showertree->Branch("EnvShowerID", &stv.EnvShowerID);
-
-    showertree->Branch("nStages", &stv.nStages);
-    showertree->Branch("nPlanes", &stv.nPlanes);
-
-  } // end DefineShTree
 
   /////////////////////////////////////////
   bool

@@ -1352,113 +1352,6 @@ namespace tca {
 
   //////////////////////////////////////////
   void
-  CheckTrajBeginChg(TCSlice& slc, unsigned short itj)
-  {
-    // This function is called after the beginning of the tj has been inspected to see if
-    // reverse propagation was warranted. Trajectory points at the beginning were removed by
-    // this process.
-    // A search has been made for a Bragg peak with nothing
-    // found. Here we look for a charge pattern like the following, where C means large charge
-    // and c means lower charge:
-    // CCCCCCccccccc
-    // The charge in the two regions should be fairly uniform.
-
-    // This function may split the trajectory so it needs to have been stored
-    if (itj > slc.tjs.size() - 1) return;
-    auto& tj = slc.tjs[itj];
-
-    if (!tcc.useAlg[kBeginChg]) return;
-    if (tj.EndFlag[0][kEndBragg]) return;
-    if (tj.AlgMod[kFTBRvProp]) return;
-    if (tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
-    if (tj.Pts.size() < 20) return;
-
-    bool prt = (tcc.dbgSlc && (tcc.dbgStp || tcc.dbgAlg[kBeginChg]));
-
-    // look for a large drop between the average charge near the beginning
-    float chg2 = tj.Pts[tj.EndPt[0] + 2].AveChg;
-    // and the average charge 15 points away
-    float chg15 = tj.Pts[tj.EndPt[0] + 15].AveChg;
-    if (chg2 < 3 * chg15) return;
-
-    // find the point where the charge falls below the mid-point
-    float midChg = 0.5 * (chg2 + chg15);
-
-    unsigned short breakPt = USHRT_MAX;
-    for (unsigned short ipt = tj.EndPt[0] + 3; ipt < 15; ++ipt) {
-      float chgm2 = tj.Pts[ipt - 2].Chg;
-      if (chgm2 == 0) continue;
-      float chgm1 = tj.Pts[ipt - 1].Chg;
-      if (chgm1 == 0) continue;
-      float chgp1 = tj.Pts[ipt + 1].Chg;
-      if (chgp1 == 0) continue;
-      float chgp2 = tj.Pts[ipt + 2].Chg;
-      if (chgp2 == 0) continue;
-      if (chgm2 > midChg && chgm1 > midChg && chgp1 < midChg && chgp2 < midChg) {
-        breakPt = ipt;
-        break;
-      }
-    } // breakPt
-    if (breakPt == USHRT_MAX) return;
-    // check the charge and rms before and after the split
-    std::array<double, 2> cnt, sum, sum2;
-    for (unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-      auto& tp = tj.Pts[ipt];
-      if (tp.Chg <= 0) continue;
-      unsigned short end = 0;
-      if (ipt > breakPt) end = 1;
-      ++cnt[end];
-      sum[end] += tp.Chg;
-      sum2[end] += tp.Chg * tp.Chg;
-    } // ipt
-    for (unsigned short end = 0; end < 2; ++end) {
-      if (cnt[end] < 3) return;
-      double ave = sum[end] / cnt[end];
-      double arg = sum2[end] - cnt[end] * ave * ave;
-      if (arg <= 0) return;
-      sum2[end] = sqrt(arg / (cnt[end] - 1));
-      sum2[end] /= ave;
-      sum[end] = ave;
-    } // region
-    bool doSplit = true;
-    // don't split if this looks like an electron - no significant improvement
-    // in the charge rms before and after
-    if (tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
-    if (prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt << "CTBC: T" << tj.ID << " chgRMS " << tj.ChgRMS;
-      myprt << " AveChg before split point " << (int)sum[0] << " rms " << sum2[0];
-      myprt << " after " << (int)sum[1] << " rms " << sum2[1] << " doSplit? " << doSplit;
-    } // prt
-    if (!doSplit) return;
-    // Create a vertex at the break point
-    VtxStore aVtx;
-    aVtx.Pos = tj.Pts[breakPt].Pos;
-    aVtx.NTraj = 2;
-    aVtx.Pass = tj.Pass;
-    aVtx.Topo = 8;
-    aVtx.ChiDOF = 0;
-    aVtx.CTP = tj.CTP;
-    aVtx.ID = slc.vtxs.size() + 1;
-    aVtx.Stat[kFixed] = true;
-    unsigned short ivx = slc.vtxs.size();
-    if (!StoreVertex(slc, aVtx)) return;
-    if (!SplitTraj(slc, itj, breakPt, ivx, prt)) {
-      if (prt) mf::LogVerbatim("TC") << "CTBC: Failed to split trajectory";
-      MakeVertexObsolete("CTBC", slc, slc.vtxs[ivx], false);
-      return;
-    }
-    SetVx2Score(slc);
-    slc.tjs[itj].AlgMod[kBeginChg] = true;
-
-    if (prt)
-      mf::LogVerbatim("TC") << "CTBC: Split T" << tj.ID << " at "
-                            << PrintPos(slc, tj.Pts[breakPt].Pos) << "\n";
-
-  } // CheckTrajBeginChg
-
-  //////////////////////////////////////////
-  void
   ChkEndPtFit(TCSlice& slc, Trajectory& tj)
   {
     // Re-fit the end of the trajectory if it is a long track (made with loose cuts)
@@ -2124,6 +2017,27 @@ namespace tca {
       if (StoreVertex(slc, newVx2)) vx2Index = slc.vtxs.size() - 1;
     } // makeVx2
     return SplitTraj(slc, itj, atPt, vx2Index, prt);
+  } // SplitTraj
+
+  //////////////////////////////////////////
+  bool
+  SplitTraj(TCSlice& slc, unsigned short itj, unsigned short atPt, bool prt)
+  {
+    // another version that splits the trajectory and makes a new 2D vertex
+    if (itj > slc.tjs.size() - 1) return false;
+    Trajectory& tj = slc.tjs[itj];
+    if (atPt <= tj.EndPt[0] || atPt >= tj.EndPt[1]) return false;
+
+    VtxStore new2V;
+    new2V.CTP = tj.CTP;
+    new2V.Pos[0] = 0.5 * (tj.Pts[atPt - 1].Pos[0] + tj.Pts[atPt].Pos[0]);
+    new2V.Pos[1] = 0.5 * (tj.Pts[atPt - 1].Pos[1] + tj.Pts[atPt].Pos[1]);
+    new2V.Topo = 10;
+    new2V.NTraj = 2;
+    if(!StoreVertex(slc, new2V)) return false;
+    unsigned short ivx = slc.vtxs.size() - 1;
+    return SplitTraj(slc, itj, atPt, ivx, prt);
+
   } // SplitTraj
 
   //////////////////////////////////////////
@@ -2946,6 +2860,10 @@ namespace tca {
     double tFactor = 1 + 0.3 / double(nPtsFit - 2);
     chgRMS *= tFactor;
 
+    // Set a lower bound on the error expected from the fit, using some assumptions
+    double minAngErr = 0.;
+    if(tcc.useAlg[kNewCuts]) minAngErr = tcc.hitErrFac * evt.aveHitRMS[0] * tcc.unitsPerTick / nPtsFit;
+
     // Fit the trajectory direction on the + side
     short fitDir = 1;
     TrajPoint tpPos;
@@ -2958,6 +2876,7 @@ namespace tca {
     if (tpNeg.FitChi > 900) return -1;
     double angErr = tpNeg.AngErr;
     if (tpPos.AngErr > angErr) angErr = tpPos.AngErr;
+    if(angErr < minAngErr) angErr = minAngErr;
     angErr *= tFactor;
     double dang = DeltaAngle(tpPos.Ang, tpNeg.Ang);
     double dangSig = dang / angErr;
@@ -2976,10 +2895,7 @@ namespace tca {
         if (cntNeg == nPtsFit) break;
         if (ipt == 0) break;
       } // ipt
-      if (cntNeg != nPtsFit) {
-        if (prt) mf::LogVerbatim("TC") << " KL: Bad cntNeg " << cntNeg << " != " << nPtsFit;
-        return -1;
-      }
+      if (cntNeg != nPtsFit) return -1;
       // now Pos
       double chgPos = 0;
       unsigned short cntPos = 0;
@@ -2990,10 +2906,7 @@ namespace tca {
         ++cntPos;
         if (cntPos == nPtsFit) break;
       } // ipt
-      if (cntPos != nPtsFit) {
-        if (prt) mf::LogVerbatim("TC") << " KL: Bad cntPos " << cntPos << " != " << nPtsFit;
-        return -1;
-      }
+      if (cntPos != nPtsFit) return -1;
       chgNeg /= (float)nPtsFit;
       chgPos /= (float)nPtsFit;
       // The charge asymmetry varies between 0 and 1;
@@ -3013,6 +2926,7 @@ namespace tca {
       myprt << " chgAsym " << chgAsym;
       myprt << " chgSig " << chgSig;
       myprt << " kinkSig " << kinkSig;
+      myprt << " minAngErr " << std::setprecision(3) << minAngErr;
     }
     return (float)kinkSig;
   } // KinkSignificance
@@ -3303,7 +3217,19 @@ namespace tca {
   short
   MCSMom(const TCSlice& slc, const Trajectory& tj)
   {
-    return MCSMom(slc, tj, tj.EndPt[0], tj.EndPt[1]);
+    // ignore the points near an end if there is a Bragg peak.
+    // Muons and pions wander significantly near the stopping point
+    // but are otherwise fairly straight
+    unsigned short fromPt = tj.EndPt[0];
+    unsigned short toPt = tj.EndPt[1];
+    if(tcc.useAlg[kNewCuts] && tj.Pts.size() > 30) {
+      if(tj.EndFlag[0][kEndBragg]) {
+        fromPt += 10;
+      } else if(tj.EndFlag[1][kEndBragg]) {
+        toPt -= 10;
+      }
+    } // NewCuts
+    return MCSMom(slc, tj, fromPt, toPt);
   } // MCSMom
 
   ////////////////////////////////////////////////

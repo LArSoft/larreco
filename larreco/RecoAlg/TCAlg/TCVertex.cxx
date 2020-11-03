@@ -23,23 +23,6 @@
 #include "TVectorD.h"
 
 namespace tca {
-/*
-  struct SortEntry {
-    unsigned int index;
-    float val;
-  };
-
-  bool
-  valDecreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val > c2.val);
-  }
-  bool
-  valIncreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val < c2.val);
-  }
-*/
   //////////////////////////////////////////
   void
   MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP)
@@ -580,7 +563,8 @@ namespace tca {
           break;
         } else {
           mf::LogVerbatim("TC") << "FSL2Vs: Reconcile 2V attachments btw T" 
-                << t1.ID << " and T" << t2.ID << " inCTP " << inCTP;
+                << t1.ID << " and T" << t2.ID << " inCTP " << inCTP
+                << " EventsProcessed " << evt.eventsProcessed;
         }
       } // it2
     } // it1
@@ -1215,7 +1199,8 @@ namespace tca {
     if (slc.vtxs.empty()) return;
     if (slc.tjs.empty()) return;
 
-    constexpr float docaCut = 4;
+    float docaCut = 4;
+    if(tcc.useAlg[kNewCuts]) docaCut = 2;
 
     bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kSplitTjCVx]);
     if (prt) mf::LogVerbatim("TC") << "Inside SplitTrajCrossingVertices inCTP " << inCTP;
@@ -2201,8 +2186,7 @@ namespace tca {
     // jacket around the push to ensure that the Tj and vtx CTP is consistent.
     // The calling function should score the vertex after the trajectories are attached
 
-    if (vx.ID != int(slc.vtxs.size() + 1)) return false;
-
+    vx.ID = slc.vtxs.size() + 1;
     ++evt.global2V_UID;
     vx.UID = evt.global2V_UID;
 
@@ -2470,9 +2454,31 @@ namespace tca {
         if(tcc.dbg3V) mf::LogVerbatim("TC")<<"KO2Vs: found orphan 2V"<<vx2.ID
                       <<" with "<<tjIDs.size()<<" Tjs attached. Not killing it";
         continue;
-      }
-      if(!CompatibleMerge(slc, tjIDs, false)) continue;
+      } // tjIDs.size() > 2
+      // CompatibleMerge has a loose angle cut and no Charge cut
+      if(!CompatibleMerge(slc, tjIDs, tcc.dbg3V)) continue;
+      // check the charge difference at the ends closest to the vertex
+      std::vector<std::pair<int, unsigned short>> tjEnd;
+      for(auto& tj : slc.tjs) {
+        if(tj.AlgMod[kKilled]) continue;
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] != vx2.ID) continue;
+          tjEnd.push_back(std::make_pair(tj.ID, end));
+          break;
+        } // end
+      } // tj
+      if(tjEnd.size() != 2) continue;
+      auto& t0 = slc.tjs[tjEnd[0].first - 1];
+      auto& tp0 = t0.Pts[t0.EndPt[tjEnd[0].second]];
+      auto& t1 = slc.tjs[tjEnd[1].first - 1];
+      auto& tp1 = t1.Pts[t1.EndPt[tjEnd[1].second]];
+      float chgAsym = std::abs(tp0.Chg - tp1.Chg) / (tp0.Chg + tp1.Chg);
+      if(tcc.dbg3V) mf::LogVerbatim("TC")<<" Compare chg T"<<t0.ID<<" "<<PrintPos(slc, tp0)
+          <<" chg "<<tp0.Chg
+          <<" with T"<<t1.ID<<" "<<PrintPos(slc, tp1)<<" chg "<<tp1.Chg
+          << " chg asym "<<chgAsym;
       MakeVertexObsolete("KO2Vs", slc, vx2, true);
+      if(chgAsym > 0.2) continue;
       if(vx2.Topo < 2) {
         // only try to merge end-end topologies
         unsigned int it1 = tjIDs[0] - 1;
@@ -2648,8 +2654,6 @@ namespace tca {
       }
       // weight by charge rms
       if (tj.ChgRMS < maxChgRMS) ++wght;
-      // Shower Tj
-      if (tj.AlgMod[kShowerTj]) ++wght;
       // ShowerLike
       if (tj.PDGCode == 11) --wght;
       tjids.push_back(tjid);

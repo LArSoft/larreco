@@ -59,27 +59,22 @@ namespace tca {
 
     // handle the simple cases that don't need decoding
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-      if(strng.find(AlgBitNames[ib]) == 0) {
+      if(strng.compare(AlgBitNames[ib]) == 0) {
         tcc.dbgAlg[ib] = true;
         return true;
       }
     } // ib
-    if (strng.find("3V") == 0) {
+    if (strng.compare("3V") == 0) {
       tcc.dbg3V = true;
       tcc.modes[kModeDebug] = true;
       return true;
     }
-    if (strng.find("3S") != std::string::npos) {
-      tcc.dbg3S = true;
-      tcc.modes[kModeDebug] = true;
-      return true;
-    }
-    if (strng.find("Stitch") != std::string::npos) {
+    if (strng.compare("Stitch") == 0) {
       tcc.dbgStitch = true;
       tcc.modes[kModeDebug] = true;
       return true;
     }
-    if (strng.find("Sum") != std::string::npos) {
+    if (strng.compare("Sum") == 0) {
       tcc.dbgSummary = true;
       tcc.modes[kModeDebug] = true;
       return true;
@@ -162,6 +157,10 @@ namespace tca {
     }
     if (words.size() == 2 && words[0] == "Merge") {
       debug.CTP = std::stoi(words[1]);
+      auto plnID = DecodeCTP(debug.CTP);
+      debug.Cryostat = plnID.Cryostat;
+      debug.TPC = plnID.TPC;
+      debug.Plane = plnID.Plane;
       tcc.dbgMrg = true;
       tcc.modes[kModeDebug] = true;
       return true;
@@ -173,12 +172,6 @@ namespace tca {
       debug.TPC = plnID.TPC;
       debug.Plane = plnID.Plane;
       tcc.dbg2V = true;
-      tcc.modes[kModeDebug] = true;
-      return true;
-    }
-    if (words.size() == 2 && words[0] == "2S") {
-      debug.CTP = std::stoi(words[1]);
-      tcc.dbg2S = true;
       tcc.modes[kModeDebug] = true;
       return true;
     }
@@ -280,7 +273,6 @@ namespace tca {
     if (tcc.dbgStp) std::cout << " dbgStp";
     if (tcc.dbgMrg) std::cout << " dbgMrg";
     if (tcc.dbg2V) std::cout << " dbg2V";
-    if (tcc.dbg2S) std::cout << " dbg2S";
     if (tcc.dbg3V) std::cout << " dbg3V";
     if (tcc.dbgPFP) std::cout << " dbgPFP";
     if (tcc.dbgStitch) std::cout << " dbgStitch";
@@ -509,7 +501,7 @@ namespace tca {
         myprt << std::right << std::setw(7) << str;
       }
       else {
-        myprt << "   --";
+        myprt << std::right << std::setw(7) << "-- ";
       }
     } // vx2id
     myprt << std::right << std::setw(5) << vx3.Wire;
@@ -676,9 +668,9 @@ namespace tca {
     std::string endCode;
     if(end > 1) return endCode;
     if(end == tj.StartEnd) endCode = "S";
-    if(tj.EndFlag[1][kEndBragg]) endCode = endCode + "B";
-    if(tj.EndFlag[1][kEndKink]) endCode = endCode + "K";
-    if(tj.EndFlag[1][kHitsAfterEnd]) endCode = endCode + "H";
+    if(tj.EndFlag[end][kEndBragg]) endCode = endCode + "B";
+    if(tj.EndFlag[end][kEndKink]) endCode = endCode + "K";
+    if(tj.EndFlag[end][kHitsAfterEnd]) endCode = endCode + "H";
     return endCode;
   } // PackEndFlags
 

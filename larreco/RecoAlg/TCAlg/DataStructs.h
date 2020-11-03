@@ -38,8 +38,6 @@ struct SortEntry{
   float val;
 };
 
-
-
 namespace tca {
 
   using Point3_t = std::array<double, 3>;
@@ -275,7 +273,8 @@ namespace tca {
     float Count{0}; // Set to 0 if matching failed
   };
 
-  constexpr unsigned int pAlgModSize = 6; // alignment for CTP sub-items - TPC
+  // Allocate the first set of bits in AlgBit_t for 3D algs
+  constexpr unsigned int pAlgModSize = 8;
 
   struct PFPStruct {
     std::vector<int> TjIDs;  // used to reference Tjs within a slice
@@ -306,113 +305,6 @@ namespace tca {
     kStops,
     kdEdxDefined        //< Set true if dEdx is defined in the TP3Ds vector
   } PFPFlags_t;
-
-  struct ShowerPoint {
-    Point2_t Pos; // Hit Position in the normal coordinate system
-    Point2_t
-      RotPos;     // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
-    float Chg{0}; // Charge of this point
-    unsigned int HitIndex; // the hit index
-    unsigned short
-      TID; // The ID of the tj the point (hit) is in. TODO eliminate this redundant variable
-  };
-
-  // A temporary structure that defines a 2D shower-like cluster of trajectories
-  struct ShowerStruct {
-    CTP_t CTP;
-    int ShowerTjID{0};              // ID of the shower Trajectory composed of many InShower Tjs
-    std::vector<int> TjIDs;         // list of InShower Tjs
-    std::vector<int> NearTjIDs;     // list of Tjs that are not InShower but satisfy the maxSep cut
-    std::vector<ShowerPoint> ShPts; // Trajectory points inside the shower
-    float Angle{0};                 // Angle of the shower axis
-    float AngleErr{3};              // Error
-    float AspectRatio{1}; // The ratio of charge weighted transverse/longitudinal positions
-    float DirectionFOM{1};
-    std::vector<Point2_t> Envelope; // Vertices of a polygon that encompasses the shower
-    float EnvelopeArea{0};
-    float ChgDensity{0}; // Charge density inside the Envelope
-    float Energy{0};
-    float ParentFOM{10};
-    int ID{0};
-    int UID{0};      ///< unique global ID
-    int ParentID{0}; // The ID of a parent Tj - the one at the start of the shower
- //   int TruParentID{0};
-//    int SS3ID{0};           // ID of a ShowerStruct3D to which this 2D shower is matched
-    bool NeedsUpdate{true}; // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
-  };
-
-  // Shower variables filled in MakeShowers. These are in cm and radians
-  struct ShowerStruct3D {
-    Vector3_t Dir; //
-    Vector3_t
-      DirErr; // DirErr is hijacked to store the shower rms at the start, center and end sections
-    Point3_t Start;    //
-    Point3_t StartErr; // PosErr is hijacked to temporarily store the charge in the three sections
-    Point3_t ChgPos;   // position of the center of charge
-    Point3_t End;      // end position
-    double Len{1};
-    double OpenAngle{0.12};
-    std::vector<double> Energy;
-    std::vector<double> EnergyErr;
-    std::vector<double> MIPEnergy;
-    std::vector<double> MIPEnergyErr;
-    std::vector<double> dEdx;
-    std::vector<double> dEdxErr;
-    geo::TPCID TPCID;
-    std::vector<int> CotIDs; // list of indices of 2D showers in tjs.cots
-    std::vector<unsigned int> Hits;
-    int BestPlane;
-    int ID;
-    int UID{0};      ///< unique global ID
-    int ParentID{0}; // The ID of a track-like pfp at the start of the shower, e.g. an electron
-    float MatchFOM;
-    unsigned short PFPIndex{USHRT_MAX}; // The index of the pfp for this shower
-    int Vx3ID{0};
-    bool NeedsUpdate{true}; // This is set true whenever the shower needs to be updated
-    bool Cheat{false};
-  };
-
-  struct DontClusterStruct {
-    std::array<int, 2>
-      TjIDs;   // pairs of Tjs that shouldn't be clustered in shower reconstruction because...
-    int Vx2ID; // they share a 2D vertex that may be matched to...
-    int Vx3ID; // a high-score 3D vertex
-  };
-
-  struct ShowerTreeVars {
-    // run, subrun, and event are also saved to this tree
-
-    std::vector<float> BeginWir; // begin wire
-    std::vector<float> BeginTim; // begin tick
-    std::vector<float> BeginAng; // begin angle
-    std::vector<float> BeginChg; // beginning average charge
-    std::vector<short> BeginVtx; // ID of begin vertex
-    std::vector<float> EndWir;   // end wire
-    std::vector<float> EndTim;   // end tick
-    std::vector<float> EndAng;   // end angle
-    std::vector<float> EndChg;   // ending average charge
-    std::vector<short> EndVtx;   //ID of end vertex
-
-    std::vector<short> MCSMom;
-
-    std::vector<short> PlaneNum;
-
-    std::vector<int> TjID;
-    std::vector<int> IsShowerTj;        // indicates tj is an shower trajectory
-    std::vector<int> ShowerID;          // shower ID associated w/ trajectory. -1 = no shower
-    std::vector<int> IsShowerParent;    // this tj was chosen as a parent tj
-    std::vector<int> StageNum;          // stage of reconstruction
-    std::vector<std::string> StageName; // stage name
-
-    // envelope information
-    std::vector<float> Envelope;
-    std::vector<int> EnvPlane;
-    std::vector<int> EnvStage;
-    std::vector<int> EnvShowerID;
-
-    int nStages{0};
-    unsigned short nPlanes{0};
-  };
 
   struct CRTreeVars {
     std::vector<int> cr_origin;
@@ -448,7 +340,7 @@ namespace tca {
     kShrtLong2V,
     kJunkTj,
     kKilled,
-    kMerge,
+    kEndMerge,
     kLastEndMerge,
     kTEP,
     kEndPtFit,  // ChkEndPtFit
@@ -464,6 +356,7 @@ namespace tca {
     kFTBChg,
     kBeginChg,
     kBraggSplit,
+    kFindBraggPeaks,
     kUUH,
     kVtxTj,
     kChkVxTj,
@@ -480,20 +373,12 @@ namespace tca {
     kFTBRvProp,
     kTjHiVx3Score,
     kVxEndSwap,
-    kKillInShowerVx,
-    kShowerTj,
-    kShwrParent,
-    kMergeOverlap,
-    kMergeSubShowers,
-    kMergeSubShowersTj,
-    kMergeNrShowers,
-    kMergeShChain,
-    kCompleteShower,
     kSplitTjCVx,
     kMakePFPTjs,
     kStopShort,
     kReconcile2Vs,
     kFTBMod,
+    kSmallKink,
     kLEPhys,
     kNewCuts,
     kAlgBitSize ///< don't mess with this line
@@ -588,14 +473,11 @@ namespace tca {
     bool dbgVxMerge{false};
     bool dbg3V{false}; ///< debug 3D vertex finding
     bool dbgPFP{false};
-    bool dbg2S{false};
-    bool dbg3S{false};
     bool dbgStitch{false};  ///< debug PFParticle stitching
     bool dbgSummary{false}; ///< print a summary report
     bool dbgDump{false};    /// dump trajectory points
     short nPtsAve;          /// number of points to find AveChg
     std::bitset<16> modes;  /// See TCModes_t above
-    bool doForecast{true};
     bool useChannelStatus{true};
   };
 
@@ -670,7 +552,6 @@ namespace tca {
 
   extern TCEvent evt;
   extern TCConfig tcc;
-  extern ShowerTreeVars stv;
   extern std::vector<TjForecast> tjfs;
 
   // vector of hits, tjs, etc in each slice

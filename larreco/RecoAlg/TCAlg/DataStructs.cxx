@@ -7,11 +7,9 @@ namespace tca {
   TCEvent evt;
   TCConfig tcc;
   std::vector<TjForecast> tjfs;
-  ShowerTreeVars stv;
   // vector of hits, tjs, etc in each slice
   std::vector<TCSlice> slices;
   std::vector<TrajPoint> seeds;
-
   const std::vector<std::string> AlgBitNames {
     "FillGaps3D",
     "Kink3D",
@@ -38,7 +36,7 @@ namespace tca {
     "ShrtLong2V",
     "JunkTj",
     "Killed",
-    "Merge",
+    "EndMerge",
     "LastEndMerge",
     "TEP",
     "EndPtFit",
@@ -54,6 +52,7 @@ namespace tca {
     "FTBChg",
     "BeginChg",
     "BraggSplit",
+    "FindBraggPeaks",
     "UUH",
     "VtxTj",
     "ChkVxTj",
@@ -70,20 +69,12 @@ namespace tca {
     "FTBRvProp",
     "TjHiVx3Score",
     "VxEndSwap",
-    "KillInShowerVx",
-    "ShowerTj",
-    "ShwrParent",
-    "MergeOverlap",
-    "MergeSubShowers",
-    "MergeSubShowersTj",
-    "MergeNrShowers",
-    "MergeShChain",
-    "CompleteShower",
     "SplitTjCVx",
     "MakePFPTjs",
     "StopShort",
     "Reconcile2Vs",
     "FTBMod",
+    "SmallKink",
     "LEPhys",
     "NewCuts"
   };

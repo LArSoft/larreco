@@ -56,12 +56,6 @@ namespace tca {
                  const TCSlice& slc,
                  PFPStruct& pfp,
                  bool prt);
-  void KillBadPoints(detinfo::DetectorClocksData const& clockData,
-                     detinfo::DetectorPropertiesData const& detProp,
-                     TCSlice& slc,
-                     PFPStruct& pfp,
-                     float pullCut,
-                     bool prt);
   bool CanSection(const TCSlice& slc, const PFPStruct& pfp);
   unsigned short Find3DRecoRange(const TCSlice& slc,
                                  const PFPStruct& pfp,
