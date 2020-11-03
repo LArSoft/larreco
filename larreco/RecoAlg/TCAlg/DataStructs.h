@@ -33,7 +33,7 @@ namespace recob {
 namespace simb {
   class MCParticle;
 }
-struct SortEntry{
+struct SortEntry {
   unsigned int index;
   float val;
 };

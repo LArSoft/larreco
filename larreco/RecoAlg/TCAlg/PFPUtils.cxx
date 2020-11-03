@@ -397,14 +397,13 @@ namespace tca {
           vx3.Wire = -2;
           vx3.ID = slc.vtx3s.size() + 1;
           vx3.Primary = false;
-          ++evt.globalP_UID;
-          vx3.UID = evt.globalP_UID;
+          ++evt.global3V_UID;
+          vx3.UID = evt.global3V_UID;
           slc.vtx3s.push_back(vx3);
           pfp.Vx3ID[0] = vx3.ID;
           auto& prevPFP = slc.pfps[slc.pfps.size() - 1];
           prevPFP.Vx3ID[1] = vx3.ID;
         } // ip > 0
-        // remove really bad TP3Ds
         // check for a valid two-plane match with a Tj in the third plane for long pfps.
         // For short pfps, it is possible that a Tj would be too short to be reconstructed
         // in the third plane.
@@ -561,6 +560,8 @@ namespace tca {
         if(std::find(killme.begin(), killme.end(), tp3d.TjID) == killme.end()) killme.push_back(tp3d.TjID);
       } // tp3d
     } // pfp
+
+    bool prt = (tcc.dbgPFP);
 
     bool prt = (tcc.dbgPFP);
 
@@ -1687,7 +1688,8 @@ namespace tca {
   } // FitPFP
 
   /////////////////////////////////////////
-  void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt)
+  void
+  ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
     // Checks for mis-placed 2D and 3D vertices and either attaches them
     // to a vertex or deletes(?) the vertex while attempting to preserve or
@@ -2389,8 +2391,10 @@ namespace tca {
     return true;
   } // MakeSmallAnglePFP
 
+
   /////////////////////////////////////////
-  void Reverse(TCSlice& slc, PFPStruct& pfp)
+  void
+  Reverse(TCSlice& slc, PFPStruct& pfp)
   {
     // reverse the PFParticle
     std::reverse(pfp.TP3Ds.begin(), pfp.TP3Ds.end());
@@ -2983,8 +2987,8 @@ namespace tca {
       vx3.Z = startPos[2];
       vx3.ID = slc.vtx3s.size() + 1;
       vx3.Primary = false;
-      ++evt.globalP_UID;
-      vx3.UID = evt.globalP_UID;
+      ++evt.global3V_UID;
+      vx3.UID = evt.global3V_UID;
       slc.vtx3s.push_back(vx3);
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
@@ -3123,7 +3127,6 @@ namespace tca {
       if (pfp.TjIDs.empty()) return false;
       if (pfp.PDGCode != 1111 && pfp.TP3Ds.size() < 2) return false;
     }
-    if(neutrinoPFP) mf::LogVerbatim("TC")<<"found Neutrino PFP P"<<pfp.ID;
     if(pfp.AlgMod[kSmallAng3D]) {
       // Make the PFP -> TP assn
       for(auto& tp3d : pfp.TP3Ds) {

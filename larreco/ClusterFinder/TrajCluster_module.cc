@@ -477,7 +477,6 @@ namespace cluster {
           xyz[1] = vx3.Y;
           xyz[2] = vx3.Z;
           vx3Col.emplace_back(xyz, vtxID);
-
           // fill the mapping struct
           slcVxStruct tmp;
           tmp.slIndx = isl;
