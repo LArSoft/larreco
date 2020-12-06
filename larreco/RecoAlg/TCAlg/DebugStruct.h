@@ -27,6 +27,7 @@ namespace tca {
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
     unsigned int Hit {UINT_MAX};    ///< set to the hit index in evt.allHits if a Plane:Wire:Tick match is found
     int WorkID {0}; ///< Select the StartWorkID for debugging
+    int UID {0};     ///< or alternatively the trajectory unique ID
     unsigned int MVI {UINT_MAX}; ///< MatchVec Index for detailed 3D matching
     unsigned short MVI_Iter {USHRT_MAX}; ///< MVI iteration - see FindPFParticles
     int Slice {-1};
@@ -35,6 +36,7 @@ namespace tca {
 
   bool DecodeDebugString(std::string ctpwt);
   void DumpTj();
+  bool InTrajOK(TCSlice& slc, std::string someText);
   void PrintDebugMode();
   void PrintAll(detinfo::DetectorPropertiesData const& detProp, std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);

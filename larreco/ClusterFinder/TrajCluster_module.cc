@@ -150,12 +150,10 @@ namespace cluster {
       fSpacePointHitAssnLabel = pset.get<art::InputTag>("SpacePointHitAssnLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns", true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns", true);
-    fSaveAll2DVertices = false;
-    if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
-    fMakeTrackSpacePoints = true;
-    if(pset.has_key("MakeTrackSpacePoints")) fMakeTrackSpacePoints = pset.get<bool>("MakeTrackSpacePoints");
-    fMakeTracks = true;
-    if(pset.has_key("MakeTracks")) fMakeTracks = pset.get<bool>("MakeTracks");
+    fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices", false);
+    fMakeTracks = pset.get<bool>("MakeTracks", true);
+    fMakeTrackSpacePoints = pset.get<bool>("MakeTrackSpacePoints", false);
+    if(!fMakeTracks) fMakeTrackSpacePoints = false;
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -174,20 +172,23 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
-    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
-    produces< art::Assns<recob::PFParticle, recob::Track> >();
 
-    produces< std::vector<recob::Track> >();
-    produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
-
-    produces< std::vector<recob::SpacePoint> >();
+    if(fMakeTracks) {
+      produces< art::Assns<recob::PFParticle, recob::Track> >();
+      produces< std::vector<recob::Track> >();
+      produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+      if (fMakeTrackSpacePoints) {
+        produces< art::Assns<recob::Track, recob::SpacePoint> >();
+        produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+      } // fMakeTrackSpacePoints
+    } // fMakeTracks
 
     produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
     produces< art::Assns<recob::Slice, recob::Hit> >();
 
     // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
-    produces<art::Assns<recob::SpacePoint, recob::Hit>>();
+    if(fSpacePointModuleLabel != "NA") produces<art::Assns<recob::SpacePoint, recob::Hit>>();
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
@@ -402,11 +403,11 @@ namespace cluster {
       pfp_vx3_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Seed>>
       pfp_sed_assn(new art::Assns<recob::PFParticle, recob::Seed>);
-    std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>>
-      pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
     // Track -> ...
     std::unique_ptr<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>>
       trk_hit_meta_assn(new art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta>);
+    std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint>>
+      trk_spt_assn(new art::Assns<recob::Track, recob::SpacePoint>);
     // Slice -> ...
     std::unique_ptr<art::Assns<recob::Slice, recob::Cluster>> slc_cls_assn(
       new art::Assns<recob::Slice, recob::Cluster>);
@@ -728,18 +729,19 @@ namespace cluster {
               // each SpacePoint is associated with one hit
               std::vector<unsigned int> sptsHit;
               fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
+              std::cout<<"P"<<pfp.ID<<" TP3Ds "<<pfp.TP3Ds.size()<<" spts "<<spts.size()<<" hits "<<sptsHit.size()<<"\n";
               if(!spts.empty()) {
                 for(unsigned int isp = 0; isp < spts.size(); ++isp) {
                   sptCol.push_back(spts[isp]);
-                  // PFParticle -> SpacePoint
-                  if(!util::CreateAssn(*this, evt, pfpCol, sptCol, *pfp_spt_assn, sptCol.size()-1, sptCol.size())) {
+                  // Track -> SpacePoint
+                  if(!util::CreateAssn(*this, evt, trkCol, sptCol, *trk_spt_assn, trkCol.size()-1, trkCol.size())) {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
-                      << "Failed to associate SpacePoint with Track";
+                      << "Failed to associate Track with SpacePoint";
                   } // exception
                   // SpacePoint -> Hit
                   if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
-                      << "Failed to associate Hit with SpacePoint";
+                      << "Failed to associate SpacePoint with Hit";
                   } // exception
                 } // isp
               } // !spts.empty()
@@ -843,15 +845,19 @@ namespace cluster {
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_vx3_assn));
     evt.put(std::move(pfp_sed_assn));
-    evt.put(std::move(pfp_spt_assn));
-    evt.put(std::move(pfp_trk_assn));
-    evt.put(std::move(tcol));
-    evt.put(std::move(spcol));
-    evt.put(std::move(trk_hit_meta_assn));
+    if (fMakeTracks) {
+      evt.put(std::move(tcol));
+      evt.put(std::move(trk_hit_meta_assn));
+      evt.put(std::move(pfp_trk_assn));
+      if(fMakeTrackSpacePoints) {
+        evt.put(std::move(spcol));
+        evt.put(std::move(trk_spt_assn));
+        evt.put(std::move(spt_hit_assn));
+      } // fMakeTrackSpacePoints
+    } // fMakeTracks
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));
-    evt.put(std::move(spt_hit_assn));
   } // TrajCluster::produce()
 
   ////////////////////////////////////////////////

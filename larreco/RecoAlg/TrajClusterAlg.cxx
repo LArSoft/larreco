@@ -71,38 +71,15 @@ namespace tca {
     std::string fMVAShowerParentWeights = "NA";
     pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);
     tcc.chkStopCuts = pset.get<std::vector<float>>("ChkStopCuts", {-1, -1, -1});
-    if (pset.has_key("MatchTruth")) {
-      std::cout << "MatchTruth is not used. Use ClusterAnaV2 or DebugConfig to configure\n";
-    }
     tcc.vtx2DCuts = pset.get<std::vector<float>>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tcc.vtx3DCuts = pset.get<std::vector<float>>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get<std::vector<float>>("VertexScoreWeights");
     tcc.match3DCuts = pset.get<std::vector<float>>("Match3DCuts", {-1, -1, -1, -1, -1});
     tcc.pfpStitchCuts = pset.get<std::vector<float>>("PFPStitchCuts", {-1});
-    // Configure for neutrinos (default = ""), TestBeam or LEPhysics
-    std::string mode = "";
-    pset.get_if_present<std::string>("Mode", mode);
     // Set the normal stepping mode Pos (lower wire number to higher wire number)
     tcc.modes[kModeStepPos] = true;
-    // Turn off LEPhys useAlg for "normal" old reconstruction
-    tcc.useAlg[kModeLEPhysics] = true;
-    if(mode.length() > 0) {
-      bool okEntry = false;
-      if(mode.find("TestBeam") == 0) {
-        tcc.modes[kModeTestBeam] = true;
-        okEntry = true;
-      } else if(mode.find("LEPhysics") == 0) {
-        tcc.modes[kModeLEPhysics] = true;
-        tcc.useAlg[kLEPhys] = true;
-        okEntry = true;
-      }
-      // set the minimum 2D vertex score to 0
-      tcc.vtx2DCuts[7] = 0.;
-      if(!okEntry) {
-      throw art::Exception(art::errors::Configuration)
-        << "The specified Mode string "<<mode<<" is invalid";
-      }
-    } // mode defined
+    // don't produce neutrino PFParticles, etc unless desired
+    tcc.modes[kModeNeutrino] = pset.get<bool>("NeutrinoMode", false);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if (tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
 
@@ -136,18 +113,11 @@ namespace tca {
                    "max 3D separation (cm) btw a PFP and a 3D vertex. Setting it to 3 cm\n";
       tcc.vtx3DCuts.resize(3, 3.);
     }
-    if (tcc.kinkCuts.size() < 4) {
+    if (tcc.kinkCuts.size() < 3) {
       throw art::Exception(art::errors::Configuration)
         << "KinkCuts must be size 3\n 0 = Number of points to fit at the end of the trajectory\n 1 "
            "= Minimum kink significance\n 2 = Use charge in significance calculation? (yes if > "
-           "0)\n 3 = 3D kink fit length (cm). \nYou are using an out-of-date specification?\n";
-    }
-    // throw an exception if the user appears to be using an old version of KinkCuts where
-    // KinkCuts[0] was a kink angle cut
-    if (tcc.kinkCuts[0] > 0 && tcc.kinkCuts[0] < 1.) {
-      throw art::Exception(art::errors::Configuration)
-        << "Are you using an out-of-date specification for KinkCuts? KinkCuts[0] is the number of "
-           "points to fit.\n";
+           "0). \nYou are using an out-of-date specification?\n";
     }
 
     if (tcc.chargeCuts.size() != 3)
@@ -165,7 +135,7 @@ namespace tca {
     if (tcc.chkStopCuts.size() < 3)
       throw art::Exception(art::errors::Configuration)
         << "ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = "
-           "Charge fit chisq cut\n 3 = BraggSplit FOM (optional)";
+           "Charge fit chisq cut";
     if(tcc.showerTag.size() != 3) {
       std::cout
         <<  "Shower reconstruction code is not available. Reconfiguring ShowerTag to size 3:\n"
@@ -179,11 +149,15 @@ namespace tca {
     } // tcc.showerTag.size() != 3
     if (tcc.match3DCuts.size() < 6)
       throw art::Exception(art::errors::Configuration)
-        << "Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D "
+        << "Match3DCuts must be size 7\n 0 = dx (cm) matching cut\n 1 = max number of 3D "
            "combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to "
            "fit in each PFP section\n 4 = max pull for accepting TP3Ds in sections\n 5 = max "
-           "ChiDOF for a SectionFit";
-
+           "ChiDOF for a SectionFit\n 6 = match limit for shower-like Tjs";
+    if (tcc.match3DCuts.size() == 6) {
+      // add another cut on limit the number of shower-like tjs to 3D match
+      tcc.match3DCuts.resize(7);
+      tcc.match3DCuts[6] = 1000;
+    } 
     // check the angle ranges and convert from degrees to radians
     if (tcc.angleRanges.back() < 90) {
       mf::LogVerbatim("TC") << "Last element of AngleRange != 90 degrees. Fixing it\n";
@@ -250,10 +224,6 @@ namespace tca {
     for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
       tcc.useAlg[ib] = true;
 
-    // turn off the special algs
-    // Do an exhaustive (and slow) check of the hit -> trajectory associations
-    tcc.useAlg[kChkInTraj] = false;
-
     for (auto strng : skipAlgsVec) {
       bool gotit = false;
       if (strng == "All") {
@@ -282,11 +252,6 @@ namespace tca {
       std::cout << "\n";
       std::cout << "Or specify All to turn all algs off\n";
     }
-/*
-    // Configure the TMVA reader for the shower parent BDT
-    if (fMVAShowerParentWeights != "NA" && tcc.showerTag[0] > 0)
-      ConfigureMVA(tcc, fMVAShowerParentWeights);
-*/
     evt.eventsProcessed = 0;
 
     tcc.caloAlg = &fCaloAlg;
@@ -373,9 +338,6 @@ namespace tca {
       ReconstructAllTraj(detProp, slc, inCTP);
       if (!slc.isValid) return;
     } // plane
-    // Look for below-threshold kinks on Tjs in all planes and try to
-    // match the kink points in 3D
-    FindSmallKinks(detProp, slc);
     // Compare 2D vertices in each plane and try to reconcile T -> 2V attachments using
     // 2D and 3D(?) information
     Reconcile2Vs(slc);
@@ -383,7 +345,7 @@ namespace tca {
     KillOrphan2Vs(detProp, slc);
     ScoreVertices(slc);
     // Define the ParentID of trajectories using the vertex score
-    DefineTjParents(slc, false);
+//    DefineTjParents(slc, false);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       if (!ChkVtxAssociations(slc, inCTP)) {
@@ -392,7 +354,6 @@ namespace tca {
     } // plane
     if (tcc.match3DCuts[0] > 0) {
       FindPFParticles(clockData, detProp, slc);
-      DefinePFPParents(slc, false);
     } // 3D matching requested
     KillPoorVertices(slc);
     if (!slc.isValid) {
@@ -605,7 +566,8 @@ namespace tca {
             }
             if (tcc.dbgStp)
               mf::LogVerbatim("TC") << "ReconstructAllTraj: After CheckTraj EndPt " << work.EndPt[0]
-                                    << "-" << work.EndPt[1] << " IsGood " << work.IsGood;
+                                    << "-" << work.EndPt[1] << " IsGood " << work.IsGood 
+                                    << " EndFlag[0] " << PackEndFlags(work, 0);
             if (tcc.dbgStp)
               mf::LogVerbatim("TC")
                 << "StepAway done: IsGood " << work.IsGood << " NumPtsWithCharge "
@@ -620,19 +582,13 @@ namespace tca {
               continue;
             }
             if (!StoreTraj(slc, work)) continue;
-            if (tcc.dbgStp) {
-              auto& tj = slc.tjs[slc.tjs.size() - 1];
-              PrintTrajectory("RAT", slc, tj, USHRT_MAX);
-              if (!InTrajOK(slc, "RAT")) {
-                std::cout << "RAT: InTrajOK major failure T" << tj.ID << "\n";
+            if (tcc.dbgStp) PrintTrajectory("RAT", slc, slc.tjs.back(), USHRT_MAX);
+            if (tcc.modes[kModeDebug] && !InTrajOK(slc, "RAT")) {
+                std::cout << "RAT: InTrajOK major failure T" << slc.tjs.back().ID << "\n";
                 return;
-              }
-            } // dbgStp
-            if(!tcc.useAlg[kNewCuts]) {
-              // This seems like the wrong place to do this
-              ChkBeginChg(slc, slc.tjs.size() - 1);
-              BraggSplit(slc, slc.tjs.size() - 1);
             }
+            // This seems like the wrong place to do this
+            if(!tcc.useAlg[kNewCuts]) ChkBeginChg(slc, slc.tjs.size() - 1);
             break;
           } // jht
         }   // iht
@@ -692,7 +648,6 @@ namespace tca {
           mf::LogVerbatim("TC") << "TRP RAT Stored T" << tj.ID << " using seed TP "
                                 << PrintPos(slc, tp);
         }
-        BraggSplit(slc, slc.tjs.size() - 1);
       } // seed
 
       seeds.resize(0);
@@ -709,9 +664,10 @@ namespace tca {
 
     // Last attempt to merge long straight Tjs that failed the EndMerge cuts
     LastEndMerge(slc, inCTP);
-
     // make junk trajectories using nearby un-assigned hits
     FindJunkTraj(slc, inCTP);
+    // Merge junk Tjs with junk Tjs
+    MergeJunk(slc, inCTP);
     // Merge short Tjs into junk Tjs
     MergeShortWithJunk(slc, inCTP);
     // dressed muons with halo trajectories
@@ -723,6 +679,14 @@ namespace tca {
       } // tj
     }   // dressed muons
 
+    // temp check
+    for (auto& tj : slc.tjs) {
+      if(!tj.IsGood && !tj.AlgMod[kKilled]) {
+        std::cout<<"T"<<tj.ID<<" is not good and is not killed";
+        tj.AlgMod[kKilled] = true;
+      }
+    } // tj
+
     // Tag ShowerLike Tjs
     TagShowerLike(slc, inCTP);
     // Set TP Environment bits
@@ -732,10 +696,7 @@ namespace tca {
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
     // check for a major failure
-    if (!slc.isValid) {
-      std::cout << "RAT: MakeJunkVertices major failure\n";
-      return;
-    }
+    if (!slc.isValid) return;
 
     // last attempt to attach Tjs to vertices
     for (unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
@@ -796,10 +757,6 @@ namespace tca {
         std::vector<unsigned int> iHits;
         if(tcc.useAlg[kNewCuts]) {
           iHits = FindJTHits(slc, iht);
-          if(iHits.size() > 3) {
-            std::cout<<slc.TPCID.TPC<<" iHits "<<PrintHit(slc.slHits[iHits[0]])<<" to "
-                  <<PrintHit(slc.slHits[iHits[iHits.size()-1]])<<"";
-          }
         } else {
           GetHitMultiplet(slc, iht, iHits, true);
         }
@@ -823,7 +780,11 @@ namespace tca {
           }
           if (jHits.empty()) continue;
           // check for hit overlap consistency
-          if (!TrajHitsOK(slc, iHits, jHits)) continue;
+          if(tcc.useAlg[kNewCuts]) {
+            if (!JTHitsOK(slc, iHits, jHits)) continue;
+          } else {
+            if (!TrajHitsOK(slc, iHits, jHits)) continue;
+          }
           tHits.clear();
           // add the available hits and flag them
           for (auto iht : iHits)
@@ -858,7 +819,11 @@ namespace tca {
                 } else {
                   GetHitMultiplet(slc, kht, jHits, true);
                 }
-                if (!TrajHitsOK(slc, tHits, jHits)) continue;
+                if(tcc.useAlg[kNewCuts]) {
+                  if (!JTHitsOK(slc, tHits, jHits)) continue;
+                } else {
+                  if (!TrajHitsOK(slc, tHits, jHits)) continue;
+                }
                 // add them all and update the wire range
                 for (auto jht : jHits) {
                   if (slc.slHits[jht].InTraj != 0) continue;
@@ -868,6 +833,8 @@ namespace tca {
                   if (kwire < loWire) loWire = kwire;
                   hitsAdded = true;
                 } // jht
+                // allow continuing if a wire has hits that are already used
+                if(tcc.useAlg[kNewCuts] && !jHits.empty()) hitsAdded = true;
               }   // kht
             }     // kwire
             if (!hitsAdded) break;
@@ -913,106 +880,31 @@ namespace tca {
     timeWindow[0] = hit.PeakTime() * tcc.unitsPerTick;
     timeWindow[1] = timeWindow[0] + sqrt(tcc.JTMaxHitSep2);
     bool hitsNear = false;
-    return FindCloseHits(slc, wireWindow, timeWindow, plane, kUnusedHits, true, hitsNear);
+    auto closeHits = FindCloseHits(slc, wireWindow, timeWindow, plane, kUnusedHits, true, hitsNear);
+    if(closeHits.empty()) return closeHits;
+    // include all hits that are in a multiplet even though that may
+    // lie outside the timeWindow. We only need to check the first
+    // and last hits since they are time-ordered
+    for(unsigned short chk = 0; chk < 2; ++chk) {
+      unsigned int iht = closeHits[0];
+      if(chk > 0) iht = closeHits.back();
+      if(iht >= slc.slHits.size()) continue;
+      auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+      if(hit.Multiplicity() == 1) continue;
+      // index of the first hit, using the assumption that all hits in the
+      // multiplet are correctly included in this slice
+      if(hit.LocalIndex() > (int)iht) continue;
+      unsigned int fht = iht - hit.LocalIndex();
+      // ensure that this assumption is correct
+      if((*evt.allHits)[slc.slHits[fht].allHitsIndex].LocalIndex() != 0) return closeHits;
+      for(short li = 0; li < hit.Multiplicity(); ++li) {
+        unsigned int jht = fht + li;
+        if(std::find(closeHits.begin(), closeHits.end(), jht) == closeHits.end()) closeHits.push_back(jht);
+      } // li
+      if(closeHits.size() == 1) break;
+    } // chk
+    return closeHits;
   } // FindJTHits
-
-
-  ////////////////////////////////////////////////
-  void
-  TrajClusterAlg::ChkInTraj(std::string someText, TCSlice& slc)
-  {
-    // Check slc.tjs -> InTraj associations
-
-    if (!tcc.useAlg[kChkInTraj]) return;
-
-    ++fAlgModCount[kChkInTraj];
-
-    int tID;
-    unsigned int iht;
-    unsigned short itj = 0;
-    std::vector<unsigned int> tHits;
-    std::vector<unsigned int> atHits;
-    for (auto& tj : slc.tjs) {
-      // ignore abandoned trajectories
-      if (tj.AlgMod[kKilled]) continue;
-      tID = tj.ID;
-      for (auto& tp : tj.Pts) {
-        if (tp.Hits.size() > 16) {
-          tj.AlgMod[kKilled] = true;
-          mf::LogVerbatim("TC")
-            << "ChkInTraj: More than 16 hits created a UseHit bitset overflow\n";
-          slc.isValid = false;
-          std::cout << "ChkInTraj major failure\n";
-          return;
-        }
-      } // tp
-      if (tj.AlgMod[kKilled]) {
-        std::cout << someText << " ChkInTraj hit size mis-match in tj ID " << tj.ID
-                  << " AlgBitNames";
-        for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
-          if (tj.AlgMod[ib]) std::cout << " " << AlgBitNames[ib];
-        std::cout << "\n";
-        continue;
-      }
-      tHits = PutTrajHitsInVector(tj, kUsedHits);
-      if (tHits.size() < 2) {
-        mf::LogVerbatim("TC") << someText << " ChkInTraj: Insufficient hits in traj " << tj.ID;
-        PrintTrajectory("CIT", slc, tj, USHRT_MAX);
-        tj.AlgMod[kKilled] = true;
-        continue;
-      }
-      std::sort(tHits.begin(), tHits.end());
-      atHits.clear();
-      for (iht = 0; iht < slc.slHits.size(); ++iht) {
-        if (slc.slHits[iht].InTraj == tID) atHits.push_back(iht);
-      } // iht
-      if (atHits.size() < 2) {
-        mf::LogVerbatim("TC") << someText << " ChkInTraj: Insufficient hits in atHits in traj "
-                              << tj.ID << " Killing it";
-        tj.AlgMod[kKilled] = true;
-        continue;
-      }
-      if (!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
-        mf::LogVerbatim myprt("TC");
-        myprt << someText << " ChkInTraj failed: inTraj - UseHit mis-match for tj ID " << tID
-              << " tj.WorkID " << tj.WorkID << " atHits size " << atHits.size() << " tHits size "
-              << tHits.size() << " in CTP " << tj.CTP << "\n";
-        myprt << "AlgMods: ";
-        for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
-          if (tj.AlgMod[ib]) myprt << " " << AlgBitNames[ib];
-        myprt << "\n";
-        myprt << "index     inTraj     UseHit \n";
-        for (iht = 0; iht < atHits.size(); ++iht) {
-          myprt << "iht " << iht << " " << PrintHit(slc.slHits[atHits[iht]]);
-          if (iht < tHits.size()) myprt << " " << PrintHit(slc.slHits[tHits[iht]]);
-          if (atHits[iht] != tHits[iht]) myprt << " <<< " << atHits[iht] << " != " << tHits[iht];
-          myprt << "\n";
-          slc.isValid = false;
-        } // iht
-        if (tHits.size() > atHits.size()) {
-          for (iht = atHits.size(); iht < atHits.size(); ++iht) {
-            myprt << "atHits " << iht << " " << PrintHit(slc.slHits[atHits[iht]]) << "\n";
-          } // iht
-          PrintTrajectory("CIT", slc, tj, USHRT_MAX);
-        } // tHit.size > atHits.size()
-      }
-      // check the VtxID
-      for (unsigned short end = 0; end < 2; ++end) {
-        if (tj.VtxID[end] > slc.vtxs.size()) {
-          mf::LogVerbatim("TC") << someText << " ChkInTraj: Bad VtxID " << tj.ID;
-          std::cout << someText << " ChkInTraj: Bad VtxID " << tj.ID << " vtx size "
-                    << slc.vtxs.size() << "\n";
-          tj.AlgMod[kKilled] = true;
-          PrintTrajectory("CIT", slc, tj, USHRT_MAX);
-          slc.isValid = false;
-          return;
-        }
-      } // end
-      ++itj;
-      if (!slc.isValid) return;
-    } // tj
-
-  } // ChkInTraj
 
   //////////////////////////////////////////
   void

@@ -316,7 +316,6 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kFillGaps3D, // 3D algorithms for PFPs (bitset size limited to 8 bits)
-    kKink3D,
     kTEP3D,
     kJunk3D,
     kRTPs3D,
@@ -347,17 +346,14 @@ namespace tca {
     kTHiQEP,  // TrimHiChgEndPts
     kTHMEP,
     kFillGaps,
+    kUUH,
     kUseGhostHits,
-    kMrgGhost,
     kMrgShortJunk,
-    kChkInTraj,
+    kMrgJunk,
     kStopBadFits,
     kFixBegin,
     kFTBChg,
     kBeginChg,
-    kBraggSplit,
-    kFindBraggPeaks,
-    kUUH,
     kVtxTj,
     kChkVxTj,
     kPhoton,
@@ -378,7 +374,6 @@ namespace tca {
     kStopShort,
     kReconcile2Vs,
     kFTBMod,
-    kSmallKink,
     kLEPhys,
     kNewCuts,
     kAlgBitSize ///< don't mess with this line
@@ -395,7 +390,8 @@ namespace tca {
   typedef enum {
     kHitsAfterEnd,   ///< There is a hit just DS (end 1) (US = end 0) at the end of the Tj
     kEndKink,
-    kEndBragg,
+    kEndBragg,       ///< There is a Bragg peak at this end
+    kEndBraggChkd,    ///< A check was made for a Bragg peak at this end 
     kEndOutFV,
     kEndNoFitVx,
     kFlagBitSize ///< don't mess with this line
@@ -415,8 +411,7 @@ namespace tca {
   // TrajClusterAlg configuration bits
   typedef enum {
     kModeStepPos,    ///< step from US -> DS (true) or DS -> US (false)
-    kModeTestBeam,   ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
-    kModeLEPhysics,  ///< Configure for low energy physics processes
+    kModeNeutrino,   ///< produce a neutrino PFParticle using vertex scoring
     kModeDebug,      ///< master switch for turning on debug mode
   } TCModes_t;
 

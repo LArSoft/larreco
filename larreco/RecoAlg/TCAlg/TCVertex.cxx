@@ -562,7 +562,7 @@ namespace tca {
         if(success) {
           break;
         } else {
-          mf::LogVerbatim("TC") << "FSL2Vs: Reconcile 2V attachments btw T" 
+          if(tcc.modes[kModeDebug]) mf::LogVerbatim("TC") << "FSL2Vs: Reconcile 2V attachments btw T" 
                 << t1.ID << " and T" << t2.ID << " inCTP " << inCTP
                 << " EventsProcessed " << evt.eventsProcessed;
         }
@@ -807,10 +807,12 @@ namespace tca {
           if(std::find(dtrCandidates.begin(), dtrCandidates.end(), inTraj) == dtrCandidates.end()) 
             dtrCandidates.push_back(inTraj);
         } // iht
+/*
         if(dtrCandidates.size() > 1) {
           std::cout<<"MDV: found multiple daughter candidates in CTP "<<inCTP;
           std::cout<<" associated with T"<<tj.ID<<" near "<<PrintPos(slc, endTP.Pos)<<"\n";
         }
+*/
         if(dtrCandidates.size() != 1) continue;
         if(prt) {
           mf::LogVerbatim myprt("TC");
@@ -885,8 +887,8 @@ namespace tca {
     // minimum^2 DOCA of tj1 endpoint with tj2
 
     if (!tcc.useAlg[kHamVx2]) return;
-    // This wasn't written for test beam events
-    if (tcc.modes[kModeTestBeam]) return;
+    // This was written for neutrino interactions
+    if (!tcc.modes[kModeNeutrino]) return;
 
     bool prt = (tcc.modes[kModeDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx2]);
     if (prt) mf::LogVerbatim("TC") << "Inside HamVx2";

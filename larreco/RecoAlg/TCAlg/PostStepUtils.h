@@ -21,9 +21,6 @@ namespace tca {
 
   // Check the quality of the trajectory and possibly trim it
   void CheckTraj(TCSlice& slc, Trajectory& tj);
-  void CheckStiffEl(TCSlice& slc, Trajectory& tj);
-  // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
-  void ChkStopEnd1(TCSlice& slc, Trajectory& tj, bool prt);
   // Check the parameters at the start of the trajectory
   void ChkBegin(TCSlice& slc, Trajectory& tj);
   void ChkBeginOld(TCSlice& slc, Trajectory& tj);
@@ -42,16 +39,14 @@ namespace tca {
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);
   // Sets the StopsAtEnd bits for the trajectory
   void ChkStop(TCSlice& slc, Trajectory& tj);
-  void FindBraggPeaks(TCSlice& slc, Trajectory& tj);
   // Check the Michel electron topology, lastGoodPt is the last point of muon
   bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt);
   // Make a junk trajectory using the list of hits in tHits
   bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits);
   void MergeShortWithJunk(TCSlice& slc, CTP_t inCTP);
-  bool BraggSplit(TCSlice& slc, unsigned short itj);
+  void MergeJunk(TCSlice& slc, CTP_t inCTP);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
   void TagShowerLike(TCSlice& slc, const CTP_t& inCTP);
-  void FindSmallKinks(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
 } // namespace
 
 #endif // ifndef POSTSTEPUTILS_H

@@ -152,215 +152,6 @@ namespace tca {
   } // MakeHaloTj
 
   /////////////////////////////////////////
-  void
-  DefineTjParents(TCSlice& slc, bool prt)
-  {
-    /*
-    This function sets the ParentUID of Tjs in this tpcid to create a hierarchy. The highest Score
-    3D vertex in a chain of Tjs and vertices is declared the primary vertex; vx3.Primary = true. Tjs directly attached
-    to that vertex are declared Primary trajectories with ParentUID = 0. All other Tjs in the chain have ParentUID
-    set to the next upstream Tj to which it is attached by a vertex. In the graphical description below, V1 and V4 are
-    2D vertices that are matched to a high-score 3D vertex. The V1 Score is greater than the V2 Score and V3 Score.
-    V1 and V4 are declared to be primary vertices. T1, T2, T6 and T7 are declared to be primary Tjs
-
-      V1 - T1 - V2 - T3          V4 - T6         / T8
-         \                          \           /
-           T2 - V3 - T4               T7
-                   \
-                     T5
-
-    This is represented as follows. The NeutrinoPrimaryTjID is defined by a function.
-     Tj   ParentUID   NeutrinoPrimaryTjID
-     -----------------------------------
-     T1      0          T1
-     T2      0          T2
-     T3     T1          T2
-     T4     T2          T2
-     T5     T2          T2
-     T6      0          -1
-     T7      0          -1
-     T8     -1          -1
-*/
-
-    // don't do anything if this is test beam data
-    if (tcc.modes[kModeTestBeam]) return;
-    if (tcc.modes[kModeLEPhysics]) return;
-
-    // clear old information
-    for (auto& tj : slc.tjs) {
-      if (tj.AlgMod[kKilled]) continue;
-      // ignore delta rays
-      if (tj.AlgMod[kDeltaRay] || tj.AlgMod[kHaloTj]) continue;
-      tj.ParentID = 0;
-    } // tj
-    mf::LogVerbatim("TC")<<"inside DefineTJParents";
-
-    // sort vertice by decreasing score
-    std::vector<int> temp;
-    for (auto& vx3 : slc.vtx3s) {
-      if (vx3.ID == 0) continue;
-      // clear the Primary flag while we are here
-      vx3.Primary = false;
-      temp.push_back(vx3.ID);
-    } // vx3
-    if (temp.empty()) return;
-
-    // Make a master list of all Tjs that are attached to these vertices
-    std::vector<int> masterlist;
-    for (auto vx3id : temp) {
-      auto& vx3 = slc.vtx3s[vx3id - 1];
-      float score;
-      auto tjlist = GetVtxTjIDs(slc, vx3, score);
-      for (auto tjid : tjlist) {
-        auto& tj = slc.tjs[tjid - 1];
-        if (tj.ParentID != 0) tj.ParentID = 0;
-        if (std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end())
-          masterlist.push_back(tjid);
-      } // tjid
-    }   // vxid
-    if (prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt << "DTP: masterlist Tjs";
-      for (auto tjid : masterlist)
-        myprt << " " << tjid;
-    }
-
-    // Do the sort
-    std::vector<SortEntry> sortVec(temp.size());
-    for (unsigned short indx = 0; indx < temp.size(); ++indx) {
-      auto& vx3 = slc.vtx3s[temp[indx] - 1];
-      sortVec[indx].index = indx;
-      sortVec[indx].val = vx3.Score;
-    } // indx
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
-    // put them into order
-    auto vlist = temp;
-    for (unsigned short indx = 0; indx < temp.size(); ++indx)
-      vlist[indx] = temp[sortVec[indx].index];
-
-    // make a neutrino PFParticle to associate with the highest score vertex if it is high enough
-    if (tcc.match3DCuts[0] > 0) {
-      auto& vx3 = slc.vtx3s[vlist[0] - 1];
-      if (vx3.Score > tcc.vtx2DCuts[7]) {
-        auto neutrinoPFP = CreatePFP(slc);
-        // call it the neutrino vertex
-        vx3.Neutrino = true;
-        // put the vertex at the end of the neutrino
-        auto& sf = neutrinoPFP.SectionFits[0];
-        sf.Pos[0] = vx3.X;
-        sf.Pos[1] = vx3.Y;
-        sf.Pos[2] = vx3.Z;
-        sf.Dir[2] = 1;
-        // This may be set to 12 later on if a primary shower is reconstructed
-        neutrinoPFP.PDGCode = 14;
-        neutrinoPFP.Vx3ID[1] = vx3.ID;
-        neutrinoPFP.Vx3ID[0] = vx3.ID;
-        neutrinoPFP.Flags[kNeedsUpdate] = false;
-        // the rest of this will be defined later
-        mf::LogVerbatim("TC")<<"store neutrinoPFP";
-        if (!Store(slc, neutrinoPFP)) return;
-      }
-    } // User wants to make PFParticles
-    // a temp vector to ensure that we only consider a vertex once
-    std::vector<bool> lookedAt3(slc.vtx3s.size() + 1, false);
-    std::vector<bool> lookedAt2(slc.vtxs.size() + 1, false);
-    // vector of parent-daughter pairs
-    std::vector<std::pair<int, int>> pardtr;
-    // Start with the highest score vertex
-    for (unsigned short indx = 0; indx < vlist.size(); ++indx) {
-      auto& vx3 = slc.vtx3s[vlist[indx] - 1];
-      if (lookedAt3[vx3.ID]) continue;
-      vx3.Primary = true;
-      lookedAt3[vx3.ID] = true;
-      // make a list of Tjs attached to this vertex
-      float score;
-      auto primTjList = GetVtxTjIDs(slc, vx3, score);
-      if (primTjList.empty()) continue;
-      pardtr.clear();
-      for (auto primTjID : primTjList) {
-        auto& primTj = slc.tjs[primTjID - 1];
-        // This isn't a primary tj if the parent ID isn't -1
-        if (primTj.ParentID != -1) continue;
-        if (prt) mf::LogVerbatim("TC") << "Vx3 " << vx3.ID << " Primary tj " << primTj.ID;
-        // declare this a primary tj
-        primTj.ParentID = 0;
-        // look for daughter tjs = those that are attached to a 2D vertex
-        // at the other end
-        for (unsigned short end = 0; end < 2; ++end) {
-          if (primTj.VtxID[end] == 0) continue;
-          auto& vx2 = slc.vtxs[primTj.VtxID[end] - 1];
-          if (vx2.Vx3ID == vx3.ID) continue;
-          // found a 2D vertex. Check for daughters
-          auto dtrList = GetVtxTjIDs(slc, vx2);
-          for (auto dtrID : dtrList) {
-            // ignore the primary tj
-            if (dtrID == primTjID) continue;
-            auto& dtj = slc.tjs[dtrID - 1];
-            if (dtj.ParentID != -1) continue;
-            pardtr.push_back(std::make_pair(primTjID, dtrID));
-            if (prt) mf::LogVerbatim("TC") << "  primTj " << primTjID << " dtrID " << dtrID;
-          } // tjid
-        }   // end
-        // Ensure that end 0 of the trajectory is attached to the primary vertex
-        for (unsigned short end = 0; end < 2; ++end) {
-          if (primTj.VtxID[end] == 0) continue;
-          auto& vx2 = slc.vtxs[primTj.VtxID[end] - 1];
-          if (vx2.Vx3ID == vx3.ID && end != 0) ReverseTraj(slc, primTj);
-        } // end
-      }   // tjid
-      if (pardtr.empty()) continue;
-      if (prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt << " par_dtr";
-        for (auto pdtr : pardtr)
-          myprt << " " << pdtr.first << "_" << pdtr.second;
-      }
-      // iterate through the parent - daughter stack, removing the last pair when a
-      // ParentID is updated and adding pairs for new daughters
-      for (unsigned short nit = 0; nit < 100; ++nit) {
-        auto lastPair = pardtr[pardtr.size() - 1];
-        auto& dtj = slc.tjs[lastPair.second - 1];
-        dtj.ParentID = lastPair.first;
-        // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
-        float doca = 100;
-        unsigned short dpt = 0, ppt = 0;
-        auto& ptj = slc.tjs[lastPair.first - 1];
-        // find the point on the daughter tj that is closest to the parent
-        TrajTrajDOCA(slc, dtj, ptj, dpt, ppt, doca);
-        // reverse the daughter if the closest point is near end 1 of the daughter
-        if (prt) mf::LogVerbatim("TC") << "Set parent " << ptj.ID << " dtr " << dtj.ID;
-        // remove that entry
-        pardtr.pop_back();
-        // Add entries for new daughters
-        for (unsigned short end = 0; end < 2; ++end) {
-          if (dtj.VtxID[end] == 0) continue;
-          auto& vx2 = slc.vtxs[dtj.VtxID[end] - 1];
-          if (lookedAt2[vx2.ID]) continue;
-          lookedAt2[vx2.ID] = true;
-          auto tjlist = GetVtxTjIDs(slc, vx2);
-          for (auto tjid : tjlist) {
-            if (tjid == dtj.ID || tjid == ptj.ID) continue;
-            pardtr.push_back(std::make_pair(dtj.ID, tjid));
-            if (prt) {
-              mf::LogVerbatim myprt("TC");
-              myprt << " add par_dtr";
-              for (auto pdtr : pardtr)
-                myprt << " " << pdtr.first << "_" << pdtr.second;
-            }
-          }
-        } // end
-        if (pardtr.empty()) break;
-      } // nit
-    }   // indx
-    // check the master list
-    for (auto tjid : masterlist) {
-      auto& tj = slc.tjs[tjid - 1];
-      if (tj.ParentID < 0) tj.ParentID = tj.ID;
-    } // tjid
-
-  } // DefineTjParents
-
-  /////////////////////////////////////////
   float
   MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs)
   {
@@ -797,12 +588,7 @@ namespace tca {
     // This routine puts the results into tp if the fit is successfull. The
     // fit "direction" is in increasing order along the trajectory from 0 to tj.Pts.size() - 1.
 
-    //    static const float twoPi = 2 * M_PI;
-
-    if (originPt > tj.Pts.size() - 1) {
-      mf::LogWarning("TC") << "FitTraj: Requesting fit of invalid TP " << originPt;
-      return;
-    }
+    if (originPt > tj.Pts.size() - 1) return;
 
     // copy the origin TP into the fit TP
     tpFit = tj.Pts[originPt];
@@ -1048,6 +834,8 @@ namespace tca {
   {
 
     // check for errors
+    if(!tj.IsGood) return false;
+    if(tj.Pts.size() < 2) return false;
     for (auto& tp : tj.Pts) {
       if (tp.Hits.size() > 16) return false;
     } // tp
@@ -1288,75 +1076,14 @@ namespace tca {
     pFit.ChiDOF = chiDOF;
     pFit.nPtsFit = cnt;
   } // FitPar
-
-  ////////////////////////////////////////////////
-  bool
-  InTrajOK(TCSlice& slc, std::string someText)
-  {
-    // Check slc.tjs -> InTraj associations
-
-    unsigned short tID;
-    unsigned int iht;
-    unsigned short itj = 0;
-    std::vector<unsigned int> tHits;
-    std::vector<unsigned int> atHits;
-    for (auto& tj : slc.tjs) {
-      // ignore abandoned trajectories
-      if (tj.AlgMod[kKilled]) continue;
-      tID = tj.ID;
-      tHits = PutTrajHitsInVector(tj, kUsedHits);
-      if (tHits.size() < 2) continue;
-      std::sort(tHits.begin(), tHits.end());
-      atHits.clear();
-      for (iht = 0; iht < slc.slHits.size(); ++iht) {
-        if (slc.slHits[iht].InTraj == tID) atHits.push_back(iht);
-      } // iht
-      if (atHits.size() < 2) continue;
-      if (!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
-        mf::LogVerbatim myprt("TC");
-        myprt << someText << " ChkInTraj failed: inTraj - UseHit mis-match for T" << tID
-              << " tj.WorkID " << tj.WorkID << " atHits size " << atHits.size() << " tHits size "
-              << tHits.size() << " in CTP " << tj.CTP << "\n";
-        myprt << "AlgMods: ";
-        for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
-          if (tj.AlgMod[ib]) myprt << " " << AlgBitNames[ib];
-        myprt << "\n";
-        myprt << "index     inTraj     UseHit \n";
-        for (iht = 0; iht < atHits.size(); ++iht) {
-          myprt << "iht " << iht << " " << PrintHit(slc.slHits[atHits[iht]]);
-          if (iht < tHits.size()) myprt << " " << PrintHit(slc.slHits[tHits[iht]]);
-          if (atHits[iht] != tHits[iht]) myprt << " <<< " << atHits[iht] << " != " << tHits[iht];
-          myprt << "\n";
-        } // iht
-        if (tHits.size() > atHits.size()) {
-          for (iht = atHits.size(); iht < atHits.size(); ++iht) {
-            myprt << "atHits " << iht << " " << PrintHit(slc.slHits[atHits[iht]]) << "\n";
-          } // iht
-          PrintTrajectory("CIT", slc, tj, USHRT_MAX);
-        } // tHit.size > atHits.size()
-        return false;
-      }
-      // check the VtxID
-      for (unsigned short end = 0; end < 2; ++end) {
-        if (tj.VtxID[end] > slc.vtxs.size()) {
-          mf::LogVerbatim("TC") << someText << " ChkInTraj: Bad VtxID " << tj.ID;
-          tj.AlgMod[kKilled] = true;
-          return false;
-        }
-      } // end
-      ++itj;
-    } // tj
-    return true;
-
-  } // InTrajOK
-
+  
   //////////////////////////////////////////
   void
   ChkEndPtFit(TCSlice& slc, Trajectory& tj)
   {
     // Re-fit the end of the trajectory if it is a long track (made with loose cuts)
     // and the ChiDOF is high
-    if(!tcc.useAlg[kLEPhys]) return;
+    if(!tcc.useAlg[kNewCuts]) return;
     if(!tcc.useAlg[kEndPtFit]) return;
     if(tj.EndPt[1] - tj.EndPt[0] < 20) return;
 
@@ -1500,6 +1227,7 @@ namespace tca {
       UnsetUsedHits(slc, tj.Pts[ipt]);
     SetEndPoints(tj);
     tj.AlgMod[kTEP] = true;
+    tj.EndFlag[1][kEndBraggChkd] = false;
     if (prt) {
       fcnLabel += "-TEPo";
       PrintTrajectory(fcnLabel, slc, tj, USHRT_MAX);
@@ -1572,6 +1300,30 @@ namespace tca {
     float sigFrac = nsig / num;
     return sigFrac;
   } // ChgFracBetween
+
+  ////////////////////////////////////////////////
+  bool
+  JTHitsOK(TCSlice& slc,
+           const std::vector<unsigned int>& iHitsInMultiplet,
+           const std::vector<unsigned int>& jHitsInMultiplet)
+  {
+    // Version of TrajHitsOK that uses hit separation instead of tick overlap
+    // on adjacent wires
+    for (auto& iht : iHitsInMultiplet) {
+      auto const& ihit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+      Point2_t ipos;
+      ipos[0] = ihit.WireID().Wire;
+      ipos[1] = ihit.PeakTime() * tcc.unitsPerTick;
+      for (auto& jht : jHitsInMultiplet) {
+        auto const& jhit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
+        Point2_t jpos;
+        jpos[0] = jhit.WireID().Wire;
+        jpos[1] = jhit.PeakTime() * tcc.unitsPerTick;
+        if(PosSep2(ipos, jpos) < tcc.JTMaxHitSep2) return true;
+      } // jht
+    } // iht
+    return false;
+  } // JTHitsOK
 
   ////////////////////////////////////////////////
   bool
@@ -1921,58 +1673,6 @@ namespace tca {
   } // RestoreObsoleteTrajectory
 
   //////////////////////////////////////////
-  void
-  MergeGhostTjs(TCSlice& slc, CTP_t inCTP)
-  {
-    // Merges short Tjs that share many hits with a longer Tj
-    if (!tcc.useAlg[kMrgGhost]) return;
-
-    for (auto& shortTj : slc.tjs) {
-      if (shortTj.AlgMod[kKilled] || shortTj.AlgMod[kHaloTj]) continue;
-      if (shortTj.CTP != inCTP) continue;
-      unsigned short spts = shortTj.EndPt[1] - shortTj.EndPt[0];
-      if (spts > 20) continue;
-      // ignore delta rays
-      if (shortTj.PDGCode == 11) continue;
-      // ignore InShower Tjs
-      if (shortTj.SSID > 0) continue;
-      auto tjhits = PutTrajHitsInVector(shortTj, kAllHits);
-      if (tjhits.empty()) continue;
-      std::vector<int> tids;
-      std::vector<unsigned short> tcnt;
-      for (auto iht : tjhits) {
-        auto& hit = slc.slHits[iht];
-        if (hit.InTraj <= 0) continue;
-        if ((unsigned int)hit.InTraj > slc.tjs.size()) continue;
-        if (hit.InTraj == shortTj.ID) continue;
-        unsigned short indx = 0;
-        for (indx = 0; indx < tids.size(); ++indx)
-          if (hit.InTraj == tids[indx]) break;
-        if (indx == tids.size()) {
-          tids.push_back(hit.InTraj);
-          tcnt.push_back(1);
-        }
-        else {
-          ++tcnt[indx];
-        }
-      } // iht
-      if (tids.empty()) continue;
-      // find the max count for Tjs that are longer than this one
-      unsigned short maxcnt = 0;
-      for (unsigned short indx = 0; indx < tids.size(); ++indx) {
-        if (tcnt[indx] > maxcnt) {
-          auto& ltj = slc.tjs[tids[indx] - 1];
-          unsigned short lpts = ltj.EndPt[1] - ltj.EndPt[0];
-          if (lpts < spts) continue;
-          maxcnt = tcnt[indx];
-        }
-      } // indx
-      float hitFrac = (float)maxcnt / (float)tjhits.size();
-      if (hitFrac < 0.1) continue;
-    } // shortTj
-  }   // MergeGhostTjs
-
-  //////////////////////////////////////////
   bool
   SplitTraj(detinfo::DetectorPropertiesData const& detProp,
             TCSlice& slc,
@@ -2209,8 +1909,8 @@ namespace tca {
     for (unsigned short iwt = 0; iwt < 2; ++iwt) {
       // Apply box cuts on the ends of the trajectories
       // The Lo/Hi wire(time) at each end of tj1
-      float wt0 = tj1.Pts[tj1.EndPt[0]].Pos[iwt];
-      float wt1 = tj1.Pts[tj1.EndPt[1]].Pos[iwt];
+      float wt0 = tj1.Pts[tj1.EndPt[0]].HitPos[iwt];
+      float wt1 = tj1.Pts[tj1.EndPt[1]].HitPos[iwt];
       float lowt1 = wt0;
       float hiwt1 = wt1;
       if (wt1 < lowt1) {
@@ -2218,8 +1918,8 @@ namespace tca {
         hiwt1 = wt0;
       }
       // The Lo/Hi wire(time) at each end of tj2
-      wt0 = tj2.Pts[tj2.EndPt[0]].Pos[iwt];
-      wt1 = tj2.Pts[tj2.EndPt[1]].Pos[iwt];
+      wt0 = tj2.Pts[tj2.EndPt[0]].HitPos[iwt];
+      wt1 = tj2.Pts[tj2.EndPt[1]].HitPos[iwt];
       float lowt2 = wt0;
       float hiwt2 = wt1;
       if (wt1 < lowt2) {
@@ -2242,9 +1942,9 @@ namespace tca {
     for (unsigned short i1 = tj1.EndPt[0]; i1 < tj1.EndPt[1] + 1; ++i1) {
       for (unsigned short i2 = tj2.EndPt[0]; i2 < tj2.EndPt[1] + 1; ++i2) {
         if (considerDeadWires) dwc = DeadWireCount(slc, tj1.Pts[i1], tj2.Pts[i2]);
-        float dw = tj1.Pts[i1].Pos[0] - tj2.Pts[i2].Pos[0] - dwc;
+        float dw = tj1.Pts[i1].HitPos[0] - tj2.Pts[i2].HitPos[0] - dwc;
         if (std::abs(dw) > minSep) continue;
-        float dt = tj1.Pts[i1].Pos[1] - tj2.Pts[i2].Pos[1];
+        float dt = tj1.Pts[i1].HitPos[1] - tj2.Pts[i2].HitPos[1];
         if (std::abs(dt) > minSep) continue;
         float dp2 = dw * dw + dt * dt;
         if (dp2 < best) {
@@ -2847,7 +2547,7 @@ namespace tca {
     // This function requires knowledge of the DOF of the line fit
     if (nPtsFit < 3) return -1;
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
-    // need enough points to do a fit on each sideof the presumed kink point
+    // need enough points to do a fit on each side of the presumed kink point
     if (npwc < 2 * nPtsFit + 1) return -1;
 
     // The hit charge uncertainty is 0.12 - 0.15 (neglecting 2ndry interactions) for hadrons.
@@ -2887,7 +2587,8 @@ namespace tca {
       // Sum the charge Neg and Pos, excluding the kinkPt
       double chgNeg = 0;
       unsigned short cntNeg = 0;
-      for (unsigned short ipt = kinkPt - 1; ipt >= tj.EndPt[0]; --ipt) {
+      for (short ipt = kinkPt - 1; ipt >= tj.EndPt[0]; --ipt) {
+        if(ipt < tj.EndPt[0]) break;
         auto& tp = tj.Pts[ipt];
         if (tp.Chg <= 0) continue;
         chgNeg += tp.Chg;
@@ -3036,7 +2737,7 @@ namespace tca {
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
-    std::reverse(tj.EndFlag.begin(), tj.EndFlag.end());
+    std::swap(tj.EndFlag[0], tj.EndFlag[1]);
     std::swap(tj.dEdx[0], tj.dEdx[1]);
     // reverse the direction vector on all points
     for (unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -3106,7 +2807,8 @@ namespace tca {
     ptDir[1] = pos1[1] / sep;
     SetMag(dir1, 1.0);
     double costh = DotProd(dir1, ptDir);
-    if (costh > 1.0 || costh < -1.0) return;
+    if(costh < -1.) costh = -1.;
+    if(costh > 1.) costh =  1.;
     alongTrans[0] = costh * sep;
     double sinth = sqrt(1 - costh * costh);
     alongTrans[1] = sinth * sep;
@@ -3377,20 +3079,18 @@ namespace tca {
     std::array<int, 2> wireWindow;
     Point2_t timeWindow;
     unsigned short plane = DecodeCTP(inCTP).Plane;
-    //
     float delta = 5;
 
     for (auto& mutj : slc.tjs) {
       if (mutj.AlgMod[kKilled]) continue;
       if (mutj.CTP != inCTP) continue;
       if (mutj.PDGCode != 13) continue;
-      unsigned short nnear = 0;
-      for (unsigned short ipt = mutj.EndPt[0]; ipt <= mutj.EndPt[1]; ++ipt) {
-        auto& tp = mutj.Pts[ipt];
-        wireWindow[0] = tp.Pos[0];
-        wireWindow[1] = tp.Pos[0];
-        timeWindow[0] = tp.Pos[1] - delta;
-        timeWindow[1] = tp.Pos[1] + delta;
+      for (auto& mutp : mutj.Pts) {
+        if(mutp.Chg <= 0) continue;
+        wireWindow[0] = mutp.Pos[0];
+        wireWindow[1] = mutp.Pos[0];
+        timeWindow[0] = mutp.Pos[1] - delta;
+        timeWindow[1] = mutp.Pos[1] + delta;
         // get a list of all hits in this region
         bool hitsNear;
         auto closeHits =
@@ -3398,18 +3098,18 @@ namespace tca {
         if (closeHits.empty()) continue;
         for (auto iht : closeHits) {
           auto inTraj = slc.slHits[iht].InTraj;
-          if (inTraj <= 0) continue;
+          if (inTraj <= 0 || inTraj > (int)slc.tjs.size()) continue;
           if (inTraj == mutj.ID) continue;
           auto& dtj = slc.tjs[inTraj - 1];
+          if (dtj.AlgMod[kKilled]) continue;
           if (dtj.PDGCode == 13) continue;
-          for (unsigned short jpt = dtj.EndPt[0]; jpt <= dtj.EndPt[1]; ++jpt) {
-            auto& dtp = dtj.Pts[jpt];
+          for (auto& dtp : dtj.Pts) {
+            if(dtp.Chg <= 0) continue;
             if (std::find(dtp.Hits.begin(), dtp.Hits.end(), iht) == dtp.Hits.end()) continue;
             dtp.Environment[kEnvNearMuon] = true;
-            ++nnear;
           } // jpt
         }   // iht
-      }     // ipt
+      }     // mutp
     }       // mutj
   }         // SetTPEnvironment
 
@@ -4124,6 +3824,10 @@ namespace tca {
       tj.PDGCode = 13;
       return;
     }
+    if (tj.Strategy[kStiffEl]) {
+      tj.PDGCode = 111;
+      return;
+    }
     if (tcc.muonTag[0] <= 0) return;
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);
@@ -4402,6 +4106,24 @@ namespace tca {
     if (planeID.TPC != slc.TPCID.TPC) return false;
     return true;
   }
+
+  ////////////////////////////////////////////////
+  bool
+  MergeAndStore(TCSlice& slc, std::vector<int> tidList)
+  {
+    // merge a list of trajectories (assumed to be mostly junk Tjs) and
+    // make a new junk Tj
+    std::vector<unsigned int> jtHits;
+    for(auto tid : tidList) {
+      if(tid <= 0) return false;
+      unsigned int itj = tid - 1;
+      auto& tj = slc.tjs[itj];
+      auto tHits = PutTrajHitsInVector(tj, kUsedHits);
+      MakeTrajectoryObsolete(slc, itj);
+      jtHits.insert(jtHits.end(), tHits.begin(), tHits.end());
+    } // tid
+    return MakeJunkTraj(slc, jtHits);
+  } // MergeAndStore
 
   ////////////////////////////////////////////////
   bool

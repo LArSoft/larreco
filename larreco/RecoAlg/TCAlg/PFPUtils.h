@@ -152,7 +152,6 @@ namespace tca {
   float PointPull(const PFPStruct& pfp, const TP3D& tp3d);
   PFPStruct CreatePFP(const TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
-  void DefinePFPParents(TCSlice& slc, bool prt);
   bool Store(TCSlice& slc, PFPStruct& pfp);
   bool InsideFV(const TCSlice& slc, const PFPStruct& pfp, unsigned short end);
   bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID);

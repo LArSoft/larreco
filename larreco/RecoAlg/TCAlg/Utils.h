@@ -46,7 +46,6 @@ namespace tca {
   // ****************************** General purpose  ******************************
   // dressed muons
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
-  void DefineTjParents(TCSlice& slc, bool prt);
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
   int PDGCodeVote(const TCSlice& slc, const std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(const TCSlice& slc, const Trajectory& tj);
@@ -78,7 +77,6 @@ namespace tca {
               short fitDir,
               ParFit& pFit,
               unsigned short usePar);
-  bool InTrajOK(TCSlice& slc, std::string someText);
   void ChkEndPtFit(TCSlice& slc, Trajectory& tj);
   void TrimEndPts(std::string fcnLabel,
                   TCSlice& slc,
@@ -94,6 +92,9 @@ namespace tca {
                      float toPos0,
                      const float& MinWireSignalFraction);
   float ChgFracBetween(const TCSlice& slc, TrajPoint tp, float toPos0);
+  bool JTHitsOK(TCSlice& slc,
+                const std::vector<unsigned int>& iHitsInMultiplet,
+                const std::vector<unsigned int>& jHitsInMultiplet);
   bool TrajHitsOK(TCSlice& slc,
                   const std::vector<unsigned int>& iHitsInMultiplet,
                   const std::vector<unsigned int>& jHitsInMultiplet);
@@ -117,7 +118,6 @@ namespace tca {
   unsigned short PDGCodeIndex(int PDGCode);
   void MakeTrajectoryObsolete(TCSlice& slc, unsigned int itj);
   void RestoreObsoleteTrajectory(TCSlice& slc, unsigned int itj);
-  void MergeGhostTjs(TCSlice& slc, CTP_t inCTP);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitTraj(TCSlice& slc,
@@ -324,6 +324,7 @@ namespace tca {
                         TCSlice& slc);
   //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
+  bool MergeAndStore(TCSlice& slc, std::vector<int> tidList);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
   // Start a trajectory going from fromHit to (toWire, toTick)

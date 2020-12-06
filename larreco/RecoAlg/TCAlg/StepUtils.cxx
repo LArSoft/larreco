@@ -193,15 +193,14 @@ namespace tca {
         if(tcc.useAlg[kStopBadFits] && nMissedWires > 4 && StopIfBadFits(slc, tj)) break;
         // Keep stepping
         if(tcc.dbgStp) {
-          if(tj.AlgMod[kRvPrp]) {
-            PrintTrajectory("RP", slc, tj, lastPt);
-          } else {
-            PrintTrajectory("SC", slc, tj, lastPt);
-          }
-        }
+          std::string someText = "SC";
+          if(tj.AlgMod[kRvPrp]) someText = "SCR";
+          PrintTrajectory(someText, slc, tj, lastPt);
+        } // tcc.dbgStp
         continue;
-      } // tp.Hits.empty()
+      } // tj.Pts[lastPt].Chg == 0
       if(tj.Pts.size() == 3) {
+        if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Third point quality check";
         // ensure that the last hit added is in the same direction as the first two.
         // This is a simple way of doing it
         bool badTj = (PosSep2(tj.Pts[0].HitPos, tj.Pts[2].HitPos) < PosSep2(tj.Pts[0].HitPos, tj.Pts[1].HitPos));
@@ -219,6 +218,8 @@ namespace tca {
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Bad Tj found on the third point. Quit stepping.";
           tj.IsGood = false;
           return;
+        } else if (tcc.dbgStp) {
+          mf::LogVerbatim("TC")<<" First quality check OK";
         }
       } // tj.Pts.size() == 3
       // Update the local TP with the updated position and direction
@@ -230,21 +231,17 @@ namespace tca {
         // cuts
         if(!MaskedHitsOK(slc, tj)) {
           if(tcc.dbgStp) {
-            if(tj.AlgMod[kRvPrp]) {
-              PrintTrajectory("RP", slc, tj, lastPt);
-            } else {
-              PrintTrajectory("SC", slc, tj, lastPt);
-            }
-          }
+            std::string someText = "SC0";
+            if(tj.AlgMod[kRvPrp]) someText = "SC0R";
+            PrintTrajectory(someText, slc, tj, lastPt);
+          } // tcc.dbgStp
           return;
-        }
+        } // !MaskedHitsOK(slc, tj)
         if(tcc.dbgStp) {
-          if(tj.AlgMod[kRvPrp]) {
-            PrintTrajectory("RP", slc, tj, lastPt);
-          } else {
-            PrintTrajectory("SC", slc, tj, lastPt);
-          }
-        }
+            std::string someText = "SC1";
+            if(tj.AlgMod[kRvPrp]) someText = "SC1R";
+            PrintTrajectory(someText, slc, tj, lastPt);
+        } // tcc.dbgStp
         continue;
       }
       // We have added a TP with hits
@@ -266,11 +263,9 @@ namespace tca {
         break;
       }
       if(tcc.dbgStp) {
-        if(tj.AlgMod[kRvPrp]) {
-          PrintTrajectory("RP", slc, tj, lastPt);
-        } else {
-          PrintTrajectory("SC", slc, tj, lastPt);
-        }
+        std::string someText = "SC2";
+        if(tj.AlgMod[kRvPrp]) someText = "SC2R";
+        PrintTrajectory(someText, slc, tj, lastPt);
       } // tcc.dbgStp
     } // step
 
@@ -385,7 +380,7 @@ namespace tca {
       myprt<<" tj MCSMom "<<tj.MCSMom<<" forecast MCSMom "<<tjf.MCSMom;
       myprt<<" momRat "<<std::fixed<<std::setprecision(2)<<momRat;
       myprt<<" tkLike? "<<tkLike<<" shLike? "<<shLike;
-      myprt<<" chgIncreasing? "<<chgIncreasing;
+      myprt<<"\n   chgIncreasing? "<<chgIncreasing;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd<<" endBraggPeak? "<<tjf.endBraggPeak;
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
     }
@@ -413,7 +408,7 @@ namespace tca {
       lastTP.NTPsFit = 5;
       return;
     } // low MCSMom
-    if(tjf.endBraggPeak) {
+    if(tjf.endBraggPeak && !shLike && !tjf.leavesBeforeEnd) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Found a Bragg peak. Use the Slowing strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
@@ -434,16 +429,16 @@ namespace tca {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Long track-like wandered out of forecast envelope. Reduce NTPsFit to "<<lastTP.NTPsFit;
       return;
     } // fairly long and leaves the side
-    // a track-like trajectory that has high MCSMom in the forecast and hits a shower
-    if(tkLike && tjf.MCSMom > 600 && (tjf.foundShower || tjf.chgFitChiDOF > 20)) {
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: high MCSMom "<<tjf.MCSMom<<" and a shower ahead. Use the StiffEl strategy";
+    // a long shower-like trajectory that has high MCSMom in the forecast and hits a shower
+    if(shLike && tjf.MCSMom > 600 && tjf.nextForecastUpdate > 50) {
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: high MCSMom and a shower ahead. Use the StiffEl strategy";
       tj.Strategy.reset();
       tj.Strategy[kStiffEl] = true;
       // we think we know the direction (towards the shower) so  startEnd is 0
       tj.StartEnd = 0;
       return;
     } // Stiff electron
-    if(shLike && !tjf.leavesBeforeEnd) {
+    if(!tcc.useAlg[kNewCuts] && shLike && !tjf.leavesBeforeEnd) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Inside a shower. Use the StiffEl strategy";
       tj.Strategy.reset();
       tj.Strategy[kStiffEl] = true;
@@ -495,7 +490,10 @@ namespace tca {
       if(tj.Pts[ipt].AveChg > minAveChg) continue;
       minAveChg = tj.Pts[ipt].AveChg;
     } // ipt
-    if(minAveChg <= 0 || minAveChg == 1E6) return;
+    if(minAveChg <= 0 || minAveChg == 1E6) {
+      tcc.dbgStp = doPrt;
+      return;
+    }
     // start a forecast Tj comprised of the points in the forecast envelope
     Trajectory fctj;
     fctj.CTP = tj.CTP;
@@ -508,7 +506,9 @@ namespace tca {
     if(forecastWin0 < 1) forecastWin0 = 1;
     ltp.Pos = ltp.HitPos;
     double stepSize = std::abs(1/ltp.Dir[0]);
-    float window = tcc.showerTag[7] * stepSize;
+    // window size of 3 wires
+    float window = 3 * stepSize;
+    if(tcc.useAlg[kNewCuts]) window = 5 * stepSize;
     if(doPrt) {
       mf::LogVerbatim("TC")<<"Forecast: T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc
           <<" minAveChg "<<(int)minAveChg<<" stepSize "<<std::setprecision(2)<<stepSize<<" window "<<window;
@@ -522,10 +522,8 @@ namespace tca {
     unsigned short leavesNear = USHRT_MAX;
     bool leavesBeforeEnd = false;
     unsigned short showerStartNear = USHRT_MAX;
-    unsigned short showerEndNear = USHRT_MAX;
     float nShLike = 0;
     float nTkLike = 0;
-    unsigned short trimPts = 0;
     for(istp = 0; istp < 1000; ++istp) {
       // move the local TP position by one step in the right direction
       for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
@@ -570,6 +568,7 @@ namespace tca {
             float shFrac = nShLike / (nShLike + nTkLike);
             if(shFrac > 0.5) {
               if(doPrt) mf::LogVerbatim("TC")<<"Getting showerlike - break";
+              if(tcc.useAlg[kNewCuts]) showerStartNear = npwc + fctj.Pts.size();
               break;
             }
           } // fctj.Pts.size() > 6
@@ -598,6 +597,7 @@ namespace tca {
       } else {
         // no hits found
         ++nMissed;
+        if(doPrt) mf::LogVerbatim("TC")<<"miss ltp "<<PrintPos(slc, ltp)<<" Hits size "<<ltp.Hits.size();
         if(nMissed == 2) {
           if(doPrt) mf::LogVerbatim("TC")<<"No hits found after 2 steps - break";
           break;
@@ -607,14 +607,6 @@ namespace tca {
     // not enuf info to make a forecast
     tcc.dbgStp = doPrt;
     if(fctj.Pts.size() < 3) return;
-    // truncate and re-calculate totChg?
-    if(trimPts > 0) {
-      // truncate the forecast trajectory
-      fctj.Pts.resize(fctj.Pts.size() - trimPts);
-      // recalculate the total charge
-      fctj.TotChg = 0;
-      for(auto& tp : fctj.Pts) fctj.TotChg += tp.Chg;
-    } // showerEndNear != USHRT_MAX
     SetEndPoints(fctj);
     fctj.MCSMom = MCSMom(slc, fctj);
     tjf.MCSMom = fctj.MCSMom;
@@ -624,16 +616,18 @@ namespace tca {
       // from the start and it is very large
       FitPar(slc, fctj, 0, maxChgPt, 1, chgFit, 1);
     } else {
-      // BB 6/13/2020 Don't use the last point
       FitPar(slc, fctj, 0, fctj.Pts.size()-1, 1, chgFit, 1);
     }
     tjf.chgSlope = chgFit.ParSlp;
     tjf.chgSlopeErr = chgFit.ParSlpErr;
     tjf.chgFitChiDOF = chgFit.ChiDOF;
-    ChkStop(slc, fctj);
+    if(tcc.useAlg[kNewCuts] && nShLike < 0.3 * nTkLike) {
+      // only check for a Bragg peak if the forecast Tj is clearly tracklike
+      ChkStop(slc, fctj);
+      tjf.endBraggPeak = fctj.EndFlag[1][kEndBragg];
+    } // kNewCuts
     UpdateTjChgProperties("Fc", slc, fctj, false);
     tjf.chgRMS = fctj.ChgRMS;
-    tjf.endBraggPeak = fctj.EndFlag[1][kEndBragg];
     // Set outlook = Estimate of the number of hits per wire
     tjf.outlook = fctj.TotChg / (fctj.Pts.size() * tj.AveChg);
     // assume we got to the end
@@ -643,13 +637,10 @@ namespace tca {
     if(leavesNear < tjf.nextForecastUpdate) {
       // left the side
       tjf.nextForecastUpdate = leavesNear;
-    } else if(showerStartNear < tjf.nextForecastUpdate) {
+    } else if(showerStartNear <= tjf.nextForecastUpdate) {
       // found a shower start
       tjf.nextForecastUpdate = showerStartNear;
       tjf.foundShower = true;
-    } else if(showerEndNear < tjf.nextForecastUpdate) {
-      // found a shower end
-      tjf.nextForecastUpdate = showerEndNear;
     }
     nShLike = 0;
     for(auto& tp : fctj.Pts) if(tp.Environment[kEnvNearShower]) ++nShLike;
@@ -657,16 +648,16 @@ namespace tca {
 
     if(doPrt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"Forecast T"<<tj.ID<<" tj.AveChg "<<(int)tj.AveChg;
+      myprt<<"Forecast: T"<<tj.ID<<" tj.AveChg "<<(int)tj.AveChg;
       myprt<<" start "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" cnt "<<fctj.Pts.size()<<" totChg "<<(int)fctj.TotChg;
       myprt<<" last pos "<<PrintPos(slc, ltp);
       myprt<<" MCSMom "<<tjf.MCSMom;
-      myprt<<" outlook "<<std::fixed<<std::setprecision(2)<<tjf.outlook;
+      myprt<<"\n   outlook "<<std::fixed<<std::setprecision(2)<<tjf.outlook;
       myprt<<" chgSlope "<<std::setprecision(1)<<tjf.chgSlope<<" +/- "<<tjf.chgSlopeErr;
       myprt<<" chgRMS "<<std::setprecision(1)<<tjf.chgRMS;
       myprt<<" endBraggPeak "<<tjf.endBraggPeak;
       myprt<<" chiDOF "<<tjf.chgFitChiDOF;
-      myprt<<" showerLikeFraction "<<tjf.showerLikeFraction;
+      myprt<<"\n   showerLikeFraction "<<tjf.showerLikeFraction;
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd;
       myprt<<" foundShower? "<<tjf.foundShower;
@@ -942,19 +933,6 @@ namespace tca {
     return;
 
   } // UpdateTraj
-
-  ////////////////////////////////////////////////
-  void CheckStiffEl(TCSlice& slc, Trajectory& tj)
-  {
-    if(!tj.Strategy[kStiffEl]) return;
-    if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"inside CheckStiffTj with NumPtsWithCharge = "<<NumPtsWithCharge(slc, tj, false);
-    }
-    // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
-    FillGaps(slc, tj);
-    // Update the trajectory parameters at the beginning of the trajectory
-    ChkBegin(slc, tj);
-  } // CheckStiffTj
 
   ////////////////////////////////////////////////
   void AddHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK)
@@ -1256,8 +1234,8 @@ namespace tca {
       SetEndPoints(tj);
     }
 
-    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: Prepping Tj "<<tj.ID<<" incoming StepDir "<<tj.StepDir
-          << " and Strategy " <<tj.Strategy;
+    if(prt) mf::LogVerbatim("TC") << "ReversePropagate: Prepping Tj " << tj.ID
+        << " incoming StepDir " << tj.StepDir;
 
     short stepDir = tj.StepDir;
 
@@ -1293,44 +1271,43 @@ namespace tca {
     } // tcc.dbgStp
     //
     // Make a working copy of tj
-    Trajectory tjWork = tj;
+    Trajectory work = tj;
     // So the first shall be last and the last shall be first
-    ReverseTraj(slc, tjWork);
+    ReverseTraj(slc, work);
     // Flag it to use special cuts in StepAway
-    tjWork.AlgMod[kRvPrp] = true;
+    work.AlgMod[kRvPrp] = true;
     // save the strategy word and set it to normal
-    auto saveStrategy = tjWork.Strategy;
-    tjWork.Strategy.reset();
-    tjWork.Strategy[kNormal] = true;
+    auto saveStrategy = work.Strategy;
+    work.Strategy.reset();
+    work.Strategy[kNormal] = true;
     // set nextForecastUpdate large so that Forecast isn't called
-    tjfs.back().nextForecastUpdate = tj.Pts.size();
+    tjfs.back().nextForecastUpdate = work.Pts.size();
     // Reduce the number of fitted points to a small number
-    unsigned short lastPt = tjWork.Pts.size() - 1;
+    unsigned short lastPt = work.Pts.size() - 1;
     if(lastPt < 4) return;
     // update the charge
     float chg = 0;
     float cnt = 0;
     for(unsigned short ii = 0; ii < 4; ++ii) {
       unsigned short ipt = lastPt - ii;
-      if(tjWork.Pts[ipt].Chg == 0) continue;
-      chg += tjWork.Pts[ipt].Chg;
+      if(work.Pts[ipt].Chg == 0) continue;
+      chg += work.Pts[ipt].Chg;
       ++cnt;
     } // ii
     if(cnt == 0) return;
-    if(cnt > 1) tjWork.Pts[lastPt].AveChg = chg / cnt;
-    StepAway(slc, tjWork);
-    if(!tj.IsGood) {
+    if(cnt > 1) work.Pts[lastPt].AveChg = chg / cnt;
+    StepAway(slc, work);
+    if(!work.IsGood) {
       if(prt) mf::LogVerbatim("TC")<<" ReversePropagate StepAway failed";
       return;
     }
-    tjWork.Strategy = saveStrategy;
-    // check the new stopping point
-    ChkStopEnd1(slc, tjWork, tcc.dbgStp);
+    work.Strategy = saveStrategy;
+    UpdateTjChgProperties("RP", slc, work, tcc.dbgStp);
     // restore the original direction
-    if(tjWork.StepDir != stepDir) ReverseTraj(slc, tjWork);
-    tj = tjWork;
-    // TODO: Maybe UpdateTjChgProperties should be called here
-    // re-check the ends
+    if(work.StepDir != stepDir) ReverseTraj(slc, work);
+    tj = work;
+    tj.EndFlag[1][kEndBraggChkd] = false;
+    tj.EndFlag[0][kEndBraggChkd] = false;
     ChkStop(slc, tj);
 
   } // ReversePropagate
@@ -2068,8 +2045,13 @@ namespace tca {
     // Need at least 2 * kinkCuts[2] points with charge to find a kink
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     unsigned short nPtsFit = tcc.kinkCuts[0];
-    // Set nPtsFit for slowing tjs to the last TP NTPsFit
-    if(tj.Strategy[kSlowing]) nPtsFit = tj.Pts[tj.EndPt[1]].NTPsFit;
+    if(tcc.useAlg[kLEPhys]) {
+      // reduce nPtsFit to something low
+      if(tj.Strategy[kSlowing]) nPtsFit = 4;
+    } else {
+      // Set nPtsFit for slowing tjs to the last TP NTPsFit
+      if(tj.Strategy[kSlowing]) nPtsFit = tj.Pts[tj.EndPt[1]].NTPsFit;
+    }
     if(npwc < 2 * nPtsFit) return false;
 
     bool useCharge = (tcc.kinkCuts[2] > 0);

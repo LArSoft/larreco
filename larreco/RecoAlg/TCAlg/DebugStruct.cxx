@@ -32,6 +32,7 @@ namespace tca {
       std::cout << " 'WorkID <id> <slice index>' where <id> is a tj work ID (< 0) in slice <slice "
                    "index> (default = 0)\n";
       std::cout << " 'CTP <CTP>' to restrict debug output to CTP\n";
+      std::cout << " 'Assns' to debug inTraj associations\n";
       std::cout << " 'Merge <CTP>' to debug trajectory merging\n";
       std::cout << " '2V <CTP>' to debug 2D vertex finding\n";
       std::cout << " '3V' to debug 3D vertex finding\n";
@@ -79,6 +80,10 @@ namespace tca {
       tcc.modes[kModeDebug] = true;
       return true;
     }
+    if (strng.compare("Assns") == 0) {
+      tcc.modes[kModeDebug] = true;
+      return true;
+    }
 
     std::vector<std::string> words;
     boost::split(words, strng, boost::is_any_of(" :"), boost::token_compress_on);
@@ -115,7 +120,15 @@ namespace tca {
       return true;
     } // CTP
     if (words.size() == 2 && words[0] == "Dump") {
-      debug.WorkID = std::stoi(words[1]);
+      int wid = std::stoi(words[1]);
+      if(wid == 0) return false;
+      if(wid < 0) {
+        debug.WorkID = wid;
+        debug.UID = 0;
+      } else {
+        debug.WorkID = 0;
+        debug.UID = wid;
+      }
       debug.Slice = 0;
       tcc.modes[kModeDebug] = true;
       tcc.dbgDump = true;
@@ -189,10 +202,15 @@ namespace tca {
     // Dump all of the points in a trajectory to the output in a form that can
     // be imported by another application, e.g. Excel
     // Search for the trajectory with the specified WorkID or Unique ID
+    if(debug.WorkID == 0 && debug.UID == 0) return;
 
     for (auto& slc : slices) {
       for (auto& tj : slc.tjs) {
-        if (tj.WorkID != debug.WorkID && tj.UID != debug.WorkID) continue;
+        if (debug.WorkID < 0) {
+          if (tj.WorkID != debug.WorkID) continue;
+        } else {
+          if (tj.UID != debug.UID) continue;
+        }
         // print a header
         std::ofstream outfile;
         std::string fname = "tcdump" + std::to_string(tj.UID) + ".csv";
@@ -233,6 +251,48 @@ namespace tca {
   } // DumpTj
 
   ////////////////////////////////////////////////
+  bool
+  InTrajOK(TCSlice& slc, std::string someText)
+  {
+    // Check slc.tjs -> InTraj associations
+
+    for (auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      std::vector<unsigned int> tHits = PutTrajHitsInVector(tj, kUsedHits);
+      // sort by hit index
+      std::sort(tHits.begin(), tHits.end());
+      std::vector<unsigned int> inTrajHits;
+      for (unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
+        if (slc.slHits[iht].InTraj == tj.ID) inTrajHits.push_back(iht);
+      } // iht
+      // sort by hit index
+      std::sort(inTrajHits.begin(), inTrajHits.end());
+      if (!std::equal(tHits.begin(), tHits.end(), inTrajHits.begin())) {
+        mf::LogVerbatim myprt("TC");
+        myprt << someText << " InTrajOK failed: inTraj - UseHit mis-match for T" << tj.ID
+              << " tj.WorkID " << tj.WorkID << " inTrajHits size " << inTrajHits.size() << " tHits size "
+              << tHits.size() << " in CTP " << tj.CTP << "\n";
+        myprt << "AlgMods: ";
+        for (unsigned short ib = 0; ib < AlgBitNames.size(); ++ib)
+          if (tj.AlgMod[ib]) myprt << " " << AlgBitNames[ib];
+        myprt << "\n";
+        for (auto tHit : tHits) {
+          if(std::find(inTrajHits.begin(), inTrajHits.end(), tHit) != inTrajHits.end()) continue;
+          mf::LogVerbatim("TC") << "T" << tj.ID << " thinks it owns " << PrintHit(slc.slHits[tHit])
+            << " but inTraj says it is owned by T" << slc.slHits[tHit].InTraj;
+        } // tHit
+        for (auto inTrajHit : inTrajHits) {
+          if(std::find(tHits.begin(), tHits.end(), inTrajHit) != tHits.end()) continue;
+          mf::LogVerbatim("TC") << "hit " << PrintHit(slc.slHits[inTrajHit]) << " thinks it belongs to T" 
+            << tj.ID << " but the trajectory doesn't think so";
+        } // inTrajHit
+        return false;
+      } // !std::equal
+    } // tj
+    return true;
+  } // InTrajOK
+
+  ////////////////////////////////////////////////
   void
   PrintDebugMode()
   {
@@ -257,10 +317,10 @@ namespace tca {
     else {
       std::cout << debug.Hit;
     }
-    std::cout << " WorkID=";
-    if (debug.WorkID == 0) { std::cout << "NA"; }
-    else {
-      std::cout << debug.WorkID;
+    if (debug.WorkID < 0) { 
+      std::cout << " WorkID=" << debug.WorkID;
+    } else {
+      std::cout << " UID=" << debug.UID;
     }
     std::cout << " Slice=";
     if (debug.Slice == -1) { std::cout << "All"; }
@@ -308,13 +368,7 @@ namespace tca {
     } else {
        std::cout << " StepNeg";
     }
-    if(tcc.modes[kModeTestBeam]) {
-      std::cout<<", TestBeam";
-    } else if(tcc.modes[kModeLEPhysics]) {
-      std::cout<<", LEPhysics";
-    } else {
-      std::cout<<", Neutrino (default)";
-    }
+    if(tcc.modes[kModeNeutrino]) std::cout<<", Neutrino";
     std::cout << "\n";
   } // PrintDebugMode
 

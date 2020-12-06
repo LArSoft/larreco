@@ -12,7 +12,6 @@ namespace tca {
   std::vector<TrajPoint> seeds;
   const std::vector<std::string> AlgBitNames {
     "FillGaps3D",
-    "Kink3D",
     "TEP3D",
     "Junk3D",
     "RTPs3D",
@@ -43,17 +42,14 @@ namespace tca {
     "THiQEP",
     "THMEP",
     "FillGaps",
+    "UUH",
     "UseGhostHits",
-    "MrgGhost",
     "MrgShortJunk",
-    "ChkInTraj",
+    "MrgJunk",
     "StopBadFits",
     "FixBegin",
     "FTBChg",
     "BeginChg",
-    "BraggSplit",
-    "FindBraggPeaks",
-    "UUH",
     "VtxTj",
     "ChkVxTj",
     "Photon",
@@ -74,7 +70,6 @@ namespace tca {
     "StopShort",
     "Reconcile2Vs",
     "FTBMod",
-    "SmallKink",
     "LEPhys",
     "NewCuts"
   };
@@ -83,6 +78,7 @@ namespace tca {
     "HitsAfterEnd",
     "EndKink",
     "EndBragg",
+    "EndBraggChkd",
     "EndOutFV",
     "EndNoFitVx"
   };

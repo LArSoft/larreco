@@ -6,7 +6,7 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
-   Mode: ""                 # Tracking modes: "" (normal), "LEPhysics", "TestBeam"
+   Strategy: ""             # Tracking strategies: "" (normal), "LEPhysics", "TestBeam"
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [4, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [4, 3, 3]     # Min number of points in the trajectory required on each pass
@@ -14,14 +14,13 @@ standard_trajclusteralg:
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
    MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
-   AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
-   MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
+   AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, large angle and very large angle trajectories
+   MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be merged in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
-   KinkCuts: [ 8, 15, 1, 10 ]
+   KinkCuts: [ 8, 5, 1 ]
    # 0 Number of points to fit at the end of the trajectory
    # 1 Minimum kink significance
    # 2 Use charge in significance calculation? (yes if > 0)
-   # 3 3D kink fit length (cm)
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    VLAStepSize: 1.5         # Step size for Very Large Angle trajectories
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
@@ -55,14 +54,14 @@ standard_trajclusteralg:
    # 0 dX match cut (cm)
    # 1 dY and dZ match cut (cm)
    # 2 max separation btw PFParticle end and 3D vertex
-   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5, 1]
+   Match3DCuts: [ 0.5, 10000, 1, 2, 2.0, 2.5, 1000]
    # 0 dx (cm) matching cut
    # 1 max number of 3-plane matches for any Tj
    # 2 Attempt 2-view match?
    # 3 min number of TP3Ds in at least 2 planes to fit in each PFP section
    # 4 max pull for adding/rejecting TP3Ds in sections
    # 5 suggested max ChiDOF for a SectionFit
-   # 6 > 0 Don't match muon shower tjs
+   # 6 Don't match shower-like Tjs if > nShower-like TPs
    PFPStitchCuts: [ 0.02, 3, 2 ]
    # 0 = matching angle resolution (radians)
    # 1 = matching position resolution (cm)

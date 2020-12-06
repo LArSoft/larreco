@@ -560,11 +560,7 @@ namespace tca {
         if(std::find(killme.begin(), killme.end(), tp3d.TjID) == killme.end()) killme.push_back(tp3d.TjID);
       } // tp3d
     } // pfp
-
     bool prt = (tcc.dbgPFP);
-
-    bool prt = (tcc.dbgPFP);
-
     for (auto tid : killme)
       MakeTrajectoryObsolete(slc, (unsigned int)(tid - 1));
 
@@ -1796,6 +1792,7 @@ namespace tca {
     if(pfp.SectionFits.empty()) return;
     if(!tcc.useAlg[kFillGaps3D]) return;
     if(pfp.AlgMod[kJunk3D]) return;
+    if(tcc.useAlg[kNewCuts]) return;
 
     // make a copy in case something goes wrong
     auto pSave = pfp;
@@ -2214,7 +2211,6 @@ namespace tca {
     // small angle trajectory?
     if(nSA > 1) pfp.AlgMod[kSmallAng3D] = true;
     if(prt) mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" MVI "<<pfp.MVI<<" nJunkTj "<<nJunk<<" SmallAngle? "<<pfp.AlgMod[kSmallAng3D];
-    if(pfp.AlgMod[kSmallAng3D]) std::cout<<"SmallAngle MVI "<<pfp.MVI<<" nSA "<<nSA<<"\n";
 
     if(pfp.AlgMod[kSmallAng3D]) return MakeSmallAnglePFP(detProp, slc, pfp, prt);
 
@@ -2430,7 +2426,19 @@ namespace tca {
     // define mallTraj
     slc.mallTraj.clear();
     Tj2Pt tj2pt;
-    unsigned short cnt = 0;
+    // Count the number of shower-like trajectories
+    float nShLike = 0;
+    for (auto& tj : slc.tjs) {
+      if (tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
+      // ignore already matched
+      if (tj.AlgMod[kMat3D]) continue;
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if ((int)planeID.Cryostat != cstat) continue;
+      if ((int)planeID.TPC != tpc) continue;
+      if (tj.ID <= 0) continue;
+      if (tj.PDGCode == 11) nShLike += tj.Pts.size();
+    } // tj
+    bool ignoreShLike = (nShLike > tcc.match3DCuts[6]);
 
     float rms = tcc.match3DCuts[0];
     for (auto& tj : slc.tjs) {
@@ -2442,6 +2450,7 @@ namespace tca {
       if ((int)planeID.TPC != tpc) continue;
       int plane = planeID.Plane;
       if (tj.ID <= 0) continue;
+      if(ignoreShLike && tj.PDGCode == 11) continue;
       unsigned short tjID = tj.ID;
       for (unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
@@ -2450,7 +2459,6 @@ namespace tca {
         // ignore already matched
         if (tp.InPFP > 0) continue;
         tj2pt.wire = std::nearbyint(tp.Pos[0]);
-        ++cnt;
         // don't try matching if the wire doesn't exist
         if (!tcc.geom->HasWire(geo::WireID(cstat, tpc, plane, tj2pt.wire))) continue;
         float xpos = detProp.ConvertTicksToX(tp.Pos[1] / tcc.unitsPerTick, plane, tpc, cstat);
@@ -2995,129 +3003,6 @@ namespace tca {
   }   // PFPVertexCheck
 
   /////////////////////////////////////////
-  void
-  DefinePFPParents(TCSlice& slc, bool prt)
-  {
-    /*
-     This function reconciles vertices, PFParticles and slc, then
-     defines the parent (j) - daughter (i) relationship and PDGCode. Here is a
-     description of the conventions:
-
-     V1 is the highest score 3D vertex in this tpcid so a neutrino PFParticle P1 is defined.
-     V4 is a high-score vertex that has lower score than V1. It is declared to be a
-     primary vertex because its score is higher than V5 and it is not associated with the
-     neutrino interaction
-     V6 was created to adhere to the convention that all PFParticles, in this case P9,
-     be associated with a start vertex. There is no score for V6. P9 is it's own parent
-     but is not a primary PFParticle.
-
-     P1 - V1 - P2 - V2 - P4 - V3 - P5        V4 - P6                  V6 - P9
-     \                                  \
-     P3                                 P7 - V5 - P8
-
-     The PrimaryID in this table is the ID of the PFParticle that is attached to the
-     primary vertex, which may or may not be a neutrino interaction vertex.
-     The PrimaryID is returned by the PrimaryID function
-     PFP  parentID  DtrIDs     PrimaryID
-     -----------------------------------
-     P1     P1     P2, P3        P1
-     P2     P1     P4            P2
-     P3     P1     none          P3
-     P4     P2     P5            P2
-     P5     P4     none          P2
-
-     P6     P6     none          P6
-     P7     P7     P8            P7
-
-     P9     P9     none          0
-
-     */
-    if (slc.pfps.empty()) return;
-    if (tcc.modes[kModeTestBeam]) return;
-    if (tcc.modes[kModeLEPhysics]) return;
-
-    int neutrinoPFPID = 0;
-    for (auto& pfp : slc.pfps) {
-      if (pfp.ID == 0) continue;
-      if (neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) {
-        neutrinoPFPID = pfp.ID;
-        break;
-      }
-    } // pfp
-    if(prt) mf::LogVerbatim("TC") << "DefinePFPParents: neutrino P" << neutrinoPFPID;
-
-    // define the end vertex if the Tjs have end vertices
-    constexpr unsigned short end1 = 1;
-    for (auto& pfp : slc.pfps) {
-      if (pfp.ID == 0) continue;
-      // already done?
-      if (pfp.Vx3ID[end1] > 0) continue;
-      // count 2D -> 3D matched vertices
-      unsigned short cnt3 = 0;
-      unsigned short vx3id = 0;
-      // list of unmatched 2D vertices that should be merged
-      std::vector<int> vx2ids;
-      unsigned short nshLike = 0;
-      for (auto tjid : pfp.TjIDs) {
-        auto& tj = slc.tjs[tjid - 1];
-        if(tj.PDGCode == 11) ++nshLike;
-        if (tj.VtxID[end1] == 0) continue;
-        auto& vx2 = slc.vtxs[tj.VtxID[end1] - 1];
-        if (vx2.Vx3ID == 0) {
-          if (vx2.Topo == 1 && vx2.NTraj == 2) vx2ids.push_back(vx2.ID);
-          continue;
-        }
-        if (vx3id == 0) vx3id = vx2.Vx3ID;
-        if (vx2.Vx3ID == vx3id) ++cnt3;
-      } // tjid
-      if(nshLike > 1) continue;
-      if (cnt3 > 1) {
-        // ensure it isn't attached at the other end
-        if (pfp.Vx3ID[1 - end1] == vx3id) continue;
-        pfp.Vx3ID[end1] = vx3id;
-      } // cnt3 > 1
-    }   // pfp
-
-    // Assign a PDGCode to each PFParticle and look for a parent
-    for (auto& pfp : slc.pfps) {
-      if (pfp.ID == 0) continue;
-      // skip a neutrino PFParticle
-      if (pfp.PDGCode == 12 || pfp.PDGCode == 14 || pfp.PDGCode == 22) continue;
-      // Define a PFP parent if there are two or more Tjs that are daughters of
-      // Tjs that are used by the same PFParticle
-      int pfpParentID = INT_MAX;
-      unsigned short nParent = 0;
-      for (auto tjid : pfp.TjIDs) {
-        auto& tj = slc.tjs[tjid - 1];
-        if (tj.ParentID <= 0) continue;
-        auto parPFP = GetAssns(slc, "T", tj.ParentID, "P");
-        if (parPFP.empty()) continue;
-        if (pfpParentID == INT_MAX) pfpParentID = parPFP[0];
-        if (parPFP[0] == pfpParentID) ++nParent;
-      } // ii
-      if (nParent > 1) {
-        auto& ppfp = slc.pfps[pfpParentID - 1];
-        // set the parent UID
-        pfp.ParentUID = ppfp.UID;
-        // add to the parent daughters list
-        ppfp.DtrUIDs.push_back(pfp.UID);
-      } // nParent > 1
-    }   // ipfp
-    // associate primary PFParticles with a neutrino PFParticle
-    if (neutrinoPFPID > 0) {
-      auto& neutrinoPFP = slc.pfps[neutrinoPFPID - 1];
-      int vx3id = neutrinoPFP.Vx3ID[1];
-      for (auto& pfp : slc.pfps) {
-        if (pfp.ID == 0 || pfp.ID == neutrinoPFPID) continue;
-        if (pfp.Vx3ID[0] != vx3id) continue;
-        pfp.ParentUID = (size_t)neutrinoPFPID;
-        neutrinoPFP.DtrUIDs.push_back(pfp.ID);
-        if (pfp.PDGCode == 111) neutrinoPFP.PDGCode = 12;
-      } // pfp
-    }   // neutrino PFP exists
-  }     // DefinePFPParents
-
-  ////////////////////////////////////////////////
   bool
   Store(TCSlice& slc, PFPStruct& pfp)
   {
@@ -3125,7 +3010,7 @@ namespace tca {
     bool neutrinoPFP = (pfp.PDGCode == 12 || pfp.PDGCode == 14);
     if (!neutrinoPFP) {
       if (pfp.TjIDs.empty()) return false;
-      if (pfp.PDGCode != 1111 && pfp.TP3Ds.size() < 2) return false;
+      if (pfp.TP3Ds.size() < 2) return false;
     }
     if(pfp.AlgMod[kSmallAng3D]) {
       // Make the PFP -> TP assn

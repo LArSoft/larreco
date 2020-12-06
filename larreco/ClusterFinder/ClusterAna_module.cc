@@ -46,11 +46,10 @@ namespace cluster {
     // MCParticle -> cluster matching struct and indices
     struct MatchStruct {
       unsigned int mcpi {UINT_MAX};       ///< MCParticle index
-      int mcpTrackId {INT_MAX};           ///< MCParticle Geant Track ID
-      unsigned int tpc {UINT_MAX};                       ///< TPC in which the first MC-matched hit resides
-      std::vector<unsigned int> clsIndex; ///< index of the MC-matched cluster
-      std::vector<float> mcpTruHitCount;  ///< number of MC-Matched hits to this MCParticle
-      std::vector<float> clsTruHitCount;  ///< number of hits in the cluster that are MC-matched
+      unsigned int tpc {UINT_MAX};        ///< TPC in which this MatchStruct is used
+      std::vector<unsigned int> clsIndex; ///< index of the MC-matched cluster in each plane
+      std::vector<float> mcpTruHitCount;  ///< number of MC-Matched hits to mcpi in each plane
+      std::vector<float> clsTruHitCount;  ///< number of MC-matched hits to mcpi in clsIndex in each plane
       std::vector<unsigned int> firstHit; ///< first MC-matched hit in each plane
       std::vector<unsigned int> lastHit;  ///< last MC-matched hit in each plane
     };
@@ -109,9 +108,8 @@ namespace cluster {
     TProfile* fEP_T_kaon;
     TProfile* fEP_T_prot;
 
-    art::InputTag fHitsModuleLabel;
-    art::InputTag fSourceHitsModuleLabel;
     art::InputTag fClusterModuleLabel;
+    art::ProductID fHitCollectionProductID;
     std::array<float, 2> fElecKERange;
     std::array<float, 2> fMuonKERange;
     std::array<float, 2> fPionKERange;
@@ -123,7 +121,7 @@ namespace cluster {
     short fPrintLevel;
     short moduleID;
 
-    std::array<std::string, 5> fNames {{"elec", "muon", "pion", "kaon", "prot"}};
+    std::array<std::string, 5> fNames {{"electron", "muon", "pion", "kaon", "proton"}};
     std::array<float, 5> fEffSum {{0}};
     std::array<float, 5> fPurSum {{0}};
     std::array<float, 5> fEffPurSum {{0}};
@@ -140,7 +138,6 @@ namespace cluster {
   //--------------------------------------------------------------------
   ClusterAna::ClusterAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
-    , fHitsModuleLabel(pset.get<art::InputTag>("HitsModuleLabel"))
     , fClusterModuleLabel(pset.get<art::InputTag>("ClusterModuleLabel"))
     , fElecKERange(pset.get<std::array<float,2>>("ElecKERange"))
     , fMuonKERange(pset.get<std::array<float,2>>("MuonKERange"))
@@ -161,9 +158,8 @@ namespace cluster {
     if (fPrintLevel > 0) {
       mf::LogVerbatim myprt("ClusterAna");
       myprt << "ClusterAna: MCParticle selection";
-      if (fSkipCosmics) myprt << ": ignoring Cosmics";
-      myprt << "\n";
-      myprt << "Hit format is <TPC>:<Plane>:<Wire>:<PeakTime>";
+      if (fSkipCosmics) myprt << ": ignoring Cosmics.";
+      if(fPrintLevel > 1) myprt << " Note: Hit format is <TPC>:<Plane>:<Wire>:<PeakTime>";
     }
 
     // get access to the TFile service
@@ -204,10 +200,15 @@ namespace cluster {
   ClusterAna::endJob()
   {
     mf::LogVerbatim myprt("ClusterAna");
-    myprt<<"ClusterAna results for " <<fEventsProcessed << " events.\n";
+    myprt<<"ClusterAna results for " <<fEventsProcessed << " events. MCParticle counts:";
+    for(unsigned short indx = 0; indx < 5; ++indx) {
+      if (fSum[indx] == 0) continue;
+      myprt <<" " << fNames[indx] <<": " << (int)fSum[indx];
+    } // indx
+    myprt<<"\n";
     float totSum = 0;
     float totEPSum = 0;
-    myprt<<"EP:";
+    myprt << fClusterModuleLabel.label() << " EP:";
     for(unsigned short indx = 0; indx < 5; ++indx) {
       if (fSum[indx] == 0) continue;
       float aveEP = fEffPurSum[indx] / fSum[indx];
@@ -215,14 +216,10 @@ namespace cluster {
       totSum += fSum[indx];
       totEPSum += fEffPurSum[indx];
     } // indx
-    myprt<<" Cnts:";
-    for(unsigned short indx = 0; indx < 5; ++indx) {
-      myprt << " " <<(int)fSum[indx];
-    } // indx
     if (totSum > 0) {
       totEPSum /= totSum;
-      myprt << " All " << totEPSum;
-      myprt << " nBad " << fNBadEP;
+      myprt << " AveEP: " << totEPSum;
+      myprt << " nBad/nMCPInPln " << fNBadEP << "/" << (int)totSum;
     }
   } // endJob
 
@@ -232,46 +229,17 @@ namespace cluster {
 
     if (evt.isRealData()) return;
 
-    // get a reference to the hit collection
-    auto allHits = art::Handle<std::vector<recob::Hit>>();
-    if (!evt.getByLabel(fHitsModuleLabel, allHits)) 
-      throw cet::exception("ClusterAna")<<"Failed to get a handle to hit collection '"
-      <<fHitsModuleLabel.label()<<"'\n";
-    if ((*allHits).empty()) return;
-    // define the Hit -> MCParticle index
-    std::vector<unsigned int> hitMCPIndex((*allHits).size(), UINT_MAX);
-
-    // get clusters and cluster-hit associations
-    art::Handle<std::vector<recob::Cluster>> allCls;
-    if (!evt.getByLabel(fClusterModuleLabel, allCls))
-      throw cet::exception("ClusterAna")<<"Failed to get a handle to cluster collection '"
-      <<fClusterModuleLabel.label()<<"'\n";
-    art::FindManyP<recob::Hit> fmch(allCls, evt, fClusterModuleLabel);
-    // ensure that the user has specified compatible cluster and hit collections by
-    // comparing the art Product IDs. This only needs to be done once
-    if (fEventsProcessed == 0 && fmch.isValid() && !(*allCls).empty()) {
-      auto& firstClsHit = fmch.at(0)[0];
-      if (firstClsHit.id() != allHits.id())
-        throw cet::exception("ClusterAna")
-          << "The Cluster module label '" << fClusterModuleLabel.label() << "' and hits module label '" 
-          << fHitsModuleLabel.label() << "' are inconsistent\n";
-    }
-
-    // get true particles
-    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    art::ServiceHandle<geo::Geometry const> geom;
-    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
-
     // get a handle to the MCParticle collection
     art::InputTag mcpLabel = "largeant";
     auto mcps = art::Handle<std::vector<simb::MCParticle>>();
     if (!evt.getByLabel(mcpLabel, mcps)) return;
     if ((*mcps).empty()) return;
-
-    // start a list of MCParticle -> Cluster matches
-    std::vector<MatchStruct> matches;
-    // create entries for each MCParticle of interest
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    // limit the number of print output lines
+    unsigned short nPrtMCP = 0;
+    unsigned short nPrtSel = 0;
+    // temporary list of MCParticle to be used
+    std::vector<unsigned int> mcpiList;
     for(unsigned int mcpi = 0; mcpi < (*mcps).size(); ++mcpi) {
       auto& mcp = (*mcps)[mcpi];
       int tid = mcp.TrackId();
@@ -283,75 +251,118 @@ namespace cluster {
       if (pdgIndx < 0) continue;
       bool useIt = true;
       if (pdgIndx == 0) {
-        if (fElecKERange[0] < 0) useIt = false;
-        if (TMeV < fElecKERange[0] || TMeV > fElecKERange[1]) useIt = false;
+        if (fElecKERange[0] < 0 || TMeV < fElecKERange[0] || TMeV > fElecKERange[1]) useIt = false;
       } else if (pdgIndx == 1) {
-        if (fMuonKERange[0] < 0) useIt = false;
-        if (TMeV < fMuonKERange[0] || TMeV > fMuonKERange[1]) useIt = false;
+        if (fMuonKERange[0] < 0 || TMeV < fMuonKERange[0] || TMeV > fMuonKERange[1]) useIt = false;
       } else if (pdgIndx == 2) {
-        if (fPionKERange[0] < 0) useIt = false;
-        if (TMeV < fPionKERange[0] || TMeV > fPionKERange[1]) useIt = false;
+        if (fPionKERange[0] < 0 || TMeV < fPionKERange[0] || TMeV > fPionKERange[1]) useIt = false;
       } else if (pdgIndx == 3) {
-        if (fKaonKERange[0] < 0) useIt = false;
-        if (TMeV < fKaonKERange[0] || TMeV > fKaonKERange[1]) useIt = false;
+        if (fKaonKERange[0] < 0 || TMeV < fKaonKERange[0] || TMeV > fKaonKERange[1]) useIt = false;
       } else if (pdgIndx == 4) {
-        if (fProtKERange[0] < 0) useIt = false;
-        if (TMeV < fProtKERange[0] || TMeV > fProtKERange[1]) useIt = false;
+        if (fProtKERange[0] < 0 || TMeV < fProtKERange[0] || TMeV > fProtKERange[1]) useIt = false;
       }
       if (fPrintLevel > 2) {
         mf::LogVerbatim myprt("ClusterAna");
-        myprt << "TrackId " << mcp.TrackId();
-        myprt << ", PDG code " << mcp.PdgCode();
-        myprt << ", T " << (int)TMeV << " MeV";
-        myprt << ", Mother " << mcp.Mother();
-        myprt << ", Process " << mcp.Process();
-        if (useIt) myprt<<" <<< useIt";
+        if(nPrtMCP < 500) {
+          ++nPrtMCP;
+          myprt << "TrackId " << mcp.TrackId();
+          myprt << ", PDG code " << mcp.PdgCode();
+          myprt << ", T " << (int)TMeV << " MeV";
+          myprt << ", Mother " << mcp.Mother();
+          myprt << ", Process " << mcp.Process();
+          if (useIt) myprt<<" <<< useIt";
+        } else {
+          myprt << "--> truncated print of " << (*mcps).size() << " MCParticles";
+        }
       } // fPrintLevel > 2
-      if (useIt) {
-        MatchStruct aMatch;
-        aMatch.mcpi = mcpi;
-        aMatch.mcpTrackId = tid;
-        aMatch.clsIndex.resize(geom->Nplanes(), UINT_MAX);
-        aMatch.clsTruHitCount.resize(geom->Nplanes(), 0);
-        aMatch.mcpTruHitCount.resize(geom->Nplanes(), 0);
-        aMatch.firstHit.resize(geom->Nplanes(), UINT_MAX);
-        aMatch.lastHit.resize(geom->Nplanes(), UINT_MAX);
-        matches.push_back(aMatch);
-      } // useIT
+      if (useIt) mcpiList.push_back(mcpi);
     } // mcpi
-    if (matches.empty()) return;
+    if (mcpiList.empty()) return;
 
-    // next match the hits. Populate hitMCPIndex and match hit ranges.
+    // get clusters and cluster-hit associations
+    art::Handle<std::vector<recob::Cluster>> allCls;
+    if (!evt.getByLabel(fClusterModuleLabel, allCls))
+      throw cet::exception("ClusterAna")<<"Failed to get a handle to cluster collection '"
+      <<fClusterModuleLabel.label()<<"'\n";
+    art::FindManyP<recob::Hit> fmch(allCls, evt, fClusterModuleLabel);
+    // find the hit collection product ID on the first event 
+    // from the first cluster hit (if clusters exist)
+    if(!fHitCollectionProductID.isValid() && !(*allCls).empty())
+        fHitCollectionProductID = fmch.at(0)[0].id();
+    if(!fHitCollectionProductID.isValid()) return;
+    // get a handle to the correct hit collection (allHits)
+    auto allHits = art::Handle<std::vector<recob::Hit>>();
+    // by checking the art product ID of all hit collections
+    std::vector<art::Handle<std::vector<recob::Hit>>> hitHandles;
+    evt.getManyByType(hitHandles);
+    for (auto& hitHandle : hitHandles) {
+      if(hitHandle.id() == fHitCollectionProductID) {
+        allHits = hitHandle;
+        break;
+      } // product id's match
+    } // hitHandle
+    if(!allHits.isValid()) {
+      throw cet::exception("ClusterAna")
+          << "Failed to get a handle to the hits collection";
+    }
+    // size the vector of Hit -> MCParticle index
+    if((*allHits).size() < 3) return;
+    std::vector<unsigned int> hitMCPIndex((*allHits).size(), UINT_MAX);
+
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<geo::Geometry const> geom;
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+
+    // Create/populate a MatchStruct in each TPC if there is a MC-matched hit in it
+    std::vector<MatchStruct> matches;
+    // next match the hits and populate the hitMCPIndex vector
     unsigned int nMatched = 0;
     for(unsigned int iht = 0; iht < (*allHits).size(); ++iht) {
       auto& hit = (*allHits)[iht];
       auto tides = bt_serv->HitToTrackIDEs(clockData, hit);
-      unsigned short plane = hit.WireID().Plane;
-      unsigned int tpc = hit.WireID().TPC;
-      bool gotit = false;
       for(auto& tide : tides) {
         int tid = tide.trackID;
         if (tide.energyFrac > 0.5) {
-          for(unsigned short im = 0; im < matches.size(); ++im) {
-            auto& match = matches[im];
-            if (tid != match.mcpTrackId) continue;
-            if (match.tpc != UINT_MAX && match.tpc !=tpc) continue;
-            hitMCPIndex[iht] = match.mcpi;
+          for(auto mcpi : mcpiList) {
+            if((*mcps)[mcpi].TrackId() != tid) continue;
+            hitMCPIndex[iht] = mcpi;
             ++nMatched;
-            if (match.firstHit[plane] == UINT_MAX) {
-              match.firstHit[plane] = iht;
-              match.tpc = hit.WireID().TPC;
-            }
-            match.lastHit[plane] = iht;
-            ++match.mcpTruHitCount[plane];
-            gotit = true;
             break;
-          } // im
-          if (gotit) break;
+          }
         } // tide.energyFrac > 0.5
-        if (gotit) break;
       } // tide
+      if(hitMCPIndex[iht] == UINT_MAX) continue;
+      // Update or create the appropriate MatchStruct
+      unsigned int tpc = hit.WireID().TPC;
+      unsigned int indx = 0;
+      for(indx = 0; indx < matches.size(); ++indx) {
+        auto& match = matches[indx];
+        if(match.mcpi == hitMCPIndex[iht] && match.tpc == tpc) break;
+      } // indx
+      // Create a new matches entry if one wasn't found
+      if(indx == matches.size()) {
+        MatchStruct newMatch;
+        newMatch.mcpi = hitMCPIndex[iht];
+        newMatch.tpc = tpc;
+        newMatch.clsIndex.resize(geom->Nplanes(), UINT_MAX);
+        newMatch.clsTruHitCount.resize(geom->Nplanes(), 0);
+        newMatch.mcpTruHitCount.resize(geom->Nplanes(), 0);
+        newMatch.firstHit.resize(geom->Nplanes(), UINT_MAX);
+        newMatch.lastHit.resize(geom->Nplanes(), UINT_MAX);
+        matches.push_back(newMatch);
+      } // not found
+      // update the entry
+      auto& match = matches[indx];
+      unsigned short plane = hit.WireID().Plane;
+      // note that firstHit (lastHit) is the first (last) hit in the
+      // hit collection - not the first (last) in the plane
+      if (match.firstHit[plane] == UINT_MAX) match.firstHit[plane] = iht;
+      match.lastHit[plane] = iht;
+      ++match.mcpTruHitCount[plane];
     } // iht
+    if (fPrintLevel > 1) mf::LogVerbatim("ClusterAna")<<"Matched "<<nMatched<<" hits to "
+            << matches.size() << " selected MCParticles ";
+    if(nMatched == 0) return;
 
     // Update the sum before returning if there were at least 3 MC-matched hits
     // in a plane and no cluster was reconstructed
@@ -367,90 +378,100 @@ namespace cluster {
       return;
     } // no clusters
 
-
-    if (fPrintLevel > 1) mf::LogVerbatim("ClusterAna")<<"Matched "<<nMatched<<" hits to "
-            << matches.size() << " MCParticles ";
-
-    // Match MCParticles -> Clusters
-    for (unsigned int icl = 0; icl < (*allCls).size(); ++icl) {
-      // Find the best match of this cluster to a MCParticle.
-      // Temporary vector of (mcp index, match count) pairs for this cluster
-      std::vector<std::pair<unsigned int, float>> mcpCnts;
-      auto clsHits = fmch.at(icl);
-      unsigned short plane = USHRT_MAX;
-      for(auto& clsHit : clsHits) {
-        unsigned int iht = clsHit.key();
-        if (plane == USHRT_MAX) plane = (*allHits)[iht].WireID().Plane;
-        // ignore matches to MCParticles that aren't relevant
-        if (hitMCPIndex[iht] >= (*mcps).size()) continue;
-        // find the index of an existing Cluster -> MCParticle in the temporary vector
-        unsigned short indx = 0;
-        for(indx = 0; indx < mcpCnts.size(); ++ indx) if (mcpCnts[indx].first == hitMCPIndex[iht]) break;
-        // no match found so add one
-        if (indx == mcpCnts.size()) mcpCnts.push_back(std::make_pair(hitMCPIndex[iht], 0));
-        ++mcpCnts[indx].second;
-      } // clsHit
-      if (mcpCnts.empty()) continue;
-      // Find the best Cluster -> MCParticle match
-      float bestHitsMatched = 0;
-      unsigned int bestMCPIndex = 0;
-      for(auto& mcpCnt : mcpCnts) {
-        if (mcpCnt.second < bestHitsMatched) continue;
-        bestHitsMatched = mcpCnt.second;
-        bestMCPIndex = mcpCnt.first;
-      } // mcpCnt
-      // compare the number of matched hits for this cluster with an existing
-      // MCParticle -> cluster match
-      unsigned int mcpi = bestMCPIndex;
-      for(auto& match : matches) {
-        if (match.mcpi != mcpi) continue;
-        // Found an existing match. Are there more matched hits?
-        if (match.clsTruHitCount[plane] > bestHitsMatched) continue;
-        // a better match
-        match.clsTruHitCount[plane] = bestHitsMatched;
-        match.clsIndex[plane] = icl;
-        break;
-      } // match
-    } // icl
+    // Match MCParticles to Clusters in each TPC
+    for(const auto& tpcid : geom->IterateTPCIDs()) {
+      // ignore bogus DUNE TPCs
+      if (geom->TPC(tpcid).DriftDistance() < 25.0) continue;
+      unsigned short tpc = tpcid.TPC;
+      // Find the best match of this cluster to one MCParticle in this TPC.
+      // This code assumes that a cluster only resides in one plane
+      unsigned short plane = 0;
+      for (unsigned int icl = 0; icl < (*allCls).size(); ++icl) {
+        // Temporary vector of (mcp index, MC-matched hit count) pairs for this cluster
+        std::vector<std::pair<unsigned int, float>> mcpiCnts;
+        auto clsHits = fmch.at(icl);
+        for (auto& clsHit : clsHits) {
+          unsigned int iht = clsHit.key();
+          // ignore hits that aren't MC-matched
+          if (hitMCPIndex[iht] == UINT_MAX) continue;
+          auto& hit = (*allHits)[iht];
+          // ignore hits that aren't in this tpc
+          if(hit.WireID().TPC != tpc) continue;
+          plane = hit.WireID().Plane;
+          unsigned int mcpi = hitMCPIndex[iht];
+          // look for an mcpiCnts entry
+          unsigned short indx = 0;
+          for (indx = 0; indx < mcpiCnts.size(); ++indx) if(mcpiCnts[indx].first == mcpi) break;
+          if(indx == mcpiCnts.size()) mcpiCnts.push_back(std::make_pair(mcpi, 0));
+          ++mcpiCnts[indx].second;
+        } // clsHit
+        if (mcpiCnts.empty()) continue;
+        // Find the MCParticle that has the most matched hits to this cluster
+        float mostHitsMatched = 0;
+        unsigned int bestMCPIndex = 0;
+        for(auto& mcpiCnt : mcpiCnts) {
+          if (mcpiCnt.second < mostHitsMatched) continue;
+          mostHitsMatched = mcpiCnt.second;
+          bestMCPIndex = mcpiCnt.first;
+        } // mcpCnt
+        // compare the number of matched hits for this cluster with an existing
+        // MCParticle -> cluster match
+        for(auto& match : matches) {
+          if (match.tpc != tpc) continue;
+          if (match.mcpi != bestMCPIndex) continue;
+          // Found an existing match. Are there more matched hits?
+          if (match.clsTruHitCount[plane] > mostHitsMatched) continue;
+          // a better match
+          match.clsTruHitCount[plane] = mostHitsMatched;
+          match.clsIndex[plane] = icl;
+          break;
+        } // match
+      } // icl
+    } // tpc
     if (fPrintLevel > 1) {
       mf::LogVerbatim myprt("ClusterAna");
-      for(auto& match : matches) {
-        if (match.mcpi == UINT_MAX) continue;
-        auto& mcp = (*mcps)[match.mcpi];
-        myprt << "TrackId " << mcp.TrackId();
-        myprt << ", PDG code " << mcp.PdgCode();
-        int TMeV = 1000 * (mcp.E() - mcp.Mass());
-        myprt << ", T " << TMeV << " MeV";
-        myprt << ", Process " << mcp.Process();
-        myprt << ", in TPC " << match.tpc;
-        myprt << "\n";
-        for(unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-          if (match.firstHit[plane] >= (*allHits).size()) continue;
-          if (match.mcpTruHitCount[plane] < 3) continue;
-          unsigned int first, last;
-          FindFirstLastWire(allHits, hitMCPIndex, match, plane, first, last);
-          if (first >= (*allHits).size()) {
-            myprt<<" oops "<<match.mcpi<<" "<<plane<<" first "<<match.firstHit[plane]<<" "<<match.lastHit[plane]<<"\n";
-            continue;
-          }
-          myprt << "    Plane " << plane;
-          auto& fhit = (*allHits)[first];
-          myprt << " true hits range " << PrintHit(fhit);
-          auto& lhit = (*allHits)[last];
-          myprt << " - " << PrintHit(lhit);
-          myprt << " mcpTruHitCount " << match.mcpTruHitCount[plane];
-          if (match.clsTruHitCount[plane] > 0) {
-            auto& cls = (*allCls)[match.clsIndex[plane]];
-            myprt << " -> Cls " <<cls.ID();
-            auto clsHits = fmch.at(match.clsIndex[plane]);
-            myprt << " nRecoHits " << clsHits.size();
-            myprt << " nTruRecoHits " << match.clsTruHitCount[plane] << "\n";
-          } // match.clsTruHitCount[plane] > 0
-          else {
-            myprt<<" *** No Cluster match\n";
-          }
-        } // plane
-      } // match
+      if(nPrtSel < 500) {
+        ++nPrtSel;
+        for(auto& match : matches) {
+          if (match.mcpi == UINT_MAX) continue;
+          auto& mcp = (*mcps)[match.mcpi];
+          myprt << "TrackId " << mcp.TrackId();
+          myprt << ", PDG code " << mcp.PdgCode();
+          int TMeV = 1000 * (mcp.E() - mcp.Mass());
+          myprt << ", T " << TMeV << " MeV";
+          myprt << ", Process " << mcp.Process();
+          myprt << ", in TPC " << match.tpc;
+          myprt << "\n";
+          for(unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
+            if (match.firstHit[plane] >= (*allHits).size()) continue;
+            if (match.mcpTruHitCount[plane] < 3) continue;
+            unsigned int first, last;
+            FindFirstLastWire(allHits, hitMCPIndex, match, plane, first, last);
+            if (first >= (*allHits).size()) {
+              myprt<<" oops "<<match.mcpi<<" "<<plane<<" first "<<match.firstHit[plane]<<" "<<match.lastHit[plane]<<"\n";
+              continue;
+            }
+            myprt << "    Plane " << plane;
+            auto& fhit = (*allHits)[first];
+            myprt << " true hits range " << PrintHit(fhit);
+            auto& lhit = (*allHits)[last];
+            myprt << " - " << PrintHit(lhit);
+            myprt << " mcpTruHitCount " << match.mcpTruHitCount[plane];
+            if (match.clsTruHitCount[plane] > 0) {
+              auto& cls = (*allCls)[match.clsIndex[plane]];
+              myprt << " -> Cls " <<cls.ID();
+              auto clsHits = fmch.at(match.clsIndex[plane]);
+              myprt << " nRecoHits " << clsHits.size();
+              myprt << " nTruRecoHits " << match.clsTruHitCount[plane] << "\n";
+            } // match.clsTruHitCount[plane] > 0
+            else {
+              myprt<<" *** No Cluster match\n";
+            }
+          } // plane
+        } // match
+      } else {
+        myprt << "--> truncated print of " << matches.size() << " selected MCParticles";
+      }
     } // fPrintLevel > 1
 
     // Calculate Efficiency and Purity
