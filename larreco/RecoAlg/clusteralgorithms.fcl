@@ -6,7 +6,7 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
-   Strategy: ""             # Tracking strategies: "" (normal), "LEPhysics", "TestBeam"
+#   NeutrinoMode: true       # Create neutrino PFParticles & hierarchy?
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [4, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [4, 3, 3]     # Min number of points in the trajectory required on each pass
@@ -31,8 +31,6 @@ standard_trajclusteralg:
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    ShowerTag: [ 100, 2, 3 ] # Max MCSMom, Max separation (WSE), Min number of trajectories in a shower
    SaveShowerTree: false
-   SaveCRTree: false
-   TagCosmics: false
    ChkStopCuts: [10, 8, 1.5] # [Min chg slope, nFitPts, Chg fit ChiDOF cut]
    VertexScoreWeights: [1, 2, 10, 2]
     # 0 = Vertex error weight
