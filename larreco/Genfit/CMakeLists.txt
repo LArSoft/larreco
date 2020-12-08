@@ -12,9 +12,9 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Physics
            ROOT::EG
-           ROOT::VMC
          )
 
+# not found           ROOT::VMC
 install_headers()
 install_fhicl()
 install_source()
