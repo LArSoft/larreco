@@ -28,6 +28,7 @@
 #include "TMultiGraph.h"
 #include "TProfile.h"
 
+#include "range/v3/numeric.hpp"
 #include "range/v3/view.hpp"
 
 using lar::to_element;
