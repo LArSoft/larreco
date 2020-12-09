@@ -30,6 +30,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "range/v3/algorithm.hpp"
+#include "range/v3/numeric.hpp"
 #include "range/v3/view.hpp"
 
 double
