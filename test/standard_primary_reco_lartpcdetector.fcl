@@ -50,8 +50,7 @@ services:
   NuRandomService:           @local::lartpcdetector_seedservice # from seedservice_lartpcdetector.fcl (larsim)
   
   # LArSoft services
-  Geometry:               @local::standard_geo # from geometry.fcl
-  ExptGeoHelperInterface: @local::standard_geometry_helper # from geometry.fcl
+                          @table::standard_geometry_services # from geometry.fcl
   DetectorPropertiesService:     @local::lartpcdetector_detproperties # from detectorproperties_lartpcdetector.fcl
   LArPropertiesService:          @local::standard_properties # from larproperties.fcl
   DetectorClocksService:            @local::lartpcdetector_detectorclocks # from detectorclocks_lartpcdetector.fcl
