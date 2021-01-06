@@ -6,7 +6,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#include <TProfile.h>
 #include <array>
 #include <fstream>
 #include <iomanip>
@@ -22,7 +21,6 @@
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -32,7 +30,6 @@
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Vertex.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nug4/ParticleNavigation/ParticleList.h"
@@ -43,16 +40,16 @@
 /// Cluster finding and building
 namespace cluster {
 
-    // MCParticle -> cluster matching struct and indices
-    struct MatchStruct {
-      unsigned int mcpi {UINT_MAX};       ///< MCParticle index
-      unsigned int tpc {UINT_MAX};        ///< TPC in which this MatchStruct is used
-      std::vector<unsigned int> clsIndex; ///< index of the MC-matched cluster in each plane
-      std::vector<float> mcpTruHitCount;  ///< number of MC-Matched hits to mcpi in each plane
-      std::vector<float> clsTruHitCount;  ///< number of MC-matched hits to mcpi in clsIndex in each plane
-      std::vector<unsigned int> firstHit; ///< first MC-matched hit in each plane
-      std::vector<unsigned int> lastHit;  ///< last MC-matched hit in each plane
-    };
+  // MCParticle -> cluster matching struct and indices
+  struct MatchStruct {
+    unsigned int mcpi {UINT_MAX};       ///< MCParticle index
+    unsigned int tpc {UINT_MAX};        ///< TPC in which this MatchStruct is used
+    std::vector<unsigned int> clsIndex; ///< index of the MC-matched cluster in each plane
+    std::vector<float> mcpTruHitCount;  ///< number of MC-Matched hits to mcpi in each plane
+    std::vector<float> clsTruHitCount;  ///< number of MC-matched hits to mcpi in clsIndex in each plane
+    std::vector<unsigned int> firstHit; ///< first MC-matched hit in each plane
+    std::vector<unsigned int> lastHit;  ///< last MC-matched hit in each plane
+  };
 
   class ClusterAna : public art::EDAnalyzer {
   public:
@@ -63,50 +60,11 @@ namespace cluster {
     void beginJob() override;
     void endJob() override;
     std::string PrintHit(const recob::Hit& hit);
-    int PDGCodeIndex(int pdgCode);
+    int PDGCodeIndex(simb::MCParticle const& mcp);
     void FindFirstLastWire(art::Handle<std::vector<recob::Hit>> const& allHits, 
                            std::vector<unsigned int> const& hitMCPIndex,
                            MatchStruct const& match,
                            unsigned short inPlane, unsigned int& first, unsigned int& last);
-
-    TH1F* fNClusters;
-    TH1F* fNHitInCluster;
-    // Cosmic Rays
-    TH1F* fCREP2;
-    TH1F* fCRE;
-    TH1F* fCRP;
-    // Neutrino interactions
-    TH1F* fT_elec;
-    TH1F* fT_muon;
-    TH1F* fT_pion;
-    TH1F* fT_kaon;
-    TH1F* fT_prot;
-    //  TH1F* fEP;
-    TH1F* fEP_elec;
-    TH1F* fEP_muon;
-    TH1F* fEP_pion;
-    TH1F* fEP_kaon;
-    TH1F* fEP_prot;
-    TH1F* fE_elec;
-    TH1F* fE_muon;
-    TH1F* fE_pion;
-    TH1F* fE_kaon;
-    TH1F* fE_prot;
-    TH1F* fP_elec;
-    TH1F* fP_muon;
-    TH1F* fP_pion;
-    TH1F* fP_kaon;
-    TH1F* fP_prot;
-
-    TH1F* fNuVtx_dx;
-    TH1F* fNuVtx_dy;
-    TH1F* fNuVtx_dz;
-
-    TProfile* fEP_T_elec;
-    TProfile* fEP_T_muon;
-    TProfile* fEP_T_pion;
-    TProfile* fEP_T_kaon;
-    TProfile* fEP_T_prot;
 
     art::InputTag fClusterModuleLabel;
     art::ProductID fHitCollectionProductID;
@@ -164,36 +122,6 @@ namespace cluster {
 
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
-
-    fT_elec = tfs->make<TH1F>("T_elec", "T(MeV) electron", 500, 0, 2000);
-    fT_muon = tfs->make<TH1F>("T_muon", "T(MeV) muon", 500, 0, 2000);
-    fT_pion = tfs->make<TH1F>("T_pion", "T(MeV) pion", 500, 0, 2000);
-    fT_kaon = tfs->make<TH1F>("T_kaon", "T(MeV) kaon", 500, 0, 2000);
-    fT_prot = tfs->make<TH1F>("T_prot", "T(MeV) proton", 500, 0, 2000);
-
-    fEP_elec = tfs->make<TH1F>("EP_elec", "EP electron", 50, 0, 1);
-    fEP_muon = tfs->make<TH1F>("EP_muon", "EP muon", 50, 0, 1);
-    fEP_pion = tfs->make<TH1F>("EP_pion", "EP pion", 50, 0, 1);
-    fEP_kaon = tfs->make<TH1F>("EP_kaon", "EP kaon", 50, 0, 1);
-    fEP_prot = tfs->make<TH1F>("EP_prot", "EP proton", 50, 0, 1);
-
-    fE_elec = tfs->make<TH1F>("E_elec", "Efficiency electron", 50, 0, 1);
-    fE_muon = tfs->make<TH1F>("E_muon", "Efficiency muon", 50, 0, 1);
-    fE_pion = tfs->make<TH1F>("E_pion", "Efficiency pion", 50, 0, 1);
-    fE_kaon = tfs->make<TH1F>("E_kaon", "Efficiency kaon", 50, 0, 1);
-    fE_prot = tfs->make<TH1F>("E_prot", "Efficiency proton", 50, 0, 1);
-
-    fP_elec = tfs->make<TH1F>("P_elec", "Purity electron", 50, 0, 1);
-    fP_muon = tfs->make<TH1F>("P_muon", "Purity muon", 50, 0, 1);
-    fP_pion = tfs->make<TH1F>("P_pion", "Purity pion", 50, 0, 1);
-    fP_kaon = tfs->make<TH1F>("P_kaon", "Purity kaon", 50, 0, 1);
-    fP_prot = tfs->make<TH1F>("P_prot", "Purity proton", 50, 0, 1);
-
-    fEP_T_elec = tfs->make<TProfile>("EP_T_elec", "EP electron vs T", 200, 0, 2000);
-    fEP_T_muon = tfs->make<TProfile>("EP_T_muon", "EP muon vs T", 200, 0, 2000);
-    fEP_T_pion = tfs->make<TProfile>("EP_T_pion", "EP pion vs T", 200, 0, 2000);
-    fEP_T_kaon = tfs->make<TProfile>("EP_T_kaon", "EP kaon vs T", 200, 0, 2000);
-    fEP_T_prot = tfs->make<TProfile>("EP_T_prot", "EP proton vs T", 200, 0, 2000);
   }
 
   void
@@ -247,20 +175,8 @@ namespace cluster {
       if (fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
       float TMeV = 1000 * (mcp.E() - mcp.Mass());
       // consider electrons, muons, pions, kaons and protons
-      int pdgIndx = PDGCodeIndex(mcp.PdgCode());
+      auto pdgIndx = PDGCodeIndex(mcp);
       if (pdgIndx < 0) continue;
-      bool useIt = true;
-      if (pdgIndx == 0) {
-        if (fElecKERange[0] < 0 || TMeV < fElecKERange[0] || TMeV > fElecKERange[1]) useIt = false;
-      } else if (pdgIndx == 1) {
-        if (fMuonKERange[0] < 0 || TMeV < fMuonKERange[0] || TMeV > fMuonKERange[1]) useIt = false;
-      } else if (pdgIndx == 2) {
-        if (fPionKERange[0] < 0 || TMeV < fPionKERange[0] || TMeV > fPionKERange[1]) useIt = false;
-      } else if (pdgIndx == 3) {
-        if (fKaonKERange[0] < 0 || TMeV < fKaonKERange[0] || TMeV > fKaonKERange[1]) useIt = false;
-      } else if (pdgIndx == 4) {
-        if (fProtKERange[0] < 0 || TMeV < fProtKERange[0] || TMeV > fProtKERange[1]) useIt = false;
-      }
       if (fPrintLevel > 2) {
         mf::LogVerbatim myprt("ClusterAna");
         if(nPrtMCP < 500) {
@@ -270,20 +186,17 @@ namespace cluster {
           myprt << ", T " << (int)TMeV << " MeV";
           myprt << ", Mother " << mcp.Mother();
           myprt << ", Process " << mcp.Process();
-          if (useIt) myprt<<" <<< useIt";
         } else {
           myprt << "--> truncated print of " << (*mcps).size() << " MCParticles";
         }
       } // fPrintLevel > 2
-      if (useIt) mcpiList.push_back(mcpi);
+      mcpiList.push_back(mcpi);
     } // mcpi
     if (mcpiList.empty()) return;
 
     // get clusters and cluster-hit associations
-    art::Handle<std::vector<recob::Cluster>> allCls;
-    if (!evt.getByLabel(fClusterModuleLabel, allCls))
-      throw cet::exception("ClusterAna")<<"Failed to get a handle to cluster collection '"
-      <<fClusterModuleLabel.label()<<"'\n";
+    auto allCls = evt.getValidHandle<std::vector<recob::Cluster>>(fClusterModuleLabel);
+    assert(allCls.isValid());
     art::FindManyP<recob::Hit> fmch(allCls, evt, fClusterModuleLabel);
     // find the hit collection product ID on the first event 
     // from the first cluster hit (if clusters exist)
@@ -292,16 +205,7 @@ namespace cluster {
     if(!fHitCollectionProductID.isValid()) return;
     // get a handle to the correct hit collection (allHits)
     auto allHits = art::Handle<std::vector<recob::Hit>>();
-    // by checking the art product ID of all hit collections
-    std::vector<art::Handle<std::vector<recob::Hit>>> hitHandles;
-    evt.getManyByType(hitHandles);
-    for (auto& hitHandle : hitHandles) {
-      if(hitHandle.id() == fHitCollectionProductID) {
-        allHits = hitHandle;
-        break;
-      } // product id's match
-    } // hitHandle
-    if(!allHits.isValid()) {
+    if(!evt.get(fHitCollectionProductID, allHits)) {
       throw cet::exception("ClusterAna")
           << "Failed to get a handle to the hits collection";
     }
@@ -370,7 +274,8 @@ namespace cluster {
       for(auto& match : matches) {
         if (match.mcpi == UINT_MAX) continue;
         auto& mcp = (*mcps)[match.mcpi];
-        int pdgIndx = PDGCodeIndex(mcp.PdgCode());
+        auto pdgIndx = PDGCodeIndex(mcp);
+        if (pdgIndx < 0) continue;
         for(unsigned short plane = 0; plane < geom->Nplanes(); ++plane) {
           if (match.mcpTruHitCount[plane] > 2) ++fSum[pdgIndx];
         } // plane
@@ -479,9 +384,8 @@ namespace cluster {
     for(auto& match : matches) {
       if (match.mcpi == UINT_MAX) continue;
       auto& mcp = (*mcps)[match.mcpi];
-      float TMeV = 1000 * (mcp.E() - mcp.Mass());
-      int indx = PDGCodeIndex(mcp.PdgCode());
-      if (indx < 0 || indx > 4) continue;
+      auto indx = PDGCodeIndex(mcp);
+      if (indx < 0) continue;
       for(unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
         if (match.mcpTruHitCount[plane] < 3) continue;
         float eff = 0;
@@ -499,38 +403,6 @@ namespace cluster {
         fPurSum[indx] += pur;
         fEffPurSum[indx] += effpur;
         ++fSum[indx];
-        // fill the histograms
-        if (indx == 0) {
-          fT_elec->Fill(TMeV);
-          fE_elec->Fill(eff);
-          fP_elec->Fill(pur);
-          fEP_elec->Fill(effpur);
-          fEP_T_elec->Fill(TMeV, effpur);
-        } else if (indx == 1) {
-          fT_muon->Fill(TMeV);
-          fE_muon->Fill(eff);
-          fP_muon->Fill(pur);
-          fEP_muon->Fill(effpur);
-          fEP_T_muon->Fill(TMeV, effpur);
-        } else if (indx == 2) {
-          fT_pion->Fill(TMeV);
-          fE_pion->Fill(eff);
-          fP_pion->Fill(pur);
-          fEP_pion->Fill(effpur);
-          fEP_T_pion->Fill(TMeV, effpur);
-        } else if (indx == 3) {
-          fT_kaon->Fill(TMeV);
-          fE_kaon->Fill(eff);
-          fP_kaon->Fill(pur);
-          fEP_kaon->Fill(effpur);
-          fEP_T_kaon->Fill(TMeV, effpur);
-        } else if (indx == 4) {
-          fT_prot->Fill(TMeV);
-          fE_prot->Fill(eff);
-          fP_prot->Fill(pur);
-          fEP_prot->Fill(effpur);
-          fEP_T_prot->Fill(TMeV, effpur);
-        }
         if (effpur < 0.7) ++fNBadEP;
         if (fPrintLevel > 0 && effpur < 0.7) {
           mf::LogVerbatim myprt("ClusterAna");
@@ -586,16 +458,29 @@ namespace cluster {
   } // FindFirstLastWire
 
   int
-  ClusterAna::PDGCodeIndex(int pdgCode)
+  ClusterAna::PDGCodeIndex(simb::MCParticle const& mcp)
   {
-    pdgCode = abs(pdgCode);
-    if (pdgCode == 11) return 0;
-    if (pdgCode == 13) return 1;
-    if (pdgCode == 211) return 2;
-    if (pdgCode == 321) return 3;
-    if (pdgCode == 2212) return 4;
-    return -1;
-  }
+    float TMeV = 1000 * (mcp.E() - mcp.Mass());
+    switch(abs(mcp.PdgCode())) {
+      case 11:
+        if (mcp.Process() != "Primary") return -1;
+        if (TMeV < fElecKERange[0] || TMeV > fElecKERange[1]) return -1;
+        return 0;
+      case 13:
+        if (TMeV < fMuonKERange[0] || TMeV > fMuonKERange[1]) return -1;
+        return 1;
+      case 211:
+        if (TMeV < fPionKERange[0] || TMeV > fPionKERange[1]) return -1;
+        return 2;
+      case 321:
+        if (TMeV < fKaonKERange[0] || TMeV > fKaonKERange[1]) return -1;
+        return 3;
+      case 2212:
+        if (TMeV < fProtKERange[0] || TMeV > fProtKERange[1]) return -1;
+        return 4;
+      default: return -1;
+    }
+  } // PDGCodeIndex
 
   std::string
   ClusterAna::PrintHit(const recob::Hit& hit)
