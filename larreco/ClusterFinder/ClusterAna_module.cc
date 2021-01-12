@@ -73,11 +73,8 @@ namespace cluster {
     std::array<float, 2> fPionKERange;
     std::array<float, 2> fKaonKERange;
     std::array<float, 2> fProtKERange;
-    short fTrackWeightOption;
-    bool fMergeDaughters;
     bool fSkipCosmics;
     short fPrintLevel;
-    short moduleID;
 
     std::array<std::string, 5> fNames {{"electron", "muon", "pion", "kaon", "proton"}};
     std::array<float, 5> fEffSum {{0}};
