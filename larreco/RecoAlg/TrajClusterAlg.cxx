@@ -1250,7 +1250,6 @@ namespace tca {
     std::vector<recob::Track::Point_t> positions;
     std::vector<recob::Track::Vector_t> directions;
     std::vector<recob::TrajectoryPointFlags> tpFlags;
-    using trkflag = recob::TrajectoryPointFlags::flag;
     // index of the hit in the new hit collection
 
     for(unsigned int pt = 0; pt < pfp.TP3Ds.size(); ++pt) {
