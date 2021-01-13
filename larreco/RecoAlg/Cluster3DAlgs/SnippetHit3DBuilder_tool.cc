@@ -188,6 +188,17 @@ private:
     bool makeDeadChannelPair(reco::ClusterHit3D& pairOut, const reco::ClusterHit3D& pair, size_t maxStatus = 4, size_t minStatus = 0, float minOverlap=0.2) const;
 
     /**
+     * @brief function to detemine if two wires "intersect" (in the 2D sense)
+     */
+
+    bool WireIDsIntersect(const geo::WireID&, const geo::WireID&, geo::WireIDIntersection&) const;
+
+    /**
+     * @brief function to compute the distance of closest approach and the arc length to the points of closest approach
+     */
+    float closestApproach(const Eigen::Vector3f&, const Eigen::Vector3f&, const Eigen::Vector3f&, const Eigen::Vector3f&, float&, float&) const;
+
+    /**
      *  @brief A utility routine for finding a 2D hit closest in time to the given pair
      */
     const reco::ClusterHit2D* FindBestMatchingHit(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, float pairDeltaTimeLimits) const;
@@ -866,47 +877,49 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
     // Assume failure
     bool result(false);
 
-    // We assume in this routine that we are looking at hits in different views
-    // The first mission is to check that the wires intersect
-    const geo::WireID& hit1WireID = hit1->WireID();
-    const geo::WireID& hit2WireID = hit2->WireID();
+    // Start by checking time consistency since this is fastest
+    // Wires intersect so now we can check the timing
+    float hit1Peak  = hit1->getTimeTicks();
+    float hit1Sigma = hit1->getHit()->RMS();
 
-    geo::WireIDIntersection widIntersect;
+    float hit2Peak  = hit2->getTimeTicks();
+    float hit2Sigma = hit2->getHit()->RMS();
 
-    if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+    // "Long hits" are an issue... so we deal with these differently
+    int   hit1NDF   = hit1->getHit()->DegreesOfFreedom();
+    int   hit2NDF   = hit2->getHit()->DegreesOfFreedom();
+
+    // Basically, allow the range to extend to the nearest end of the snippet
+    //if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
+    //if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
+    if (hit1NDF < 2) hit1Sigma *= m_LongHitStretchFctr; // This sets the range to the width of the pulse
+    if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr;
+
+    // The "hit sigma" is the gaussian fit sigma of the hit, we need to expand a bit to allow hit overlap efficiency
+    float hit1Width = hitWidthSclFctr * hit1Sigma;
+    float hit2Width = hitWidthSclFctr * hit2Sigma;
+
+    // Coarse check hit times are "in range"
+    if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
     {
-        // Wires intersect so now we can check the timing
-        float hit1Peak  = hit1->getTimeTicks();
-        float hit1Sigma = hit1->getHit()->RMS();
+        // Check to see that hit peak times are consistent with each other
+        float hit1SigSq     = hit1Sigma * hit1Sigma;
+        float hit2SigSq     = hit2Sigma * hit2Sigma;
+        float deltaPeakTime = std::fabs(hit1Peak - hit2Peak);
+        float sigmaPeakTime = std::sqrt(hit1SigSq + hit2SigSq);
 
-        float hit2Peak  = hit2->getTimeTicks();
-        float hit2Sigma = hit2->getHit()->RMS();
-
-        // "Long hits" are an issue... so we deal with these differently
-        int   hit1NDF   = hit1->getHit()->DegreesOfFreedom();
-        int   hit2NDF   = hit2->getHit()->DegreesOfFreedom();
-
-        // Basically, allow the range to extend to the nearest end of the snippet
-        //if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
-        //if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
-        if (hit1NDF < 2) hit1Sigma *= m_LongHitStretchFctr; // This sets the range to the width of the pulse
-        if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr;
-
-        // The "hit sigma" is the gaussian fit sigma of the hit, we need to expand a bit to allow hit overlap efficiency
-        float hit1Width = hitWidthSclFctr * hit1Sigma;
-        float hit2Width = hitWidthSclFctr * hit2Sigma;
-
-        // Coarse check hit times are "in range"
-        if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
+        // delta peak time consistency check here
+        if (deltaPeakTime < m_deltaPeakTimeSig * sigmaPeakTime)    // 2 sigma consistency? (do this way to avoid divide)
         {
-            // Check to see that hit peak times are consistent with each other
-            float hit1SigSq     = hit1Sigma * hit1Sigma;
-            float hit2SigSq     = hit2Sigma * hit2Sigma;
-            float deltaPeakTime = std::fabs(hit1Peak - hit2Peak);
-            float sigmaPeakTime = std::sqrt(hit1SigSq + hit2SigSq);
+            // We assume in this routine that we are looking at hits in different views
+            // The first mission is to check that the wires intersect
+            const geo::WireID& hit1WireID = hit1->WireID();
+            const geo::WireID& hit2WireID = hit2->WireID();
 
-            // delta peak time consistency check here
-            if (deltaPeakTime < m_deltaPeakTimeSig * sigmaPeakTime)    // 2 sigma consistency? (do this way to avoid divide)
+            geo::WireIDIntersection widIntersect;
+
+//           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+            if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
             {
                 float oneOverWghts  = hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 float avePeakTime   = (hit1Peak / hit1SigSq + hit2Peak / hit2SigSq) * oneOverWghts;
@@ -974,7 +987,9 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 result = true;
             }
         }
+//        else std::cout << "-MakeHitPair, deltaPeakTime: " << deltaPeakTime << ", scl fctr: " << m_deltaPeakTimeSig << ", sigmaPeakTime: " << sigmaPeakTime << std::endl;
     }
+//    else std::cout << "-MakeHitPair, delta peak: " << hit1Peak - hit2Peak << ", hit1Width: " << hit1Width << ", hit2Width: " << hit2Width << std::endl;
 
     // Send it back
     return result;
@@ -982,8 +997,8 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
 
 
 bool SnippetHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
-                                          const reco::ClusterHit3D& pair,
-                                          const reco::ClusterHit2D* hit) const
+                                         const reco::ClusterHit3D& pair,
+                                         const reco::ClusterHit2D* hit) const
 {
     // Assume failure
     bool result(false);
@@ -1198,7 +1213,7 @@ bool SnippetHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     }
 
                     // Try to weed out cases where overlap doesn't match peak separation
-                    if (maxDeltaPeak > overlapRange) return result;
+                    if (maxDeltaPeak > 3. * overlapRange) return result;
 
                     // Create the 3D cluster hit
                     hitTriplet.initialize(0,
@@ -1219,12 +1234,84 @@ bool SnippetHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
 
                     result = true;
                 }
+//                else std::cout << "-Rejecting triple with chiSquare: " << hitChiSquare << " and hiMinIndex: " << hiMinIndex << ", loMaxIndex: " << lowMaxIndex << std::endl;
             }
         }
     }
+//    else std::cout << "-MakeTriplet hit cut, delta: " << hitTimeTicks - pair.getAvePeakTime() << ", min scale fctr: " <<m_hitWidthSclFctr << ", pair sig: " << pair.getSigmaPeakTime() << ", hitSigma: " << hitSigma << std::endl;
 
     // return success/fail
     return result;
+}
+
+bool SnippetHit3DBuilder::WireIDsIntersect(const geo::WireID& wireID0, const geo::WireID& wireID1, geo::WireIDIntersection& widIntersection) const
+{
+    bool success(false);
+
+    // Do quick check that things are in the same logical TPC
+    if (wireID0.Cryostat != wireID1.Cryostat || wireID0.TPC != wireID1.TPC || wireID0.Plane == wireID1.Plane) return success;
+        
+    // Recover wire geometry information for each wire
+    const geo::WireGeo& wireGeo0 = m_geometry->WireIDToWireGeo(wireID0);
+    const geo::WireGeo& wireGeo1 = m_geometry->WireIDToWireGeo(wireID1);
+
+    // Get wire position and direction for first wire
+    double wirePosArr[3] = {0.,0.,0.};
+    wireGeo0.GetCenter(wirePosArr);
+
+    Eigen::Vector3f wirePos0(wirePosArr[0],wirePosArr[1],wirePosArr[2]);
+    Eigen::Vector3f wireDir0(wireGeo0.Direction().X(),wireGeo0.Direction().Y(),wireGeo0.Direction().Z());
+
+    // And now the second one
+    wireGeo1.GetCenter(wirePosArr);
+
+    Eigen::Vector3f wirePos1(wirePosArr[0],wirePosArr[1],wirePosArr[2]);
+    Eigen::Vector3f wireDir1(wireGeo1.Direction().X(),wireGeo1.Direction().Y(),wireGeo1.Direction().Z());
+
+    // Get the distance of closest approach
+    float arcLen0;
+    float arcLen1;
+
+    if (closestApproach(wirePos0, wireDir0, wirePos1, wireDir1, arcLen0, arcLen1))
+    {
+        // Now check that arc lengths are within range
+        if (std::abs(arcLen0) < wireGeo0.HalfL() && std::abs(arcLen1) < wireGeo1.HalfL())
+        {
+            Eigen::Vector3f poca0 = wirePos0 + arcLen0 * wireDir0;
+
+            widIntersection.y = poca0[1];
+            widIntersection.z = poca0[2];
+
+            success = true;
+        }
+    }
+
+    return success;
+}
+
+float SnippetHit3DBuilder::closestApproach(const Eigen::Vector3f& P0,
+                                           const Eigen::Vector3f& u0,
+                                           const Eigen::Vector3f& P1,
+                                           const Eigen::Vector3f& u1,
+                                           float&                 arcLen0,
+                                           float&                 arcLen1) const
+{
+    // Technique is to compute the arclength to each point of closest approach
+    Eigen::Vector3f w0 = P0 - P1;
+    float a(1.);
+    float b(u0.dot(u1));
+    float c(1.);
+    float d(u0.dot(w0));
+    float e(u1.dot(w0));
+    float den(a * c - b * b);
+
+    arcLen0 = (b * e - c * d) / den;
+    arcLen1 = (a * e - b * d) / den;
+
+    Eigen::Vector3f poca0 = P0 + arcLen0 * u0;
+    Eigen::Vector3f poca1 = P1 + arcLen1 * u1;
+
+    return (poca0 - poca1).norm();
 }
 
 float SnippetHit3DBuilder::chargeIntegral(float peakMean,
