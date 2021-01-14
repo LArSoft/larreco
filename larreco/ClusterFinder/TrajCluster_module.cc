@@ -31,11 +31,6 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 
-//root includes
-#include "TTree.h"
-
-// ... more includes in the implementation section
-
 namespace cluster {
   /**
    * @brief Produces clusters by the TrajCluster algorithm
@@ -164,6 +159,7 @@ namespace cluster {
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
     produces< std::vector<recob::Seed> >();
+    produces< std::vector<recob::SpacePoint> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
@@ -173,6 +169,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
 
+    bool sptHitAssnExists = false;
     if(fMakeTracks) {
       produces< art::Assns<recob::PFParticle, recob::Track> >();
       produces< std::vector<recob::Track> >();
@@ -180,6 +177,7 @@ namespace cluster {
       if (fMakeTrackSpacePoints) {
         produces< art::Assns<recob::Track, recob::SpacePoint> >();
         produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+        sptHitAssnExists = true;
       } // fMakeTrackSpacePoints
     } // fMakeTracks
 
@@ -188,7 +186,8 @@ namespace cluster {
     produces< art::Assns<recob::Slice, recob::Hit> >();
 
     // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
-    if(fSpacePointModuleLabel != "NA") produces<art::Assns<recob::SpacePoint, recob::Hit>>();
+    if(fSpacePointModuleLabel != "NA" && !sptHitAssnExists) 
+      produces<art::Assns<recob::SpacePoint, recob::Hit>>();
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
@@ -232,12 +231,12 @@ namespace cluster {
     // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel.
     // A pointer to the full hit collection is passed to TrajClusterAlg. The hits that are
     // in each slice are reconstructed to find 2D trajectories (that become clusters),
-    // 2D vertices (EndPoint2D), 3D vertices and PFParticles. These data products
+    // 2D vertices (EndPoint2D), 3D vertices, PFParticles and Tracks. These data products
     // are then collected and written to the event. Each slice is considered as an independent
-    // collection of hits with the additional requirement that all hits in a slice reside in
+    // collection of hits with the requirement that all hits in a slice reside in
     // one TPC
 
-    // pointers to the slices in the event
+    // list of the slices in the event
     std::vector<art::Ptr<recob::Slice>> slices;
     std::vector<int> slcIDs;
     unsigned int nInputHits = 0;
@@ -265,7 +264,7 @@ namespace cluster {
     if (fSliceModuleLabel != "NA") {
       fTCAlg.ExpectSlicedHits();
       if (!evt.getByLabel(fSliceModuleLabel, inputSlices))
-        throw cet::exception("TrajClusterModule") << "Failed to get a inputSlices";
+        throw cet::exception("TrajClusterModule") << "Failed to get inputSlices";
     } // fSliceModuleLabel specified
 
     // get an optional reference to the SpacePoint collection
@@ -345,9 +344,6 @@ namespace cluster {
         for (unsigned int isl = 0; isl < sltpcHits.size(); ++isl) {
           auto& tpcHits = sltpcHits[isl];
           if (tpcHits.empty()) continue;
-          if(tca::tcc.modes[tca::kModeDebug] && tpcHits.size() > 10) 
-          std::cout<<"Found "<<tpcHits.size()<<" hits in TPC "<<tpcid.TPC<<"\n";
-          // only reconstruct slices with MC-matched hits?
           // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
           // This assumes that hits with larger LocalIndex are at larger Tick.
           std::vector<HitLoc> sortVec(tpcHits.size());
@@ -500,20 +496,6 @@ namespace cluster {
               unsigned int allHitsIndex = slc.slHits[tp.Hits[ii]].allHitsIndex;
               if (allHitsIndex > nInputHits - 1) { break; } // bad allHitsIndex
               tpHits.push_back(allHitsIndex);
-              if (newIndex[allHitsIndex] != UINT_MAX) {
-                std::cout << "Bad Slice " << isl << " tp.Hits " << tp.Hits[ii] << " allHitsIndex "
-                          << allHitsIndex;
-                std::cout << " old newIndex " << newIndex[allHitsIndex];
-                auto& oldhit = (*inputHits)[allHitsIndex];
-                std::cout << " old " << oldhit.WireID().Plane << ":" << oldhit.WireID().Wire << ":"
-                          << (int)oldhit.PeakTime();
-                auto& newhit = hitCol[newIndex[allHitsIndex]];
-                std::cout << " new " << newhit.WireID().Plane << ":" << newhit.WireID().Wire << ":"
-                          << (int)newhit.PeakTime();
-                std::cout << " hitCol size " << hitCol.size();
-                std::cout << "\n";
-                break;
-              }
             } // ii
             // Let the alg define the hit either by merging multiple hits or by a simple copy
             // of a single hit from inputHits
@@ -548,6 +530,7 @@ namespace cluster {
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
           int clsID = tj.UID;
+          // Flag shower-like clusters
           if (tj.PDGCode == 11) clsID = -clsID;
           // dressed muon - give the halo cluster the same ID as the parent
           if (tj.AlgMod[tca::kHaloTj]) clsID = -tj.ParentID;
@@ -587,7 +570,7 @@ namespace cluster {
           if (!slices.empty()) {
             if (!util::CreateAssn(*this, evt, clsCol, slices[slcIndex], *slc_cls_assn)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
-                << "Failed to associate slice with PFParticle";
+                << "Failed to associate slice with Cluster";
             } // exception
           }   // slices exist
           // Make cluster -> 2V and cluster -> 3V assns
@@ -729,14 +712,13 @@ namespace cluster {
               // each SpacePoint is associated with one hit
               std::vector<unsigned int> sptsHit;
               fTCAlg.MakeSpacePointsFromPFP(pfp, newIndex, spts, sptsHit);
-              std::cout<<"P"<<pfp.ID<<" TP3Ds "<<pfp.TP3Ds.size()<<" spts "<<spts.size()<<" hits "<<sptsHit.size()<<"\n";
               if(!spts.empty()) {
                 for(unsigned int isp = 0; isp < spts.size(); ++isp) {
                   sptCol.push_back(spts[isp]);
                   // Track -> SpacePoint
-                  if(!util::CreateAssn(*this, evt, trkCol, sptCol, *trk_spt_assn, trkCol.size()-1, trkCol.size())) {
+                  if(!util::CreateAssn(*this, evt, trkCol, sptCol, *trk_spt_assn, sptCol.size()-1, sptCol.size())) {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
-                      << "Failed to associate Track with SpacePoint";
+                      << "Failed to associate SpacePoint with Track";
                   } // exception
                   // SpacePoint -> Hit
                   if(!util::CreateAssn(*this, evt, sptCol, hitCol, *spt_hit_assn, sptCol.size()-1, sptCol.size(), sptsHit[isp])) {

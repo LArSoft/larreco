@@ -1226,7 +1226,7 @@ namespace tca {
       } // ii
       if(nhi == UINT_MAX) continue;
       Double32_t pos[3] = {tp3d.Pos[0], tp3d.Pos[1], tp3d.Pos[2]};
-      Double32_t err[3] = {0., 0, 0.};
+      Double32_t err[6] = {1., 0., 1., 0., 0., 1.};
       ++id;
       spts.emplace_back(pos, err, 0., id);
       sptsHit.push_back(nhi);
