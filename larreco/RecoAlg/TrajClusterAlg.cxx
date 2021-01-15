@@ -813,28 +813,28 @@ namespace tca {
                 if (slc.slHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if (std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
-                // re-purpose jHits and check for consistency
+                std::vector<unsigned int> kHits;
                 if(tcc.useAlg[kNewCuts]) {
-                  jHits = FindJTHits(slc, kht);
+                  kHits = FindJTHits(slc, kht);
                 } else {
-                  GetHitMultiplet(slc, kht, jHits, true);
+                  GetHitMultiplet(slc, kht, kHits, true);
                 }
                 if(tcc.useAlg[kNewCuts]) {
-                  if (!JTHitsOK(slc, tHits, jHits)) continue;
+                  if (!JTHitsOK(slc, tHits, kHits)) continue;
                 } else {
-                  if (!TrajHitsOK(slc, tHits, jHits)) continue;
+                  if (!TrajHitsOK(slc, tHits, kHits)) continue;
                 }
                 // add them all and update the wire range
-                for (auto jht : jHits) {
-                  if (slc.slHits[jht].InTraj != 0) continue;
-                  tHits.push_back(jht);
-                  slc.slHits[jht].InTraj = -4;
+                for (auto kkht : kHits) {
+                  if (slc.slHits[kkht].InTraj != 0) continue;
+                  tHits.push_back(kkht);
+                  slc.slHits[kkht].InTraj = -4;
                   if (kwire > hiWire) hiWire = kwire;
                   if (kwire < loWire) loWire = kwire;
                   hitsAdded = true;
                 } // jht
                 // allow continuing if a wire has hits that are already used
-                if(tcc.useAlg[kNewCuts] && !jHits.empty()) hitsAdded = true;
+                if(tcc.useAlg[kNewCuts] && !kHits.empty()) hitsAdded = true;
               }   // kht
             }     // kwire
             if (!hitsAdded) break;

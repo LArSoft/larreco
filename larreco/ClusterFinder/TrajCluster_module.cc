@@ -74,6 +74,7 @@ namespace cluster {
     bool fSaveAll2DVertices;
     bool fMakeTracks;
     bool fMakeTrackSpacePoints;
+    bool fMakeSpacePoints;
     unsigned int fEventsProcessed;
     unsigned int fNumTracks;
     unsigned int fNumClusters;
@@ -148,7 +149,11 @@ namespace cluster {
     fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices", false);
     fMakeTracks = pset.get<bool>("MakeTracks", true);
     fMakeTrackSpacePoints = pset.get<bool>("MakeTrackSpacePoints", false);
-    if(!fMakeTracks) fMakeTrackSpacePoints = false;
+    if (!fMakeTracks) fMakeTrackSpacePoints = false;
+    // make SpacePoints if the user requested making track SpacePoints or if
+    // an input SpacePointModuleLabel was specified
+    fMakeSpacePoints = (fMakeTrackSpacePoints || fSpacePointModuleLabel != "NA");
+
 
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -159,7 +164,10 @@ namespace cluster {
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
     produces< std::vector<recob::Seed> >();
-    produces< std::vector<recob::SpacePoint> >();
+    if(fMakeSpacePoints) {
+      produces< std::vector<recob::SpacePoint> >();
+      produces<art::Assns<recob::SpacePoint, recob::Hit>>();
+    }
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
@@ -169,25 +177,18 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
 
-    bool sptHitAssnExists = false;
     if(fMakeTracks) {
       produces< art::Assns<recob::PFParticle, recob::Track> >();
       produces< std::vector<recob::Track> >();
       produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
       if (fMakeTrackSpacePoints) {
         produces< art::Assns<recob::Track, recob::SpacePoint> >();
-        produces< art::Assns<recob::SpacePoint, recob::Hit> >();
-        sptHitAssnExists = true;
       } // fMakeTrackSpacePoints
     } // fMakeTracks
 
     produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
     produces< art::Assns<recob::Slice, recob::Hit> >();
-
-    // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
-    if(fSpacePointModuleLabel != "NA" && !sptHitAssnExists) 
-      produces<art::Assns<recob::SpacePoint, recob::Hit>>();
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
@@ -773,23 +774,20 @@ namespace cluster {
     }     // input hits exist
 
     // www: find spacepoint from hits (inputHits) through SpacePoint->Hit assns, then create association between spacepoint and trajcluster hits (here, hits in hitCol)
-    if (nInputHits > 0) {
-      // www: expecting to find spacepoint from hits (inputHits): SpacePoint->Hit assns
-      if (fSpacePointModuleLabel != "NA") {
-        art::FindManyP<recob::SpacePoint> spFromHit(inputHits, evt, fSpacePointModuleLabel);
-        // www: using sp from hit
-        for (unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
-          if (newIndex[allHitsIndex] == UINT_MAX)
-            continue; // skip hits not used in slice (not TrajCluster hits)
-          auto& sp_from_hit = spFromHit.at(allHitsIndex);
-          for (auto& sp : sp_from_hit) {
-            // SpacePoint -> Hit assn
-            if(!util::CreateAssn(*this, evt, hitCol, sp, *spt_hit_assn, newIndex[allHitsIndex])) {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with SpacePoint";
-            } // exception
-          }   // sp
-        }     // allHitsIndex
-      }       // fSpacePointModuleLabel != "NA"
+    if (nInputHits > 0 && fSpacePointModuleLabel != "NA") {
+      art::FindManyP<recob::SpacePoint> spFromHit(inputHits, evt, fSpacePointModuleLabel);
+      // www: using sp from hit
+      for (unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+        if (newIndex[allHitsIndex] == UINT_MAX)
+          continue; // skip hits not used in slice (not TrajCluster hits)
+        auto& sp_from_hit = spFromHit.at(allHitsIndex);
+        for (auto& sp : sp_from_hit) {
+          // SpacePoint -> Hit assn
+          if(!util::CreateAssn(*this, evt, hitCol, sp, *spt_hit_assn, newIndex[allHitsIndex])) {
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with SpacePoint";
+          } // exception
+        }   // sp
+      }     // allHitsIndex
     }         // nInputHits > 0
 
     // clear the alg data structures
@@ -834,9 +832,9 @@ namespace cluster {
       if(fMakeTrackSpacePoints) {
         evt.put(std::move(spcol));
         evt.put(std::move(trk_spt_assn));
-        evt.put(std::move(spt_hit_assn));
       } // fMakeTrackSpacePoints
     } // fMakeTracks
+    if (fMakeSpacePoints) evt.put(std::move(spt_hit_assn));
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));
