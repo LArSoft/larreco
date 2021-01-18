@@ -12,7 +12,6 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Physics
            ROOT::EG
-           ROOT::VMC
          )
 
 install_headers()
