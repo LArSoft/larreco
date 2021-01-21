@@ -645,7 +645,7 @@ namespace shwf {
     double newpitch = gser.PitchInView(plane, xphi, xtheta);
 
     using lar::to_element;
-    using ranges::view::transform;
+    using ranges::views::transform;
     for (auto const& hit : hitlist | transform(to_element)) {
       time = hit.PeakTime();
       wire = hit.WireID().Wire;

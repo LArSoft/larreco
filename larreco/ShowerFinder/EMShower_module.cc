@@ -377,7 +377,7 @@ shower::EMShower::produce(art::Event& evt)
       else {
         for (auto const& trkPtr : showerTracks) {
           for (auto const& trackSpacePoint :
-               fmsp.at(trkPtr.key()) | ranges::view::transform(to_element)) {
+               fmsp.at(trkPtr.key()) | ranges::views::transform(to_element)) {
             showerSpacePoints.push_back(trackSpacePoint);
             hitAssns.push_back(std::vector<art::Ptr<recob::Hit>>());
           }
@@ -429,7 +429,7 @@ shower::EMShower::produce(art::Event& evt)
 
         Point_t shwvtx{0, 0, 0};
         double mindist2 = DBL_MAX;
-        for (auto const& sp : showerSpacePoints_p | ranges::view::transform(to_element)) {
+        for (auto const& sp : showerSpacePoints_p | ranges::views::transform(to_element)) {
           double const dist2 = cet::sum_of_squares(
             nuvtx.X() - sp.XYZ()[0], nuvtx.Y() - sp.XYZ()[1], nuvtx.Z() - sp.XYZ()[2]);
           if (dist2 < mindist2) {

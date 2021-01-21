@@ -32,8 +32,8 @@
 #include "range/v3/view.hpp"
 
 using lar::to_element;
-using ranges::view::filter;
-using ranges::view::transform;
+using ranges::views::filter;
+using ranges::views::transform;
 
 namespace apa {
 

@@ -140,7 +140,7 @@ cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = readoutWindowSize, upperTick{}, lowerWire = fGeom->MaxWires(), upperWire{};
   using lar::to_element;
-  using ranges::view::transform;
+  using ranges::views::transform;
   for (auto const& hit : hits | transform(to_element)) {
     int histWire = GlobalWire(hit.WireID());
     if (hit.PeakTime() < lowerTick) lowerTick = hit.PeakTime();
