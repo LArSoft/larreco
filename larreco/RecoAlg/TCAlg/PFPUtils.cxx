@@ -2296,7 +2296,7 @@ namespace tca {
       auto start = MakeTP3D(detProp, slc, ltp0, ntp0);
       auto end = MakeTP3D(detProp, slc, ltp1, ntp1);
       if(!start.Flags[kTP3DGood] || !end.Flags[kTP3DGood]) {
-        std::cout<<" Start/end fail in section "<<isf<<". Add recovery code\n";
+//        std::cout<<" Start/end fail in section "<<isf<<". Add recovery code\n";
         return false;
       } // failure
       if(isf == 0) sfEndPos.push_back(start.Pos);

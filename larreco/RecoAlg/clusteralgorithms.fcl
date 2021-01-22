@@ -14,7 +14,7 @@ standard_trajclusteralg:
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
    MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
-   AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, large angle and very large angle trajectories
+   AngleRanges: [50, 85, 90]  # Max angle (degrees) for small, large angle and very large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be merged in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
    KinkCuts: [ 8, 5, 1 ]
@@ -30,7 +30,6 @@ standard_trajclusteralg:
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    ShowerTag: [ 100, 2, 3 ] # Max MCSMom, Max separation (WSE), Min number of trajectories in a shower
-   SaveShowerTree: false
    ChkStopCuts: [10, 8, 1.5] # [Min chg slope, nFitPts, Chg fit ChiDOF cut]
    VertexScoreWeights: [1, 2, 10, 2]
     # 0 = Vertex error weight
