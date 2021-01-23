@@ -1,3 +1,4 @@
+#include "hitalgorithms.fcl"
 #include "clusteralgorithms.fcl"
 #include "showeralgorithms.fcl"
 
