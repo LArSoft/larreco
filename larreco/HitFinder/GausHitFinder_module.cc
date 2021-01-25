@@ -55,7 +55,7 @@
 #include "TMath.h"
 
 #include "tbb/concurrent_vector.h"
-#include "tbb/tbb.h"
+#include "tbb/parallel_for.h"
 
 namespace hit {
   class GausHitFinder : public art::SharedProducer {
