@@ -47,6 +47,10 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/pow.h" // cet::sum_of_squares()
 
+namespace {
+  constexpr unsigned int int_max_as_unsigned_int{std::numeric_limits<int>::max()};
+}
+
 namespace calo {
 
 class GnocchiCalorimetry: public art::EDProducer {
@@ -427,7 +431,7 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippet
 }
 
 bool calo::GnocchiCalorimetry::HitIsValid(const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *thm, const recob::Track &track) {
-  if (thm->Index() == std::numeric_limits<int>::max()) return false;
+  if (thm->Index() == int_max_as_unsigned_int) return false;
   if (!track.HasValidPoint(thm->Index())) return false;
   return true;
 }

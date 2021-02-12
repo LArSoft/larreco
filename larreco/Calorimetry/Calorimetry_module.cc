@@ -52,6 +52,10 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+namespace {
+  constexpr unsigned int int_max_as_unsigned_int{std::numeric_limits<int>::max()};
+}
+
 ///calorimetry
 namespace calo {
 
@@ -383,7 +387,7 @@ calo::Calorimetry::produce(art::Event& evt)
           auto vmeta = fmthm.data(trkIter);
           for (size_t ii = 0; ii < vhit.size(); ++ii) {
             if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()) {
-              if (vmeta[ii]->Index() == std::numeric_limits<int>::max()) {
+              if (vmeta[ii]->Index() == int_max_as_unsigned_int) {
                 fBadhit = true;
                 continue;
               }
