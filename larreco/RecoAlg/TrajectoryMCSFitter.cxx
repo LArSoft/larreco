@@ -1,5 +1,6 @@
 #include "TrajectoryMCSFitter.h"
 #include "larcorealg/Geometry/geo_vectors_utils.h"
+#include "larcore/Geometry/Geometry.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
@@ -59,6 +60,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 
 void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj, vector<size_t>& breakpoints, vector<float>& segradlengths, vector<float>& cumseglens) const {
   //
+  art::ServiceHandle<geo::Geometry const> geom;
   auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
   //
   const double trajlen = traj.Length();
@@ -73,7 +75,13 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
   breakpoints.push_back(nextValid);
   auto pos0 = traj.LocationAtPoint(nextValid);
   if (applySCEcorr_) {
-    auto pos0_offset = _SCE->GetCalPosOffsets(geo::Point_t(pos0.X(), pos0.Y(), pos0.Z())); //GetCalPosOffsets (reco->true) | GetPosOffsets (true->reco)
+    const double Position[3] = {pos0.X(), pos0.Y(), pos0.Z()};
+    geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
+    geo::Vector_t pos0_offset = geo::Vector_t(0., 0., 0.);
+    if(tpcid.isValid) {
+      geo::Point_t p0(pos0.X(), pos0.Y(), pos0.Z());
+      pos0_offset = _SCE->GetCalPosOffsets(p0, tpcid.TPC);
+    }
     pos0.SetX(pos0.X() - pos0_offset.X());
     pos0.SetY(pos0.Y() + pos0_offset.Y());
     pos0.SetZ(pos0.Z() + pos0_offset.Z());
@@ -85,7 +93,13 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
     if (npoints==0) dir0 = traj.DirectionAtPoint(nextValid);
     auto pos1 = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      auto pos1_offset = _SCE->GetCalPosOffsets(geo::Point_t(pos1.X(), pos1.Y(), pos1.Z()));
+      const double Position[3] = {pos1.X(), pos1.Y(), pos1.Z()};
+      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
+      geo::Vector_t pos1_offset = geo::Vector_t(0., 0., 0.);
+      if(tpcid.isValid) {
+	geo::Point_t p1(pos1.X(), pos1.Y(), pos1.Z());
+	pos1_offset = _SCE->GetCalPosOffsets(p1, tpcid.TPC);
+      }
       pos1.SetX(pos1.X() - pos1_offset.X());
       pos1.SetY(pos1.Y() + pos1_offset.Y());
       pos1.SetZ(pos1.Z() + pos1_offset.Z());
@@ -187,6 +201,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
 
 void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, Vector_t& pcdir) const {
   //
+  art::ServiceHandle<geo::Geometry const> geom;
   auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
   //
   int npoints = 0;
@@ -197,7 +212,13 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   while (nextValid<lastPoint) {
     auto tempP = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      auto tempP_offset = _SCE->GetCalPosOffsets(geo::Point_t(tempP.X(), tempP.Y(), tempP.Z()));
+      const double Position[3] = {tempP.X(), tempP.Y(), tempP.Z()};
+      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
+      geo::Vector_t tempP_offset = geo::Vector_t(0., 0., 0.);
+      if(tpcid.isValid) {
+	geo::Point_t ptemp(tempP.X(), tempP.Y(), tempP.Z());
+	tempP_offset = _SCE->GetCalPosOffsets(ptemp, tpcid.TPC);
+      }
       tempP.SetX(tempP.X() - tempP_offset.X());
       tempP.SetY(tempP.Y() + tempP_offset.Y());
       tempP.SetZ(tempP.Z() + tempP_offset.Z());
@@ -217,7 +238,13 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   while (nextValid<lastPoint) {
     auto p = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      auto p_offset = _SCE->GetCalPosOffsets(geo::Point_t(p.X(), p.Y(), p.Z()));
+      const double Position[3] = {p.X(), p.Y(), p.Z()};
+      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
+      geo::Vector_t p_offset = geo::Vector_t(0., 0., 0.);
+      if(tpcid.isValid) {
+	geo::Point_t point(p.X(), p.Y(), p.Z());
+	p_offset = _SCE->GetCalPosOffsets(point, tpcid.TPC);
+      }
       p.SetX(p.X() - p_offset.X());
       p.SetY(p.Y() + p_offset.Y());
       p.SetZ(p.Z() + p_offset.Z());
