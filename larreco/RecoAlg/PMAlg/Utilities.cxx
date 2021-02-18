@@ -30,6 +30,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "range/v3/algorithm.hpp"
+#include "range/v3/numeric.hpp"
 #include "range/v3/view.hpp"
 
 double
@@ -57,9 +58,9 @@ pma::GetSummedADC(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
   using namespace ranges;
   auto to_summed_adc = [](auto hit) { return hit->SummedADC(); };
-  if (view == geo::kUnknown) { return accumulate(hits | view::transform(to_summed_adc), 0.); }
-  return accumulate(hits | view::filter([view](auto hit) { return view == hit->View2D(); }) |
-                      view::transform(to_summed_adc),
+  if (view == geo::kUnknown) { return accumulate(hits | views::transform(to_summed_adc), 0.); }
+  return accumulate(hits | views::filter([view](auto hit) { return view == hit->View2D(); }) |
+                      views::transform(to_summed_adc),
                     0.);
 }
 
@@ -68,9 +69,9 @@ pma::GetSummedAmpl(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
   using namespace ranges;
   auto to_amplitude = [](auto hit) { return hit->GetAmplitude(); };
-  if (view == geo::kUnknown) { return accumulate(hits | view::transform(to_amplitude), 0.); }
-  return accumulate(hits | view::filter([view](auto hit) { return view == hit->View2D(); }) |
-                      view::transform(to_amplitude),
+  if (view == geo::kUnknown) { return accumulate(hits | views::transform(to_amplitude), 0.); }
+  return accumulate(hits | views::filter([view](auto hit) { return view == hit->View2D(); }) |
+                      views::transform(to_amplitude),
                     0.);
 }
 
@@ -84,12 +85,12 @@ pma::GetHitsRadius3D(const std::vector<pma::Hit3D*>& hits, bool exact)
   using namespace ranges;
   auto to_3d_point = [](auto hit) -> decltype(auto) { return hit->Point3D(); };
   auto const mean_point =
-    accumulate(hits | view::transform(to_3d_point), TVector3{}) * (1. / hits.size());
+    accumulate(hits | views::transform(to_3d_point), TVector3{}) * (1. / hits.size());
 
   auto to_dist2_from_mean = [&mean_point](auto hit) {
     return pma::Dist2(hit->Point3D(), mean_point);
   };
-  auto const max_r2 = max(hits | view::transform(to_dist2_from_mean));
+  auto const max_r2 = max(hits | views::transform(to_dist2_from_mean));
   return sqrt(max_r2);
 }
 
@@ -103,12 +104,12 @@ pma::GetHitsRadius2D(const std::vector<pma::Hit3D*>& hits, bool exact)
   using namespace ranges;
   auto to_2d_point = [](auto hit) -> decltype(auto) { return hit->Point2D(); };
   auto const mean_point =
-    accumulate(hits | view::transform(to_2d_point), TVector2{}) * (1. / hits.size());
+    accumulate(hits | views::transform(to_2d_point), TVector2{}) * (1. / hits.size());
 
   auto to_dist2_from_mean = [&mean_point](auto hit) {
     return pma::Dist2(hit->Point2D(), mean_point);
   };
-  auto const max_r2 = max(hits | view::transform(to_dist2_from_mean));
+  auto const max_r2 = max(hits | views::transform(to_dist2_from_mean));
   return sqrt(max_r2);
 }
 

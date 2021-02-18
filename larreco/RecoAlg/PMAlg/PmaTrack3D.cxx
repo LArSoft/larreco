@@ -2604,7 +2604,7 @@ pma::Track3D::Dist2(const TVector3& p3d) const
 {
   using namespace ranges;
   auto to_distance2 = [&p3d](auto seg) { return seg->GetDistance2To(p3d); };
-  return min(fSegments | view::transform(to_distance2));
+  return min(fSegments | views::transform(to_distance2));
 }
 
 pma::Element3D*

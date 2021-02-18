@@ -1,24 +1,22 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v09_04_10
+parent	larreco	v09_05_01
 defaultqual	e19
 #
 fcldir product_dir job
 fwdir  product_dir config_data
 #
 product         version
-larsim		v09_08_00
-eigen		v3_3_5
-cetbuildtools	v7_15_01	-	only_for_build
+larsim		v09_10_00
+eigen		v3_3_9a
+cetbuildtools	v7_17_01	-	only_for_build
 end_product_list
 
 qualifier     larsim         eigen
-e19:py2:debug e19:py2:debug  -nq-
-e19:py2:prof  e19:py2:prof   -nq-
+e20:debug     e20:debug      -nq-
+e20:prof      e20:prof       -nq-
 e19:debug     e19:debug      -nq-
 e19:prof      e19:prof       -nq-
-c7:py2:debug  c7:py2:debug   -nq-
-c7:py2:prof   c7:py2:prof    -nq-
 c7:debug      c7:debug       -nq-
 c7:prof       c7:prof        -nq-
 end_qualifier_list

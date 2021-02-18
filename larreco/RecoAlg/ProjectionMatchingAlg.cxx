@@ -141,7 +141,7 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const detinfo::DetectorProperti
   std::vector<unsigned int> trkCryos = trk.Cryos();
   std::map<std::pair<unsigned int, unsigned int>, std::pair<TVector2, TVector2>> ranges;
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
-  for (auto const& [t, c] : view::cartesian_product(trkTPCs, trkCryos)) {
+  for (auto const& [t, c] : views::cartesian_product(trkTPCs, trkCryos)) {
     ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
     wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
   }
@@ -150,7 +150,7 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const detinfo::DetectorProperti
   std::map<std::pair<unsigned int, unsigned int>, std::vector<pma::Vector2D>> all_close_points;
 
   for (auto const& h :
-       hits | view::transform(to_element) | view::filter(hits_on_plane{testPlane})) {
+       hits | views::transform(to_element) | views::filter(hits_on_plane{testPlane})) {
     tpc = h.WireID().TPC;
     cryo = h.WireID().Cryostat;
     std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
@@ -267,7 +267,7 @@ pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detP
   std::vector<unsigned int> trkCryos = trk.Cryos();
   std::map<std::pair<unsigned int, unsigned int>, std::pair<TVector2, TVector2>> ranges;
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
-  for (auto const& [t, c] : view::cartesian_product(trkTPCs, trkCryos)) {
+  for (auto const& [t, c] : views::cartesian_product(trkTPCs, trkCryos)) {
     ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
     wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
   }
@@ -276,7 +276,7 @@ pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detP
   std::map<std::pair<unsigned int, unsigned int>, std::vector<pma::Vector2D>> all_close_points;
 
   for (auto const& h :
-       hits | view::transform(to_element) | view::filter(hits_on_plane{testPlane})) {
+       hits | views::transform(to_element) | views::filter(hits_on_plane{testPlane})) {
     tpc = h.WireID().TPC;
     cryo = h.WireID().Cryostat;
     std::pair<unsigned int, unsigned int> tpc_cryo(tpc, cryo);
