@@ -1655,11 +1655,7 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
             // Note that a plane ID will define cryostat, TPC and plane
             const geo::PlaneID& planeID = wireID.planeID();
 
-//            if (wireID.Plane == 0) 
-//            {
-//                std::cout << "-Plane 0, wire: " << wireID.Wire << std::endl;
-//                wireID.Wire = 1055 - wireID.Wire;
-//            }
+            if (wireID.Plane == 0) wireID.Wire = 1055 - wireID.Wire;
 
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
             double xPosition(det_prop.ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
