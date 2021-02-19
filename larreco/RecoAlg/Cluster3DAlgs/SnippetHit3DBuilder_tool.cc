@@ -722,7 +722,7 @@ int SnippetHit3DBuilder::findGoodHitPairs(SnippetHitMap::iterator& firstSnippetI
         while(secondHitItr != endItr)
         {
             HitVector::iterator secondMaxItr = std::max_element(secondHitItr->second.begin(),secondHitItr->second.end(),[](const auto& left, const auto& right){return left->getHit()->PeakAmplitude() < right->getHit()->PeakAmplitude();});
-            float               secondPHCut  = secondMaxItr != secondHitItr->second.end() ? m_pulseHeightFrac * (*secondMaxItr)->getHit()->PeakAmplitude() : 4096.;
+            float               secondPHCut  = secondMaxItr != secondHitItr->second.end() ? m_pulseHeightFrac * (*secondMaxItr)->getHit()->PeakAmplitude() : 0.;
 
             for(const auto& hit2 : secondHitItr->second)
             {
@@ -869,10 +869,10 @@ void SnippetHit3DBuilder::findGoodTriplets(HitMatchTripletVecMap& pair12Map, Hit
 }
 
 bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
-                                       const reco::ClusterHit2D* hit1,
-                                       const reco::ClusterHit2D* hit2,
-                                       float                     hitWidthSclFctr,
-                                       size_t                    hitPairCntr) const
+                                      const reco::ClusterHit2D* hit1,
+                                      const reco::ClusterHit2D* hit2,
+                                      float                     hitWidthSclFctr,
+                                      size_t                    hitPairCntr) const
 {
     // Assume failure
     bool result(false);
@@ -916,11 +916,15 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
             const geo::WireID& hit1WireID = hit1->WireID();
             const geo::WireID& hit2WireID = hit2->WireID();
 
+//            std::cout << "+++++>> hit 1: C/T/P/W: " << hit1WireID.Cryostat << "/" << hit1WireID.TPC << "/" << hit1WireID.Plane << "/" << hit1WireID.Wire 
+//                                      << ", hit2: " << hit2WireID.Cryostat << "/" << hit2WireID.TPC << "/" << hit2WireID.Plane << "/" << hit2WireID.Wire  << std::endl;
+
             geo::WireIDIntersection widIntersect;
 
-//           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
-            if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+//            if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
             {
+//                std::cout << "        - Wires intersect, delta T: " << hit1Peak - hit2Peak << ", widths: " << hit1Width << "/" << hit2Width << std::endl;
                 float oneOverWghts  = hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 float avePeakTime   = (hit1Peak / hit1SigSq + hit2Peak / hit2SigSq) * oneOverWghts;
                 float totalCharge   = hit1->getHit()->Integral() + hit2->getHit()->Integral();
@@ -1641,7 +1645,8 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
         }
 
         // And then loop over all possible to build out our maps
-        for(const auto& wireID : wireIDs)
+        //for(const auto& wireID : wireIDs)
+        for(auto wireID : wireIDs)
         {
             // Check if this is an invalid TPC
             // (for example, in protoDUNE there are logical TPC's which see no signal)
@@ -1649,6 +1654,12 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
 
             // Note that a plane ID will define cryostat, TPC and plane
             const geo::PlaneID& planeID = wireID.planeID();
+
+//            if (wireID.Plane == 0) 
+//            {
+//                std::cout << "-Plane 0, wire: " << wireID.Wire << std::endl;
+//                wireID.Wire = 1055 - wireID.Wire;
+//            }
 
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
             double xPosition(det_prop.ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
