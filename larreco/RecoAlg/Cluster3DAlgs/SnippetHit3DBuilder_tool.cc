@@ -581,6 +581,10 @@ size_t SnippetHit3DBuilder::BuildHitPairMap(PlaneToSnippetHitMap& planeToSnippet
     {
         for(size_t tpcIdx = 0; tpcIdx < m_geometry->NTPC(); tpcIdx++)
         {
+            //************************************
+            // Kludge
+//            if (!(cryoIdx == 1 && tpcIdx == 0)) continue;
+
             PlaneToSnippetHitMap::iterator mapItr0 = planeToSnippetHitMap.find(geo::PlaneID(cryoIdx,tpcIdx,0));
             PlaneToSnippetHitMap::iterator mapItr1 = planeToSnippetHitMap.find(geo::PlaneID(cryoIdx,tpcIdx,1));
             PlaneToSnippetHitMap::iterator mapItr2 = planeToSnippetHitMap.find(geo::PlaneID(cryoIdx,tpcIdx,2));
@@ -921,8 +925,8 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
 
             geo::WireIDIntersection widIntersect;
 
-           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
-//            if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+//           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
+            if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
             {
 //                std::cout << "        - Wires intersect, delta T: " << hit1Peak - hit2Peak << ", widths: " << hit1Width << "/" << hit2Width << std::endl;
                 float oneOverWghts  = hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
@@ -1266,11 +1270,19 @@ bool SnippetHit3DBuilder::WireIDsIntersect(const geo::WireID& wireID0, const geo
     Eigen::Vector3f wirePos0(wirePosArr[0],wirePosArr[1],wirePosArr[2]);
     Eigen::Vector3f wireDir0(wireGeo0.Direction().X(),wireGeo0.Direction().Y(),wireGeo0.Direction().Z());
 
+    //*********************************
+    // Kludge
+//    if (wireID0.Plane > 0) wireDir0[2] = -wireDir0[2];
+
     // And now the second one
     wireGeo1.GetCenter(wirePosArr);
 
     Eigen::Vector3f wirePos1(wirePosArr[0],wirePosArr[1],wirePosArr[2]);
     Eigen::Vector3f wireDir1(wireGeo1.Direction().X(),wireGeo1.Direction().Y(),wireGeo1.Direction().Z());
+
+    //**********************************
+    // Kludge
+//    if (wireID1.Plane > 0) wireDir1[2] = -wireDir1[2];
 
     // Get the distance of closest approach
     float arcLen0;
@@ -1492,31 +1504,39 @@ geo::WireID SnippetHit3DBuilder::NearestWireID(const Eigen::Vector3f& position, 
 
 float SnippetHit3DBuilder::DistanceFromPointToHitWire(const Eigen::Vector3f& position, const geo::WireID& wireIDIn) const
 {
-    float distance;
+    float distance = std::numeric_limits<float>::max();
 
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try
     {
-        // Get the wire endpoints
-        Eigen::Vector3d wireStart;
-        Eigen::Vector3d wireEnd;
+        // Recover wire geometry information for each wire
+        const geo::WireGeo& wireGeo = m_geometry->WireIDToWireGeo(wireIDIn);
 
-        m_geometry->WireEndPoints(wireIDIn,&wireStart[0],&wireEnd[0]);
+        // Get wire position and direction for first wire
+        double wirePosArr[3] = {0.,0.,0.};
+        wireGeo.GetCenter(wirePosArr);
+
+        Eigen::Vector3f wirePos(wirePosArr[0],wirePosArr[1],wirePosArr[2]);
+        Eigen::Vector3f wireDir(wireGeo.Direction().X(),wireGeo.Direction().Y(),wireGeo.Direction().Z());
+
+        //*********************************
+        // Kludge
+//        if (wireIDIn.Plane > 0) wireDir[2] = -wireDir[2];
+
 
         // Want the hit position to have same x value as wire coordinates
-        Eigen::Vector3d hitPosition(wireStart[0],position[1],position[2]);
-
-        // Want the wire direction
-        Eigen::Vector3d wireDir = wireEnd - wireStart;
-
-        wireDir.normalize();
+        Eigen::Vector3f hitPosition(wirePos[0],position[1],position[2]);
 
         // Get arc length to doca
-        double arcLen = (hitPosition - wireStart).dot(wireDir);
+        double arcLen = (hitPosition - wirePos).dot(wireDir);
 
-        Eigen::Vector3d docaVec = hitPosition - (wireStart + arcLen * wireDir);
+        // Make sure arclen is in range
+        if (abs(arcLen) < wireGeo.HalfL())
+        {
+            Eigen::Vector3f docaVec = hitPosition - (wirePos + arcLen * wireDir);
 
-        distance = docaVec.norm();
+            distance = docaVec.norm();
+        }
     }
     catch(std::exception& exc)
     {
@@ -1655,7 +1675,8 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
             // Note that a plane ID will define cryostat, TPC and plane
             const geo::PlaneID& planeID = wireID.planeID();
 
-            if (wireID.Plane == 0) wireID.Wire = 1055 - wireID.Wire;
+            //********************************
+//            if (wireID.Plane == 0) wireID.Wire = 1055 - wireID.Wire;
 
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
             double xPosition(det_prop.ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
