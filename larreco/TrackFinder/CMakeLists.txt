@@ -7,7 +7,7 @@ art_make(EXCLUDE
            KalmanFilterFitTrackMaker_tool.cc
          MODULE_LIBRARIES
            larreco_RecoAlg
-           nug4_MagneticField_MagneticField_service
+           nug4_MagneticFieldServices_MagneticFieldServiceStandard_service
            ROOT::Core
            ${MF_MESSAGELOGGER}
          )
