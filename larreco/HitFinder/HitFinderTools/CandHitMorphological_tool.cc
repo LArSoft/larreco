@@ -370,13 +370,17 @@ namespace reco_tool {
     return;
   }
 
-void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStartItr,    Waveform::const_iterator derivStopItr,
-                                             Waveform::const_iterator erosionStartItr,  Waveform::const_iterator erosionStopItr,
-                                             Waveform::const_iterator dilationStartItr, Waveform::const_iterator dilationStopItr,
-                                             const size_t             roiStartTick,
-                                             float                    dilationThreshold,
-                                             HitCandidateVec&         hitCandidateVec) const
-{
+  void
+  CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStartItr,
+                                          Waveform::const_iterator derivStopItr,
+                                          Waveform::const_iterator erosionStartItr,
+                                          Waveform::const_iterator erosionStopItr,
+                                          Waveform::const_iterator dilationStartItr,
+                                          Waveform::const_iterator dilationStopItr,
+                                          const size_t roiStartTick,
+                                          float dilationThreshold,
+                                          HitCandidateVec& hitCandidateVec) const
+  {
     // This function aims to use the erosion/dilation vectors to find candidate hit regions
     // Once armed with a region then the "standard" differential approach is used to return the candidate peaks
 
