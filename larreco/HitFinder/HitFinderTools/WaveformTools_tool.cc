@@ -119,16 +119,16 @@ template <typename T> void WaveformTools::triangleSmooth(const std::vector<T>& i
     {
         std::copy(inputVec.begin(), inputVec.begin() + 2 + lowestBin, smoothVec.begin());
         std::copy(inputVec.end() - 2, inputVec.end(), smoothVec.end() - 2);
-    
+
         typename std::vector<T>::iterator       curItr    = smoothVec.begin() + 2 + lowestBin;
         typename std::vector<T>::const_iterator curInItr  = inputVec.begin()  + 1 + lowestBin;
         typename std::vector<T>::const_iterator stopInItr = inputVec.end()    - 3;
-    
+
         while(curInItr++ != stopInItr)
         {
             // Take the weighted average of five consecutive points centered on current point
             T newVal = (*(curInItr - 2) + 2. * *(curInItr - 1) + 3. * *curInItr + 2. * *(curInItr + 1) + *(curInItr + 2)) / 9.;
-    
+
             *curItr++ = newVal;
         }
     }

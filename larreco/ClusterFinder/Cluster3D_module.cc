@@ -480,8 +480,8 @@ namespace lar_cluster3d {
     /**
      *   Algorithm parameters
      */
-    bool  m_onlyMakSpacePoints;   ///< If true we don't do the full cluster 3D processing
-    bool  m_enableMonitoring;     ///< Turn on monitoring of this algorithm
+    bool m_onlyMakSpacePoints;    ///< If true we don't do the full cluster 3D processing
+    bool m_enableMonitoring;      ///< Turn on monitoring of this algorithm
     float m_parallelHitsCosAng;   ///< Cut for PCA 3rd axis angle to X axis
     float m_parallelHitsTransWid; ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
 
@@ -489,10 +489,10 @@ namespace lar_cluster3d {
      *   Tree variables for output
      */
     TTree* m_pRecoTree;            ///<
-    int   m_run;                   ///<
-    int   m_event;                 ///<
-    int   m_hits;                  ///< Keeps track of the number of hits seen
-    int   m_hits3D;                ///< Keeps track of the number of 3D hits made
+    int m_run;                     ///<
+    int m_event;                   ///<
+    int m_hits;                    ///< Keeps track of the number of hits seen
+    int m_hits3D;                  ///< Keeps track of the number of 3D hits made
     float m_totalTime;             ///< Keeps track of total execution time
     float m_artHitsTime;           ///< Keeps track of time to recover hits
     float m_makeHitsTime;          ///< Keeps track of time to build 3D hits
@@ -501,22 +501,26 @@ namespace lar_cluster3d {
     float m_clusterMergeTime;      ///< Keeps track of the time to merge clusters
     float m_pathFindingTime;       ///< Keeps track of the path finding time
     float m_finishTime;            ///< Keeps track of time to run output module
-
     std::string m_pathInstance;    ///< Special instance for path points
     std::string m_vertexInstance;  ///< Special instance name for vertex points
     std::string m_extremeInstance; ///< Instance name for the extreme points
 
     // Algorithms
-    std::unique_ptr<lar_cluster3d::IHit3DBuilder>             m_hit3DBuilderAlg;  ///<  Builds the 3D hits to operate on
-    std::unique_ptr<lar_cluster3d::IClusterAlg>               m_clusterAlg;       ///<  Algorithm to do 3D space point clustering
-    std::unique_ptr<lar_cluster3d::IClusterModAlg>            m_clusterMergeAlg;  ///<  Algorithm to do cluster merging
-    std::unique_ptr<lar_cluster3d::IClusterModAlg>            m_clusterPathAlg;   ///<  Algorithm to do cluster path finding
-    std::unique_ptr<lar_cluster3d::IClusterParametersBuilder> m_clusterBuilder;   ///<  Common cluster builder tool
-    PrincipalComponentsAlg                                    m_pcaAlg;           ///<  Principal Components algorithm
-    SkeletonAlg                                               m_skeletonAlg;      ///<  Skeleton point finder
-    HoughSeedFinderAlg                                        m_seedFinderAlg;    ///<  Seed finder
-    PCASeedFinderAlg                                          m_pcaSeedFinderAlg; ///<  Use PCA axis to find seeds
-    ParallelHitsSeedFinderAlg                                 m_parallelHitsAlg;  ///<  Deal with parallel hits clusters
+    std::unique_ptr<lar_cluster3d::IHit3DBuilder>
+      m_hit3DBuilderAlg; ///<  Builds the 3D hits to operate on
+    std::unique_ptr<lar_cluster3d::IClusterAlg>
+      m_clusterAlg; ///<  Algorithm to do 3D space point clustering
+    std::unique_ptr<lar_cluster3d::IClusterModAlg>
+      m_clusterMergeAlg; ///<  Algorithm to do cluster merging
+    std::unique_ptr<lar_cluster3d::IClusterModAlg>
+      m_clusterPathAlg; ///<  Algorithm to do cluster path finding
+    std::unique_ptr<lar_cluster3d::IClusterParametersBuilder>
+      m_clusterBuilder;                          ///<  Common cluster builder tool
+    PrincipalComponentsAlg m_pcaAlg;             ///<  Principal Components algorithm
+    SkeletonAlg m_skeletonAlg;                   ///<  Skeleton point finder
+    HoughSeedFinderAlg m_seedFinderAlg;          ///<  Seed finder
+    PCASeedFinderAlg m_pcaSeedFinderAlg;         ///<  Use PCA axis to find seeds
+    ParallelHitsSeedFinderAlg m_parallelHitsAlg; ///<  Deal with parallel hits clusters
   };
 
   DEFINE_ART_MODULE(Cluster3D)
@@ -536,19 +540,24 @@ namespace lar_cluster3d {
     , m_pcaSeedFinderAlg(pset.get<fhicl::ParameterSet>("PCASeedFinderAlg"))
     , m_parallelHitsAlg(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"))
   {
-    m_onlyMakSpacePoints   = pset.get<bool>("MakeSpacePointsOnly", false);
-    m_enableMonitoring     = pset.get<bool>("EnableMonitoring", false);
-    m_parallelHitsCosAng   = pset.get<float>("ParallelHitsCosAng", 0.999);
+    m_onlyMakSpacePoints = pset.get<bool>("MakeSpacePointsOnly", false);
+    m_enableMonitoring = pset.get<bool>("EnableMonitoring", false);
+    m_parallelHitsCosAng = pset.get<float>("ParallelHitsCosAng", 0.999);
     m_parallelHitsTransWid = pset.get<float>("ParallelHitsTransWid", 25.0);
-    m_pathInstance         = pset.get<std::string>("PathPointsName", "Path");
-    m_vertexInstance       = pset.get<std::string>("VertexPointsName", "Vertex");
-    m_extremeInstance      = pset.get<std::string>("ExtremePointsName", "Extreme");
+    m_pathInstance = pset.get<std::string>("PathPointsName", "Path");
+    m_vertexInstance = pset.get<std::string>("VertexPointsName", "Vertex");
+    m_extremeInstance = pset.get<std::string>("ExtremePointsName", "Extreme");
 
-    m_hit3DBuilderAlg = art::make_tool<lar_cluster3d::IHit3DBuilder>(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg"));
-    m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
-    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
-    m_clusterPathAlg  = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
-    m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
+    m_hit3DBuilderAlg = art::make_tool<lar_cluster3d::IHit3DBuilder>(
+      pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg"));
+    m_clusterAlg =
+      art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(
+      pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
+    m_clusterPathAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(
+      pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
+    m_clusterBuilder = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(
+      pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
 
     // Handle special case of Space Point building outputting a new hit collection
     m_hit3DBuilderAlg->produces(producesCollector());
@@ -618,14 +627,14 @@ namespace lar_cluster3d {
     // Get instances of the primary data structures needed
     reco::ClusterParametersList clusterParametersList;
     IHit3DBuilder::RecobHitToPtrMap clusterHitToArtPtrMap;
-    std::unique_ptr<reco::HitPairList> hitPairList(new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
+    std::unique_ptr<reco::HitPairList> hitPairList(
+      new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
 
     // Call the algorithm that builds 3D hits and stores the hit collection
     m_hit3DBuilderAlg->Hit3DBuilder(evt, *hitPairList, clusterHitToArtPtrMap);
 
     // Only do the rest if we are not in the mode of only building space points (requested by ML folks)
-    if (!m_onlyMakSpacePoints)
-    {
+    if (!m_onlyMakSpacePoints) {
       // Call the main workhorse algorithm for building the local version of candidate 3D clusters
       m_clusterAlg->Cluster3DHits(*hitPairList, clusterParametersList);
 
@@ -657,19 +666,19 @@ namespace lar_cluster3d {
       theClockFinish.stop();
       theClockTotal.stop();
 
-      m_run                   = evt.run();
-      m_event                 = evt.id().event();
-      m_totalTime             = theClockTotal.accumulated_real_time();
-      m_artHitsTime           = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::COLLECTARTHITS);
-      m_makeHitsTime          = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::BUILDTHREEDHITS);
+      m_run = evt.run();
+      m_event = evt.id().event();
+      m_totalTime = theClockTotal.accumulated_real_time();
+      m_artHitsTime = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::COLLECTARTHITS);
+      m_makeHitsTime = m_hit3DBuilderAlg->getTimeToExecute(IHit3DBuilder::BUILDTHREEDHITS);
       m_buildNeighborhoodTime = m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDHITTOHITMAP);
-      m_dbscanTime            = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
-                                m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
-      m_clusterMergeTime      = m_clusterMergeAlg->getTimeToExecute();
-      m_pathFindingTime       = m_clusterPathAlg->getTimeToExecute();
-      m_finishTime            = theClockFinish.accumulated_real_time();
-      m_hits                  = static_cast<int>(clusterHitToArtPtrMap.size());
-      m_hits3D                = static_cast<int>(hitPairList->size());
+      m_dbscanTime = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
+                     m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
+      m_clusterMergeTime = m_clusterMergeAlg->getTimeToExecute();
+      m_pathFindingTime = m_clusterPathAlg->getTimeToExecute();
+      m_finishTime = theClockFinish.accumulated_real_time();
+      m_hits = static_cast<int>(clusterHitToArtPtrMap.size());
+      m_hits3D = static_cast<int>(hitPairList->size());
       m_pRecoTree->Fill();
 
       mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime
@@ -706,8 +715,6 @@ namespace lar_cluster3d {
     m_pRecoTree->Branch("finishTime", &m_finishTime, "time/F");
 
     m_clusterPathAlg->initializeHistograms(*tfs.get());
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -799,19 +806,16 @@ namespace lar_cluster3d {
       // We use a set here because our 3D hits can share 2D hits
       // The set will make sure we get unique combinations of 2D hits
       std::set<art::Ptr<recob::Hit>> seedHitSet;
-
       for (const auto& hit3D : seedHitPair.second) {
         for (const auto& hit2D : hit3D->getHits()) {
           if (!hit2D) continue;
 
           const recob::Hit* recobHit = hit2D->getHit();
-
           seedHitSet.insert(hitToPtrMap[recobHit]);
         }
       }
 
       RecobHitVector seedHitVec;
-
       for (const auto& hit2D : seedHitSet)
         seedHitVec.push_back(hit2D);
 
@@ -1005,8 +1009,6 @@ namespace lar_cluster3d {
                                                                     hitPairListPtr.begin());
 
     hitPairListPtr.erase(newListEnd, hitPairListPtr.end());
-
-    return;
   }
 
   class CopyIfInRange {
@@ -1165,8 +1167,6 @@ namespace lar_cluster3d {
       clusterParameters.getFullPCA() = originalParams.getFullPCA();
       clusterParameters.getSkeletonPCA() = secondHitListPCA;
     }
-
-    return;
   }
 
   void
@@ -1225,8 +1225,7 @@ namespace lar_cluster3d {
                                 clusterParameters.getConvexHull().getConvexHullKinkPoints());
         }
         // Otherwise, the cluster has daughters so we handle specially
-        else
-        {
+        else {
           // Set up to keep track of parent/daughters
           IdxToPCAMap idxToPCAMap;
           size_t numTotalDaughters = countUltimateDaughters(clusterParameters);
@@ -1545,14 +1544,12 @@ namespace lar_cluster3d {
     reco::HitPairListPtr* hit3DListPtr = &clusterParameters.getHitPairListPtr();
     Hit3DToSPPtrMap* hit3DToPtrMap = &hit3DToSPPtrMap;
 
-    std::vector<recob::SpacePoint>* spVector = output.artSpacePointVector.get();
-    std::vector<recob::Edge>* edgeVector = output.artEdgeVector.get();
-    art::Assns<recob::Edge, recob::PFParticle>* pfPartEdgeAssns =
-      output.artPFPartEdgeAssociations.get();
-    art::Assns<recob::SpacePoint, recob::Edge>* spEdgeAssns = output.artEdgeSPAssociations.get();
-    art::Assns<recob::Hit, recob::SpacePoint>* spHitAssns = output.artSPHitAssociations.get();
-    art::Assns<recob::SpacePoint, recob::PFParticle>* pfPartSPAssns =
-      output.artPFPartSPAssociations.get();
+    auto spVector = output.artSpacePointVector.get();
+    auto edgeVector = output.artEdgeVector.get();
+    auto pfPartEdgeAssns = output.artPFPartEdgeAssociations.get();
+    auto spEdgeAssns = output.artEdgeSPAssociations.get();
+    auto spHitAssns = output.artSPHitAssociations.get();
+    auto pfPartSPAssns = output.artPFPartSPAssociations.get();
 
     // Make associations to all space points for this cluster
     int spacePointStart = spVector->size();
