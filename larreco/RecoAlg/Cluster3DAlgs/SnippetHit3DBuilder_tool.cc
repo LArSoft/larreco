@@ -6,7 +6,7 @@
  */
 
 // Framework Includes
-#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ProducesCollector.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
@@ -86,11 +86,6 @@ public:
      *  @param  pset
      */
     explicit SnippetHit3DBuilder(fhicl::ParameterSet const &pset);
-
-    /**
-     *  @brief  Destructor
-     */
-    ~SnippetHit3DBuilder();
 
     /**
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
@@ -301,10 +296,6 @@ SnippetHit3DBuilder::SnippetHit3DBuilder(fhicl::ParameterSet const &pset) :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-SnippetHit3DBuilder::~SnippetHit3DBuilder()
-{
-}
-
 void SnippetHit3DBuilder::produces(art::ProducesCollector& collector)
 {
     collector.produces< std::vector<recob::Hit>>();
@@ -339,10 +330,10 @@ void SnippetHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
-    art::ServiceHandle<art::TFileService> tfs;
-
     if (m_outputHistograms)
     {
+        art::ServiceHandle<art::TFileService> tfs;
+
         m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by SnippetHit3DBuilder");
 
         clear();
@@ -387,7 +378,7 @@ void SnippetHit3DBuilder::clear()
 void SnippetHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap) const
 {
     // This is called each event, clear out the previous version and start over
-    if (!m_channelStatus.empty()) m_channelStatus.clear();
+    m_channelStatus.clear();
 
     m_numBadChannels = 0;
     m_channelStatus.resize(m_geometry->Nplanes());
@@ -411,22 +402,6 @@ void SnippetHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToW
             m_numBadChannels++;
         }
     }
-
-    // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    //    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
-
-    //    if (plane0HitItr != planeToWireToHitSetMap.end())
-    //    {
-    ////        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
-
-    //        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
-    //        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
-    //        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    ////      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
-    //    }
 
     return;
 }
@@ -894,8 +869,6 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
     int   hit2NDF   = hit2->getHit()->DegreesOfFreedom();
 
     // Basically, allow the range to extend to the nearest end of the snippet
-    //if (hit1NDF < 2) hit1Sigma = std::min(hit1Peak - float(hit1->getHit()->StartTick()),float(hit1->getHit()->EndTick())-hit1Peak);
-    //if (hit2NDF < 2) hit2Sigma = std::min(hit2Peak - float(hit2->getHit()->StartTick()),float(hit2->getHit()->EndTick())-hit2Peak);
     if (hit1NDF < 2) hit1Sigma *= m_LongHitStretchFctr; // This sets the range to the width of the pulse
     if (hit2NDF < 2) hit2Sigma *= m_LongHitStretchFctr;
 
@@ -920,15 +893,10 @@ bool SnippetHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
             const geo::WireID& hit1WireID = hit1->WireID();
             const geo::WireID& hit2WireID = hit2->WireID();
 
-//            std::cout << "+++++>> hit 1: C/T/P/W: " << hit1WireID.Cryostat << "/" << hit1WireID.TPC << "/" << hit1WireID.Plane << "/" << hit1WireID.Wire 
-//                                      << ", hit2: " << hit2WireID.Cryostat << "/" << hit2WireID.TPC << "/" << hit2WireID.Plane << "/" << hit2WireID.Wire  << std::endl;
-
             geo::WireIDIntersection widIntersect;
 
-//           if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
             if (WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
             {
-//                std::cout << "        - Wires intersect, delta T: " << hit1Peak - hit2Peak << ", widths: " << hit1Width << "/" << hit2Width << std::endl;
                 float oneOverWghts  = hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 float avePeakTime   = (hit1Peak / hit1SigSq + hit2Peak / hit2SigSq) * oneOverWghts;
                 float totalCharge   = hit1->getHit()->Integral() + hit2->getHit()->Integral();
@@ -1675,9 +1643,6 @@ void SnippetHit3DBuilder::CollectArtHits(const art::Event& evt) const
             // Note that a plane ID will define cryostat, TPC and plane
             const geo::PlaneID& planeID = wireID.planeID();
 
-            //********************************
-//            if (wireID.Plane == 0) wireID.Wire = 1055 - wireID.Wire;
-
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
             double xPosition(det_prop.ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
 
@@ -1850,7 +1815,7 @@ void SnippetHit3DBuilder::makeRawDigitAssns(const art::Event& evt, art::Assns<ra
 
         std::unordered_map<raw::ChannelID_t, art::Ptr<raw::RawDigit>>::iterator chanRawDigitItr = channelToRawDigitMap.find(channel);
 
-        if (!(chanRawDigitItr != channelToRawDigitMap.end()))
+        if (chanRawDigitItr == channelToRawDigitMap.end())
         {
             //mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
            continue;
