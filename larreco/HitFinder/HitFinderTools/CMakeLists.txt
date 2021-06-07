@@ -24,8 +24,8 @@ set( hitfinder_tool_lib_list
                         ${FHICLCPP}
                         ${CETLIB}
                         Boost::filesystem
-            ${CLHEP}
-                        ${ROOT_BASIC_LIB_LIST}
+            ${CLHEP_LIBRARIES}
+                        ${ROOT_LIBRARIES}
     )
 
 include(FindOpenMP)

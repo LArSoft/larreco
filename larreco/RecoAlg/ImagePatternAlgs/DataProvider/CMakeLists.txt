@@ -6,7 +6,7 @@ art_make(LIB_LIBRARIES
            canvas
            ${MF_MESSAGELOGGER}
            cetlib_except
-           ${CLHEP}
+           ${CLHEP_LIBRARIES}
         )
 
 install_headers()

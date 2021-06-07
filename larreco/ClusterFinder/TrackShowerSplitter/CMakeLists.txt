@@ -20,7 +20,7 @@ simple_plugin(TrackShowerHits   "module"
 			${MF_MESSAGELOGGER}
 
 			cetlib cetlib_except
-			${ROOT_BASIC_LIB_LIST}
+			${ROOT_LIBRARIES}
 
 )
 
