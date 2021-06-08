@@ -5,7 +5,7 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ROOT::Physics
            canvas
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            cetlib_except
          MODULE_LIBRARIES
            larreco_RecoAlg
@@ -15,7 +15,7 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ROOT::Core
            ROOT::Physics
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
          )
 
 install_headers()

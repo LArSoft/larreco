@@ -9,7 +9,7 @@ art_make(LIB_LIBRARIES
            ${CANVAS}
            ${CETLIB_EXCEPT}
            fhiclcpp::fhiclcpp fhiclcpp::types
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            ROOT::Core
            ROOT::Physics
          MODULE_LIBRARIES
@@ -18,7 +18,7 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ROOT::Hist
            ROOT::Physics
-           messagefacility::MFMessageLogger)
+           messagefacility::MF_MessageLogger)
 
 install_headers()
 install_fhicl()

@@ -24,7 +24,7 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Persistency_Provenance
            canvas
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            fhiclcpp::fhiclcpp fhiclcpp::types
            ${CETLIB}
            cetlib_except

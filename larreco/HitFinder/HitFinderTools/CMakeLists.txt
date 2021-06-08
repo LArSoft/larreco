@@ -19,7 +19,7 @@ set( hitfinder_tool_lib_list
                         ${ART_FRAMEWORK_SERVICES_SYSTEM_FILECATALOGMETADATA_SERVICE}
                         art_Utilities
                         canvas
-                        messagefacility::MFMessageLogger
+                        messagefacility::MF_MessageLogger
 
                         fhiclcpp::fhiclcpp fhiclcpp::types
                         ${CETLIB}

@@ -5,7 +5,7 @@ art_make(LIB_LIBRARIES
            ${ART_UTILITIES}
            ${CANVAS}
            ${CETLIB_EXCEPT}
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            ROOT::Core
            ROOT::Matrix
            ROOT::Physics

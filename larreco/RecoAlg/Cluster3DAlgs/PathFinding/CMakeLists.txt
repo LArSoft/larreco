@@ -7,7 +7,7 @@ art_make(TOOL_LIBRARIES
            ROOT::Core
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            canvas
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
         )
 
 install_headers()

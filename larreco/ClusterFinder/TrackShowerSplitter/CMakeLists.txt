@@ -17,7 +17,7 @@ simple_plugin(TrackShowerHits   "module"
 			art_Persistency_Provenance
 			art_Utilities
 			canvas
-			messagefacility::MFMessageLogger
+			messagefacility::MF_MessageLogger
 
 			cetlib cetlib_except
 			${ROOT_LIBRARIES}

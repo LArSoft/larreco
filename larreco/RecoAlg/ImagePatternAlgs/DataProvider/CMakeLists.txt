@@ -4,7 +4,7 @@ art_make(LIB_LIBRARIES
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
            ROOT::Core
            canvas
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            cetlib_except
            ${CLHEP_LIBRARIES}
         )

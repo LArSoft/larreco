@@ -13,7 +13,7 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            ${ART_ROOT_IO_TFILE_SUPPORT}
            ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            ROOT::Core
            ROOT::Hist
            ROOT::Matrix

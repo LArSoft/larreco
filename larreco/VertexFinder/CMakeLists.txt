@@ -12,11 +12,11 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            ROOT::Core
            ROOT::Hist
            ROOT::Physics
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
          )
 
 simple_plugin(FeatureVertexFinder "module"
-                messagefacility::MFMessageLogger
+                messagefacility::MF_MessageLogger
                 ${ART_FRAMEWORK_SERVICES_REGISTRY}
                 ROOT::Core
                 ROOT::Hist

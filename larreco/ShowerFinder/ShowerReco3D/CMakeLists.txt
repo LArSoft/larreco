@@ -18,7 +18,7 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILE_SUPPORT}
            ROOT::Core
            ROOT::Physics
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
          )
 
 install_headers()

@@ -16,7 +16,7 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ROOT::Physics
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
          )
 
 install_headers()

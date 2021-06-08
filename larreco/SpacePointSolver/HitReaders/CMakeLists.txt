@@ -2,7 +2,7 @@ cet_enable_asserts()
 
 art_make(TOOL_LIBRARIES
            canvas
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
         )
 
 install_headers()

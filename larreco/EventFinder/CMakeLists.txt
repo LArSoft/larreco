@@ -1,7 +1,7 @@
 art_make(MODULE_LIBRARIES
            lardataobj_RecoBase
            ROOT::Core
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
          )
 
 install_headers()

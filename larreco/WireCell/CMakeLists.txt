@@ -7,7 +7,7 @@ art_make(MODULE_LIBRARIES
            ROOT::Core
            ROOT::RIO
            ROOT::Tree
-           messagefacility::MFMessageLogger
+           messagefacility::MF_MessageLogger
            ROOT::EG
            ROOT::Hist
            ROOT::Physics
