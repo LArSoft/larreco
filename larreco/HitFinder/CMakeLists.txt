@@ -4,8 +4,8 @@ art_make(LIB_LIBRARIES
            lardataobj_RawData
            lardataobj_RecoBase
            larcorealg_Geometry
-           ${MF_MESSAGELOGGER}
-           ${FHICLCPP}
+           messagefacility::MFMessageLogger
+           fhiclcpp::fhiclcpp fhiclcpp::types
            cetlib_except
            ROOT::Core
            ${ART_UTILITIES}
@@ -21,7 +21,7 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Framework_Services_System_TriggerNamesService_service
-           ${MF_MESSAGELOGGER}
+           messagefacility::MFMessageLogger
            ROOT::Hist
            ROOT::MathCore
            ROOT::Physics

@@ -24,8 +24,8 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Persistency_Provenance
            canvas
-           ${MF_MESSAGELOGGER}
-           ${FHICLCPP}
+           messagefacility::MFMessageLogger
+           fhiclcpp::fhiclcpp fhiclcpp::types
            ${CETLIB}
            cetlib_except
           TOOL_LIBRARIES larreco_RecoAlg_Cluster3DAlgs

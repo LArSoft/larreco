@@ -3,7 +3,7 @@ art_make(LIB_LIBRARIES
            ${ART_ROOT_IO_TFILESERVICE_SERVICE}
            art_Utilities
            canvas
-           ${MF_MESSAGELOGGER}
+           messagefacility::MFMessageLogger
            cetlib_except
            ROOT::Geom
            ROOT::Graf3d

@@ -8,7 +8,7 @@ art_make(MODULE_LIBRARIES
           ROOT::Core
           ROOT::Physics
           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-          ${MF_MESSAGELOGGER}
+          messagefacility::MFMessageLogger
         )
 
 install_headers()

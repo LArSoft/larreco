@@ -9,7 +9,7 @@ art_make(EXCLUDE
            larreco_RecoAlg
            nug4_MagneticFieldServices_MagneticFieldServiceStandard_service
            ROOT::Core
-           ${MF_MESSAGELOGGER}
+           messagefacility::MFMessageLogger
          )
 
 simple_plugin(Track3DKalman "module"
@@ -26,7 +26,7 @@ simple_plugin(Track3DKalman "module"
                 ROOT::Matrix
                 ROOT::Physics
                 ROOT::Tree
-                ${MF_MESSAGELOGGER}
+                messagefacility::MFMessageLogger
               )
 
 simple_plugin(Track3DKalmanSPS "module"
@@ -37,7 +37,7 @@ simple_plugin(Track3DKalmanSPS "module"
                 ${ART_FRAMEWORK_SERVICES_REGISTRY}
                 ${ART_ROOT_IO_TFILESERVICE_SERVICE}
                 ${ART_ROOT_IO_TFILE_SUPPORT}
-                ${MF_MESSAGELOGGER}
+                messagefacility::MFMessageLogger
                 ROOT::Core
                 ROOT::Hist
                 ROOT::Matrix

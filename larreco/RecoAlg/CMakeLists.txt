@@ -18,7 +18,7 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Minuit
            canvas
-           ${FHICLCPP}
+           fhiclcpp::fhiclcpp fhiclcpp::types
            cetlib_except
         )
 
