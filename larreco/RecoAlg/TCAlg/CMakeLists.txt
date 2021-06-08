@@ -12,7 +12,7 @@ art_make(LIB_LIBRARIES
            art::Persistency_Provenance
            art_root_io::TFileService_service 
            art_root_io::tfile_support
-           art::Utitlites
+           art::Utilities
            ${CANVAS}
            ${CETLIB_EXCEPT}
            ${CETLIB}
