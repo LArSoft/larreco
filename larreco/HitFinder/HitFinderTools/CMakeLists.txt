@@ -7,16 +7,16 @@ set( hitfinder_tool_lib_list
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
                         nurandom_RandomUtils_NuRandomService_service
-                        ${ART_FRAMEWORK_CORE}
-                        ${ART_FRAMEWORK_PRINCIPAL}
-                        ${ART_FRAMEWORK_SERVICES_REGISTRY}
+                        art::Framwork_Core
+                        art::Framework_Principal
+                        art::Framework_Services_Registry
                         art_Persistency_Common
                         art_Persistency_Provenance
-                        ${ART_FRAMEWORK_SERVICES_BASIC}
-                        ${ART_ROOT_IO_TFILE_SUPPORT} ROOT::Core
-            ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-                        ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-                        ${ART_FRAMEWORK_SERVICES_SYSTEM_FILECATALOGMETADATA_SERVICE}
+                        art::Framework_Services_Registry art::Framework_Services_FileServiceInterfaces
+                        art_root_io::tfile_support ROOT::Core
+            art::Framework_Services_System_FloatingPointControl_service
+                        art_root_io::TFileService_service
+                        art::Framework_Services_System_FileCatalogMetadata_service
                         art_Utilities
                         canvas
                         messagefacility::MF_MessageLogger

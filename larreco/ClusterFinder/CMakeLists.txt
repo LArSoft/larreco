@@ -11,11 +11,11 @@ art_make(LIB_LIBRARIES
            lardataobj_RecoBase
            nurandom_RandomUtils_NuRandomService_service
            nusimdata_SimulationBase
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art::Framework_Services_Registry
+           art_root_io::tfile_support
            ROOT::Core
            ROOT::Physics
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           art_root_io::TFileService_service
            messagefacility::MF_MessageLogger
          )
 

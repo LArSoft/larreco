@@ -4,8 +4,8 @@ add_subdirectory(HitReaders)
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardataalg_DetectorInfo
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_UTILITIES}
+           art::Framework_Services_Registry
+           art::Utilities
            ${CANVAS}
            ${CETLIB_EXCEPT}
            ROOT::Core
@@ -16,7 +16,7 @@ art_make(LIB_LIBRARIES
            larsim_MCCheater_BackTrackerService_service
            lardata_ArtDataHelper
            larreco_SpacePointSolver
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
            ROOT::Hist
         )

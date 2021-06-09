@@ -8,7 +8,7 @@ art_make(LIB_LIBRARIES
            fhiclcpp::fhiclcpp fhiclcpp::types
            cetlib_except
            ROOT::Core
-           ${ART_UTILITIES}
+           art::Utilities
          MODULE_LIBRARIES
            larreco_HitFinder
            larsim_MCCheater_BackTrackerService_service
@@ -16,10 +16,10 @@ art_make(LIB_LIBRARIES
            lardataobj_RecoBase
            larcorealg_Geometry
            lardata_ArtDataHelper
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art::Framework_Services_Registry
+           art_root_io::tfile_support
            ROOT::Core
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           art_root_io::TFileService_service
            art_Framework_Services_System_TriggerNamesService_service
            messagefacility::MF_MessageLogger
            ROOT::Hist

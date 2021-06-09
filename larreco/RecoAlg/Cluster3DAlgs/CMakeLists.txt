@@ -10,18 +10,18 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardata_ArtDataHelper
            lardata_RecoObjects
-           ${ART_FRAMEWORK_CORE}
-           ${ART_FRAMEWORK_PRINCIPAL}
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ART_UTILITIES}
+           art::Framwork_Core
+           art::Framework_Principal
+           art::Framework_Services_Registry
+           art_root_io::tfile_support
+           art::Utilities
            ROOT::Core
            ROOT::Gpad
            ROOT::Hist
            ROOT::Matrix
            ROOT::Physics
            ROOT::Tree
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           art_root_io::TFileService_service
            art_Persistency_Provenance
            canvas
            messagefacility::MF_MessageLogger

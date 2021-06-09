@@ -10,9 +10,9 @@ art_make(LIB_LIBRARIES
            larreco_QuadVtx
            nusimdata_SimulationBase
            lardata_ArtDataHelper
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art_root_io::TFileService_service
+           art_root_io::tfile_support
+           art::Framework_Services_Registry
            messagefacility::MF_MessageLogger
            ROOT::Core
            ROOT::Hist

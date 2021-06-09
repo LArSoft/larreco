@@ -1,7 +1,7 @@
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
            larreco_RecoAlg_PMAlg
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
            ROOT::Physics
            canvas
@@ -12,7 +12,7 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_PMAlg
            larreco_Calorimetry
            larreco_DirOfGamma
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
            ROOT::Physics
            messagefacility::MF_MessageLogger

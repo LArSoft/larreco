@@ -4,8 +4,8 @@ art_make(LIB_LIBRARIES
            lardata_ArtDataHelper
            larcorealg_Geometry
            lardataobj_AnalysisBase
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_UTILITIES}
+           art::Framework_Services_Registry
+           art::Utilities
            ${CANVAS}
            ${CETLIB_EXCEPT}
            fhiclcpp::fhiclcpp fhiclcpp::types

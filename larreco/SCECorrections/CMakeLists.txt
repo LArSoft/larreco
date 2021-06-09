@@ -2,10 +2,10 @@ art_make(MODULE_LIBRARIES
   lardataalg_DetectorInfo
   larcorealg_Geometry
   lardataobj_RecoBase
-  ${ART_FRAMEWORK_SERVICES_REGISTRY}
+  art::Framework_Services_Registry
   ${ROOT_CORE}
   ${ROOT_PHYSICS}
-  ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+  art_root_io::TFileService_service
   messagefacility::MF_MessageLogger
   )
 

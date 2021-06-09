@@ -1,6 +1,6 @@
 art_make(LIB_LIBRARIES
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           art::Framework_Services_Registry
+           art_root_io::TFileService_service
            art_Utilities
            canvas
            messagefacility::MF_MessageLogger

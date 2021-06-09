@@ -2,15 +2,15 @@
 
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            canvas
            cetlib_except
            ROOT::Core
-           ${ART_UTILITIES}
+           art::Utilities
          MODULE_LIBRARIES
            larreco_MCComp
            larcorealg_Geometry
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
          )
 

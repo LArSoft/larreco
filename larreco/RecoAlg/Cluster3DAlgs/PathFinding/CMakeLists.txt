@@ -3,9 +3,9 @@ cet_enable_asserts()
 art_make(TOOL_LIBRARIES
            larreco_RecoAlg_Cluster3DAlgs
            larreco_RecoAlg_Cluster3DAlgs_Voronoi
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art_root_io::tfile_support
            ROOT::Core
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
+           art_root_io::TFileService_service
            canvas
            messagefacility::MF_MessageLogger
         )
