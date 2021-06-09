@@ -8,7 +8,7 @@ simple_plugin(TrackShowerHits   "module"
 		 	larcorealg_Geometry
 			larcore_Geometry_Geometry_service
 			lardata_Utilities
-               art::Framwork_Core
+               art::Framework_Core
 			art::Framework_Principal
 			art::Framework_Services_Registry
          		art_root_io::tfile_support ROOT::Core

@@ -10,7 +10,7 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardata_ArtDataHelper
            lardata_RecoObjects
-           art::Framwork_Core
+           art::Framework_Core
            art::Framework_Principal
            art::Framework_Services_Registry
            art_root_io::tfile_support
