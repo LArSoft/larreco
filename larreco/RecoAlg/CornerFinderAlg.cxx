@@ -39,42 +39,9 @@
 
 
 //-----------------------------------------------------------------------------
-corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
+corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& p)
 {
-  this->reconfigure(pset);
-}
-
-corner::CornerFinderAlg::~CornerFinderAlg(){
-  this->CleanCornerFinderAlg();
-}
-
-//-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::CleanCornerFinderAlg()
-{
-
-  //for (auto wd_histo : WireData_histos) delete wd_histo;
-  //for (auto wd_histo : WireData_histos_ProjectionX) delete wd_histo;
-  //for (auto wd_histo : WireData_histos_ProjectionY) delete wd_histo;
-  //for (auto histo : fConversion_histos) delete histo;
-  //for (auto histo : fDerivativeX_histos) delete histo;
-  //for (auto histo : fDerivativeY_histos) delete histo;
-  //for (auto histo : fCornerScore_histos) delete histo;
-  //for (auto histo : fMaxSuppress_histos) delete histo;
-
-  WireData_histos.clear();
-  WireData_histos_ProjectionX.clear();
-  WireData_histos_ProjectionY.clear();
-  WireData_IDs.clear();
-
-  //for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
-  WireData_trimmed_histos.clear();
-
-}
-
-//-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
-{
-  // ### These are all the tuneable .fcl file parameters from the event ###
+  // These are all the tuneable .fcl file parameters from the event
   fCalDataModuleLabel  			 = p.get< std::string 	 >("CalDataModuleLabel");
   fTrimming_threshold     		 = p.get< float    	 >("Trimming_threshold");
   fTrimming_totalThreshold                = p.get< double         >("Trimming_totalThreshold");
@@ -103,7 +70,17 @@ void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
 			  fCornerScore_neighborhood,
 			  fMaxSuppress_neighborhood };
   fTrimming_buffer = *std::max_element(neighborhoods,neighborhoods+5);
+}
 
+//-----------------------------------------------------------------------------
+void corner::CornerFinderAlg::CleanCornerFinderAlg()
+{
+  WireData_histos.clear();
+  WireData_histos_ProjectionX.clear();
+  WireData_histos_ProjectionY.clear();
+  WireData_IDs.clear();
+
+  WireData_trimmed_histos.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -116,11 +93,6 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
   WireData_histos.resize(nPlanes);
   WireData_histos_ProjectionX.resize(nPlanes);
   WireData_histos_ProjectionY.resize(nPlanes);
-  //  fConversion_histos.resize(nPlanes);
-  //  fDerivativeX_histos.resize(nPlanes);
-  //  fDerivativeY_histos.resize(nPlanes);
-  //  fCornerScore_histos.resize(nPlanes);
-  //  fMaxSuppress_histos.resize(nPlanes);
 
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
@@ -260,32 +232,6 @@ void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<r
   }
 
 }
-
-//-----------------------------------------------------------------------------------
-// void corner::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
-
-//   int i_wire, j_wire;
-//   float i_time, j_time;
-//   for(size_t i=0; i != corner_vector.size(); i++){
-
-//     i_wire = corner_vector.at(i).WireID().Wire;
-//     i_time = corner_vector.at(i).DriftTime();
-
-//     for(size_t j=i+1; j != corner_vector.size(); j++){
-
-//       j_wire = corner_vector.at(j).WireID().Wire;
-//       j_time = corner_vector.at(j).DriftTime();
-
-//       if(std::abs(i_wire-j_wire) < 5 && std::abs(i_time - j_time) < 10){
-//         corner_vector.erase(corner_vector.begin()+j);
-//         j--;
-//       }
-
-//     }
-
-//   }
-
-// }
 
 struct compare_to_value{
 
@@ -1167,54 +1113,3 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wir
 TH2F const& corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane) const {
   return WireData_histos.at(i_plane);
 }
-/*
-TH2F* corner::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
-
-  if(i_plane >= fConversion_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fConversion_histos.at(i_plane);
-}
-
-TH2F* corner::CornerFinderAlg::GetDerivativeXHist(unsigned int i_plane){
-
-  if(i_plane >= fDerivativeX_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fDerivativeX_histos.at(i_plane);
-}
-
-TH2F* corner::CornerFinderAlg::GetDerivativeYHist(unsigned int i_plane){
-
-  if(i_plane >= fDerivativeY_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fDerivativeY_histos.at(i_plane);
-}
-
-TH2D* corner::CornerFinderAlg::GetCornerScoreHist(unsigned int i_plane){
-
-  if(i_plane >= fCornerScore_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fCornerScore_histos.at(i_plane);
-}
-
-TH2D* corner::CornerFinderAlg::GetMaxSuppressHist(unsigned int i_plane){
-
-  if(i_plane >= fMaxSuppress_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fMaxSuppress_histos.at(i_plane);
-}
-*/

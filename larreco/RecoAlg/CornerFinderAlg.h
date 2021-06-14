@@ -27,10 +27,6 @@ namespace corner { //<---Not sure if this is the right namespace
    public:
 
      explicit CornerFinderAlg(fhicl::ParameterSet const& pset);
-     ~CornerFinderAlg();
-
-     void   reconfigure(fhicl::ParameterSet const& pset);
-
 
      void GrabWires( std::vector<recob::Wire> const& wireVec ,
 		     geo::Geometry const&);                                      //this one creates the histograms we want to use
@@ -48,11 +44,6 @@ namespace corner { //<---Not sure if this is the right namespace
      float line_integral(TH2F const& hist, int x1, float y1, int x2, float y2, float threshold) const;
 
      TH2F const& GetWireDataHist(unsigned int) const;
-     // TH2F const& GetConversionHist(unsigned int);
-     // TH2F const& GetDerivativeXHist(unsigned int);
-     // TH2F const& GetDerivativeYHist(unsigned int);
-     // TH2D const& GetCornerScoreHist(unsigned int);
-     // TH2D const& GetMaxSuppressHist(unsigned int);
 
     private:
 
@@ -90,11 +81,6 @@ namespace corner { //<---Not sure if this is the right namespace
      std::vector<TH1D> WireData_histos_ProjectionY;
      std::vector< std::tuple<int,TH2F,int,int> > WireData_trimmed_histos;
      std::vector< std::vector<geo::WireID> > WireData_IDs;
-     // std::vector<TH2F> fConversion_histos;
-     // std::vector<TH2F> fDerivativeX_histos;
-     // std::vector<TH2F> fDerivativeY_histos;
-     // std::vector<TH2D> fCornerScore_histos;
-     // std::vector<TH2D> fMaxSuppress_histos;
 
      unsigned int event_number;
      unsigned int run_number;
@@ -127,7 +113,6 @@ namespace corner { //<---Not sure if this is the right namespace
 
 
      void create_smaller_histos(geo::Geometry const&);
-     //     void remove_duplicates(std::vector<recob::EndPoint2D>&);
 
    };//<---End of class CornerFinderAlg
 
