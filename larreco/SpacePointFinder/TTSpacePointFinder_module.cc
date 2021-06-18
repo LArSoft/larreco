@@ -23,6 +23,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
