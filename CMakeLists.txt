@@ -39,10 +39,10 @@ find_ups_product( nug4 )
 find_ups_product( nurandom )
 find_ups_product( art )
 find_ups_product(art_root_io)
-find_package( postgresql )
-find_ups_product( range )
 find_ups_product( eigen )
-find_ups_root()
+find_package( ROOT )
+find_package( range3 )
+find_package( postgresql )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
@@ -56,7 +56,9 @@ add_subdirectory(larreco)
 add_subdirectory(test)
 add_subdirectory(cmakeConfig)
 # ups - table and config files
-#add_subdirectory(ups)
+if(WANT_UPS)
+add_subdirectory(ups)
+endif()
 
 # packaging utility
 #include(UseCPack)
