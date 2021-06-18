@@ -19,6 +19,8 @@
 #include "larreco/RecoAlg/VertexFitMinuitStruct.h"
 #include "larreco/RecoAlg/VertexFitAlg.h"
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 namespace trkf{
 
   VertexFitMinuitStruct VertexFitAlg::fVtxFitMinStr;
