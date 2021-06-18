@@ -10,6 +10,8 @@ cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
 
 project(larreco VERSION 09.06.06  LANGUAGES CXX)
 
+set(larreco_FW_DIR fw)
+
 find_package(cetmodules REQUIRED)
 find_package(canvas_root_io)
 find_package(art)
