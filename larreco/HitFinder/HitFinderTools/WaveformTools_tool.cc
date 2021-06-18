@@ -4,6 +4,8 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
+#include <numeric>
+
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 #include "art/Utilities/ToolMacros.h"
 
