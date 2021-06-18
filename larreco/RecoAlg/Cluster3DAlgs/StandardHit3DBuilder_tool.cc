@@ -38,6 +38,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <numeric>
 
 // Ack!
 #include "TH1F.h"

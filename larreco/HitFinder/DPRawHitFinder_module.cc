@@ -39,6 +39,7 @@
 #include <memory> // std::unique_ptr()
 #include <utility> // std::move()
 #include <cmath>
+#include <numeric>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"

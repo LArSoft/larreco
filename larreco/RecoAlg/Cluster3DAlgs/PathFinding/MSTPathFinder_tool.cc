@@ -39,6 +39,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <numeric>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows

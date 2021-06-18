@@ -28,6 +28,7 @@
 #include <memory> // std::unique_ptr()
 #include <string>
 #include <utility> // std::move()
+#include <numeric>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
