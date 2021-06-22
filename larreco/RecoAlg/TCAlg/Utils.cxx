@@ -5,6 +5,7 @@
 #include <boost/algorithm/string/split.hpp>            // Include for boost::split
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"

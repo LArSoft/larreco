@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <string>
 

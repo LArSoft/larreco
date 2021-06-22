@@ -3,11 +3,11 @@ art_make(MODULE_LIBRARIES
            lardataobj_RawData
            lardataobj_RecoBase
            nusimdata_SimulationBase
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
            ROOT::RIO
            ROOT::Tree
-           ${MF_MESSAGELOGGER}
+           messagefacility::MF_MessageLogger
            ROOT::EG
            ROOT::Hist
            ROOT::Physics

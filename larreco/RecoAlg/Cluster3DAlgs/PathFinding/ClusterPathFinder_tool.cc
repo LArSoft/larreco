@@ -9,6 +9,7 @@
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "cetlib/cpu_timer.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"

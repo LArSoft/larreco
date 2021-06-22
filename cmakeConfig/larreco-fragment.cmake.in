@@ -1,0 +1,2 @@
+find_package( ROOT REQUIRED COMPONENTS GenVector Geom Minuit Minuit2 XMLIO Gdml TMVA EG)
+find_package( larsim REQUIRED  )

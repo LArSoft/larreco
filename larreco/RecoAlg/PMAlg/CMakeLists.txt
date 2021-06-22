@@ -1,11 +1,11 @@
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardataalg_DetectorInfo
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_UTILITIES}
+           art::Framework_Services_Registry
+           art::Utilities
            ${CANVAS}
            ${CETLIB_EXCEPT}
-           ${MF_MESSAGELOGGER}
+           messagefacility::MF_MessageLogger
            ROOT::Core
            ROOT::Matrix
            ROOT::Physics

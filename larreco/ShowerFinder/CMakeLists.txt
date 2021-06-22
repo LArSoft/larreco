@@ -4,11 +4,11 @@ add_subdirectory(job)
 art_make(MODULE_LIBRARIES
           larreco_RecoAlg
           lardataobj_RecoBase
-          ${ART_FRAMEWORK_SERVICES_REGISTRY}
+          art::Framework_Services_Registry
           ROOT::Core
           ROOT::Physics
-          ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-          ${MF_MESSAGELOGGER}
+          art_root_io::TFileService_service
+          messagefacility::MF_MessageLogger
         )
 
 install_headers()

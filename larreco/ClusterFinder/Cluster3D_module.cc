@@ -50,6 +50,7 @@
 #include "art/Utilities/make_tool.h"
 #include "art_root_io/TFileService.h"
 #include "cetlib/cpu_timer.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h"

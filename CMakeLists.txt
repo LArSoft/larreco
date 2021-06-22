@@ -6,14 +6,15 @@
 #  buildtool [-I /install/path] -bt[i] -jN
 # ======================================================================
 
-cmake_minimum_required (VERSION 3.12...3.18 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
 
-project(larreco LANGUAGES CXX)
+project(larreco VERSION 09.06.06  LANGUAGES CXX)
 
-# cetbuildtools contains our cmake modules
-find_package(cetbuildtools REQUIRED)
+set(larreco_FW_DIR fw)
 
-list(APPEND CMAKE_MODULE_PATH $ENV{CANVAS_ROOT_IO_DIR}/Modules $ENV{ART_DIR}/Modules)
+find_package(cetmodules REQUIRED)
+find_package(canvas_root_io)
+find_package(art)
 
 include(CetCMakeEnv)
 cet_cmake_env()
@@ -40,10 +41,10 @@ find_ups_product( nug4 )
 find_ups_product( nurandom )
 find_ups_product( art )
 find_ups_product(art_root_io)
-find_ups_product( postgresql )
-find_ups_product( range )
 find_ups_product( eigen )
-find_ups_root()
+find_package( ROOT )
+find_package( range3 )
+find_package( postgresql )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
@@ -55,9 +56,11 @@ add_subdirectory(larreco)
 
 # tests
 add_subdirectory(test)
-
+add_subdirectory(cmakeConfig)
 # ups - table and config files
+if(WANT_UPS)
 add_subdirectory(ups)
+endif()
 
 # packaging utility
-include(UseCPack)
+#include(UseCPack)

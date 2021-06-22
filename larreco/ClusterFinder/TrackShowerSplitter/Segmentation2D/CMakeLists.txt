@@ -3,8 +3,8 @@ art_make(LIB_LIBRARIES
            ROOT::Core
            ROOT::Physics
            canvas
-           ${MF_MESSAGELOGGER}
-           ${FHICLCPP}
+           messagefacility::MF_MessageLogger
+           fhiclcpp::fhiclcpp fhiclcpp::types
            cetlib_except
         )
 

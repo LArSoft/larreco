@@ -6,6 +6,7 @@
 
 // C/C++ standard libraries
 #include <string>
+#include <numeric>
 
 //Framework
 #include "fhiclcpp/ParameterSet.h"

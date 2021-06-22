@@ -1,6 +1,6 @@
 art_make(LIB_LIBRARIES
            lardata_Utilities
-           ${ROOT_BASIC_LIB_LIST}
+           ${ROOT_LIBRARIES}
         )
 
 install_headers()

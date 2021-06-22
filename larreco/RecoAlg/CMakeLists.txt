@@ -1,3 +1,10 @@
+ cet_set_compiler_flags(DIAGS CAUTIOUS
+   WERROR
+   NO_UNDEFINED
+   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs -Wno-maybe-uninitialized -Wno-shadow -Wno-unused-parameter
+ )
+
+
 art_make(LIB_LIBRARIES
            lardataalg_DetectorInfo
            larcorealg_Geometry
@@ -11,7 +18,7 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Minuit
            canvas
-           ${FHICLCPP}
+           fhiclcpp::fhiclcpp fhiclcpp::types
            cetlib_except
         )
 

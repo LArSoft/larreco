@@ -18,6 +18,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
