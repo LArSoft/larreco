@@ -17,6 +17,7 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "cetlib/pow.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"

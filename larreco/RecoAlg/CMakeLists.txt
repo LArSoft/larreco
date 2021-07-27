@@ -1,3 +1,4 @@
+
 art_make(LIB_LIBRARIES
            lardataalg_DetectorInfo
            larcorealg_Geometry
