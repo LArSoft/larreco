@@ -1,8 +1,8 @@
 cet_enable_asserts()
 
 art_make(TOOL_LIBRARIES
-           canvas
-           ${MF_MESSAGELOGGER}
+           canvas::canvas
+           messagefacility::MF_MessageLogger
         )
 
 install_headers()
