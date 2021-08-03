@@ -24,7 +24,6 @@ set( hitfinder_tool_lib_list
                         fhiclcpp::fhiclcpp
                         cetlib::cetlib
                         Boost::filesystem
-            ${CLHEP}
                         ${ROOT_BASIC_LIB_LIST}
     )
 

@@ -21,7 +21,6 @@ simple_plugin(Track3DKalman "module"
                 art::Framework_Services_Registry
                 art_root_io::TFileService_service
                 art_root_io::tfile_support
-                ${CLHEP}
                 ROOT::Core
                 ROOT::Matrix
                 ROOT::Physics
