@@ -39,6 +39,7 @@
 #define SUCCESS 0
 #define FAILURE -3
 
+#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 namespace fhicl { class ParameterSet; }
@@ -83,7 +84,8 @@ class DBScan3DAlg {
     std::vector<point_t> points;
 
     void init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
-              art::FindManyP<recob::Hit>& hitFromSp);
+              art::FindManyP<recob::Hit>& hitFromSp, 
+              art::Timestamp ts);
     void dbscan();
 
   private:

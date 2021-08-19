@@ -20,6 +20,7 @@
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+#include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
@@ -55,11 +56,13 @@ namespace tca {
     void RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
                            detinfo::DetectorPropertiesData const& detProp,
                            std::vector<unsigned int>& hitsInSlice,
-                           int sliceID);
+                           int sliceID, 
+                           lariov::DBTimeStamp_t ts);
     bool CreateSlice(detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
                      std::vector<unsigned int>& hitsInSlice,
-                     int sliceID);
+                     int sliceID,
+                     lariov::DBTimeStamp_t ts);
     void FinishEvent();
 
     void DefineShTree(TTree* t);

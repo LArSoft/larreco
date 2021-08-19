@@ -18,6 +18,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 namespace fhicl { class ParameterSet; }
 
+#include "canvas/Persistency/Provenance/Timestamp.h"
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
@@ -86,7 +87,7 @@ namespace hit {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
+    void RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Timestamp t);
 
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(allhits); }

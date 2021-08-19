@@ -4456,7 +4456,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void
-  FillWireHitRange(geo::TPCID inTPCID)
+  FillWireHitRange(lariov::DBTimeStamp_t ts, geo::TPCID inTPCID)
   {
     // Defines the local vector of dead wires and the low-high range of hits in each wire in
     // the TPCID in TCEvent. Note that there is no requirement that the allHits collection is sorted. Care should
@@ -4481,7 +4481,7 @@ namespace tca {
         for (unsigned int wire = 0; wire < nwires; ++wire) {
           raw::ChannelID_t chan =
             tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
-          evt.goodWire[pln][wire] = channelStatus.IsGood(chan);
+          evt.goodWire[pln][wire] = channelStatus.IsGood(ts, chan);
         } // wire
       }   // pln
     }

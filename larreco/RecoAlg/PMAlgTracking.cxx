@@ -450,7 +450,8 @@ pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters,
 double
 pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detProp,
                             pma::Track3D& trk,
-                            unsigned int testView)
+                            unsigned int testView, 
+                            lariov::DBTimeStamp_t ts)
 {
   if ((trk.FirstElement()->GetDistToWall() < -3.0) || (trk.LastElement()->GetDistToWall() < -3.0)) {
     mf::LogVerbatim("PMAlgTracker") << "first or last node too far out of its initial TPC";
@@ -470,12 +471,12 @@ pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detProp,
   switch (fValidation) {
   case pma::PMAlgTracker::kAdc:
     v = fProjectionMatchingAlg.validate_on_adc(
-      detProp, channelStatus, trk, fAdcImages[testView], fAdcValidationThr[testView]);
+      detProp, channelStatus, trk, fAdcImages[testView], fAdcValidationThr[testView], ts);
     break;
 
   case pma::PMAlgTracker::kHits:
     v = fProjectionMatchingAlg.validate(
-      detProp, channelStatus, trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView]);
+      detProp, channelStatus, trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView], ts);
     break;
 
   case pma::PMAlgTracker::kCalib:
@@ -486,7 +487,8 @@ pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detProp,
       fAdcImages[testView],
       fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView],
       fAdcInPassingPoints[testView],
-      fAdcInRejectedPoints[testView]);
+      fAdcInRejectedPoints[testView],
+      ts);
     break;
 
   default:
@@ -503,7 +505,8 @@ pma::PMAlgTracker::reassignHits_1(detinfo::DetectorPropertiesData const& detProp
                                   const std::vector<art::Ptr<recob::Hit>>& hits,
                                   pma::TrkCandidateColl& tracks,
                                   size_t trk_idx,
-                                  double dist2)
+                                  double dist2,
+                                  lariov::DBTimeStamp_t ts)
 {
   pma::Track3D* trk1 = tracks[trk_idx].Track();
 
@@ -551,7 +554,7 @@ pma::PMAlgTracker::reassignHits_1(detinfo::DetectorPropertiesData const& detProp
       unsigned int cryo = hits.front()->WireID().Cryostat;
 
       pma::TrkCandidate candidate =
-        matchCluster(detProp, -1, hits, minSizeCompl, tpc, cryo, first_view);
+        matchCluster(detProp, -1, hits, minSizeCompl, tpc, cryo, first_view, ts);
 
       if (candidate.IsGood()) {
         mf::LogVerbatim("PMAlgTrackMaker")
@@ -618,7 +621,8 @@ pma::PMAlgTracker::collectSingleViewFront(pma::Track3D& trk,
 
 bool
 pma::PMAlgTracker::reassignSingleViewEnds_1(detinfo::DetectorPropertiesData const& detProp,
-                                            pma::TrkCandidateColl& tracks)
+                                            pma::TrkCandidateColl& tracks,
+                                            lariov::DBTimeStamp_t ts)
 {
   bool result = false;
   for (size_t t = 0; t < tracks.size(); t++) {
@@ -630,12 +634,12 @@ pma::PMAlgTracker::reassignSingleViewEnds_1(detinfo::DetectorPropertiesData cons
     std::vector<art::Ptr<recob::Hit>> hits;
 
     double d2 = collectSingleViewEnd(trk, hits);
-    result |= reassignHits_1(detProp, hits, tracks, t, d2);
+    result |= reassignHits_1(detProp, hits, tracks, t, d2, ts);
 
     hits.clear();
 
     d2 = collectSingleViewFront(trk, hits);
-    result |= reassignHits_1(detProp, hits, tracks, t, d2);
+    result |= reassignHits_1(detProp, hits, tracks, t, d2, ts);
 
     trk.SelectHits();
   }
@@ -962,7 +966,8 @@ pma::PMAlgTracker::matchTrack(detinfo::DetectorPropertiesData const& detProp,
 // ------------------------------------------------------
 int
 pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
-                         detinfo::DetectorPropertiesData const& detProp)
+                         detinfo::DetectorPropertiesData const& detProp, 
+                         art::Timestamp t)
 {
   fInitialClusters.clear();
   fTriedClusters.clear();
@@ -983,7 +988,7 @@ pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
       bool ok = true;
       for (size_t p = 0; p < nplanes; ++p) {
         ok &= fAdcImages[p].setWireDriftData(
-          clockData, detProp, fWires, p, tpc_iter->TPC, tpc_iter->Cryostat);
+          clockData, detProp, fWires, p, tpc_iter->TPC, tpc_iter->Cryostat, t);
       }
       if (ok) { mf::LogVerbatim("PMAlgTracker") << "  ...done."; }
       else {
@@ -994,10 +999,10 @@ pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
 
     // find reasonably large parts
     fromMaxCluster_tpc(
-      detProp, tracks[tpc_iter->TPC], fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat);
+      detProp, tracks[tpc_iter->TPC], fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat, t.value());
     // loop again to find small things
     fromMaxCluster_tpc(
-      detProp, tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
+      detProp, tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat, t.value());
 
     //tryClusterLeftovers();
 
@@ -1008,7 +1013,7 @@ pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
     guideEndpoints(detProp, tracks[tpc_iter->TPC]);
     // try correcting single-view sections spuriously merged on 2D clusters
     // level
-    reassignSingleViewEnds_1(detProp, tracks[tpc_iter->TPC]);
+    reassignSingleViewEnds_1(detProp, tracks[tpc_iter->TPC], t.value());
 
     if (fMergeWithinTPC) {
       mf::LogVerbatim("PMAlgTracker")
@@ -1088,7 +1093,8 @@ pma::PMAlgTracker::fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& det
                                       pma::TrkCandidateColl& result,
                                       size_t minBuildSize,
                                       unsigned int tpc,
-                                      unsigned int cryo)
+                                      unsigned int cryo,
+                                      lariov::DBTimeStamp_t ts)
 {
   fInitialClusters.clear();
 
@@ -1105,7 +1111,7 @@ pma::PMAlgTracker::fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& det
       geo::View_t first_view = fCluHits[max_first_idx].front()->View();
 
       pma::TrkCandidate candidate =
-        matchCluster(detProp, max_first_idx, minSizeCompl, tpc, cryo, first_view);
+        matchCluster(detProp, max_first_idx, minSizeCompl, tpc, cryo, first_view, ts);
 
       if (candidate.IsGood()) result.push_back(candidate);
     }
@@ -1124,7 +1130,8 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
                                 size_t minSizeCompl,
                                 unsigned int tpc,
                                 unsigned int cryo,
-                                geo::View_t first_view)
+                                geo::View_t first_view,
+                                lariov::DBTimeStamp_t ts)
 {
   pma::TrkCandidate result;
 
@@ -1212,7 +1219,7 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
         m0 = candidate.Track()->GetMse();
         if (m0 < mseThr) // check validation only if MSE is OK - thanks for Tracy for noticing this
         {
-          v0 = validate(detProp, *(candidate.Track()), testView);
+          v0 = validate(detProp, *(candidate.Track()), testView, ts);
         }
       }
 
@@ -1231,11 +1238,11 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
         while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
         {
           idx =
-            matchCluster(detProp, candidate, minSize, fraction, geo::kUnknown, testView, tpc, cryo);
+            matchCluster(detProp, candidate, minSize, fraction, geo::kUnknown, testView, tpc, cryo, ts);
           if (idx >= 0) {
             // try building extended copy:
             //                src,        hits,      valid.plane, add nodes
-            if (extendTrack(detProp, candidate, fCluHits[idx], testView, true)) {
+            if (extendTrack(detProp, candidate, fCluHits[idx], testView, true, ts)) {
               candidate.Clusters().push_back(idx);
             }
             else
@@ -1253,10 +1260,10 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
                                               //                     plane used previously
                                               //                     for the validation
           idx =
-            matchCluster(detProp, candidate, minSize, fraction, testView, geo::kUnknown, tpc, cryo);
+            matchCluster(detProp, candidate, minSize, fraction, testView, geo::kUnknown, tpc, cryo, ts);
           if (idx >= 0) {
             // validation not checked here, no new nodes:
-            if (extendTrack(detProp, candidate, fCluHits[idx], geo::kUnknown, false)) {
+            if (extendTrack(detProp, candidate, fCluHits[idx], geo::kUnknown, false, ts)) {
               candidate.Clusters().push_back(idx);
               extended = true;
             }
@@ -1266,7 +1273,7 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
         }
         // need to calculate again only if trk was extended w/o checking
         // validation:
-        if (extended) candidate.SetValidation(validate(detProp, *(candidate.Track()), testView));
+        if (extended) candidate.SetValidation(validate(detProp, *(candidate.Track()), testView, ts));
       }
       else {
         mf::LogVerbatim("PMAlgTracker") << "track REJECTED, MSE = " << m0 << "; v = " << v0;
@@ -1321,7 +1328,8 @@ pma::PMAlgTracker::extendTrack(detinfo::DetectorPropertiesData const& detProp,
                                pma::TrkCandidate& candidate,
                                const std::vector<art::Ptr<recob::Hit>>& hits,
                                unsigned int testView,
-                               bool add_nodes)
+                               bool add_nodes,
+                               lariov::DBTimeStamp_t ts )
 {
   double m_max = 2.0 * candidate.Mse(); // max acceptable MSE value
   if (m_max < 0.05) m_max = 0.05;       // this is still good, low MSE value
@@ -1332,7 +1340,7 @@ pma::PMAlgTracker::extendTrack(detinfo::DetectorPropertiesData const& detProp,
   pma::Track3D* copy =
     fProjectionMatchingAlg.extendTrack(detProp, *(candidate.Track()), hits, add_nodes);
   double m1 = copy->GetMse();
-  double v1 = validate(detProp, *copy, testView);
+  double v1 = validate(detProp, *copy, testView, ts);
 
   if (((m1 < candidate.Mse()) && (v1 >= v_min2)) ||
       ((m1 < 0.5) && (m1 <= m_max) && (v1 >= v_min1))) {
@@ -1361,7 +1369,8 @@ pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
                                 unsigned int preferedView,
                                 unsigned int testView,
                                 unsigned int tpc,
-                                unsigned int cryo) const
+                                unsigned int cryo,
+                                lariov::DBTimeStamp_t ts) const
 {
   double f, fmax = 0.0;
   unsigned int n, max = 0;

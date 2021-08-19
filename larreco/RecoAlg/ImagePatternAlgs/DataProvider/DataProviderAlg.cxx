@@ -6,7 +6,7 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-
+#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -298,7 +298,8 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
                                        const std::vector<recob::Wire>& wires,
                                        unsigned int plane,
                                        unsigned int tpc,
-                                       unsigned int cryo)
+                                       unsigned int cryo, 
+                                       art::Timestamp t)
 {
   mf::LogInfo("DataProviderAlg") << "Create image for cryo:" << cryo << " tpc:" << tpc
                                  << " plane:" << plane;
@@ -321,7 +322,7 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
   bool allWrong = true;
   for (auto const& wire : wires) {
     auto wireChannelNumber = wire.Channel();
-    if (!channelStatus.IsGood(wireChannelNumber)) { continue; }
+    if (!channelStatus.IsGood(t.value(), wireChannelNumber)) { continue; }
 
     size_t w_idx = 0;
     for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber)) {

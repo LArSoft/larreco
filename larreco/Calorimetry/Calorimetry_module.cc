@@ -158,6 +158,7 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
 void
 calo::Calorimetry::produce(art::Event& evt)
 {
+  auto ts = evt.time().value();
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const det_prop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
@@ -619,12 +620,13 @@ calo::Calorimetry::produce(art::Event& evt)
                                  << " PIDA= " << PIDA << "\n";
 
       // look for dead wires
+      
       for (unsigned int iw = wire0; iw < wire1 + 1; ++iw) {
         plane = allHits[hits[ipl][0]]->WireID().Plane;
         tpc = allHits[hits[ipl][0]]->WireID().TPC;
         cstat = allHits[hits[ipl][0]]->WireID().Cryostat;
         channel = geom->PlaneWireToChannel(plane, iw, tpc, cstat);
-        if (channelStatus.IsBad(channel)) {
+        if (channelStatus.IsBad(ts, channel)) {
           MF_LOG_DEBUG("Calorimetry") << "Found dead wire at Plane = " << plane << " Wire =" << iw;
           unsigned int closestwire = 0;
           unsigned int endwire = 0;
@@ -633,7 +635,7 @@ calo::Calorimetry::produce(art::Event& evt)
           double goodresrange = 0;
           for (size_t ihit = 0; ihit < hits[ipl].size(); ++ihit) {
             channel = allHits[hits[ipl][ihit]]->Channel();
-            if (channelStatus.IsBad(channel)) continue;
+            if (channelStatus.IsBad(ts, channel)) continue;
             // grab the space points associated with this hit
             std::vector<art::Ptr<recob::SpacePoint>> sppv = fmspts.at(hits[ipl][ihit]);
             if (sppv.size() < 1) continue;

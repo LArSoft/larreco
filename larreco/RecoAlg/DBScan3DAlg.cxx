@@ -26,7 +26,7 @@ cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
 }
 
 //----------------------------------------------------------
-void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps, art::FindManyP<recob::Hit>& hitFromSp)
+void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps, art::FindManyP<recob::Hit>& hitFromSp, const art::Timestamp ts)
 {
 
   if (badchannelmap.empty()){
@@ -39,7 +39,7 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
         for (auto& wid2: geom->IterateWireIDs(pid)) {
           if (wid1==wid2) continue;
           if (util::absDiff(wid1.Wire,wid2.Wire)<neighbors &&
-              !channelStatus.IsGood(geom->PlaneWireToChannel(wid2))) ++nbadchs;
+              !channelStatus.IsGood(ts.value(), geom->PlaneWireToChannel(wid2))) ++nbadchs;
         }
         badchannelmap[wid1] = nbadchs;
       }

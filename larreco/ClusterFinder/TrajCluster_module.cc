@@ -356,7 +356,7 @@ namespace cluster {
               } // Look for debug hit
             }   // iht
           }     // tca::tcc.dbgStp
-          fTCAlg.RunTrajClusterAlg(clockData, detProp, tpcHits, slcIDs[isl]);
+          fTCAlg.RunTrajClusterAlg(clockData, detProp, tpcHits, slcIDs[isl], evt.time().value());
         } // isl
       }   // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc

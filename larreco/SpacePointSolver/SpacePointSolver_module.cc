@@ -455,7 +455,7 @@ namespace reco3d {
     std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
     if (fAllowBadInductionHit || fAllowBadCollectionHit) {
       for (raw::ChannelID_t cid :
-           art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels()) {
+           art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels(evt.time().value())) {
         if (geom->SignalType(cid) == geo::kCollection) {
           if (fAllowBadCollectionHit && geom->View(cid) == geo::kZ) { xbadchans.push_back(cid); }
         }

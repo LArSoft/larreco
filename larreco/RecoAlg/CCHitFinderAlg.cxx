@@ -119,7 +119,7 @@ namespace hit {
     {}
 
 //------------------------------------------------------------------------------
-  void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires) {
+  void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Timestamp t) {
 
     allhits.clear();
 
@@ -144,7 +144,7 @@ namespace hit {
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if(channelStatus.IsBad(theChannel)) continue;
+      if(channelStatus.IsBad(t.value(), theChannel)) continue;
 /*
       geo::SigType_t SigType = geom->SignalType(theChannel);
       minSig = 0.;

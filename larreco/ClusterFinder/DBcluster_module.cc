@@ -111,7 +111,7 @@ namespace cluster {
     lariov::ChannelStatusProvider const& channelStatus =
       art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
-    lariov::ChannelStatusProvider::ChannelSet_t const BadChannels = channelStatus.BadChannels();
+    auto const BadChannels = channelStatus.BadChannels(evt.time().value());
 
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>
     std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit>>> planeIDToHits;

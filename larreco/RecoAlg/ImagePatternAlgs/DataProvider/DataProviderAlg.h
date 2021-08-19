@@ -105,7 +105,8 @@ public:
                           wires, // once per plane: setup ADC buffer, collect & downscale ADC's
                         unsigned int plane,
                         unsigned int tpc,
-                        unsigned int cryo);
+                        unsigned int cryo,
+                        art::Timestamp t);
 
   std::vector<float> const&
   wireData(size_t widx) const

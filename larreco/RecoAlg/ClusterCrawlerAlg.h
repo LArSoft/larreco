@@ -115,7 +115,8 @@ namespace cluster {
 
     void RunCrawler(detinfo::DetectorClocksData const& clock_data,
                     detinfo::DetectorPropertiesData const& det_prop,
-                    std::vector<recob::Hit> const& srchits);
+                    std::vector<recob::Hit> const& srchits, 
+                    art::Timestamp ts);
 
     /// @{
     /// @name Result retrieval
@@ -427,7 +428,8 @@ namespace cluster {
     // split clusters using 3D vertex information
     void Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
                           detinfo::DetectorPropertiesData const& det_prop,
-                          geo::TPCID const& tpcid);
+                          geo::TPCID const& tpcid, 
+                          art::Timestamp ts);
     // look for a long cluster that stops at a short cluster in two views
     void FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
                             detinfo::DetectorPropertiesData const& det_prop);
@@ -439,7 +441,7 @@ namespace cluster {
     // inits the cluster stuff
     void ClusterInit();
     // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
-    void GetHitRange(CTP_t CTP);
+    void GetHitRange(CTP_t CTP, art::Timestamp ts);
     // Stores cluster information in a temporary vector
     bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables

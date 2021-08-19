@@ -133,6 +133,7 @@
 #include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "fhiclcpp/fwd.h"
 
 #include "lardata/Utilities/CountersMap.h"
@@ -496,7 +497,8 @@ namespace cluster {
                      std::vector<unsigned int>* fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
                      unsigned int* nClusters,
-                     std::vector<protoTrack>* protoTracks);
+                     std::vector<protoTrack>* protoTracks, 
+                     art::Timestamp t);
 
     // interface to look for lines only on a set of hits,without slope and
     // totalQ arrays
@@ -504,7 +506,8 @@ namespace cluster {
                          detinfo::DetectorPropertiesData const& detProp,
                          std::vector<art::Ptr<recob::Hit>> const& clusIn,
                          std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-                         CLHEP::HepRandomEngine& engine);
+                         CLHEP::HepRandomEngine& engine,
+                         art::Timestamp t);
 
     // interface to look for lines only on a set of hits
     size_t FastTransform(detinfo::DetectorClocksData const& clockData,
@@ -513,7 +516,8 @@ namespace cluster {
                          std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                          CLHEP::HepRandomEngine& engine,
                          std::vector<double>& slope,
-                         std::vector<ChargeInfo_t>& totalQ);
+                         std::vector<ChargeInfo_t>& totalQ,
+                         art::Timestamp t);
 
     size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits);
 

@@ -207,7 +207,8 @@ namespace cluster {
   void
   ClusterCrawlerAlg::RunCrawler(detinfo::DetectorClocksData const& clock_data,
                                 detinfo::DetectorPropertiesData const& det_prop,
-                                std::vector<recob::Hit> const& srchits)
+                                std::vector<recob::Hit> const& srchits, 
+                                art::Timestamp ts)
   {
     // Run the ClusterCrawler algorithm - creating seed clusters and crawling upstream.
 
@@ -246,7 +247,7 @@ namespace cluster {
         tpc = tpcid.TPC;
         // fill the WireHitRange vector with first/last hit on each wire
         // dead wires and wires with no hits are flagged < 0
-        GetHitRange(clCTP);
+        GetHitRange(clCTP, ts);
 
         // sanity check
         if (WireHitRange.empty() || (fFirstWire == fLastWire)) continue;
@@ -271,7 +272,7 @@ namespace cluster {
         Vtx3ClusterMatch(clock_data, det_prop, tpcid);
         if (fFindHammerClusters) FindHammerClusters(clock_data, det_prop);
         // split clusters using 3D vertices
-        Vtx3ClusterSplit(clock_data, det_prop, tpcid);
+        Vtx3ClusterSplit(clock_data, det_prop, tpcid, ts);
       }
       if (fDebugPlane >= 0) {
         mf::LogVerbatim("CC") << "Clustering done in TPC ";
@@ -5319,7 +5320,8 @@ namespace cluster {
   void
   ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
                                       detinfo::DetectorPropertiesData const& det_prop,
-                                      geo::TPCID const& tpcid)
+                                      geo::TPCID const& tpcid, 
+                                      art::Timestamp ts)
   {
     // Try to split clusters in a view in which there is no 2D vertex
     // assigned to a 3D vertex
@@ -5357,7 +5359,7 @@ namespace cluster {
       // get the hit range if necessary
       if (thePlane != lastplane) {
         clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, thePlane);
-        GetHitRange(clCTP);
+        GetHitRange(clCTP, ts);
         lastplane = thePlane;
       }
       // make a list of clusters that have hits near this point on nearby wires
@@ -5996,7 +5998,7 @@ namespace cluster {
 
   //////////////////////////////////
   void
-  ClusterCrawlerAlg::GetHitRange(CTP_t CTP)
+  ClusterCrawlerAlg::GetHitRange(CTP_t CTP, art::Timestamp ts)
   {
     // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
     // Hits must have been sorted by increasing wire number
@@ -6052,7 +6054,7 @@ namespace cluster {
     for (wire = 0; wire < nwires; ++wire) {
       raw::ChannelID_t chan = geom->PlaneWireToChannel(
         (int)planeID.Plane, (int)wire, (int)planeID.TPC, (int)planeID.Cryostat);
-      if (!channelStatus.IsGood(chan)) {
+      if (!channelStatus.IsGood(ts.value(), chan)) {
         WireHitRange[wire] = flag;
         ++nbad;
       }

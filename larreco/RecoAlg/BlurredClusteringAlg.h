@@ -61,6 +61,7 @@ public:
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
   std::vector<std::vector<double>> ConvertRecobHitsToVector(
+    lariov::DBTimeStamp_t ts, 
     std::vector<art::Ptr<recob::Hit>> const& hits,
     int readoutWindowSize);
 

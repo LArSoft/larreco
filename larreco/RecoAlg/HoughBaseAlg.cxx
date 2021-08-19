@@ -284,7 +284,8 @@ cluster::HoughBaseAlg::Transform(detinfo::DetectorClocksData const& clockData,
                                  std::vector<unsigned int>* fpointId_to_clusterId,
                                  unsigned int clusterId, // The id of the cluster we are examining
                                  unsigned int* nClusters,
-                                 std::vector<protoTrack>* linesFound)
+                                 std::vector<protoTrack>* linesFound, 
+                                 art::Timestamp ts)
 {
   int nClustersTemp = *nClusters;
 
@@ -533,7 +534,7 @@ cluster::HoughBaseAlg::Transform(detinfo::DetectorClocksData const& clockData,
            sequenceHolderItr + 1 != sequenceHolder.end();
            ++sequenceHolderItr) {
         j = 1;
-        while (channelStatus->IsBad(sequenceHolderItr - sequenceHolder.begin() + j))
+        while (channelStatus->IsBad(ts.value(), sequenceHolderItr - sequenceHolder.begin() + j))
           j++;
         if (sequenceHolder[sequenceHolderItr - sequenceHolder.begin() + 1] -
               sequenceHolder[sequenceHolderItr - sequenceHolder.begin()] <=
@@ -949,7 +950,7 @@ cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster>>
       std::vector<double> slopevec;
       std::vector<ChargeInfo_t> totalQvec;
       std::vector<art::PtrVector<recob::Hit>> planeClusHitsOut;
-      this->FastTransform(clockData, detProp, hit, planeClusHitsOut, engine, slopevec, totalQvec);
+      this->FastTransform(clockData, detProp, hit, planeClusHitsOut, engine, slopevec, totalQvec, evt.time());
 
       MF_LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
@@ -1017,11 +1018,12 @@ cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockDat
                                      detinfo::DetectorPropertiesData const& detProp,
                                      std::vector<art::Ptr<recob::Hit>> const& clusIn,
                                      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-                                     CLHEP::HepRandomEngine& engine)
+                                     CLHEP::HepRandomEngine& engine, 
+                                     art::Timestamp t)
 {
   std::vector<double> slopevec;
   std::vector<ChargeInfo_t> totalQvec;
-  return FastTransform(clockData, detProp, clusIn, clusHitsOut, engine, slopevec, totalQvec);
+  return FastTransform(clockData, detProp, clusIn, clusHitsOut, engine, slopevec, totalQvec, t);
 }
 
 //------------------------------------------------------------------------------
@@ -1032,7 +1034,8 @@ cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockDat
                                      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                                      CLHEP::HepRandomEngine& engine,
                                      std::vector<double>& slopevec,
-                                     std::vector<ChargeInfo_t>& totalQvec)
+                                     std::vector<ChargeInfo_t>& totalQvec, 
+                                     art::Timestamp ts)
 {
   std::vector<int> skip;
 
@@ -1232,7 +1235,7 @@ cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockDat
       currentHits.push_back(0);
       for (size_t i = 0; i + 1 < sequenceHolder.size(); ++i) {
         j = 1;
-        while ((channelStatus->IsBad(sequenceHolder.at(i) + j)) == true)
+        while ((channelStatus->IsBad(ts.value(), sequenceHolder.at(i) + j)) == true)
           j++;
         if (sequenceHolder.at(i + 1) - sequenceHolder.at(i) <= j + fMissedHits)
           currentHits.push_back(i + 1);

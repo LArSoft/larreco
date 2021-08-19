@@ -81,7 +81,7 @@ namespace cluster {
       evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
-    fCCHFAlg.RunCCHitFinder(*wireVecHandle);
+    fCCHFAlg.RunCCHitFinder(*wireVecHandle, evt.time());
 
     // extract the result of the algorithm (it's moved)
     std::vector<recob::Hit> FirstHits = fCCHFAlg.YieldHits();
@@ -92,7 +92,7 @@ namespace cluster {
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
     // look for clusters in all planes
-    fCCAlg.RunCrawler(clock_data, det_prop, FirstHits);
+    fCCAlg.RunCrawler(clock_data, det_prop, FirstHits, evt.time());
 
     auto FinalHits = std::make_unique<std::vector<recob::Hit>>(fCCAlg.YieldHits());
 

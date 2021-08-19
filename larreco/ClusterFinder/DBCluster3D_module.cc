@@ -129,7 +129,7 @@ cluster::DBCluster3D::produce(art::Event& evt)
     std::cout << "hitFromSp is invalid\n";
     return;
   }
-  fDBScan.init(sps, hitFromSp);
+  fDBScan.init(sps, hitFromSp, evt.time());
   fDBScan.dbscan();
 
   //Find number of slices

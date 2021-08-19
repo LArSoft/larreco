@@ -31,6 +31,8 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
+
 namespace detinfo {
   class DetectorPropertiesData;
 }
@@ -101,7 +103,8 @@ public:
                          const lariov::ChannelStatusProvider& channelStatus,
                          const pma::Track3D& trk,
                          const img::DataProviderAlg& adcImage,
-                         float thr) const;
+                         float thr, 
+                         lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of the track that is closer than
   /// fTrkValidationDist2D to any hit from hits in the testView (a view that was
@@ -114,7 +117,8 @@ public:
                               const img::DataProviderAlg& adcImage,
                               const std::vector<art::Ptr<recob::Hit>>& hits,
                               TH1F* histoPassing,
-                              TH1F* histoRejected) const;
+                              TH1F* histoRejected, 
+                              lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of the track that is closer than
   /// fTrkValidationDist2D to any hit from hits in their plane (a plane that was
@@ -123,7 +127,8 @@ public:
   double validate(const detinfo::DetectorPropertiesData& detProp,
                   const lariov::ChannelStatusProvider& channelStatus,
                   const pma::Track3D& trk,
-                  const std::vector<art::Ptr<recob::Hit>>& hits) const;
+                  const std::vector<art::Ptr<recob::Hit>>& hits,
+                  lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of the 3D segment that is closer than
   /// fTrkValidationDist2D to any hit from hits in the testPlane of TPC/Cryo.
@@ -136,7 +141,8 @@ public:
                   const std::vector<art::Ptr<recob::Hit>>& hits,
                   unsigned int testView,
                   unsigned int tpc,
-                  unsigned int cryo) const;
+                  unsigned int cryo,
+                  lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of trajectory seen by two 2D projections at least; even a
   /// prfect track starts/stops with the hit from one 2D view, then hits from other views

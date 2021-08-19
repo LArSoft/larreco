@@ -139,6 +139,7 @@ namespace hit {
     std::stringstream numConv;
 
     hcol.reserve(digitVecHandle->size());
+    auto ts = evt.time().value();
     for(size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter){
       holder.clear();
 
@@ -163,8 +164,8 @@ namespace hit {
       lariov::ChannelStatusProvider const& channelStatus
         = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
-      lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
-        = channelStatus.BadChannels();
+      lariov::ChannelSet_t const BadChannels
+        = channelStatus.BadChannels(ts);
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin){
         holder[bin]=(rawadc[bin]-digitVec->GetPedestal());

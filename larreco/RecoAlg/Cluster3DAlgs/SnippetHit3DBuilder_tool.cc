@@ -120,7 +120,7 @@ private:
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
-    void BuildHit3D(reco::HitPairList& hitPairList) const;
+    void BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const;
 
     /**
      *  @brief Create a new 2D hit collection from hits associated to 3D space points
@@ -216,7 +216,7 @@ private:
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
-    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap) const;
+    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap, art::Timestamp ts) const;
 
     /**
      * @brief Perform charge integration between limits
@@ -375,7 +375,7 @@ void SnippetHit3DBuilder::clear()
     return;
 }
 
-void SnippetHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap) const
+void SnippetHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap, art::Timestamp ts) const
 {
     // This is called each event, clear out the previous version and start over
     m_channelStatus.clear();
@@ -392,11 +392,11 @@ void SnippetHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToW
     // Loop through the channels and mark those that are "bad"
     for(size_t channel = 0; channel < m_geometry->Nchannels(); channel++)
     {
-        if( !m_channelFilter->IsGood(channel))
+        if( !m_channelFilter->IsGood(ts.value(), channel))
         {
             std::vector<geo::WireID>                wireIDVec = m_geometry->ChannelToWire(channel);
             geo::WireID                             wireID    = wireIDVec[0];
-            lariov::ChannelStatusProvider::Status_t chanStat  = m_channelFilter->Status(channel);
+            lariov::ChannelStatusProvider::Status_t chanStat  = m_channelFilter->Status(ts.value(), channel);
 
             m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
             m_numBadChannels++;
@@ -444,7 +444,7 @@ void SnippetHit3DBuilder::Hit3DBuilder(art::Event& evt, reco::HitPairList& hitPa
     if (!m_planeToWireToHitSetMap.empty())
     {
         // Call the algorithm that builds 3D hits
-        this->BuildHit3D(hitPairList);
+        this->BuildHit3D(hitPairList, evt.time());
 
         // If we built 3D points then attempt to output a new hit list as well
         if (!hitPairList.empty())
@@ -478,7 +478,7 @@ void SnippetHit3DBuilder::Hit3DBuilder(art::Event& evt, reco::HitPairList& hitPa
     return;
 }
 
-void SnippetHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList) const
+void SnippetHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const
 {
     /**
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
@@ -490,7 +490,7 @@ void SnippetHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList) const
 
     // The first task is to take the lists of input 2D hits (a map of view to sorted lists of 2D hits)
     // and then to build a list of 3D hits to be used in downstream processing
-    BuildChannelStatusVec(m_planeToWireToHitSetMap);
+    BuildChannelStatusVec(m_planeToWireToHitSetMap, ts);
 
     size_t numHitPairs = BuildHitPairMap(m_planeToSnippetHitMap, hitPairList);
 
