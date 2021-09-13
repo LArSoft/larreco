@@ -39,6 +39,7 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <numeric> // std::accumulate
 
 // Ack!
 #include "TH1F.h"

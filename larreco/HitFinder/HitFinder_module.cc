@@ -17,6 +17,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/CCHitFinderAlg.h"

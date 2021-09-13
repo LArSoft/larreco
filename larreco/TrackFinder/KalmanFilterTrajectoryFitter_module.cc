@@ -12,6 +12,7 @@
 
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"

@@ -6,18 +6,18 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            larreco_RecoAlg
            nusimdata_SimulationBase
            lardata_RecoObjects
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art::Framework_Services_Registry
+           art_root_io::TFileService_service
+           art_root_io::tfile_support
            ROOT::Core
            ROOT::Hist
            ROOT::Physics
-           ${MF_MESSAGELOGGER}
+           messagefacility::MF_MessageLogger
          )
 
 simple_plugin(FeatureVertexFinder "module"
-                ${MF_MESSAGELOGGER}
-                ${ART_FRAMEWORK_SERVICES_REGISTRY}
+                messagefacility::MF_MessageLogger
+                art::Framework_Services_Registry
                 ROOT::Core
                 ROOT::Hist
                 larcorealg_Geometry

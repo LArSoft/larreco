@@ -1,10 +1,10 @@
 art_make(LIB_LIBRARIES
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           art_Utilities
-           canvas
-           ${MF_MESSAGELOGGER}
-           cetlib_except
+           art::Framework_Services_Registry
+           art_root_io::TFileService_service
+           art::Utilities
+           canvas::canvas
+           messagefacility::MF_MessageLogger
+           cetlib_except::cetlib_except
            ROOT::Geom
            ROOT::Graf3d
            ROOT::Core

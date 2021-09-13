@@ -49,6 +49,7 @@
 #include "art_root_io/TFileService.h"
 #include "art/Framework/Services/System/TriggerNamesService.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 
 // LArSoft Includes

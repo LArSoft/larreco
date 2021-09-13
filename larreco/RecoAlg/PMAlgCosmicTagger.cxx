@@ -17,6 +17,8 @@
 
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
+#include <numeric> // std::accumulate
+
 void
 pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
                             pma::TrkCandidateColl& tracks)

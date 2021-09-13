@@ -6,9 +6,9 @@
 #  buildtool [-I /install/path] -bt[i] -jN
 # ======================================================================
 
-cmake_minimum_required (VERSION 3.12...3.18 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
-project(larreco LANGUAGES CXX)
+project(larreco VERSION 09.06.12.01 LANGUAGES CXX)
 
 # cetbuildtools contains our cmake modules
 find_package(cetbuildtools REQUIRED)
@@ -27,6 +27,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 cet_report_compiler_flags()
 
 # these are minimum required versions, not the actual product versions
+find_ups_product( eigen )
 find_ups_product( larcoreobj )
 find_ups_product( larcorealg )
 find_ups_product( larcore )
@@ -38,17 +39,20 @@ find_ups_product( larsim )
 find_ups_product( nutools )
 find_ups_product( nug4 )
 find_ups_product( nurandom )
+find_ups_product( nusimdata )
 find_ups_product( art )
 find_ups_product(art_root_io)
+find_ups_product(messagefacility)
 find_ups_product( postgresql )
 find_ups_product( range )
-find_ups_product( eigen )
 find_ups_root()
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
 include(ArtMake)
 include(BuildPlugins)
+
+include_directories( $ENV{EIGEN_INC} )
 
 # source
 add_subdirectory(larreco)
