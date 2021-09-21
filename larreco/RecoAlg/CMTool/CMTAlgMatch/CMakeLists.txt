@@ -1,13 +1,13 @@
 art_make(LIB_LIBRARIES
            larreco_RecoAlg_CMTool_CMToolBase
            larcorealg_Geometry
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ${ART_UTILITIES}
            ROOT::Core
            ROOT::RIO
            ROOT::Tree
-           canvas
-           cetlib_except
+           canvas::canvas
+           cetlib_except::cetlib_except
         )
 
 install_headers()

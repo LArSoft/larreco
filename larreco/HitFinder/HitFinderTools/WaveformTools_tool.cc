@@ -4,6 +4,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
+#include <numeric> // std::inner_product
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 #include "art/Utilities/ToolMacros.h"
 

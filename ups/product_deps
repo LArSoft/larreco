@@ -9,7 +9,7 @@ fwdir  product_dir config_data
 product         version
 larsim		v09_14_09
 eigen		v3_3_9a
-cetbuildtools	v7_17_01	-	only_for_build
+cetbuildtools	v8_15_00	-	only_for_build
 end_product_list
 
 qualifier     larsim         eigen

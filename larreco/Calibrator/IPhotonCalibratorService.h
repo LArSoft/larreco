@@ -10,7 +10,7 @@
 #ifndef IPHOTONCALIBRATORSERVICE_H
 #define IPHOTONCALIBRATORSERVICE_H
 
-#include "art/Framework/Services/Registry/ServiceMacros.h"
+#include "art/Framework/Services/Registry/ServiceDeclarationMacros.h"
 #include "larreco/Calibrator/IPhotonCalibrator.h"
 
 namespace calib {
