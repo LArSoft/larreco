@@ -45,6 +45,7 @@ find_ups_product(art_root_io)
 find_ups_product(messagefacility)
 find_ups_product( postgresql )
 find_ups_product( range )
+find_ups_boost()
 find_ups_root()
 
 # macros for dictionary and simple_plugin
