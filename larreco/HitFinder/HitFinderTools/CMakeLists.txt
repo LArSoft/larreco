@@ -12,7 +12,6 @@ set( hitfinder_tool_lib_list
                         art::Framework_Services_Registry
                         art::Persistency_Common
                         art::Persistency_Provenance
-                        ${ART_FRAMEWORK_SERVICES_BASIC}
                         art_root_io::tfile_support ROOT::Core
             ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
                         art_root_io::TFileService_service
@@ -24,7 +23,6 @@ set( hitfinder_tool_lib_list
                         fhiclcpp::fhiclcpp
                         cetlib::cetlib
                         Boost::filesystem
-                        ${ROOT_BASIC_LIB_LIST}
     )
 
 include(FindOpenMP)
