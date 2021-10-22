@@ -1891,6 +1891,7 @@ namespace tca {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         sfTPs.push_back(tp);
         wire = std::nearbyint(tp.Pos[0]);
+        if (wire >= slc.nWires[pln]) break;
       }
       else {
         // Found the first tp3d in a new SectionFit and it is in a different CTP.

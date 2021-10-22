@@ -9,6 +9,7 @@
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
+#include "art/Utilities/Globals.h"
 #include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"

@@ -40,87 +40,50 @@
 
 //-----------------------------------------------------------------------------
 corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
+  : fCalDataModuleLabel{pset.get<std::string>("CalDataModuleLabel")}
+  , fConversion_algorithm{pset.get<std::string>("Conversion_algorithm")}
+  , fConversion_func{pset.get<std::string>("Conversion_function")}
+  , fTrimming_threshold{pset.get<float>("Trimming_threshold")}
+  , fTrimming_totalThreshold{pset.get<double>("Trimming_totalThreshold")}
+  , fConversion_func_neighborhood{pset.get<int>("Conversion_func_neighborhood")}
+  , fConversion_threshold{pset.get<float>("Conversion_threshold")}
+  , fConversion_bins_per_input_x{pset.get<int>("Conversion_bins_per_input_x")}
+  , fConversion_bins_per_input_y{pset.get<int>("Conversion_bins_per_input_y")}
+  , fDerivative_method{pset.get<std::string>("Derivative_method")}
+  , fDerivative_neighborhood{pset.get<int>("Derivative_neighborhood")}
+  , fDerivative_BlurFunc{pset.get<std::string>("Derivative_BlurFunc")}
+  , fDerivative_BlurNeighborhood{pset.get<int>("Derivative_BlurNeighborhood")}
+  , fCornerScore_neighborhood{pset.get<int>("CornerScore_neighborhood")}
+  , fCornerScore_algorithm{pset.get<std::string>("CornerScore_algorithm")}
+  , fCornerScore_Noble_epsilon{pset.get<float>("CornerScore_Noble_epsilon")}
+  , fCornerScore_Harris_kappa{pset.get<float>("CornerScore_Harris_kappa")}
+  , fMaxSuppress_neighborhood{pset.get<int>("MaxSuppress_neighborhood")}
+  , fMaxSuppress_threshold{pset.get<int>("MaxSuppress_threshold")}
+  , fIntegral_bin_threshold{pset.get<float>("Integral_bin_threshold")}
+  , fIntegral_fraction_threshold{pset.get<float>("Integral_fraction_threshold")}
 {
-  this->reconfigure(pset);
-}
-
-corner::CornerFinderAlg::~CornerFinderAlg(){
-  this->CleanCornerFinderAlg();
+  fTrimming_buffer = std::max({ fConversion_func_neighborhood,
+			  fDerivative_neighborhood,
+			  fDerivative_BlurNeighborhood,
+			  fCornerScore_neighborhood,
+                                fMaxSuppress_neighborhood });
 }
 
 //-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::CleanCornerFinderAlg()
-{
-
-  //for (auto wd_histo : WireData_histos) delete wd_histo;
-  //for (auto wd_histo : WireData_histos_ProjectionX) delete wd_histo;
-  //for (auto wd_histo : WireData_histos_ProjectionY) delete wd_histo;
-  //for (auto histo : fConversion_histos) delete histo;
-  //for (auto histo : fDerivativeX_histos) delete histo;
-  //for (auto histo : fDerivativeY_histos) delete histo;
-  //for (auto histo : fCornerScore_histos) delete histo;
-  //for (auto histo : fMaxSuppress_histos) delete histo;
-
+void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometry){
+  // Reset containers
   WireData_histos.clear();
   WireData_histos_ProjectionX.clear();
   WireData_histos_ProjectionY.clear();
   WireData_IDs.clear();
 
-  //for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
   WireData_trimmed_histos.clear();
-
-}
-
-//-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
-{
-  // ### These are all the tuneable .fcl file parameters from the event ###
-  fCalDataModuleLabel  			 = p.get< std::string 	 >("CalDataModuleLabel");
-  fTrimming_threshold     		 = p.get< float    	 >("Trimming_threshold");
-  fTrimming_totalThreshold                = p.get< double         >("Trimming_totalThreshold");
-  fConversion_threshold     		 = p.get< float    	 >("Conversion_threshold");
-  fConversion_bins_per_input_x  	 = p.get< int      	 >("Conversion_bins_per_input_x");
-  fConversion_bins_per_input_y       	 = p.get< int      	 >("Conversion_bins_per_input_y");
-  fConversion_algorithm                  = p.get< std::string    >("Conversion_algorithm");
-  fConversion_func                       = p.get< std::string    >("Conversion_function");
-  fConversion_func_neighborhood     	 = p.get< int		 >("Conversion_func_neighborhood");
-  fDerivative_method        		 = p.get< std::string    >("Derivative_method");
-  fDerivative_neighborhood     	         = p.get< int		 >("Derivative_neighborhood");
-  fDerivative_BlurFunc        		 = p.get< std::string    >("Derivative_BlurFunc");
-  fDerivative_BlurNeighborhood           = p.get< int		 >("Derivative_BlurNeighborhood");
-  fCornerScore_neighborhood     	 = p.get< int		 >("CornerScore_neighborhood");
-  fCornerScore_algorithm		 = p.get< std::string    >("CornerScore_algorithm");
-  fCornerScore_Noble_epsilon		 = p.get< float          >("CornerScore_Noble_epsilon");
-  fCornerScore_Harris_kappa		 = p.get< float          >("CornerScore_Harris_kappa");
-  fMaxSuppress_neighborhood		 = p.get< int		 >("MaxSuppress_neighborhood");
-  fMaxSuppress_threshold		 = p.get< int		 >("MaxSuppress_threshold");
-  fIntegral_bin_threshold                = p.get< float          >("Integral_bin_threshold");
-  fIntegral_fraction_threshold           = p.get< float          >("Integral_fraction_threshold");
-
-  int neighborhoods[] = { fConversion_func_neighborhood,
-			  fDerivative_neighborhood,
-			  fDerivative_BlurNeighborhood,
-			  fCornerScore_neighborhood,
-			  fMaxSuppress_neighborhood };
-  fTrimming_buffer = *std::max_element(neighborhoods,neighborhoods+5);
-
-}
-
-//-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometry){
-
-  CleanCornerFinderAlg();
 
   // set the sizes of the WireData_histos and WireData_IDs
   unsigned int nPlanes = my_geometry.Nplanes();
   WireData_histos.resize(nPlanes);
   WireData_histos_ProjectionX.resize(nPlanes);
   WireData_histos_ProjectionY.resize(nPlanes);
-  //  fConversion_histos.resize(nPlanes);
-  //  fDerivativeX_histos.resize(nPlanes);
-  //  fDerivativeY_histos.resize(nPlanes);
-  //  fCornerScore_histos.resize(nPlanes);
-  //  fMaxSuppress_histos.resize(nPlanes);
 
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
@@ -197,25 +160,18 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
 void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector,
 						 geo::Geometry const& my_geometry){
-
-
-
   for(auto const& pid : my_geometry.IteratePlaneIDs()){
     attach_feature_points(WireData_histos.at(pid.Plane),
 			  WireData_IDs.at(pid.Plane),
 			  my_geometry.View(pid),
 			  corner_vector);
   }
-
 }
 
 //-----------------------------------------------------------------------------------
 // This gives us a vector of EndPoint2D objects that correspond to possible corners, but quickly!
 void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector,
 						      geo::Geometry const& my_geometry){
-
-
-
   create_smaller_histos(my_geometry);
 
   for(unsigned int cstat = 0; cstat < my_geometry.Ncryostats(); ++cstat){
@@ -232,13 +188,14 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	  << " with start points " << startx << " " << starty;
 
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
-			      WireData_IDs.at(plane),my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
+                              WireData_IDs.at(plane),
+                              my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),
+                              corner_vector,
+                              startx,
+                              starty);
 
 	MF_LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
-
-      //remove_duplicates(corner_vector);
-
     }
   }
 
@@ -249,43 +206,13 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 // Uses line integral score as corner strength
 void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector,
 								   geo::Geometry const& my_geometry){
-
-
-
   for(auto const& pid : my_geometry.IteratePlaneIDs()){
     attach_feature_points_LineIntegralScore(WireData_histos.at(pid.Plane),
 					    WireData_IDs.at(pid.Plane),
 					    my_geometry.View(pid),
 					    corner_vector);
   }
-
 }
-
-//-----------------------------------------------------------------------------------
-// void corner::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
-
-//   int i_wire, j_wire;
-//   float i_time, j_time;
-//   for(size_t i=0; i != corner_vector.size(); i++){
-
-//     i_wire = corner_vector.at(i).WireID().Wire;
-//     i_time = corner_vector.at(i).DriftTime();
-
-//     for(size_t j=i+1; j != corner_vector.size(); j++){
-
-//       j_wire = corner_vector.at(j).WireID().Wire;
-//       j_time = corner_vector.at(j).DriftTime();
-
-//       if(std::abs(i_wire-j_wire) < 5 && std::abs(i_time - j_time) < 10){
-//         corner_vector.erase(corner_vector.begin()+j);
-//         j--;
-//       }
-
-//     }
-
-//   }
-
-// }
 
 struct compare_to_value{
 
@@ -504,7 +431,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
 void corner::CornerFinderAlg::attach_feature_points( TH2F const& h_wire_data,
-						     std::vector<geo::WireID> wireIDs,
+                                                     std::vector<geo::WireID> const& wireIDs,
 						     geo::View_t view,
 						     std::vector<recob::EndPoint2D> & corner_vector,
 						     int startx,
@@ -551,18 +478,17 @@ void corner::CornerFinderAlg::attach_feature_points( TH2F const& h_wire_data,
   create_image_histo(h_wire_data,conversion_histo);
   create_derivative_histograms(conversion_histo,derivativeX_histo,derivativeY_histo);
   create_cornerScore_histogram(derivativeX_histo,derivativeY_histo,cornerScore_histo);
-  perform_maximum_suppression(cornerScore_histo,corner_vector,wireIDs,view,maxSuppress_histo,startx,starty);
+  corner_vector = perform_maximum_suppression(cornerScore_histo,wireIDs,view,maxSuppress_histo,startx,starty);
 }
 
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
 void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F const& h_wire_data,
-								       std::vector<geo::WireID> wireIDs,
+                                                                      std::vector<geo::WireID> const& wireIDs,
 								       geo::View_t view,
-								       std::vector<recob::EndPoint2D> & corner_vector){
-
-
+                                                                      std::vector<recob::EndPoint2D> & corner_vector)
+{
   const int   x_bins = h_wire_data.GetNbinsX();
   const float x_min  = h_wire_data.GetXaxis()->GetBinLowEdge(1);
   const float x_max  = h_wire_data.GetXaxis()->GetBinUpEdge(x_bins);
@@ -580,23 +506,23 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F const
   std::stringstream cornerScore_name; cornerScore_name << "h_cornerScore_"  << view << "_" << run_number << "_" << event_number;
   std::stringstream maxSuppress_name; maxSuppress_name << "h_maxSuppress_"  << view << "_" << run_number << "_" << event_number;
 
-  TH2F h_conversion  ((conversion_name.str()).c_str(),
+  TH2F h_conversion  (conversion_name.str().c_str(),
 		      "Image Conversion Histogram",
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
-  TH2F h_derivative_x((dx_name.str()).c_str(),
+  TH2F h_derivative_x(dx_name.str().c_str(),
 		      "Partial Derivatives (x)",
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
-  TH2F h_derivative_y((dy_name.str()).c_str(),
+  TH2F h_derivative_y(dy_name.str().c_str(),
 		      "Partial Derivatives (y)",
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
-  TH2D h_cornerScore ((cornerScore_name.str()).c_str(),
+  TH2D h_cornerScore (cornerScore_name.str().c_str(),
 		      "Feature Point Corner Score",
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
-  TH2D h_maxSuppress ((maxSuppress_name.str()).c_str(),
+  TH2D h_maxSuppress (maxSuppress_name.str().c_str(),
 		      "Corner Points (Maximum Suppressed)",
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
@@ -605,11 +531,10 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F const
   create_derivative_histograms(h_conversion,h_derivative_x,h_derivative_y);
   create_cornerScore_histogram(h_derivative_x,h_derivative_y,h_cornerScore);
 
-  std::vector<recob::EndPoint2D> corner_vector_tmp;
-  perform_maximum_suppression(h_cornerScore,corner_vector_tmp,wireIDs,view,h_maxSuppress);
+  auto corner_vector_tmp = perform_maximum_suppression(h_cornerScore,wireIDs,view,h_maxSuppress);
 
   std::stringstream LI_name; LI_name << "h_lineIntegralScore_" << view << "_" << run_number << "_" << event_number;
-  TH2F h_lineIntegralScore((LI_name.str()).c_str(),
+  TH2F h_lineIntegralScore(LI_name.str().c_str(),
 			   "Line Integral Score",
 			   x_bins,x_min,x_max,
 			   y_bins,y_min,y_max);
@@ -986,19 +911,17 @@ void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F const& h_derivat
 
 //-----------------------------------------------------------------------------
 // Max Supress
-size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_cornerScore,
-							    std::vector<recob::EndPoint2D> & corner_vector,
+std::vector<recob::EndPoint2D>
+corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_cornerScore,
 							    std::vector<geo::WireID> wireIDs,
 							    geo::View_t view,
 							    TH2D & h_maxSuppress,
 							    int startx,
-                                                            int starty) const {
-
+                                                     int starty) const
+{
+  std::vector<recob::EndPoint2D> corner_vector;
   const int x_bins = h_cornerScore.GetNbinsX();
   const int y_bins = h_cornerScore.GetNbinsY();
-
-  double temp_max;
-  bool temp_center_bin;
 
   for(int iy=1; iy<=y_bins; iy++){
     for(int ix=1; ix<=x_bins; ix++){
@@ -1006,8 +929,8 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_corner
       if(h_cornerScore.GetBinContent(ix,iy) < fMaxSuppress_threshold)
 	continue;
 
-      temp_max = -1000;
-      temp_center_bin = false;
+      double temp_max = -1000;
+      double temp_center_bin = false;
 
       for(int jx=ix-fMaxSuppress_neighborhood; jx<=ix+fMaxSuppress_neighborhood; jx++){
 	for(int jy=iy-fMaxSuppress_neighborhood; jy<=iy+fMaxSuppress_neighborhood; jy++){
@@ -1040,9 +963,7 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_corner
 
     }
   }
-
-  return corner_vector.size();
-
+  return corner_vector;
 }
 
 
@@ -1058,13 +979,8 @@ float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, floa
     return 0;
 
   if(x2<x1){
-    int tmp = x2;
-    x2 = x1;
-    x1 = tmp;
-
-    int tmp_y = y2;
-    y2 = y1;
-    y1 = tmp_y;
+    std::swap(x1, x2);
+    std::swap(y1, y2);
   }
 
   float fraction = 0;
@@ -1098,13 +1014,7 @@ float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, floa
   }
   else{
 
-    int y_min,y_max;
-    if(y1<y2){
-      y_min=y1; y_max=y2;
-    }
-    else{
-      y_min=y2; y_max=y1;
-    }
+    auto const [y_min, y_max] = std::minmax(y1, y2);
     for(int iy=y_min; iy<=y_max; iy++){
 	bin_counter++;
 	if( hist.GetBinContent(x1,iy) > threshold)
@@ -1119,16 +1029,14 @@ float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, floa
 
 //-----------------------------------------------------------------------------
 // Do the silly little line integral score thing
-size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wire_data,
+void corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wire_data,
 								std::vector<recob::EndPoint2D> const & corner_vector,
 								std::vector<recob::EndPoint2D> & corner_lineIntegralScore_vector,
                                                                 TH2F & h_lineIntegralScore) const {
 
-  float score;
-
   for(auto const i_corner : corner_vector){
 
-    score=0;
+    float score=0;
 
     for(auto const j_corner : corner_vector){
 
@@ -1158,8 +1066,6 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wir
 				      score);
 
   }
-
-  return corner_lineIntegralScore_vector.size();
 }
 
 
@@ -1167,54 +1073,3 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wir
 TH2F const& corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane) const {
   return WireData_histos.at(i_plane);
 }
-/*
-TH2F* corner::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
-
-  if(i_plane >= fConversion_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fConversion_histos.at(i_plane);
-}
-
-TH2F* corner::CornerFinderAlg::GetDerivativeXHist(unsigned int i_plane){
-
-  if(i_plane >= fDerivativeX_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fDerivativeX_histos.at(i_plane);
-}
-
-TH2F* corner::CornerFinderAlg::GetDerivativeYHist(unsigned int i_plane){
-
-  if(i_plane >= fDerivativeY_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fDerivativeY_histos.at(i_plane);
-}
-
-TH2D* corner::CornerFinderAlg::GetCornerScoreHist(unsigned int i_plane){
-
-  if(i_plane >= fCornerScore_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fCornerScore_histos.at(i_plane);
-}
-
-TH2D* corner::CornerFinderAlg::GetMaxSuppressHist(unsigned int i_plane){
-
-  if(i_plane >= fMaxSuppress_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
-  return fMaxSuppress_histos.at(i_plane);
-}
-*/

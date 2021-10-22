@@ -7,9 +7,9 @@ art_make(EXCLUDE
            KalmanFilterFitTrackMaker_tool.cc
          MODULE_LIBRARIES
            larreco_RecoAlg
-           nug4_MagneticField_MagneticField_service
+           nug4_MagneticFieldServices_MagneticFieldServiceStandard_service
            ROOT::Core
-           ${MF_MESSAGELOGGER}
+           messagefacility::MF_MessageLogger
          )
 
 simple_plugin(Track3DKalman "module"
@@ -18,15 +18,14 @@ simple_plugin(Track3DKalman "module"
                 larcorealg_Geometry
                 nurandom_RandomUtils_NuRandomService_service
                 nusimdata_SimulationBase
-                ${ART_FRAMEWORK_SERVICES_REGISTRY}
-                ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-                ${ART_ROOT_IO_TFILE_SUPPORT}
-                ${CLHEP}
+                art::Framework_Services_Registry
+                art_root_io::TFileService_service
+                art_root_io::tfile_support
                 ROOT::Core
                 ROOT::Matrix
                 ROOT::Physics
                 ROOT::Tree
-                ${MF_MESSAGELOGGER}
+                messagefacility::MF_MessageLogger
               )
 
 simple_plugin(Track3DKalmanSPS "module"
@@ -34,10 +33,10 @@ simple_plugin(Track3DKalmanSPS "module"
                 lardataobj_RecoBase
                 larcorealg_Geometry
                 nusimdata_SimulationBase
-                ${ART_FRAMEWORK_SERVICES_REGISTRY}
-                ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-                ${ART_ROOT_IO_TFILE_SUPPORT}
-                ${MF_MESSAGELOGGER}
+                art::Framework_Services_Registry
+                art_root_io::TFileService_service
+                art_root_io::tfile_support
+                messagefacility::MF_MessageLogger
                 ROOT::Core
                 ROOT::Hist
                 ROOT::Matrix
@@ -46,7 +45,7 @@ simple_plugin(Track3DKalmanSPS "module"
               )
 
 simple_plugin(KalmanFilterFitTrackMaker "tool"
-                canvas
+                canvas::canvas
                 lardataobj_RecoBase
                 larreco_RecoAlg
               )

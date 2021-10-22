@@ -1,12 +1,11 @@
 art_make(LIB_LIBRARIES
            larcorealg_Geometry
            larreco_Calorimetry
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
-           canvas
-           ${MF_MESSAGELOGGER}
-           cetlib_except
-           ${CLHEP}
+           canvas::canvas
+           messagefacility::MF_MessageLogger
+           cetlib_except::cetlib_except
         )
 
 install_headers()

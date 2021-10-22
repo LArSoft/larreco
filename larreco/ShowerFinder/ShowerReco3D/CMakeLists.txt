@@ -6,19 +6,19 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_CMTool_CMToolBase
            larreco_RecoAlg_CMTool_CMTAlgPriority
            larreco_RecoAlg_CMTool_CMTAlgMatch
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Services_Registry
            ROOT::Core
-           canvas
-           cetlib_except
+           canvas::canvas
+           cetlib_except::cetlib_except
          MODULE_LIBRARIES
            larreco_MCComp
            larreco_ShowerFinder_ShowerReco3D
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art::Framework_Services_Registry
+           art_root_io::TFileService_service
+           art_root_io::tfile_support
            ROOT::Core
            ROOT::Physics
-           ${MF_MESSAGELOGGER}
+           messagefacility::MF_MessageLogger
          )
 
 install_headers()

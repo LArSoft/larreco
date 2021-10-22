@@ -480,6 +480,7 @@ namespace lar_cluster3d {
     /**
      *   Algorithm parameters
      */
+    bool m_onlyMakSpacePoints;    ///< If true we don't do the full cluster 3D processing
     bool m_enableMonitoring;      ///< Turn on monitoring of this algorithm
     float m_parallelHitsCosAng;   ///< Cut for PCA 3rd axis angle to X axis
     float m_parallelHitsTransWid; ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
@@ -539,6 +540,7 @@ namespace lar_cluster3d {
     , m_pcaSeedFinderAlg(pset.get<fhicl::ParameterSet>("PCASeedFinderAlg"))
     , m_parallelHitsAlg(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"))
   {
+    m_onlyMakSpacePoints = pset.get<bool>("MakeSpacePointsOnly", false);
     m_enableMonitoring = pset.get<bool>("EnableMonitoring", false);
     m_parallelHitsCosAng = pset.get<float>("ParallelHitsCosAng", 0.999);
     m_parallelHitsTransWid = pset.get<float>("ParallelHitsTransWid", 25.0);
@@ -625,12 +627,23 @@ namespace lar_cluster3d {
     // Get instances of the primary data structures needed
     reco::ClusterParametersList clusterParametersList;
     IHit3DBuilder::RecobHitToPtrMap clusterHitToArtPtrMap;
-    reco::HitPairList hitPairList;
+    std::unique_ptr<reco::HitPairList> hitPairList(
+      new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
 
-    m_hit3DBuilderAlg->Hit3DBuilder(evt, hitPairList, clusterHitToArtPtrMap);
-    m_clusterAlg->Cluster3DHits(hitPairList, clusterParametersList);
-    m_clusterMergeAlg->ModifyClusters(clusterParametersList);
-    m_clusterPathAlg->ModifyClusters(clusterParametersList);
+    // Call the algorithm that builds 3D hits and stores the hit collection
+    m_hit3DBuilderAlg->Hit3DBuilder(evt, *hitPairList, clusterHitToArtPtrMap);
+
+    // Only do the rest if we are not in the mode of only building space points (requested by ML folks)
+    if (!m_onlyMakSpacePoints) {
+      // Call the main workhorse algorithm for building the local version of candidate 3D clusters
+      m_clusterAlg->Cluster3DHits(*hitPairList, clusterParametersList);
+
+      // Try merging clusters
+      m_clusterMergeAlg->ModifyClusters(clusterParametersList);
+
+      // Run the path finding
+      m_clusterPathAlg->ModifyClusters(clusterParametersList);
+    }
 
     if (m_enableMonitoring) theClockFinish.start();
 
@@ -643,7 +656,7 @@ namespace lar_cluster3d {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
     util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(), clockData, detProp};
-    ProduceArtClusters(gser, output, hitPairList, clusterParametersList, clusterHitToArtPtrMap);
+    ProduceArtClusters(gser, output, *hitPairList, clusterParametersList, clusterHitToArtPtrMap);
 
     // Output to art
     output.outputObjects();
@@ -665,7 +678,7 @@ namespace lar_cluster3d {
       m_pathFindingTime = m_clusterPathAlg->getTimeToExecute();
       m_finishTime = theClockFinish.accumulated_real_time();
       m_hits = static_cast<int>(clusterHitToArtPtrMap.size());
-      m_hits3D = static_cast<int>(hitPairList.size());
+      m_hits3D = static_cast<int>(hitPairList->size());
       m_pRecoTree->Fill();
 
       mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime
