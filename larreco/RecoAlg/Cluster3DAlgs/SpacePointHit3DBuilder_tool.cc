@@ -40,6 +40,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <numeric> // std::accumulate
 
 // Ack!
 #include "TTree.h"

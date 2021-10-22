@@ -10,6 +10,7 @@
 #include <optional>
 #include <cmath>
 #include <limits> // std::numeric_limits<>
+#include <numeric> // std::accumulate
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
@@ -146,6 +147,8 @@ class GnocchiCalorimetry: public art::EDProducer {
     bool HitIsValid(const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *thm, const recob::Track &track);
     geo::Point_t GetLocation(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
     geo::Point_t GetLocationAtWires(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
+    geo::Point_t WireToTrajectoryPosition(const geo::Point_t &loc, const geo::TPCID &tpc);
+    geo::Point_t TrajectoryToWirePosition(const geo::Point_t &loc, const geo::TPCID &tpc);
     double GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
     double GetCharge(const art::Ptr<recob::Hit> hit);
     double GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
@@ -437,39 +440,50 @@ bool calo::GnocchiCalorimetry::HitIsValid(const art::Ptr<recob::Hit> hit, const 
 }
 
 geo::Point_t calo::GnocchiCalorimetry::GetLocation(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
+  geo::Point_t loc = track.LocationAtPoint(meta->Index());
+  return !fConfig.TrackIsFieldDistortionCorrected() ? WireToTrajectoryPosition(loc, hit->WireID()) : loc;
+}
+
+geo::Point_t calo::GnocchiCalorimetry::WireToTrajectoryPosition(const geo::Point_t &loc, const geo::TPCID &tpc) {
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
-  geo::Point_t loc = track.LocationAtPoint(meta->Index());
+  geo::Point_t ret = loc;
 
-  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && !fConfig.TrackIsFieldDistortionCorrected()) {
-    geo::Vector_t offset = sce->GetCalPosOffsets(loc, hit->WireID().TPC);
-    loc.SetX(loc.X() + fConfig.FieldDistortionCorrectionXSign() * offset.X());
-    loc.SetY(loc.Y() + offset.Y());
-    loc.SetZ(loc.Z() + offset.Z());
+  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion()) {
+    geo::Vector_t offset = sce->GetCalPosOffsets(ret, tpc.TPC);
+
+    ret.SetX(ret.X() + fConfig.FieldDistortionCorrectionXSign() * offset.X());
+    ret.SetY(ret.Y() + offset.Y());
+    ret.SetZ(ret.Z() + offset.Z());
   }
 
-  return loc;
+  return ret;
+  
 }
 
 geo::Point_t calo::GnocchiCalorimetry::GetLocationAtWires(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
-  auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
-
   geo::Point_t loc = track.LocationAtPoint(meta->Index());
+  return fConfig.TrackIsFieldDistortionCorrected() ? TrajectoryToWirePosition(loc, hit->WireID()) : loc;
+}
 
-  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && fConfig.TrackIsFieldDistortionCorrected()) {
-    // fix negative sign in TPC 0
-    int corr = 1;
-    float xx = loc.X();
-    if (xx < 0) { corr = -1; }
+geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point_t &loc, const geo::TPCID &tpc) {
+  auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
+  art::ServiceHandle<geo::Geometry const> geom;
 
-    // for some reason, one needs to flip the sign of the x-direction when correcting for field distortion
-    geo::Vector_t offset = sce->GetPosOffsets(loc);
-    loc.SetX(loc.X() + corr*fConfig.FieldDistortionCorrectionXSign() * offset.X());
-    loc.SetY(loc.Y() + offset.Y());
-    loc.SetZ(loc.Z() + offset.Z());
+  geo::Point_t ret = loc;
+
+  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion()) {
+    // Returned X is the drift -- multiply by the drift direction to undo this
+    int corr = geom->TPC(tpc.TPC).DriftDir()[0];
+
+    geo::Vector_t offset = sce->GetPosOffsets(ret);
+
+    ret.SetX(ret.X() + corr * fConfig.FieldDistortionCorrectionXSign() * offset.X());
+    ret.SetY(ret.Y() + offset.Y());
+    ret.SetZ(ret.Z() + offset.Z());
   }
 
-  return loc;
+  return ret;
 }
 
 double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
@@ -485,27 +499,16 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
   // seen by the wire planes
   if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && fConfig.TrackIsFieldDistortionCorrected()) {
     geo::Point_t loc = track.LocationAtPoint(meta->Index());
-    // fix negative sign in TPC 0
-    int corr = 1;
-    float xx = loc.X();
-    if (xx < 0) { corr = -1; }
 
     // compute the dir of the track trajectory
     geo::Vector_t track_dir = track.DirectionAtPoint(meta->Index());
     geo::Point_t loc_mdx = loc - track_dir * (geom->WirePitch(hit->View()) / 2.);
     geo::Point_t loc_pdx = loc + track_dir * (geom->WirePitch(hit->View()) / 2.);
 
-    geo::Vector_t loc_mdx_offset = sce->GetPosOffsets(loc_mdx);
+    loc_mdx = TrajectoryToWirePosition(loc_mdx, hit->WireID());
+    loc_pdx = TrajectoryToWirePosition(loc_pdx, hit->WireID());
 
-    loc_mdx.SetX(loc_mdx.X() + corr*fConfig.FieldDistortionCorrectionXSign() * loc_mdx_offset.X());
-    loc_mdx.SetY(loc_mdx.Y() + loc_mdx_offset.Y());
-    loc_mdx.SetZ(loc_mdx.Z() + loc_mdx_offset.Z());
-
-    geo::Vector_t loc_pdx_offset = sce->GetPosOffsets(loc_pdx);
-    loc_pdx.SetX(loc_pdx.X() + corr*fConfig.FieldDistortionCorrectionXSign() * loc_pdx_offset.X());
-    loc_pdx.SetY(loc_pdx.Y() + loc_pdx_offset.Y());
-    loc_pdx.SetZ(loc_pdx.Z() + loc_pdx_offset.Z());
-
+    // Direction at wires
     dir = (loc_pdx - loc_mdx) /  (loc_mdx - loc_pdx).r(); 
   }
   // If there is no space charge or the track is not yet corrected, then the dir
@@ -526,17 +529,10 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
   // now take the pitch computed on the wires and correct it back to the particle trajectory
   geo::Point_t loc_w = GetLocationAtWires(track, hit, meta);
 
-  geo::Vector_t dirOffsets = {0., 0., 0.};
-  geo::Vector_t locOffsets = {0., 0., 0.};
-  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion()) {
-    dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc_w.X()  + pitch*dir.X(), loc_w.Y() + pitch*dir.Y(), loc_w.Z() + pitch*dir.Z()}, hit->WireID().TPC);
-    locOffsets = sce->GetCalPosOffsets(loc_w, hit->WireID().TPC);
-  }
+  geo::Point_t locw_pdx_traj = WireToTrajectoryPosition(loc_w + pitch*dir, hit->WireID());
+  geo::Point_t loc = WireToTrajectoryPosition(loc_w, hit->WireID());
 
-  const TVector3 &dir_corr {pitch*dir.X() + fConfig.FieldDistortionCorrectionXSign() * (dirOffsets.X() - locOffsets.X()),  
-                            pitch*dir.Y() + (dirOffsets.Y() - locOffsets.Y()), pitch*dir.Z() + (dirOffsets.Z() - locOffsets.Z())};
-
-  pitch = dir_corr.Mag();
+  pitch = (locw_pdx_traj - loc).R();
 
   return pitch;
 }

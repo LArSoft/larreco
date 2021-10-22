@@ -2,11 +2,11 @@ art_make(MODULE_LIBRARIES
   lardataalg_DetectorInfo
   larcorealg_Geometry
   lardataobj_RecoBase
-  ${ART_FRAMEWORK_SERVICES_REGISTRY}
-  ${ROOT_CORE}
-  ${ROOT_PHYSICS}
-  ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-  ${MF_MESSAGELOGGER}
+  art::Framework_Services_Registry
+  ROOT::Core
+  ROOT::Physics
+  art_root_io::TFileService_service
+  messagefacility::MF_MessageLogger
   )
 
 install_headers()

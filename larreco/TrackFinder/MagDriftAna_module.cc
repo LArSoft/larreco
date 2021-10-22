@@ -34,7 +34,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
-#include "nug4/MagneticField/MagneticField.h"
+#include "nug4/MagneticFieldServices/MagneticFieldService.h" 
 
 /// Detector simulation of raw signals on wires
 namespace hit {
@@ -104,7 +104,9 @@ namespace hit {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
-    art::ServiceHandle<mag::MagneticField const> MagField;
+    // art::ServiceHandle<mag::MagneticField const> MagField;
+    art::ServiceHandle<mag::MagneticFieldService const> MagFieldHandle;
+    auto const* MagField = MagFieldHandle->provider();
     double Efield = detProp.Efield();
     double Temperature = detProp.Temperature();
     double DriftVelocity = detProp.DriftVelocity(Efield, Temperature) / 1000.;

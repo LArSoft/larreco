@@ -7,15 +7,15 @@ art_make(LIB_LIBRARIES
            lardataalg_DetectorInfo
            larcorealg_Geometry
            larreco_Calorimetry
-           ${ART_FRAMEWORK_PRINCIPAL}
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+           art::Framework_Principal
+           art::Framework_Services_Registry
            ${ART_PERSISTENCY_PROVENANCE}
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art_root_io::TFileService_service
+           art_root_io::tfile_support
            ${ART_UTILITIES}
            ${CANVAS}
            ${CETLIB_EXCEPT}
-           ${CETLIB}
+           cetlib::cetlib
            ROOT::Core
            ROOT::GenVector
            ROOT::Gpad

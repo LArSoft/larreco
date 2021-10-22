@@ -1,3 +1,4 @@
+
 art_make(LIB_LIBRARIES
            lardataalg_DetectorInfo
            larcorealg_Geometry
@@ -10,9 +11,9 @@ art_make(LIB_LIBRARIES
            ROOT::Physics
            ROOT::Matrix
            ROOT::Minuit
-           canvas
-           ${FHICLCPP}
-           cetlib_except
+           canvas::canvas
+           fhiclcpp::fhiclcpp
+           cetlib_except::cetlib_except
         )
 
 add_subdirectory(CMTool)

@@ -10,10 +10,10 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardata_ArtDataHelper
            lardata_RecoObjects
-           ${ART_FRAMEWORK_CORE}
-           ${ART_FRAMEWORK_PRINCIPAL}
-           ${ART_FRAMEWORK_SERVICES_REGISTRY}
-           ${ART_ROOT_IO_TFILE_SUPPORT}
+           art::Framework_Core
+           art::Framework_Principal
+           art::Framework_Services_Registry
+           art_root_io::tfile_support
            ${ART_UTILITIES}
            ROOT::Core
            ROOT::Gpad
@@ -21,13 +21,13 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Physics
            ROOT::Tree
-           ${ART_ROOT_IO_TFILESERVICE_SERVICE}
-           art_Persistency_Provenance
-           canvas
-           ${MF_MESSAGELOGGER}
-           ${FHICLCPP}
-           ${CETLIB}
-           cetlib_except
+           art_root_io::TFileService_service
+           art::Persistency_Provenance
+           canvas::canvas
+           messagefacility::MF_MessageLogger
+           fhiclcpp::fhiclcpp
+           cetlib::cetlib
+           cetlib_except::cetlib_except
           TOOL_LIBRARIES larreco_RecoAlg_Cluster3DAlgs
         )
 
