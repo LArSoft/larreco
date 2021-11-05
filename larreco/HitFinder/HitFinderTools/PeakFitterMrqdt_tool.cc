@@ -1,4 +1,4 @@
-#include "lardata/Utilities/MarqFitAlg.h" //marqfit functions
+#include "larvecutils/MarqFitAlg/MarqFitAlg.h" //marqfit functions
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
 #include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
 

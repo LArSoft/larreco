@@ -6,6 +6,7 @@ set( hitfinder_tool_lib_list
                         lardataobj_RecoBase
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
+                        larvecutils_MarqFitAlg
                         nurandom::RandomUtils_NuRandomService_service
                         art::Framework_Core
                         art::Framework_Principal
