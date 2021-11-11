@@ -357,7 +357,9 @@ int
 trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& traj,
                                                  const int tkID) const
 {
-  if (pidFromColl_) { return pid->at(tkID).Pdg(); }
+  if (pidFromColl_) {
+    return -1; //pid->at(tkID).Pdg();
+  }
   if (mom_len_cut_ > 0.) { return (traj.Length() < mom_len_cut_ ? 2212 : 13); }
   return pid_def_;
 }
