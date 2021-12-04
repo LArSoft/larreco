@@ -6,14 +6,14 @@ set( hitfinder_tool_lib_list
                         lardataobj_RecoBase
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        nurandom_RandomUtils_NuRandomService_service
+                        nurandom::RandomUtils_NuRandomService_service
                         art::Framework_Core
                         art::Framework_Principal
                         art::Framework_Services_Registry
                         art::Persistency_Common
                         art::Persistency_Provenance
                         art_root_io::tfile_support ROOT::Core
-            ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
+            art::Framework_Services_Optional_RandomNumberGenerator_service
                         art_root_io::TFileService_service
                         ${ART_FRAMEWORK_SERVICES_SYSTEM_FILECATALOGMETADATA_SERVICE}
                         art::Utilities

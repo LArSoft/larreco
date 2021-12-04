@@ -4,7 +4,7 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            lardataobj_RecoBase
            larcorealg_Geometry
            larreco_RecoAlg
-           nusimdata_SimulationBase
+           nusimdata::SimulationBase
            lardata_RecoObjects
            art::Framework_Services_Registry
            art_root_io::TFileService_service
