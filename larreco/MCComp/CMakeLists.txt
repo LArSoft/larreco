@@ -10,6 +10,7 @@ art_make(LIB_LIBRARIES
          MODULE_LIBRARIES
            larreco_MCComp
            larcorealg_Geometry
+           nusimdata::SimulationBase
            art::Framework_Services_Registry
            ROOT::Core
          )

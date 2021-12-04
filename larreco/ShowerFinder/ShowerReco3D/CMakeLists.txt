@@ -13,6 +13,7 @@ art_make(LIB_LIBRARIES
          MODULE_LIBRARIES
            larreco_MCComp
            larreco_ShowerFinder_ShowerReco3D
+           nusimdata::SimulationBase
            art::Framework_Services_Registry
            art_root_io::TFileService_service
            art_root_io::tfile_support

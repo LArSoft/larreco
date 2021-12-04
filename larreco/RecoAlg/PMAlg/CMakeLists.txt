@@ -10,6 +10,7 @@ art_make(LIB_LIBRARIES
            ROOT::Matrix
            ROOT::Physics
            ROOT::Minuit2
+           range-v3::range-v3
         )
 
 install_headers()
