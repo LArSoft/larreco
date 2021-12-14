@@ -8,7 +8,7 @@ art_make(LIB_LIBRARIES
            lardataalg_DetectorInfo
            lardataobj_RecoBase
            larreco_QuadVtx
-           nusimdata_SimulationBase
+           nusimdata::SimulationBase
            lardata_ArtDataHelper
            art_root_io::TFileService_service
            art_root_io::tfile_support

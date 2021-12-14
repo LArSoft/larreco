@@ -8,7 +8,7 @@ art_make(LIB_LIBRARIES
            fhiclcpp::fhiclcpp
            cetlib_except::cetlib_except
            ROOT::Core
-           ${ART_UTILITIES}
+           art::Utilities
          MODULE_LIBRARIES
            larreco_HitFinder
            larsim_MCCheater_BackTrackerService_service

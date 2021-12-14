@@ -9,8 +9,8 @@ art_make(LIB_LIBRARIES
            larsim_MCCheater_ParticleInventoryService_service
            lardataobj_AnalysisBase
            lardataobj_RecoBase
-           nurandom_RandomUtils_NuRandomService_service
-           nusimdata_SimulationBase
+           nurandom::RandomUtils_NuRandomService_service
+           nusimdata::SimulationBase
            art::Framework_Services_Registry
            art_root_io::tfile_support
            ROOT::Core
