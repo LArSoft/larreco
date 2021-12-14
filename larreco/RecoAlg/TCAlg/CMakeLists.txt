@@ -1,20 +1,20 @@
 art_make(LIB_LIBRARIES
            larsim_MCCheater_BackTrackerService_service
            larsim_MCCheater_ParticleInventoryService_service
-           nug4_ParticleNavigation
-           nusimdata_SimulationBase
+           nug4::ParticleNavigation
+           nusimdata::SimulationBase
            lardata_RecoObjects
            lardataalg_DetectorInfo
            larcorealg_Geometry
            larreco_Calorimetry
            art::Framework_Principal
            art::Framework_Services_Registry
-           ${ART_PERSISTENCY_PROVENANCE}
+           art::Persistency_Provenance
            art_root_io::TFileService_service
            art_root_io::tfile_support
-           ${ART_UTILITIES}
-           ${CANVAS}
-           ${CETLIB_EXCEPT}
+           art::Utilities
+           canvas::canvas
+           cetlib_except::cetlib_except
            cetlib::cetlib
            ROOT::Core
            ROOT::GenVector

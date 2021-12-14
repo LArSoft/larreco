@@ -5,9 +5,9 @@ art_make(LIB_LIBRARIES
            larcorealg_Geometry
            lardataalg_DetectorInfo
            art::Framework_Services_Registry
-           ${ART_UTILITIES}
-           ${CANVAS}
-           ${CETLIB_EXCEPT}
+           art::Utilities
+           canvas::canvas
+           cetlib_except::cetlib_except
            ROOT::Core
            ROOT::Physics
          MODULE_LIBRARIES

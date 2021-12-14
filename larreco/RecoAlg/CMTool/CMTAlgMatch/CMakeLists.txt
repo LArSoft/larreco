@@ -2,7 +2,7 @@ art_make(LIB_LIBRARIES
            larreco_RecoAlg_CMTool_CMToolBase
            larcorealg_Geometry
            art::Framework_Services_Registry
-           ${ART_UTILITIES}
+           art::Utilities
            ROOT::Core
            ROOT::RIO
            ROOT::Tree
