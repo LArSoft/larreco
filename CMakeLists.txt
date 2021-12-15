@@ -47,6 +47,7 @@ find_ups_product( lardataalg )
 find_ups_product( lardata )
 find_ups_product( larevt )
 find_ups_product( larsim )
+find_ups_product( larvecutils )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
