@@ -8,12 +8,13 @@
 
 cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
-project(larreco VERSION 09.08.02 LANGUAGES CXX)
+project(larreco LANGUAGES CXX)
 
 # cetbuildtools contains our cmake modules
 find_package(cetbuildtools REQUIRED)
 
 include(CetCMakeEnv)
+set(${PROJECT}_CMAKE_PROJECT_VERSION_STRING 09.09.00-rc0)
 cet_cmake_env()
 
 cet_set_compiler_flags(DIAGS CAUTIOUS
