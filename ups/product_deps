@@ -8,7 +8,7 @@ fwdir  product_dir config_data
 #
 product         version
 larsim		v09_22_07
-eigen		v3_3_9a
+eigen		v3_4_0
 cetbuildtools	v8_19_02	-	only_for_build
 end_product_list
 
