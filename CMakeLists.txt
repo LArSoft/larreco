@@ -8,7 +8,7 @@
 
 cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
-project(larreco VERSION 09.10.01 LANGUAGES CXX)
+project(larreco VERSION 09.10.01.01 LANGUAGES CXX)
 
 # cetbuildtools contains our cmake modules
 find_package(cetbuildtools REQUIRED)
@@ -25,7 +25,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 cet_report_compiler_flags()
 
 find_package(Range-v3 REQUIRED PUBLIC)
-find_package (Eigen3 3.3...3.3.9 REQUIRED NO_MODULE)
+find_package (Eigen3 REQUIRED NO_MODULE)
 find_package(messagefacility REQUIRED PUBLIC)
 find_package(canvas_root_io REQUIRED)
 find_package(art REQUIRED PUBLIC)
