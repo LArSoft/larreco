@@ -13,7 +13,7 @@ art_make(EXCLUDE FeatureVertexFinder_module.cc
            ROOT::Hist
            ROOT::Physics
            messagefacility::MF_MessageLogger
-         )
+         ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
 
 simple_plugin(FeatureVertexFinder "module"
                 messagefacility::MF_MessageLogger
@@ -23,7 +23,7 @@ simple_plugin(FeatureVertexFinder "module"
                 larcorealg_Geometry
                 lardataalg_DetectorInfo
                 lardataobj_RecoBase
-              )
+              ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use cet_build_plugin() with explicit source lists and plugin base types
 
 install_fhicl()
 install_source()

@@ -14,7 +14,7 @@ art_make(LIB_LIBRARIES
            canvas::canvas
            fhiclcpp::fhiclcpp
            cetlib_except::cetlib_except
-        )
+        ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
 
 add_subdirectory(CMTool)
 add_subdirectory(ClusterRecoUtil)
