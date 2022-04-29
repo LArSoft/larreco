@@ -1,17 +1,32 @@
-art_make(LIB_LIBRARIES
-           larcorealg_Geometry
-           lardataalg_DetectorInfo
-           art::Framework_Services_Registry
-           art::Utilities
-           canvas::canvas
-           cetlib_except::cetlib_except
-           messagefacility::MF_MessageLogger
-           ROOT::Core
-           ROOT::Matrix
-           ROOT::Physics
-           ROOT::Minuit2
-           range-v3::range-v3
-        ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE
+  PmaElement3D.cxx
+  PmaHit3D.cxx
+  PmaNode3D.cxx
+  PmaSegment3D.cxx
+  PmaTrack3D.cxx
+  PmaTrkCandidate.cxx
+  PmaVtxCandidate.cxx
+  SortedObjects.cxx
+  Utilities.cxx
+  LIBRARIES
+  PUBLIC
+  lardataobj::RecoBase
+  larcoreobj::SimpleTypesAndConstants
+  canvas::canvas
+  ROOT::GenVector
+  ROOT::Physics
+  PRIVATE
+  larcore::Geometry_Geometry_service
+  larcore::ServiceUtil
+  larcorealg::Geometry
+  lardataalg::DetectorInfo
+  art::Framework_Services_Registry
+  messagefacility::MF_MessageLogger
+  cetlib::cetlib
+  ROOT::MathCore
+  ROOT::Matrix
+  range-v3::range-v3
+)
 
 install_headers()
 install_fhicl()

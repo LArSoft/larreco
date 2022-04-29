@@ -1,4 +1,4 @@
-#include "CMergeManager.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
 
 #include "RtypesCore.h"
 #include "TString.h"

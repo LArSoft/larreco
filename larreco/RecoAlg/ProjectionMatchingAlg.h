@@ -22,13 +22,17 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
-#include "fhiclcpp/fwd.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
+#include "fhiclcpp/types/Table.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 namespace detinfo {
@@ -38,12 +42,17 @@ namespace geo {
   class GeometryCore;
   class TPCGeo;
 }
+namespace img {
+  class DataProviderAlg;
+} 
 namespace lariov {
   class ChannelStatusProvider;
 }
 
 // ROOT & C++
+#include <map>
 #include <memory>
+#include <vector>
 class TH1F;
 
 namespace pma {

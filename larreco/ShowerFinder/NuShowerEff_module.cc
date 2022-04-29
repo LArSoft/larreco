@@ -30,6 +30,7 @@
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 
 // ROOT includes
 #include "TTree.h"

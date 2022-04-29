@@ -12,7 +12,9 @@
 
 // The main include
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
+
 // Framework Includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"

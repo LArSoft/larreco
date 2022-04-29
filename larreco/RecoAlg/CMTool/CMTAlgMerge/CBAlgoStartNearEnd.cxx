@@ -1,4 +1,4 @@
-#include "CBAlgoStartNearEnd.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoStartNearEnd.h"
 
 namespace cmtool {
 

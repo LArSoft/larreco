@@ -33,6 +33,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/SharedProducer.h"
 #include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/Globals.h"
 #include "art/Utilities/make_tool.h"
 #include "art_root_io/TFileService.h"
@@ -40,7 +41,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft Includes
-#include "HitFilterAlg.h"
+#include "larreco/HitFinder/HitFilterAlg.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/HitCreator.h"

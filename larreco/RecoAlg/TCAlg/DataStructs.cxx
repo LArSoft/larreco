@@ -1,5 +1,6 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
+#include <string>
 #include <vector>
 
 namespace tca {

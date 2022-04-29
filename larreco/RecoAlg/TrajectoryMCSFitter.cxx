@@ -1,7 +1,11 @@
 #include "TrajectoryMCSFitter.h"
 #include "larcorealg/Geometry/geo_vectors_utils.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
+
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 

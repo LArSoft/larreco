@@ -1,4 +1,4 @@
-#include "CBAlgoPolyContain.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoPolyContain.h"
 
 namespace cmtool {
 

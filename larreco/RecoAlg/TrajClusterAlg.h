@@ -15,15 +15,13 @@
 #include <vector>
 
 // framework libraries
-#include "fhiclcpp/fwd.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "larreco/RecoAlg/TCAlg/TCVertex.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 namespace detinfo {
   class DetectorClocksData;
 }

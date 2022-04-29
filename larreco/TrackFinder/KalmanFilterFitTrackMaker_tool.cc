@@ -4,6 +4,7 @@
 #include "fhiclcpp/types/Sequence.h"
 
 #include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Principal/Event.h"
 
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
@@ -196,8 +197,8 @@ namespace trkmkr {
                        const recob::TrackTrajectory& traj,
                        const int tkID,
                        const std::vector<art::Ptr<recob::Hit>>& inHits,
-                       const SMatrixSym55& covVtx,
-                       const SMatrixSym55& covEnd,
+                       const recob::tracking::SMatrixSym55& covVtx,
+                       const recob::tracking::SMatrixSym55& covEnd,
                        recob::Track& outTrack,
                        std::vector<art::Ptr<recob::Hit>>& outHits,
                        OptionalOutputs& optionals) const;
@@ -292,8 +293,8 @@ trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const detinfo::DetectorProperti
                                                  const recob::TrackTrajectory& traj,
                                                  const int tkID,
                                                  const std::vector<art::Ptr<recob::Hit>>& inHits,
-                                                 const SMatrixSym55& covVtx,
-                                                 const SMatrixSym55& covEnd,
+                                                 const recob::tracking::SMatrixSym55& covVtx,
+                                                 const recob::tracking::SMatrixSym55& covEnd,
                                                  recob::Track& outTrack,
                                                  std::vector<art::Ptr<recob::Hit>>& outHits,
                                                  OptionalOutputs& optionals) const

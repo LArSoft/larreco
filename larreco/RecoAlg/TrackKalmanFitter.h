@@ -1,12 +1,16 @@
 #ifndef TRACKKALMANFITTER_H
 #define TRACKKALMANFITTER_H
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Table.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoObjects/KFTrackState.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/TrajectoryPointFlags.h"
 
 namespace detinfo {
@@ -14,7 +18,6 @@ namespace detinfo {
 }
 
 namespace recob {
-  class Hit;
   class Track;
   class TrackTrajectory;
 }
@@ -22,6 +25,9 @@ namespace recob {
 namespace trkmkr {
   struct OptionalOutputs;
 }
+
+#include <limits>
+#include <vector>
 
 namespace trkf {
 

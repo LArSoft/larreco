@@ -1,4 +1,4 @@
-#include "CPAlgoArray.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoArray.h"
 
 namespace cmtool {
 

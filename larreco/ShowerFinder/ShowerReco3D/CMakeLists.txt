@@ -1,26 +1,62 @@
 add_subdirectory(job)
 
-art_make(LIB_LIBRARIES
-           lardata_Utilities
-           larreco_Calorimetry
-           larreco_RecoAlg_CMTool_CMToolBase
-           larreco_RecoAlg_CMTool_CMTAlgPriority
-           larreco_RecoAlg_CMTool_CMTAlgMatch
-           art::Framework_Services_Registry
-           ROOT::Core
-           canvas::canvas
-           cetlib_except::cetlib_except
-         MODULE_LIBRARIES
-           larreco_MCComp
-           larreco_ShowerFinder_ShowerReco3D
-           nusimdata::SimulationBase
-           art::Framework_Services_Registry
-           art_root_io::TFileService_service
-           art_root_io::tfile_support
-           ROOT::Core
-           ROOT::Physics
-           messagefacility::MF_MessageLogger
-         ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE
+  ShowerCalo.cxx
+  ShowerRecoAlg.cxx
+  ShowerRecoAlgBase.cxx
+  ShowerRecoException.cxx
+  ShowerRecoManager.cxx
+  LIBRARIES
+  PUBLIC
+  lardata::headers
+  lardataobj::RecoBase
+  PRIVATE
+  larreco::RecoAlg_CMTool_CMToolBase
+  larreco::RecoAlg_ClusterRecoUtil
+  larreco::Calorimetry
+  lardata::Utilities
+  larcoreobj::SimpleTypesAndConstants
+  art::Framework_Services_Registry
+  ROOT::Core
+  ROOT::Hist
+  ROOT::MathCore
+)
+
+cet_build_plugin(ShowerQuality art::EDAnalyzer
+  LIBRARIES PRIVATE
+  larreco::MCComp
+  lardata::DetectorClocksService
+  larcore::Geometry_Geometry_service
+  lardataobj::MCBase
+  lardataobj::RecoBase
+  art_root_io::TFileService_service
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  fhiclcpp::fhiclcpp
+  ROOT::Hist
+  ROOT::Tree
+)
+
+cet_build_plugin(ShowerReco3D art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::ShowerFinder_ShowerReco3D
+  larcore::Geometry_Geometry_service
+  larcore::ServiceUtil
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  larreco::RecoAlg_CMTool_CMTAlgMatch
+  larreco::RecoAlg_CMTool_CMTAlgPriority
+  larreco::RecoAlg_CMTool_CMToolBase
+  larreco::Calorimetry
+  lardata::AssociationUtil
+  lardata::Utilities
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  fhiclcpp::fhiclcpp
+)
 
 install_headers()
 install_fhicl()

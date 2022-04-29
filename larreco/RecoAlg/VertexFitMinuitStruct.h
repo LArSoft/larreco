@@ -8,6 +8,11 @@
 
 #ifndef VertexFitMinuitStruct_h
 
+#include "TVector3.h"
+
+#include <array>
+#include <vector>
+
 struct VertexFitMinuitStruct {
 
   unsigned short TPC;

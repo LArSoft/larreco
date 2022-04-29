@@ -1,4 +1,4 @@
-#include "QuadExpr.h"
+#include "larreco/SpacePointSolver/QuadExpr.h"
 
 #include <cstdlib>
 #include <iostream>

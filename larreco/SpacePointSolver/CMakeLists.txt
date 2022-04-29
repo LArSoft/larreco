@@ -1,25 +1,54 @@
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - avoid directory-scope functions: use target_link_libraries() with target semantics or target_include_directories() whenever possible
 add_subdirectory(HitReaders)
 
-art_make(LIB_LIBRARIES
-           larcorealg_Geometry
-           lardataalg_DetectorInfo
-           art::Framework_Services_Registry
-           art::Utilities
-           canvas::canvas
-           cetlib_except::cetlib_except
-           ROOT::Core
-           ROOT::Physics
-         MODULE_LIBRARIES
-           larcorealg_Geometry
-           lardataobj_RecoBase
-           larsim_MCCheater_BackTrackerService_service
-           lardata_ArtDataHelper
-           larreco_SpacePointSolver
-           art::Framework_Services_Registry
-           ROOT::Core
-           ROOT::Hist
-        ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE
+  HashTuple.h
+  QuadExpr.cxx
+  Solver.cxx
+  TripletFinder.cxx
+  LIBRARIES
+  PUBLIC
+  canvas::canvas
+  lardataobj::RecoBase
+  larcoreobj::SimpleTypesAndConstants
+  PRIVATE
+  larcore::Geometry_Geometry_service
+  larcorealg::Geometry
+  lardataalg::DetectorInfo
+  art::Framework_Services_Registry
+  ROOT::Physics
+)
+
+cet_build_plugin(PlotSpacePoints art::EDAnalyzer
+  LIBRARIES PRIVATE
+  larsim::MCCheater_BackTrackerService_service
+  lardata::DetectorClocksService
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  fhiclcpp::fhiclcpp
+  ROOT::Core
+  ROOT::Hist
+)
+
+cet_build_plugin(SpacePointSolver art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::SpacePointSolver
+  larreco::HitReaderTool
+  larevt::ChannelStatusProvider
+  larevt::ChannelStatusService
+  larcore::Geometry_Geometry_service
+  lardata::ArtDataHelper
+  lardata::DetectorPropertiesService
+  lardataobj::RecoBase
+  larcoreobj::SimpleTypesAndConstants
+  art_plugin_support::toolMaker
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  fhiclcpp::fhiclcpp
+  cetlib::cetlib
+)
+
 
 install_headers()
 install_fhicl()

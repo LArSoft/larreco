@@ -9,12 +9,13 @@
 #define SeedFinderAlgBase_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl { class ParameterSet; }
 #include "lardataobj/RecoBase/Seed.h"
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
+#include <vector>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace lar_cluster3d {

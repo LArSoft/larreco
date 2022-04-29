@@ -1,4 +1,4 @@
-#include "CPAlgoIgnoreTracks.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoIgnoreTracks.h"
 
 #include "TMath.h"
 

@@ -1,4 +1,4 @@
-#include "CPAlgoQSum.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoQSum.h"
 
 namespace cmtool {
 

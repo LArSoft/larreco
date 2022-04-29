@@ -18,6 +18,9 @@ namespace pma {
   class VtxCandidate;
 }
 
+#include <utility>
+#include <vector>
+
 class pma::VtxCandidate {
 public:
   static constexpr double kMaxDistToTrack{4.0}; // max. dist. track to center to create vtx

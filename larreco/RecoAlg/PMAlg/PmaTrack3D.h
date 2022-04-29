@@ -34,6 +34,9 @@ namespace pma {
   class Track3D;
 }
 
+#include <utility>
+#include <vector>
+
 class pma::Track3D {
 public:
   enum ETrackEnd { kBegin = -1, kEnd = 1 };

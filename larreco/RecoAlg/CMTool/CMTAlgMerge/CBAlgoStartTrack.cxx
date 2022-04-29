@@ -1,4 +1,4 @@
-#include "CBAlgoStartTrack.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoStartTrack.h"
 
 namespace cmtool {
 

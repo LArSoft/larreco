@@ -10,7 +10,6 @@
 //
 
 #include "TVector3.h"
-#include "larreco/RecoAlg/SpacePointAlg.h"
 
 namespace detinfo {
   class DetectorClocksData;
@@ -22,6 +21,8 @@ namespace recob {
   class Seed;
   class Hit;
 }
+
+#include <vector>
 
 namespace trkf {
 

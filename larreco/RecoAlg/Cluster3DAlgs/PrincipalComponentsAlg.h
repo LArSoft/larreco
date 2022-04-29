@@ -9,7 +9,7 @@
 #define PrincipalComponentsAlg_h
 
 // Framework Includes
-#include "fhiclcpp/fwd.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft includes
 namespace detinfo {

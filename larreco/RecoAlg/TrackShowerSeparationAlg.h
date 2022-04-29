@@ -31,6 +31,11 @@ namespace shower {
   class ReconTrack;
 }
 
+#include <algorithm>
+#include <iterator>
+#include <map>
+#include <vector>
+
 class shower::ReconTrack {
  public:
 

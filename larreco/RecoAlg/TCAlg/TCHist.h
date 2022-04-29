@@ -11,10 +11,7 @@
 
 #include "art_root_io/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "TH1F.h"
-#include "TProfile.h"
 
-namespace art { class TFileService; }
 class TH1F;
 class TH2F;
 class TProfile;

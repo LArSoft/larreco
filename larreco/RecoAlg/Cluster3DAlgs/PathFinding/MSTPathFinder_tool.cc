@@ -11,6 +11,8 @@
 #include "art_root_io/TFileService.h"
 #include "cetlib/cpu_timer.h"
 #include "cetlib/search_path.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"

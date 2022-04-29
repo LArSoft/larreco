@@ -14,8 +14,9 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "lardataalg/DetectorInfo/DetectorClocksData.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"

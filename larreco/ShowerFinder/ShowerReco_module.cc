@@ -37,6 +37,7 @@
 
 // ### LArSoft includes ###
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"

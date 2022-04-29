@@ -8,17 +8,25 @@
 #ifndef CORNERFINDERALG_H
 #define CORNERFINDERALG_H
 
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl {
+  class ParameterSet;
+}
+
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+
+namespace geo {
+  class Geometry;
+}
 
 #include "TH2.h"
 #include "TF2.h"
 #include "TH1D.h"
-#include <vector>
-#include <string>
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/EndPoint2D.h"
-#include "larcore/Geometry/Geometry.h"
 
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace corner { //<---Not sure if this is the right namespace
 

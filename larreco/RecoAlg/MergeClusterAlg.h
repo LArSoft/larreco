@@ -22,12 +22,9 @@ namespace fhicl { class ParameterSet; }
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/Geometry.h"
 namespace geo { struct WireID; }
 
-//tmp
-#include "lardataobj/RecoBase/Hit.h"
 
 #include "TVector2.h"
 class TTree;

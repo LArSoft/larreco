@@ -32,10 +32,11 @@
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 
 namespace tca {
 
+  using namespace detail; // SortEntry, valsDecreasing(), valsIncreasing();
+  
   /////////////////////////////////////////
   void
   StitchPFPs()

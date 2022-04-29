@@ -15,9 +15,7 @@
 
 // ART includes
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Services/Registry/ActivityRegistry.h"
-#include "art/Framework/Services/Registry/ServiceDeclarationMacros.h"
-
+namespace art { class ActivityRegistry; }
 
 namespace calib {
 

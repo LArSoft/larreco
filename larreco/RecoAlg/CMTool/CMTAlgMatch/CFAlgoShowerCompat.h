@@ -18,8 +18,9 @@
 #ifndef CFALGOSHOWERCOMPAT_HH
 #define CFALGOSHOWERCOMPAT_HH
 
-#include "TFile.h"
-#include "TTree.h"
+class TFile;
+class TTree;
+
 #include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 
 namespace cmtool {

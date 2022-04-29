@@ -3,12 +3,20 @@
 
 // Framework includes
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 
+#include "lardata/RecoObjects/TrackState.h"
 #include "lardataobj/RecoBase/MCSFitResult.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardata/RecoObjects/TrackState.h"
+#include "lardataobj/RecoBase/TrackTrajectory.h"
+#include "lardataobj/RecoBase/Trajectory.h"
+
+#include <array>
+#include <utility>
+#include <vector>
 
 namespace trkf {
   /**

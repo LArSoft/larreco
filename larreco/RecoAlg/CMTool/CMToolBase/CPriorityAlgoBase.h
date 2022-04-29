@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CPRIORITYALGOBASE_H
 #define RECOTOOL_CPRIORITYALGOBASE_H
 
-#include "CMAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMAlgoBase.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cmtool {

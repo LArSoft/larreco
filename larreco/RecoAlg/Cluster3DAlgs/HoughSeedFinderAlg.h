@@ -8,7 +8,7 @@
 #define HoughSeedFinderAlg_h
 
 // Framework includes
-#include "fhiclcpp/fwd.h"
+namespace fhicl { class ParameterSet; }
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"

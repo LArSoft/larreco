@@ -1,8 +1,8 @@
-#include "CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMManagerBase.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
 #include "TStopwatch.h"
-#include "TString.h"
+#include "TString.h" // Form()
 
 #include <cstddef>
 #include <iostream>

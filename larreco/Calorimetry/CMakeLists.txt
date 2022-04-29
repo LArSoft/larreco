@@ -1,24 +1,138 @@
-art_make(LIB_LIBRARIES
-           lardataalg_DetectorInfo
-           lardataobj_RecoBase
-           lardata_ArtDataHelper
-           larcorealg_Geometry
-           lardataobj_AnalysisBase
-           art::Framework_Services_Registry
-           art::Utilities
-           canvas::canvas
-           cetlib_except::cetlib_except
-           fhiclcpp::fhiclcpp
-           messagefacility::MF_MessageLogger
-           ROOT::Core
-           ROOT::Physics
-         MODULE_LIBRARIES
-           larcorealg_Geometry
-           larreco_Calorimetry
-           ROOT::Core
-           ROOT::Hist
-           ROOT::Physics
-           messagefacility::MF_MessageLogger) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE CalorimetryAlg.cxx TrackCalorimetryAlg.cxx
+  LIBRARIES
+  PUBLIC
+  larcore::Geometry_Geometry_service
+  larcorealg::Geometry
+  lardataobj::RecoBase
+  art::Framework_Services_Registry
+  fhiclcpp::types
+  ROOT::Physics
+  PRIVATE
+  larevt::ElectronLifetimeProvider
+  larevt::ElectronLifetimeService
+  lardata::ArtDataHelper
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  lardataalg::DetectorInfo
+  lardataobj::AnalysisBase
+  lardataobj::TrackingTypes
+  lardataobj::RecoBase
+)
+
+cet_build_plugin(CaloChecker art::EDAnalyzer
+  LIBRARIES PRIVATE
+  larevt::SpaceCharge
+  larevt::SpaceChargeService
+  lardata::ArtDataHelper
+  lardata::AssociationUtil
+  lardata::DetectorPropertiesService
+  larcorealg::Geometry
+  larcoreobj::headers
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  fhiclcpp::fhiclcpp
+  canvas::canvas
+  cetlib::cetlib
+  ROOT::Hist
+  ROOT::MathCore
+)
+
+cet_build_plugin(Calorimetry art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::Calorimetry
+  larevt::ChannelStatusProvider
+  larevt::ChannelStatusService
+  larevt::SpaceCharge
+  larevt::SpaceChargeService
+  lardata::ArtDataHelper
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  lardata::AssociationUtil
+  larcorealg::Geometry
+  larcoreobj::headers
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+  cetlib::cetlib
+  ROOT::Hist
+  ROOT::MathCore
+  ROOT::Physics
+)
+
+cet_build_plugin(GnocchiCalorimetry art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::Calorimetry
+  larevt::ChannelStatusService
+  larevt::SpaceCharge
+  larevt::SpaceChargeService
+  lardata::ArtDataHelper
+  lardata::AssociationUtil
+  lardata::DetectorPropertiesService
+  larcore::ServiceUtil
+  larcorealg::Geometry
+  larcoreobj::SimpleTypesAndConstants
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+  cetlib::cetlib
+  ROOT::Hist
+  ROOT::MathCore
+)
+
+cet_build_plugin(PrintCalorimetry art::EDAnalyzer
+  LIBRARIES PRIVATE
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  canvas::canvas
+  fhiclcpp::fhiclcpp
+)
+
+cet_build_plugin(ShowerCalorimetry art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::Calorimetry
+  larevt::SpaceCharge
+  larevt::SpaceChargeService
+  larcore::Geometry_Geometry_service
+  larcore::ServiceUtil
+  lardata::AssociationUtil
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  lardata::LArPropertiesService
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  canvas::canvas
+  messagefacility::MF_MessageLogger
+  canvas::canvas
+  ROOT::Physics
+)
+
+cet_build_plugin(TrackCalorimetry art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::Calorimetry
+  larcore::Geometry_Geometry_service
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  lardata::LArPropertiesService
+  lardata::ServicePack
+  lardataobj::AnalysisBase
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  fhiclcpp::fhiclcpp
+)
 
 install_headers()
 install_fhicl()

@@ -5,7 +5,7 @@
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/WireGeo.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

@@ -6,22 +6,28 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "cetlib_except/exception.h"
 
-#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 namespace detinfo {
-  class DetectorProperties;
+  class DetectorClocksData;
 }
+#include "lardataobj/RecoBase/Wire.h"
+
 namespace geo {
   class GeometryCore;
 }
 
 #include "CLHEP/Random/RandGauss.h"
+
+#include <algorithm>
+#include <string>
+#include <optional>
+#include <vector>
 
 img::DataProviderAlg::DataProviderAlg(const Config& config)
   : fAlgView{}

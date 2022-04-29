@@ -14,6 +14,8 @@
 
 // Framework includes
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"

@@ -11,11 +11,10 @@
 #define LAZYCLUSTERPARAMSALG_H
 
 // C/C++ standard library
-#include <stddef.h>
+#include <cstddef>
 #include <vector>
 
 // LArSoft libraries
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 namespace recob {
   class Hit;

@@ -1,4 +1,4 @@
-#include "CPAlgoNHits.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoNHits.h"
 
 namespace cmtool {
 

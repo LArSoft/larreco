@@ -10,9 +10,10 @@
 #define CCHITFINDERALG_H
 
 // C/C++ standard libraries
-#include <vector>
+#include <array>
 #include <memory> // std::unique_ptr<>
 #include <ostream> // std::endl
+#include <vector>
 
 // framework libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"

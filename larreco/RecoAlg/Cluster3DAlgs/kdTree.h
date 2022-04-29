@@ -10,7 +10,7 @@
 #define kdTree_h
 
 // Framework Includes
-#include "fhiclcpp/fwd.h"
+namespace fhicl { class ParameterSet; }
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"

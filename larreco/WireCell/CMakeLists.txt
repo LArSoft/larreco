@@ -1,18 +1,22 @@
-art_make(MODULE_LIBRARIES
-           larcorealg_Geometry
-           lardataobj_RawData
-           lardataobj_RecoBase
-           nusimdata::SimulationBase
-           art::Framework_Services_Registry
-           ROOT::Core
-           ROOT::RIO
-           ROOT::Tree
-           messagefacility::MF_MessageLogger
-           ROOT::EG
-           ROOT::Hist
-           ROOT::Physics
-        ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_build_plugin(CellTree art::EDAnalyzer
+  LIBRARIES PRIVATE
+  larcore::Geometry_Geometry_service
+  lardataobj::RawData
+  lardataobj::RecoBase
+  larcorealg::Geometry
+  nusimdata::SimulationBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+  canvas::canvas
+  ROOT::Core
+  ROOT::EG
+  ROOT::Hist
+  ROOT::Physics
+  ROOT::RIO
+  ROOT::Tree
+)
 
-# install_headers()
 install_fhicl()
 install_source()

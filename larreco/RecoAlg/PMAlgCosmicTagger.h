@@ -8,8 +8,10 @@
 #define PMAlgCosmicTagger_h
 
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 
-#include "TVector3.h"
+class TVector3;
 
 namespace detinfo {
   class DetectorClocksData;
@@ -19,6 +21,8 @@ namespace pma {
   class PMAlgCosmicTagger;
   class TrkCandidateColl;
 }
+
+#include <vector>
 
 class pma::PMAlgCosmicTagger {
 

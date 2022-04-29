@@ -1,29 +1,31 @@
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 
-#include <limits.h>                                        // for USHRT_MAX
-#include <stdlib.h>                                        // for abs, size_t
-#include <cmath>                                           // for sqrt, atan
-#include <algorithm>                                       // for find, max
-#include <array>                                           // for array, arr...
-#include <bitset>                                          // for bitset<>::...
-#include <iomanip>                                         // for operator<<
-#include <iostream>                                        // for cout
-#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"   // for TDCtick_t
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"  // for PlaneID
-#include "lardataobj/RecoBase/Hit.h"                       // for Hit
-#include "larreco/RecoAlg/TCAlg/DebugStruct.h"             // for DebugStuff
-#include "larreco/RecoAlg/TCAlg/TCVertex.h"                // for tcc, evt
-#include "larreco/RecoAlg/TCAlg/Utils.h"                   // for SetEndPoints
-#include <math.h>                                          // for abs, nearb...
-#include <numeric>                                         // for iota
-#include <string>                                          // for basic_string
-#include <utility>                                         // for pair
-#include <vector>                                          // for vector
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"  // for TDCtick_t
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for PlaneID
+#include "lardataobj/RecoBase/Hit.h"                      // for Hit
+#include "larreco/RecoAlg/TCAlg/DebugStruct.h"            // for DebugStuff
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"               // for tcc, evt
+#include "larreco/RecoAlg/TCAlg/Utils.h"                  // for SetEndPoints
+
+#include <algorithm>                                      // for find, max
+#include <array>                                          // for array, arr...
+#include <bitset>                                         // for bitset<>::...
+#include <climits>                                        // for USHRT_MAX
+#include <cmath>                                          // for abs, nearb...
+#include <cstdlib>                                        // for abs, size_t
+#include <iomanip>                                        // for operator<<
+#include <iostream>                                       // for cout
+#include <numeric>                                        // for iota
+#include <string>                                         // for basic_string
+#include <utility>                                        // for pair
+#include <vector>                                         // for vector
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace tca {
 
+  using namespace detail; // SortEntry, valsDecreasing(), valsIncreasing();
+  
   //////////////////////////////////////////
   void StepAway(TCSlice& slc, Trajectory& tj)
   {

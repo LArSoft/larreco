@@ -1,4 +1,16 @@
-art_make(LIB_LIBRARIES larreco_RecoAlg_CMTool_CMToolBase) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE
+  CPAlgoArray.cxx
+  CPAlgoIgnoreTracks.cxx
+  CPAlgoNHits.cxx
+  CPAlgoPolyArea.cxx
+  CPAlgoQSum.cxx
+  LIBRARIES
+  PUBLIC
+  larreco::RecoAlg_CMTool_CMToolBase
+  ROOT::Core
+  PRIVATE
+  ROOT::MathCore
+)
 
 install_headers()
 install_fhicl()

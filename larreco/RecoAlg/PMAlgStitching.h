@@ -9,6 +9,8 @@
 #include <map>
 
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 

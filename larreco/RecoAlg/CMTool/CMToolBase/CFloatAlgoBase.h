@@ -14,10 +14,12 @@
 #ifndef RECOTOOL_CFLOATALGOBASE_H
 #define RECOTOOL_CFLOATALGOBASE_H
 
-#include "CMAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMAlgoBase.h"
 namespace util {
   class GeometryUtilities;
 }
+
+#include <vector>
 
 namespace cmtool {
 

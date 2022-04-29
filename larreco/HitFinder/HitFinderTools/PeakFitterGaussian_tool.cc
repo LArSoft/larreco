@@ -5,11 +5,13 @@
 
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
 #include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 
+#include "art_root_io/TFileService.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/ToolMacros.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art_root_io/TFileService.h"
-#include "larcore/Geometry/Geometry.h"
 
 #include <cassert>
 #include <fstream>

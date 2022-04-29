@@ -1,6 +1,13 @@
 cet_enable_asserts()
 
-art_make() ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_make_library(SOURCE ConvexHull.cxx
+  LIBRARIES
+  PUBLIC
+  larreco::RecoAlg_Cluster3DAlgs
+  PRIVATE
+  Boost::headers
+  Eigen3::Eigen
+)
 
 install_headers()
 install_fhicl()

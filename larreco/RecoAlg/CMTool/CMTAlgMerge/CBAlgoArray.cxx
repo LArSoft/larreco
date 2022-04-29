@@ -1,4 +1,4 @@
-#include "CBAlgoArray.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoArray.h"
 
 namespace cmtool {
 

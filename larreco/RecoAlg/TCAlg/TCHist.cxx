@@ -1,9 +1,9 @@
 #include "art_root_io/TFileService.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "larreco/RecoAlg/TCAlg/TCHist.h"
 
-#include <math.h>
+#include <cmath>
 #include "TH1F.h"
-#include "TH2.h"
 #include "TProfile.h"
 
 namespace  tca {

@@ -6,7 +6,9 @@
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "art/Utilities/Globals.h"

@@ -11,31 +11,21 @@
 #define CLUSTERMERGEALG_H
 
 // ART includes
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art_root_io/TFileService.h"
-#include "art_root_io/TFileDirectory.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
+namespace fhicl {
+  class ParameterSet;
+}
+
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft
-#include "nusimdata/SimulationBase/MCTruth.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
-#include "larreco/RecoAlg/SpacePointAlg.h"
-#include "larcore/Geometry/Geometry.h"
-// STL
-#include <set>
-#include <vector>
-#include <sstream>
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-// ROOT
-#include <TString.h>
-#include <TTree.h>
+// STL
+#include <vector>
+
+class TTree;
 
 namespace cluster
 {

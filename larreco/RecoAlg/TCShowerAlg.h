@@ -11,14 +11,15 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
 namespace detinfo {
   class DetectorClocksData;
@@ -26,10 +27,12 @@ namespace detinfo {
 }
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 
 #include "TVector3.h"
+
+#include <map>
+#include <vector>
 
 namespace shower {
   class TCShowerAlg {

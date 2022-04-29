@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CMERGEMANAGER_H
 #define RECOTOOL_CMERGEMANAGER_H
 
-#include "CMManagerBase.h"
-#include "CMergeBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeBookKeeper.h"
 
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include <vector>

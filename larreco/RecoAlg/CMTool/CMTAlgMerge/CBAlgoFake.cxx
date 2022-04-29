@@ -1,4 +1,4 @@
-#include "CBAlgoFake.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoFake.h"
 
 namespace cmtool {
 

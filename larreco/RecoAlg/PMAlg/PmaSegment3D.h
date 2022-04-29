@@ -15,7 +15,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
-#include "TVector2.h"
+class TVector2;
 #include "TVector3.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 

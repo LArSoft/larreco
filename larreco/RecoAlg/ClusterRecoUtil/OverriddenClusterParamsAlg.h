@@ -17,7 +17,6 @@
 #include <vector>
 
 // LArSoft libraries
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
 namespace cluster {

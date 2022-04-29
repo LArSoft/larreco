@@ -24,7 +24,6 @@
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
-//#include "larreco/ClusterFinder/RStarTree/RStarBoundingBox.h"
 #include "RStarTree/RStarBoundingBox.h"
 #include "larreco/RecoAlg/DBScanAlg.h"
 

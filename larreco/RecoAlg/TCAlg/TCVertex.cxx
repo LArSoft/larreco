@@ -24,21 +24,7 @@
 
 namespace tca {
 
-  struct SortEntry {
-    unsigned int index;
-    float val;
-  };
-
-  bool
-  valDecreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val > c2.val);
-  }
-  bool
-  valIncreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val < c2.val);
-  }
+  using namespace detail; // SortEntry, valsDecreasing(), valsIncreasing();
 
   //////////////////////////////////////////
   void
@@ -498,7 +484,7 @@ namespace tca {
       auto& tj = slc.tjs[tjlist[indx] - 1];
       sortVec[indx].val = tj.Pts.size();
     } // indx
-    std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     // re-order the list of Tjs
     auto ttl = tjlist;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii)
@@ -1492,7 +1478,7 @@ namespace tca {
       sEntry.val = v3temp[ivx].Score;
       sortVec[ivx] = sEntry;
     } // ivx
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     // create a new vector of selected 3D vertices
     std::vector<Vtx3Store> v3sel;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii) {

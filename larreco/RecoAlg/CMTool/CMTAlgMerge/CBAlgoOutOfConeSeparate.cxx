@@ -1,6 +1,6 @@
-#include "CBAlgoOutOfConeSeparate.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoOutOfConeSeparate.h"
 
-#include <math.h>
+#include <cmath>
 
 namespace cmtool {
 

@@ -8,6 +8,7 @@
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 #include "art/Utilities/ToolMacros.h"
 
+#include "TProfile.h"
 #include "TVirtualFFT.h"
 
 namespace reco_tool

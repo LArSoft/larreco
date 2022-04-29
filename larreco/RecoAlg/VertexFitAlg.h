@@ -21,7 +21,7 @@
 
 // ROOT includes
 #include "RtypesCore.h"
-class TVector3;
+#include "TVector3.h"
 
 namespace trkf {
 

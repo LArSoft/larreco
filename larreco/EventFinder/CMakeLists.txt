@@ -1,9 +1,13 @@
-art_make(MODULE_LIBRARIES
-           lardataobj_RecoBase
-           nusimdata::SimulationBase
-           ROOT::Core
-           messagefacility::MF_MessageLogger
-         ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - deprecated: use art_make_library(), art_dictonary(), and cet_build_plugin() with explicit source lists and plugin base types
+cet_build_plugin(EventCheater art::EDProducer
+  LIBRARIES PRIVATE
+  lardata::AssociationUtil
+  lardataobj::RecoBase
+  nusimdata::SimulationBase
+  art::Framework_Principal
+  canvas::canvas
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+)
 
 install_headers()
 install_fhicl()

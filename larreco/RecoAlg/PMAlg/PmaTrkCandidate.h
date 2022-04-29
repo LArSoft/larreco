@@ -18,6 +18,9 @@ namespace detinfo {
   class DetectorPropertiesData;
 }
 
+#include <map>
+#include <vector>
+
 namespace pma {
   // these types to be replaced with use of feature proposed in redmine #12602
   typedef std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>> view_hitmap;

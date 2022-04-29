@@ -19,6 +19,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"

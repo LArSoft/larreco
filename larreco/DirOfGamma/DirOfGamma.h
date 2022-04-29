@@ -17,6 +17,8 @@ namespace detinfo {
 
 #include "TVector2.h"
 
+#include <vector>
+
 namespace ems {
   class Hit2D;
   class Bin2D;

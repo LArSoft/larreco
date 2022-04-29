@@ -1,6 +1,6 @@
-#include "CBAlgoAngleCompat.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoAngleCompat.h"
 
-#include <math.h>
+#include <cmath>
 
 namespace cmtool {
 

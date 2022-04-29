@@ -16,7 +16,9 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // larsoft
 #include "larcore/Geometry/Geometry.h"
@@ -36,14 +38,14 @@
 
 // C++
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 // ROOT
 #include "RtypesCore.h"
 #include "TVector2.h"
 #include "TVector3.h"
-
-class TH1I;
-class TProfile;
 
 namespace detinfo {
   class DetectorClocksData;

@@ -44,13 +44,12 @@
 namespace fhicl { class ParameterSet; }
 
 #include <map>
+#include <vector>
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"  // for WireID
 
-namespace recob {
-  class SpacePoint;
-  class Hit;
-}
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 
 typedef struct point_s point_t;
 struct point_s {

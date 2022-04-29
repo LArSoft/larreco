@@ -1,4 +1,4 @@
-#include "CBAlgoCenterOfMass.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoCenterOfMass.h"
 
 #include "TString.h"
 

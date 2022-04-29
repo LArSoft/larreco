@@ -8,18 +8,18 @@
 #ifndef ENDPOINTALG_H
 #define ENDPOINTALG_H
 
-#include "art/Framework/Principal/fwd.h"
+namespace art {
+  class Event;
+}
 #include "canvas/Persistency/Common/PtrVector.h"
 namespace fhicl { class ParameterSet; }
 
-#include <vector>
 #include <string>
+#include <vector>
 
-namespace recob {
-  class Cluster;
-  class EndPoint2D;
-  class Hit;
-}
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 namespace cluster {
 

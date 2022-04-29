@@ -31,7 +31,9 @@
 #include <vector>
 
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "lardata/RecoObjects/KGTrack.h"
 #include "lardata/RecoObjects/KHitContainer.h"
@@ -50,6 +52,9 @@ namespace trkf {
   class KHitContainer;
   class Propagator;
 }
+
+#include <memory>
+#include <vector>
 
 namespace trkf {
   class Track3DKalmanHitAlg {

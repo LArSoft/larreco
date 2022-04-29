@@ -23,7 +23,7 @@ namespace cmtool {
 
   /**
      \class CMAlgoBase
-     An abstract base class for merging/mathcing algorithm. Having this base class helps
+     An abstract base class for merging/matching algorithm. Having this base class helps
      to have a better overall design of various merging for iterative approach.
      The algorithms are run through CMergeManager.
   */

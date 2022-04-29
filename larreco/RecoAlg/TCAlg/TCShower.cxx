@@ -16,10 +16,10 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <climits>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
-#include <limits.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,6 +28,8 @@
 
 namespace tca {
 
+  using namespace detail;
+  
   ////////////////////////////////////////////////
   void
   ConfigureMVA(TCConfig& tcc, std::string fMVAShowerParentWeights)

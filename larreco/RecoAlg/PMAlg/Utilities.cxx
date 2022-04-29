@@ -16,15 +16,18 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMatrixT.h"
+#include "TVector2.h"
+#include "TVector3.h"
 #include "TVectorT.h"
-#include <math.h>
 
-#include "larcore/CoreUtils/ServiceUtil.h"
+#include <cmath>
+#include <utility>
+#include <vector>
+
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"

@@ -24,7 +24,10 @@ namespace detinfo {
 #include "TVector2.h"
 #include "TVector3.h"
 
+#include <functional>
 #include <map>
+#include <utility>
+#include <vector>
 
 namespace pma {
   typedef ROOT::Math::DisplacementVector2D<ROOT::Math::Cartesian2D<double>> Vector2D;

@@ -14,14 +14,6 @@
 #include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/OpFlash.h"
 
-// ART includes
-#include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Services/Registry/ActivityRegistry.h"
-#include "art/Framework/Services/Registry/ServiceDeclarationMacros.h"
-
-
-
-
 namespace calib
 {
   /// May want to swap in dummy charge and photon calibrations in various

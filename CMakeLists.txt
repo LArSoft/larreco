@@ -7,12 +7,9 @@
 # ======================================================================
 
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
-# cmake_policy(VERSION 3.19) ### MIGRATE-ACTION-COMPATIBILITY (migrate-3.10.00) - Uncomment to preserve compatibility with older CMake versions
 
-find_package(cetmodules REQUIRED)
+find_package(cetmodules 3.12.00 REQUIRED)
 project(larreco VERSION 09.11.00 LANGUAGES CXX)
-
-# cetbuildtools contains our cmake modules
 
 include(CetCMakeEnv)
 cet_cmake_env()
@@ -23,42 +20,46 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs
 )
 
-cet_report_compiler_flags() ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - add args: REPORT_THRESHOLD VERBOSE
+cet_report_compiler_flags(REPORT_THRESHOLD VERBOSE)
 
-find_package(Range-v3 REQUIRED EXPORT)
-find_package (Eigen3 3.3...3.3.9 REQUIRED NO_MODULE)
-find_package(messagefacility REQUIRED EXPORT)
-find_package(canvas_root_io REQUIRED)
-find_package(art REQUIRED EXPORT)
-find_package(art_root_io REQUIRED EXPORT)
-find_package(nusimdata REQUIRED EXPORT)
+cet_cmake_module_directories(Modules BINARY)
+
+find_package(larcore REQUIRED EXPORT)
+find_package(larcorealg REQUIRED EXPORT)
+find_package(larcoreobj REQUIRED EXPORT)
+find_package(lardata REQUIRED EXPORT)
+find_package(lardataalg REQUIRED EXPORT)
+find_package(lardataobj REQUIRED EXPORT)
+find_package(larevt REQUIRED EXPORT)
+find_package(larsim REQUIRED EXPORT)
+find_package(larvecutils REQUIRED EXPORT)
+
 find_package(nug4 REQUIRED EXPORT)
 find_package(nurandom REQUIRED EXPORT)
-find_package(nutools REQUIRED EXPORT)
-find_package(PostgreSQL REQUIRED EXPORT)
-find_package(Boost COMPONENTS filesystem REQUIRED EXPORT)
-find_package(ROOT COMPONENTS Core RIO Matrix Physics Tree Hist EG REQUIRED EXPORT)
+find_package(nusimdata REQUIRED EXPORT)
+
+find_package(art_root_io REQUIRED EXPORT)
+find_package(canvas_root_io REQUIRED EXPORT)
+find_package(art REQUIRED EXPORT)
+find_package(messagefacility REQUIRED EXPORT)
+find_package(canvas REQUIRED EXPORT)
+find_package(fhiclcpp REQUIRED EXPORT)
+find_package(cetlib REQUIRED EXPORT)
+find_package(cetlib_except REQUIRED EXPORT)
+
+find_package(Boost COMPONENTS headers REQUIRED EXPORT)
 find_package(CLHEP COMPONENTS Random REQUIRED EXPORT)
+find_package(Eigen3 REQUIRED EXPORT)
+find_package(ROOT COMPONENTS Core EG GenVector Geom Gpad Graf Graf3d Hist MathCore Matrix Minuit Minuit2 Physics RIO TMVA Tree REQUIRED EXPORT)
+find_package(Range-v3 REQUIRED EXPORT)
+find_package(RStarTree REQUIRED EXPORT)
+find_package(TBB REQUIRED EXPORT)
 
-find_package( larcoreobj REQUIRED )
-find_package( larcorealg REQUIRED )
-find_package( larcore REQUIRED )
-find_package( lardataobj REQUIRED )
-find_package( lardataalg REQUIRED )
-find_package( lardata REQUIRED )
-find_package( larevt REQUIRED )
-find_package( larsim REQUIRED )
-find_package( larvecutils REQUIRED )
-find_package( RStarTree REQUIRED )
-
-# macros for dictionary and simple_plugin
-include(ArtDictionary)
-include(ArtMake)
+include(BuildDictionary)
 include(BuildPlugins)
 
-include_directories( $ENV{EIGEN_INC} ) ### MIGRATE-ACTION-RECOMMENDED (migrate-3.10.00) - avoid directory-scope functions: use target_link_libraries() with target semantics or target_include_directories() whenever possible
-
 # source
+add_subdirectory(Modules)
 add_subdirectory(larreco)
 
 # tests

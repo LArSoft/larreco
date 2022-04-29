@@ -18,6 +18,7 @@
 
 #include "larcore/Geometry/Geometry.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMath.h"

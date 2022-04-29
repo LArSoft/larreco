@@ -4,7 +4,7 @@
 
 #include <array>
 #include <bitset>
-#include <math.h>
+#include <cmath>
 #include <stddef.h>
 #include <string>
 #include <vector>

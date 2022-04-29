@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "ClusterParams.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "lardata/Utilities/PxUtils.h"
 
 namespace util {

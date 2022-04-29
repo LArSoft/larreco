@@ -95,8 +95,8 @@ public:
   /// wire views.
   double GetDistance2To(const TVector2& p2d, unsigned int view) const override;
 
-  /// Get 3D direction cosines of the next segment, or pevious segment if this
-  /// is the last node.
+  /// Get 3D direction cosines of the next segment, or previous segment
+  /// if this is the last node.
   pma::Vector3D GetDirection3D() const override;
 
   /// In case of a node it is simply 3D position of the node.
