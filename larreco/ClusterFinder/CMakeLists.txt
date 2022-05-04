@@ -204,6 +204,17 @@ cet_build_plugin(DBcluster art::EDProducer
   ROOT::Hist
 )
 
+cet_build_plugin(EndPointModule art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::RecoAlg
+  lardata::AssociationUtil
+  lardataobj::RecoBase
+  art::Framework_Principal
+  canvas::canvas
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+)
+
 cet_build_plugin(HoughLineFinderAna art::EDAnalyzer
   LIBRARIES PRIVATE
   larcore::Geometry_Geometry_service

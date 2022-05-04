@@ -23,6 +23,7 @@
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "cetlib_except/exception.h"
@@ -30,7 +31,9 @@
 
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoObjects/KGTrack.h"
 #include "lardata/RecoObjects/KHit.h"
+#include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KHitContainerWireX.h"
 #include "lardata/RecoObjects/PropYZPlane.h"
 #include "lardata/RecoObjects/SurfYZPlane.h"
