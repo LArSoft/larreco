@@ -178,6 +178,8 @@ cet_build_plugin(SpacePointHit3DBuilder lar::Hit3DBuilder
 
 cet_build_plugin(StandardHit3DBuilder lar::Hit3DBuilder
   LIBRARIES PRIVATE
+  larevt::ChannelStatusProvider
+  larevt::ChannelStatusService
   lardata::ArtDataHelper
   lardata::DetectorClocksService
   lardata::DetectorPropertiesService
