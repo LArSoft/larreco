@@ -108,6 +108,7 @@ cet_build_plugin(ClusterParamsBuilder lar::ClusterParamsBuilder
 
 cet_build_plugin(DBScanAlg lar::ClusterAlg
   LIBRARIES PRIVATE
+  larcore::Geometry_Geometry_service
   art::Framework_Services_Registry
   art_plugin_support::toolMaker
   messagefacility::MF_MessageLogger
