@@ -500,6 +500,7 @@ namespace trkf {
     int n_points = trk->NumberTrajectoryPoints();
 
     for (int i = 0; i < n_points; i++) {
+      if (checkValidPoints && !trk->HasValidPoint(i)) continue;
       auto const& pos = trk->LocationAtPoint(i);
       recoX.push_back(pos.X());
       recoY.push_back(pos.Y());
