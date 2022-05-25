@@ -491,7 +491,7 @@ namespace trkf {
 
   double
   TrackMomentumCalculator::GetMomentumMultiScatterChi2(
-    const art::Ptr<recob::Track>& trk)
+    const art::Ptr<recob::Track>& trk, const bool checkValidPoints)
   {
     std::vector<float> recoX;
     std::vector<float> recoY;
