@@ -54,6 +54,7 @@ standard_gnocchicalo:
   TrackIsFieldDistortionCorrected: false
   Cryostat: 0
   CaloAlg: @local::standard_calorimetryalgdata
+  NormTools: []
 }
 
 standard_generalcalorimetry:
