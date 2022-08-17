@@ -13,6 +13,7 @@
 #include <numeric> // std::accumulate
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/Calorimetry/INormalizeCharge.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -42,7 +43,9 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/DelegatedParameter.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -121,6 +124,11 @@ class GnocchiCalorimetry: public art::EDProducer {
         Comment("Configuration for the calo::CalorimetryAlg")
       };
 
+      fhicl::DelegatedParameter NormTools {
+        Name("NormTools"),
+        Comment("List of INormalizeCharge tool configurations to use.")
+      };
+
     };
 
     using Parameters = art::EDProducer::Table<Config>;
@@ -133,6 +141,7 @@ class GnocchiCalorimetry: public art::EDProducer {
   private:
     Config fConfig;
     CalorimetryAlg fCaloAlg;
+    std::vector<std::unique_ptr<INormalizeCharge>> fNormTools;
 
     // helper functions
     std::vector<std::vector<unsigned>> OrganizeHits(const std::vector<art::Ptr<recob::Hit>> &hits, 
@@ -152,6 +161,7 @@ class GnocchiCalorimetry: public art::EDProducer {
     double GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
     double GetCharge(const art::Ptr<recob::Hit> hit);
     double GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
+    double Normalize(double dQdx, const art::Event &e, const recob::Hit &h, const geo::Point_t &location, const geo::Vector_t &direction, double t0);
 }; 
 
 } // end namespace calo
@@ -164,6 +174,11 @@ calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param):
 {
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
+
+  std::vector<fhicl::ParameterSet> norm_tool_configs = fConfig.NormTools.get<std::vector<fhicl::ParameterSet>>();
+  for (const fhicl::ParameterSet &p: norm_tool_configs) {
+    fNormTools.push_back(art::make_tool<INormalizeCharge>(p));
+  }
   
 }
 
@@ -247,6 +262,10 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
         double EField = GetEfield(det_prop, track, hits[hit_index], thms[hit_index]);
 
         double dQdx = charge / pitch;
+
+        // Normalize out the detector response
+        dQdx = Normalize(dQdx, evt, 
+            *hits[hit_index], track.LocationAtPoint(thms[hit_index]->Index()), track.DirectionAtPoint(thms[hit_index]->Index()), T0);
 
         // turn into dEdx
         double dEdx = (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) ? \
@@ -549,6 +568,16 @@ double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit) {
       return 0.;
   }
   return 0.;
+}
+
+    
+double calo::GnocchiCalorimetry::Normalize(double dQdx, const art::Event &e, const recob::Hit &h, const geo::Point_t &location, const geo::Vector_t &direction, double t0) {
+  double ret = dQdx;
+  for (auto const &nt: fNormTools) {
+    ret = nt->Normalize(ret, e, h, location, direction, t0);
+  }
+  
+  return ret;
 }
 
 double calo::GnocchiCalorimetry::GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
