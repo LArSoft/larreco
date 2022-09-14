@@ -293,7 +293,7 @@ namespace cluster {
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
       auto const* geom = lar::providerFrom<geo::Geometry>();
-      for (const auto& tpcid : geom->IterateTPCIDs()) {
+      for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
         // ignore protoDUNE dummy TPCs
         if (geom->TPC(tpcid).DriftDistance() < 25.0) continue;
         // a vector for the subset of hits in each slice in a TPC

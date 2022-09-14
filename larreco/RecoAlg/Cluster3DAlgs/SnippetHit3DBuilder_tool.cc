@@ -356,9 +356,10 @@ namespace lar_cluster3d {
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
-    m_wirePitch[0] = m_geometry->WirePitch(0);
-    m_wirePitch[1] = m_geometry->WirePitch(1);
-    m_wirePitch[2] = m_geometry->WirePitch(2);
+    constexpr geo::TPCID tpcid{0, 0};
+    m_wirePitch[0] = m_geometry->WirePitch(geo::PlaneID{tpcid, 0});
+    m_wirePitch[1] = m_geometry->WirePitch(geo::PlaneID{tpcid, 1});
+    m_wirePitch[2] = m_geometry->WirePitch(geo::PlaneID{tpcid, 2});
 
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
@@ -383,8 +384,6 @@ namespace lar_cluster3d {
       m_tupleTree->Branch("SPCharge", "std::vector<float>", &m_spacePointChargeVec);
       m_tupleTree->Branch("HitAsymmetry", "std::vector<float>", &m_hitAsymmetryVec);
     }
-
-    return;
   }
 
   void SnippetHit3DBuilder::clear()
@@ -402,8 +401,6 @@ namespace lar_cluster3d {
     m_qualityMetricVec.clear();
     m_spacePointChargeVec.clear();
     m_hitAsymmetryVec.clear();
-
-    return;
   }
 
   void SnippetHit3DBuilder::BuildChannelStatusVec(
@@ -416,23 +413,22 @@ namespace lar_cluster3d {
     m_channelStatus.resize(m_geometry->Nplanes());
 
     // Loop through views/planes to set the wire length vectors
-    for (size_t idx = 0; idx < m_channelStatus.size(); idx++) {
-      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(idx), 5);
+    constexpr geo::TPCID tpcid{0, 0};
+    for (unsigned int idx = 0; idx < m_channelStatus.size(); idx++) {
+      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(geo::PlaneID{tpcid, idx}), 5);
     }
 
     // Loop through the channels and mark those that are "bad"
     for (size_t channel = 0; channel < m_geometry->Nchannels(); channel++) {
-      if (!m_channelFilter->IsGood(channel)) {
-        std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
-        geo::WireID wireID = wireIDVec[0];
-        lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
+      if (m_channelFilter->IsGood(channel)) continue;
 
-        m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
-        m_numBadChannels++;
-      }
+      std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
+      geo::WireID wireID = wireIDVec[0];
+      lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
+
+      m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
+      ++m_numBadChannels;
     }
-
-    return;
   }
 
   bool SetPeakHitPairIteratorOrder(const reco::HitPairList::iterator& left,
@@ -504,8 +500,6 @@ namespace lar_cluster3d {
 
       clear();
     }
-
-    return;
   }
 
   void SnippetHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList) const
@@ -532,15 +526,10 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> 3D hit building done, found " << numHitPairs << " 3D Hits"
                               << std::endl;
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
-  class SetStartTimeOrder {
-  public:
-    SetStartTimeOrder() {}
-
+  struct SetStartTimeOrder {
     bool operator()(const SnippetHitMapItrPair& left, const SnippetHitMapItrPair& right) const
     {
       // Special case handling, there is nothing to compare for the left or right
@@ -550,8 +539,6 @@ namespace lar_cluster3d {
       // de-referencing a bunch of pairs here...
       return left.first->first.first < right.first->first.first;
     }
-
-  private:
   };
 
   bool SetPairStartTimeOrder(const reco::ClusterHit3D& left, const reco::ClusterHit3D& right)
@@ -584,10 +571,6 @@ namespace lar_cluster3d {
     // Set up to loop over cryostats and tpcs...
     for (size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++) {
       for (size_t tpcIdx = 0; tpcIdx < m_geometry->NTPC(); tpcIdx++) {
-        //************************************
-        // Kludge
-        //            if (!(cryoIdx == 1 && tpcIdx == 0)) continue;
-
         PlaneToSnippetHitMap::iterator mapItr0 =
           planeToSnippetHitMap.find(geo::PlaneID(cryoIdx, tpcIdx, 0));
         PlaneToSnippetHitMap::iterator mapItr1 =
@@ -1318,7 +1301,7 @@ namespace lar_cluster3d {
     // Get wire position and direction for first wire
     auto wirePosArr = wireGeo0.GetCenter();
 
-    Eigen::Vector3f wirePos0(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+    Eigen::Vector3f wirePos0(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
     Eigen::Vector3f wireDir0(
       wireGeo0.Direction().X(), wireGeo0.Direction().Y(), wireGeo0.Direction().Z());
 
@@ -1329,7 +1312,7 @@ namespace lar_cluster3d {
     // And now the second one
     wirePosArr = wireGeo1.GetCenter();
 
-    Eigen::Vector3f wirePos1(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+    Eigen::Vector3f wirePos1(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
     Eigen::Vector3f wireDir1(
       wireGeo1.Direction().X(), wireGeo1.Direction().Y(), wireGeo1.Direction().Z());
 
@@ -1539,7 +1522,8 @@ namespace lar_cluster3d {
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try {
       // Switch from NearestWireID to this method to avoid the roundoff error issues...
-      double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position.data());
+      double distanceToWire =
+        m_geometry->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
 
       wireID.Wire = int(distanceToWire);
     }
@@ -1552,7 +1536,7 @@ namespace lar_cluster3d {
       if (position[2] < 0.5 * m_geometry->DetLength())
         wireID.Wire = 0;
       else
-        wireID.Wire = m_geometry->Nwires(wireIDIn.Plane) - 1;
+        wireID.Wire = m_geometry->Nwires(wireIDIn.asPlaneID()) - 1;
     }
 
     return wireID;
@@ -1571,7 +1555,7 @@ namespace lar_cluster3d {
       // Get wire position and direction for first wire
       auto const wirePosArr = wireGeo.GetCenter();
 
-      Eigen::Vector3f wirePos(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+      Eigen::Vector3f wirePos(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
       Eigen::Vector3f wireDir(
         wireGeo.Direction().X(), wireGeo.Direction().Y(), wireGeo.Direction().Z());
 

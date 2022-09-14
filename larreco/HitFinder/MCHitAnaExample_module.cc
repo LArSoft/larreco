@@ -315,7 +315,7 @@ namespace hit {
       recohit_mult.at(wire_id.Plane) += 1;
 
       // Figure out channel & retrieve MCHitCollection for this channel
-      auto ch = geo->PlaneWireToChannel(wire_id.Plane, wire_id.Wire, wire_id.TPC, wire_id.Cryostat);
+      auto ch = geo->PlaneWireToChannel(wire_id);
 
       if (mchits_v.size() <= ch)
         throw cet::exception(__PRETTY_FUNCTION__)

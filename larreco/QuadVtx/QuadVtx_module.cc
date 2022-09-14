@@ -73,7 +73,7 @@ namespace quad {
   private:
     bool FindVtx(const detinfo::DetectorPropertiesData& detProp,
                  const std::vector<recob::Hit>& hits,
-                 TVector3& vtx,
+                 recob::tracking::Point_t& vtx,
                  int evt) const;
 
     std::string fHitLabel;
@@ -239,7 +239,8 @@ namespace quad {
 
   // ---------------------------------------------------------------------------
   // Assumes that all three maps have the same vertical stride
-  TVector3 FindPeak3D(const std::vector<HeatMap>& hs, const std::vector<TVector3>& dirs) noexcept
+  recob::tracking::Point_t FindPeak3D(const std::vector<HeatMap>& hs,
+                                      const std::vector<recob::tracking::Vector_t>& dirs) noexcept
   {
     assert(hs.size() == 3);
     assert(dirs.size() == 3);
@@ -253,12 +254,12 @@ namespace quad {
     M(1, 1) = dirs[1].Z();
 
     // Singular, and stupid setup of exceptions means we can't test any other way
-    if (M(0, 0) * M(1, 1) - M(1, 0) * M(0, 1) == 0) return TVector3(0, 0, 0);
+    if (M(0, 0) * M(1, 1) - M(1, 0) * M(0, 1) == 0) return {};
 
     M.Invert();
 
     float bestscore = -1;
-    TVector3 bestr;
+    recob::tracking::Point_t bestr;
 
     // Accumulate some statistics up front that will enable us to optimize
     std::vector<float> colMax[3];
@@ -288,10 +289,9 @@ namespace quad {
         // Even if the maxes were all at the same x we couldn't beat the record
         if (colMax[0][iz] + colMax[1][iu] + colMax[2][iv] < bestscore) continue;
 
-        // Attempt to micro-optimize the dx loop below
-        const float* __restrict__ h0 = &hs[0].map[Nx * iz];
-        const float* __restrict__ h1 = &hs[1].map[Nx * iu];
-        const float* __restrict__ h2 = &hs[2].map[Nx * iv];
+        const float* h0 = &hs[0].map[Nx * iz];
+        const float* h1 = &hs[1].map[Nx * iu];
+        const float* h2 = &hs[2].map[Nx * iv];
 
         int bestix = -1;
         for (int ix = 1; ix < Nx - 1; ++ix) {
@@ -303,7 +303,7 @@ namespace quad {
           }
         } // end for dx
 
-        if (bestix != -1) { bestr = TVector3(hs[0].XBinCenter(bestix), y, z); }
+        if (bestix != -1) { bestr.SetXYZ(hs[0].XBinCenter(bestix), y, z); }
       } // end for u
     }   // end for z
 
@@ -314,21 +314,21 @@ namespace quad {
   void GetPts2D(const detinfo::DetectorPropertiesData& detProp,
                 const std::vector<recob::Hit>& hits,
                 std::vector<std::vector<Pt2D>>& pts,
-                std::vector<TVector3>& dirs,
+                std::vector<recob::tracking::Vector_t>& dirs,
                 const geo::GeometryCore* geom)
   {
     pts.resize(3); // 3 views
 
-    TVector3 dirZ(0, 0, 1);
-    TVector3 dirU, dirV;
+    recob::tracking::Vector_t dirZ(0, 0, 1);
+    recob::tracking::Vector_t dirU, dirV;
 
     for (const recob::Hit& hit : hits) {
       const geo::WireID wire = hit.WireID();
 
       const double xpos = detProp.ConvertTicksToX(hit.PeakTime(), wire);
 
-      const TVector3 r0 = geom->WireEndPoints(wire).start();
-      const TVector3 r1 = geom->WireEndPoints(wire).end();
+      auto const r0 = geom->WireEndPoints(wire).start();
+      auto const r1 = geom->WireEndPoints(wire).end();
 
       const double energy = hit.Integral();
 
@@ -338,9 +338,9 @@ namespace quad {
       }
 
       // Compute the direction perpendicular to the wires
-      TVector3 perp = (r1 - r0).Unit();
-      perp = TVector3(0, -perp.z(), perp.y());
-      // We want to ultimately have a positive z component in "perp"
+      auto const unit = (r1 - r0).Unit();
+      recob::tracking::Vector_t perp{0, -unit.z(), unit.y()};
+      // We want to ultimately have a positive z component ion "perp"
       if (perp.z() < 0) perp *= -1;
 
       // TODO check we never get a 4th view a-la the bug we had in the 3D version
@@ -372,13 +372,13 @@ namespace quad {
   // ---------------------------------------------------------------------------
   bool QuadVtx::FindVtx(const detinfo::DetectorPropertiesData& detProp,
                         const std::vector<recob::Hit>& hits,
-                        TVector3& vtx,
+                        recob::tracking::Point_t& vtx,
                         int evt) const
   {
     if (hits.empty()) return false;
 
     std::vector<std::vector<Pt2D>> pts;
-    std::vector<TVector3> dirs;
+    std::vector<recob::tracking::Vector_t> dirs;
 
     GetPts2D(detProp, hits, pts, dirs, geom);
 
@@ -485,10 +485,9 @@ namespace quad {
 
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
-    TVector3 vtx;
+    recob::Vertex::Point_t vtx;
     if (FindVtx(detProp, *hits, vtx, evt.event())) {
-      vtxcol->emplace_back(
-        recob::Vertex::Point_t(vtx.X(), vtx.Y(), vtx.Z()), recob::Vertex::SMatrixSym33(), 0, 0);
+      vtxcol->emplace_back(vtx, recob::Vertex::SMatrixSym33(), 0, 0);
     }
 
     evt.put(std::move(vtxcol));

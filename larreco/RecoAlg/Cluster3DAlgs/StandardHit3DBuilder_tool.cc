@@ -318,14 +318,14 @@ namespace lar_cluster3d {
 
   void StandardHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
-    m_hitFinderTagVec = pset.get<std::vector<art::InputTag>>(
-      "HitFinderTagVec", std::vector<art::InputTag>() = {"gaushit"});
+    m_hitFinderTagVec = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",
+                                                             std::vector<art::InputTag>{"gaushit"});
     m_enableMonitoring = pset.get<bool>("EnableMonitoring", true);
     m_numSigmaPeakTime = pset.get<float>("NumSigmaPeakTime", 3.);
     m_hitWidthSclFctr = pset.get<float>("HitWidthScaleFactor", 6.);
     m_deltaPeakTimeSig = pset.get<float>("DeltaPeakTimeSig", 1.7);
     m_zPosOffset = pset.get<float>("ZPosOffset", 0.0);
-    m_invalidTPCVec = pset.get<std::vector<int>>("InvalidTPCVec", std::vector<int>());
+    m_invalidTPCVec = pset.get<std::vector<int>>("InvalidTPCVec", std::vector<int>{});
     m_wirePitchScaleFactor = pset.get<float>("WirePitchScaleFactor", 1.9);
     m_maxHit3DChiSquare = pset.get<float>("MaxHitChiSquare", 6.0);
     m_outputHistograms = pset.get<bool>("OutputHistograms", false);
@@ -333,9 +333,10 @@ namespace lar_cluster3d {
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
-    m_wirePitch[0] = m_geometry->WirePitch(0);
-    m_wirePitch[1] = m_geometry->WirePitch(1);
-    m_wirePitch[2] = m_geometry->WirePitch(2);
+    constexpr geo::TPCID tpcid{0, 0};
+    m_wirePitch[0] = m_geometry->WirePitch(geo::PlaneID{tpcid, 0});
+    m_wirePitch[1] = m_geometry->WirePitch(geo::PlaneID{tpcid, 1});
+    m_wirePitch[2] = m_geometry->WirePitch(geo::PlaneID{tpcid, 2});
 
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
@@ -393,39 +394,22 @@ namespace lar_cluster3d {
     m_channelStatus.resize(m_geometry->Nplanes());
 
     // Loop through views/planes to set the wire length vectors
-    for (size_t idx = 0; idx < m_channelStatus.size(); idx++) {
-      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(idx), 5);
+    constexpr geo::TPCID tpcid{0, 0};
+    for (unsigned int idx = 0; idx < m_channelStatus.size(); idx++) {
+      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(geo::PlaneID{tpcid, idx}), 5);
     }
 
     // Loop through the channels and mark those that are "bad"
     for (size_t channel = 0; channel < m_geometry->Nchannels(); channel++) {
-      if (!m_channelFilter->IsGood(channel)) {
-        std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
-        geo::WireID wireID = wireIDVec[0];
-        lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
+      if (m_channelFilter->IsGood(channel)) continue;
 
-        m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
-        m_numBadChannels++;
-      }
+      std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
+      geo::WireID wireID = wireIDVec[0];
+      lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
+
+      m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
+      ++m_numBadChannels;
     }
-
-    // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    //    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
-
-    //    if (plane0HitItr != planeToWireToHitSetMap.end())
-    //    {
-    ////        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
-
-    //        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
-    //        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
-    //        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    //        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-    ////      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
-    //    }
-
-    return;
   }
 
   bool SetPeakHitPairIteratorOrder(const reco::HitPairList::iterator& left,
@@ -497,8 +481,6 @@ namespace lar_cluster3d {
 
       clear();
     }
-
-    return;
   }
 
   void StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList) const
@@ -525,8 +507,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> 3D hit building done, found " << numHitPairs << " 3D Hits"
                               << std::endl;
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1438,7 +1418,8 @@ namespace lar_cluster3d {
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try {
       // Switch from NearestWireID to this method to avoid the roundoff error issues...
-      double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position.data());
+      double distanceToWire =
+        m_geometry->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
 
       wireID.Wire = int(distanceToWire);
     }
@@ -1451,7 +1432,7 @@ namespace lar_cluster3d {
       if (position[2] < 0.5 * m_geometry->DetLength())
         wireID.Wire = 0;
       else
-        wireID.Wire = m_geometry->Nwires(wireIDIn.Plane) - 1;
+        wireID.Wire = m_geometry->Nwires(wireIDIn.asPlaneID()) - 1;
     }
 
     return wireID;

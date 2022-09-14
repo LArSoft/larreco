@@ -1339,7 +1339,8 @@ namespace tca {
                 << (int)jvx2.Pos[1] << " dX " << dX;
             }
             double y = -1000, z = -1000;
-            tcc.geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            tcc.geom->IntersectionPoint(
+              geo::WireID{cstat, tpc, ipl, iWire}, geo::WireID{cstat, tpc, jpl, jWire}, y, z);
             if (y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
@@ -1414,7 +1415,8 @@ namespace tca {
               if (dW > tcc.vtx3DCuts[1]) continue;
               // put the Y,Z difference in YErr and ZErr
               double y = -1000, z = -1000;
-              tcc.geom->IntersectionPoint(iWire, kWire, ipl, kpl, cstat, tpc, y, z);
+              tcc.geom->IntersectionPoint(
+                geo::WireID(cstat, tpc, ipl, iWire), geo::WireID(cstat, tpc, kpl, kWire), y, z);
               v3d.YErr = y - v3d.Y;
               v3d.ZErr = z - v3d.Z;
               v3d.Vx2ID[kpl] = slc.vtxs[kvx].ID;

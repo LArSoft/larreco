@@ -8,10 +8,10 @@
 // or low energy electrons.
 //
 /*	There are two parameters that matter from the fcl file:
-                fNHitsInClust is the number of hits that should be in these small clusters
-                        ^-- Gamma events seem to rarely have more than 4 hits in the cluster
-                        ^-- SN events are unclear.  Should this even be used for SN?
-                fRadiusSizePar is the distance (in cm) between the small clusters and any other hits.
+        fNHitsInClust is the number of hits that should be in these small clusters
+        ^-- Gamma events seem to rarely have more than 4 hits in the cluster
+        ^-- SN events are unclear.  Should this even be used for SN?
+        fRadiusSizePar is the distance (in cm) between the small clusters and any other hits.
 
         This algorithm sorts the hits by plane, and then looks at each hit individually.  If
         there is a hit within RadiusSizePar, it gets added to a local list.  All other hits
@@ -208,10 +208,11 @@ void cluster::SmallClusterFinderAlg::ClearandResizeVectors()
   hitlistleftover.resize(fNPlanes);
 }
 
-/*		This is the method takes a list of hits ("hitlist") and compares each hit to a 2D
-        location that is specified by a wire ("wire_start") and time ("time_start").  If the
-        hit being examined is farther away than a specified distance ("radlimit", in cm) then
-        the hit is excluded.  If the hit is within that distance, it's added.
+/*
+  This is the method takes a list of hits ("hitlist") and compares each hit to a 2D
+  location that is specified by a wire ("wire_start") and time ("time_start").  If the
+  hit being examined is farther away than a specified distance ("radlimit", in cm) then
+  the hit is excluded.  If the hit is within that distance, it's added.
 */
 void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
   util::GeometryUtilities const& gser,
@@ -236,12 +237,11 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
 
     if (linear_dist < radlimit) hitlistlocal.push_back(theHit);
   }
-  return;
 }
 
-//This method is identical to the other  method by the same name except that
-//it keeps track of the location of the hits selected.  That is, index is filled with
-//the indices of the selected hits in the hitlist vector (the input vector)
+// This method is identical to the other  method by the same name except that
+// it keeps track of the location of the hits selected.  That is, index is filled with
+// the indices of the selected hits in the hitlist vector (the input vector)
 void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
   util::GeometryUtilities const& gser,
   std::vector<art::Ptr<recob::Hit>> hitlist,
@@ -251,7 +251,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
   double radlimit,
   std::vector<int>& index) const
 {
-  //loop over the hits in "hitlist", which should contain the hits we're selecting from
+  // loop over the hits in "hitlist", which should contain the hits we're selecting from
   int i = 0; //i keeps track of the index of the hit.
   for (std::vector<art::Ptr<recob::Hit>>::const_iterator hitIter = hitlist.begin();
        hitIter != hitlist.end();
@@ -271,18 +271,12 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
     }
     i++;
   }
-  //std::cout << "in select local hit list, index is:" << std::endl;
-  //for (int j = 0; j < index.size();j++) std::cout << index[j] << " ";
 
   //need to make sure the index array is in order.  Sort it!
   std::sort(index.begin(), index.end());
-
-  return;
 }
 
-/*		This method sorts this hitlist (which should only be on a single plane)
-
-*/
+// This method sorts this hitlist (which should only be on a single plane)
 std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::CreateHighHitlist(
   util::GeometryUtilities const& gser,
   std::vector<art::Ptr<recob::Hit>> const& hitlist,
@@ -323,10 +317,10 @@ std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::CreateHighHitl
   }
 
   /*
-        This method could definitely be optimized.  It creates a local hit list for each particle,
-        while if there is a local hit list that is sufficiently separated from all others it should be OK to
-        add them all at once.  This is a task for future coders!
-*/
+    This method could definitely be optimized.  It creates a local hit list for each particle,
+    while if there is a local hit list that is sufficiently separated from all others it should be OK to
+    add them all at once.  This is a task for future coders!
+  */
 
   return hitlist_total;
 }
@@ -352,21 +346,13 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
 std::vector<std::vector<art::Ptr<recob::Hit>>>
 cluster::SmallClusterFinderAlg::GetSmallClustersByPlane(unsigned int iPlane)
 {
-  if (iPlane < fNPlanes)
-    return smallClustList[iPlane];
-  else {
-    std::vector<std::vector<art::Ptr<recob::Hit>>> vec;
-    return vec;
-  }
+  if (iPlane < fNPlanes) return smallClustList[iPlane];
+  return {};
 }
 
 std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::GetLeftoversByPlane(
   unsigned int iPlane)
 {
-  if (iPlane < fNPlanes)
-    return hitlistleftover[iPlane];
-  else {
-    std::vector<art::Ptr<recob::Hit>> vec;
-    return vec;
-  }
+  if (iPlane < fNPlanes) return hitlistleftover[iPlane];
+  return {};
 }

@@ -894,10 +894,12 @@ void pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorClocksData const& clockDa
           << ") with track (" << best_tpc << ":" << tracks[best_tpc].size() << ":"
           << best_trk2->size() << ")";
         auto const* geom = lar::providerFrom<geo::Geometry>();
+        auto const* first_node_trk1 = trk1->Nodes().front();
         const geo::TPCGeo& tpc1 =
-          geom->TPC(trk1->Nodes().front()->TPC(), trk1->Nodes().front()->Cryo());
+          geom->TPC(geo::TPCID(first_node_trk1->Cryo(), first_node_trk1->TPC()));
+        auto const* first_node_trk2 = best_trk2->Nodes().front();
         const geo::TPCGeo& tpc2 =
-          geom->TPC(best_trk2->Nodes().front()->TPC(), best_trk2->Nodes().front()->Cryo());
+          geom->TPC(geo::TPCID(first_node_trk2->Cryo(), first_node_trk2->TPC()));
         if (reverse) {
           fProjectionMatchingAlg.mergeTracks(detProp, *best_trk2, *trk1, true);
           // This track will have a shift in x equal to zero. This will
@@ -952,9 +954,9 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
 
   pma::tpc_track_map tracks; // track parts in tpc's
 
-  for (auto tpc_iter = fGeom->begin_TPC_id(); tpc_iter != fGeom->end_TPC_id(); tpc_iter++) {
-    mf::LogVerbatim("PMAlgTracker") << "Reconstruct tracks within Cryo:" << tpc_iter->Cryostat
-                                    << " / TPC:" << tpc_iter->TPC << ".";
+  for (auto const& tpcid : fGeom->Iterate<geo::TPCID>()) {
+    mf::LogVerbatim("PMAlgTracker")
+      << "Reconstruct tracks within Cryo:" << tpcid.Cryostat << " / TPC:" << tpcid.TPC << ".";
 
     if (fValidation != pma::PMAlgTracker::kHits) // initialize ADC images for all planes in
                                                  // this TPC (in "adc" and "calib")
@@ -962,8 +964,8 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
       mf::LogVerbatim("PMAlgTracker") << "Prepare validation ADC images...";
       bool ok = true;
       for (size_t p = 0; p < nplanes; ++p) {
-        ok &= fAdcImages[p].setWireDriftData(
-          clockData, detProp, fWires, p, tpc_iter->TPC, tpc_iter->Cryostat);
+        ok &=
+          fAdcImages[p].setWireDriftData(clockData, detProp, fWires, p, tpcid.TPC, tpcid.Cryostat);
       }
       if (ok) { mf::LogVerbatim("PMAlgTracker") << "  ...done."; }
       else {
@@ -973,27 +975,24 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
     }
 
     // find reasonably large parts
-    fromMaxCluster_tpc(
-      detProp, tracks[tpc_iter->TPC], fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat);
+    fromMaxCluster_tpc(detProp, tracks[tpcid.TPC], fMinSeedSize1stPass, tpcid.TPC, tpcid.Cryostat);
     // loop again to find small things
-    fromMaxCluster_tpc(
-      detProp, tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
+    fromMaxCluster_tpc(detProp, tracks[tpcid.TPC], fMinSeedSize2ndPass, tpcid.TPC, tpcid.Cryostat);
 
     //tryClusterLeftovers();
 
-    mf::LogVerbatim("PMAlgTracker") << "Found tracks: " << tracks[tpc_iter->TPC].size();
-    if (tracks[tpc_iter->TPC].empty()) { continue; }
+    mf::LogVerbatim("PMAlgTracker") << "Found tracks: " << tracks[tpcid.TPC].size();
+    if (tracks[tpcid.TPC].empty()) { continue; }
 
     // add 3D ref.points for clean endpoints of wire-plane parallel track
-    guideEndpoints(detProp, tracks[tpc_iter->TPC]);
+    guideEndpoints(detProp, tracks[tpcid.TPC]);
     // try correcting single-view sections spuriously merged on 2D clusters
     // level
-    reassignSingleViewEnds_1(detProp, tracks[tpc_iter->TPC]);
+    reassignSingleViewEnds_1(detProp, tracks[tpcid.TPC]);
 
     if (fMergeWithinTPC) {
-      mf::LogVerbatim("PMAlgTracker")
-        << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
-      while (mergeCoLinear(clockData, detProp, tracks[tpc_iter->TPC])) {
+      mf::LogVerbatim("PMAlgTracker") << "Merge co-linear tracks within TPC " << tpcid.TPC << ".";
+      while (mergeCoLinear(clockData, detProp, tracks[tpcid.TPC])) {
         mf::LogVerbatim("PMAlgTracker") << "  found co-linear tracks";
       }
     }
@@ -1171,7 +1170,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
       mf::LogVerbatim("PMAlgTracker")
         << "    cluster in view  *** " << bestView << " ***  size: " << nMaxHits;
 
-      if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) {
+      if (!fGeom->TPC(geo::TPCID(cryo, tpc)).HasPlane(testView)) {
         mf::LogVerbatim("PMAlgTracker") << "    no validation plane  *** ";
         testView = geo::kUnknown;
       }

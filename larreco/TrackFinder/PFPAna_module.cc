@@ -386,9 +386,9 @@ namespace pfpf {
     // get the plane from the view. Perhaps there is a method that does
     // this somewhere...
     std::map<geo::View_t, unsigned int> ViewToPlane;
-    for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-      geo::View_t view = geom->Plane(plane).View();
-      ViewToPlane[view] = plane;
+    for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+      geo::View_t view = plane.View();
+      ViewToPlane[view] = plane.ID().Plane;
     }
     for (size_t icl = 0; icl < clusters.size(); ++icl) {
       unsigned int plane = ViewToPlane[clusters[icl]->View()];
@@ -398,12 +398,6 @@ namespace pfpf {
       // count the number of hits matched to each true particle in plist2
       std::vector<unsigned short> nHitInPl2(plist2.size());
       for (size_t iht = 0; iht < cluhits.size(); ++iht) {
-        /*
-  mf::LogVerbatim("PFPAna")
-    <<"Clus Hit "<<cluhits[iht]->View()
-    <<":"<<cluhits[iht]->WireID().Wire
-    <<":"<<(int)cluhits[iht]->PeakTime();
-*/
         // look for this hit in all of the truth hit lists
         short hitInPl2 = -1;
         for (unsigned short ipl = 0; ipl < plist2.size(); ++ipl) {
@@ -480,8 +474,6 @@ namespace pfpf {
         for (unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii) {
           if (ViewToPlane[hlist2[ipl][ii]->View()] == plane) ++nTru[plane];
         } // ii
-        //  mf::LogVerbatim("PFPAna")
-        //    <<"Chk mom "<<ipl<<" plane "<<plane<<" nTru "<<nTru[plane];
         // next look for daughters and count those hits in all generations
         unsigned short mom = ipl;
         std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator rit =
@@ -496,22 +488,13 @@ namespace pfpf {
             // as well as the daughter list, so subtract one from the count
             --nTru[plane];
             mom = (*rit).second;
-            //  mf::LogVerbatim("PFPAna")<<"new mom "<<mom<<" nTru
-            //  "<<nTru[plane];
           } // (*rit).first == mom
           ++rit;
         } // rit
-        //  mf::LogVerbatim("PFPAna")<<"Chk dau "<<nTru[plane];
-        if (nTru[plane] == 0) {
-          //          mf::LogVerbatim("PFPAna")<<"No true hits in plane "<<plane
-          //            <<" for truth particle "<<ipl;
-          continue;
-        }
+        if (nTru[plane] == 0) { continue; }
         short icl = truToCl[ipl][plane];
         nRec[plane] = nRecHitInCl[icl];
         nTruRec[plane] = nTruHitInCl[ipl][plane];
-        //  mf::LogVerbatim("PFPAna")<<"icl "<<icl<<" nRec "<<nRec[plane]
-        //    <<" nTruRec "<<nTruRec[plane];
         if (nTru[plane] > 0) eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
         if (nRec[plane] > 0) pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
         ep[plane] = eff[plane] * pur[plane];

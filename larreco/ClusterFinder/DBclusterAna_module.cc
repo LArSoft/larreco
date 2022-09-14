@@ -388,8 +388,8 @@ namespace cluster {
 
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     if (clusters.size() != 0 && hits.size() != 0) {
-      for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-        geo::View_t view = geom->Plane(plane).View();
+      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+        geo::View_t view = plane.View();
         for (size_t j = 0; j < clusters.size(); ++j) {
 
           if (clusters[j]->View() == view) {

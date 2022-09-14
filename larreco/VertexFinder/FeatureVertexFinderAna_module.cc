@@ -329,7 +329,7 @@ namespace vertex {
     fTruthVtxZPos->Fill(truth_vertex.Z());
 
     // Looping over geo::PlaneIDs
-    for (auto const& pid : geom->IteratePlaneIDs()) {
+    for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
       // Calculating the nearest wire the vertex corresponds to in each plane
       try {
         VtxWireNum[pid.Plane] = geom->NearestWireID(truth_vertex, pid).Wire;
@@ -390,7 +390,7 @@ namespace vertex {
     if (vert2d.size() > 0) {
 
       // Looping over geo::PlaneIDs
-      for (auto const& pid : geom->IteratePlaneIDs()) {
+      for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
         for (size_t ww = 0; ww < vert2d.size(); ++ww) {
           // Only look at this 2d vertex if it is in the current plane
           if (vert2d[ww]->WireID().planeID() != pid) { continue; }

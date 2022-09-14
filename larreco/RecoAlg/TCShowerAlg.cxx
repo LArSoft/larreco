@@ -191,11 +191,11 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
-      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane) {
-        trk_tick1[*iPlane] = detProp.ConvertXToTicks(pfpStart.X(), *iPlane);
-        trk_wire1[*iPlane] = geom->WireCoordinate(pfpStart, *iPlane);
-        trk_tick2[*iPlane] = detProp.ConvertXToTicks(pfpPt2.X(), *iPlane);
-        trk_wire2[*iPlane] = geom->WireCoordinate(pfpPt2, *iPlane);
+      for (auto const& planeid : geom->Iterate<geo::PlaneID>()) {
+        trk_tick1[planeid] = detProp.ConvertXToTicks(pfpStart.X(), planeid);
+        trk_wire1[planeid] = geom->WireCoordinate(pfpStart, planeid);
+        trk_tick2[planeid] = detProp.ConvertXToTicks(pfpPt2.X(), planeid);
+        trk_wire2[planeid] = geom->WireCoordinate(pfpPt2, planeid);
       }
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {

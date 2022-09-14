@@ -132,7 +132,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
   TH1F* histoRejected) const
 {
   double max_d = fTrkValidationDist2D;
-  double d2, max_d2 = max_d * max_d;
+  double const max_d2 = max_d * max_d;
   unsigned int nAll = 0, nPassed = 0;
   unsigned int testPlane = adcImage.Plane();
 
@@ -142,7 +142,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
   for (auto const& [t, c] : views::cartesian_product(trkTPCs, trkCryos)) {
     ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
-    wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
+    wirePitch[{t, c}] = fGeom->TPC(geo::TPCID(c, t)).Plane(testPlane).WirePitch();
   }
 
   unsigned int tpc, cryo;
@@ -162,7 +162,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
       TVector2 p2d(wirePitch[tpc_cryo] * h.WireID().Wire,
                    detProp.ConvertTicksToX(h.PeakTime(), testPlane, tpc, cryo));
 
-      d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
+      double const d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
 
       if (d2 < max_d2) { all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y()); }
     }
@@ -193,7 +193,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
-    double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
+    double wirepitch = fGeom->Plane(geo::PlaneID(cryo, tpc, testPlane)).WirePitch();
     while ((f < 1.0) && node->SameTPC(p)) {
       geo::PlaneID const planeID{cryo, tpc, testPlane};
       pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
@@ -211,8 +211,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
           if (points.size()) {
             p2d.SetX(wirepitch * p2d.X());
             for (const auto& h : points) {
-              d2 = pma::Dist2(p2d, h);
-              if (d2 < max_d2) {
+              if (pma::Dist2(p2d, h) < max_d2) {
                 is_close = true;
                 nPassed++;
                 break;
@@ -258,7 +257,7 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
   if (hits.empty()) { return 0; }
 
   double max_d = fTrkValidationDist2D;
-  double d2, max_d2 = max_d * max_d;
+  double const max_d2 = max_d * max_d;
   unsigned int nAll = 0, nPassed = 0;
   unsigned int testPlane = hits.front()->WireID().Plane;
 
@@ -268,7 +267,7 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
   std::map<std::pair<unsigned int, unsigned int>, double> wirePitch;
   for (auto const& [t, c] : views::cartesian_product(trkTPCs, trkCryos)) {
     ranges[{t, c}] = trk.WireDriftRange(detProp, testPlane, t, c);
-    wirePitch[{t, c}] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
+    wirePitch[{t, c}] = fGeom->TPC(geo::TPCID(c, t)).Plane(testPlane).WirePitch();
   }
 
   unsigned int tpc, cryo;
@@ -288,7 +287,7 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
       TVector2 p2d(wirePitch[tpc_cryo] * h.WireID().Wire,
                    detProp.ConvertTicksToX(h.PeakTime(), testPlane, tpc, cryo));
 
-      d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
+      double const d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
 
       if (d2 < max_d2) all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y());
     }
@@ -330,8 +329,7 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
           if (points.size()) {
             p2d.SetX(wirepitch * p2d.X());
             for (const auto& h : points) {
-              d2 = pma::Dist2(p2d, h);
-              if (d2 < max_d2) {
+              if (pma::Dist2(p2d, h) < max_d2) {
                 nPassed++;
                 break;
               }
@@ -623,7 +621,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 
   const size_t tpc = fGeom->FindTPCAtPosition(vtxpoint).TPC;
   const size_t cryo = fGeom->PositionToCryostatID(vtxpoint).Cryostat;
-  const geo::TPCGeo& tpcgeom = fGeom->Cryostat(cryo).TPC(tpc);
+  const geo::TPCGeo& tpcgeom = fGeom->TPC(geo::TPCID(cryo, tpc));
 
   // use only hits from tpc where the vtx is
   std::vector<art::Ptr<recob::Hit>> hitstpc;
@@ -767,7 +765,7 @@ bool pma::ProjectionMatchingAlg::GetCloseHits_(const detinfo::DetectorProperties
     unsigned int tpc = hits_in[idx]->WireID().TPC;
     unsigned int cryo = hits_in[idx]->WireID().Cryostat;
     unsigned int view = hits_in[idx]->WireID().Plane;
-    double wirePitch = fGeom->TPC(tpc, cryo).Plane(view).WirePitch();
+    double wirePitch = fGeom->Plane(geo::PlaneID(cryo, tpc, view)).WirePitch();
     double driftPitch = detProp.GetXTicksCoefficient(tpc, cryo);
 
     double r2d2 = r2d * r2d;
@@ -1061,26 +1059,21 @@ bool pma::ProjectionMatchingAlg::addEndpointRef_(
     }
   if (wire_view.size() > 1) {
     x /= wire_view.size();
-    fGeom->IntersectionPoint(wire_view[0].first,
-                             wire_view[1].first,
-                             wire_view[0].second,
-                             wire_view[1].second,
-                             cryo,
-                             tpc,
-                             y,
-                             z);
+    auto const [wire0, plane0] = wire_view[0];
+    auto const [wire1, plane1] = wire_view[1];
+    fGeom->IntersectionPoint(
+      geo::WireID(cryo, tpc, plane0, wire0), geo::WireID(cryo, tpc, plane1, wire1), y, z);
     trk.AddRefPoint(x, y, z);
     mf::LogVerbatim("ProjectionMatchingAlg")
       << "trk tpc:" << tpc << " size:" << trk.size() << " add ref.point (" << x << "; " << y << "; "
       << z << ")";
     return true;
   }
-  else {
-    mf::LogVerbatim("ProjectionMatchingAlg")
-      << "trk tpc:" << tpc << " size:" << trk.size()
-      << " wire-plane-parallel track, but need two clean views of endpoint";
-    return false;
-  }
+
+  mf::LogVerbatim("ProjectionMatchingAlg")
+    << "trk tpc:" << tpc << " size:" << trk.size()
+    << " wire-plane-parallel track, but need two clean views of endpoint";
+  return false;
 }
 
 void pma::ProjectionMatchingAlg::guideEndpoints(
@@ -1124,7 +1117,7 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 
   for (unsigned int i = 0; i < 3; i++) {
     bool frontPresent = false, backPresent = false;
-    if (fGeom->TPC(tpc, cryo).HasPlane(i)) {
+    if (fGeom->TPC(geo::TPCID(cryo, tpc)).HasPlane(i)) {
       int idxFront0 = trk.NextHit(-1, i);
       int idxBack0 = trk.PrevHit(trk.size(), i);
       if ((idxFront0 >= 0) && (idxFront0 < (int)trk.size()) && (idxBack0 >= 0) &&
@@ -1224,7 +1217,7 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 
   for (unsigned int i = 0; i < 3; i++) {
     bool present = false;
-    if (fGeom->TPC(tpc, cryo).HasPlane(i)) {
+    if (fGeom->TPC(geo::TPCID(cryo, tpc)).HasPlane(i)) {
       int idx0 = -1, idx1 = -1;
       if (endpoint == pma::Track3D::kBegin) { idx0 = trk.NextHit(-1, i); }
       else {
@@ -1390,7 +1383,8 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk,
     while ((dx < 2.5) && (ih >= 0) && (ih < (int)trk.size())) {
       hit = trk[ih];
 
-      if (util::absDiff(hit->Wire(), lastHit->Wire()) > 2) break; // break on gap in wire direction
+      if (lar::util::absDiff(hit->Wire(), lastHit->Wire()) > 2)
+        break; // break on gap in wire direction
 
       last_x = trk.HitDxByView(ih, view);
       last_q = hit->SummedADC();

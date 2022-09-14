@@ -611,12 +611,14 @@ namespace trkf {
 
     double xyzStart[3], xyzEnd[3];
 
-    geom->WireEndPoints(0, 0, AHit->WireID().Plane, AHit->WireID().Wire, xyzStart, xyzEnd);
+    constexpr geo::TPCID tpcid{0, 0};
+    geo::PlaneID const planeID{tpcid, AHit->WireID().Plane};
 
-    double HitX = detProp.ConvertTicksToX(AHit->PeakTime(), AHit->WireID().Plane, 0, 0);
+    geom->WireEndPoints(geo::WireID{planeID, 0}, xyzStart, xyzEnd);
 
-    double HitXHigh = detProp.ConvertTicksToX(AHit->PeakTimePlusRMS(), AHit->WireID().Plane, 0, 0);
-    double HitXLow = detProp.ConvertTicksToX(AHit->PeakTimeMinusRMS(), AHit->WireID().Plane, 0, 0);
+    double HitX = detProp.ConvertTicksToX(AHit->PeakTime(), planeID);
+    double HitXHigh = detProp.ConvertTicksToX(AHit->PeakTimePlusRMS(), planeID);
+    double HitXLow = detProp.ConvertTicksToX(AHit->PeakTimeMinusRMS(), planeID);
 
     double HitWidth = HitXHigh - HitXLow;
 
@@ -949,9 +951,9 @@ namespace trkf {
     double xyzEnd1[3], xyzEnd2[3];
 
     // Calculate wire coordinate systems
-    for (size_t n = 0; n != 3; ++n) {
-      geom->WireEndPoints(0, 0, n, 0, xyzStart1, xyzEnd1);
-      geom->WireEndPoints(0, 0, n, 1, xyzStart2, xyzEnd2);
+    for (unsigned int n = 0; n != 3u; ++n) {
+      geom->WireEndPoints(geo::WireID{0, 0, n, 0}, xyzStart1, xyzEnd1);
+      geom->WireEndPoints(geo::WireID{0, 0, n, 1}, xyzStart2, xyzEnd2);
       fWireDir[n] =
         TVector3(xyzEnd1[0] - xyzStart1[0], xyzEnd1[1] - xyzStart1[1], xyzEnd1[2] - xyzStart1[2])
           .Unit();
@@ -974,7 +976,6 @@ namespace trkf {
     std::vector<art::PtrVector<recob::Hit>>& HitCatalogue,
     unsigned int StopAfter) const
   {
-    std::vector<recob::Seed> ReturnVec;
     return FindSeeds(clockData, detProp, Hits, HitCatalogue, StopAfter);
   }
 

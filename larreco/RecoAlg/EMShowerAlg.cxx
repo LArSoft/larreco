@@ -1156,7 +1156,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const&
           double pitch = 0;
           double wirepitch = fGeom->WirePitch(initialTrackHits[plane][0]->WireID().planeID());
           double angleToVert =
-            fGeom->WireAngleToVertical(fGeom->Plane(plane).View(),
+            fGeom->WireAngleToVertical(fGeom->Plane(geo::PlaneID{0, 0, plane}).View(),
                                        initialTrackHits[plane][0]->WireID().planeID()) -
             0.5 * TMath::Pi();
           double cosgamma = std::abs(sin(angleToVert) * shwdir.Y() + cos(angleToVert) * shwdir.Z());
@@ -1687,7 +1687,7 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
 
   // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
-    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
     globalWire = fGeom->WireCoordinate(wireCenter,
                                        geo::PlaneID{wireID.Cryostat,
                                                     wireID.TPC % 2, // 0 or 1
@@ -1699,7 +1699,7 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
     // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
     // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
     if (fDetector == "dune35t") {
-      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      unsigned int nwires = fGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
       if (wireID.TPC == 0 or wireID.TPC == 1)
         globalWire = wireID.Wire;
       else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5)
@@ -1712,13 +1712,13 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
           << " (geometry" << fDetector << ")";
     }
     else if (fDetector == "dune10kt") {
-      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      unsigned int nwires = fGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
       // Detector geometry has four TPCs, two on top of each other, repeated along z...
       int block = wireID.TPC / 4;
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
       globalWire = fGeom->WireCoordinate(wireCenter,
                                          geo::PlaneID{wireID.Cryostat,
                                                       wireID.TPC % 2, // 0 or 1
@@ -1922,9 +1922,7 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane_(
 
   TVector2 wireTickPos = TVector2(-999., -999.);
 
-  double pointPosition[3] = {point.X(), point.Y(), point.Z()};
-
-  geo::TPCID tpcID = fGeom->FindTPCAtPosition(pointPosition);
+  geo::TPCID tpcID = fGeom->FindTPCAtPosition(point);
   int tpc = 0;
   if (tpcID.isValid)
     tpc = tpcID.TPC;

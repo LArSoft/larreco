@@ -57,7 +57,7 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) c
     bool node_out_of_drift_max = false;
     for (size_t nidx = 0; nidx < trk.Nodes().size(); ++nidx) {
       auto const& node = *(trk.Nodes()[nidx]);
-      auto const& tpcGeo = geom->TPC(node.TPC(), node.Cryo());
+      auto const& tpcGeo = geom->TPC(geo::TPCID(node.Cryo(), node.TPC()));
       // DetectDriftDirection returns a short int, but switch requires an int
       int driftDir = abs(tpcGeo.DetectDriftDirection());
       p = node.Point3D()[driftDir - 1];
@@ -132,8 +132,8 @@ size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) co
 
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
-  short int hIdx = ConvertDirToInt(geom->TPC(0, 0).HeightDir());
-  short int lIdx = ConvertDirToInt(geom->TPC(0, 0).LengthDir());
+  short int hIdx = ConvertDirToInt(geom->TPC().HeightDir());
+  short int lIdx = ConvertDirToInt(geom->TPC().LengthDir());
 
   // Loop over the tracks
   for (auto& t : tracks.tracks()) {
@@ -178,7 +178,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
   // drift coordinate incorrectly set due to lack of T0
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
-  short int hIdx = ConvertDirToInt(geom->TPC(0, 0).HeightDir());
+  short int hIdx = ConvertDirToInt(geom->TPC().HeightDir());
 
   // Loop over the tracks
   for (auto& t : tracks.tracks()) {
@@ -299,7 +299,7 @@ size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks)
 
   // Just use the first tpc to get the height dimension (instead of assuming y).
   auto const* geom = lar::providerFrom<geo::Geometry>();
-  TVector3 dir = geom->TPC(0, 0).HeightDir();
+  auto const dir = geom->TPC().HeightDir();
 
   size_t n = fullCrossingTagger(tracks, ConvertDirToInt(dir));
 
@@ -313,7 +313,7 @@ size_t pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks) 
 
   // Just use the first tpc to get the width dimension (instead of assuming x).
   auto const* geom = lar::providerFrom<geo::Geometry>();
-  TVector3 dir = geom->TPC(0, 0).WidthDir();
+  auto const dir = geom->TPC().WidthDir();
 
   size_t n = fullCrossingTagger(tracks, ConvertDirToInt(dir));
 
@@ -327,7 +327,7 @@ size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks)
 
   // Just use the first tpc to get the length dimension (instead of assuming z).
   auto const* geom = lar::providerFrom<geo::Geometry>();
-  TVector3 dir = geom->TPC(0, 0).LengthDir();
+  auto const dir = geom->TPC().LengthDir();
 
   size_t n = fullCrossingTagger(tracks, ConvertDirToInt(dir));
 
@@ -413,26 +413,22 @@ void pma::PMAlgCosmicTagger::GetDimensions()
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
   // Since we can stack TPCs, we can't just use geom::TPCGeom::Height()
-  for (geo::TPCID const& tID : geom->IterateTPCIDs()) {
-    geo::TPCGeo const& TPC = geom->TPC(tID);
-
+  for (geo::TPCGeo const& TPC : geom->Iterate<geo::TPCGeo>()) {
     // We need to make sure we only include the real TPCs
     // We have dummy TPCs in the protoDUNE and DUNE geometries
     // The dummy ones have a drift distance of only ~13 cm.
     if (TPC.DriftDistance() < 25.0) { continue; }
 
     // get center in world coordinates
-    double origin[3] = {0.};
-    double center[3] = {0.};
-    TPC.LocalToWorld(origin, center);
+    auto const center = TPC.GetCenter();
     double tpcDim[3] = {TPC.HalfWidth(), TPC.HalfHeight(), 0.5 * TPC.Length()};
 
-    if (center[0] - tpcDim[0] < minX) minX = center[0] - tpcDim[0];
-    if (center[0] + tpcDim[0] > maxX) maxX = center[0] + tpcDim[0];
-    if (center[1] - tpcDim[1] < minY) minY = center[1] - tpcDim[1];
-    if (center[1] + tpcDim[1] > maxY) maxY = center[1] + tpcDim[1];
-    if (center[2] - tpcDim[2] < minZ) minZ = center[2] - tpcDim[2];
-    if (center[2] + tpcDim[2] > maxZ) maxZ = center[2] + tpcDim[2];
+    if (center.X() - tpcDim[0] < minX) minX = center.X() - tpcDim[0];
+    if (center.X() + tpcDim[0] > maxX) maxX = center.X() + tpcDim[0];
+    if (center.Y() - tpcDim[1] < minY) minY = center.Y() - tpcDim[1];
+    if (center.Y() + tpcDim[1] > maxY) maxY = center.Y() + tpcDim[1];
+    if (center.Z() - tpcDim[2] < minZ) minZ = center.Z() - tpcDim[2];
+    if (center.Z() + tpcDim[2] > maxZ) maxZ = center.Z() + tpcDim[2];
   } // for all TPC
 
   fDimensionsMin.clear();
@@ -445,7 +441,7 @@ void pma::PMAlgCosmicTagger::GetDimensions()
   fDimensionsMax.push_back(maxZ);
 }
 
-short int pma::PMAlgCosmicTagger::ConvertDirToInt(const TVector3& dir) const
+short int pma::PMAlgCosmicTagger::ConvertDirToInt(const geo::Vector_t& dir) const
 {
 
   if (dir.X() > 0.99) return 0;

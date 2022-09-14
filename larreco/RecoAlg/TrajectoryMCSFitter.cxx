@@ -92,13 +92,9 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
   breakpoints.push_back(nextValid);
   auto pos0 = traj.LocationAtPoint(nextValid);
   if (applySCEcorr_) {
-    const double Position[3] = {pos0.X(), pos0.Y(), pos0.Z()};
-    geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
-    geo::Vector_t pos0_offset = geo::Vector_t(0., 0., 0.);
-    if (tpcid.isValid) {
-      geo::Point_t p0(pos0.X(), pos0.Y(), pos0.Z());
-      pos0_offset = _SCE->GetCalPosOffsets(p0, tpcid.TPC);
-    }
+    geo::TPCID tpcid = geom->FindTPCAtPosition(pos0);
+    geo::Vector_t pos0_offset(0., 0., 0.);
+    if (tpcid.isValid) { pos0_offset = _SCE->GetCalPosOffsets(pos0, tpcid.TPC); }
     pos0.SetX(pos0.X() - pos0_offset.X());
     pos0.SetY(pos0.Y() + pos0_offset.Y());
     pos0.SetZ(pos0.Z() + pos0_offset.Z());
@@ -110,13 +106,9 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
     if (npoints == 0) dir0 = traj.DirectionAtPoint(nextValid);
     auto pos1 = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      const double Position[3] = {pos1.X(), pos1.Y(), pos1.Z()};
-      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
-      geo::Vector_t pos1_offset = geo::Vector_t(0., 0., 0.);
-      if (tpcid.isValid) {
-        geo::Point_t p1(pos1.X(), pos1.Y(), pos1.Z());
-        pos1_offset = _SCE->GetCalPosOffsets(p1, tpcid.TPC);
-      }
+      geo::TPCID tpcid = geom->FindTPCAtPosition(pos1);
+      geo::Vector_t pos1_offset(0., 0., 0.);
+      if (tpcid.isValid) { pos1_offset = _SCE->GetCalPosOffsets(pos1, tpcid.TPC); }
       pos1.SetX(pos1.X() - pos1_offset.X());
       pos1.SetY(pos1.Y() + pos1_offset.Y());
       pos1.SetZ(pos1.Z() + pos1_offset.Z());
@@ -252,13 +244,9 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj,
   while (nextValid < lastPoint) {
     auto tempP = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      const double Position[3] = {tempP.X(), tempP.Y(), tempP.Z()};
-      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
-      geo::Vector_t tempP_offset = geo::Vector_t(0., 0., 0.);
-      if (tpcid.isValid) {
-        geo::Point_t ptemp(tempP.X(), tempP.Y(), tempP.Z());
-        tempP_offset = _SCE->GetCalPosOffsets(ptemp, tpcid.TPC);
-      }
+      geo::TPCID tpcid = geom->FindTPCAtPosition(tempP);
+      geo::Vector_t tempP_offset(0., 0., 0.);
+      if (tpcid.isValid) { tempP_offset = _SCE->GetCalPosOffsets(tempP, tpcid.TPC); }
       tempP.SetX(tempP.X() - tempP_offset.X());
       tempP.SetY(tempP.Y() + tempP_offset.Y());
       tempP.SetZ(tempP.Z() + tempP_offset.Z());
@@ -278,13 +266,9 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj,
   while (nextValid < lastPoint) {
     auto p = traj.LocationAtPoint(nextValid);
     if (applySCEcorr_) {
-      const double Position[3] = {p.X(), p.Y(), p.Z()};
-      geo::TPCID tpcid = geom->FindTPCAtPosition(Position);
-      geo::Vector_t p_offset = geo::Vector_t(0., 0., 0.);
-      if (tpcid.isValid) {
-        geo::Point_t point(p.X(), p.Y(), p.Z());
-        p_offset = _SCE->GetCalPosOffsets(point, tpcid.TPC);
-      }
+      geo::TPCID tpcid = geom->FindTPCAtPosition(p);
+      geo::Vector_t p_offset(0., 0., 0.);
+      if (tpcid.isValid) { p_offset = _SCE->GetCalPosOffsets(p, tpcid.TPC); }
       p.SetX(p.X() - p_offset.X());
       p.SetY(p.Y() + p_offset.Y());
       p.SetZ(p.Z() + p_offset.Z());

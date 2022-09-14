@@ -339,7 +339,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     } // itk
   }   // get hits from tracks
 
-  for (const auto& tpcid : geom->IterateTPCIDs()) {
+  for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
     unsigned int tpc = tpcid.TPC;
     if (hitRange[tpc].first == UINT_MAX) continue;
     // iterate over planes

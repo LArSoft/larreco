@@ -529,7 +529,7 @@ geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point
 
   if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion()) {
     // Returned X is the drift -- multiply by the drift direction to undo this
-    int corr = geom->TPC(tpc.TPC).DriftDir()[0];
+    int corr = geom->TPC(tpc).DriftDir().X();
 
     geo::Vector_t offset = sce->GetPosOffsets(ret);
 
@@ -549,8 +549,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   double angleToVert =
-    geom->WireAngleToVertical(hit->View(), hit->WireID().TPC, hit->WireID().Cryostat) -
-    0.5 * ::util::pi<>();
+    geom->WireAngleToVertical(hit->View(), hit->WireID().asPlaneID()) - 0.5 * ::util::pi<>();
 
   geo::Vector_t dir;
 

@@ -44,7 +44,7 @@ namespace tca {
     slc.crt.cr_pfpxmax.push_back(std::max(startPos[0], endPos[0]));
 
     //find max
-    const geo::TPCGeo& tpc = tcc.geom->TPC(0);
+    const geo::TPCGeo& tpc = tcc.geom->TPC();
     float mindis0 = FLT_MAX;
     float mindis1 = FLT_MAX;
     if (std::abs(startPos[1] - tpc.MinY()) < mindis0) mindis0 = std::abs(startPos[1] - tpc.MinY());
@@ -84,10 +84,7 @@ namespace tca {
           unsigned int iht = tp.Hits[ii];
           TCHit& slhit = slc.slHits[iht];
           auto& hit = (*evt.allHits)[slhit.allHitsIndex];
-          raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel((int)hit.WireID().Plane,
-                                                                  (int)hit.WireID().Wire,
-                                                                  (int)hit.WireID().TPC,
-                                                                  (int)hit.WireID().Cryostat);
+          raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel(hit.WireID());
           double startTick = hit.PeakTime() - hit.RMS();
           double endTick = hit.PeakTime() + hit.RMS();
           // get a list of track IDEs that are close to this hit

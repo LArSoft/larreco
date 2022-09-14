@@ -46,6 +46,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 
 namespace ClusteringValidation {
   class ClusteringValidation;
@@ -60,8 +61,6 @@ typedef std::vector<TrackID> TrackIDs;
 
 class ClusteringValidation::ClusterCounter {
 public:
-  explicit ClusterCounter(unsigned int& tpc, unsigned int& plane);
-
   void AddHitPreClustering(TrackID id);
   void AddSignalHitPostClustering(ClusterID id);
   void AddNoiseHitPostClustering(ClusterID id);
@@ -81,8 +80,6 @@ public:
   bool PassesCut();
 
 private:
-  unsigned int tpc, plane;
-
   std::map<TrackID, int> numHitsPreClustering;
   std::map<ClusterID, int> numSignalHitsPostClustering;
   std::map<ClusterID, int> numNoiseHitsPostClustering;
@@ -95,12 +92,6 @@ private:
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 };
-
-ClusteringValidation::ClusterCounter::ClusterCounter(unsigned int& t, unsigned int& p)
-{
-  tpc = t;
-  plane = p;
-}
 
 void ClusteringValidation::ClusterCounter::AddHitPreClustering(TrackID trackID)
 {
@@ -245,18 +236,35 @@ private:
   std::string fClusterLabel;
 
   // hists
-  TH1 *hCompleteness, *hCleanliness, *hComplCleanl;
-  TH1 *hPi0Angle, *hPi0Energy, *hPi0ConversionDistance, *hPi0ConversionSeparation, *hPi0AngleCut,
-    *hPi0EnergyCut, *hPi0ConversionDistanceCut, *hPi0ConversionSeparationCut;
-  TH2 *hNumHitsCompleteness, *hNumHitsEnergy;
-  TProfile *hCompletenessEnergy, *hCompletenessAngle, *hCompletenessConversionDistance,
-    *hCompletenessConversionSeparation;
-  TProfile *hCleanlinessEnergy, *hCleanlinessAngle, *hCleanlinessConversionDistance,
-    *hCleanlinessConversionSeparation;
-  TProfile *hComplCleanlEnergy, *hComplCleanlAngle, *hComplCleanlConversionDistance,
-    *hComplCleanlConversionSeparation;
-  TEfficiency *hEfficiencyAngle, *hEfficiencyEnergy, *hEfficiencyConversionDistance,
-    *hEfficiencyConversionSeparation;
+  TH1* hCompleteness;
+  TH1* hCleanliness;
+  TH1* hComplCleanl;
+  TH1* hPi0Angle;
+  TH1* hPi0Energy;
+  TH1* hPi0ConversionDistance;
+  TH1* hPi0ConversionSeparation;
+  TH1* hPi0AngleCut;
+  TH1* hPi0EnergyCut;
+  TH1* hPi0ConversionDistanceCut;
+  TH1* hPi0ConversionSeparationCut;
+  TH2* hNumHitsCompleteness;
+  TH2* hNumHitsEnergy;
+  TProfile* hCompletenessEnergy;
+  TProfile* hCompletenessAngle;
+  TProfile* hCompletenessConversionDistance;
+  TProfile* hCompletenessConversionSeparation;
+  TProfile* hCleanlinessEnergy;
+  TProfile* hCleanlinessAngle;
+  TProfile* hCleanlinessConversionDistance;
+  TProfile* hCleanlinessConversionSeparation;
+  TProfile* hComplCleanlEnergy;
+  TProfile* hComplCleanlAngle;
+  TProfile* hComplCleanlConversionDistance;
+  TProfile* hComplCleanlConversionSeparation;
+  TEfficiency* hEfficiencyAngle;
+  TEfficiency* hEfficiencyEnergy;
+  TEfficiency* hEfficiencyConversionDistance;
+  TEfficiency* hEfficiencyConversionSeparation;
   TObjArray fHistArray;
 
   std::map<unsigned int, std::map<unsigned int, std::unique_ptr<ClusterCounter>>> clusterMap;
@@ -346,10 +354,9 @@ void ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData 
 {
 
   // Make a map of cluster counters in TPC/plane space
-  for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
-    for (unsigned int plane = 0; plane < geometry->Nplanes(tpc, 0); ++plane) {
-      clusterMap[tpc][plane] = (std::unique_ptr<ClusterCounter>)new ClusterCounter(tpc, plane);
-    }
+  for (auto const& id : geometry->Iterate<geo::PlaneID>(geo::CryostatID{0})) {
+    auto const [tpc, plane] = std::make_tuple(id.TPC, id.Plane);
+    clusterMap[tpc][plane] = std::make_unique<ClusterCounter>();
   }
 
   // Save preclustered hits
@@ -523,83 +530,75 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms()
 {
 
   // Loop over the tpcs and planes in the geometry
-  for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
-    for (unsigned int plane = 0; plane < geometry->Nplanes(tpc, 0); ++plane) {
+  for (auto const& id : geometry->Iterate<geo::PlaneID>(geo::CryostatID{0})) {
+    auto const [tpc, plane] = std::make_tuple(id.TPC, id.Plane);
+    auto& counter = clusterMap[tpc][plane];
+    ClusterIDs clusterIDs = counter->GetListOfClusterIDs();
 
-      ClusterIDs clusterIDs = clusterMap[tpc][plane]->GetListOfClusterIDs();
-
-      // Fill histograms for the efficiency
-      if (clusterMap[tpc][plane]->GetPhotons().size() == 2) {
-        hPi0Angle->Fill(FindPhotonAngle());
-        hPi0Energy->Fill(GetPi0()->Momentum().E());
-        hPi0ConversionDistance->Fill(
-          std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first,
-                                       (TrackID)GetPi0()->TrackId()),
-                   GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first,
-                                       (TrackID)GetPi0()->TrackId())));
-        hPi0ConversionSeparation->Fill(
-          GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first,
-                              clusterMap[tpc][plane]->GetPhotons().at(1).first));
-        if (clusterMap[tpc][plane]->PassesCut()) {
-          hPi0AngleCut->Fill(FindPhotonAngle());
-          hPi0EnergyCut->Fill(GetPi0()->Momentum().E());
-          hPi0ConversionDistanceCut->Fill(
-            std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first,
-                                         (TrackID)GetPi0()->TrackId()),
-                     GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first,
-                                         (TrackID)GetPi0()->TrackId())));
-          hPi0ConversionSeparationCut->Fill(
-            GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first,
-                                clusterMap[tpc][plane]->GetPhotons().at(1).first));
-        }
-        else
-          std::cout << "TPC " << tpc << ", Plane " << plane << " fails the cut" << std::endl;
+    // Fill histograms for the efficiency
+    if (counter->GetPhotons().size() == 2) {
+      hPi0Angle->Fill(FindPhotonAngle());
+      hPi0Energy->Fill(GetPi0()->Momentum().E());
+      hPi0ConversionDistance->Fill(std::min(
+        GetEndTrackDistance(counter->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
+        GetEndTrackDistance(counter->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
+      hPi0ConversionSeparation->Fill(
+        GetEndTrackDistance(counter->GetPhotons().at(0).first, counter->GetPhotons().at(1).first));
+      if (counter->PassesCut()) {
+        hPi0AngleCut->Fill(FindPhotonAngle());
+        hPi0EnergyCut->Fill(GetPi0()->Momentum().E());
+        hPi0ConversionDistanceCut->Fill(std::min(
+          GetEndTrackDistance(counter->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
+          GetEndTrackDistance(counter->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
+        hPi0ConversionSeparationCut->Fill(GetEndTrackDistance(counter->GetPhotons().at(0).first,
+                                                              counter->GetPhotons().at(1).first));
       }
+      else
+        std::cout << "TPC " << tpc << ", Plane " << plane << " fails the cut" << std::endl;
+    }
 
-      // Look at all the clusters
-      for (unsigned int cluster = 0; cluster < clusterIDs.size(); ++cluster) {
+    // Look at all the clusters
+    for (unsigned int cluster = 0; cluster < clusterIDs.size(); ++cluster) {
 
-        ClusterID clusID = clusterIDs.at(cluster);
-        double completeness = clusterMap[tpc][plane]->GetCompleteness(clusID);
-        double cleanliness = clusterMap[tpc][plane]->GetCleanliness(clusID);
-        int numClusterHits = clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID);
+      ClusterID clusID = clusterIDs.at(cluster);
+      double completeness = counter->GetCompleteness(clusID);
+      double cleanliness = counter->GetCleanliness(clusID);
+      int numClusterHits = counter->GetNumberHitsInCluster(clusID);
 
-        // Fill histograms for this cluster
-        hCompleteness->Fill(completeness, numClusterHits);
-        hCleanliness->Fill(cleanliness, numClusterHits);
-        hComplCleanl->Fill(completeness * cleanliness, numClusterHits);
-        hNumHitsCompleteness->Fill(completeness, numClusterHits);
+      // Fill histograms for this cluster
+      hCompleteness->Fill(completeness, numClusterHits);
+      hCleanliness->Fill(cleanliness, numClusterHits);
+      hComplCleanl->Fill(completeness * cleanliness, numClusterHits);
+      hNumHitsCompleteness->Fill(completeness, numClusterHits);
 
-        // Is this cluster doesn't correspond to a true particle continue
-        if (clusterMap[tpc][plane]->IsNoise(clusID)) continue;
+      // Is this cluster doesn't correspond to a true particle continue
+      if (counter->IsNoise(clusID)) continue;
 
-        double pi0Energy = GetPi0()->Momentum().E();
-        double pi0DecayAngle = FindPhotonAngle();
-        double conversionDistance = GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID),
-                                                        (TrackID)GetPi0()->TrackId());
+      double pi0Energy = GetPi0()->Momentum().E();
+      double pi0DecayAngle = FindPhotonAngle();
+      double conversionDistance =
+        GetEndTrackDistance(counter->GetTrack(clusID), (TrackID)GetPi0()->TrackId());
 
-        hCompletenessEnergy->Fill(pi0Energy, completeness, numClusterHits);
-        hCompletenessAngle->Fill(pi0DecayAngle, completeness, numClusterHits);
-        hCompletenessConversionDistance->Fill(conversionDistance, completeness, numClusterHits);
-        hCleanlinessEnergy->Fill(pi0Energy, cleanliness, numClusterHits);
-        hCleanlinessAngle->Fill(pi0DecayAngle, cleanliness, numClusterHits);
-        hCleanlinessConversionDistance->Fill(conversionDistance, cleanliness, numClusterHits);
-        hComplCleanlEnergy->Fill(pi0Energy, cleanliness * completeness, numClusterHits);
-        hComplCleanlAngle->Fill(pi0DecayAngle, cleanliness * completeness, numClusterHits);
-        hComplCleanlConversionDistance->Fill(
-          conversionDistance, cleanliness * completeness, numClusterHits);
-        hNumHitsEnergy->Fill(pi0Energy, numClusterHits);
+      hCompletenessEnergy->Fill(pi0Energy, completeness, numClusterHits);
+      hCompletenessAngle->Fill(pi0DecayAngle, completeness, numClusterHits);
+      hCompletenessConversionDistance->Fill(conversionDistance, completeness, numClusterHits);
+      hCleanlinessEnergy->Fill(pi0Energy, cleanliness, numClusterHits);
+      hCleanlinessAngle->Fill(pi0DecayAngle, cleanliness, numClusterHits);
+      hCleanlinessConversionDistance->Fill(conversionDistance, cleanliness, numClusterHits);
+      hComplCleanlEnergy->Fill(pi0Energy, cleanliness * completeness, numClusterHits);
+      hComplCleanlAngle->Fill(pi0DecayAngle, cleanliness * completeness, numClusterHits);
+      hComplCleanlConversionDistance->Fill(
+        conversionDistance, cleanliness * completeness, numClusterHits);
+      hNumHitsEnergy->Fill(pi0Energy, numClusterHits);
 
-        // Continue if there are not two photons in the view
-        if (clusterMap[tpc][plane]->GetPhotons().size() != 2) continue;
+      // Continue if there are not two photons in the view
+      if (counter->GetPhotons().size() != 2) continue;
 
-        double conversionSeparation =
-          GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first,
-                              clusterMap[tpc][plane]->GetPhotons().at(1).first);
+      double conversionSeparation =
+        GetEndTrackDistance(counter->GetPhotons()[0].first, counter->GetPhotons()[1].first);
 
-        hCompletenessConversionSeparation->Fill(conversionSeparation, completeness, numClusterHits);
-        hCleanlinessConversionSeparation->Fill(conversionSeparation, cleanliness, numClusterHits);
-      }
+      hCompletenessConversionSeparation->Fill(conversionSeparation, completeness, numClusterHits);
+      hCleanlinessConversionSeparation->Fill(conversionSeparation, cleanliness, numClusterHits);
     }
   }
 }

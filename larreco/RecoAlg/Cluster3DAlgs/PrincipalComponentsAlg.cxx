@@ -322,7 +322,7 @@ namespace lar_cluster3d {
         // From this, get the parameters of the line for the wire
         auto const wirePosArr = wire_geom.GetCenter();
 
-        Eigen::Vector3f wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+        Eigen::Vector3f wireCenter(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
         Eigen::Vector3f wireDirVec(
           wire_geom.Direction().X(), wire_geom.Direction().Y(), wire_geom.Direction().Z());
 
@@ -570,7 +570,7 @@ namespace lar_cluster3d {
       // From this, get the parameters of the line for the wire
       auto const wirePosArr = wire_geom.GetCenter();
 
-      Eigen::Vector3f wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+      Eigen::Vector3f wireCenter(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
       Eigen::Vector3f wireDirVec(
         wire_geom.Direction().X(), wire_geom.Direction().Y(), wire_geom.Direction().Z());
 

@@ -286,17 +286,14 @@ namespace DUNE {
     double maxy = -1e9;
     double minz = 1e9;
     double maxz = -1e9;
-    for (size_t i = 0; i < geo->NTPC(); ++i) {
-      double local[3] = {0., 0., 0.};
-      double world[3] = {0., 0., 0.};
-      const geo::TPCGeo& tpc = geo->TPC(i);
-      tpc.LocalToWorld(local, world);
-      if (minx > world[0] - geo->DetHalfWidth(i)) minx = world[0] - geo->DetHalfWidth(i);
-      if (maxx < world[0] + geo->DetHalfWidth(i)) maxx = world[0] + geo->DetHalfWidth(i);
-      if (miny > world[1] - geo->DetHalfHeight(i)) miny = world[1] - geo->DetHalfHeight(i);
-      if (maxy < world[1] + geo->DetHalfHeight(i)) maxy = world[1] + geo->DetHalfHeight(i);
-      if (minz > world[2] - geo->DetLength(i) / 2.) minz = world[2] - geo->DetLength(i) / 2.;
-      if (maxz < world[2] + geo->DetLength(i) / 2.) maxz = world[2] + geo->DetLength(i) / 2.;
+    for (auto const& tpc : geo->Iterate<geo::TPCGeo>()) {
+      auto const world = tpc.GetCenter();
+      if (minx > world.X() - tpc.HalfWidth()) minx = world.X() - tpc.HalfWidth();
+      if (maxx < world.X() + tpc.HalfWidth()) maxx = world.X() + tpc.HalfWidth();
+      if (miny > world.Y() - tpc.HalfHeight()) miny = world.Y() - tpc.HalfHeight();
+      if (maxy < world.Y() + tpc.HalfHeight()) maxy = world.Y() + tpc.HalfHeight();
+      if (minz > world.Z() - tpc.Length() / 2.) minz = world.Z() - tpc.Length() / 2.;
+      if (maxz < world.Z() + tpc.Length() / 2.) maxz = world.Z() + tpc.Length() / 2.;
     }
 
     fFidVolXmin = minx + fFidVolCutX;

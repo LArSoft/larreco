@@ -214,17 +214,14 @@ namespace DUNE {
     double maxy = -1e9;
     double minz = 1e9;
     double maxz = -1e9;
-    for (size_t i = 0; i < geo->NTPC(); ++i) {
-      double local[3] = {0., 0., 0.};
-      double world[3] = {0., 0., 0.};
-      const geo::TPCGeo& tpc = geo->TPC(i);
-      tpc.LocalToWorld(local, world);
-      if (minx > world[0] - geo->DetHalfWidth(i)) minx = world[0] - geo->DetHalfWidth(i);
-      if (maxx < world[0] + geo->DetHalfWidth(i)) maxx = world[0] + geo->DetHalfWidth(i);
-      if (miny > world[1] - geo->DetHalfHeight(i)) miny = world[1] - geo->DetHalfHeight(i);
-      if (maxy < world[1] + geo->DetHalfHeight(i)) maxy = world[1] + geo->DetHalfHeight(i);
-      if (minz > world[2] - geo->DetLength(i) / 2.) minz = world[2] - geo->DetLength(i) / 2.;
-      if (maxz < world[2] + geo->DetLength(i) / 2.) maxz = world[2] + geo->DetLength(i) / 2.;
+    for (auto const& tpc : geo->Iterate<geo::TPCGeo>(geo::CryostatID{0})) {
+      auto const world = tpc.GetCenter();
+      if (minx > world.X() - tpc.HalfWidth()) minx = world.X() - tpc.HalfWidth();
+      if (maxx < world.X() + tpc.HalfWidth()) maxx = world.X() + tpc.HalfWidth();
+      if (miny > world.Y() - tpc.HalfHeight()) miny = world.Y() - tpc.HalfHeight();
+      if (maxy < world.Y() + tpc.HalfHeight()) maxy = world.Y() + tpc.HalfHeight();
+      if (minz > world.Z() - tpc.Length() / 2.) minz = world.Z() - tpc.Length() / 2.;
+      if (maxz < world.Z() + tpc.Length() / 2.) maxz = world.Z() + tpc.Length() / 2.;
     }
 
     fFidVolXmin = minx + fFidVolCutX;
@@ -954,19 +951,17 @@ namespace DUNE {
     double const WindowSize = detProp.NumberTimeSamples() * clockData.TPCClock().TickPeriod() * 1e3;
 
     for (unsigned int MCHit = 0; MCHit < TPCLengthHits.size(); ++MCHit) {
-      const TLorentzVector& tmpPosition = MCparticle->Position(MCHit);
-      double const tmpPosArray[] = {tmpPosition[0], tmpPosition[1], tmpPosition[2]};
       if (MCHit != 0)
         TPCLengthHits[MCHit] = sqrt(pow((MCparticle->Vx(MCHit - 1) - MCparticle->Vx(MCHit)), 2) +
                                     pow((MCparticle->Vy(MCHit - 1) - MCparticle->Vy(MCHit)), 2) +
                                     pow((MCparticle->Vz(MCHit - 1) - MCparticle->Vz(MCHit)), 2));
-      geo::TPCID tpcid = geom->FindTPCAtPosition(tmpPosArray);
+      auto const position = geo::vect::toPoint(MCparticle->Position(MCHit).Vect());
+      geo::TPCID tpcid = geom->FindTPCAtPosition(position);
       if (tpcid.isValid) {
         // -- Check if hit is within drift window...
-        geo::CryostatGeo const& cryo = geom->Cryostat(tpcid.Cryostat);
-        geo::TPCGeo const& tpc = cryo.TPC(tpcid.TPC);
-        double XPlanePosition = tpc.Plane(0).GetCenter()[0];
-        double DriftTimeCorrection = fabs(tmpPosition[0] - XPlanePosition) / fDriftVelocity;
+        geo::TPCGeo const& tpc = geom->TPC(tpcid);
+        double XPlanePosition = tpc.Plane(0).GetCenter().X();
+        double DriftTimeCorrection = fabs(position.X() - XPlanePosition) / fDriftVelocity;
         double TimeAtPlane = MCparticle->T() + DriftTimeCorrection;
 
         if (TimeAtPlane < trigger_offset(clockData) ||

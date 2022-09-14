@@ -122,9 +122,10 @@ namespace hit {
     // geometry data.
     art::ServiceHandle<geo::Geometry const> geom;
     // assumes all TPCs are the same
-    double width = 2 * geom->TPC(0).HalfWidth();
-    double halfHeight = geom->TPC(0).HalfHeight();
-    double length = geom->TPC(0).Length();
+    auto const& tpc_0 = geom->TPC();
+    double width = 2 * tpc_0.HalfWidth();
+    double halfHeight = tpc_0.HalfHeight();
+    double length = tpc_0.Length();
 
     double zScale = std::max(fDirCosZ / 2.0, 4e-4);
 
@@ -225,8 +226,8 @@ namespace hit {
       // Charge collected at the wire
       //
       // Exactly once for each recob::Hit
-      auto const w0pos = geom->TPC(hitWireID.TPC).Plane(hitWireID.Plane).Wire(0).GetCenter();
-      double HitZpos = w0pos[2] + hitWireID.Wire * geom->TPC(hitWireID.TPC).WirePitch();
+      auto const w0pos = geom->Plane(hitWireID).Wire(0).GetCenter();
+      double HitZpos = w0pos.Z() + hitWireID.Wire * geom->TPC(hitWireID).WirePitch();
       double Charge = itr->Integral();
       fHitZpos->Fill(HitZpos, Charge);
 

@@ -208,17 +208,18 @@ double pma::VtxCandidate::ComputeMse2D()
 
     size_t k = 0;
     double m = 0.0;
-    if (geom->TPC(tpc, cryo).HasPlane(geo::kU)) {
+    auto const& tpcgeom = geom->TPC(geo::TPCID(cryo, tpc));
+    if (tpcgeom.HasPlane(geo::kU)) {
       center2d = GetProjectionToPlane(fCenter, geo::kU, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kU);
       k++;
     }
-    if (geom->TPC(tpc, cryo).HasPlane(geo::kV)) {
+    if (tpcgeom.HasPlane(geo::kV)) {
       center2d = GetProjectionToPlane(fCenter, geo::kV, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kV);
       k++;
     }
-    if (geom->TPC(tpc, cryo).HasPlane(geo::kZ)) {
+    if (tpcgeom.HasPlane(geo::kZ)) {
       center2d = GetProjectionToPlane(fCenter, geo::kZ, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kZ);
       k++;

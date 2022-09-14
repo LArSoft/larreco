@@ -431,9 +431,9 @@ namespace cluster {
     // get the plane from the view. Perhaps there is a method that does
     // this somewhere...
     std::map<geo::View_t, unsigned int> ViewToPlane;
-    for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
-      geo::View_t view = geom->Plane(plane).View();
-      ViewToPlane[view] = plane;
+    for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+      geo::View_t view = plane.View();
+      ViewToPlane[view] = plane.ID().Plane;
     }
     for (size_t icl = 0; icl < clusters.size(); ++icl) {
       unsigned int plane = ViewToPlane[clusters[icl]->View()];

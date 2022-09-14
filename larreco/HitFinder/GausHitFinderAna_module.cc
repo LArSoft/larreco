@@ -201,7 +201,6 @@ namespace hit {
 
     // Truth hit info from BackTracker
 
-    unsigned int plane = 0;
     Float_t TruthHitTime = 0, TruthHitCalculated = 0;
     int count = 0;
 
@@ -211,7 +210,7 @@ namespace hit {
     for (size_t nh = 0; nh < hitHandle->size(); nh++) {
       // === Finding Channel associated with the hit ===
       art::Ptr<recob::Hit> hitPoint(hitHandle, nh);
-      plane = hitPoint->WireID().Plane;
+      auto const& planeID = hitPoint->WireID().asPlaneID();
 
       // ===================================================================
       // Using Track IDE's to locate the XYZ location from truth information
@@ -235,17 +234,14 @@ namespace hit {
       // ==============================================================
 
       // ### Method 1 ###
-      TruthHitTime = det_prop.ConvertXToTicks(
-        xyz[0], plane, hitPoint->WireID().TPC, hitPoint->WireID().Cryostat);
+      TruthHitTime = det_prop.ConvertXToTicks(xyz[0], planeID);
 
       // ### Method 2 ###
       // ================================================
       // Establishing the x-position of the current plane
       // ================================================
-      const double origin[3] = {0.};
-      double pos[3];
-      geom->Plane(plane).LocalToWorld(origin, pos);
-      double planePos_timeCorr = (pos[0] / drift_velocity) * (1. / time_tick) + 60;
+      auto const pos = geom->Plane(planeID).GetBoxCenter();
+      double planePos_timeCorr = (pos.X() / drift_velocity) * (1. / time_tick) + 60;
       //<---x position of plane / drift velocity + 60 (Trigger offset)
 
       TruthHitCalculated = ((xyz[0]) / (drift_velocity * time_tick)) + planePos_timeCorr;

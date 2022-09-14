@@ -249,23 +249,22 @@ namespace apa {
 
         double xyzStart[3] = {0.};
         double xyzEnd[3] = {0.};
-        geom->WireEndPoints(wid.Cryostat, wid.TPC, wid.Plane, wid.Wire, xyzStart, xyzEnd);
+        geom->WireEndPoints(wid, xyzStart, xyzEnd);
         unsigned int side(wid.TPC % 2), cryo(wid.Cryostat);
         double zminPos(xyzStart[2]), zmaxPos(xyzEnd[2]);
 
         // get appropriate x and y with tpc center
-        TVector3 tpcCenter(0, 0, 0);
         unsigned int tpc =
           2 * apa + side - cryo * geom->NTPC(); // apa number does not reset per cryo
-        tpcCenter = geom->Cryostat(cryo).TPC(tpc).LocalToWorld(tpcCenter);
+        auto const tpcCenter = geom->TPC(geo::TPCID(cryo, tpc)).GetCenter();
 
         // get channel range
-        TVector3 Min(tpcCenter);
-        Min[2] = zminPos;
-        TVector3 Max(tpcCenter);
-        Max[2] = zmaxPos;
-        raw::ChannelID_t ZminChan = geom->NearestChannel(Min, 2, tpc, cryo);
-        raw::ChannelID_t ZmaxChan = geom->NearestChannel(Max, 2, tpc, cryo);
+        auto Min = tpcCenter;
+        Min.SetZ(zminPos);
+        auto Max = tpcCenter;
+        Max.SetZ(zmaxPos);
+        raw::ChannelID_t ZminChan = geom->NearestChannel(Min, geo::PlaneID{cryo, tpc, 2});
+        raw::ChannelID_t ZmaxChan = geom->NearestChannel(Max, geo::PlaneID{cryo, tpc, 2});
 
         for (auto const& zhit : fAPAToZHits[apa] | transform(to_element)) {
           raw::ChannelID_t chan = zhit.Channel();
@@ -314,8 +313,7 @@ namespace apa {
     // wireID adjacent to supplied *wid*.  Returns number of NEW hits
     // made.
 
-    raw::ChannelID_t Dchan =
-      geom->PlaneWireToChannel(Dwid.Plane, Dwid.Wire, Dwid.TPC, Dwid.Cryostat);
+    raw::ChannelID_t Dchan = geom->PlaneWireToChannel(Dwid);
     geo::View_t view = geom->View(Dchan);
     if (view == geo::kZ)
       throw cet::exception("MakeCloseHits") << "Function not meant for non-wrapped channels.\n";
@@ -561,15 +559,14 @@ namespace apa {
         }
       }
 
-      TVector3 tpcCenter(0, 0, 0);
       unsigned int tpc(ZHit.WireID().TPC), cryo(ZHit.WireID().Cryostat);
-      tpcCenter = geom->Cryostat(cryo).TPC(tpc).LocalToWorld(tpcCenter);
+      auto const tpcCenter = geom->TPC(geo::TPCID{cryo, tpc}).GetCenter();
 
       if (Umatch == 1 && Vmatch == 1) {
 
         std::vector<double> yzEndPt =
           fAPAGeo.ThreeChanPos(Uhit->Channel(), Vhit->Channel(), ZHit.Channel());
-        double intersect[3] = {tpcCenter[0], yzEndPt[0], yzEndPt[1]};
+        double intersect[3] = {tpcCenter.X(), yzEndPt[0], yzEndPt[1]};
 
         geo::WireID Uwid = fAPAGeo.NearestWireIDOnChan(intersect, Uhit->Channel(), 0, tpc, cryo);
         geo::WireID Vwid = fAPAGeo.NearestWireIDOnChan(intersect, Vhit->Channel(), 1, tpc, cryo);
@@ -583,7 +580,7 @@ namespace apa {
         if (widIntersects.size() == 0)
           continue;
         else if (widIntersects.size() == 1) {
-          double intersect[3] = {tpcCenter[0], widIntersects[0].y, widIntersects[0].z};
+          double intersect[3] = {tpcCenter.X(), widIntersects[0].y, widIntersects[0].z};
           geo::WireID Uwid = fAPAGeo.NearestWireIDOnChan(intersect, Uhit->Channel(), 0, tpc, cryo);
           this->MakeDisambigHit(Uhit, Uwid, apa);
         }
@@ -600,7 +597,7 @@ namespace apa {
         if (widIntersects.size() == 0)
           continue;
         else if (widIntersects.size() == 1) {
-          double intersect[3] = {tpcCenter[0], widIntersects[0].y, widIntersects[0].z};
+          double intersect[3] = {tpcCenter.X(), widIntersects[0].y, widIntersects[0].z};
           geo::WireID Vwid = fAPAGeo.NearestWireIDOnChan(intersect, Vhit->Channel(), 0, tpc, cryo);
           this->MakeDisambigHit(Vhit, Vwid, apa);
         }
@@ -612,11 +609,10 @@ namespace apa {
       std::vector<geo::WireIDIntersection> widIntersects;
       fAPAGeo.APAChannelsIntersect(endPts[0]->Channel(), endPts[1]->Channel(), widIntersects);
       if (widIntersects.size() == 1) {
-        TVector3 tpcCenter(0, 0, 0);
         unsigned int cryo = endPts[0]->WireID().Cryostat;
         unsigned int tpc = widIntersects[0].TPC;
-        tpcCenter = geom->Cryostat(cryo).TPC(tpc).LocalToWorld(tpcCenter);
-        double intersect[3] = {tpcCenter[0], widIntersects[0].y, widIntersects[0].z};
+        auto const tpcCenter = geom->TPC(geo::TPCID(cryo, tpc)).GetCenter();
+        double intersect[3] = {tpcCenter.X(), widIntersects[0].y, widIntersects[0].z};
         unsigned int plane0(0), plane1(0);
         if (endPts[0]->View() == geo::kV) plane0 = 1;
         if (endPts[1]->View() == geo::kV) plane1 = 1;

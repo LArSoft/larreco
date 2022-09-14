@@ -80,7 +80,7 @@ namespace hit {
     }
     else {
       // assume TPC 0 is typical of all in terms of number of channels
-      unsigned int np = geom->Cryostat(0).TPC(0).Nplanes();
+      unsigned int np = geom->TPC().Nplanes();
       fMaxWireShift.resize(np);
       for (unsigned int p = 0; p < np; ++p) {
         auto const& planeGeo = geom->Plane({0, 0, p});
@@ -96,7 +96,7 @@ namespace hit {
           auto const xyz = planeGeo.Wire(w).GetCenter();
           auto const xyz_next = planeGeo.Wire(w + 1).GetCenter();
 
-          if (xyz[2] == xyz_next[2]) {
+          if (xyz.Z() == xyz_next.Z()) {
             fMaxWireShift[p] = w;
             break;
           }

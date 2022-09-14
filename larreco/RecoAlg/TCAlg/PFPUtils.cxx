@@ -630,14 +630,22 @@ namespace tca {
         // find two wires that have a valid intersection
         for (unsigned int wire = firstWire; wire < maxWire; ++wire) {
           double y00, z00;
-          if (!tcc.geom->IntersectionPoint(wire, wire, pln1, pln2, cstat, tpc, y00, z00)) continue;
+          if (!tcc.geom->IntersectionPoint(
+                geo::WireID{cstat, tpc, pln1, wire}, geo::WireID{cstat, tpc, pln2, wire}, y00, z00))
+            continue;
           // increment by one wire in pln1 and find another valid intersection
           double y10, z10;
-          if (!tcc.geom->IntersectionPoint(wire + 10, wire, pln1, pln2, cstat, tpc, y10, z10))
+          if (!tcc.geom->IntersectionPoint(geo::WireID{cstat, tpc, pln1, wire + 10},
+                                           geo::WireID{cstat, tpc, pln2, wire},
+                                           y10,
+                                           z10))
             continue;
           // increment by one wire in pln2 and find another valid intersection
           double y01, z01;
-          if (!tcc.geom->IntersectionPoint(wire, wire + 10, pln1, pln2, cstat, tpc, y01, z01))
+          if (!tcc.geom->IntersectionPoint(geo::WireID{cstat, tpc, pln1, wire},
+                                           geo::WireID{cstat, tpc, pln2, wire + 10},
+                                           y01,
+                                           z01))
             continue;
           TCWireIntersection tcwi;
           tcwi.tpc = tpc;
@@ -978,8 +986,10 @@ namespace tca {
         unsigned int jWire = jtp.Pos[0];
         Point3_t ijPos;
         ijPos[0] = itp.Pos[0];
-        if (!tcc.geom->IntersectionPoint(
-              iWire, jWire, iPlane, jPlane, cstat, tpc, ijPos[1], ijPos[2]))
+        if (!tcc.geom->IntersectionPoint(geo::WireID(cstat, tpc, iPlane, iWire),
+                                         geo::WireID(cstat, tpc, jPlane, jWire),
+                                         ijPos[1],
+                                         ijPos[2]))
           continue;
         tIDs[0] = iTjPt.id;
         tIDs[1] = jTjPt.id;
@@ -3056,19 +3066,16 @@ namespace tca {
     // determine which TPC this point is in. This function returns false
     // if the point is not inside any TPC
     float abit = 5;
-    for (const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
-      const geo::TPCGeo& TPC = tcc.geom->TPC(tpcid);
-      double local[3] = {0., 0., 0.};
-      double world[3] = {0., 0., 0.};
-      TPC.LocalToWorld(local, world);
+    for (const geo::TPCGeo& TPC : tcc.geom->Iterate<geo::TPCGeo>()) {
+      auto const world = TPC.GetCenter();
       // reduce the active area of the TPC by a bit to be consistent with FillWireHitRange
-      if (pos[0] < world[0] - tcc.geom->DetHalfWidth(tpcid) + abit) continue;
-      if (pos[0] > world[0] + tcc.geom->DetHalfWidth(tpcid) - abit) continue;
-      if (pos[1] < world[1] - tcc.geom->DetHalfHeight(tpcid) + abit) continue;
-      if (pos[1] > world[1] + tcc.geom->DetHalfHeight(tpcid) - abit) continue;
-      if (pos[2] < world[2] - tcc.geom->DetLength(tpcid) / 2 + abit) continue;
-      if (pos[2] > world[2] + tcc.geom->DetLength(tpcid) / 2 - abit) continue;
-      inTPCID = tpcid;
+      if (pos[0] < world.X() - TPC.HalfWidth() + abit) continue;
+      if (pos[0] > world.X() + TPC.HalfWidth() - abit) continue;
+      if (pos[1] < world.Y() - TPC.HalfHeight() + abit) continue;
+      if (pos[1] > world.Y() + TPC.HalfHeight() - abit) continue;
+      if (pos[2] < world.Z() - TPC.Length() / 2 + abit) continue;
+      if (pos[2] > world.Z() + TPC.Length() / 2 - abit) continue;
+      inTPCID = TPC.ID();
       return true;
     } // tpcid
     return false;

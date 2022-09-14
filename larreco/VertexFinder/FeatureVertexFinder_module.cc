@@ -84,7 +84,7 @@ namespace vertex {
     // This function will take in and EndPoint2d from either cluster crawler
     // or corner finder and only save points that make a 3d-candidate
     void Get3dVertexCandidates(detinfo::DetectorPropertiesData const& detProp,
-                               std::vector<art::Ptr<recob::EndPoint2D>> EndPoints,
+                               std::vector<art::Ptr<recob::EndPoint2D>> const& EndPoints,
                                bool PlaneDet);
 
     // This function will take in 2d Clusters (by default dBCluster)
@@ -105,10 +105,10 @@ namespace vertex {
     // merges them if they are within 2.0 cm in X, Y, and Z
     // simultaneously and then sorts the list by vertex strength and Z
     // location (lowest Z is first on the list
-    void MergeAndSort3dVtxCandidate(std::vector<double> merge_vtxX,
-                                    std::vector<double> merge_vtxY,
-                                    std::vector<double> merge_vtxZ,
-                                    std::vector<double> merge_vtxStgth);
+    void MergeAndSort3dVtxCandidate(std::vector<double> const& merge_vtxX,
+                                    std::vector<double> const& merge_vtxY,
+                                    std::vector<double> const& merge_vtxZ,
+                                    std::vector<double> const& merge_vtxStgth);
 
     std::string fClusterModuleLabel;
     std::string fHitModuleLabel;
@@ -194,13 +194,13 @@ namespace vertex {
 
     GT2PlaneDetector = false;
 
-    for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-      for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-        if (geom->Cryostat(cstat).TPC(tpc).Nplanes() > 2) { GT2PlaneDetector = true; }
-      } //<---End tpc loop
-    }   //<---End cstat loop
-
-    if (GT2PlaneDetector) { std::cout << "yeah" << std::endl; }
+    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
+      if (tpc.Nplanes() > 2) {
+        GT2PlaneDetector = true;
+        std::cout << "yeah" << std::endl;
+        break;
+      }
+    }
 
     // These are the things I want to put on the event
 
@@ -303,60 +303,54 @@ namespace vertex {
         // --- Now go make the 2DEndPoints that correspond to each 3d vertex ---
         // ---------------------------------------------------------------------
 
-        for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-          for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-            for (unsigned int plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes();
-                 ++plane) {
-              geo::Point_t const temp2dXYZ{
-                MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
-              double temp2dStrength = MergeSort3dVtx_strength[pri];
+        for (auto const& planeID : geom->Iterate<geo::PlaneID>()) {
+          geo::Point_t const temp2dXYZ{
+            MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
+          double temp2dStrength = MergeSort3dVtx_strength[pri];
 
-              // Skipping a vertex that is zero
+          // Skipping a vertex that is zero
 
-              if (temp2dXYZ.X() == 0 && temp2dXYZ.Y() == 0 && temp2dXYZ.Z() == 0) { continue; }
+          if (temp2dXYZ.X() == 0 && temp2dXYZ.Y() == 0 && temp2dXYZ.Z() == 0) { continue; }
 
-              // Converting the 3d vertex into 2d time ticks, wire, and
-              // channel
+          // Converting the 3d vertex into 2d time ticks, wire, and
+          // channel
 
-              geo::PlaneID const planeID{cstat, tpc, plane};
-              double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
-              int EndPoint2d_Wire = 0;
-              int EndPoint2d_Channel = 0;
-              // Putting in protection in case NearestWire Fails
-              try {
-                EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
-              }
-              catch (...) {
-                mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
-                continue;
-              }
-              // Putting in protection in case NearestChannel Fails
-              try {
-                EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, plane, tpc, cstat);
-              }
-              catch (...) {
-                mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
-                continue;
-              }
+          double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
+          int EndPoint2d_Wire = 0;
+          int EndPoint2d_Channel = 0;
+          // Putting in protection in case NearestWire Fails
+          try {
+            EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
+          }
+          catch (...) {
+            mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
+            continue;
+          }
+          // Putting in protection in case NearestChannel Fails
+          try {
+            EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, planeID);
+          }
+          catch (...) {
+            mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
+            continue;
+          }
 
-              // Making geo::WireID and getting the current View number
-              geo::View_t View = geom->View(EndPoint2d_Channel);
-              geo::WireID wireID(cstat, tpc, plane, EndPoint2d_Wire);
+          // Making geo::WireID and getting the current View number
+          geo::View_t View = geom->View(EndPoint2d_Channel);
+          geo::WireID wireID(planeID, EndPoint2d_Wire);
 
-              // Putting the 2d Vertex found on the event
+          // Putting the 2d Vertex found on the event
 
-              recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
-                                       wireID,              //<---geo::WireID
-                                       temp2dStrength,      //<---Vtx strength (JA: ?)
-                                       epcol->size(),       //<---Vtx ID (JA: ?)
-                                       View,                //<---Vtx View
-                                       1); //<---Total Charge (JA: Need to figure this one?)
-              epcol->push_back(vertex);
-            } //<---End Plane loop
-          }   //<---End TPC loop
-        }     //<---End cstat loop
-      }       //<---End pri loop
-    }         //<---End fRunningMode == 0
+          recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
+                                   wireID,              //<---geo::WireID
+                                   temp2dStrength,      //<---Vtx strength (JA: ?)
+                                   epcol->size(),       //<---Vtx ID (JA: ?)
+                                   View,                //<---Vtx View
+                                   1); //<---Total Charge (JA: Need to figure this one?)
+          epcol->push_back(vertex);
+        } //<---End Plane loop
+      }   //<---End pri loop
+    }     //<---End fRunningMode == 0
 
     // ================================================
     // === Returning only primary vertex candidates ===
@@ -390,56 +384,49 @@ namespace vertex {
 
       // Looping over cryostats
 
-      for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-        // Looping over TPC's
-        for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-          // Loop over the wire planes
-          for (unsigned int plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane) {
-            geo::Point_t const temp2dXYZ{MergeSort3dVtx_xpos[position],
-                                         MergeSort3dVtx_ypos[position],
-                                         MergeSort3dVtx_zpos[position]};
-            double temp2dStrength = MergeSort3dVtx_strength[position];
+      for (auto const& planeID : geom->Iterate<geo::PlaneID>()) {
+        geo::Point_t const temp2dXYZ{MergeSort3dVtx_xpos[position],
+                                     MergeSort3dVtx_ypos[position],
+                                     MergeSort3dVtx_zpos[position]};
+        double temp2dStrength = MergeSort3dVtx_strength[position];
 
-            // Converting the 3d vertex into 2d time ticks, wire, and
-            // channel
-            geo::PlaneID const planeID{cstat, tpc, plane};
-            double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
-            int EndPoint2d_Wire = 0;
-            int EndPoint2d_Channel = 0;
-            // Putting in protection in case NearestWire Fails
-            try {
-              EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
-            }
-            catch (...) {
-              mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
-              continue;
-            }
-            // Putting in protection in case NearestChannel Fails
-            try {
-              EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, plane, tpc, cstat);
-            }
-            catch (...) {
-              mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
-              continue;
-            }
+        // Converting the 3d vertex into 2d time ticks, wire, and
+        // channel
+        double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
+        int EndPoint2d_Wire = 0;
+        int EndPoint2d_Channel = 0;
+        // Putting in protection in case NearestWire Fails
+        try {
+          EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
+        }
+        catch (...) {
+          mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
+          continue;
+        }
+        // Putting in protection in case NearestChannel Fails
+        try {
+          EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, planeID);
+        }
+        catch (...) {
+          mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
+          continue;
+        }
 
-            // Making geo::WireID and getting the current View number
-            geo::View_t View = geom->View(EndPoint2d_Channel);
-            geo::WireID wireID(cstat, tpc, plane, EndPoint2d_Wire);
+        // Making geo::WireID and getting the current View number
+        geo::View_t View = geom->View(EndPoint2d_Channel);
+        geo::WireID wireID(planeID, EndPoint2d_Wire);
 
-            // Putting the 2d Vertex found on the event
+        // Putting the 2d Vertex found on the event
 
-            recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
-                                     wireID,              //<---geo::WireID
-                                     temp2dStrength,      //<---Vtx strength (JA: ?)
-                                     epcol->size(),       //<---Vtx ID (JA: ?)
-                                     View,                //<---Vtx View
-                                     1); //<---Total Charge (JA: Need to figure this one?)
-            epcol->push_back(vertex);
-          } //<---End Plane loop
-        }   //<---End TPC loop
-      }     //<---End cstat loop
-    }       //<---End fRunningMode == 1
+        recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
+                                 wireID,              //<---geo::WireID
+                                 temp2dStrength,      //<---Vtx strength (JA: ?)
+                                 epcol->size(),       //<---Vtx ID (JA: ?)
+                                 View,                //<---Vtx View
+                                 1); //<---Total Charge (JA: Need to figure this one?)
+        epcol->push_back(vertex);
+      } //<---End Plane loop
+    }   //<---End fRunningMode == 1
 
     mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     mf::LogVerbatim("Summary") << "FeatureVertexFinder Summary:";
@@ -489,7 +476,7 @@ namespace vertex {
   // -----------------------------------------------------------------------------
   void vertex::FeatureVertexFinder::Get3dVertexCandidates(
     detinfo::DetectorPropertiesData const& detProp,
-    std::vector<art::Ptr<recob::EndPoint2D>> EndPoints,
+    std::vector<art::Ptr<recob::EndPoint2D>> const& EndPoints,
     bool PlaneDet)
   {
     art::ServiceHandle<geo::Geometry const> geom;
@@ -499,167 +486,105 @@ namespace vertex {
     double yy2 = 0., zz2 = 0.;
     double yy3 = 0., zz3 = 0.;
 
-    for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-      for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-        for (size_t endpt1 = 0; endpt1 < EndPoints.size(); endpt1++) {
-          for (size_t endpt2 = endpt1 + 1; endpt2 < EndPoints.size(); endpt2++) {
+    auto const numEndPoints = size(EndPoints);
 
-            // Check to make sure we are comparing features from different
-            // planes
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (size_t iendpt1 = 0; iendpt1 < numEndPoints; ++iendpt1) {
+        for (size_t iendpt2 = iendpt1 + 1; iendpt2 < numEndPoints; ++iendpt2) {
 
-            if (EndPoints.at(endpt1)->WireID().Plane != EndPoints.at(endpt2)->WireID().Plane) {
+          auto const& endpt1 = *EndPoints[iendpt1];
+          auto const& endpt2 = *EndPoints[iendpt2];
 
-              // Get the appropriate time offset for the two planes we are
-              // considering
+          geo::PlaneID const endpt1_planeid{tpcid, endpt1.WireID().Plane};
+          geo::PlaneID const endpt2_planeid{tpcid, endpt2.WireID().Plane};
 
-              float tempXFeature1 = detProp.ConvertTicksToX(EndPoints.at(endpt1)->DriftTime(),
-                                                            EndPoints.at(endpt1)->WireID().Plane,
-                                                            tpc,
-                                                            cstat);
-              float tempXFeature2 = detProp.ConvertTicksToX(EndPoints.at(endpt2)->DriftTime(),
-                                                            EndPoints.at(endpt2)->WireID().Plane,
-                                                            tpc,
-                                                            cstat);
+          // Check to make sure we are comparing features from different planes
+          if (endpt1_planeid.Plane == endpt2_planeid.Plane) continue;
 
-              // Checking to see if these features have intersecting
-              // channels and are within 0.5 cm in projected X
+          // Get the appropriate time offset for the two planes we are considering
+          float tempXFeature1 = detProp.ConvertTicksToX(endpt1.DriftTime(), endpt1_planeid);
+          float tempXFeature2 = detProp.ConvertTicksToX(endpt2.DriftTime(), endpt2_planeid);
 
-              if (geom->ChannelsIntersect(
-                    geom->PlaneWireToChannel(EndPoints.at(endpt2)->WireID().Plane,
-                                             EndPoints.at(endpt2)->WireID().Wire,
-                                             tpc,
-                                             cstat),
-                    geom->PlaneWireToChannel(EndPoints.at(endpt1)->WireID().Plane,
-                                             EndPoints.at(endpt1)->WireID().Wire,
-                                             tpc,
-                                             cstat),
-                    yy,
-                    zz) &&
-                  std::abs(tempXFeature1 - tempXFeature2) < 0.5) {
+          // Skip features that are not within 0.5 cm in projected X
+          if (std::abs(tempXFeature1 - tempXFeature2) >= 0.5) continue;
 
-                // Use this fill if we are in a detector with fewer than 3
-                // plane (e.g. ArgoNeuT)
+          // Checking to see if these features have intersecting channels
+          geo::WireID const endpt1_wireid{endpt1_planeid, endpt1.WireID().Wire};
+          geo::WireID const endpt2_wireid{endpt2_planeid, endpt2.WireID().Wire};
 
-                if (!PlaneDet) {
-                  candidate_x.push_back(tempXFeature1);
-                  candidate_y.push_back(yy);
-                  candidate_z.push_back(zz);
-                  candidate_strength.push_back(EndPoints.at(endpt1)->Strength() +
-                                               EndPoints.at(endpt2)->Strength());
-                } //<---End fill for 2 plane detector
+          if (!geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt1_wireid),
+                                       geom->PlaneWireToChannel(endpt2_wireid),
+                                       yy,
+                                       zz))
+            continue;
 
-                // Adding a check to see if I am in a 3-plane detector and
-                // therefore need to check for a match across more than 2 planes
+          // Use this fill if we are in a detector with fewer than 3 plane (e.g. ArgoNeuT)
 
-                if (PlaneDet) {
+          if (!PlaneDet) {
+            candidate_x.push_back(tempXFeature1);
+            candidate_y.push_back(yy);
+            candidate_z.push_back(zz);
+            candidate_strength.push_back(endpt1.Strength() + endpt2.Strength());
+            continue;
+          } //<---End fill for 2 plane detector
 
-                  // Looping over the rest of the list
+          // Now need to check for a match across more than 2 planes
 
-                  for (size_t endpt3 = endpt2 + 1; endpt3 < EndPoints.size(); endpt3++) {
+          // Looping over the rest of the list
 
-                    // Check to make sure we are comparing features from
-                    // different planes
+          for (size_t iendpt3 = iendpt2 + 1; iendpt3 < numEndPoints; ++iendpt3) {
+            auto const& endpt3 = *EndPoints[iendpt3];
 
-                    if (EndPoints.at(endpt3)->WireID().Plane !=
-                          EndPoints.at(endpt2)->WireID().Plane &&
-                        EndPoints.at(endpt3)->WireID().Plane !=
-                          EndPoints.at(endpt1)->WireID().Plane &&
-                        EndPoints.at(endpt1)->WireID().Plane !=
-                          EndPoints.at(endpt2)->WireID().Plane) {
-                      float tempXFeature3 =
-                        detProp.ConvertTicksToX(EndPoints.at(endpt3)->DriftTime(),
-                                                EndPoints.at(endpt3)->WireID().Plane,
-                                                tpc,
-                                                cstat);
+            geo::PlaneID const endpt3_planeid{tpcid, endpt3.WireID().Plane};
 
-                      // Checking to make sure our third feature has an
-                      // intersecting channel with our
-                      //         other two channels and is within 1.0 cm
-                      // projected in X
+            // Check to make sure we are comparing features from different planes
+            // N.B. We do not need to check between endpt1 and endpt2 as that has been done above.
 
-                      if (geom->ChannelsIntersect(
-                            geom->PlaneWireToChannel(EndPoints.at(endpt3)->WireID().Plane,
-                                                     EndPoints.at(endpt3)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            geom->PlaneWireToChannel(EndPoints.at(endpt1)->WireID().Plane,
-                                                     EndPoints.at(endpt1)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            yy3,
-                            zz3) &&
-                          geom->ChannelsIntersect(
-                            geom->PlaneWireToChannel(EndPoints.at(endpt3)->WireID().Plane,
-                                                     EndPoints.at(endpt3)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            geom->PlaneWireToChannel(EndPoints.at(endpt2)->WireID().Plane,
-                                                     EndPoints.at(endpt2)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            yy2,
-                            zz2) &&
-                          geom->ChannelsIntersect(
-                            geom->PlaneWireToChannel(EndPoints.at(endpt2)->WireID().Plane,
-                                                     EndPoints.at(endpt2)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            geom->PlaneWireToChannel(EndPoints.at(endpt1)->WireID().Plane,
-                                                     EndPoints.at(endpt1)->WireID().Wire,
-                                                     tpc,
-                                                     cstat),
-                            yy,
-                            zz) &&
-                          std::abs(tempXFeature3 - tempXFeature2) < 1.0 &&
-                          std::abs(tempXFeature3 - tempXFeature1) < 1.0 &&
-                          std::abs(tempXFeature1 - tempXFeature2) < 1.0) {
-                        candidate_x.push_back(
-                          detProp.ConvertTicksToX(EndPoints.at(endpt1)->DriftTime(),
-                                                  EndPoints.at(endpt1)->WireID().Plane,
-                                                  tpc,
-                                                  cstat));
+            if (endpt3_planeid.Plane == endpt2_planeid.Plane ||
+                endpt3_planeid.Plane == endpt1_planeid.Plane)
+              continue;
 
-                        // Finding intersection points
+            // Check to see that the third feature is within 1.0 cm projected in X
+            geo::WireID const endpt3_wireid{endpt3_planeid, endpt3.WireID().Wire};
+            float const tempXFeature3 = detProp.ConvertTicksToX(endpt3.DriftTime(), endpt3_wireid);
 
-                        geom->IntersectionPoint(EndPoints.at(endpt1)->WireID().Wire,
-                                                EndPoints.at(endpt2)->WireID().Wire,
-                                                EndPoints.at(endpt1)->WireID().Plane,
-                                                EndPoints.at(endpt2)->WireID().Plane,
-                                                cstat,
-                                                tpc,
-                                                y,
-                                                z);
+            if (std::abs(tempXFeature3 - tempXFeature2) >= 1.0 ||
+                std::abs(tempXFeature3 - tempXFeature1) >= 1.0) {
+              continue;
+            }
 
-                        candidate_y.push_back(y);
-                        candidate_z.push_back(z);
-                        candidate_strength.push_back(EndPoints.at(endpt1)->Strength() +
-                                                     EndPoints.at(endpt2)->Strength() +
-                                                     EndPoints.at(endpt3)->Strength());
+            // Make sure our third feature has an intersecting channel with our other two channels.
+            if (!geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt3_wireid),
+                                         geom->PlaneWireToChannel(endpt1_wireid),
+                                         yy3,
+                                         zz3) ||
+                !geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt3_wireid),
+                                         geom->PlaneWireToChannel(endpt2_wireid),
+                                         yy2,
+                                         zz2)) {
+              continue;
+            }
+            candidate_x.push_back(
+              detProp.ConvertTicksToX(endpt1.DriftTime(), endpt1_wireid.asPlaneID()));
 
-                        // Note: If I've made it here I have a matched
-                        // triplet...since I don't want to use any of
-                        // these features again I am going to iterate
-                        // each of the counters so we move to the next
-                        // one
-                        if (endpt1 < EndPoints.size()) { endpt1++; }
-                        if (endpt2 < EndPoints.size()) { endpt2++; }
-                        if (endpt3 < EndPoints.size()) { endpt3++; }
-                      } //<---End finding 3d point across all three planes
+            // Finding intersection points
+            geom->IntersectionPoint(endpt1_wireid, endpt2_wireid, y, z);
 
-                    } //<---End checking for all different planes
-                  }   //<---End endpt3
+            candidate_y.push_back(y);
+            candidate_z.push_back(z);
+            candidate_strength.push_back(endpt1.Strength() + endpt2.Strength() + endpt3.Strength());
 
-                } //<---End fill for 3 plane detector
-
-              } //<---End intersecting channels
-
-            } //<---End making sure we are looking across planes
-          }   //<---End endpt2 loop
-        }     //<---End endpt1 loop
-      }       //<---End TPC loop
-    }         //<---End cstat
-
-  } //<---End Get3dVertexCandidates
+            // Note: If I've made it here I have a matched triplet...since I don't want to use any
+            // of these features again I am going to iterate each of the counters so we move to the
+            // next one.
+            if (iendpt1 < numEndPoints) { ++iendpt1; }
+            if (iendpt2 < numEndPoints) { ++iendpt2; }
+            if (iendpt3 < numEndPoints) { ++iendpt3; }
+          } //<---End iendpt3
+        }   //<---End iendpt2 loop
+      }     //<---End iendpt1 loop
+    }       //<---End TPC loop
+  }         //<---End Get3dVertexCandidates
 
   // -----------------------------------------------------------------------------
   // Get 2d Vertex Candidates from clusters
@@ -770,67 +695,65 @@ namespace vertex {
 
     // Looping over cryostats
 
-    for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-      for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-        for (unsigned int i = 0; i < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++i) {
+    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
+      for (unsigned int i = 0; i < tpc.Nplanes(); ++i) {
 
-          // If there is at least one cluster found
+        // If there is at least one cluster found
 
-          if (Cls[i].size() >= 1) {
+        if (Cls[i].size() >= 1) {
 
-            // Loop over each cluster
+          // Loop over each cluster
 
-            for (unsigned int j = 0; j < Cls[i].size(); ++j) {
-              // === Current Clusters Plane ===
-              Clu_Plane.push_back(RawClusters.at(Cls.at(i).at(j))->View());
-              // === Current Clusters StartPos ===
-              Clu_StartPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->StartWire());
-              Clu_StartPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->StartTick());
-              // === Current Clusters EndPos ===
-              Clu_EndPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->EndWire());
-              Clu_EndPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->EndTick());
-              // Current Clusters Slope (In Wire and Time Tick)
-              Clu_Slope.push_back(dtdwstart[Cls[i][j]]);
-              Clu_Length.push_back(std::sqrt(pow((RawClusters.at(Cls.at(i).at(j))->StartWire() -
-                                                  RawClusters.at(Cls.at(i).at(j))->EndWire()) *
-                                                   13.5,
-                                                 2) +
-                                             pow(RawClusters.at(Cls.at(i).at(j))->StartTick() -
-                                                   RawClusters.at(Cls.at(i).at(j))->EndTick(),
-                                                 2)));
+          for (unsigned int j = 0; j < Cls[i].size(); ++j) {
+            // === Current Clusters Plane ===
+            Clu_Plane.push_back(RawClusters.at(Cls.at(i).at(j))->View());
+            // === Current Clusters StartPos ===
+            Clu_StartPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->StartWire());
+            Clu_StartPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->StartTick());
+            // === Current Clusters EndPos ===
+            Clu_EndPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->EndWire());
+            Clu_EndPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->EndTick());
+            // Current Clusters Slope (In Wire and Time Tick)
+            Clu_Slope.push_back(dtdwstart[Cls[i][j]]);
+            Clu_Length.push_back(std::sqrt(pow((RawClusters.at(Cls.at(i).at(j))->StartWire() -
+                                                RawClusters.at(Cls.at(i).at(j))->EndWire()) *
+                                                 13.5,
+                                               2) +
+                                           pow(RawClusters.at(Cls.at(i).at(j))->StartTick() -
+                                                 RawClusters.at(Cls.at(i).at(j))->EndTick(),
+                                               2)));
 
-              // Given a slope and a point find the y-intercept
-              //                   c = y-mx
+            // Given a slope and a point find the y-intercept
+            //                   c = y-mx
 
-              Clu_Yintercept.push_back(
-                RawClusters.at(Cls.at(i).at(j))->StartTick() -
-                (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->StartWire()));
+            Clu_Yintercept.push_back(
+              RawClusters.at(Cls.at(i).at(j))->StartTick() -
+              (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->StartWire()));
 
-              // Also calculating the y-intercept but using the end
-              // time of the cluster correct for the possibility that
-              // the clustering didn't get start and end points right
+            // Also calculating the y-intercept but using the end
+            // time of the cluster correct for the possibility that
+            // the clustering didn't get start and end points right
 
-              Clu_Yintercept2.push_back(
-                RawClusters.at(Cls.at(i).at(j))->EndTick() -
-                (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->EndWire()));
+            Clu_Yintercept2.push_back(
+              RawClusters.at(Cls.at(i).at(j))->EndTick() -
+              (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->EndWire()));
 
-              // Iterating on the total number of clusters found
+            // Iterating on the total number of clusters found
 
-              nClustersFound++;
-            } //<---End loop over all clusters
+            nClustersFound++;
+          } //<---End loop over all clusters
 
-          } //<---End check if we have at least one cluster
+        } //<---End check if we have at least one cluster
 
-          // If no clusters were found then put in dummy vertex values
-          else {
-            TwoDvtx_wire.push_back(-1);
-            TwoDvtx_time.push_back(-1);
-            TwoDvtx_plane.push_back(-1);
-          }
+        // If no clusters were found then put in dummy vertex values
+        else {
+          TwoDvtx_wire.push_back(-1);
+          TwoDvtx_time.push_back(-1);
+          TwoDvtx_plane.push_back(-1);
+        }
 
-        } //<---End loop over planes (i)
-      }   //<---End loop over tpc's
-    }     //<---End loop over cryostats
+      } //<---End loop over planes (i)
+    }   //<---End loop over tpc's
 
     // Now loop over all the clusters found and establish a
     // preliminary set of 2d-verticies based on the slope/intercept of
@@ -864,13 +787,13 @@ namespace vertex {
           float intersection_Y2 = (Clu_Slope[m] * intersection_X2) + Clu_Yintercept2[m];
 
           // Skipping crap intersection points
-
+          geo::PlaneID const planeid(0, 0, Clu_Plane[m]);
           if (intersection_X2 < 1) { intersection_X2 = -999; }
-          if (intersection_X2 > geom->Nwires(Clu_Plane[m], 0, 0)) { intersection_X2 = -999; }
+          if (intersection_X2 > geom->Nwires(planeid)) { intersection_X2 = -999; }
           if (intersection_Y2 < 0) { intersection_Y2 = -999; }
           if (intersection_Y2 > detProp.NumberTimeSamples()) { intersection_Y2 = -999; }
           if (intersection_X < 1) { intersection_X = -999; }
-          if (intersection_X > geom->Nwires(Clu_Plane[m], 0, 0)) { intersection_X = -999; }
+          if (intersection_X > geom->Nwires(planeid)) { intersection_X = -999; }
           if (intersection_Y < 0) { intersection_Y = -999; }
           if (intersection_Y > detProp.NumberTimeSamples()) { intersection_Y = -999; }
 
@@ -925,7 +848,7 @@ namespace vertex {
           // detector
 
           if (intersection_X2 > 1 && intersection_Y2 > 0 &&
-              (intersection_X2 < geom->Nwires(Clu_Plane[m], 0, 0)) &&
+              (intersection_X2 < geom->Nwires(planeid)) &&
               (intersection_Y2 < detProp.NumberTimeSamples())) {
 
             TwoDvtx_wire.push_back(intersection_X2);
@@ -937,7 +860,7 @@ namespace vertex {
           // detector
 
           if (intersection_X > 1 && intersection_Y > 0 &&
-              (intersection_X < geom->Nwires(Clu_Plane[m], 0, 0)) &&
+              (intersection_X < geom->Nwires(planeid)) &&
               (intersection_Y < detProp.NumberTimeSamples())) {
             TwoDvtx_wire.push_back(intersection_X);
             TwoDvtx_time.push_back(intersection_Y);
@@ -1023,103 +946,74 @@ namespace vertex {
     // we need to check if any of them match between planes and only
     // keep those that have matches
 
-    // Looping over cryostats
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (unsigned int vtx = vtx_wire_merged.size(); vtx > 0; --vtx) {
+        for (unsigned int vtx1 = 0; vtx1 < vtx; ++vtx1) {
 
-    for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
+          // Make sure we are comparing verticies from different planes
+          if (vtx_plane_merged[vtx1] == vtx_plane_merged[vtx]) continue;
 
-      // Looping over TPC's
+          // To figure out if these two verticies are from a common
+          // point we need to check if the channels intersect and if
+          // they are close in time ticks as well...to do this we have
+          // to do some converting to use geom->PlaneWireToChannel(...)
+          geo::PlaneID const vtx1_planeid(tpcid, vtx_plane_merged[vtx1]);
+          geo::WireID const vtx1_wireid(vtx1_planeid, vtx_wire_merged[vtx1]);
+          try {
+            vtx1_channel = geom->PlaneWireToChannel(vtx1_wireid);
+          }
+          catch (...) {
+            mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
+            continue;
+          }
 
-      for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-        for (unsigned int vtx = vtx_wire_merged.size(); vtx > 0; vtx--) {
-          for (unsigned int vtx1 = 0; vtx1 < vtx; vtx1++) {
+          geo::PlaneID const vtx2_planeid(tpcid, vtx_plane_merged[vtx]);
+          geo::WireID const vtx2_wireid(vtx2_planeid, vtx_wire_merged[vtx]);
+          try {
+            vtx2_channel = geom->PlaneWireToChannel(vtx2_wireid);
+          }
+          catch (...) {
+            mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
+            continue;
+          }
 
-            // Check to make sure we are comparing verticies from different
-            // planes
+          // Check to see if the channels intersect and save the y and z coordinate
+          if (!geom->ChannelsIntersect(vtx1_channel, vtx2_channel, y_coord, z_coord)) {
+            mf::LogWarning("FeatureVertexFinder") << "match failed for some reason";
+            continue;
+          }
 
-            if (vtx_plane_merged[vtx1] != vtx_plane_merged[vtx]) {
-              // To figure out if these two verticies are from a
-              // common point we need to check if the channels
-              // intersect and if they are close in time ticks as
-              // well...to do this we have to do some converting to
-              // use geom->PlaneWireToChannel(PlaneNo, Wire, tpc,
-              // cstat)
-              bool match = false;
+          // If the channels intersect establish if they are close in "X"
+          float tempXCluster1 = detProp.ConvertTicksToX(vtx_time_merged[vtx1], vtx1_planeid);
+          float tempXCluster2 = detProp.ConvertTicksToX(vtx_time_merged[vtx], vtx2_planeid);
 
-              unsigned int vtx1_plane = vtx_plane_merged[vtx1];
-              unsigned int vtx1_wire = vtx_wire_merged[vtx1];
-              try {
-                vtx1_channel = geom->PlaneWireToChannel(vtx1_plane, vtx1_wire, tpc, cstat);
-              }
-              catch (...) {
-                mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
-                match = false;
-                continue;
-              }
+          // Now check if the matched channels are within 0.5 cm when
+          // projected in X and that we have less than 100 of these
+          // candidates...because more than that seems silly
 
-              unsigned int vtx2_plane = vtx_plane_merged[vtx];
-              unsigned int vtx2_wire = vtx_wire_merged[vtx];
-              try {
-                vtx2_channel = geom->PlaneWireToChannel(vtx2_plane, vtx2_wire, tpc, cstat);
-              }
-              catch (...) {
-                mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
-                match = false;
-                continue;
-              }
+          if (std::abs(tempXCluster1 - tempXCluster2) < 0.5 && candidate_x.size() < 101) {
+            candidate_x.push_back(detProp.ConvertTicksToX(vtx_time_merged[vtx1], vtx1_planeid));
+            candidate_y.push_back(y_coord);
+            candidate_z.push_back(z_coord);
+            candidate_strength.push_back(
+              10); //<--For cluster verticies I give it a strength of "10"
+                   // arbitrarily for now
 
-              // Check to see if the channels intersect and save the y and z
-              // coordinate
-
-              try {
-                match = geom->ChannelsIntersect(vtx1_channel, vtx2_channel, y_coord, z_coord);
-              }
-              catch (...) {
-                mf::LogWarning("FeatureVertexFinder") << "match failed for some reason";
-                match = false;
-                continue;
-              }
-
-              // If the channels intersect establish if they are close in
-              // "X"
-
-              if (match) {
-                float tempXCluster1 =
-                  detProp.ConvertTicksToX(vtx_time_merged[vtx1], vtx1_plane, tpc, cstat);
-                float tempXCluster2 =
-                  detProp.ConvertTicksToX(vtx_time_merged[vtx], vtx2_plane, tpc, cstat);
-
-                // Now check if the matched channels are within 0.5 cm when
-                // projected in X and that we have less than 100 of these
-                // candidates...because more than that seems silly
-
-                if (std::abs(tempXCluster1 - tempXCluster2) < 0.5 && candidate_x.size() < 101) {
-                  candidate_x.push_back(detProp.ConvertTicksToX(
-                    vtx_time_merged[vtx1], vtx_plane_merged[vtx1], tpc, cstat));
-                  candidate_y.push_back(y_coord);
-                  candidate_z.push_back(z_coord);
-                  candidate_strength.push_back(
-                    10); //<--For cluster verticies I give it a strength of "10"
-                         // arbitrarily for now
-
-                } //<---End Checking if the vertices agree "well enough" in time
-                  // tick
-              }   //<---End Checking if verticies intersect
-
-            } //<--- End checking we are in different planes
-          }   //<---end vtx1 for loop
-        }     //<---End vtx for loop
-      }       //<---End loop over TPC's
-    }         //<---End loop over cryostats
+          } //<---End Checking if the vertices agree "well enough" in time tick
+        }   //<---end vtx1 for loop
+      }     //<---End vtx for loop
+    }       //<---End loop over TPC's
 
   } //<---End Find3dVtxFrom2dClusterVtxCand
 
   // -----------------------------------------------------------------------------
   // Get 3d Vertex Candidates from clusters 2d Vertex candidates
   // -----------------------------------------------------------------------------
-  void vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(std::vector<double> merge_vtxX,
-                                                               std::vector<double> merge_vtxY,
-                                                               std::vector<double> merge_vtxZ,
-                                                               std::vector<double> merge_vtxStgth)
+  void vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(
+    std::vector<double> const& merge_vtxX,
+    std::vector<double> const& merge_vtxY,
+    std::vector<double> const& merge_vtxZ,
+    std::vector<double> const& merge_vtxStgth)
   {
 
     std::vector<double> x_3dVertex_dupRemoved = {0.};

@@ -559,7 +559,7 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData 
     double phi = TMath::PiOver2() - wgeom.ThetaZ();
     double sphi = std::sin(phi);
     double cphi = std::cos(phi);
-    double w = -xyz[1] * sphi + xyz[2] * cphi;
+    double w = -xyz.Y() * sphi + xyz.Z() * cphi;
 
     double time = hit.PeakTime();
     double x = detProp.ConvertTicksToX(time, wire_id);

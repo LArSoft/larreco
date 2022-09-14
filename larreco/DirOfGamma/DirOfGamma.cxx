@@ -17,7 +17,7 @@ ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   auto const& wireID = src->WireID();
 
-  auto const wireCenter = geom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+  auto const wireCenter = geom->WireIDToWireGeo(wireID).GetCenter();
   double const x = detProp.ConvertTicksToX(src->PeakTime(), wireID);
 
   double const globalWire =

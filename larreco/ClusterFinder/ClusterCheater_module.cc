@@ -155,12 +155,11 @@ namespace cluster {
       if (hitMapItr.second.size() < fMinHits) continue;
 
       // get the center of this plane in world coordinates
-      geo::PlaneGeo::LocalPoint_t const local{};
       auto const& planeID = hitMapItr.first.planeID;
       unsigned int cryostat = planeID.Cryostat;
       unsigned int tpc = planeID.TPC;
       unsigned int plane = planeID.Plane;
-      auto xyz = geo->Plane(planeID).toWorldCoords(local);
+      auto xyz = geo->Plane(planeID).GetBoxCenter();
 
       MF_LOG_DEBUG("ClusterCheater")
         << "make cluster for eveID: " << hitMapItr.first.eveID << " in cryostat: " << cryostat

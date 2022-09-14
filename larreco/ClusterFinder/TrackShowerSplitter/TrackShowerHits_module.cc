@@ -88,8 +88,7 @@ namespace tss {
       }
       return true;
     }
-    else
-      return false;
+    return false;
   }
   // ------------------------------------------------------
 
@@ -103,8 +102,8 @@ namespace tss {
       unsigned int cidx = 0;
       const unsigned int emTag = 0x10000;
 
-      for (auto tpc_iter = fGeom->begin_TPC_id(); tpc_iter != fGeom->end_TPC_id(); tpc_iter++) {
-        for (const auto& v : fHitMap[tpc_iter->Cryostat][tpc_iter->TPC]) {
+      for (auto const& tpcid : fGeom->Iterate<geo::TPCID>()) {
+        for (const auto& v : fHitMap[tpcid.Cryostat][tpcid.TPC]) {
           auto cls = fSimpleClustering.run(v.second);
 
           if (fHugeShowers) {

@@ -198,28 +198,13 @@ namespace trkf {
 
       // Loop over cryostats, tpcs, and planes.
 
-      for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-
-        const geo::CryostatGeo& cryogeom = geom->Cryostat(cstat);
-        unsigned int const ntpc = cryogeom.NTPC();
-
-        for (unsigned int tpc = 0; tpc < ntpc; ++tpc) {
-
-          const geo::TPCGeo& tpcgeom = cryogeom.TPC(tpc);
-          unsigned int const nplane = tpcgeom.Nplanes();
-
-          for (unsigned int plane = 0; plane < nplane; ++plane) {
-
-            const geo::PlaneGeo& pgeom = tpcgeom.Plane(plane);
-            unsigned int nwires = pgeom.Nwires();
-            geo::View_t view = pgeom.View();
-            if (view == geo::kU)
-              nwiresU = nwires;
-            else if (view == geo::kV)
-              nwiresV = nwires;
-            else if (view == geo::kZ)
-              nwiresW = nwires;
-          }
+      for (auto const& pgeom : geom->Iterate<geo::PlaneGeo>()) {
+        unsigned int const nwires = pgeom.Nwires();
+        switch (pgeom.View()) {
+        case geo::kU: nwiresU = nwires; break;
+        case geo::kV: nwiresV = nwires; break;
+        case geo::kZ: nwiresW = nwires; break;
+        default: {}
         }
       }
 

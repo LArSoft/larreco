@@ -339,7 +339,8 @@ namespace trkf {
       endX += trkX[jpl][iht];
       jPlane = trkWID[jpl][iht].Plane;
       jWire = trkWID[jpl][iht].Wire;
-      geom->IntersectionPoint(iWire, jWire, iPlane, jPlane, cstat, tpc, y, z);
+      geom->IntersectionPoint(
+        geo::WireID{cstat, tpc, iPlane, iWire}, geo::WireID{cstat, tpc, jPlane, jWire}, y, z);
       endY += y;
       endZ += z;
       ++nend;
@@ -389,7 +390,8 @@ namespace trkf {
       endX += trkX[jpl][iht];
       jPlane = trkWID[jpl][iht].Plane;
       jWire = trkWID[jpl][iht].Wire;
-      geom->IntersectionPoint(iWire, jWire, iPlane, jPlane, cstat, tpc, y, z);
+      geom->IntersectionPoint(
+        geo::WireID{cstat, tpc, iPlane, iWire}, geo::WireID{cstat, tpc, jPlane, jWire}, y, z);
       endY += y;
       endZ += z;
       ++nend;

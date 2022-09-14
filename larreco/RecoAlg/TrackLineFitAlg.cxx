@@ -114,7 +114,7 @@ namespace trkf {
       ChiDOF += diff * diff;
     }
 
-    double werr2 = geom->WirePitch(0, tpc, cstat);
+    double werr2 = geom->WirePitch(geo::PlaneID{cstat, tpc, 0});
     werr2 *= werr2;
     ChiDOF /= werr2;
     ChiDOF /= (double)(npts - 4);

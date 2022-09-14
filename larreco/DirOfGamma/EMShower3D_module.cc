@@ -186,7 +186,7 @@ recob::Track ems::EMShower3D::ConvertFrom(detinfo::DetectorClocksData const& clo
 {
   auto const* geom = lar::providerFrom<geo::Geometry>();
   double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
-  unsigned int nplanes = geom->Nplanes(src.front()->TPC(), src.front()->Cryo());
+  unsigned int nplanes = geom->Nplanes({src.front()->Cryo(), src.front()->TPC()});
   size_t nusedhitsmax = 0;
   int bestplane = -1;
   for (unsigned int p = 0; p < nplanes; ++p) {
@@ -249,7 +249,7 @@ recob::Track ems::EMShower3D::ConvertFrom2(detinfo::DetectorClocksData const& cl
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
   double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
-  unsigned int nplanes = geom->Nplanes(src.front()->TPC(), src.front()->Cryo());
+  unsigned int nplanes = geom->Nplanes({src.front()->Cryo(), src.front()->TPC()});
   size_t nusedhitsmax = 0;
   int bestplane = -1;
   for (unsigned int p = 0; p < nplanes; ++p) {
@@ -725,7 +725,7 @@ size_t ems::EMShower3D::LinkCandidates(art::Event const& e,
 
         size_t thirdview = startview;
 
-        const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
+        const geo::CryostatGeo& cryostat = geom->Cryostat(geo::CryostatID(cryo));
         for (size_t p = 0; p < cryostat.MaxPlanes(); p++)
           if ((p == startview) || (p == secondview)) { continue; }
           else {

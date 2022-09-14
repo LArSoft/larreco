@@ -122,6 +122,7 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
                                 float initEndSegW)
 {
   art::ServiceHandle<geo::Geometry const> geom;
+  geo::TPCID const tpcid(cryo, tpc);
 
   float wtmp = fEndSegWeight;
   fEndSegWeight = initEndSegW;
@@ -134,10 +135,13 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   pma::Hit3D* hit0_a = fHits.front();
   pma::Hit3D* hit1_a = fHits.front();
 
-  float minX = detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo);
-  float maxX = detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo);
+  geo::PlaneID const hit0_a_planeid{tpcid, hit0_a->View2D()};
+  geo::PlaneID const hit1_a_planeid{tpcid, hit1_a->View2D()};
+
+  float minX = detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid);
+  float maxX = detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid);
   for (auto hit : fHits) {
-    double const x = detProp.ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
+    double const x = detProp.ConvertTicksToX(hit->PeakTime(), geo::PlaneID{tpcid, hit->View2D()});
     if (x < minX) {
       minX = x;
       hit0_a = hit;
@@ -153,7 +157,7 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
 
   float minDiff0 = 5000, minDiff1 = 5000;
   for (auto hit : fHits) {
-    double const x = detProp.ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo);
+    double const x = detProp.ConvertTicksToX(hit->PeakTime(), geo::PlaneID{tpcid, hit->View2D()});
     double diff = fabs(x - minX);
     if ((diff < minDiff0) && (hit->View2D() != hit0_a->View2D())) {
       minDiff0 = diff;
@@ -167,17 +171,23 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   }
 
   if (hit0_a && hit0_b && hit1_a && hit1_b) {
-    double x = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo) +
-                      detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b->View2D(), tpc, cryo));
+    geo::PlaneID const hit0_b_planeid{tpcid, hit0_b->View2D()};
+    geo::PlaneID const hit1_b_planeid{tpcid, hit1_b->View2D()};
+    double x = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid) +
+                      detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b_planeid));
     double y, z;
-    geom->IntersectionPoint(
-      hit0_a->Wire(), hit0_b->Wire(), hit0_a->View2D(), hit0_b->View2D(), cryo, tpc, y, z);
+    geom->IntersectionPoint(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
+                            geo::WireID{hit0_b_planeid, hit0_b->Wire()},
+                            y,
+                            z);
     v3d_1.SetXYZ(x, y, z);
 
-    x = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo) +
-               detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b->View2D(), tpc, cryo));
-    geom->IntersectionPoint(
-      hit1_a->Wire(), hit1_b->Wire(), hit1_a->View2D(), hit1_b->View2D(), cryo, tpc, y, z);
+    x = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid) +
+               detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b_planeid));
+    geom->IntersectionPoint(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
+                            geo::WireID{hit1_b_planeid, hit1_b->Wire()},
+                            y,
+                            z);
     v3d_2.SetXYZ(x, y, z);
 
     ClearNodes();
@@ -298,7 +308,7 @@ void pma::Track3D::InitFromMiddle(detinfo::DetectorPropertiesData const& detProp
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
-  const auto& tpcGeo = geom->TPC(tpc, cryo);
+  const auto& tpcGeo = geom->TPC(geo::TPCID(cryo, tpc));
 
   double minX = tpcGeo.MinX(), maxX = tpcGeo.MaxX();
   double minY = tpcGeo.MinY(), maxY = tpcGeo.MaxY();
@@ -2318,7 +2328,7 @@ void pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
                                double dx)
 {
   auto const* geom = lar::providerFrom<geo::Geometry>();
-  const geo::TPCGeo& tpcGeo = geom->TPC(fNodes.front()->TPC(), fNodes.front()->Cryo());
+  const geo::TPCGeo& tpcGeo = geom->TPC(geo::TPCID(fNodes.front()->Cryo(), fNodes.front()->TPC()));
 
   // GetXTicksCoefficient has a sign that we don't care about. We need to decide
   // the sign for ourselves based on the drift direction of the TPC

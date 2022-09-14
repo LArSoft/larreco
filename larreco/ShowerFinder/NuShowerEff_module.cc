@@ -162,12 +162,8 @@ private:
 // =====================================================================================
 NuShowerEff::NuShowerEff(fhicl::ParameterSet const& p)
   : EDAnalyzer(p)
-  , // ,
-    // More initializers here.
-  //fMCTruthModuleLabel (p.get< std::string >("MCTruthModuleLabel", "generator")),
-  fMCTruthModuleLabel(p.get<std::string>("MCTruthModuleLabel"))
-  , // get parameter from fcl file
-  fHitModuleLabel(p.get<std::string>("HitModuleLabel"))
+  , fMCTruthModuleLabel(p.get<std::string>("MCTruthModuleLabel"))
+  , fHitModuleLabel(p.get<std::string>("HitModuleLabel"))
   , fShowerModuleLabel(p.get<std::string>("ShowerModuleLabel"))
   , fTruthMatchDataModuleLabel(p.get<std::string>("TruthMatchDataModuleLabel"))
   , fNeutrinoPDGcode(p.get<int>("NeutrinoPDGcode"))
@@ -179,15 +175,11 @@ NuShowerEff::NuShowerEff(fhicl::ParameterSet const& p)
   , fFidVolCutX(p.get<float>("FidVolCutX"))
   , fFidVolCutY(p.get<float>("FidVolCutY"))
   , fFidVolCutZ(p.get<float>("FidVolCutZ"))
-{
-  //cout << "\n===== Please refer the fchicl for the values of preset parameters ====\n" << endl;
-}
+{}
 
 //============================================================================
 void NuShowerEff::beginJob()
 {
-  //cout << "\n===== function: beginJob() ====\n" << endl;
-
   // Get geometry: Fiducial Volume
   auto const* geo = lar::providerFrom<geo::Geometry>();
   double minx = 1e9; // [cm]
@@ -196,24 +188,15 @@ void NuShowerEff::beginJob()
   double maxy = -1e9;
   double minz = 1e9;
   double maxz = -1e9;
-  //cout << "\nGeometry:\n\tgeo->NTPC(): " << geo->NTPC() << endl;
-  for (size_t i = 0; i < geo->NTPC(); ++i) {
-    double local[3] = {0., 0., 0.};
-    double world[3] = {0., 0., 0.};
-    const geo::TPCGeo& tpc = geo->TPC(i);
-    tpc.LocalToWorld(local, world);
-    //cout << "\tlocal: " << local[0] << " ; " << local[1] << " ; " << local[2] << endl;
-    //cout << "\tworld: " << world[0] << " ; " << world[1] << " ; " << world[2] << endl;
-    //cout << "\tgeo->DetHalfWidth(" << i << "): " << geo->DetHalfWidth(i) << endl;
-    //cout << "\tgeo->DetHalfHeight(" << i << "): " << geo->DetHalfHeight(i) << endl;
-    //cout << "\tgeo->DetLength(" << i << "): " << geo->DetLength(i) << endl;
+  for (auto const& tpc : geo->Iterate<geo::TPCGeo>()) {
+    auto const world = tpc.GetCenter();
 
-    if (minx > world[0] - geo->DetHalfWidth(i)) minx = world[0] - geo->DetHalfWidth(i);
-    if (maxx < world[0] + geo->DetHalfWidth(i)) maxx = world[0] + geo->DetHalfWidth(i);
-    if (miny > world[1] - geo->DetHalfHeight(i)) miny = world[1] - geo->DetHalfHeight(i);
-    if (maxy < world[1] + geo->DetHalfHeight(i)) maxy = world[1] + geo->DetHalfHeight(i);
-    if (minz > world[2] - geo->DetLength(i) / 2.) minz = world[2] - geo->DetLength(i) / 2.;
-    if (maxz < world[2] + geo->DetLength(i) / 2.) maxz = world[2] + geo->DetLength(i) / 2.;
+    if (minx > world.X() - tpc.HalfWidth()) minx = world.X() - tpc.HalfWidth();
+    if (maxx < world.X() + tpc.HalfWidth()) maxx = world.X() + tpc.HalfWidth();
+    if (miny > world.Y() - tpc.HalfHeight()) miny = world.Y() - tpc.HalfHeight();
+    if (maxy < world.Y() + tpc.HalfHeight()) maxy = world.Y() + tpc.HalfHeight();
+    if (minz > world.Z() - tpc.Length() / 2.) minz = world.Z() - tpc.Length() / 2.;
+    if (maxz < world.Z() + tpc.Length() / 2.) maxz = world.Z() + tpc.Length() / 2.;
   }
 
   fFidVolXmin = minx + fFidVolCutX;
@@ -223,17 +206,10 @@ void NuShowerEff::beginJob()
   fFidVolZmin = minz + fFidVolCutZ;
   fFidVolZmax = maxz - fFidVolCutZ;
 
-  //cout << "\nFiducial Volume (length unit: cm):\n"
-  //<< "\t" << fFidVolXmin<<"\t< x <\t"<<fFidVolXmax<<"\n"
-  //<< "\t" << fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
-  //<< "\t" << fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
-
   art::ServiceHandle<art::TFileService const> tfs;
 
   double E_bins[21] = {0,   0.5, 1.0, 1.5, 2.0,  2.5,  3.0,  3.5,  4,    4.5, 5.0,
                        5.5, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 17.0, 20.0, 25.0};
-  //  double theta_bins[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
-  //  double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
 
   h_Ev_den =
     tfs->make<TH1D>("h_Ev_den",
@@ -272,8 +248,6 @@ void NuShowerEff::beginJob()
 
     fEventTree->Branch("n_showers", &n_recoShowers);
     fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
-    //fEventTree->Branch("sh_purity", &sh_purity, "sh_purity[n_showers]/D");
-    //fEventTree->Branch("sh_completeness", &sh_completeness, "sh_completeness[n_showers]/D");
     fEventTree->Branch("count_primary_e_in_Event", &count_primary_e_in_Event);
     fEventTree->Branch("esh_1_purity", &esh_1_purity);
     fEventTree->Branch("esh_1_completeness", &esh_1_completeness);
@@ -290,32 +264,23 @@ void NuShowerEff::beginJob()
 //============================================================================
 void NuShowerEff::endJob()
 {
-  //cout << "\n===== function: endJob() =====\n" << endl;
   doEfficiencies();
 }
 
 //============================================================================
 void NuShowerEff::beginRun(art::Run const& run)
 {
-  //cout << "\n===== function: beginRun() =====\n" << endl;
   mf::LogInfo("ShowerEff") << "==== begin run ... ====" << endl;
 }
 
 //============================================================================
 void NuShowerEff::analyze(art::Event const& e)
 {
-  // Implementation of required member function here.
-  //cout << "\n===== function: analyze() =====\n" << endl;
-
   reset(); // for some variables
 
   Event = e.id().event();
   Run = e.run();
   SubRun = e.subRun();
-  //cout << "Event information:" << endl;
-  //cout << "\tEvent: " << Event << endl;
-  //cout << "\tRun: " << Run << endl;
-  //cout << "\tSubRun: " << SubRun << endl;
 
   // -------- find Geant4 TrackId that corresponds to e+/e- from neutrino interaction ----------
   // MCTruth: Generator
@@ -326,7 +291,6 @@ void NuShowerEff::analyze(art::Event const& e)
   art::Ptr<simb::MCTruth> MCtruth;
   // MC (neutrino) interaction
   int MCinteractions = MCtruthlist.size();
-  //cout << "\nMCinteractions: " << MCinteractions << endl;
   for (int i = 0; i < MCinteractions; i++) {
     MCtruth = MCtruthlist[i];
     if (MCtruth->NeutrinoSet()) { // NeutrinoSet(): whether the neutrino information has been set
@@ -349,23 +313,6 @@ void NuShowerEff::analyze(art::Event const& e)
       MC_lepton_PDG = lepton.PdgCode();
 
       MC_incoming_E = MC_incoming_P[3];
-
-      //cout << "\tMCinteraction: " << i              << "\n\t"
-      //     << "neutrino PDG: "  << MC_incoming_PDG  << "\n\t"
-      //     << "MC_lepton_PDG: " << MC_lepton_PDG    << "\n\t"
-      //     << "MC_channel: "    << MC_channel       << "\n\t"
-      //     << "incoming E: "    << MC_incoming_P[3] << "\n\t"
-      //     << "MC_vertex: " << MC_vertex[0] << " , " << MC_vertex[1] << " , " <<MC_vertex[2] << " , " <<MC_vertex[3] << endl;
-    }
-    // MCTruth Generator Particles
-    int nParticles = MCtruthlist[0]->NParticles();
-    //cout << "\n\tNparticles: " << MCtruth->NParticles() <<endl;
-    for (int i = 0; i < nParticles; i++) {
-      simb::MCParticle pi = MCtruthlist[0]->GetParticle(i);
-      //cout << "\tparticle: " << i << "\n\t\t"
-      //<< "Pdgcode: " << pi.PdgCode() << "; Mother: " << pi.Mother() << "; TrackId: " << pi.TrackId() << endl;
-      // Mother(): mother = -1 means that this particle has no mother
-      // TrackId(): same as the index in the MCParticleList
     }
   }
 
@@ -393,24 +340,14 @@ void NuShowerEff::analyze(art::Event const& e)
       MC_leptonID = particle->TrackId();
 
       MC_lepton_startEnergy = MC_lepton_startMomentum[3];
-      //cout << "\nGeant Track ID for electron/positron: " << endl;
-      //cout << "\tMClepton PDG: " << particle->PdgCode() <<  " ; MC_leptonID: " << MC_leptonID << endl;
       MClepton = particle;
-      //cout << "\tMClepton PDG:" << MClepton->PdgCode() <<endl;
-      //cout << "\tipar->first (TrackId): " << ipar->first << endl;
     }
   }
 
   // check if the interaction is inside the Fiducial Volume
   bool isFiducial = false;
   isFiducial = insideFV(MC_vertex);
-  if (isFiducial) {
-    //cout <<"\nInfo: Interaction is inside the Fiducial Volume.\n" << endl;
-  }
-  else {
-    //cout << "\n********Interaction is NOT inside the Fiducial Volume. RETURN**********" << endl;
-    return;
-  }
+  if (!isFiducial) { return; }
 
   if (MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))) {
     if (MClepton) {
@@ -419,29 +356,17 @@ void NuShowerEff::analyze(art::Event const& e)
     }
   }
 
-  //if (MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG)) && MC_incoming_E < 0.5) {
-  // cout << "\n------output CC event info for neutrino energy less than 0.5 GeV ------\n" << endl;
-  // cout << "\tEvent   : " << Event  << "\n"
-  //   << "\tRun     : " << Run    << "\n"
-  //   << "\tSubRun  : " << SubRun << "\n"
-  //  << "\tMC_incoming_E: " << MC_incoming_E << endl;
-  // }
-
   // recob::Hit
   // ---- build a map for total hit charges corresponding to MC_leptonID (Geant4) ----
 
   art::Handle<std::vector<recob::Hit>> hitHandle;
   std::vector<art::Ptr<recob::Hit>> all_hits;
   if (e.getByLabel(fHitModuleLabel, hitHandle)) { art::fill_ptr_vector(all_hits, hitHandle); }
-  //cout << "\nTotal hits:" << endl;
-  //cout << "\tall_hits.size(): " << all_hits.size() << endl;
 
   double ehit_total = 0.0;
 
   art::FindManyP<simb::MCParticle, anab::BackTrackerHitMatchingData> fmhitmc(
-    hitHandle,
-    e,
-    fTruthMatchDataModuleLabel); // need #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
+    hitHandle, e, fTruthMatchDataModuleLabel);
 
   std::map<int, double> all_hits_trk_Q; //Q for charge: Integral()
   for (size_t i = 0; i < all_hits.size(); ++i) {
@@ -466,8 +391,6 @@ void NuShowerEff::analyze(art::Event const& e)
       hit
         ->Integral(); // Integral(): the integral under the calibrated signal waveform of the hit, in tick x ADC units
   }
-  //cout << "....ehit_total: " << ehit_total << endl;
-  //cout << "\tall_hits_trk_Q.size(): " << all_hits_trk_Q.size() << endl;
 
   //--------- Loop over all showers: find the associated hits for each shower ------------
   const simb::MCParticle* MClepton_reco = NULL;
@@ -483,14 +406,10 @@ void NuShowerEff::analyze(art::Event const& e)
     art::fill_ptr_vector(showerlist, showerHandle);
   }
   n_recoShowers = showerlist.size();
-  //cout << "\nRecon Showers: " << endl;
-  //cout << "\tn_recoShowers: " << n_recoShowers << endl;
   art::FindManyP<recob::Hit> sh_hitsAll(showerHandle, e, fShowerModuleLabel);
 
-  //std::vector<std::map<int,double>> showers_hits_trk_Q;
   std::map<int, double> showers_trk_Q;
   for (int i = 0; i < n_recoShowers; i++) { // loop over showers
-    //const simb::MCParticle *particle;
     sh_hasPrimary_e[i] = 0;
 
     std::map<int, double> sh_hits_trk_Q; //Q for charge: Integral()
@@ -505,18 +424,12 @@ void NuShowerEff::analyze(art::Event const& e)
     sh_start_Y[i] = shower->ShowerStart().Y();
     sh_start_Z[i] = shower->ShowerStart().Z();
     sh_length[i] = shower->Length(); // shower length in [cm]
-    //cout << "\tInfo of shower " << i << "\n\t\t"
-    //<< "direction (cosines): " << sh_direction_X[i] << ", " << sh_direction_Y[i] << ", " << sh_start_Z[i] << "\n\t\t"
-    //<< "start position: " << sh_start_X[i] << ", " << sh_start_Y[i] << ", " << sh_start_Z[i] << "\n\t\t"
-    //<< "shower length: " << sh_length[i] << endl;
 
     std::vector<art::Ptr<recob::Hit>> sh_hits; // associated hits for ith shower
     //In mcc8, if we get hits associated with the shower through shower->hits association directly for pandora, the hit list is incomplete. The recommended way of getting hits is through association with pfparticle:
     //shower->pfparticle->clusters->hits
     //----------getting hits through PFParticle (an option here)-------------------
     if (fHitShowerThroughPFParticle) {
-      //cout << "\n==== Getting Hits associated with shower THROUGH PFParticle ====\n" << endl;
-      //cout << "\nHits in a shower through PFParticle:\n" << endl;
 
       // PFParticle
       art::Handle<std::vector<recob::PFParticle>> pfpHandle;
@@ -548,22 +461,13 @@ void NuShowerEff::analyze(art::Event const& e)
           }
         }
       }
-
-      // cout << "\tsh_hits.size(): " << sh_hits.size() << endl;
-
-      // for (size_t k=0;k<sh_hits.size();k++){
-      //   art::Ptr<recob::Hit> hit = sh_hits[k];
-      //   cout << k << "\thit.key(): " << hit.key() << endl;
-      //   cout << k << "\thit->Integral(): " << hit->Integral() << endl;
-      // }
     }
     else {
 
       // ----- using shower->hit association for getting hits associated with shower-----
       sh_hits =
         sh_hitsAll.at(i); // associated hits for ith shower (using association of hits and shower)
-      //cout << "\t\tsh_hits.size(): " << sh_hits.size() << endl;
-    } // we only choose one method for hits associated with shower here.
+    }                     // we only choose one method for hits associated with shower here.
 
     for (size_t k = 0; k < sh_hits.size(); ++k) {
       art::Ptr<recob::Hit> hit = sh_hits[k];
@@ -585,14 +489,10 @@ void NuShowerEff::analyze(art::Event const& e)
       sh_allhit_Q[i] += hit->Integral();
       sh_hits_trk_Q[hit_TrackId] += hit->Integral(); // Q from the same hit_TrackId
     }
-    //cout << "\tsh_hits_trk_Q.size(): " << sh_hits_trk_Q.size() << endl;
-    //showers_hits_trk_Q.push_back(sh_hits_trk_Q);
 
     // get TrackId for a shower
     double maxshowerQ = -1.0e9;
-    //sh_TrackId[i] = 0;
     for (std::map<int, double>::iterator k = sh_hits_trk_Q.begin(); k != sh_hits_trk_Q.end(); k++) {
-      //cout << k->first << "\t;\t" << k->second << endl;
       if (k->second > maxshowerQ) {
         maxshowerQ = k->second;
         sh_TrackId[i] =
@@ -601,8 +501,6 @@ void NuShowerEff::analyze(art::Event const& e)
     }
 
     //---------------------------------------------------------------------------------
-    //cout << "\nRecon Shower: " << i << endl;
-    //cout << "\t*****shower primary TrackId: " << sh_TrackId[i] << endl;
 
     if (sh_TrackId[i] == MC_leptonID && sh_ehit_Q[i] > 0) {
       temp_sh_TrackId = sh_TrackId[i];
@@ -612,14 +510,12 @@ void NuShowerEff::analyze(art::Event const& e)
 
       if (sh_allhit_Q[i] > 0 && sh_ehit_Q[i] <= sh_allhit_Q[i]) {
         sh_purity[i] = sh_ehit_Q[i] / sh_allhit_Q[i];
-        //cout << "\t*****shower purity: " << sh_purity[i] << endl;
       }
       else {
         sh_purity[i] = 0;
       }
       if (ehit_total > 0 && sh_ehit_Q[i] <= sh_allhit_Q[i]) {
         sh_completeness[i] = sh_ehit_Q[i] / ehit_total;
-        //cout << "\t*****shower completeness: " << sh_completeness[i] << endl;
       }
       else {
         sh_completeness[i] = 0;
@@ -629,7 +525,6 @@ void NuShowerEff::analyze(art::Event const& e)
     }
 
     showers_trk_Q[sh_TrackId[i]] += maxshowerQ;
-    //cout << "\tsh_TrackId: " << sh_TrackId[i] <<" ; maxshowerQ: " << maxshowerQ << endl;
 
   } // end: for loop over showers
 
@@ -642,7 +537,6 @@ void NuShowerEff::analyze(art::Event const& e)
         esh_completeness = temp_sh_ehit_Q / ehit_total;
 
         if (esh_purity > fMinPurity && esh_completeness > fMinCompleteness) {
-          //cout << "\nInfo: fill h_Ev_num ........\n" << endl;
           h_Ev_num->Fill(MC_incoming_P[3]);
           h_Ee_num->Fill(MC_lepton_startMomentum[3]);
         }
@@ -652,7 +546,6 @@ void NuShowerEff::analyze(art::Event const& e)
   // --------------------------------------------------------------
 
   if ((MClepton_reco && MClepton) && MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))) {
-    //cout << "\n count_primary_e_in_Event: " << count_primary_e_in_Event << endl;
     for (int j = 0; j < count_primary_e_in_Event; j++) {
       esh_each_purity[j] = 0.0;
     }
@@ -677,9 +570,6 @@ void NuShowerEff::analyze(art::Event const& e)
         }
       }
     }
-    //if (temp_esh_index != count_primary_e_in_Event){
-    //  cout << "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww" << endl;
-    //}
     // largest shower with electron contribution
     esh_1_purity = sh_purity[temp_shower_index];
     esh_1_completeness = sh_completeness[temp_shower_index];
@@ -693,8 +583,6 @@ void NuShowerEff::analyze(art::Event const& e)
 // ====================================================================================
 void NuShowerEff::doEfficiencies()
 {
-  //cout << "\n==== function: doEfficiencies() ====" << endl;
-
   art::ServiceHandle<art::TFileService const> tfs;
 
   if (TEfficiency::CheckConsistency(*h_Ev_num, *h_Ev_den)) {
@@ -715,7 +603,6 @@ void NuShowerEff::doEfficiencies()
 // ====================================================================================
 bool NuShowerEff::insideFV(double vertex[4])
 {
-  //cout << "\n==== function: insideFV() ====" << endl;
   double x = vertex[0];
   double y = vertex[1];
   double z = vertex[2];
@@ -732,8 +619,6 @@ bool NuShowerEff::insideFV(double vertex[4])
 // ====================================================================================
 void NuShowerEff::reset()
 {
-  //cout << "\n===== function: reset() =====\n" << endl;
-
   MC_incoming_PDG = -999;
   MC_lepton_PDG = -999;
   MC_isCC = -999;

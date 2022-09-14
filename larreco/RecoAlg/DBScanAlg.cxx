@@ -176,7 +176,7 @@ struct AcceptFindNeighbors {
     // The getSimilarity[2] wirestobridge calculation is asymmetric,
     // but is plugged into the cache symmetrically.I am assuming that
     // this is OK because the wires that are hit cannot be bad.
-    unsigned int wirestobridge = util::absDiff(fBadWireSum[wire1], fBadWireSum[wire2]);
+    unsigned int wirestobridge = lar::util::absDiff(fBadWireSum[wire1], fBadWireSum[wire2]);
     double cmtobridge = wirestobridge * fWireDist;
 
     double sim = std::abs(tCenter0 - bCenter0) - cmtobridge;
@@ -286,9 +286,9 @@ void cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
   ///get 2 first wires and find their spacing (wire_dist)
 
   art::ServiceHandle<geo::Geometry const> geom;
-
-  for (size_t p = 0; p < geom->Nplanes(); ++p)
-    fWirePitch.push_back(geom->WirePitch(p));
+  constexpr geo::TPCID tpcid{0, 0};
+  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid))
+    fWirePitch.push_back(plane.WirePitch());
 
   // Collect the bad wire list into a useful form
   if (fClusterMethod) { // Using the R*-tree
