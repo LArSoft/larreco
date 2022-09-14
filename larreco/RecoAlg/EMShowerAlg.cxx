@@ -214,7 +214,7 @@ bool shower::EMShowerAlg::CheckShowerHits_(
       planes.push_back(plane);
     }
 
-    TVector3 showerStartPos = Construct3DPoint_(detProp, startHits.at(0), startHits.at(1));
+    auto const showerStartPos = Construct3DPoint_(detProp, startHits.at(0), startHits.at(1));
     TVector2 proj1 = Project3DPointOntoPlane_(detProp, showerStartPos, planes.at(0));
     TVector2 proj2 = Project3DPointOntoPlane_(detProp, showerStartPos, planes.at(1));
 
@@ -252,7 +252,7 @@ bool shower::EMShowerAlg::CheckShowerHits_(
       for (int otherPlane = 0; otherPlane < 3; ++otherPlane)
         if (otherPlane != plane) otherPlanes.push_back(otherPlane);
 
-      TVector3 showerStartPos = Construct3DPoint_(
+      auto const showerStartPos = Construct3DPoint_(
         detProp, start2DMap.at(otherPlanes.at(0)), start2DMap.at(otherPlanes.at(1)));
       TVector2 showerStartProj = Project3DPointOntoPlane_(detProp, showerStartPos, plane);
 
@@ -386,9 +386,9 @@ std::vector<int> shower::EMShowerAlg::CheckShowerPlanes(
   return clustersToIgnore;
 }
 
-TVector3 shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
-                                                art::Ptr<recob::Hit> const& hit1,
-                                                art::Ptr<recob::Hit> const& hit2) const
+geo::Point_t shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
+                                                    art::Ptr<recob::Hit> const& hit1,
+                                                    art::Ptr<recob::Hit> const& hit2) const
 {
 
   // x is average of the two x's
@@ -400,7 +400,7 @@ TVector3 shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData 
   geo::WireIDIntersection intersection;
   fGeom->WireIDsIntersect(hit1->WireID(), hit2->WireID(), intersection);
 
-  return TVector3(x, intersection.y, intersection.z);
+  return {x, intersection.y, intersection.z};
 }
 
 std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(
@@ -456,7 +456,7 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(
     print_hits(track2);
   }
 
-  TVector3 trackStart = Construct3DPoint_(detProp, track1.at(0), track2.at(0));
+  auto const trackStart = Construct3DPoint_(detProp, track1.at(0), track2.at(0));
   pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(detProp, track1, track2, trackStart);
 
   if (!pmatrack) {
@@ -492,7 +492,9 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(
 
   // Orient the track correctly
   std::map<int, double> distanceToVertex, distanceToEnd;
-  TVector3 vertex = *xyz.begin(), end = *xyz.rbegin();
+  using geo::vect::toPoint;
+  geo::Point_t const vertex = toPoint(*xyz.begin());
+  geo::Point_t const end = toPoint(*xyz.rbegin());
 
   // Loop over all the planes and find the distance from the vertex and end
   // projections to the centre in each plane
@@ -1271,7 +1273,7 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(
             std::find(usedHits.begin(), usedHits.end(), otherPlaneHitIt->key()) != usedHits.end())
           continue;
 
-        TVector3 point = Construct3DPoint_(detProp, *planeHitIt, *otherPlaneHitIt);
+        auto const point = Construct3DPoint_(detProp, *planeHitIt, *otherPlaneHitIt);
         std::vector<art::Ptr<recob::Hit>> pointHits;
         bool truePoint = false;
 
@@ -1575,12 +1577,10 @@ void shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const
                                            std::vector<art::Ptr<recob::Hit>>& showerHits,
                                            art::Ptr<recob::Vertex> const& vertex) const
 {
-
   showerHits = FindOrderOfHits_(detProp, shower);
 
   // Find TPC for the vertex
-  double xyz[3];
-  vertex->XYZ(xyz);
+  auto const& xyz = vertex->position();
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
   if (!tpc.isValid && showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
 
@@ -1595,8 +1595,8 @@ void shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const
   if (hit0.isNull() || hit1.isNull()) return;
   TVector2 coord0 = TVector2(hit0->WireID().Wire, hit0->PeakTime());
   TVector2 coord1 = TVector2(hit1->WireID().Wire, hit1->PeakTime());
-  TVector2 coordvtx = TVector2(fGeom->WireCoordinate(xyz[1], xyz[2], hit0->WireID().planeID()),
-                               detProp.ConvertXToTicks(xyz[0], hit0->WireID().planeID()));
+  TVector2 coordvtx = TVector2(fGeom->WireCoordinate(xyz, hit0->WireID().planeID()),
+                               detProp.ConvertXToTicks(xyz.X(), hit0->WireID().planeID()));
   if ((coord1 - coordvtx).Mod() < (coord0 - coordvtx).Mod()) {
     std::reverse(showerHits.begin(), showerHits.end());
   }
@@ -1606,10 +1606,8 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit>>
                                                art::Ptr<recob::Vertex> const& vertex,
                                                std::vector<art::Ptr<recob::Hit>>& trackHits) const
 {
-
   // Find TPC for the vertex
-  double xyz[3];
-  vertex->XYZ(xyz);
+  auto const& xyz = vertex->position();
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
 
   // vertex cannot be projected into a TPC, find the TPC that has the most hits
@@ -1689,14 +1687,11 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
 
   // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
-    double wireCentre[3];
-    fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-    else
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+    globalWire = fGeom->WireCoordinate(wireCenter,
+                                       geo::PlaneID{wireID.Cryostat,
+                                                    wireID.TPC % 2, // 0 or 1
+                                                    wireID.Plane});
   }
 
   // Collection
@@ -1723,14 +1718,11 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      double wireCentre[3];
-      fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-      if (wireID.TPC % 2 == 0)
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-      else
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+      globalWire = fGeom->WireCoordinate(wireCenter,
+                                         geo::PlaneID{wireID.Cryostat,
+                                                      wireID.TPC % 2, // 0 or 1
+                                                      wireID.Plane});
     }
   }
 
@@ -1923,7 +1915,7 @@ double shower::EMShowerAlg::ShowerHitRMSGradient_(
 
 TVector2 shower::EMShowerAlg::Project3DPointOntoPlane_(
   detinfo::DetectorPropertiesData const& detProp,
-  TVector3 const& point,
+  geo::Point_t const& point,
   int plane,
   int cryostat) const
 {

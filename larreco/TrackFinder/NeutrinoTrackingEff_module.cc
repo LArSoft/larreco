@@ -965,7 +965,7 @@ namespace DUNE {
         // -- Check if hit is within drift window...
         geo::CryostatGeo const& cryo = geom->Cryostat(tpcid.Cryostat);
         geo::TPCGeo const& tpc = cryo.TPC(tpcid.TPC);
-        double XPlanePosition = tpc.PlaneLocation(0)[0];
+        double XPlanePosition = tpc.Plane(0).GetCenter()[0];
         double DriftTimeCorrection = fabs(tmpPosition[0] - XPlanePosition) / fDriftVelocity;
         double TimeAtPlane = MCparticle->T() + DriftTimeCorrection;
 

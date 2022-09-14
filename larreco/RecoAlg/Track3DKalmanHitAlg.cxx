@@ -552,8 +552,7 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData 
 
     geo::WireID wire_id = hit.WireID();
     const geo::WireGeo& wgeom = geom->Wire(wire_id);
-    double xyz[3];
-    wgeom.GetCenter(xyz);
+    auto const xyz = wgeom.GetCenter();
 
     // Phi convention is the one documented in SurfYZPlane.h.
 

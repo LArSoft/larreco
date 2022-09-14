@@ -38,9 +38,9 @@ namespace shower {
   class TCShowerAlg {
   public:
     // shower parameters
-    TVector3 shwDir;
+    geo::Vector_t shwDir;
     TVector3 dcosVtxErr;
-    TVector3 shwvtx;
+    geo::Point_t shwvtx;
     TVector3 xyzErr;
     std::vector<double> totalEnergy;
     std::vector<double> totalEnergyErr;

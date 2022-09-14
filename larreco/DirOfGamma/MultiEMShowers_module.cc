@@ -597,15 +597,13 @@ void ems::MultiEMShowers::analyze(art::Event const& e)
 bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 {
   ems::MCinfo mc(evt);
-  TVector3 convp[2];
-  convp[0] = mc.GetPosgamma1();
-  convp[1] = mc.GetPosgamma2();
+  TVector3 const convp[2]{mc.GetPosgamma1(), mc.GetPosgamma2()};
 
-  double vtx[3] = {convp[0].X(), convp[0].Y(), convp[0].Z()};
+  geo::Point_t const vtx{convp[0].X(), convp[0].Y(), convp[0].Z()};
 
   art::ServiceHandle<geo::Geometry const> geom;
   geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
-  size_t cryoid = geom->FindCryostatAtPosition(vtx);
+  size_t cryoid = geom->PositionToCryostatID(vtx).Cryostat;
 
   art::Handle<std::vector<recob::Hit>> hitListHandle;
   art::Handle<std::vector<recob::Cluster>> cluListHandle;

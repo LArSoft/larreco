@@ -303,26 +303,28 @@ namespace vertex {
         // --- Now go make the 2DEndPoints that correspond to each 3d vertex ---
         // ---------------------------------------------------------------------
 
-        for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-          for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-            for (size_t plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane) {
-              double temp2dXYZ[3] = {
+        for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
+          for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
+            for (unsigned int plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes();
+                 ++plane) {
+              geo::Point_t const temp2dXYZ{
                 MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
               double temp2dStrength = MergeSort3dVtx_strength[pri];
 
               // Skipping a vertex that is zero
 
-              if (temp2dXYZ[0] == 0 && temp2dXYZ[1] == 0 && temp2dXYZ[2] == 0) { continue; }
+              if (temp2dXYZ.X() == 0 && temp2dXYZ.Y() == 0 && temp2dXYZ.Z() == 0) { continue; }
 
               // Converting the 3d vertex into 2d time ticks, wire, and
               // channel
 
-              double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ[0], plane, tpc, cstat);
+              geo::PlaneID const planeID{cstat, tpc, plane};
+              double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
               int EndPoint2d_Wire = 0;
               int EndPoint2d_Channel = 0;
               // Putting in protection in case NearestWire Fails
               try {
-                EndPoint2d_Wire = geom->NearestWire(temp2dXYZ, plane, tpc, cstat);
+                EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
               }
               catch (...) {
                 mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -388,25 +390,25 @@ namespace vertex {
 
       // Looping over cryostats
 
-      for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
+      for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
         // Looping over TPC's
-        for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
+        for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
           // Loop over the wire planes
-          for (size_t plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane) {
-            double temp2dXYZ[3] = {MergeSort3dVtx_xpos[position],
-                                   MergeSort3dVtx_ypos[position],
-                                   MergeSort3dVtx_zpos[position]};
+          for (unsigned int plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane) {
+            geo::Point_t const temp2dXYZ{MergeSort3dVtx_xpos[position],
+                                         MergeSort3dVtx_ypos[position],
+                                         MergeSort3dVtx_zpos[position]};
             double temp2dStrength = MergeSort3dVtx_strength[position];
 
             // Converting the 3d vertex into 2d time ticks, wire, and
             // channel
-
-            double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ[0], plane, tpc, cstat);
+            geo::PlaneID const planeID{cstat, tpc, plane};
+            double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
             int EndPoint2d_Wire = 0;
             int EndPoint2d_Channel = 0;
             // Putting in protection in case NearestWire Fails
             try {
-              EndPoint2d_Wire = geom->NearestWire(temp2dXYZ, plane, tpc, cstat);
+              EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
             }
             catch (...) {
               mf::LogWarning("FeatureVertexFinder") << "2dWire failed";

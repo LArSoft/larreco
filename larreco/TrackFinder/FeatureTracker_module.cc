@@ -39,11 +39,9 @@ namespace trkf {
     void produce(art::Event& evt) override;
 
     void GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
-                          TVector3 xyz,
+                          geo::Point_t const& xyz,
                           std::vector<double>& uvw,
-                          std::vector<double>& t,
-                          int tpc = 0,
-                          int cryo = 0);
+                          std::vector<double>& t);
 
     std::map<int, std::vector<double>> ExtractEndPointTimes(
       std::vector<recob::EndPoint2D> EndPoints);
@@ -161,21 +159,14 @@ namespace trkf {
     for (size_t i = 0; i != spts.size(); ++i) {
       for (size_t j = 0; j != i; ++j) {
 
-        TVector3 xyz_i;
-        TVector3 xyz_j;
+        auto const& xyz_i = spts[i].position();
+        auto const& xyz_j = spts[j].position();
 
         std::vector<double> t_i, t_j;
+        std::vector<double> uvw_i, uvw_j;
 
-        std::vector<double> uvw_i;
-        std::vector<double> uvw_j;
-
-        for (size_t d = 0; d != 3; ++d) {
-          xyz_i[d] = spts.at(i).XYZ()[d];
-          xyz_j[d] = spts.at(j).XYZ()[d];
-        }
-
-        GetProjectedEnds(detProp, xyz_i, uvw_i, t_i, 0, 0);
-        GetProjectedEnds(detProp, xyz_j, uvw_j, t_j, 0, 0);
+        GetProjectedEnds(detProp, xyz_i, uvw_i, t_i);
+        GetProjectedEnds(detProp, xyz_j, uvw_j, t_j);
 
         bool ThisLineGood = true;
 
@@ -188,15 +179,13 @@ namespace trkf {
           if (lineint < fLineIntFraction) { ThisLineGood = false; }
         }
         if (ThisLineGood) {
-          double Err[3];
-          double Pos[3];
-          double Dir[3];
-
-          for (size_t d = 0; d != 3; ++d) {
-            Pos[d] = 0.5 * (xyz_i[d] + xyz_j[d]);
-            Dir[d] = 0.5 * (xyz_i[d] - xyz_j[d]);
-            Err[d] = 0;
-          }
+          double Err[3] = {};
+          double Pos[3] = {0.5 * (xyz_i.X() + xyz_j.X()),
+                           0.5 * (xyz_i.Y() + xyz_j.Y()),
+                           0.5 * (xyz_i.Z() + xyz_j.Z())};
+          double Dir[3] = {0.5 * (xyz_i.X() - xyz_j.X()),
+                           0.5 * (xyz_i.Y() - xyz_j.Y()),
+                           0.5 * (xyz_i.Z() - xyz_j.Z())};
 
           ConnectionPoint1.push_back(i);
           ConnectionPoint2.push_back(j);
@@ -284,22 +273,21 @@ namespace trkf {
   //---------------------------------------------------------------------
 
   void FeatureTracker::GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
-                                        TVector3 xyz,
+                                        geo::Point_t const& xyz,
                                         std::vector<double>& uvw,
-                                        std::vector<double>& t,
-                                        int tpc,
-                                        int cryo)
+                                        std::vector<double>& t)
   {
     art::ServiceHandle<geo::Geometry const> geo;
 
-    int NPlanes = geo->Cryostat(cryo).TPC(tpc).Nplanes();
+    constexpr geo::TPCID tpcID{0, 0};
+    unsigned int NPlanes = geo->TPC(tpcID).Nplanes();
 
     uvw.resize(NPlanes);
     t.resize(NPlanes);
 
-    for (int plane = 0; plane != NPlanes; plane++) {
-      uvw[plane] = geo->NearestWire(xyz, plane, tpc, cryo);
-      t[plane] = detProp.ConvertXToTicks(xyz[0], plane, tpc, cryo);
+    for (unsigned int plane = 0; plane != NPlanes; plane++) {
+      uvw[plane] = geo->NearestWireID(xyz, geo::PlaneID{tpcID, plane}).Wire;
+      t[plane] = detProp.ConvertXToTicks(xyz.X(), geo::PlaneID{tpcID, plane});
     }
   }
 

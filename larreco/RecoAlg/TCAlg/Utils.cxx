@@ -3952,7 +3952,7 @@ namespace tca {
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
-    tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.Pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos[1], pos[2]}, planeID);
     tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
     return tp;
   } // MakeBareTP
@@ -3975,7 +3975,7 @@ namespace tca {
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
-    tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.Pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos[1], pos[2]}, planeID);
     tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
 
     // now find the direction if dir is defined
@@ -3989,8 +3989,8 @@ namespace tca {
     std::array<double, 2> pos2;
     std::array<double, 2> dir2;
     // the wire coordinates
-    ori2[0] = tcc.geom->WireCoordinate(ori3[1], ori3[2], planeID);
-    pos2[0] = tcc.geom->WireCoordinate(pos3[1], pos3[2], planeID);
+    ori2[0] = tcc.geom->WireCoordinate(geo::Point_t{0, ori3[1], ori3[2]}, planeID);
+    pos2[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos3[1], pos3[2]}, planeID);
     // the time coordinates
     ori2[1] = detProp.ConvertXToTicks(ori3[0], planeID) * tcc.unitsPerTick;
     pos2[1] = detProp.ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
@@ -4005,11 +4005,11 @@ namespace tca {
     tp.Delta = norm / 100;
 
     // The Orth vectors are not unit normalized so we need to correct for this
-    double w0 = tcc.geom->WireCoordinate(0, 0, planeID);
+    double w0 = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 0}, planeID);
     // cosine-like component
-    double cs = tcc.geom->WireCoordinate(1, 0, planeID) - w0;
+    double cs = tcc.geom->WireCoordinate(geo::Point_t{0, 1, 0}, planeID) - w0;
     // sine-like component
-    double sn = tcc.geom->WireCoordinate(0, 1, planeID) - w0;
+    double sn = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 1}, planeID) - w0;
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
 

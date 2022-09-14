@@ -15,24 +15,14 @@ ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
   : fHit(src)
 {
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireID = src->WireID();
 
-  unsigned int plane = src->WireID().Plane;
-  unsigned int tpc = src->WireID().TPC;
-  unsigned int cryo = src->WireID().Cryostat;
+  auto const wireCenter = geom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+  double const x = detProp.ConvertTicksToX(src->PeakTime(), wireID);
 
-  double wireCentre[3];
-  geom->WireIDToWireGeo(src->WireID()).GetCenter(wireCentre);
-  double x = detProp.ConvertTicksToX(src->PeakTime(), plane, tpc, cryo);
-  double globalWire;
-
-  if (tpc % 2 == 0) {
-    globalWire = geom->WireCoordinate(wireCentre[1], wireCentre[2], plane, 0, cryo);
-    fPoint.Set(globalWire, x);
-  }
-  else {
-    globalWire = geom->WireCoordinate(wireCentre[1], wireCentre[2], plane, 1, cryo);
-    fPoint.Set(globalWire, x);
-  }
+  double const globalWire =
+    geom->WireCoordinate(wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
+  fPoint.Set(globalWire, x);
   fCharge = src->SummedADC();
 }
 

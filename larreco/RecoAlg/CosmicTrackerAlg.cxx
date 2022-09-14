@@ -170,10 +170,10 @@ namespace trkf {
         vw[cstat][tpc].resize(tpcgeom.Nplanes());
         vt[cstat][tpc].resize(tpcgeom.Nplanes());
         vtraj[cstat][tpc].resize(tpcgeom.Nplanes());
-        for (size_t plane = 0; plane < tpcgeom.Nplanes(); ++plane) {
+        for (unsigned int plane = 0; plane < tpcgeom.Nplanes(); ++plane) {
           for (size_t i = 0; i < trajPos.size(); ++i) {
-            double wirecord =
-              geom->WireCoordinate(trajPos[i].Y(), trajPos[i].Z(), plane, tpc, cstat);
+            double wirecord = geom->WireCoordinate(geo::Point_t{0, trajPos[i].Y(), trajPos[i].Z()},
+                                                   geo::PlaneID{tpcgeom.ID(), plane});
             double tick = detProp.ConvertXToTicks(trajPos[i].X(), plane, tpc, cstat);
             vw[cstat][tpc][plane].push_back(wirecord);
             vt[cstat][tpc][plane].push_back(tick);

@@ -455,23 +455,19 @@ namespace shwf {
       gser.Get3DaxisN(bp1, bp2, angle[bp1], angle[bp2], xphi, xtheta);
 
       ///////////////////////////////////////////////////////////
-      const double origin[3] = {0.};
-      std::vector<std::vector<double>> position;
-      double fTimeTick = sampling_rate(clockData) / 1000.;
-      double fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
-      // get starting positions for all planes
-      for (unsigned int xx = 0; xx < fNPlanes; xx++) {
-        double pos1[3];
-        geom->Plane(xx).LocalToWorld(origin, pos1);
-        std::vector<double> pos2;
-        pos2.push_back(pos1[0]);
-        pos2.push_back(pos1[1]);
-        pos2.push_back(pos1[2]);
-        position.push_back(pos2);
+      geo::PlaneGeo::LocalPoint_t const origin{};
+      std::vector<geo::Point_t> position;
+      position.reserve(fNPlanes);
+      // get starting positions for all planes -- FIXME: only position[0] is used.
+      for (unsigned int xx = 0; xx < fNPlanes; ++xx) {
+        position.push_back(geom->Plane(xx).toWorldCoords(origin));
       }
+
       // Assuming there is no problem ( and we found the best pair that comes
       // close in time ) we try to get the Y and Z coordinates for the start of
       // the shower.
+      double fTimeTick = sampling_rate(clockData) / 1000.;
+      double fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
       try {
         int chan1 = geom->PlaneWireToChannel(bp1, fWire_vertex[bp1], 0);
         int chan2 = geom->PlaneWireToChannel(bp2, fWire_vertex[bp2], 0);
@@ -483,7 +479,7 @@ namespace shwf {
         xyz_vertex_fit[2] = z;
         xyz_vertex_fit[0] =
           (fTime_vertex[bp1] - trigger_offset(clockData)) * fDriftVelocity * fTimeTick +
-          position[0][0];
+          position[0].X();
       }
       catch (cet::exception const& e) {
         mf::LogWarning("ShowerReco") << "caught exception \n" << e;
@@ -494,14 +490,10 @@ namespace shwf {
 
       // if collection is not best plane, project starting point from that
       if (bp1 != fNPlanes - 1 && bp2 != fNPlanes - 1) {
-        double pos[3];
-        unsigned int wirevertex;
-
-        geom->Plane(fNPlanes - 1).LocalToWorld(origin, pos);
-
-        pos[1] = xyz_vertex_fit[1];
-        pos[2] = xyz_vertex_fit[2];
-        wirevertex = geom->NearestWire(pos, fNPlanes - 1);
+        auto pos = geom->Plane(fNPlanes - 1).toWorldCoords(origin);
+        pos.SetY(xyz_vertex_fit[1]);
+        pos.SetZ(xyz_vertex_fit[2]);
+        auto const wirevertex = geom->NearestWireID(pos, geo::PlaneID{0, 0, fNPlanes - 1}).Wire;
 
         double drifttick =
           (xyz_vertex_fit[0] / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
@@ -509,7 +501,7 @@ namespace shwf {
         fWire_vertex[fNPlanes - 1] = wirevertex; // wire coordinate of vertex for each plane
         fTime_vertex[fNPlanes - 1] =
           drifttick -
-          (pos[0] / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
+          (pos.X() / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
             (1. / fTimeTick) +
           trigger_offset(clockData);
       }

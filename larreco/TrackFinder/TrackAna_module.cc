@@ -78,8 +78,8 @@ namespace {
                 detinfo::DetectorPropertiesData const& detProp,
                 const simb::MCParticle& part,
                 double dx,
-                TVector3& start,
-                TVector3& end,
+                geo::Point_t& start,
+                geo::Point_t& end,
                 TVector3& startmom,
                 TVector3& endmom)
   {
@@ -136,8 +136,8 @@ namespace {
                 detinfo::DetectorPropertiesData const& detProp,
                 const sim::MCTrack& mctrk,
                 double dx,
-                TVector3& start,
-                TVector3& end,
+                geo::Point_t& start,
+                geo::Point_t& end,
                 TVector3& startmom,
                 TVector3& endmom)
   {
@@ -222,13 +222,10 @@ namespace {
   }
 
   class flattener : public std::vector<unsigned int> {
-
   public:
-    flattener() : std::vector<unsigned int>(){};
+    flattener() = default;
 
     flattener(const std::vector<std::vector<unsigned int>>& input) { Convert(input); }
-
-    ~flattener() {}
 
     void Convert(const std::vector<std::vector<unsigned int>>& input)
     {
@@ -783,8 +780,8 @@ namespace trkf {
 
             // Calculate the length of this mc particle inside the fiducial volume.
 
-            TVector3 mcstart;
-            TVector3 mcend;
+            geo::Point_t mcstart;
+            geo::Point_t mcend;
             TVector3 mcstartmom;
             TVector3 mcendmom;
             double plen =
@@ -808,8 +805,8 @@ namespace trkf {
                        << mctrk.PdgCode() << "  " << std::fixed << std::setprecision(2)
                        << std::setw(10) << mcdx << "\nStart " << std::setw(3) << mctrk.TrackID()
                        << std::setw(6) << mctrk.PdgCode() << "  " << std::fixed
-                       << std::setprecision(2) << std::setw(10) << mcstart[0] << std::setw(10)
-                       << mcstart[1] << std::setw(10) << mcstart[2];
+                       << std::setprecision(2) << std::setw(10) << mcstart.X() << std::setw(10)
+                       << mcstart.Y() << std::setw(10) << mcstart.Z();
                 if (pstart > 0.) {
                   *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
                          << mcstartmom[0] / pstart << std::setw(10) << mcstartmom[1] / pstart
@@ -820,8 +817,8 @@ namespace trkf {
                 *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
                 *pdump << "\nEnd   " << std::setw(3) << mctrk.TrackID() << std::setw(6)
                        << mctrk.PdgCode() << "  " << std::fixed << std::setprecision(2)
-                       << std::setw(10) << mcend[0] << std::setw(10) << mcend[1] << std::setw(10)
-                       << mcend[2];
+                       << std::setw(10) << mcend.X() << std::setw(10) << mcend.Y() << std::setw(10)
+                       << mcend.Z();
                 if (pend > 0.01) {
                   *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
                          << mcendmom[0] / pend << std::setw(10) << mcendmom[1] / pend
@@ -1034,8 +1031,8 @@ namespace trkf {
               // Calculate the points where this mc particle enters and leaves the
               // fiducial volume, and the length in the fiducial volume.
 
-              TVector3 mcstart;
-              TVector3 mcend;
+              geo::Point_t mcstart;
+              geo::Point_t mcend;
               TVector3 mcstartmom;
               TVector3 mcendmom;
               double plen =
@@ -1043,7 +1040,7 @@ namespace trkf {
 
               // Get the displacement of this mc particle in the global coordinate system.
 
-              TVector3 mcpos = mcstart - pos;
+              TVector3 mcpos{mcstart.X() - pos[0], mcstart.Y() - pos[1], mcstart.Z() - pos[2]};
 
               // Rotate the momentum and position to the
               // track-local coordinate system.
@@ -1174,13 +1171,13 @@ namespace trkf {
                         << mctrk.PdgCode() << " KE" << std::setw(4) << (int)KE << KEUnits
                         << " RecoTrkID " << track.ID() << " hitEff " << std::setprecision(2)
                         << hiteff << " hitPur " << hitpurity;
-                      int sWire, sTick, eWire, eTick;
                       // this won't work for DUNE
                       for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
-                        sWire = geom->NearestWire(mcstart, ipl, 0, 0);
-                        sTick = detProp.ConvertXToTicks(mcstart[0], ipl, 0, 0);
-                        eWire = geom->NearestWire(mcend, ipl, 0, 0);
-                        eTick = detProp.ConvertXToTicks(mcend[0], ipl, 0, 0);
+                        geo::PlaneID const planeID{0, 0, ipl};
+                        auto const sWire = geom->NearestWireID(mcstart, planeID).Wire;
+                        auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
+                        auto const eWire = geom->NearestWireID(mcend, planeID).Wire;
+                        auto const eTick = detProp.ConvertXToTicks(mcend.X(), planeID);
                         mf::LogVerbatim("TrackAna")
                           << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":" << sTick
                           << " - " << eWire << ":" << eTick;
@@ -1245,7 +1242,8 @@ namespace trkf {
           KEUnits = " MeV";
         }
         // find the start/end wire:time in each plane
-        TVector3 mcstart, mcend, mcstartmom, mcendmom;
+        geo::Point_t mcstart, mcend;
+        TVector3 mcstartmom, mcendmom;
         double mcdx = mctrk.Start().T() * 1.e-3 * detProp.DriftVelocity(); // cm
         double plen = length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
         mf::LogVerbatim("TrackAna")
@@ -1254,13 +1252,13 @@ namespace trkf {
           << std::setw(4) << (int)KE << KEUnits << " Length " << std::fixed << std::setprecision(1)
           << plen << " cm";
         if (fPrintLevel > 1) {
-          int sWire, sTick, eWire, eTick;
           // this won't work for DUNE
           for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
-            sWire = geom->NearestWire(mcstart, ipl, 0, 0);
-            sTick = detProp.ConvertXToTicks(mcstart[0], ipl, 0, 0);
-            eWire = geom->NearestWire(mcend, ipl, 0, 0);
-            eTick = detProp.ConvertXToTicks(mcend[0], ipl, 0, 0);
+            geo::PlaneID const& planeID{0, 0, ipl};
+            auto const sWire = geom->NearestWireID(mcstart, planeID).Wire;
+            auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
+            auto const eWire = geom->NearestWireID(mcend, planeID).Wire;
+            auto const eTick = detProp.ConvertXToTicks(mcend.X(), planeID);
             mf::LogVerbatim("TrackAna") << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":"
                                         << sTick << " - " << eWire << ":" << eTick;
           } // ipl
@@ -1372,8 +1370,8 @@ namespace trkf {
                   rhistsStitched.fHHitPdg->Fill(part->PdgCode());
                   // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
 
-                  TVector3 mcstart;
-                  TVector3 mcend;
+                  geo::Point_t mcstart;
+                  geo::Point_t mcend;
                   TVector3 mcstartmom;
                   TVector3 mcendmom;
                   double mctime = part->T();                              // nsec

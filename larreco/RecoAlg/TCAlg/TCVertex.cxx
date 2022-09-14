@@ -1345,7 +1345,7 @@ namespace tca {
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             int kWire = -1;
             if (slc.nPlanes > 2) {
-              kWire = tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat);
+              kWire = tcc.geom->WireCoordinate(geo::Point_t{0, y, z}, geo::PlaneID{slc.TPCID, kpl});
               std::array<int, 2> wireWindow;
               std::array<float, 2> timeWindow;
               wireWindow[0] = kWire - maxSep;
@@ -2849,9 +2849,9 @@ namespace tca {
                   Point2_t& pos)
   {
     // returns the 2D position of the vertex in the plane
-    pos[0] = tcc.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
-    pos[1] =
-      detProp.ConvertXToTicks(vx3.X, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tcc.unitsPerTick;
+    geo::PlaneID const planeID{vx3.TPCID, plane};
+    pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z}, planeID);
+    pos[1] = detProp.ConvertXToTicks(vx3.X, planeID) * tcc.unitsPerTick;
 
   } // PosInPlane
 

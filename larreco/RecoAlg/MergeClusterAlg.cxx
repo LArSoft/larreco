@@ -173,26 +173,19 @@ double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const
 
   /// Find the global wire position
 
-  double wireCentre[3];
-  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+  auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+
+  if (fGeom->SignalType(wireID) == geo::kInduction) {
+    return fGeom->WireCoordinate(wireCenter,
+                                 geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
+  }
 
   double globalWire;
-  if (fGeom->SignalType(wireID) == geo::kInduction) {
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-    else
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
-  }
-  else {
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
-    else
-      globalWire =
-        wireID.Wire + ((int)(wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
-  }
+  if (wireID.TPC % 2 == 0)
+    globalWire = wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
+  else
+    globalWire =
+      wireID.Wire + ((int)(wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
 
   return globalWire;
 }
@@ -221,15 +214,15 @@ int cluster::MergeClusterAlg::MergeClusters(
   //   for (auto &hit : hits) {
   //     std::vector<sim::TrackIDE> ides = backtracker->HitToTrackID(hit);
   //     for (auto &ide : ides)
-  // 	trackMap[ide.trackID] += ide.energy;
+  //    trackMap[ide.trackID] += ide.energy;
   //   }
   //   // Find the true particle associated with this track
   //   double highEnergy = 0;
   //   int bestTrack = 0;
   //   for (auto &track : trackMap) {
   //     if (track.second > highEnergy) {
-  // 	highEnergy = track.second;
-  // 	bestTrack = track.first;
+  //    highEnergy = track.second;
+  //    bestTrack = track.first;
   //     }
   //   }
   //   trueClusterMap[cluster] = bestTrack;
@@ -243,7 +236,7 @@ int cluster::MergeClusterAlg::MergeClusters(
 
   //     // true merge
   //     if (trueClusterMap[cluster1It] == trueClusterMap[cluster2It])
-  // 	fTrueMerge = true;
+  //    fTrueMerge = true;
   //     else fTrueMerge = false;
 
   //     // geometry
@@ -264,21 +257,21 @@ int cluster::MergeClusterAlg::MergeClusters(
 
   //     for (auto &hit1 : cluster1) {
   //    pos = HitCoordinates(hit1);
-  // 	hits[0] = pos.X();
-  // 	hits[1] = pos.Y();
-  // 	pca->AddRow(hits);
-  // 	pca1->AddRow(hits);
-  // 	chargePoint1 += hit1->Integral() * pos;
-  // 	totalCharge1 += hit1->Integral();
+  //    hits[0] = pos.X();
+  //    hits[1] = pos.Y();
+  //    pca->AddRow(hits);
+  //    pca1->AddRow(hits);
+  //    chargePoint1 += hit1->Integral() * pos;
+  //    totalCharge1 += hit1->Integral();
   //     }
   //     for (auto &hit2 : cluster2) {
-  // 	pos = HitCoordinates(hit2);
-  // 	hits[0] = pos.X();
-  // 	hits[1] = pos.Y();
-  // 	pca->AddRow(hits);
-  // 	pca2->AddRow(hits);
-  // 	chargePoint2 += hit2->Integral() * pos;
-  // 	totalCharge2 += hit2->Integral();
+  //    pos = HitCoordinates(hit2);
+  //    hits[0] = pos.X();
+  //    hits[1] = pos.Y();
+  //    pca->AddRow(hits);
+  //    pca2->AddRow(hits);
+  //    chargePoint2 += hit2->Integral() * pos;
+  //    totalCharge2 += hit2->Integral();
   //     }
 
   //     pca->MakePrincipals();
@@ -318,7 +311,7 @@ int cluster::MergeClusterAlg::MergeClusters(
 
   //     // // Find if this is merged!
   //     // if (fCrossingDistance < 6 + (5 / (fAngle - 0.05)))
-  //     // 	fMerge = true;
+  //     //     fMerge = true;
   //     // else fMerge = false;
 
   //     // if (fCluster1Size >= 10 && fCluster2Size >= 10) std::cout << "Merge " << fMerge << " and true merge " << fTrueMerge << std::endl;

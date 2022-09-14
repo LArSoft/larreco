@@ -206,7 +206,7 @@ public:
   pma::Track3D* buildSegment(const detinfo::DetectorPropertiesData& clockData,
                              const std::vector<art::Ptr<recob::Hit>>& hits_1,
                              const std::vector<art::Ptr<recob::Hit>>& hits_2,
-                             const TVector3& point) const;
+                             const geo::Point_t& point) const;
 
   /// Build a straight segment from set of hits (they should origin from two
   /// wire planes at least), starting from a given point.

@@ -140,7 +140,7 @@ namespace trkf {
             throw cet::exception("SpacePointAlg") << "Bad orientation = " << orient << "\n";
 
           if (report) {
-            const double* xyz = tpcgeom.PlaneLocation(plane);
+            auto const xyz = tpcgeom.Plane(plane).GetCenter();
             mf::LogInfo("SpacePointAlg")
               << "\nCryostat, TPC, Plane: " << cstat << "," << tpc << ", " << plane << "\n"
               << "  View: " << viewname << "\n"
@@ -248,11 +248,9 @@ namespace trkf {
 
       // Get angles and distance of wire.
 
-      double hl = wgeom.HalfL();
-      double xyz[3];
-      double xyz1[3];
-      wgeom.GetCenter(xyz);
-      wgeom.GetCenter(xyz1, hl);
+      double const hl = wgeom.HalfL();
+      auto const xyz = wgeom.GetCenter();
+      auto const xyz1 = wgeom.GetEnd();
       double s = (xyz1[1] - xyz[1]) / hl;
       double c = (xyz1[2] - xyz[2]) / hl;
       sinth[hit.WireID().Plane] = s;
@@ -389,11 +387,9 @@ namespace trkf {
 
           // Get angles and distance of wire.
 
-          double hl = wgeom.HalfL();
-          double xyz[3];
-          double xyz1[3];
-          wgeom.GetCenter(xyz);
-          wgeom.GetCenter(xyz1, hl);
+          double const hl = wgeom.HalfL();
+          auto const xyz = wgeom.GetCenter();
+          auto const xyz1 = wgeom.GetEnd();
           double s = (xyz1[1] - xyz[1]) / hl;
           double c = (xyz1[2] - xyz[2]) / hl;
           sinth[hit.WireID().Plane] = s;
@@ -506,11 +502,9 @@ namespace trkf {
 
         // Calculate angle and wire coordinate in this view.
 
-        double hl = wgeom.HalfL();
-        double cen[3];
-        double cen1[3];
-        wgeom.GetCenter(cen);
-        wgeom.GetCenter(cen1, hl);
+        double const hl = wgeom.HalfL();
+        auto const cen = wgeom.GetCenter();
+        auto const cen1 = wgeom.GetEnd();
         double s = (cen1[1] - cen[1]) / hl;
         double c = (cen1[2] - cen[2]) / hl;
         double u = cen[2] * s - cen[1] * c;
@@ -743,11 +737,9 @@ namespace trkf {
 
         // Calculate angle and wire coordinate in this view.
 
-        double hl = wgeom.HalfL();
-        double cen[3];
-        double cen1[3];
-        wgeom.GetCenter(cen);
-        wgeom.GetCenter(cen1, hl);
+        double const hl = wgeom.HalfL();
+        auto const cen = wgeom.GetCenter();
+        auto const cen1 = wgeom.GetEnd();
         double s = (cen1[1] - cen[1]) / hl;
         double c = (cen1[2] - cen[2]) / hl;
         double u = cen[2] * s - cen[1] * c;
@@ -1055,11 +1047,9 @@ namespace trkf {
 
               // Get angle, pitch, and offset of plane2 wires.
               const geo::WireGeo& wgeo2 = geom->Cryostat(cstat).TPC(tpc).Plane(plane2).Wire(0);
-              double hl2 = wgeo2.HalfL();
-              double xyz21[3];
-              double xyz22[3];
-              wgeo2.GetCenter(xyz21, -hl2);
-              wgeo2.GetCenter(xyz22, hl2);
+              double const hl2 = wgeo2.HalfL();
+              auto const xyz21 = wgeo2.GetStart();
+              auto const xyz22 = wgeo2.GetEnd();
               double s2 = (xyz22[1] - xyz21[1]) / (2. * hl2);
               double c2 = (xyz22[2] - xyz21[2]) / (2. * hl2);
               double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
@@ -1089,11 +1079,8 @@ namespace trkf {
                 assert(phit1WireID.Cryostat == cstat);
                 assert(phit1WireID.TPC == tpc);
                 assert(phit1WireID.Plane == plane1);
-                double hl1 = wgeo.HalfL();
-                double xyz1[3];
-                double xyz2[3];
-                wgeo.GetCenter(xyz1, -hl1);
-                wgeo.GetCenter(xyz2, hl1);
+                auto const xyz1 = wgeo.GetStart();
+                auto const xyz2 = wgeo.GetEnd();
 
                 // Find the plane2 wire numbers corresponding to the endpoints.
 
@@ -1161,11 +1148,9 @@ namespace trkf {
           // Get angle, pitch, and offset of plane1 wires.
 
           const geo::WireGeo& wgeo1 = geom->Cryostat(cstat).TPC(tpc).Plane(plane1).Wire(0);
-          double hl1 = wgeo1.HalfL();
-          double xyz11[3];
-          double xyz12[3];
-          wgeo1.GetCenter(xyz11, -hl1);
-          wgeo1.GetCenter(xyz12, hl1);
+          double const hl1 = wgeo1.HalfL();
+          auto const xyz11 = wgeo1.GetStart();
+          auto const xyz12 = wgeo1.GetEnd();
           double s1 = (xyz12[1] - xyz11[1]) / (2. * hl1);
           double c1 = (xyz12[2] - xyz11[2]) / (2. * hl1);
           double dist1 = -xyz11[1] * c1 + xyz11[2] * s1;
@@ -1175,11 +1160,9 @@ namespace trkf {
           // Get angle, pitch, and offset of plane2 wires.
 
           const geo::WireGeo& wgeo2 = geom->Cryostat(cstat).TPC(tpc).Plane(plane2).Wire(0);
-          double hl2 = wgeo2.HalfL();
-          double xyz21[3];
-          double xyz22[3];
-          wgeo2.GetCenter(xyz21, -hl2);
-          wgeo2.GetCenter(xyz22, hl2);
+          double const hl2 = wgeo2.HalfL();
+          auto const xyz21 = wgeo2.GetStart();
+          auto const xyz22 = wgeo2.GetEnd();
           double s2 = (xyz22[1] - xyz21[1]) / (2. * hl2);
           double c2 = (xyz22[2] - xyz21[2]) / (2. * hl2);
           double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
@@ -1189,11 +1172,9 @@ namespace trkf {
           // Get angle, pitch, and offset of plane3 wires.
 
           const geo::WireGeo& wgeo3 = geom->Cryostat(cstat).TPC(tpc).Plane(plane3).Wire(0);
-          double hl3 = wgeo3.HalfL();
-          double xyz31[3];
-          double xyz32[3];
-          wgeo3.GetCenter(xyz31, -hl3);
-          wgeo3.GetCenter(xyz32, hl3);
+          double const hl3 = wgeo3.HalfL();
+          auto const xyz31 = wgeo3.GetStart();
+          auto const xyz32 = wgeo3.GetEnd();
           double s3 = (xyz32[1] - xyz31[1]) / (2. * hl3);
           double c3 = (xyz32[2] - xyz31[2]) / (2. * hl3);
           double dist3 = -xyz31[1] * c3 + xyz31[2] * s3;
@@ -1224,11 +1205,8 @@ namespace trkf {
             assert(phit1WireID.TPC == tpc);
             assert(phit1WireID.Plane == plane1);
             assert(phit1WireID.Wire == wire1);
-            double hl1 = wgeo.HalfL();
-            double xyz1[3];
-            double xyz2[3];
-            wgeo.GetCenter(xyz1, -hl1);
-            wgeo.GetCenter(xyz2, hl1);
+            auto const xyz1 = wgeo.GetStart();
+            auto const xyz2 = wgeo.GetEnd();
 
             // Get corrected time and oblique coordinate of first hit.
 

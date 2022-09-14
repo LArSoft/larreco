@@ -1001,27 +1001,23 @@ namespace lar_cluster3d {
     TVectorD w(npts);
     unsigned short ninpl[3] = {0};
     unsigned short nok = 0;
-    unsigned short iht(0), cstat, tpc, ipl;
-    double x, cw, sw, off;
+    unsigned short iht(0);
 
     // Loop over unique 2D hits from the input list of 3D hits
     for (const auto& hit : hit2DSet) {
-      geo::WireID wireID = hit->WireID();
-
-      cstat = wireID.Cryostat;
-      tpc = wireID.TPC;
-      ipl = wireID.Plane;
+      geo::WireID const& wireID = hit->WireID();
+      unsigned int const ipl = wireID.Plane;
 
       // get the wire plane offset
-      off = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
+      double const off = m_geometry->WireCoordinate(geo::Point_t{}, wireID);
 
       // get the "cosine-like" component
-      cw = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
+      double const cw = m_geometry->WireCoordinate(geo::Point_t{0., 1., 0.}, wireID) - off;
 
       // the "sine-like" component
-      sw = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
+      double const sw = m_geometry->WireCoordinate(geo::Point_t{0., 0., 1.}, wireID) - off;
 
-      x = hit->getXPosition() - XOrigin;
+      double const x = hit->getXPosition() - XOrigin;
 
       A[iht][0] = cw;
       A[iht][1] = sw;
@@ -1034,7 +1030,7 @@ namespace lar_cluster3d {
       // need at least two points in a plane
       if (ninpl[ipl] == 2) ++nok;
 
-      iht++;
+      ++iht;
     }
 
     // need at least 2 planes with at least two points
@@ -1049,21 +1045,16 @@ namespace lar_cluster3d {
     // not enough points to calculate Chisq
     if (npts <= 4) return;
 
-    double ypr, zpr, diff;
-
     for (const auto& hit : hit2DSet) {
-      geo::WireID wireID = hit->WireID();
+      geo::WireID const& wireID = hit->WireID();
 
-      cstat = wireID.Cryostat;
-      tpc = wireID.TPC;
-      ipl = wireID.Plane;
-      off = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
-      cw = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
-      sw = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-      x = hit->getXPosition() - XOrigin;
-      ypr = tVec[0] + tVec[2] * x;
-      zpr = tVec[1] + tVec[3] * x;
-      diff = ypr * cw + zpr * sw - (wireID.Wire - off);
+      double const off = m_geometry->WireCoordinate(geo::Point_t{0., 0., 0.}, wireID);
+      double const cw = m_geometry->WireCoordinate(geo::Point_t{0., 1., 0.}, wireID) - off;
+      double const sw = m_geometry->WireCoordinate(geo::Point_t{0., 0., 1.}, wireID) - off;
+      double const x = hit->getXPosition() - XOrigin;
+      double const ypr = tVec[0] + tVec[2] * x;
+      double const zpr = tVec[1] + tVec[3] * x;
+      double const diff = ypr * cw + zpr * sw - (wireID.Wire - off);
       ChiDOF += diff * diff;
     }
 

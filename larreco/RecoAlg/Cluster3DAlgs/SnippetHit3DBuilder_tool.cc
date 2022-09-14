@@ -1316,8 +1316,7 @@ namespace lar_cluster3d {
     const geo::WireGeo& wireGeo1 = m_geometry->WireIDToWireGeo(wireID1);
 
     // Get wire position and direction for first wire
-    double wirePosArr[3] = {0., 0., 0.};
-    wireGeo0.GetCenter(wirePosArr);
+    auto wirePosArr = wireGeo0.GetCenter();
 
     Eigen::Vector3f wirePos0(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
     Eigen::Vector3f wireDir0(
@@ -1328,7 +1327,7 @@ namespace lar_cluster3d {
     //    if (wireID0.Plane > 0) wireDir0[2] = -wireDir0[2];
 
     // And now the second one
-    wireGeo1.GetCenter(wirePosArr);
+    wirePosArr = wireGeo1.GetCenter();
 
     Eigen::Vector3f wirePos1(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
     Eigen::Vector3f wireDir1(
@@ -1570,8 +1569,7 @@ namespace lar_cluster3d {
       const geo::WireGeo& wireGeo = m_geometry->WireIDToWireGeo(wireIDIn);
 
       // Get wire position and direction for first wire
-      double wirePosArr[3] = {0., 0., 0.};
-      wireGeo.GetCenter(wirePosArr);
+      auto const wirePosArr = wireGeo.GetCenter();
 
       Eigen::Vector3f wirePos(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
       Eigen::Vector3f wireDir(

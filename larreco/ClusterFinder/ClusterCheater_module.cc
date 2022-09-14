@@ -155,13 +155,12 @@ namespace cluster {
       if (hitMapItr.second.size() < fMinHits) continue;
 
       // get the center of this plane in world coordinates
-      double xyz[3] = {0.};
-      double xyz2[3] = {0.};
-      double local[3] = {0.};
-      unsigned int cryostat = hitMapItr.first.planeID.Cryostat;
-      unsigned int tpc = hitMapItr.first.planeID.TPC;
-      unsigned int plane = hitMapItr.first.planeID.Plane;
-      geo->Cryostat(cryostat).TPC(tpc).Plane(plane).LocalToWorld(local, xyz);
+      geo::PlaneGeo::LocalPoint_t const local{};
+      auto const& planeID = hitMapItr.first.planeID;
+      unsigned int cryostat = planeID.Cryostat;
+      unsigned int tpc = planeID.TPC;
+      unsigned int plane = planeID.Plane;
+      auto xyz = geo->Plane(planeID).toWorldCoords(local);
 
       MF_LOG_DEBUG("ClusterCheater")
         << "make cluster for eveID: " << hitMapItr.first.eveID << " in cryostat: " << cryostat
@@ -175,24 +174,24 @@ namespace cluster {
       // trajectory and use the initial directions to determine the dT/dW
       // multiply the direction cosine by 10 to give a decent lever arm for determining
       // dW
-      xyz[1] = part->Vy();
-      xyz[2] = part->Vz();
-      xyz2[0] = xyz[0];
-      xyz2[1] = xyz[1] + 10. * part->Py() / part->P();
-      xyz2[2] = xyz[2] + 10. * part->Pz() / part->P();
+      xyz.SetY(part->Vy());
+      xyz.SetZ(part->Vz());
+      auto xyz2 = xyz;
+      xyz2.SetY(xyz.Y() + 10. * part->Py() / part->P());
+      xyz2.SetZ(xyz.Z() + 10. * part->Pz() / part->P());
 
       // convert positions to wire and time
       unsigned int w1 = 0;
       unsigned int w2 = 0;
 
       try {
-        w1 = geo->NearestWire(xyz, plane, tpc, cryostat);
+        w1 = geo->NearestWireID(xyz, planeID).Wire;
       }
       catch (cet::exception& e) {
         w1 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());
       }
       try {
-        w2 = geo->NearestWire(xyz2, plane, tpc, cryostat);
+        w2 = geo->NearestWireID(xyz2, planeID).Wire;
       }
       catch (cet::exception& e) {
         w2 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());
@@ -213,7 +212,6 @@ namespace cluster {
       // add a cluster to the collection.  Make the ID be the eve particle
       // trackID*1000 + plane number*100 + tpc*10 + cryostat that the current hits are from
       ///\todo: The above encoding of the ID probably won't work for DUNE and should be revisited
-      const geo::PlaneID& planeID = hitMapItr.first.planeID;
       recob::Cluster::ID_t clusterID =
         (((hitMapItr.first.eveID) * 10 + planeID.Plane) * 10 +
          planeID.TPC // 10 is weird choice for DUNE FD... should be 1000! FIXME

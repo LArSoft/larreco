@@ -20,6 +20,7 @@
 
 #include "range/v3/view.hpp"
 
+using geo::vect::toPoint;
 using lar::to_element;
 using namespace ranges;
 
@@ -78,7 +79,8 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
     while ((f < 1.0) && node->SameTPC(p)) {
-      pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), geo::PlaneID{cryo, tpc, testPlane}),
+                        p.X());
       geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
 
       int widx = (int)p2d.X();
@@ -193,11 +195,12 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
 
     double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
     while ((f < 1.0) && node->SameTPC(p)) {
-      pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
-      geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+      geo::PlaneID const planeID{cryo, tpc, testPlane};
+      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
+      geo::WireID const wireID{planeID, static_cast<unsigned int>(p2d.X())};
 
       int widx = (int)p2d.X();
-      int didx = (int)detProp.ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
+      int didx = (int)detProp.ConvertXToTicks(p2d.Y(), planeID);
 
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
@@ -316,10 +319,11 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
-    double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
+    geo::PlaneID const planeID{cryo, tpc, testPlane};
+    double const wirepitch = fGeom->Plane(planeID).WirePitch();
     while ((f < 1.0) && node->SameTPC(p)) {
-      pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
-      geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
+      geo::WireID const wireID{planeID, static_cast<unsigned int>(p2d.X())};
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
         if (channelStatus.IsGood(ch)) {
@@ -374,9 +378,10 @@ double pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData cons
   dc *= step / dc.Mag();
 
   double f = pma::GetSegmentProjVector(p, p0, p1);
-  double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
+  geo::PlaneID const planeID{cryo, tpc, testPlane};
+  double const wirepitch = fGeom->Plane(planeID).WirePitch();
   while (f < 1.0) {
-    TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+    TVector2 p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
     geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
     if (fGeom->HasWire(wireID)) {
       raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
@@ -610,14 +615,14 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const pma::Vector3D& vtx) const
 {
-  double vtxarray[3]{vtx.X(), vtx.Y(), vtx.Z()};
+  geo::Point_t const vtxpoint{vtx.X(), vtx.Y(), vtx.Z()};
 
-  if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxarray))) return 0;
+  if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxpoint))) return 0;
 
   TVector3 vtxv3(vtx.X(), vtx.Y(), vtx.Z());
 
-  const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
-  const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
+  const size_t tpc = fGeom->FindTPCAtPosition(vtxpoint).TPC;
+  const size_t cryo = fGeom->PositionToCryostatID(vtxpoint).Cryostat;
   const geo::TPCGeo& tpcgeom = fGeom->Cryostat(cryo).TPC(tpc);
 
   // use only hits from tpc where the vtx is
@@ -917,7 +922,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
   const detinfo::DetectorPropertiesData& detProp,
   const std::vector<art::Ptr<recob::Hit>>& hits_1,
   const std::vector<art::Ptr<recob::Hit>>& hits_2,
-  const TVector3& point) const
+  const geo::Point_t& point) const
 {
   pma::Track3D* trk = buildSegment(detProp, hits_1, hits_2);
 
@@ -926,7 +931,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
     double dback = pma::Dist2(trk->back()->Point3D(), point);
     if (dfront > dback) trk->Flip();
 
-    trk->Nodes().front()->SetPoint3D(point);
+    trk->Nodes().front()->SetPoint3D({point.X(), point.Y(), point.Z()});
     trk->Nodes().front()->SetFrozen(true);
     trk->Optimize(detProp, 0, fFineTuningEps);
 

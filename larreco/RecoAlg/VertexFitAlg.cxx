@@ -44,7 +44,6 @@ namespace trkf {
           //vtx wir = vtx Y  * OrthY                + vtx Z  * OrthZ                    - wire offset
           vWire = par[1] * fVtxFitMinStr.OrthY[ipl] + par[2] * fVtxFitMinStr.OrthZ[ipl] -
                   fVtxFitMinStr.FirstWire[ipl];
-          //          if(flag == 1) mf::LogVerbatim("VF")<<"fcn vtx "<<par[0]<<" "<<par[1]<<" "<<par[2]<<" vWire "<<vWire<<" OrthY "<<fVtxFitMinStr.OrthY[ipl]<<" OrthZ "<<fVtxFitMinStr.OrthZ[ipl];
           lastpl = ipl;
         } // ipl != lastpl
         DirY = par[indx];
@@ -70,8 +69,6 @@ namespace trkf {
           dX = par[0] + (dU * DirX / DirU) - fVtxFitMinStr.HitX[itk][iht];
         }
         arg = dX / fVtxFitMinStr.HitXErr[itk][iht];
-        //        if(flag == 1) mf::LogVerbatim("VF")<<"fcn itk "<<itk<<" iht "<<iht<<" ipl "<<ipl<<" DirX "<<DirX<<" DirY "<<DirY<<" DirZ "<<DirZ
-        //        <<" DirU "<<DirU<<" W "<<fVtxFitMinStr.Wire[itk][iht]<<" X "<<fVtxFitMinStr.HitX[itk][iht]<<" dU "<<dU<<" dX "<<dX<<" arg "<<arg;
         fval += arg * arg;
       } // iht
     }   //itk
@@ -110,30 +107,29 @@ namespace trkf {
     // number of variables = 3 for the vertex position + 2 * number of track directions
     const unsigned int ntrks = hitX.size();
     const unsigned int npars = 3 + 2 * ntrks;
-    unsigned int npts = 0, itk;
-    for (itk = 0; itk < ntrks; ++itk)
+    unsigned int npts = 0;
+    for (unsigned int itk = 0; itk < ntrks; ++itk)
       npts += hitX[itk].size();
 
     if (npts < ntrks) return;
 
     // Get the cryostat and tpc from the first hit
-    unsigned int cstat, tpc, nplanes, ipl, iht;
-    cstat = hitWID[0][0].Cryostat;
-    tpc = hitWID[0][0].TPC;
-    nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+    geo::TPCID const& tpcid = hitWID[0][0];
+    unsigned int const nplanes = geom->TPC(tpcid).Nplanes();
 
-    fVtxFitMinStr.Cstat = cstat;
-    fVtxFitMinStr.TPC = tpc;
+    fVtxFitMinStr.Cstat = tpcid.Cryostat;
+    fVtxFitMinStr.TPC = tpcid.TPC;
     fVtxFitMinStr.NPlanes = nplanes;
-    fVtxFitMinStr.WirePitch = geom->WirePitch(hitWID[0][0].Plane, tpc, cstat);
+    fVtxFitMinStr.WirePitch = geom->WirePitch(hitWID[0][0]);
 
     // Put geometry conversion factors into the struct
-    for (ipl = 0; ipl < nplanes; ++ipl) {
-      fVtxFitMinStr.FirstWire[ipl] = -geom->WireCoordinate(0, 0, ipl, tpc, cstat);
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
+      geo::PlaneID const planeID{tpcid, ipl};
+      fVtxFitMinStr.FirstWire[ipl] = -geom->WireCoordinate(geo::Point_t{0, 0, 0}, planeID);
       fVtxFitMinStr.OrthY[ipl] =
-        geom->WireCoordinate(1, 0, ipl, tpc, cstat) + fVtxFitMinStr.FirstWire[ipl];
+        geom->WireCoordinate(geo::Point_t{0, 1, 0}, planeID) + fVtxFitMinStr.FirstWire[ipl];
       fVtxFitMinStr.OrthZ[ipl] =
-        geom->WireCoordinate(0, 1, ipl, tpc, cstat) + fVtxFitMinStr.FirstWire[ipl];
+        geom->WireCoordinate(geo::Point_t{0, 0, 1}, planeID) + fVtxFitMinStr.FirstWire[ipl];
     }
     // and the vertex starting position
     fVtxFitMinStr.VtxPos = VtxPos;
@@ -143,10 +139,10 @@ namespace trkf {
     fVtxFitMinStr.HitXErr = hitXErr;
     fVtxFitMinStr.Plane.resize(ntrks);
     fVtxFitMinStr.Wire.resize(ntrks);
-    for (itk = 0; itk < ntrks; ++itk) {
+    for (unsigned int itk = 0; itk < ntrks; ++itk) {
       fVtxFitMinStr.Plane[itk].resize(hitX[itk].size());
       fVtxFitMinStr.Wire[itk].resize(hitX[itk].size());
-      for (iht = 0; iht < hitWID[itk].size(); ++iht) {
+      for (std::size_t iht = 0; iht < hitWID[itk].size(); ++iht) {
         fVtxFitMinStr.Plane[itk][iht] = hitWID[itk][iht].Plane;
         fVtxFitMinStr.Wire[itk][iht] = hitWID[itk][iht].Wire;
       }
@@ -173,8 +169,7 @@ namespace trkf {
     gMin->mnexcm("SET PRINT", arglist, 1, errFlag);
 
     // the vertex position
-    unsigned short ipar;
-    for (ipar = 0; ipar < 3; ++ipar) {
+    for (unsigned int ipar = 0; ipar < 3u; ++ipar) {
       par[ipar] = fVtxFitMinStr.VtxPos[ipar]; // in cm
       stp[ipar] = 0.1;                        // 1 mm initial step
       gMin->mnparm(ipar, "", par[ipar], stp[ipar], -1E6, 1E6, errFlag);
@@ -182,8 +177,8 @@ namespace trkf {
     // use Y, Z track directions. There is no constraint that the direction vector is unit-normalized
     // since we are only passing two of the components. Minuit could violate this requirement when
     // fitting. fcnVtxPos prevents non-physical values and Minuit may throw error messages as a result.
-    for (itk = 0; itk < ntrks; ++itk) {
-      ipar = 3 + 2 * itk;
+    for (unsigned int itk = 0; itk < ntrks; ++itk) {
+      unsigned int ipar = 3 + 2 * itk;
       par[ipar] = fVtxFitMinStr.Dir[itk](1);
       stp[ipar] = 0.03;
       gMin->mnparm(ipar, "", par[ipar], stp[ipar], -1.05, 1.05, errFlag);
@@ -193,15 +188,6 @@ namespace trkf {
       gMin->mnparm(ipar, "", par[ipar], stp[ipar], -1.05, 1.05, errFlag);
     } // itk
 
-    /*
-    // Single call to fcnVtxPos for debugging it
-    std::cout<<"Starting: par  ";
-    for(unsigned short ip = 0; ip < par.size(); ++ip) std::cout<<" "<<std::fixed<<std::setprecision(2)<<par[ip];
-    std::cout<<"\n";
-    // call fcn with starting parameters
-    arglist[0] = 1;
-    gMin->mnexcm("CALL", arglist, 1, errFlag);
-*/
     // set strategy 0 for faster Minuit fitting
     arglist[0] = 0.;
     gMin->mnexcm("SET STRATEGY", arglist, 1, errFlag);
@@ -222,14 +208,14 @@ namespace trkf {
     }
 
     // return the vertex position and errors
-    for (ipar = 0; ipar < 3; ++ipar) {
+    for (unsigned int ipar = 0; ipar < 3u; ++ipar) {
       VtxPos[ipar] = par[ipar];
       VtxPosErr[ipar] = parerr[ipar];
     }
     // return the track directions and the direction errors if applicable
     bool returnTrkDirErrs = (TrkDirErr.size() == TrkDir.size());
-    for (itk = 0; itk < ntrks; ++itk) {
-      ipar = 3 + 2 * itk;
+    for (unsigned int itk = 0; itk < ntrks; ++itk) {
+      unsigned int const ipar = 3 + 2 * itk;
       double arg = 1 - par[ipar] * par[ipar] - par[ipar + 1] * par[ipar + 1];
       if (arg < 0) arg = 0;
       TrkDir[itk](0) = sqrt(arg);

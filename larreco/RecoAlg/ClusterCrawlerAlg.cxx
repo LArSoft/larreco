@@ -5655,9 +5655,9 @@ namespace cluster {
           // set the kpl 2D vertex index < 0. Let follow-on code find the 3rd
           // plane vertex
           newVtx3.Ptr2D[kpl] = -1;
-          double WPos[3] = {0, y, z};
+          geo::Point_t const WPos{0, y, z};
           try {
-            newVtx3.Wire = geom->NearestWire(WPos, kpl, tpc, cstat);
+            newVtx3.Wire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
           }
           catch (geo::InvalidWireError const& e) {
             newVtx3.Wire = e.suggestedWireID().Wire; // pick the closest valid wire
@@ -5743,7 +5743,7 @@ namespace cluster {
     std::vector<Vtx3Store> v3temp;
 
     double y = 0, z = 0;
-    TVector3 WPos = {0, 0, 0};
+    geo::Point_t WPos{0, 0, 0};
     // i, j, k indicates 3 different wire planes
     unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
     unsigned int iWire, jWire;
@@ -5792,14 +5792,14 @@ namespace cluster {
             if (dXChi > fVertex3DCut) continue;
             geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
             if (y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
-            WPos[1] = y;
-            WPos[2] = z;
+            WPos.SetY(y);
+            WPos.SetZ(z);
             kpl = 3 - ipl - jpl;
             kX = 0.5 * (vX[ivx] + vX[jvx]);
             kWire = -1;
             if (TPC.Nplanes() > 2) {
               try {
-                kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+                kWire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
               }
               catch (geo::InvalidWireError const& e) {
                 kWire = e.suggestedWireID().Wire; // pick the closest valid wire

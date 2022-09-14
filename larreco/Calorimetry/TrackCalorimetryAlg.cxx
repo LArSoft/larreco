@@ -49,7 +49,8 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
       hit_indices_per_plane[hitVector[i_hit].WireID().Plane].push_back(i_hit);
 
     //loop over the planes
-    for (size_t i_plane = 0; i_plane < geom.Nplanes(); i_plane++) {
+    for (unsigned int i_plane = 0; i_plane < geom.Nplanes(); ++i_plane) {
+      geo::PlaneID const planeID{0, 0, i_plane};
 
       ClearInternalVectors();
       ReserveInternalVectors(hit_indices_per_plane[i_plane].size());
@@ -61,7 +62,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
         double x_pos = track.LocationAtPoint(i_trjpt).X();
         float tick = det_prop.ConvertXToTicks(x_pos, (int)i_plane, 0, 0);
         traj_points_in_plane[i_trjpt] =
-          std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), i_plane), tick);
+          std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), planeID), tick);
       }
 
       HitPropertiesMultiset_t HitPropertiesMultiset;
@@ -77,7 +78,6 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
                    geom);
 
       //PrintHitPropertiesMultiset(HitPropertiesMultiset);
-      geo::PlaneID planeID(0, 0, i_plane);
       MakeCalorimetryObject(
         HitPropertiesMultiset, track, i_track, caloVector, assnTrackCaloVector, planeID);
 

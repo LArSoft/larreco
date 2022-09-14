@@ -379,7 +379,7 @@ void pma::PMAlgStitching::GetTPCXOffsets()
     if (!hasPlane) { continue; }
 
     // Get the x position of the readout plane
-    double xAnode = aTPC.PlaneLocation(plane)[0];
+    double xAnode = aTPC.Plane(0).GetCenter()[0];
     fTPCXOffsetsAPA.insert(std::make_pair(tID, xAnode));
 
     // For the cathode, we have to try a little harder. Firstly, find the

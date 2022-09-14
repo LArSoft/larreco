@@ -376,14 +376,9 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
 
   // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
-    double wireCentre[3];
-    fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-    else
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+    globalWire = fGeom->WireCoordinate(wireCenter,
+                                       geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
   }
 
   // Collection
@@ -410,14 +405,9 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      double wireCentre[3];
-      fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-      if (wireID.TPC % 2 == 0)
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-      else
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter<geo::Point_t>();
+      globalWire = fGeom->WireCoordinate(
+        wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
     }
   }
 

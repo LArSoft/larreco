@@ -289,9 +289,6 @@ namespace trkf {
     // fill the trkHits array using information.
     void FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short imat);
 
-    // Seed hits for the seed - hit association
-    //    void FindSeedHits(unsigned short itk, unsigned short& end);
-
     // store the track in the trk vector
     void StoreTrack(detinfo::DetectorPropertiesData const& detProp,
                     art::FindManyP<recob::Hit> const& fmCluHits,
@@ -699,7 +696,6 @@ namespace trkf {
             util::CreateAssn(evt, *tcol, tmpHits, *thassn);
             // Find seed hits and the end of the track that is best
             end = 0;
-            //            FindSeedHits(tIndex, end);
             unsigned short itj = 0;
             if (end > 0) itj = trk[tIndex].TrjPos.size() - 1;
             for (unsigned short ii = 0; ii < 3; ++ii) {
@@ -1010,7 +1006,6 @@ namespace trkf {
           if (trk[itr].Length > longDSTrk) longDSTrk = trk[itr].Length;
           for (ipl = 0; ipl < nplanes; ++ipl)
             ndhs += trk[itr].TrkHits[ipl].size();
-          //  std::cout<<"MakeFamily: ivx "<<ivx<<" DS itr "<<trk[itr].ID<<" len "<<trk[itr].Length<<"\n";
         } // DS-going track
         // Reject this vertex as a neutrino candidate if the track being
         // considered has a starting vertex
@@ -1024,7 +1019,6 @@ namespace trkf {
           if (trk[itr].Length > longUSTrk) longUSTrk = trk[itr].Length;
           for (ipl = 0; ipl < nplanes; ++ipl)
             nuhs += trk[itr].TrkHits[ipl].size();
-          //  std::cout<<"MakeFamily: ivx "<<ivx<<" US itr "<<trk[itr].ID<<" len "<<trk[itr].Length<<"\n";
         } // US-going track
       }   // itr
       if (skipVtx) continue;
@@ -1049,13 +1043,6 @@ namespace trkf {
         nuVtxCand.push_back(aNuVtx);
       }
     } // ivx
-    /*
-    mf::LogVerbatim("CCTM")<<"Neutrino vtx candidates";
-    for(unsigned short ican = 0; ican < nuVtxCand.size(); ++ican)
-       mf::LogVerbatim("CCTM")<<"Can "<<ican<<" vtx "<<nuVtxCand[ican].VtxIndex<<" nUSTk "<<nuVtxCand[ican].nUSTk
-        <<" nUSHit "<<nuVtxCand[ican].nUSHit<<" longUS "<<nuVtxCand[ican].longUSTrk<<" nDSTk "<<nuVtxCand[ican].nDSTk
-        <<" nDSHit "<<nuVtxCand[ican].nDSHit<<" longDS "<<nuVtxCand[ican].longDSTrk<<" Qual "<<nuVtxCand[ican].Qual;
-*/
     if (imbest < 0) return;
 
     // Found the neutrino interaction vertex
@@ -1117,7 +1104,6 @@ namespace trkf {
               indx = trk[itr].DtrID.size();
               trk[itr].DtrID.resize(indx + 1);
               trk[itr].DtrID[indx] = jtr;
-              //              std::cout<<"itr "<<itr<<" dtr "<<jtr<<" DtrID size "<<trk[itr].DtrID.size()<<"\n";
               trk[jtr].MomID = trk[itr].ID;
               // call all daughters pions
               trk[jtr].PDGCode = 211;
@@ -1129,7 +1115,6 @@ namespace trkf {
               indx = trk[itr].DtrID.size();
               trk[itr].DtrID.resize(indx + 1);
               trk[itr].DtrID[indx] = jtr;
-              //              std::cout<<"itr "<<itr<<" dtr "<<jtr<<" DtrID size "<<trk[itr].DtrID.size()<<"\n";
               trk[jtr].MomID = trk[itr].ID;
               // call all daughters pions
               trk[jtr].PDGCode = 211;
@@ -1194,14 +1179,12 @@ namespace trkf {
       if (trk[itk].TrjPos[0](0) < XLo || trk[itk].TrjPos[0](0) > XHi) startsIn = false;
       if (trk[itk].TrjPos[0](1) < YLo || trk[itk].TrjPos[0](1) > YHi) startsIn = false;
       if (trk[itk].TrjPos[0](2) < ZLo || trk[itk].TrjPos[0](2) > ZHi) startsIn = false;
-      //      std::cout<<"Trk "<<trk[itk].ID<<" X0 "<<(int)trk[itk].TrjPos[0](0)<<" Y0 "<<(int)trk[itk].TrjPos[0](1)<<" Z0 "<<(int)trk[itk].TrjPos[0](2)<<" startsIn "<<startsIn<<"\n";
       if (startsIn) continue;
       endsIn = true;
       itj = trk[itk].TrjPos.size() - 1;
       if (trk[itk].TrjPos[itj](0) < XLo || trk[itk].TrjPos[itj](0) > XHi) endsIn = false;
       if (trk[itk].TrjPos[itj](1) < YLo || trk[itk].TrjPos[itj](1) > YHi) endsIn = false;
       if (trk[itk].TrjPos[itj](2) < ZLo || trk[itk].TrjPos[itj](2) > ZHi) endsIn = false;
-      //      std::cout<<"     X1 "<<(int)trk[itk].TrjPos[itj](0)<<" Y1 "<<(int)trk[itk].TrjPos[itj](1)<<" Z1 "<<(int)trk[itk].TrjPos[itj](2)<<" endsIn "<<endsIn<<"\n";
       if (endsIn) continue;
       // call it a cosmic muon
       trk[itk].PDGCode = 13;
@@ -1407,32 +1390,25 @@ namespace trkf {
     // Project clusters to vertices and fill mVtxIndex. No requirement is
     // made that charge exists on the line between the Begin (End) of the
     // cluster and the vertex
-    unsigned short ipl, icl, end, ivx, oend;
-    float best, dWire, dX;
-    short ibstvx;
 
-    if (vtx.size() == 0) return;
+    if (vtx.empty()) return;
 
-    for (ipl = 0; ipl < nplanes; ++ipl) {
-      for (icl = 0; icl < cls[ipl].size(); ++icl) {
-        for (end = 0; end < 2; ++end) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
+      for (unsigned int icl = 0; icl < cls[ipl].size(); ++icl) {
+        for (unsigned int end = 0; end < 2u; ++end) {
           // ignore already attached clusters
           if (cls[ipl][icl].VtxIndex[end] >= 0) continue;
-          ibstvx = -1;
-          best = 1.;
+          short ibstvx = -1;
+          float best = 1.;
           // index of the other end
-          oend = 1 - end;
-          for (ivx = 0; ivx < vtx.size(); ++ivx) {
+          unsigned int oend = 1 - end;
+          geo::PlaneID const planeID{cstat, tpc, ipl};
+          for (std::size_t ivx = 0; ivx < vtx.size(); ++ivx) {
             // ignore if the other end is attached to this vertex (which can happen with short clusters)
-            if (cls[ipl][icl].VtxIndex[oend] == ivx) continue;
-            dWire = geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat) -
-                    cls[ipl][icl].Wire[end];
-            /*
-             if(prt) std::cout<<"FMV: ipl "<<ipl<<" icl "<<icl<<" end "<<end
-             <<" vtx wire "<<geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat)
-             <<" cls wire "<<cls[ipl][icl].Wire[end]
-             <<" dWire "<<dWire<<"\n";
-             */
+            if (cls[ipl][icl].VtxIndex[oend] == static_cast<short>(ivx)) continue;
+            float const dWire =
+              geom->WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z}, planeID) -
+              cls[ipl][icl].Wire[end];
             if (end == 0) {
               if (dWire > 30 || dWire < -2) continue;
             }
@@ -1440,9 +1416,8 @@ namespace trkf {
               if (dWire < -30 || dWire > 2) continue;
             }
             // project the cluster to the vertex wire
-            dX = fabs(cls[ipl][icl].X[end] + cls[ipl][icl].Slope[end] * fWirePitch * dWire -
-                      vtx[ivx].X);
-            //            if(prt) std::cout<<"dX "<<dX<<"\n";
+            float const dX = fabs(cls[ipl][icl].X[end] +
+                                  cls[ipl][icl].Slope[end] * fWirePitch * dWire - vtx[ivx].X);
             if (dX < best) {
               best = dX;
               ibstvx = ivx;
@@ -2158,7 +2133,7 @@ namespace trkf {
               if (yp > tpcSizeY || yp < -tpcSizeY) continue;
               if (zp < 0 || zp > tpcSizeZ) continue;
               kX = 0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]);
-              kWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
+              kWir = geom->WireCoordinate(geo::Point_t{0, yp, zp}, geo::PlaneID{cstat, tpc, kpl});
               // now look at the other end
               geom->IntersectionPoint((unsigned int)(0.5 + clsChain[ipl][icl].Wire[ioend]),
                                       (unsigned int)(0.5 + clsChain[jpl][jcl].Wire[joend]),
@@ -2170,7 +2145,7 @@ namespace trkf {
                                       zp);
               if (yp > tpcSizeY || yp < -tpcSizeY) continue;
               if (zp < 0 || zp > tpcSizeZ) continue;
-              okWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
+              okWir = geom->WireCoordinate(geo::Point_t{0, yp, zp}, geo::PlaneID{cstat, tpc, kpl});
               if (prt)
                 mf::LogVerbatim("CCTM")
                   << "PlnMatch: chk i " << ipl << ":" << icl << ":" << iend << " idir " << idir
@@ -2801,13 +2776,15 @@ namespace trkf {
     if (ignoreSign) okAng = fabs(okAng);
     if (match.oVtx >= 0) {
       // a vertex exists at the other end
-      okWir = geom->WireCoordinate(vtx[match.oVtx].Y, vtx[match.oVtx].Z, kpl, tpc, cstat);
+      okWir = geom->WireCoordinate(geo::Point_t{0, vtx[match.oVtx].Y, vtx[match.oVtx].Z},
+                                   geo::PlaneID{cstat, tpc, kpl});
       okX = vtx[match.oVtx].X;
     }
     else {
       // no vertex at the other end
       geom->IntersectionPoint(oWir[ipl], oWir[jpl], ipl, jpl, cstat, tpc, ypos, zpos);
-      okWir = (0.5 + geom->WireCoordinate(ypos, zpos, kpl, tpc, cstat));
+      okWir =
+        (0.5 + geom->WireCoordinate(geo::Point_t{0, ypos, zpos}, geo::PlaneID{cstat, tpc, kpl}));
       okX = 0.5 * (oX[ipl] + oX[jpl]);
     }
     okTim = detProp.ConvertXToTicks(okX, kpl, tpc, cstat);
@@ -2828,7 +2805,8 @@ namespace trkf {
         return;
       }
       // a vertex exists at the match end
-      kWir = geom->WireCoordinate(vtx[match.Vtx].Y, vtx[match.Vtx].Z, kpl, tpc, cstat);
+      kWir = geom->WireCoordinate(geo::Point_t{0, vtx[match.Vtx].Y, vtx[match.Vtx].Z},
+                                  geo::PlaneID{cstat, tpc, kpl});
       kX = vtx[match.Vtx].X;
     }
     else {
@@ -2841,7 +2819,8 @@ namespace trkf {
                               tpc,
                               ypos,
                               zpos);
-      kWir = (0.5 + geom->WireCoordinate(ypos, zpos, kpl, tpc, cstat));
+      kWir =
+        (0.5 + geom->WireCoordinate(geo::Point_t{0, ypos, zpos}, geo::PlaneID{cstat, tpc, kpl}));
       kX = 0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]);
     }
     kTim = detProp.ConvertXToTicks(kX, kpl, tpc, cstat);
@@ -3121,17 +3100,13 @@ namespace trkf {
         trkHits[ipl].resize(indx + clusterhits.size());
         // ensure the hit fill ordering is consistent
         fillOrder = 1 - 2 * clsChain[ipl][ccl].Order[icc];
-        //        mf::LogVerbatim("CCTM")<<"FillOrder ipl "<<ipl<<" ccl "<<ccl<<" icl "<<icl<<" endOrder "<<endOrder<<" fillOrder "<<fillOrder;
         if (fillOrder == 1) {
-          //          mf::LogVerbatim("CCTM")<<" first hit "<<clusterhits[0]->WireID().Wire<<":"<<(int)clusterhits[0]->PeakTime();
           for (iht = 0; iht < clusterhits.size(); ++iht) {
             if (indx + iht > trkHits[ipl].size() - 1) std::cout << "FTH oops3\n";
             trkHits[ipl][indx + iht] = clusterhits[iht];
           }
         }
         else {
-          //          iht = clusterhits.size() - 1;
-          //          mf::LogVerbatim("CCTM")<<" first hit "<<clusterhits[iht]->WireID().Wire<<":"<<(int)clusterhits[iht]->PeakTime();
           for (ii = 0; ii < clusterhits.size(); ++ii) {
             iht = clusterhits.size() - 1 - ii;
             if (indx + ii > trkHits[ipl].size() - 1) std::cout << "FTH oops4\n";
@@ -3147,7 +3122,6 @@ namespace trkf {
                                 << trkHits[ipl][ii]->WireID().Plane << " w "
                                 << trkHits[ipl][ii]->WireID().Wire << ":"
                                 << (int)trkHits[ipl][ii]->PeakTime();
-      //      for(ii = 0; ii < trkHits[ipl].size(); ++ii) mf::LogVerbatim("CCTM")<<ii<<" p "<<trkHits[ipl][ii]->WireID().Plane<<" w "<<trkHits[ipl][ii]->WireID().Wire<<" t "<<(int)trkHits[ipl][ii]->PeakTime();
     } // ipl
 
     // TODO Check the ends of trkHits to see if there are missing hits that should have been included
@@ -3223,8 +3197,9 @@ namespace trkf {
       myprt << std::right << std::setw(5) << vtx[ivx].nClusInPln[2];
       myprt << "    ";
       for (unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-        int time = (0.5 + detProp.ConvertXToTicks(vtx[ivx].X, ipl, tpc, cstat));
-        int wire = geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat);
+        geo::PlaneID const planeID{cstat, tpc, ipl};
+        int time = (0.5 + detProp.ConvertXToTicks(vtx[ivx].X, planeID));
+        int wire = geom->WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z}, planeID);
         myprt << std::right << std::setw(7) << wire << ":" << time;
       }
 
@@ -3256,7 +3231,6 @@ namespace trkf {
           myprt << std::right << std::setw(5) << clsChain[ipl][ccl].VtxIndex[end];
           myprt << std::fixed << std::right << std::setw(6) << std::setprecision(1)
                 << clsChain[ipl][ccl].mBrkIndex[end];
-          //          myprt<<std::fixed<<std::right<<std::setw(6)<<std::setprecision(1)<<clsChain[ipl][ccl].ChgNear[end];
         }
         myprt << std::right << std::setw(7) << clsChain[ipl][ccl].InTrack;
         myprt << "   ";
@@ -3350,7 +3324,6 @@ namespace trkf {
       if (wire < w1) continue;
       if (wire > w2) continue;
       prtime = t1 + (wire - w1) * slp;
-      //      std::cout<<"prtime "<<wire<<":"<<(int)prtime<<" hit "<<allhits[hit]->PeakTimeMinusRMS(3)<<" "<<allhits[hit]->PeakTimePlusRMS(3)<<"\n";
       if (prtime > allhits[hit]->PeakTimePlusRMS(3)) continue;
       if (prtime < allhits[hit]->PeakTimeMinusRMS(3)) continue;
       chg += ChgNorm[ipl] * allhits[hit]->Integral();
@@ -3431,13 +3404,6 @@ namespace trkf {
         WireHitRange[ipl][wire] = std::make_pair(sflag, sflag);
       // overwrite with the "dead wires" condition
       sflag = -1;
-      for (wire = 0; wire < nwires; ++wire) {
-        //chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
-        //if(channelStatus.IsBad(chan)) {
-        //  indx = wire - firstWire[ipl];
-        //  WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
-        //}
-      } // wire
       // next overwrite with the index of the first/last hit on each wire
       lastWire[ipl] = firstWire[ipl];
       thisHit = firstHit[ipl];

@@ -283,12 +283,15 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
-  double shwVtxTime = detProp.ConvertXToTicks(shwvtx[0], collectionPlane);
-  double shwVtxWire = geom->WireCoordinate(shwvtx[1], shwvtx[2], collectionPlane);
+  using namespace geo::vect;
+  auto const shwvtx_p = toPoint(shwvtx);
+  auto const shwvtx_p2 = shwvtx_p + toVector(shwdir);
 
-  double shwTwoTime = detProp.ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
-  double shwTwoWire =
-    geom->WireCoordinate(shwvtx[1] + shwdir[1], shwvtx[2] + shwdir[2], collectionPlane);
+  double shwVtxTime = detProp.ConvertXToTicks(shwvtx_p.X(), collectionPlane);
+  double shwVtxWire = geom->WireCoordinate(shwvtx_p, collectionPlane);
+
+  double shwTwoTime = detProp.ConvertXToTicks(shwvtx_p2.X(), collectionPlane);
+  double shwTwoWire = geom->WireCoordinate(shwvtx_p2, collectionPlane);
 
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;

@@ -83,19 +83,18 @@ namespace hit {
       unsigned int np = geom->Cryostat(0).TPC(0).Nplanes();
       fMaxWireShift.resize(np);
       for (unsigned int p = 0; p < np; ++p) {
-        double xyz[3] = {0.};
-        double xyz_next[3] = {0.};
-        unsigned int nw = geom->Cryostat(0).TPC(0).Plane(p).Nwires();
+        auto const& planeGeo = geom->Plane({0, 0, p});
+        unsigned int nw = planeGeo.Nwires();
         for (unsigned int w = 0; w < nw; ++w) {
 
           // for vertical planes
-          if (geom->Cryostat(0).TPC(0).Plane(p).View() == geo::kZ) {
-            fMaxWireShift[2] = geom->Cryostat(0).TPC(0).Plane(p).Nwires();
+          if (planeGeo.View() == geo::kZ) {
+            fMaxWireShift[2] = planeGeo.Nwires();
             break;
           }
 
-          geom->Cryostat(0).TPC(0).Plane(p).Wire(w).GetCenter(xyz);
-          geom->Cryostat(0).TPC(0).Plane(p).Wire(w + 1).GetCenter(xyz_next);
+          auto const xyz = planeGeo.Wire(w).GetCenter();
+          auto const xyz_next = planeGeo.Wire(w + 1).GetCenter();
 
           if (xyz[2] == xyz_next[2]) {
             fMaxWireShift[p] = w;
@@ -233,14 +232,14 @@ namespace hit {
       //  if more than one: make a vector of all wids
       std::vector<geo::WireID> widsWithIdes;
       for (size_t i = 0; i < ides.size(); i++) {
-        const double xyzIde[] = {ides[i]->x, ides[i]->y, ides[i]->z};
+        geo::Point_t const xyzIde{ides[i]->x, ides[i]->y, ides[i]->z};
 
         // Occasionally, ide position is not in TPC
         /// \todo: Why would an IDE xyz position be outside of a TPC?
         geo::TPCID tpcID = geom->FindTPCAtPosition(xyzIde);
         if (!tpcID.isValid) {
           mf::LogWarning("DisambigCheat")
-            << "IDE at x = " << xyzIde[0] << ", y = " << xyzIde[1] << ", z = " << xyzIde[2]
+            << "IDE at x = " << xyzIde.X() << ", y = " << xyzIde.Y() << ", z = " << xyzIde.Z()
             << " does not correspond to a TPC.";
           continue;
         }
@@ -251,7 +250,7 @@ namespace hit {
         /// \todo: Why would an IDE ossociated with a hit return a nearest wire not on the hit's channel? Usually only one off.
         geo::WireID IdeWid;
         try {
-          IdeWid = geom->NearestWireID(xyzIde, cwids[0].Plane, tpc, cryo);
+          IdeWid = geom->NearestWireID(xyzIde, geo::PlaneID{tpcID, cwids[0].Plane});
         }
         catch (geo::InvalidWireError const& e) { // adopt suggestion if possible
           if (!e.hasSuggestedWire()) throw;
