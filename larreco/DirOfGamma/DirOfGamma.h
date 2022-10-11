@@ -32,22 +32,10 @@ class ems::Hit2D {
 public:
   Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src);
 
-  TVector2 const&
-  GetPointCm() const
-  {
-    return fPoint;
-  }
-  double
-  GetCharge() const
-  {
-    return fCharge;
-  }
+  TVector2 const& GetPointCm() const { return fPoint; }
+  double GetCharge() const { return fCharge; }
 
-  art::Ptr<recob::Hit> const&
-  GetHitPtr() const
-  {
-    return fHit;
-  }
+  art::Ptr<recob::Hit> const& GetHitPtr() const { return fHit; }
 
 private:
   double fCharge;
@@ -67,29 +55,13 @@ public:
 
   void SortLess();
 
-  double
-  GetTotCharge() const
-  {
-    return fTotCharge;
-  }
+  double GetTotCharge() const { return fTotCharge; }
 
-  unsigned int
-  Size() const
-  {
-    return fSize;
-  }
+  unsigned int Size() const { return fSize; }
 
-  std::vector<Hit2D*> const&
-  GetHits2D() const
-  {
-    return fHits2D;
-  }
+  std::vector<Hit2D*> const& GetHits2D() const { return fHits2D; }
 
-  const TVector2&
-  GetCenter() const
-  {
-    return fCenter2D;
-  }
+  const TVector2& GetCenter() const { return fCenter2D; }
 
   std::vector<art::Ptr<recob::Hit>> GetIniHits(const double radius = 10.0,
                                                const unsigned int nhits = 10) const;
@@ -105,59 +77,23 @@ class ems::EndPoint {
 public:
   EndPoint(const Hit2D& center, const std::vector<Hit2D*>& hits, unsigned int nbins);
 
-  TVector2 const&
-  GetPosition() const
-  {
-    return fCenter2D.GetPointCm();
-  }
+  TVector2 const& GetPosition() const { return fCenter2D.GetPointCm(); }
 
   double GetAsymmetry() const;
 
-  double
-  GetMaxCharge() const
-  {
-    return fMaxCharge;
-  }
+  double GetMaxCharge() const { return fMaxCharge; }
 
-  Bin2D const&
-  MaxChargeBin() const
-  {
-    return fBins[fMaxChargeIdBin];
-  }
+  Bin2D const& MaxChargeBin() const { return fBins[fMaxChargeIdBin]; }
 
-  std::vector<Bin2D> const&
-  GetBins2D() const
-  {
-    return fBins;
-  }
+  std::vector<Bin2D> const& GetBins2D() const { return fBins; }
 
-  art::Ptr<recob::Hit> const&
-  GetHit() const
-  {
-    return fCenter2D.GetHitPtr();
-  }
+  art::Ptr<recob::Hit> const& GetHit() const { return fCenter2D.GetHitPtr(); }
 
-  const std::vector<art::Ptr<recob::Hit>>
-  GetIniHits() const
-  {
-    return MaxChargeBin().GetIniHits();
-  }
+  const std::vector<art::Ptr<recob::Hit>> GetIniHits() const { return MaxChargeBin().GetIniHits(); }
 
-  size_t const&
-  GetPlane() const
-  {
-    return fPlane;
-  }
-  size_t const&
-  GetTPC() const
-  {
-    return fTpc;
-  }
-  size_t const&
-  GetCryo() const
-  {
-    return fCryo;
-  }
+  size_t const& GetPlane() const { return fPlane; }
+  size_t const& GetTPC() const { return fTpc; }
+  size_t const& GetCryo() const { return fCryo; }
 
 private:
   Hit2D fCenter2D;
@@ -192,26 +128,13 @@ public:
       delete fPoints2D[i];
   }
 
-  TVector2 const&
-  GetBaryCenterCm() const
-  {
-    return fBaryCenter;
-  }
+  TVector2 const& GetBaryCenterCm() const { return fBaryCenter; }
 
-  std::vector<Hit2D*> const&
-  GetHits2D() const
-  {
-    return fPoints2D;
-  }
+  std::vector<Hit2D*> const& GetHits2D() const { return fPoints2D; }
 
-  std::vector<EndPoint> const&
-  GetCandidates() const
-  {
-    return fCandidates;
-  }
+  std::vector<EndPoint> const& GetCandidates() const { return fCandidates; }
 
-  void
-  SetIdCandidate(size_t id)
+  void SetIdCandidate(size_t id)
   {
 
     fIsCandidateIDset = true;
@@ -221,41 +144,17 @@ public:
     fIniHits = fCandidates[id].MaxChargeBin().GetIniHits();
   }
 
-  const size_t
-  GetIdCandidate()
-  {
-    return fCandidateID;
-  }
+  const size_t GetIdCandidate() { return fCandidateID; }
 
-  art::Ptr<recob::Hit> const&
-  GetFirstHit() const
-  {
-    return fStartHit;
-  }
+  art::Ptr<recob::Hit> const& GetFirstHit() const { return fStartHit; }
 
-  std::vector<art::Ptr<recob::Hit>> const&
-  GetHits()
-  {
-    return fHits;
-  }
+  std::vector<art::Ptr<recob::Hit>> const& GetHits() { return fHits; }
 
-  TVector2 const&
-  GetFirstPoint() const
-  {
-    return fStartPoint;
-  }
+  TVector2 const& GetFirstPoint() const { return fStartPoint; }
 
-  std::vector<art::Ptr<recob::Hit>> const&
-  GetIniHits() const
-  {
-    return fIniHits;
-  }
+  std::vector<art::Ptr<recob::Hit>> const& GetIniHits() const { return fIniHits; }
 
-  size_t const
-  GetIdCl() const
-  {
-    return fIdCl;
-  }
+  size_t const GetIdCl() const { return fIdCl; }
 
 private:
   size_t fNbins;
@@ -293,8 +192,7 @@ class ems::bDistCentMore2D : public std::binary_function<Hit2D*, Hit2D*, bool> {
 public:
   bDistCentMore2D(const TVector2& c) : center(c) {}
 
-  bool
-  operator()(Hit2D* p1, Hit2D* p2)
+  bool operator()(Hit2D* p1, Hit2D* p2)
   {
     double dx = p1->GetPointCm().X() - center.X();
     double dy = p1->GetPointCm().Y() - center.Y();
@@ -314,8 +212,7 @@ class ems::bDistCentLess2D : public std::binary_function<Hit2D*, Hit2D*, bool> {
 public:
   bDistCentLess2D(const TVector2& c) : center(c) {}
 
-  bool
-  operator()(Hit2D* p1, Hit2D* p2)
+  bool operator()(Hit2D* p1, Hit2D* p2)
   {
     double dx = p1->GetPointCm().X() - center.X();
     double dy = p1->GetPointCm().Y() - center.Y();

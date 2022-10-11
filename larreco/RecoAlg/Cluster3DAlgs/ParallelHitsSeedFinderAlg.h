@@ -8,7 +8,9 @@
 #define ParallelHitsSeedFinderAlg_h
 
 // Framework Includes
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"

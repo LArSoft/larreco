@@ -40,32 +40,16 @@ namespace cmtool {
     virtual void Reset();
 
     /// A simple method to add an algorithm for merging
-    void
-    AddMergeAlgo(CBoolAlgoBase* algo)
-    {
-      _merge_algo = algo;
-    }
+    void AddMergeAlgo(CBoolAlgoBase* algo) { _merge_algo = algo; }
 
     /// A simple method to add an algorithm for separation
-    void
-    AddSeparateAlgo(CBoolAlgoBase* algo)
-    {
-      _separate_algo = algo;
-    }
+    void AddSeparateAlgo(CBoolAlgoBase* algo) { _separate_algo = algo; }
 
     /// A method to obtain output clusters
-    const std::vector<cluster::ClusterParamsAlg>&
-    GetClusters() const
-    {
-      return _out_clusters;
-    }
+    const std::vector<cluster::ClusterParamsAlg>& GetClusters() const { return _out_clusters; }
 
     /// A method to obtain book keeper
-    const CMergeBookKeeper&
-    GetBookKeeper() const
-    {
-      return _book_keeper;
-    }
+    const CMergeBookKeeper& GetBookKeeper() const { return _book_keeper; }
 
   protected:
     //

@@ -24,8 +24,7 @@
 #ifndef GFGEOMATMANAGER_H
 #define GFGEOMATMANAGER_H
 
-#include"GFAbsGeoMatManager.h"
-
+#include "GFAbsGeoMatManager.h"
 
 /** @brief Material and geometry interface via TGeoMaterial and gGeoManager
  *
@@ -40,28 +39,27 @@
  */
 namespace genf {
 
-class GFGeoMatManager : public GFAbsGeoMatManager{
- public:
-   virtual ~GFGeoMatManager(){}
-  void getMaterialParameters(double& matDensity,
-                             double& matZ,
-                             double& matA,
-                             double& radiationLength,
-                             double& mEE);
+  class GFGeoMatManager : public GFAbsGeoMatManager {
+  public:
+    virtual ~GFGeoMatManager() {}
+    void getMaterialParameters(double& matDensity,
+                               double& matZ,
+                               double& matA,
+                               double& radiationLength,
+                               double& mEE);
 
-  void initTrack(const double& posx,
-                 const double& posy,
-                 const double& posz,
-                 const double& dirx,
-                 const double& diry,
-                 const double& dirz);
+    void initTrack(const double& posx,
+                   const double& posy,
+                   const double& posz,
+                   const double& dirx,
+                   const double& diry,
+                   const double& dirz);
 
-  double stepOrNextBoundary(const double& maxDist);
+    double stepOrNextBoundary(const double& maxDist);
 
-  // public:
-  //ClassDef(GFGeoMatManager,1)
-
-};
+    // public:
+    //ClassDef(GFGeoMatManager,1)
+  };
 
 } // namespace genf
 #endif

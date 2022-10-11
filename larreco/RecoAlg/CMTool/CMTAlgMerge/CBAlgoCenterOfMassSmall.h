@@ -25,10 +25,9 @@ namespace cmtool {
      Then see if COM is in polygon/cone of a big cluster
      If so -> merge
   */
-  class CBAlgoCenterOfMassSmall: public CBoolAlgoBase {
+  class CBAlgoCenterOfMassSmall : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoCenterOfMassSmall();
 
@@ -39,11 +38,11 @@ namespace cmtool {
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
-    virtual void Reset(){}
+    virtual void Reset() {}
 
     /// Function to report what's going on per merging iteration
     virtual void Report();
@@ -70,20 +69,22 @@ namespace cmtool {
     void UseCOMNearClus(bool on) { _COMNearClus = on; }
 
     /// Set Length Reach: How for out the cone extends as percent of cluster length
-    void SetLengthReach(double frac){ _lengthReach = frac; }
+    void SetLengthReach(double frac) { _lengthReach = frac; }
 
-    double ShortestDistanceSquared(double point_x, double point_y,
-				   double start_x, double start_y,
-				   double end_x,   double end_y  ) const;
-
+    double ShortestDistanceSquared(double point_x,
+                                   double point_y,
+                                   double start_x,
+                                   double start_y,
+                                   double end_x,
+                                   double end_y) const;
 
   protected:
-
     bool _debug;
     size_t _maxHits;
-    double _MaxDist; //Max distance between COM and start-end line of cluster
+    double _MaxDist;           //Max distance between COM and start-end line of cluster
     double _MaxCOMDistSquared; //Max distance^2 between COMs in cm^2
-    double _lengthReach; ///How four out - as percent of cluster length - cone will extend from start point
+    double
+      _lengthReach; ///How four out - as percent of cluster length - cone will extend from start point
     bool _COMinPolyAlg;
     bool _COMsClose;
     bool _COMNearClus;

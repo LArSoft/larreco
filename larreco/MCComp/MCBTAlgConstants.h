@@ -5,7 +5,7 @@
 namespace btutil {
 
   /// Signifies invalid MCX index number
-  static const size_t kINVALID_INDEX      = std::numeric_limits<size_t>::max();
+  static const size_t kINVALID_INDEX = std::numeric_limits<size_t>::max();
 
 }
 #endif

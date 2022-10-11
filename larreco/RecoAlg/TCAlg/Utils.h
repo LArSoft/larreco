@@ -39,7 +39,6 @@ namespace tca {
     bool valsIncreasing(const SortEntry& c1, const SortEntry& c2);
   }
 
-
   typedef enum {
     kAllHits,
     kUsedHits,
@@ -233,8 +232,7 @@ namespace tca {
   bool PointInsideEnvelope(const Point2_t& Point, const std::vector<Point2_t>& Envelope);
   bool SetMag(Vector2_t& v1, double mag);
   void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans);
-  inline double
-  DotProd(const Vector2_t& v1, const Vector2_t& v2)
+  inline double DotProd(const Vector2_t& v1, const Vector2_t& v2)
   {
     return v1[0] * v2[0] + v1[1] * v2[1];
   }
@@ -404,8 +402,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T>
-  SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)
+  std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns a vector containing the elements of set1 and set2 that are common. This function
     // is a replacement for std::set_intersection which fails in the following situation:
@@ -427,8 +424,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T>
-  SetDifference(const std::vector<T>& set1, const std::vector<T>& set2)
+  std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns the elements of set1 and set2 that are different
     std::vector<T> different;

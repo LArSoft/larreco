@@ -111,11 +111,7 @@ namespace cluster {
        *     recob::Cluster single_cluster(cluster.move()); // wrong! cluster is empty now
        *
        */
-    recob::Cluster&&
-    move()
-    {
-      return std::move(cluster);
-    }
+    recob::Cluster&& move() { return std::move(cluster); }
 
     /**
        * @brief Returns the constructed wire
@@ -131,11 +127,7 @@ namespace cluster {
        *     recob::Cluster single_cluster(cluster.copy()); // copied again
        *
        */
-    recob::Cluster const&
-    copy() const
-    {
-      return cluster;
-    }
+    recob::Cluster const& copy() const { return cluster; }
 
   protected:
     /// Local instance of the cluster being constructed

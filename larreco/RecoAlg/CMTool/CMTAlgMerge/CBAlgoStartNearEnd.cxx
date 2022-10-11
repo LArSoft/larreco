@@ -6,15 +6,15 @@ namespace cmtool {
   CBAlgoStartNearEnd::CBAlgoStartNearEnd() : CBoolAlgoBase()
   //----------------------------------------
   {
-    SetMaxStartEndSeparation(10); //cm^2
-    SetMinHits(40); //cm^2
-    SetMaxAngle(20*(3.14/180)); //rad: max angle of end-point cluster
+    SetMaxStartEndSeparation(10);   //cm^2
+    SetMinHits(40);                 //cm^2
+    SetMaxAngle(20 * (3.14 / 180)); //rad: max angle of end-point cluster
     // Nothing to be done in the base class
   }
 
   //--------------------------------------------------------
-  bool CBAlgoStartNearEnd::Bool(const ::cluster::ClusterParamsAlg &cluster1,
-			const ::cluster::ClusterParamsAlg &cluster2)
+  bool CBAlgoStartNearEnd::Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                                const ::cluster::ClusterParamsAlg& cluster2)
   //--------------------------------------------------------
   {
 
@@ -34,31 +34,26 @@ namespace cmtool {
     size_t hits_1 = cluster1.GetHitVector().size();
     size_t hits_2 = cluster2.GetHitVector().size();
 
-
-    if ( (angle_1 < _maxopeningangle) and (hits_1 > _MinHits) and
-	 ( ((start_w2-end_w1)*(start_w2-end_w1) +
-	    (start_t2-end_t1)*(start_t2-end_t1)) < _separation) ){
-      if (_verbose)
-	std::cout << "Start in End!" << std::endl;
+    if ((angle_1 < _maxopeningangle) and (hits_1 > _MinHits) and
+        (((start_w2 - end_w1) * (start_w2 - end_w1) + (start_t2 - end_t1) * (start_t2 - end_t1)) <
+         _separation)) {
+      if (_verbose) std::cout << "Start in End!" << std::endl;
       return true;
     }
 
-    if ( (angle_2 < _maxopeningangle) and (hits_2 > _MinHits) and
-	 ( ((start_w1-end_w2)*(start_w1-end_w2) +
-	    (start_t1-end_t2)*(start_t1-end_t2)) < _separation) ){
-      if (_verbose)
-	std::cout << "Start in End!" << std::endl;
+    if ((angle_2 < _maxopeningangle) and (hits_2 > _MinHits) and
+        (((start_w1 - end_w2) * (start_w1 - end_w2) + (start_t1 - end_t2) * (start_t1 - end_t2)) <
+         _separation)) {
+      if (_verbose) std::cout << "Start in End!" << std::endl;
       return true;
     }
 
     return false;
-
   }
 
   //-----------------------
   void CBAlgoStartNearEnd::Report()
   //-----------------------
-  {
-  }
+  {}
 
 }

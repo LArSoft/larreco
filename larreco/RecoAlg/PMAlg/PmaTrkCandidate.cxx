@@ -30,16 +30,14 @@ pma::TrkCandidate::TrkCandidate(pma::Track3D* trk, int key, int tid)
 {}
 // ------------------------------------------------------
 
-void
-pma::TrkCandidate::SetTrack(pma::Track3D* trk)
+void pma::TrkCandidate::SetTrack(pma::Track3D* trk)
 {
   if (fTrack) delete fTrack;
   fTrack = trk;
 }
 // ------------------------------------------------------
 
-void
-pma::TrkCandidate::DeleteTrack()
+void pma::TrkCandidate::DeleteTrack()
 {
   if (fTrack) delete fTrack;
   fTrack = 0;
@@ -48,16 +46,14 @@ pma::TrkCandidate::DeleteTrack()
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int
-pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const* candidate) const
+int pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const* candidate) const
 {
   for (size_t t = 0; t < fCandidates.size(); ++t)
     if (fCandidates[t].Track() == candidate) return t;
   return -1;
 }
 
-int
-pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const* candidate) const
+int pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const* candidate) const
 {
   int id = getCandidateIndex(candidate);
   if (id >= 0)
@@ -66,8 +62,7 @@ pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const* candidate) const
     return -1;
 }
 
-void
-pma::TrkCandidateColl::setParentDaughterConnections()
+void pma::TrkCandidateColl::setParentDaughterConnections()
 {
   fParents.clear();
 
@@ -124,8 +119,7 @@ pma::TrkCandidateColl::setParentDaughterConnections()
 }
 // ------------------------------------------------------
 
-void
-pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
+void pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
 {
   pma::Track3D* trk = fCandidates[trkIdx].Track();
   pma::Node3D* vtx = trk->Nodes().front();
@@ -161,8 +155,7 @@ pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
   fCandidates[trkIdx].SetTreeId(id);
 }
 
-int
-pma::TrkCandidateColl::setTreeIds()
+int pma::TrkCandidateColl::setTreeIds()
 {
   for (auto& t : fCandidates)
     t.SetTreeId(-1);
@@ -186,9 +179,8 @@ pma::TrkCandidateColl::setTreeIds()
 }
 // ------------------------------------------------------
 
-void
-pma::TrkCandidateColl::flipTreesToCoordinate(detinfo::DetectorPropertiesData const& detProp,
-                                             size_t coordinate)
+void pma::TrkCandidateColl::flipTreesToCoordinate(detinfo::DetectorPropertiesData const& detProp,
+                                                  size_t coordinate)
 {
   std::map<int, std::vector<pma::Track3D*>> toFlip;
   std::map<int, double> minVal;
@@ -250,9 +242,8 @@ pma::TrkCandidateColl::flipTreesToCoordinate(detinfo::DetectorPropertiesData con
 }
 // ------------------------------------------------------
 
-bool
-pma::TrkCandidateColl::setTreeOriginAtFront(detinfo::DetectorPropertiesData const& detProp,
-                                            pma::Track3D* trk)
+bool pma::TrkCandidateColl::setTreeOriginAtFront(detinfo::DetectorPropertiesData const& detProp,
+                                                 pma::Track3D* trk)
 {
   int trkIdx = getCandidateIndex(trk);
   int treeId = getCandidateTreeId(trk);
@@ -296,9 +287,8 @@ pma::TrkCandidateColl::setTreeOriginAtFront(detinfo::DetectorPropertiesData cons
 }
 // ------------------------------------------------------
 
-bool
-pma::TrkCandidateColl::setTreeOriginAtBack(detinfo::DetectorPropertiesData const& detProp,
-                                           pma::Track3D* trk)
+bool pma::TrkCandidateColl::setTreeOriginAtBack(detinfo::DetectorPropertiesData const& detProp,
+                                                pma::Track3D* trk)
 {
   int trkIdx = getCandidateIndex(trk);
   int treeId = getCandidateTreeId(trk);
@@ -317,8 +307,7 @@ pma::TrkCandidateColl::setTreeOriginAtBack(detinfo::DetectorPropertiesData const
 }
 // ------------------------------------------------------
 
-void
-pma::TrkCandidateColl::flipTreesByDQdx()
+void pma::TrkCandidateColl::flipTreesByDQdx()
 {
   std::map<int, std::vector<pma::Track3D*>> trkMap;
 
@@ -337,8 +326,7 @@ pma::TrkCandidateColl::flipTreesByDQdx()
 }
 // ------------------------------------------------------
 
-void
-pma::TrkCandidateColl::merge(size_t idx1, size_t idx2)
+void pma::TrkCandidateColl::merge(size_t idx1, size_t idx2)
 {
   fCandidates[idx1].Track()->ExtendWith(fCandidates[idx2].Track()); // deletes track at idx2
 
@@ -351,8 +339,9 @@ pma::TrkCandidateColl::merge(size_t idx1, size_t idx2)
   setTreeId(fCandidates[idx1].TreeId(), idx1);
 }
 
-pma::Track3D*
-pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl& dst, size_t trkIdx, bool isRoot)
+pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl& dst,
+                                                 size_t trkIdx,
+                                                 bool isRoot)
 {
   pma::Track3D* trk = fCandidates[trkIdx].Track();
   pma::Node3D* vtx = trk->Nodes().front();

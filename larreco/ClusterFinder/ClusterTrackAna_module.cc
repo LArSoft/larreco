@@ -29,8 +29,8 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -125,8 +125,7 @@ cluster::ClusterTrackAna::ClusterTrackAna(fhicl::ParameterSet const& pset) : EDA
 } // ClusterTrackAna constructor
 
 ////////////////////////////////////////////////
-void
-cluster::ClusterTrackAna::analyze(art::Event const& evt)
+void cluster::ClusterTrackAna::analyze(art::Event const& evt)
 {
   // Match hits to MCParticles, then consider reconstructed hits in each TPC and plane
   // to calculate Efficiency, Purity and Efficiency * Purity (aka EP).
@@ -560,8 +559,7 @@ cluster::ClusterTrackAna::analyze(art::Event const& evt)
 } // analyze
 
 ////////////////////////////////////////////////
-std::string
-cluster::ClusterTrackAna::HitLocation(unsigned int iht)
+std::string cluster::ClusterTrackAna::HitLocation(unsigned int iht)
 {
   // Put the hit location into a compact human-readable format
   if (iht >= (*fHitHandle).size()) return "NA";
@@ -571,12 +569,11 @@ cluster::ClusterTrackAna::HitLocation(unsigned int iht)
 } // HitLocation
 
 ////////////////////////////////////////////////
-void
-cluster::ClusterTrackAna::FirstLastHitInPlane(unsigned int tpc,
-                                              unsigned int plane,
-                                              unsigned int mcpi,
-                                              unsigned int& firstHitIndex,
-                                              unsigned int& lastHitIndex)
+void cluster::ClusterTrackAna::FirstLastHitInPlane(unsigned int tpc,
+                                                   unsigned int plane,
+                                                   unsigned int mcpi,
+                                                   unsigned int& firstHitIndex,
+                                                   unsigned int& lastHitIndex)
 {
   // Returns the index of the first hit (lowest wire number) and last hit (highest wire number)
   // matched to the MCParticle indexed by mcpi in the requested tpc, plane
@@ -598,8 +595,7 @@ cluster::ClusterTrackAna::FirstLastHitInPlane(unsigned int tpc,
 } // FirstLastHitInPlane
 
 ////////////////////////////////////////////////
-void
-cluster::ClusterTrackAna::endJob()
+void cluster::ClusterTrackAna::endJob()
 {
   // output results
   mf::LogVerbatim myprt("ClusterTrackAna");

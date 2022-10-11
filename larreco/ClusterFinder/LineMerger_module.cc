@@ -113,186 +113,86 @@ namespace cluster {
     /// @name Accessors
 
     /// Returns the wire coordinate of the start of the cluster
-    float
-    StartWire() const
-    {
-      return fEndWires[ClusterEnds_t::clStart];
-    }
+    float StartWire() const { return fEndWires[ClusterEnds_t::clStart]; }
 
     /// Returns the tick coordinate of the start of the cluster
-    float
-    StartTick() const
-    {
-      return fEndTicks[ClusterEnds_t::clStart];
-    }
+    float StartTick() const { return fEndTicks[ClusterEnds_t::clStart]; }
 
     /// Returns the uncertainty on wire coordinate of the start of the cluster
-    float
-    SigmaStartWire() const
-    {
-      return fSigmaEndWires[ClusterEnds_t::clStart];
-    }
+    float SigmaStartWire() const { return fSigmaEndWires[ClusterEnds_t::clStart]; }
 
     // Returns the uncertainty on tick coordinate of the start of the cluster
-    float
-    SigmaStartTick() const
-    {
-      return fSigmaEndTicks[ClusterEnds_t::clStart];
-    }
+    float SigmaStartTick() const { return fSigmaEndTicks[ClusterEnds_t::clStart]; }
 
     /// Returns the wire coordinate of the end of the cluster
-    float
-    EndWire() const
-    {
-      return fEndWires[ClusterEnds_t::clEnd];
-    }
+    float EndWire() const { return fEndWires[ClusterEnds_t::clEnd]; }
 
     /// Returns the tick coordinate of the end of the cluster
-    float
-    EndTick() const
-    {
-      return fEndTicks[ClusterEnds_t::clEnd];
-    }
+    float EndTick() const { return fEndTicks[ClusterEnds_t::clEnd]; }
 
     /// Returns the uncertainty on wire coordinate of the end of the cluster
-    float
-    SigmaEndWire() const
-    {
-      return fSigmaEndWires[ClusterEnds_t::clEnd];
-    }
+    float SigmaEndWire() const { return fSigmaEndWires[ClusterEnds_t::clEnd]; }
 
     /// Returns the uncertainty on tick coordinate of the end of the cluster
-    float
-    SigmaEndTick() const
-    {
-      return fSigmaEndTicks[ClusterEnds_t::clEnd];
-    }
+    float SigmaEndTick() const { return fSigmaEndTicks[ClusterEnds_t::clEnd]; }
 
     /// Returns the wire coordinate of one of the end sides of the cluster
-    float
-    WireCoord(ClusterEnds_t side) const
-    {
-      return fEndWires[side];
-    }
+    float WireCoord(ClusterEnds_t side) const { return fEndWires[side]; }
     //  float WireCoord(unsigned int side) const { return fEndWires[side]; }
 
     /// Returns the tick coordinate of one of the end sides of the cluster
-    float
-    TickCoord(ClusterEnds_t side) const
-    {
-      return fEndTicks[side];
-    }
+    float TickCoord(ClusterEnds_t side) const { return fEndTicks[side]; }
     //  float TickCoord(unsigned int side) const { return fEndTicks[side]; }
 
     /// Returns the uncertainty on wire coordinate of one of the end sides of the cluster
-    float
-    SigmaWireCoord(ClusterEnds_t side) const
-    {
-      return fSigmaEndWires[side];
-    }
+    float SigmaWireCoord(ClusterEnds_t side) const { return fSigmaEndWires[side]; }
     //  float SigmaWireCoord(unsigned int side) const { return fSigmaEndWires[side]; }
 
     /// Returns the uncertainty on tick coordinate of one of the end sides of the cluster
-    float
-    SigmaTickCoord(ClusterEnds_t side) const
-    {
-      return fSigmaEndTicks[side];
-    }
+    float SigmaTickCoord(ClusterEnds_t side) const { return fSigmaEndTicks[side]; }
     //  float SigmaTickCoord(unsigned int side) const { return fSigmaEndTicks[side]; }
 
     /// Returns the charge on the first wire of the cluster
-    float
-    StartCharge() const
-    {
-      return fEndCharges[ClusterEnds_t::clStart];
-    }
+    float StartCharge() const { return fEndCharges[ClusterEnds_t::clStart]; }
 
     /// Returns the starting angle of the cluster
-    float
-    StartAngle() const
-    {
-      return fAngles[ClusterEnds_t::clStart];
-    }
+    float StartAngle() const { return fAngles[ClusterEnds_t::clStart]; }
 
     /// Returns the opening angle at the start of the cluster
-    float
-    StartOpeningAngle() const
-    {
-      return fOpeningAngles[ClusterEnds_t::clStart];
-    }
+    float StartOpeningAngle() const { return fOpeningAngles[ClusterEnds_t::clStart]; }
 
     /// Returns the charge on the last wire of the cluster
-    float
-    EndCharge() const
-    {
-      return fEndCharges[ClusterEnds_t::clEnd];
-    }
+    float EndCharge() const { return fEndCharges[ClusterEnds_t::clEnd]; }
 
     /// Returns the ending angle of the cluster
-    float
-    EndAngle() const
-    {
-      return fAngles[ClusterEnds_t::clEnd];
-    }
+    float EndAngle() const { return fAngles[ClusterEnds_t::clEnd]; }
 
     /// Returns the opening angle at the end of the cluster
-    float
-    EndOpeningAngle() const
-    {
-      return fOpeningAngles[ClusterEnds_t::clEnd];
-    }
+    float EndOpeningAngle() const { return fOpeningAngles[ClusterEnds_t::clEnd]; }
 
     /// Returns the charge on the first or last wire of the cluster
-    float
-    EdgeCharge(ClusterEnds_t side) const
-    {
-      return fEndCharges[side];
-    }
+    float EdgeCharge(ClusterEnds_t side) const { return fEndCharges[side]; }
     //  float EdgeCharge(unsigned int side) const { return fEndCharges[side]; }
 
     /// Returns the angle at either end of the cluster
-    float
-    Angle(ClusterEnds_t side) const
-    {
-      return fAngles[side];
-    }
+    float Angle(ClusterEnds_t side) const { return fAngles[side]; }
     //  float Angle(unsigned int side) const { return fAngles[side]; }
 
     /// Returns the opening angle at either end of the cluster
-    float
-    OpeningAngle(ClusterEnds_t side) const
-    {
-      return fOpeningAngles[side];
-    }
+    float OpeningAngle(ClusterEnds_t side) const { return fOpeningAngles[side]; }
     //  float OpeningAngle(unsigned int side) const { return fOpeningAngles[side]; }
 
     /// A measure of the cluster width, in homogenized units.
-    float
-    Width() const
-    {
-      return fWidth;
-    }
+    float Width() const { return fWidth; }
 
     /// Returns the view for this cluster
-    geo::View_t
-    View() const
-    {
-      return fView;
-    }
+    geo::View_t View() const { return fView; }
 
     /// Returns the plane ID this cluster lies on
-    geo::PlaneID
-    Plane() const
-    {
-      return fPlaneID;
-    }
+    geo::PlaneID Plane() const { return fPlaneID; }
 
     /// Returns whether geometry plane is valid
-    bool
-    hasPlane() const
-    {
-      return Plane().isValid;
-    }
+    bool hasPlane() const { return Plane().isValid; }
 
   protected:
     /// Data referring to start and end of the cluster
@@ -329,21 +229,18 @@ namespace cluster {
     void AdoptEnd(recob::Cluster const& cluster, ClusterEnds_t iEnd);
 
     template <typename T>
-    static void
-    top(T& var, T value)
+    static void top(T& var, T value)
     {
       if (value > var) var = value;
     }
     template <typename T>
-    static void
-    bot(T& var, T value)
+    static void bot(T& var, T value)
     {
       if (value < var) var = value;
     }
   }; // class ClusterMerger
 
-  void
-  ClusterMerger::AdoptEnd(recob::Cluster const& cluster, ClusterEnds_t iSrcEnd)
+  void ClusterMerger::AdoptEnd(recob::Cluster const& cluster, ClusterEnds_t iSrcEnd)
   {
     const ClusterEnds_t iDestEnd = iSrcEnd;
     fEndWires[iDestEnd] = cluster.WireCoord(iSrcEnd);
@@ -355,8 +252,7 @@ namespace cluster {
     fOpeningAngles[iDestEnd] = cluster.OpeningAngle(iSrcEnd);
   } // ClusterMerger::AdoptEnd()
 
-  bool
-  ClusterMerger::Add(recob::Cluster const& cluster)
+  bool ClusterMerger::Add(recob::Cluster const& cluster)
   {
     if (!cluster.isValid()) return false;
 
@@ -425,36 +321,26 @@ namespace cluster {
     /// @name Accessors
 
     /// Returns a constant reference to the current list of hits
-    HitVector_t const&
-    Hits() const
-    {
-      return hits;
-    }
+    HitVector_t const& Hits() const { return hits; }
 
     /// Number of hits in the cluster
-    unsigned int
-    NHits() const
-    {
-      return hits.size();
-    }
+    unsigned int NHits() const { return hits.size(); }
 
     ///@}
 
   protected:
     HitVector_t hits; ///< hits in the cluster
 
-    void
-    AddHits(HitVector_t const& cluster_hits, bool prepend)
+    void AddHits(HitVector_t const& cluster_hits, bool prepend)
     {
       hits.insert(prepend ? hits.begin() : hits.end(), cluster_hits.begin(), cluster_hits.end());
     } // AddHits()
 
   }; // class ClusterAndHitMerger
 
-  bool
-  ClusterAndHitMerger::Add(recob::Cluster const& cluster,
-                           HitVector_t const& cluster_hits,
-                           bool prepend /* = false */
+  bool ClusterAndHitMerger::Add(recob::Cluster const& cluster,
+                                HitVector_t const& cluster_hits,
+                                bool prepend /* = false */
   )
   {
     if (!ClusterMerger::Add(cluster)) return false;
@@ -475,8 +361,7 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  LineMerger::produce(art::Event& evt)
+  void LineMerger::produce(art::Event& evt)
   {
     // Get a Handle for the input Cluster object(s).
     art::Handle<std::vector<recob::Cluster>> clusterVecHandle;
@@ -636,8 +521,7 @@ namespace cluster {
 
   //------------------------------------------------------------------------------------//
   //checks the difference between angles of the two lines
-  bool
-  LineMerger::SlopeCompatibility(double slope1, double slope2)
+  bool LineMerger::SlopeCompatibility(double slope1, double slope2)
   {
     double sl1 = atan(slope1);
     double sl2 = atan(slope2);
@@ -646,15 +530,14 @@ namespace cluster {
     return std::abs(sl1 - sl2) < fSlope;
   }
   //------------------------------------------------------------------------------------//
-  int
-  LineMerger::EndpointCompatibility(float sclstartwire,
-                                    float sclstarttime,
-                                    float sclendwire,
-                                    float sclendtime,
-                                    float cl2startwire,
-                                    float cl2starttime,
-                                    float cl2endwire,
-                                    float cl2endtime)
+  int LineMerger::EndpointCompatibility(float sclstartwire,
+                                        float sclstarttime,
+                                        float sclendwire,
+                                        float sclendtime,
+                                        float cl2startwire,
+                                        float cl2starttime,
+                                        float cl2endwire,
+                                        float cl2endtime)
   {
 
     /// \todo 13.5 ticks/wire. need to make this detector agnostic--spitz

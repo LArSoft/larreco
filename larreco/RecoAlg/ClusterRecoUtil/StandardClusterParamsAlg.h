@@ -64,8 +64,7 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see ClusterParamsAlgBase::SetHits(std::vector<recob::Hit> const&)
      */
-    void
-    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
+    void SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
     {
       ClusterParamsAlgBase::SetHits(gser, hits);
     }

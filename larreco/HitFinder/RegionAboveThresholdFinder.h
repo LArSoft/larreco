@@ -14,7 +14,7 @@
 
 #include <vector>
 
-namespace hit{
+namespace hit {
 
   class RegionAboveThresholdFinder {
 
@@ -22,13 +22,11 @@ namespace hit{
     RegionAboveThresholdFinder(float threshold) { fThreshold = threshold; }
 
     void FillStartAndEndTicks(const std::vector<float>& signal,
-			      std::vector<unsigned int>& start_ticks,
-			      std::vector<unsigned int>& end_ticks);
+                              std::vector<unsigned int>& start_ticks,
+                              std::vector<unsigned int>& end_ticks);
 
   private:
-
     float fThreshold;
-
   };
 
 }

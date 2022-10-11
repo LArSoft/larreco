@@ -2,8 +2,8 @@
 #define TRACKTRAJECTORYCREATIONBOOKKEEPER_H
 
 #include "canvas/Persistency/Common/Ptr.h"
-#include "lardataobj/RecoBase/TrackTrajectory.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/TrackTrajectory.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
 
 #include <utility>
@@ -33,47 +33,54 @@ namespace trkmkr {
   class TrackTrajectoryCreationBookKeeper {
   public:
     /// Constructor: needs reference to output hit vector, and hasMomenta bool (true if Vector_t are momenta, false if they are directions).
-  TrackTrajectoryCreationBookKeeper(std::vector<art::Ptr<recob::Hit> >& outhits, bool hasMomenta)
-    : hasMomenta_(hasMomenta), hits(&outhits)
-      {
-	hits->clear();
-      }
+    TrackTrajectoryCreationBookKeeper(std::vector<art::Ptr<recob::Hit>>& outhits, bool hasMomenta)
+      : hasMomenta_(hasMomenta), hits(&outhits)
+    {
+      hits->clear();
+    }
     //
     //@{
     /// Avoid copies of this object
     TrackTrajectoryCreationBookKeeper(const TrackTrajectoryCreationBookKeeper&) = delete;
     TrackTrajectoryCreationBookKeeper(TrackTrajectoryCreationBookKeeper&&) = delete;
     TrackTrajectoryCreationBookKeeper& operator=(const TrackTrajectoryCreationBookKeeper&) = delete;
-    TrackTrajectoryCreationBookKeeper& operator=(TrackTrajectoryCreationBookKeeper&& ) = delete;
+    TrackTrajectoryCreationBookKeeper& operator=(TrackTrajectoryCreationBookKeeper&&) = delete;
     //@}
     //
     //@{
     /// Add a single point; different version of the functions are provided using const references or rvalue references.
-    void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<recob::Hit> hit, const PointFlags_t& flag) {
-	positions.push_back(point);
-	momenta.push_back(vect);
-	hits->push_back(hit);
-	flags.push_back(flag);
+    void addPoint(const Point_t& point,
+                  const Vector_t& vect,
+                  art::Ptr<recob::Hit> hit,
+                  const PointFlags_t& flag)
+    {
+      positions.push_back(point);
+      momenta.push_back(vect);
+      hits->push_back(hit);
+      flags.push_back(flag);
     }
-    void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<recob::Hit> hit, PointFlags_t&& flag) {
-	positions.push_back(std::move(point));
-	momenta.push_back(std::move(vect));
-	hits->push_back(hit);
-	flags.push_back(std::move(flag));
+    void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<recob::Hit> hit, PointFlags_t&& flag)
+    {
+      positions.push_back(std::move(point));
+      momenta.push_back(std::move(vect));
+      hits->push_back(hit);
+      flags.push_back(std::move(flag));
     }
     //@}
     //
     /// Get the finalized recob::TrackTrajectory object; internal data vectors are moved so no more points should be added.
-    recob::TrackTrajectory finalizeTrackTrajectory() {
-      return recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(flags),hasMomenta_);
+    recob::TrackTrajectory finalizeTrackTrajectory()
+    {
+      return recob::TrackTrajectory(
+        std::move(positions), std::move(momenta), std::move(flags), hasMomenta_);
     }
     //
   private:
     bool hasMomenta_;
-    std::vector<art::Ptr<recob::Hit> >* hits;
-    std::vector<Point_t>         positions;
-    std::vector<Vector_t>        momenta;
-    std::vector<PointFlags_t>    flags;
+    std::vector<art::Ptr<recob::Hit>>* hits;
+    std::vector<Point_t> positions;
+    std::vector<Vector_t> momenta;
+    std::vector<PointFlags_t> flags;
     //
   };
 

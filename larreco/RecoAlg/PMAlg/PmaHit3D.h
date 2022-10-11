@@ -45,139 +45,49 @@ public:
         float area);
   Hit3D(const pma::Hit3D& src);
 
-  art::Ptr<recob::Hit> const&
-  Hit2DPtr() const
-  {
-    return fHit;
-  }
+  art::Ptr<recob::Hit> const& Hit2DPtr() const { return fHit; }
 
-  TVector3 const&
-  Point3D() const
-  {
-    return fPoint3D;
-  }
+  TVector3 const& Point3D() const { return fPoint3D; }
 
-  void
-  SetPoint3D(const TVector3& p3d)
-  {
-    fPoint3D = p3d;
-  }
-  void
-  SetPoint3D(double x, double y, double z)
-  {
-    fPoint3D.SetXYZ(x, y, z);
-  }
+  void SetPoint3D(const TVector3& p3d) { fPoint3D = p3d; }
+  void SetPoint3D(double x, double y, double z) { fPoint3D.SetXYZ(x, y, z); }
 
-  TVector2 const&
-  Point2D() const noexcept
-  {
-    return fPoint2D;
-  }
-  TVector2 const&
-  Projection2D() const noexcept
-  {
-    return fProjection2D;
-  }
+  TVector2 const& Point2D() const noexcept { return fPoint2D; }
+  TVector2 const& Projection2D() const noexcept { return fProjection2D; }
 
-  unsigned int
-  Cryo() const noexcept
-  {
-    return fCryo;
-  }
-  unsigned int
-  TPC() const noexcept
-  {
-    return fTPC;
-  }
-  unsigned int
-  View2D() const noexcept
-  {
-    return fPlane;
-  }
-  unsigned int
-  Wire() const noexcept
-  {
-    return fWire;
-  }
-  float
-  PeakTime() const noexcept
-  {
-    return fPeakTime;
-  }
+  unsigned int Cryo() const noexcept { return fCryo; }
+  unsigned int TPC() const noexcept { return fTPC; }
+  unsigned int View2D() const noexcept { return fPlane; }
+  unsigned int Wire() const noexcept { return fWire; }
+  float PeakTime() const noexcept { return fPeakTime; }
 
-  float
-  SummedADC() const noexcept
-  {
-    return fArea;
-  }
-  float
-  GetAmplitude() const noexcept
-  {
-    return fAmpl;
-  }
-  float
-  GetSigmaFactor() const noexcept
-  {
-    return fSigmaFactor;
-  }
-  void
-  SetSigmaFactor(float value) noexcept
-  {
-    fSigmaFactor = value;
-  }
+  float SummedADC() const noexcept { return fArea; }
+  float GetAmplitude() const noexcept { return fAmpl; }
+  float GetSigmaFactor() const noexcept { return fSigmaFactor; }
+  void SetSigmaFactor(float value) noexcept { fSigmaFactor = value; }
 
-  double
-  Dx() const noexcept
-  {
-    return fDx;
-  }
+  double Dx() const noexcept { return fDx; }
 
-  double
-  GetDistToProj() const
-  {
-    return sqrt(GetDist2ToProj());
-  }
+  double GetDistToProj() const { return sqrt(GetDist2ToProj()); }
   double GetDist2ToProj() const;
 
-  float
-  GetSegFraction() const noexcept
-  {
-    return fSegFraction;
-  }
-  void
-  SetProjection(const TVector2& p, float b)
+  float GetSegFraction() const noexcept { return fSegFraction; }
+  void SetProjection(const TVector2& p, float b)
   {
     fProjection2D.Set(p);
     fSegFraction = b;
   }
-  void
-  SetProjection(double x, double y, float b)
+  void SetProjection(double x, double y, float b)
   {
     fProjection2D.Set(x, y);
     fSegFraction = b;
   }
 
-  bool
-  IsEnabled() const noexcept
-  {
-    return (fEnabled && !fOutlier);
-  }
-  void
-  SetEnabled(bool state) noexcept
-  {
-    fEnabled = state;
-  }
+  bool IsEnabled() const noexcept { return (fEnabled && !fOutlier); }
+  void SetEnabled(bool state) noexcept { fEnabled = state; }
 
-  bool
-  IsOutlier() const noexcept
-  {
-    return fOutlier;
-  }
-  void
-  TagOutlier(bool state) noexcept
-  {
-    fOutlier = state;
-  }
+  bool IsOutlier() const noexcept { return fOutlier; }
+  void TagOutlier(bool state) noexcept { fOutlier = state; }
 
 private:
   art::Ptr<recob::Hit> fHit; // source 2D hit

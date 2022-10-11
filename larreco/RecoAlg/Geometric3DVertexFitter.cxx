@@ -1,7 +1,6 @@
 #include "larreco/RecoAlg/Geometric3DVertexFitter.h"
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitPFP(
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitPFP(
   detinfo::DetectorPropertiesData const& detProp,
   size_t iPF,
   const art::ValidHandle<std::vector<recob::PFParticle>>& inputPFParticle,
@@ -29,9 +28,9 @@ trkf::Geometric3DVertexFitter::fitPFP(
   return fitTracks(detProp, tracks);
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& detProp,
-                                         const std::vector<art::Ptr<recob::Track>>& arttracks) const
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracks(
+  detinfo::DetectorPropertiesData const& detProp,
+  const std::vector<art::Ptr<recob::Track>>& arttracks) const
 {
   TrackRefVec tracks;
   for (auto t : arttracks) {
@@ -40,9 +39,9 @@ trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& 
   return fitTracks(detProp, tracks);
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& detProp,
-                                         TrackRefVec& tracks) const
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracks(
+  detinfo::DetectorPropertiesData const& detProp,
+  TrackRefVec& tracks) const
 {
   if (debugLevel > 0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size() < 2) return VertexWrapper();
@@ -99,8 +98,7 @@ trkf::Geometric3DVertexFitter::fitTracks(detinfo::DetectorPropertiesData const& 
   return vtx;
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracksWithVtx(
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracksWithVtx(
   detinfo::DetectorPropertiesData const& detProp,
   const std::vector<art::Ptr<recob::Track>>& arttracks,
   const recob::tracking::Point_t& vtxPos) const
@@ -112,10 +110,10 @@ trkf::Geometric3DVertexFitter::fitTracksWithVtx(
   return fitTracksWithVtx(detProp, tracks, vtxPos);
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTracksWithVtx(detinfo::DetectorPropertiesData const& detProp,
-                                                TrackRefVec& tracks,
-                                                const recob::tracking::Point_t& vtxPos) const
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracksWithVtx(
+  detinfo::DetectorPropertiesData const& detProp,
+  TrackRefVec& tracks,
+  const recob::tracking::Point_t& vtxPos) const
 {
   if (debugLevel > 0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size() < 2) return VertexWrapper();
@@ -136,12 +134,12 @@ trkf::Geometric3DVertexFitter::fitTracksWithVtx(detinfo::DetectorPropertiesData 
   return vtx;
 }
 
-std::pair<trkf::TrackState, double>
-trkf::Geometric3DVertexFitter::weightedAverageState(SVector2& par1,
-                                                    SVector2& par2,
-                                                    SMatrixSym22& cov1,
-                                                    SMatrixSym22& cov2,
-                                                    recob::tracking::Plane& target) const
+std::pair<trkf::TrackState, double> trkf::Geometric3DVertexFitter::weightedAverageState(
+  SVector2& par1,
+  SVector2& par2,
+  SMatrixSym22& cov1,
+  SMatrixSym22& cov2,
+  recob::tracking::Plane& target) const
 {
   SVector2 deltapar = par2 - par1;
   SMatrixSym22 covsum = (cov2 + cov1);
@@ -200,8 +198,7 @@ trkf::Geometric3DVertexFitter::weightedAverageState(SVector2& par1,
   return std::make_pair(vtxstate, chi2);
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::closestPointAlongTrack(
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::closestPointAlongTrack(
   detinfo::DetectorPropertiesData const& detProp,
   const recob::Track& track,
   const recob::Track& other) const
@@ -261,10 +258,10 @@ trkf::Geometric3DVertexFitter::closestPointAlongTrack(
   }
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::fitTwoTracks(detinfo::DetectorPropertiesData const& detProp,
-                                            const recob::Track& tk1,
-                                            const recob::Track& tk2) const
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTwoTracks(
+  detinfo::DetectorPropertiesData const& detProp,
+  const recob::Track& tk1,
+  const recob::Track& tk2) const
 {
   // find the closest approach points
   auto start1 = tk1.Trajectory().Start();
@@ -369,10 +366,10 @@ trkf::Geometric3DVertexFitter::fitTwoTracks(detinfo::DetectorPropertiesData cons
   return vtx;
 }
 
-trkf::Geometric3DVertexFitter::ParsCovsOnPlane
-trkf::Geometric3DVertexFitter::getParsCovsOnPlane(detinfo::DetectorPropertiesData const& detProp,
-                                                  const trkf::VertexWrapper& vtx,
-                                                  const recob::Track& tk) const
+trkf::Geometric3DVertexFitter::ParsCovsOnPlane trkf::Geometric3DVertexFitter::getParsCovsOnPlane(
+  detinfo::DetectorPropertiesData const& detProp,
+  const trkf::VertexWrapper& vtx,
+  const recob::Track& tk) const
 {
   auto start = tk.Trajectory().Start();
   auto dir = tk.Trajectory().StartDirection();
@@ -425,10 +422,9 @@ trkf::Geometric3DVertexFitter::getParsCovsOnPlane(detinfo::DetectorPropertiesDat
   return ParsCovsOnPlane(par1, par2, cov1, cov2, target);
 }
 
-void
-trkf::Geometric3DVertexFitter::addTrackToVertex(detinfo::DetectorPropertiesData const& detProp,
-                                                trkf::VertexWrapper& vtx,
-                                                const recob::Track& tk) const
+void trkf::Geometric3DVertexFitter::addTrackToVertex(detinfo::DetectorPropertiesData const& detProp,
+                                                     trkf::VertexWrapper& vtx,
+                                                     const recob::Track& tk) const
 {
 
   if (debugLevel > 0) {
@@ -452,8 +448,8 @@ trkf::Geometric3DVertexFitter::addTrackToVertex(detinfo::DetectorPropertiesData 
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::chi2(const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
+double trkf::Geometric3DVertexFitter::chi2(
+  const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
 {
   const SVector2 deltapar = pcp.par2 - pcp.par1;
   SMatrixSym22 covsum = (pcp.cov2 + pcp.cov1);
@@ -464,31 +460,28 @@ trkf::Geometric3DVertexFitter::chi2(const trkf::Geometric3DVertexFitter::ParsCov
   return ROOT::Math::Similarity(deltapar, covsum);
 }
 
-double
-trkf::Geometric3DVertexFitter::chi2(detinfo::DetectorPropertiesData const& detProp,
-                                    const VertexWrapper& vtx,
-                                    const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::chi2(detinfo::DetectorPropertiesData const& detProp,
+                                           const VertexWrapper& vtx,
+                                           const recob::Track& tk) const
 {
   return chi2(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
-double
-trkf::Geometric3DVertexFitter::ip(const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
+double trkf::Geometric3DVertexFitter::ip(
+  const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
 {
   const SVector2 deltapar = pcp.par2 - pcp.par1;
   return std::sqrt(deltapar[0] * deltapar[0] + deltapar[1] * deltapar[1]);
 }
 
-double
-trkf::Geometric3DVertexFitter::ip(detinfo::DetectorPropertiesData const& detProp,
-                                  const VertexWrapper& vtx,
-                                  const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::ip(detinfo::DetectorPropertiesData const& detProp,
+                                         const VertexWrapper& vtx,
+                                         const recob::Track& tk) const
 {
   return ip(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
-double
-trkf::Geometric3DVertexFitter::ipErr(
+double trkf::Geometric3DVertexFitter::ipErr(
   const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
 {
   SVector2 deltapar = pcp.par2 - pcp.par1;
@@ -497,38 +490,35 @@ trkf::Geometric3DVertexFitter::ipErr(
   return std::sqrt(ROOT::Math::Similarity(deltapar, covsum));
 }
 
-double
-trkf::Geometric3DVertexFitter::ipErr(detinfo::DetectorPropertiesData const& detProp,
-                                     const VertexWrapper& vtx,
-                                     const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::ipErr(detinfo::DetectorPropertiesData const& detProp,
+                                            const VertexWrapper& vtx,
+                                            const recob::Track& tk) const
 {
   return ipErr(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
-double
-trkf::Geometric3DVertexFitter::sip(const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
+double trkf::Geometric3DVertexFitter::sip(
+  const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
 {
   return ip(pcp) / ipErr(pcp);
 }
 
-double
-trkf::Geometric3DVertexFitter::sip(detinfo::DetectorPropertiesData const& detProp,
-                                   const VertexWrapper& vtx,
-                                   const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::sip(detinfo::DetectorPropertiesData const& detProp,
+                                          const VertexWrapper& vtx,
+                                          const recob::Track& tk) const
 {
   return sip(getParsCovsOnPlane(detProp, vtx, tk));
 }
 
-double
-trkf::Geometric3DVertexFitter::pDist(const VertexWrapper& vtx, const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::pDist(const VertexWrapper& vtx, const recob::Track& tk) const
 {
   return tk.Trajectory().StartDirection().Dot(vtx.position() - tk.Trajectory().Start());
 }
 
-trkf::VertexWrapper
-trkf::Geometric3DVertexFitter::unbiasedVertex(detinfo::DetectorPropertiesData const& detProp,
-                                              const trkf::VertexWrapper& vtx,
-                                              const recob::Track& tk) const
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::unbiasedVertex(
+  detinfo::DetectorPropertiesData const& detProp,
+  const trkf::VertexWrapper& vtx,
+  const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return vtx; }
@@ -538,10 +528,9 @@ trkf::Geometric3DVertexFitter::unbiasedVertex(detinfo::DetectorPropertiesData co
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::chi2Unbiased(detinfo::DetectorPropertiesData const& detProp,
-                                            const trkf::VertexWrapper& vtx,
-                                            const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::chi2Unbiased(detinfo::DetectorPropertiesData const& detProp,
+                                                   const trkf::VertexWrapper& vtx,
+                                                   const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return chi2(detProp, vtx, tk); }
@@ -551,10 +540,9 @@ trkf::Geometric3DVertexFitter::chi2Unbiased(detinfo::DetectorPropertiesData cons
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::ipUnbiased(detinfo::DetectorPropertiesData const& detProp,
-                                          const trkf::VertexWrapper& vtx,
-                                          const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::ipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                                 const trkf::VertexWrapper& vtx,
+                                                 const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return ip(detProp, vtx, tk); }
@@ -564,10 +552,9 @@ trkf::Geometric3DVertexFitter::ipUnbiased(detinfo::DetectorPropertiesData const&
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::ipErrUnbiased(detinfo::DetectorPropertiesData const& detProp,
-                                             const trkf::VertexWrapper& vtx,
-                                             const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::ipErrUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                                    const trkf::VertexWrapper& vtx,
+                                                    const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return ipErr(detProp, vtx, tk); }
@@ -577,10 +564,9 @@ trkf::Geometric3DVertexFitter::ipErrUnbiased(detinfo::DetectorPropertiesData con
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::sipUnbiased(detinfo::DetectorPropertiesData const& detProp,
-                                           const trkf::VertexWrapper& vtx,
-                                           const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::sipUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                                  const trkf::VertexWrapper& vtx,
+                                                  const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return sip(detProp, vtx, tk); }
@@ -590,10 +576,9 @@ trkf::Geometric3DVertexFitter::sipUnbiased(detinfo::DetectorPropertiesData const
   }
 }
 
-double
-trkf::Geometric3DVertexFitter::pDistUnbiased(detinfo::DetectorPropertiesData const& detProp,
-                                             const trkf::VertexWrapper& vtx,
-                                             const recob::Track& tk) const
+double trkf::Geometric3DVertexFitter::pDistUnbiased(detinfo::DetectorPropertiesData const& detProp,
+                                                    const trkf::VertexWrapper& vtx,
+                                                    const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) { return pDist(vtx, tk); }
@@ -603,17 +588,17 @@ trkf::Geometric3DVertexFitter::pDistUnbiased(detinfo::DetectorPropertiesData con
   }
 }
 
-std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
-                                           const VertexWrapper& vtx)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(
+  detinfo::DetectorPropertiesData const& detProp,
+  const VertexWrapper& vtx)
 {
   return computeMeta(detProp, vtx, vtx.tracks());
 }
 
-std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
-                                           const VertexWrapper& vtx,
-                                           const std::vector<art::Ptr<recob::Track>>& arttracks)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(
+  detinfo::DetectorPropertiesData const& detProp,
+  const VertexWrapper& vtx,
+  const std::vector<art::Ptr<recob::Track>>& arttracks)
 {
   TrackRefVec tracks;
   for (auto t : arttracks)
@@ -621,10 +606,10 @@ trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const
   return computeMeta(detProp, vtx, tracks);
 }
 
-std::vector<recob::VertexAssnMeta>
-trkf::Geometric3DVertexFitter::computeMeta(detinfo::DetectorPropertiesData const& detProp,
-                                           const VertexWrapper& vtx,
-                                           const TrackRefVec& trks)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(
+  detinfo::DetectorPropertiesData const& detProp,
+  const VertexWrapper& vtx,
+  const TrackRefVec& trks)
 {
   std::vector<recob::VertexAssnMeta> result;
   for (auto tk : trks) {

@@ -112,11 +112,7 @@ namespace btutil {
 
     size_t Index(const unsigned int g4_track_id) const;
 
-    size_t
-    NumParts() const
-    {
-      return _num_parts - 1;
-    }
+    size_t NumParts() const { return _num_parts - 1; }
 
   protected:
     void Register(const unsigned int& g4_track_id);

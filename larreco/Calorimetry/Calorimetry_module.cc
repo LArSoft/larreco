@@ -155,8 +155,7 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
 }
 
 //------------------------------------------------------------------------------------//
-void
-calo::Calorimetry::produce(art::Event& evt)
+void calo::Calorimetry::produce(art::Event& evt)
 {
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const det_prop =
@@ -682,17 +681,16 @@ calo::Calorimetry::produce(art::Event& evt)
   evt.put(std::move(assn));
 }
 
-void
-calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop,
-                            art::Ptr<recob::Hit> const& hit,
-                            std::vector<double> const& trkx,
-                            std::vector<double> const& trky,
-                            std::vector<double> const& trkz,
-                            std::vector<double> const& trkw,
-                            std::vector<double> const& trkx0,
-                            double* xyz3d,
-                            double& pitch,
-                            double TickT0)
+void calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop,
+                                 art::Ptr<recob::Hit> const& hit,
+                                 std::vector<double> const& trkx,
+                                 std::vector<double> const& trky,
+                                 std::vector<double> const& trkz,
+                                 std::vector<double> const& trkw,
+                                 std::vector<double> const& trkx0,
+                                 double* xyz3d,
+                                 double& pitch,
+                                 double TickT0)
 {
   // Get 3d coordinates and track pitch for each hit
   // Find 5 nearest space points and determine xyz and curvature->track pitch

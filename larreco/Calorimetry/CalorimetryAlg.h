@@ -143,14 +143,12 @@ namespace calo {
                      double T0,
                      double EField) const;
 
-    double
-    ElectronsFromADCPeak(double adc, unsigned short plane) const
+    double ElectronsFromADCPeak(double adc, unsigned short plane) const
     {
       return adc / fCalAmpConstants[plane];
     }
 
-    double
-    ElectronsFromADCArea(double area, unsigned short plane) const
+    double ElectronsFromADCArea(double area, unsigned short plane) const
     {
       return area / fCalAreaConstants[plane];
     }

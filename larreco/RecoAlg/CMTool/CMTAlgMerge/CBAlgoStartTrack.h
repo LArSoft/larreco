@@ -28,7 +28,6 @@ namespace cmtool {
   class CBAlgoStartTrack : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoStartTrack();
 
@@ -61,8 +60,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /**
        Optional function: called after each Merge() function call by CMergeManager IFF
@@ -73,9 +72,9 @@ namespace cmtool {
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
 
-    bool IsStartTrack(const ::cluster::ClusterParamsAlg &cluster);
+    bool IsStartTrack(const ::cluster::ClusterParamsAlg& cluster);
 
-    bool IsOverlappingBlob(const ::cluster::ClusterParamsAlg &cluster);
+    bool IsOverlappingBlob(const ::cluster::ClusterParamsAlg& cluster);
 
     void SetMinWidth(double value) { _min_width = value; }
 
@@ -88,11 +87,9 @@ namespace cmtool {
     void SetDebug(bool flag) { _debug = flag; }
 
   protected:
-
     size_t _min_hits;
     double _min_width, _min_opening_angle, _min_EP;
     bool _debug;
-
   };
 }
 #endif

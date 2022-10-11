@@ -33,8 +33,8 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoObjects/KGTrack.h"
 #include "lardata/RecoObjects/KHit.h"
-#include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KHitContainerWireX.h"
+#include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/PropYZPlane.h"
 #include "lardata/RecoObjects/SurfYZPlane.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -51,8 +51,7 @@
 #include "TH1F.h"
 
 namespace {
-  bool
-  accepted_particle(int apdg)
+  bool accepted_particle(int apdg)
   {
     return apdg == 13 ||  // Muon
            apdg == 211 || // Charged pion
@@ -131,8 +130,7 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const& pset)
 
 //------------------------------------------------------------------------------
 /// Begin job method.
-void
-trkf::TrackKalmanCheater::beginJob()
+void trkf::TrackKalmanCheater::beginJob()
 {
   if (fHist) {
 
@@ -156,8 +154,7 @@ trkf::TrackKalmanCheater::beginJob()
 /// This method extracts Hit from the event and produces and adds
 /// Track objects.
 ///
-void
-trkf::TrackKalmanCheater::produce(art::Event& evt)
+void trkf::TrackKalmanCheater::produce(art::Event& evt)
 {
   ++fNumEvent;
 
@@ -449,8 +446,7 @@ trkf::TrackKalmanCheater::produce(art::Event& evt)
 
 //------------------------------------------------------------------------------
 /// End job method.
-void
-trkf::TrackKalmanCheater::endJob()
+void trkf::TrackKalmanCheater::endJob()
 {
   mf::LogInfo("TrackKalmanCheater") << "TrackKalmanCheater statistics:\n"
                                     << "  Number of events = " << fNumEvent << "\n"

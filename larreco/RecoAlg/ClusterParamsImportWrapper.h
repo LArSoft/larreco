@@ -66,8 +66,7 @@ namespace cluster {
      * of pointer to it.
      */
     template <typename Iter>
-    void
-    ImportHits(util::GeometryUtilities const& gser, Iter begin, Iter end)
+    void ImportHits(util::GeometryUtilities const& gser, Iter begin, Iter end)
     {
       std::vector<recob::Hit const*> hits;
       std::transform(begin, end, std::back_inserter(hits), [](auto value) {
@@ -93,8 +92,7 @@ namespace cluster {
      * complete vector will be used to initialize the algorithm.
      */
     template <typename Iter, typename Convert>
-    void
-    ImportHits(Iter begin, Iter end, Convert converter)
+    void ImportHits(Iter begin, Iter end, Convert converter)
     {
       std::vector<recob::Hit const*> hits;
       std::transform(begin, end, std::back_inserter(hits), [converter](auto value) {
@@ -112,8 +110,7 @@ namespace cluster {
      * of pointer to it.
      */
     template <typename Cont>
-    void
-    ImportHits(util::GeometryUtilities const& gser, Cont cont)
+    void ImportHits(util::GeometryUtilities const& gser, Cont cont)
     {
       ImportHits(gser, std::begin(cont), std::end(cont));
     }
@@ -134,8 +131,7 @@ namespace cluster {
      * complete vector will be used to initialize the algorithm.
      */
     template <typename Cont, typename Convert>
-    void
-    ImportHits(util::GeometryUtilities const& gser, Cont cont, Convert converter)
+    void ImportHits(util::GeometryUtilities const& gser, Cont cont, Convert converter)
     {
       ImportHits(gser, std::begin(cont), std::end(cont), converter);
     }

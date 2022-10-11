@@ -4,23 +4,20 @@
 
 namespace cmtool {
 
-  ::cmtool::CMergeManager&
-  CMergeHelper::GetManager(size_t mgr_id)
+  ::cmtool::CMergeManager& CMergeHelper::GetManager(size_t mgr_id)
   {
     if (_mgr_v.size() <= mgr_id) _mgr_v.resize(mgr_id + 1);
     return _mgr_v[mgr_id];
   }
 
-  void
-  CMergeHelper::SetAnaFile(TFile* fout)
+  void CMergeHelper::SetAnaFile(TFile* fout)
   {
     for (auto& mgr : _mgr_v)
       mgr.SetAnaFile(fout);
   }
 
-  void
-  CMergeHelper::Process(util::GeometryUtilities const& gser,
-                        const std::vector<std::vector<::util::PxHit>>& clusters)
+  void CMergeHelper::Process(util::GeometryUtilities const& gser,
+                             const std::vector<std::vector<::util::PxHit>>& clusters)
   {
     _bk = ::cmtool::CMergeBookKeeper(clusters.size());
 
@@ -45,8 +42,7 @@ namespace cmtool {
     }
   }
 
-  const std::vector<::cluster::ClusterParamsAlg>&
-  CMergeHelper::GetClusters() const
+  const std::vector<::cluster::ClusterParamsAlg>& CMergeHelper::GetClusters() const
   {
     if (!(_mgr_v.size())) throw CMTException("No manager = no output clusters...");
     return _mgr_v.back().GetClusters();

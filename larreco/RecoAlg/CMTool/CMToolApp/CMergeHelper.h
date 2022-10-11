@@ -34,17 +34,9 @@ namespace cmtool {
     void Process(util::GeometryUtilities const& gser,
                  const std::vector<std::vector<::util::PxHit>>& clusters);
 
-    size_t
-    size() const
-    {
-      return _mgr_v.size();
-    }
+    size_t size() const { return _mgr_v.size(); }
 
-    const CMergeBookKeeper&
-    GetResult() const
-    {
-      return _bk;
-    }
+    const CMergeBookKeeper& GetResult() const { return _bk; }
 
     const std::vector<::cluster::ClusterParamsAlg>& GetClusters() const;
 

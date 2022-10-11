@@ -63,8 +63,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  SeedFinderModule::produce(art::Event& evt)
+  void SeedFinderModule::produce(art::Event& evt)
   {
     auto seeds = std::make_unique<std::vector<recob::Seed>>();
 
@@ -117,8 +116,7 @@ namespace trkf {
   // Get the hits associated with stored clusters
   //
 
-  void
-  SeedFinderModule::GetSortedHitsFromClusters(
+  void SeedFinderModule::GetSortedHitsFromClusters(
     std::string ClusterModuleLabel,
     art::Event& evt,
     std::vector<std::vector<art::PtrVector<recob::Hit>>>& SortedHits)
@@ -152,8 +150,8 @@ namespace trkf {
   //----------------------------------------------------------------------------
   // Extract vector of hits from event
   //
-  art::PtrVector<recob::Hit>
-  SeedFinderModule::GetHitsFromEvent(std::string HitModuleLabel, art::Event& evt)
+  art::PtrVector<recob::Hit> SeedFinderModule::GetHitsFromEvent(std::string HitModuleLabel,
+                                                                art::Event& evt)
   {
 
     art::PtrVector<recob::Hit> TheHits;

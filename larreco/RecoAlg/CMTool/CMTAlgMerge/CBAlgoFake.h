@@ -27,7 +27,6 @@ namespace cmtool {
   class CBAlgoFake : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoFake();
 
@@ -38,14 +37,13 @@ namespace cmtool {
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
-    virtual void Reset(){}
+    virtual void Reset() {}
 
   protected:
-
     bool _flip;
     int _ctr;
   };

@@ -4,7 +4,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
@@ -12,6 +11,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -43,12 +43,12 @@ pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingA
 }
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::validate_on_adc(const detinfo::DetectorPropertiesData& detProp,
-                                            const lariov::ChannelStatusProvider& channelStatus,
-                                            const pma::Track3D& trk,
-                                            const img::DataProviderAlg& adcImage,
-                                            float const thr) const
+double pma::ProjectionMatchingAlg::validate_on_adc(
+  const detinfo::DetectorPropertiesData& detProp,
+  const lariov::ChannelStatusProvider& channelStatus,
+  const pma::Track3D& trk,
+  const img::DataProviderAlg& adcImage,
+  float const thr) const
 {
   unsigned int nAll = 0, nPassed = 0;
   unsigned int testPlane = adcImage.Plane();
@@ -113,25 +113,21 @@ pma::ProjectionMatchingAlg::validate_on_adc(const detinfo::DetectorPropertiesDat
 
 namespace {
   struct hits_on_plane {
-    bool
-    operator()(recob::Hit const& hit) const
-    {
-      return hit.WireID().Plane == plane_;
-    }
+    bool operator()(recob::Hit const& hit) const { return hit.WireID().Plane == plane_; }
     unsigned int const plane_;
   };
 }
 
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::validate_on_adc_test(const detinfo::DetectorPropertiesData& detProp,
-                                                 const lariov::ChannelStatusProvider& channelStatus,
-                                                 const pma::Track3D& trk,
-                                                 const img::DataProviderAlg& adcImage,
-                                                 const std::vector<art::Ptr<recob::Hit>>& hits,
-                                                 TH1F* histoPassing,
-                                                 TH1F* histoRejected) const
+double pma::ProjectionMatchingAlg::validate_on_adc_test(
+  const detinfo::DetectorPropertiesData& detProp,
+  const lariov::ChannelStatusProvider& channelStatus,
+  const pma::Track3D& trk,
+  const img::DataProviderAlg& adcImage,
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  TH1F* histoPassing,
+  TH1F* histoRejected) const
 {
   double max_d = fTrkValidationDist2D;
   double d2, max_d2 = max_d * max_d;
@@ -251,11 +247,10 @@ pma::ProjectionMatchingAlg::validate_on_adc_test(const detinfo::DetectorProperti
 
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detProp,
-                                     const lariov::ChannelStatusProvider& channelStatus,
-                                     const pma::Track3D& trk,
-                                     const std::vector<art::Ptr<recob::Hit>>& hits) const
+double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detProp,
+                                            const lariov::ChannelStatusProvider& channelStatus,
+                                            const pma::Track3D& trk,
+                                            const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   if (hits.empty()) { return 0; }
 
@@ -360,15 +355,14 @@ pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detP
 }
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData const& detProp,
-                                     const lariov::ChannelStatusProvider& channelStatus,
-                                     const TVector3& p0,
-                                     const TVector3& p1,
-                                     const std::vector<art::Ptr<recob::Hit>>& hits,
-                                     unsigned int testPlane,
-                                     unsigned int tpc,
-                                     unsigned int cryo) const
+double pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData const& detProp,
+                                            const lariov::ChannelStatusProvider& channelStatus,
+                                            const TVector3& p0,
+                                            const TVector3& p1,
+                                            const std::vector<art::Ptr<recob::Hit>>& hits,
+                                            unsigned int testPlane,
+                                            unsigned int tpc,
+                                            unsigned int cryo) const
 {
   double max_d = fTrkValidationDist2D;
   double d2, max_d2 = max_d * max_d;
@@ -418,8 +412,7 @@ pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData const& detP
 }
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::twoViewFraction(pma::Track3D& trk) const
+double pma::ProjectionMatchingAlg::twoViewFraction(pma::Track3D& trk) const
 {
   trk.SelectHits();
   trk.DisableSingleViewEnds();
@@ -440,18 +433,17 @@ pma::ProjectionMatchingAlg::twoViewFraction(pma::Track3D& trk) const
 }
 // ------------------------------------------------------
 
-size_t
-pma::ProjectionMatchingAlg::getSegCount_(size_t const trk_size)
+size_t pma::ProjectionMatchingAlg::getSegCount_(size_t const trk_size)
 {
   int const nSegments = 0.8 * trk_size / sqrt(trk_size);
   return std::max(size_t{1}, static_cast<size_t>(nSegments));
 }
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildTrack(const detinfo::DetectorPropertiesData& detProp,
-                                       const std::vector<art::Ptr<recob::Hit>>& hits_1,
-                                       const std::vector<art::Ptr<recob::Hit>>& hits_2) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits_1,
+  const std::vector<art::Ptr<recob::Hit>>& hits_2) const
 {
   pma::Track3D* trk = new pma::Track3D(); // track candidate
   trk->AddHits(detProp, hits_1);
@@ -501,9 +493,9 @@ pma::ProjectionMatchingAlg::buildTrack(const detinfo::DetectorPropertiesData& de
 }
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildMultiTPCTrack(const detinfo::DetectorPropertiesData& detProp,
-                                               const std::vector<art::Ptr<recob::Hit>>& hits) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>> hits_by_tpc;
   for (auto const& h : hits) {
@@ -613,10 +605,10 @@ pma::ProjectionMatchingAlg::buildMultiTPCTrack(const detinfo::DetectorProperties
 
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildShowerSeg(const detinfo::DetectorPropertiesData& detProp,
-                                           const std::vector<art::Ptr<recob::Hit>>& hits,
-                                           const pma::Vector3D& vtx) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  const pma::Vector3D& vtx) const
 {
   double vtxarray[3]{vtx.X(), vtx.Y(), vtx.Z()};
 
@@ -694,12 +686,12 @@ pma::ProjectionMatchingAlg::buildShowerSeg(const detinfo::DetectorPropertiesData
 
 // ------------------------------------------------------
 
-void
-pma::ProjectionMatchingAlg::FilterOutSmallParts(const detinfo::DetectorPropertiesData& detProp,
-                                                double r2d,
-                                                const std::vector<art::Ptr<recob::Hit>>& hits_in,
-                                                std::vector<art::Ptr<recob::Hit>>& hits_out,
-                                                const TVector2& vtx2d) const
+void pma::ProjectionMatchingAlg::FilterOutSmallParts(
+  const detinfo::DetectorPropertiesData& detProp,
+  double r2d,
+  const std::vector<art::Ptr<recob::Hit>>& hits_in,
+  std::vector<art::Ptr<recob::Hit>>& hits_out,
+  const TVector2& vtx2d) const
 {
   size_t min_size = hits_in.size() / 5;
   if (min_size < 3) min_size = 3;
@@ -749,12 +741,11 @@ pma::ProjectionMatchingAlg::FilterOutSmallParts(const detinfo::DetectorPropertie
 
 // ------------------------------------------------------
 
-bool
-pma::ProjectionMatchingAlg::GetCloseHits_(const detinfo::DetectorPropertiesData& detProp,
-                                          double r2d,
-                                          const std::vector<art::Ptr<recob::Hit>>& hits_in,
-                                          std::vector<size_t>& used,
-                                          std::vector<art::Ptr<recob::Hit>>& hits_out) const
+bool pma::ProjectionMatchingAlg::GetCloseHits_(const detinfo::DetectorPropertiesData& detProp,
+                                               double r2d,
+                                               const std::vector<art::Ptr<recob::Hit>>& hits_in,
+                                               std::vector<size_t>& used,
+                                               std::vector<art::Ptr<recob::Hit>>& hits_out) const
 {
   hits_out.clear();
 
@@ -813,10 +804,9 @@ pma::ProjectionMatchingAlg::GetCloseHits_(const detinfo::DetectorPropertiesData&
 
 // ------------------------------------------------------
 
-void
-pma::ProjectionMatchingAlg::ShortenSeg_(const detinfo::DetectorPropertiesData& detProp,
-                                        pma::Track3D& trk,
-                                        const geo::TPCGeo& tpcgeom) const
+void pma::ProjectionMatchingAlg::ShortenSeg_(const detinfo::DetectorPropertiesData& detProp,
+                                             pma::Track3D& trk,
+                                             const geo::TPCGeo& tpcgeom) const
 {
   double mse = trk.GetMse();
   mf::LogWarning("ProjectionMatchingAlg") << "initial value of mse: " << mse;
@@ -843,8 +833,7 @@ pma::ProjectionMatchingAlg::ShortenSeg_(const detinfo::DetectorPropertiesData& d
 
 // ------------------------------------------------------
 
-bool
-pma::ProjectionMatchingAlg::TestTrk_(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
+bool pma::ProjectionMatchingAlg::TestTrk_(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
 {
   bool test = false;
 
@@ -872,8 +861,7 @@ pma::ProjectionMatchingAlg::TestTrk_(pma::Track3D& trk, const geo::TPCGeo& tpcge
 
 // ------------------------------------------------------
 
-bool
-pma::ProjectionMatchingAlg::Has_(const std::vector<size_t>& v, size_t idx) const
+bool pma::ProjectionMatchingAlg::Has_(const std::vector<size_t>& v, size_t idx) const
 {
   for (auto c : v)
     if (c == idx) return true;
@@ -882,8 +870,7 @@ pma::ProjectionMatchingAlg::Has_(const std::vector<size_t>& v, size_t idx) const
 
 // ------------------------------------------------------
 
-void
-pma::ProjectionMatchingAlg::RemoveNotEnabledHits(pma::Track3D& trk) const
+void pma::ProjectionMatchingAlg::RemoveNotEnabledHits(pma::Track3D& trk) const
 {
   size_t h = 0;
   while (h < trk.size()) {
@@ -896,10 +883,10 @@ pma::ProjectionMatchingAlg::RemoveNotEnabledHits(pma::Track3D& trk) const
 
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits_1,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits_2) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits_1,
+  const std::vector<art::Ptr<recob::Hit>>& hits_2) const
 {
   pma::Track3D* trk = new pma::Track3D();
   trk->SetEndSegWeight(0.001F);
@@ -926,11 +913,11 @@ pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& 
 }
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits_1,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits_2,
-                                         const TVector3& point) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits_1,
+  const std::vector<art::Ptr<recob::Hit>>& hits_2,
+  const TVector3& point) const
 {
   pma::Track3D* trk = buildSegment(detProp, hits_1, hits_2);
 
@@ -949,10 +936,10 @@ pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& 
 }
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& detProp,
-                                         const std::vector<art::Ptr<recob::Hit>>& hits,
-                                         const TVector3& point) const
+pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
+  const detinfo::DetectorPropertiesData& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  const TVector3& point) const
 {
   pma::Track3D* trk = buildSegment(detProp, hits);
 
@@ -971,11 +958,11 @@ pma::ProjectionMatchingAlg::buildSegment(const detinfo::DetectorPropertiesData& 
 }
 // ------------------------------------------------------
 
-pma::Track3D*
-pma::ProjectionMatchingAlg::extendTrack(const detinfo::DetectorPropertiesData& detProp,
-                                        const pma::Track3D& trk,
-                                        const std::vector<art::Ptr<recob::Hit>>& hits,
-                                        bool add_nodes) const
+pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
+  const detinfo::DetectorPropertiesData& detProp,
+  const pma::Track3D& trk,
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  bool add_nodes) const
 {
   pma::Track3D* copy = new pma::Track3D(trk);
   copy->AddHits(detProp, hits);
@@ -1001,16 +988,16 @@ pma::ProjectionMatchingAlg::extendTrack(const detinfo::DetectorPropertiesData& d
 }
 // ------------------------------------------------------
 
-bool
-pma::ProjectionMatchingAlg::chkEndpointHits_(const detinfo::DetectorPropertiesData& detProp,
-                                             int wire,
-                                             int wdir,
-                                             double drift_x,
-                                             int view,
-                                             unsigned int tpc,
-                                             unsigned int cryo,
-                                             const pma::Track3D& trk,
-                                             const std::vector<art::Ptr<recob::Hit>>& hits) const
+bool pma::ProjectionMatchingAlg::chkEndpointHits_(
+  const detinfo::DetectorPropertiesData& detProp,
+  int wire,
+  int wdir,
+  double drift_x,
+  int view,
+  unsigned int tpc,
+  unsigned int cryo,
+  const pma::Track3D& trk,
+  const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   size_t nCloseHits = 0;
   int forwWires = 3, backWires = -1;
@@ -1038,8 +1025,7 @@ pma::ProjectionMatchingAlg::chkEndpointHits_(const detinfo::DetectorPropertiesDa
     return true;
 }
 
-bool
-pma::ProjectionMatchingAlg::addEndpointRef_(
+bool pma::ProjectionMatchingAlg::addEndpointRef_(
   const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   const std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>>& hits,
@@ -1092,8 +1078,7 @@ pma::ProjectionMatchingAlg::addEndpointRef_(
   }
 }
 
-void
-pma::ProjectionMatchingAlg::guideEndpoints(
+void pma::ProjectionMatchingAlg::guideEndpoints(
   const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   const std::map<unsigned int, std::vector<art::Ptr<recob::Hit>>>& hits) const
@@ -1199,8 +1184,7 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 }
 // ------------------------------------------------------
 
-void
-pma::ProjectionMatchingAlg::guideEndpoints(
+void pma::ProjectionMatchingAlg::guideEndpoints(
   const detinfo::DetectorPropertiesData& detProp,
   pma::Track3D& trk,
   pma::Track3D::ETrackEnd endpoint,
@@ -1282,15 +1266,15 @@ pma::ProjectionMatchingAlg::guideEndpoints(
 }
 // ------------------------------------------------------
 
-std::vector<pma::Hit3D*>
-pma::ProjectionMatchingAlg::trimTrackToVolume(pma::Track3D&, TVector3, TVector3) const
+std::vector<pma::Hit3D*> pma::ProjectionMatchingAlg::trimTrackToVolume(pma::Track3D&,
+                                                                       TVector3,
+                                                                       TVector3) const
 {
   return {};
 }
 // ------------------------------------------------------
 
-bool
-pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& second) const
+bool pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& second) const
 {
   unsigned int k = 0;
   double const distFF = pma::Dist2(first.front()->Point3D(), second.front()->Point3D());
@@ -1331,11 +1315,10 @@ pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& secon
   return true;
 }
 
-void
-pma::ProjectionMatchingAlg::mergeTracks(detinfo::DetectorPropertiesData const& detProp,
-                                        pma::Track3D& dst,
-                                        pma::Track3D& src,
-                                        bool const reopt) const
+void pma::ProjectionMatchingAlg::mergeTracks(detinfo::DetectorPropertiesData const& detProp,
+                                             pma::Track3D& dst,
+                                             pma::Track3D& src,
+                                             bool const reopt) const
 {
   if (!alignTracks(dst, src)) return;
 
@@ -1373,10 +1356,9 @@ pma::ProjectionMatchingAlg::mergeTracks(detinfo::DetectorPropertiesData const& d
 }
 // ------------------------------------------------------
 
-double
-pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk,
-                                              unsigned int view,
-                                              unsigned int* nused) const
+double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk,
+                                                     unsigned int view,
+                                                     unsigned int* nused) const
 {
   for (size_t i = 0; i < trk.size(); i++) {
     pma::Hit3D* hit = trk[i];

@@ -44,11 +44,7 @@ private:
   struct LinearFunction {
     double gradient;
     double intercept;
-    double
-    energy_from(double const charge) const noexcept
-    {
-      return charge * gradient + intercept;
-    }
+    double energy_from(double const charge) const noexcept { return charge * gradient + intercept; }
   };
   std::array<LinearFunction, 3> const fLinearFunctions;
 };

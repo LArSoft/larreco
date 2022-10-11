@@ -52,39 +52,18 @@ private:
   /**
      Setter function for a shower producer name.
   */
-  void
-  SetShowerProducer(const std::string name)
-  {
-    fShowerProducer = name;
-  }
-  void
-  SetMCShowerProducer(const std::string name)
-  {
-    fMCShowerProducer = name;
-  }
-  void
-  SetSimChannelProducer(const std::string name)
-  {
-    fSimChannelProducer = name;
-  }
+  void SetShowerProducer(const std::string name) { fShowerProducer = name; }
+  void SetMCShowerProducer(const std::string name) { fMCShowerProducer = name; }
+  void SetSimChannelProducer(const std::string name) { fSimChannelProducer = name; }
 
   /// Set maximum energy for MCShowers to be considered
-  void
-  SetMaxEnergyCut(const double energy)
-  {
-    _mc_energy_max = energy;
-  }
+  void SetMaxEnergyCut(const double energy) { _mc_energy_max = energy; }
 
   /// Set minimum energy for MCShowers to be considered
-  void
-  SetMinEnergyCut(const double energy)
-  {
-    _mc_energy_min = energy;
-  }
+  void SetMinEnergyCut(const double energy) { _mc_energy_min = energy; }
 
   template <class T>
-  art::Handle<T>
-  GetDataOrDie(art::Event const& e, std::string producer)
+  art::Handle<T> GetDataOrDie(art::Event const& e, std::string producer)
   {
     art::Handle<T> h;
     e.getByLabel(producer, h);
@@ -216,8 +195,7 @@ ShowerQuality::ShowerQuality(fhicl::ParameterSet const& p) : EDAnalyzer(p) // ,
   fTree = nullptr;
 }
 
-void
-ShowerQuality::beginJob()
+void ShowerQuality::beginJob()
 {
 
   if (fShowerProducer.empty() || fMCShowerProducer.empty() || fSimChannelProducer.empty()) {
@@ -347,8 +325,7 @@ ShowerQuality::beginJob()
   InitializeAnaTree();
 }
 
-void
-ShowerQuality::analyze(art::Event const& e)
+void ShowerQuality::analyze(art::Event const& e)
 {
   // Retrieve mcshower data product
   auto mcsHandle = GetDataOrDie<std::vector<sim::MCShower>>(e, fMCShowerProducer);
@@ -601,8 +578,7 @@ ShowerQuality::analyze(art::Event const& e)
   }
 }
 
-void
-ShowerQuality::InitializeAnaTree()
+void ShowerQuality::InitializeAnaTree()
 {
 
   fTree->Branch("reco_x", &fTreeParams.reco_x, "reco_x/D");

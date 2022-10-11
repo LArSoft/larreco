@@ -110,8 +110,7 @@ namespace cluster {
   //------------------------------------------------------------------
   DBclusterAna::~DBclusterAna() {}
 
-  void
-  DBclusterAna::beginJob()
+  void DBclusterAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -264,8 +263,7 @@ namespace cluster {
                                   10000000);
   }
 
-  void
-  DBclusterAna::analyze(const art::Event& evt)
+  void DBclusterAna::analyze(const art::Event& evt)
   {
     std::cout << "run    : " << evt.run() << std::endl;
     std::cout << "event  : " << evt.id().event() << std::endl;

@@ -51,27 +51,11 @@ namespace cluster {
       /// Constructor: initializes to the specified value and error
       Measure_t(Data_t value, Data_t error) : Base_t(value, error) {}
 
-      Data_t
-      value() const
-      {
-        return Base_t::first;
-      }
-      Data_t&
-      value()
-      {
-        return Base_t::first;
-      }
+      Data_t value() const { return Base_t::first; }
+      Data_t& value() { return Base_t::first; }
 
-      Data_t
-      error() const
-      {
-        return Base_t::second;
-      }
-      Data_t&
-      error()
-      {
-        return Base_t::second;
-      }
+      Data_t error() const { return Base_t::second; }
+      Data_t& error() { return Base_t::second; }
     }; // Measure_t
 
   } // namespace details
@@ -112,9 +96,7 @@ namespace cluster {
      * This function is expected to be called before SetHits(), and the
      * implementation might call it in SetHits() itself.
      */
-    virtual void
-    Clear()
-    {}
+    virtual void Clear() {}
 
     /**
      * @brief Sets the list of input hits
@@ -153,8 +135,7 @@ namespace cluster {
      * If an implementation is concerned with efficiency, it can reimplement
      * this to initialize the algorithm in a more direct way.
      */
-    virtual void
-    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits)
+    virtual void SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits)
     {
       std::vector<recob::Hit const*> hitptrs;
       hitptrs.reserve(hits.size());
@@ -166,24 +147,18 @@ namespace cluster {
     }
 
     /// Set the verbosity level
-    virtual void
-    SetVerbose(int level = 1)
-    {
-      verbose = level;
-    }
+    virtual void SetVerbose(int level = 1) { verbose = level; }
 
     //@{
     /**
      * @brief Computes the charge on the first and last wire of the track
      * @return the charge in ADC counts, with uncertainty
      */
-    virtual Measure_t
-    StartCharge(util::GeometryUtilities const& gser)
+    virtual Measure_t StartCharge(util::GeometryUtilities const& gser)
     {
       throw NotImplemented(__func__);
     }
-    virtual Measure_t
-    EndCharge(util::GeometryUtilities const& gser)
+    virtual Measure_t EndCharge(util::GeometryUtilities const& gser)
     {
       throw NotImplemented(__func__);
     }
@@ -194,16 +169,8 @@ namespace cluster {
      * @brief Computes the angle at the start or end of the cluster
      * @return angle at the start of the cluster, in radians
      */
-    virtual Measure_t
-    StartAngle()
-    {
-      throw NotImplemented(__func__);
-    }
-    virtual Measure_t
-    EndAngle()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t StartAngle() { throw NotImplemented(__func__); }
+    virtual Measure_t EndAngle() { throw NotImplemented(__func__); }
     //@}
 
     //@{
@@ -211,16 +178,8 @@ namespace cluster {
      * @brief Computes the opening angle at the start or end of the cluster
      * @return angle at the start of the cluster, in radians
      */
-    virtual Measure_t
-    StartOpeningAngle()
-    {
-      throw NotImplemented(__func__);
-    }
-    virtual Measure_t
-    EndOpeningAngle()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t StartOpeningAngle() { throw NotImplemented(__func__); }
+    virtual Measure_t EndOpeningAngle() { throw NotImplemented(__func__); }
     //@}
 
     /// @name Cluster charge
@@ -230,11 +189,7 @@ namespace cluster {
      * @return total charge of the cluster, in ADC count units
      * @see IntegralStdDev(), SummedADC()
      */
-    virtual Measure_t
-    Integral()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t Integral() { throw NotImplemented(__func__); }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -243,22 +198,14 @@ namespace cluster {
      *
      * Hit charge is obtained by recob::Hit::Integral().
      */
-    virtual Measure_t
-    IntegralStdDev()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t IntegralStdDev() { throw NotImplemented(__func__); }
 
     /**
      * @brief Computes the total charge of the cluster from Hit::SummedADC()
      * @return total charge of the cluster, in ADC count units
      * @see SummedADCStdDev(), Integral()
      */
-    virtual Measure_t
-    SummedADC()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t SummedADC() { throw NotImplemented(__func__); }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -267,20 +214,12 @@ namespace cluster {
      *
      * Hit charge is obtained by recob::Hit::SummedADC().
      */
-    virtual Measure_t
-    SummedADCStdDev()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t SummedADCStdDev() { throw NotImplemented(__func__); }
 
     /// @}
 
     /// Returns the number of hits in the cluster
-    virtual size_t
-    NHits()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual size_t NHits() { throw NotImplemented(__func__); }
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
@@ -291,28 +230,19 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float
-    MultipleHitDensity()
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual float MultipleHitDensity() { throw NotImplemented(__func__); }
 
     /**
      * @brief Computes the width of the cluster
      * @return width of the cluster
      *
      */
-    virtual float
-    Width(util::GeometryUtilities const&)
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual float Width(util::GeometryUtilities const&) { throw NotImplemented(__func__); }
 
   protected:
     int verbose = 0; ///< verbosity level: 0 is normal, negative is even quieter
 
-    static std::logic_error
-    NotImplemented(std::string function_name)
+    static std::logic_error NotImplemented(std::string function_name)
     {
       return std::logic_error(function_name + "() not implemented.");
     }

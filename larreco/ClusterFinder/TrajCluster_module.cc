@@ -122,8 +122,7 @@ namespace cluster {
   };
 
   //----------------------------------------------------------------------------
-  bool
-  SortHits(HitLoc const& h1, HitLoc const& h2)
+  bool SortHits(HitLoc const& h1, HitLoc const& h2)
   {
     // sort by hit location (Cryostat, TPC, Plane, Wire, StartTick, hit LocalIndex)
     if (h1.ctp != h2.ctp) return h1.ctp < h2.ctp;
@@ -188,8 +187,7 @@ namespace cluster {
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
-  void
-  TrajCluster::beginJob()
+  void TrajCluster::beginJob()
   {
     art::ServiceHandle<art::TFileService const> tfs;
 
@@ -198,8 +196,7 @@ namespace cluster {
   }
 
   //----------------------------------------------------------------------------
-  void
-  TrajCluster::endJob()
+  void TrajCluster::endJob()
   {
     std::vector<unsigned int> const& fAlgModCount = fTCAlg.GetAlgModCount();
     std::vector<std::string> const& fAlgBitNames = fTCAlg.GetAlgBitNames();
@@ -220,8 +217,7 @@ namespace cluster {
   }   // endJob
 
   //----------------------------------------------------------------------------
-  void
-  TrajCluster::produce(art::Event& evt)
+  void TrajCluster::produce(art::Event& evt)
   {
     // Get a single hit collection from a HitsModuleLabel or multiple sets of "sliced" hits
     // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel.
@@ -883,10 +879,9 @@ namespace cluster {
   }                                  // TrajCluster::produce()
 
   ////////////////////////////////////////////////
-  void
-  TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
-                       const geo::TPCID& tpcid,
-                       std::vector<std::vector<unsigned int>>& tpcHits)
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
+                            const geo::TPCID& tpcid,
+                            std::vector<std::vector<unsigned int>>& tpcHits)
   {
     // Put hits in this TPC into a single "slice", unless a special debugging mode is specified to
     // only reconstruct hits that are MC-matched
@@ -899,13 +894,12 @@ namespace cluster {
   } // GetHits
 
   ////////////////////////////////////////////////
-  void
-  TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
-                       const geo::TPCID& tpcid,
-                       const std::vector<recob::Slice>& inputSlices,
-                       art::FindManyP<recob::Hit>& hitFromSlc,
-                       std::vector<std::vector<unsigned int>>& tpcHits,
-                       std::vector<int>& slcIDs)
+  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
+                            const geo::TPCID& tpcid,
+                            const std::vector<recob::Slice>& inputSlices,
+                            art::FindManyP<recob::Hit>& hitFromSlc,
+                            std::vector<std::vector<unsigned int>>& tpcHits,
+                            std::vector<int>& slcIDs)
   {
     // Put the hits in all slices into tpcHits in this TPC
     tpcHits.clear();

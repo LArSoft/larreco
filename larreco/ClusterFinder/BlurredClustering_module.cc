@@ -83,8 +83,7 @@ cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const& pset)
   produces<art::Assns<recob::Cluster, recob::Hit>>();
 }
 
-void
-cluster::BlurredClustering::produce(art::Event& evt)
+void cluster::BlurredClustering::produce(art::Event& evt)
 {
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF) fBlurredClusteringAlg.CreateDebugPDF(evt.run(), evt.subRun(), evt.event());

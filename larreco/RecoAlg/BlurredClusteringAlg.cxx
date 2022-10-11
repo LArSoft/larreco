@@ -65,8 +65,7 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg()
   }
 }
 
-void
-cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event)
+void cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event)
 {
   if (!fDebugCanvas) {
 
@@ -106,8 +105,7 @@ cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event)
   fDebugCanvas->Print(fDebugPDFName.c_str());
 }
 
-void
-cluster::BlurredClusteringAlg::ConvertBinsToClusters(
+void cluster::BlurredClusteringAlg::ConvertBinsToClusters(
   std::vector<std::vector<double>> const& image,
   std::vector<std::vector<int>> const& allClusterBins,
   std::vector<art::PtrVector<recob::Hit>>& clusters) const
@@ -132,8 +130,7 @@ cluster::BlurredClusteringAlg::ConvertBinsToClusters(
   }
 }
 
-std::vector<std::vector<double>>
-cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
+std::vector<std::vector<double>> cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
   std::vector<art::Ptr<recob::Hit>> const& hits,
   int const readoutWindowSize)
 {
@@ -188,9 +185,8 @@ cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
   return image;
 }
 
-int
-cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double>> const& blurred,
-                                            std::vector<std::vector<int>>& allcluster) const
+int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double>> const& blurred,
+                                                std::vector<std::vector<int>>& allcluster) const
 {
   // Size of image in x and y
   int const nbinsx = blurred.size();
@@ -374,8 +370,7 @@ cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double>> con
   return allcluster.size();
 }
 
-int
-cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
+int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
 {
   double globalWire = -999;
 
@@ -429,8 +424,8 @@ cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
   return std::round(globalWire);
 }
 
-std::vector<std::vector<double>>
-cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double>> const& image) const
+std::vector<std::vector<double>> cluster::BlurredClusteringAlg::GaussianBlur(
+  std::vector<std::vector<double>> const& image) const
 {
   if (fSigmaWire == 0 and fSigmaTick == 0) return image;
 
@@ -494,9 +489,8 @@ cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double>> con
   return copy;
 }
 
-TH2F*
-cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double>> const& image,
-                                             TString const name) const
+TH2F* cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double>> const& image,
+                                                   TString const name) const
 {
   auto hist = new TH2F(name,
                        name,
@@ -521,12 +515,12 @@ cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double>> co
   return hist;
 }
 
-void
-cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
-                                         std::vector<art::PtrVector<recob::Hit>> const& allClusters,
-                                         int const pad,
-                                         int const tpc,
-                                         int const plane)
+void cluster::BlurredClusteringAlg::SaveImage(
+  TH2F* image,
+  std::vector<art::PtrVector<recob::Hit>> const& allClusters,
+  int const pad,
+  int const tpc,
+  int const plane)
 {
   // Make a vector of clusters
   std::vector<std::vector<int>> allClusterBins;
@@ -551,19 +545,20 @@ cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
   SaveImage(image, allClusterBins, pad, tpc, plane);
 }
 
-void
-cluster::BlurredClusteringAlg::SaveImage(TH2F* image, int const pad, int const tpc, int const plane)
+void cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
+                                              int const pad,
+                                              int const tpc,
+                                              int const plane)
 {
   std::vector<std::vector<int>> allClusterBins;
   SaveImage(image, allClusterBins, pad, tpc, plane);
 }
 
-void
-cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
-                                         std::vector<std::vector<int>> const& allClusterBins,
-                                         int const pad,
-                                         int const tpc,
-                                         int const plane)
+void cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
+                                              std::vector<std::vector<int>> const& allClusterBins,
+                                              int const pad,
+                                              int const tpc,
+                                              int const plane)
 {
   fDebugCanvas->cd(pad);
   std::string stage;
@@ -612,9 +607,9 @@ cluster::BlurredClusteringAlg::SaveImage(TH2F* image,
 
 // Private member functions
 
-art::PtrVector<recob::Hit>
-cluster::BlurredClusteringAlg::ConvertBinsToRecobHits(std::vector<std::vector<double>> const& image,
-                                                      std::vector<int> const& bins) const
+art::PtrVector<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinsToRecobHits(
+  std::vector<std::vector<double>> const& image,
+  std::vector<int> const& bins) const
 {
   // Create the vector of hits to output
   art::PtrVector<recob::Hit> hits;
@@ -632,34 +627,34 @@ cluster::BlurredClusteringAlg::ConvertBinsToRecobHits(std::vector<std::vector<do
   return hits;
 }
 
-art::Ptr<recob::Hit>
-cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::vector<std::vector<double>> const& image,
-                                                    int const bin) const
+art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(
+  std::vector<std::vector<double>> const& image,
+  int const bin) const
 {
   int const wire = bin % image.size();
   int const tick = bin / image.size();
   return fHitMap[wire][tick];
 }
 
-int
-cluster::BlurredClusteringAlg::ConvertWireTickToBin(std::vector<std::vector<double>> const& image,
-                                                    int const xbin,
-                                                    int const ybin) const
+int cluster::BlurredClusteringAlg::ConvertWireTickToBin(
+  std::vector<std::vector<double>> const& image,
+  int const xbin,
+  int const ybin) const
 {
   return ybin * image.size() + xbin;
 }
 
-double
-cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector<double>> const& image,
-                                                  int const bin) const
+double cluster::BlurredClusteringAlg::ConvertBinToCharge(
+  std::vector<std::vector<double>> const& image,
+  int const bin) const
 {
   int const x = bin % image.size();
   int const y = bin / image.size();
   return image.at(x).at(y);
 }
 
-std::pair<int, int>
-cluster::BlurredClusteringAlg::DeadWireCount(int const wire_bin, int const width) const
+std::pair<int, int> cluster::BlurredClusteringAlg::DeadWireCount(int const wire_bin,
+                                                                 int const width) const
 {
   auto deadWires = std::make_pair(0, 0);
 
@@ -681,8 +676,7 @@ cluster::BlurredClusteringAlg::DeadWireCount(int const wire_bin, int const width
   return deadWires;
 }
 
-std::array<int, 4>
-cluster::BlurredClusteringAlg::FindBlurringParameters() const
+std::array<int, 4> cluster::BlurredClusteringAlg::FindBlurringParameters() const
 {
   // Calculate least squares slope
   double nhits{}, sumx{}, sumy{}, sumx2{}, sumxy{};
@@ -713,16 +707,14 @@ cluster::BlurredClusteringAlg::FindBlurringParameters() const
   return {{blur_wire, blur_tick, sigma_wire, sigma_tick}};
 }
 
-double
-cluster::BlurredClusteringAlg::GetTimeOfBin(std::vector<std::vector<double>> const& image,
-                                            int const bin) const
+double cluster::BlurredClusteringAlg::GetTimeOfBin(std::vector<std::vector<double>> const& image,
+                                                   int const bin) const
 {
   auto const hit = ConvertBinToRecobHit(image, bin);
   return hit.isNull() ? -10000. : hit->PeakTime();
 }
 
-std::vector<std::vector<std::vector<double>>>
-cluster::BlurredClusteringAlg::MakeKernels() const
+std::vector<std::vector<std::vector<double>>> cluster::BlurredClusteringAlg::MakeKernels() const
 {
   // Kernel size is the largest possible given the hit width rescaling
   std::vector<std::vector<std::vector<double>>> allKernels(
@@ -759,10 +751,9 @@ cluster::BlurredClusteringAlg::MakeKernels() const
   return allKernels;
 }
 
-unsigned int
-cluster::BlurredClusteringAlg::NumNeighbours(int const nbinsx,
-                                             std::vector<bool> const& used,
-                                             int const bin) const
+unsigned int cluster::BlurredClusteringAlg::NumNeighbours(int const nbinsx,
+                                                          std::vector<bool> const& used,
+                                                          int const bin) const
 {
   unsigned int neighbours = 0;
 
@@ -786,9 +777,8 @@ cluster::BlurredClusteringAlg::NumNeighbours(int const nbinsx,
   return neighbours;
 }
 
-bool
-cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& times,
-                                             double const time) const
+bool cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& times,
+                                                  double const time) const
 {
   for (auto const t : times) {
     if (std::abs(time - t) < fTimeThreshold) return true;

@@ -1,6 +1,6 @@
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -272,8 +272,7 @@ namespace DUNE {
   }
   //========================================================================
   //========================================================================
-  void
-  NeutrinoShowerEff::beginJob()
+  void NeutrinoShowerEff::beginJob()
   {
     cout << "job begin..." << endl;
 
@@ -827,20 +826,14 @@ namespace DUNE {
     }
   }
   //========================================================================
-  void
-  NeutrinoShowerEff::endJob()
-  {
-    doEfficiencies();
-  }
+  void NeutrinoShowerEff::endJob() { doEfficiencies(); }
   //========================================================================
-  void
-  NeutrinoShowerEff::beginRun(const art::Run& /*run*/)
+  void NeutrinoShowerEff::beginRun(const art::Run& /*run*/)
   {
     mf::LogInfo("NeutrinoShowerEff") << "begin run..." << endl;
   }
   //========================================================================
-  void
-  NeutrinoShowerEff::analyze(const art::Event& event)
+  void NeutrinoShowerEff::analyze(const art::Event& event)
   {
 
     reset();
@@ -859,10 +852,9 @@ namespace DUNE {
     }
   }
   //========================================================================
-  void
-  NeutrinoShowerEff::processEff(detinfo::DetectorClocksData const& clockData,
-                                const art::Event& event,
-                                bool& isFiducial)
+  void NeutrinoShowerEff::processEff(detinfo::DetectorClocksData const& clockData,
+                                     const art::Event& event,
+                                     bool& isFiducial)
   {
 
     //!save neutrino's interaction info
@@ -1367,13 +1359,12 @@ namespace DUNE {
   }
 
   //========================================================================
-  void
-  NeutrinoShowerEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
-                                  std::vector<art::Ptr<recob::Hit>> all_hits,
-                                  std::vector<art::Ptr<recob::Hit>> shower_hits,
-                                  const simb::MCParticle*& MCparticle,
-                                  double& Efrac,
-                                  double& Ecomplet)
+  void NeutrinoShowerEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                       std::vector<art::Ptr<recob::Hit>> all_hits,
+                                       std::vector<art::Ptr<recob::Hit>> shower_hits,
+                                       const simb::MCParticle*& MCparticle,
+                                       double& Efrac,
+                                       double& Ecomplet)
   {
 
     MCparticle = 0;
@@ -1424,8 +1415,7 @@ namespace DUNE {
   }
 
   //========================================================================
-  bool
-  NeutrinoShowerEff::insideFV(double vertex[4])
+  bool NeutrinoShowerEff::insideFV(double vertex[4])
   {
 
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1441,8 +1431,7 @@ namespace DUNE {
       return false;
   }
   //========================================================================
-  void
-  NeutrinoShowerEff::doEfficiencies()
+  void NeutrinoShowerEff::doEfficiencies()
   {
 
     art::ServiceHandle<art::TFileService const> tfs;
@@ -1493,10 +1482,9 @@ namespace DUNE {
   // Check CNN track/shower ID
   //============================================
   template <size_t N>
-  void
-  NeutrinoShowerEff::checkCNNtrkshw(detinfo::DetectorClocksData const& clockData,
-                                    const art::Event& evt,
-                                    std::vector<art::Ptr<recob::Hit>> all_hits)
+  void NeutrinoShowerEff::checkCNNtrkshw(detinfo::DetectorClocksData const& clockData,
+                                         const art::Event& evt,
+                                         std::vector<art::Ptr<recob::Hit>> all_hits)
   {
     if (fCNNEMModuleLabel.empty()) return;
 
@@ -1555,8 +1543,7 @@ namespace DUNE {
   }
 
   //========================================================================
-  void
-  NeutrinoShowerEff::reset()
+  void NeutrinoShowerEff::reset()
   {
 
     MC_incoming_PDG = -999;

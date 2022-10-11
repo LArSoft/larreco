@@ -15,7 +15,6 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 
-
 namespace fhicl {
   class ParameterSet;
 }

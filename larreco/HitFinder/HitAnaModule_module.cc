@@ -83,9 +83,8 @@ hit::HitAnaModule::HitAnaModule(fhicl::ParameterSet const& p) : EDAnalyzer(p) //
   fMCHitModuleLabel = p.get<std::string>("MCHitModuleLabel");
 }
 
-void
-hit::HitAnaModule::createAssocVector(HitWireAssns_t const& HitToWire,
-                                     std::vector<std::vector<int>>& WireHitAssocVector)
+void hit::HitAnaModule::createAssocVector(HitWireAssns_t const& HitToWire,
+                                          std::vector<std::vector<int>>& WireHitAssocVector)
 {
   // WireHitAssocVector: for each wire, indices of all the hits associated to it
 
@@ -95,10 +94,9 @@ hit::HitAnaModule::createAssocVector(HitWireAssns_t const& HitToWire,
     WireHitAssocVector.at(assn.second.key()).push_back(assn.first.key());
 }
 
-void
-hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVector,
-                                     std::vector<recob::Hit> const& hitVector,
-                                     std::vector<std::vector<int>>& WireHitAssocVector)
+void hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVector,
+                                          std::vector<recob::Hit> const& hitVector,
+                                          std::vector<std::vector<int>>& WireHitAssocVector)
 {
   WireHitAssocVector.resize(wireVector.size());
   for (size_t iwire = 0; iwire < wireVector.size(); iwire++) {
@@ -109,10 +107,9 @@ hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVector,
   }
 }
 
-void
-hit::HitAnaModule::createMCAssocVector(std::vector<recob::Wire> const& wireVector,
-                                       std::vector<sim::MCHitCollection> const& mcHitVector,
-                                       std::vector<std::vector<int>>& WireMCHitAssocVector)
+void hit::HitAnaModule::createMCAssocVector(std::vector<recob::Wire> const& wireVector,
+                                            std::vector<sim::MCHitCollection> const& mcHitVector,
+                                            std::vector<std::vector<int>>& WireMCHitAssocVector)
 {
 
   WireMCHitAssocVector.clear();
@@ -131,8 +128,7 @@ hit::HitAnaModule::createMCAssocVector(std::vector<recob::Wire> const& wireVecto
                                        mcHitIndicesByChannel[wireVector[iwire].Channel()].end());
 }
 
-void
-hit::HitAnaModule::analyze(art::Event const& e)
+void hit::HitAnaModule::analyze(art::Event const& e)
 {
   //get event and run numbers
   unsigned int eventNumber = e.id().event();
@@ -185,8 +181,7 @@ hit::HitAnaModule::analyze(art::Event const& e)
     wireVector, mcHitVector, WireMCHitAssocVector, clock_data, eventNumber, runNumber);
 }
 
-void
-hit::HitAnaModule::beginJob()
+void hit::HitAnaModule::beginJob()
 {
   art::ServiceHandle<art::TFileService const> tfs;
   wireDataTree = tfs->make<TTree>("wireDataTree", "WireDataTree");

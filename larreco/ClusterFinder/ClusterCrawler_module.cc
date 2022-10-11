@@ -72,8 +72,7 @@ namespace cluster {
     produces<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>();
   }
 
-  void
-  ClusterCrawler::produce(art::Event& evt)
+  void ClusterCrawler::produce(art::Event& evt)
   {
     // fetch the wires needed by CCHitFinder
 

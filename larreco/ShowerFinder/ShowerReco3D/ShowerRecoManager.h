@@ -52,17 +52,9 @@ namespace showerreco {
     /// Default constructor
     ShowerRecoManager();
 
-    void
-    Algo(ShowerRecoAlgBase* alg)
-    {
-      fShowerAlgo = alg;
-    }
+    void Algo(ShowerRecoAlgBase* alg) { fShowerAlgo = alg; }
 
-    const ShowerRecoAlgBase*
-    Algo() const
-    {
-      return fShowerAlgo;
-    }
+    const ShowerRecoAlgBase* Algo() const { return fShowerAlgo; }
 
     void Reset();
 
@@ -79,11 +71,7 @@ namespace showerreco {
                      const ClusterAss_t& ass,
                      std::vector<::recob::Shower>& showers);
 
-    ::cmtool::CMatchManager&
-    MatchManager()
-    {
-      return *fMatchMgr;
-    }
+    ::cmtool::CMatchManager& MatchManager() { return *fMatchMgr; }
 
   private:
     /// Boolean flag to whether or not to run matching

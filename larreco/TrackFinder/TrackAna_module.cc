@@ -52,8 +52,7 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double
-  bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
 
@@ -71,23 +70,18 @@ namespace {
 
   // Length of reconstructed track.
   //----------------------------------------------------------------------------
-  double
-  length(const recob::Track& track)
-  {
-    return track.Length();
-  }
+  double length(const recob::Track& track) { return track.Length(); }
 
   // Length of MC particle.
   //----------------------------------------------------------------------------
-  double
-  length(detinfo::DetectorClocksData const& clockData,
-         detinfo::DetectorPropertiesData const& detProp,
-         const simb::MCParticle& part,
-         double dx,
-         TVector3& start,
-         TVector3& end,
-         TVector3& startmom,
-         TVector3& endmom)
+  double length(detinfo::DetectorClocksData const& clockData,
+                detinfo::DetectorPropertiesData const& detProp,
+                const simb::MCParticle& part,
+                double dx,
+                TVector3& start,
+                TVector3& end,
+                TVector3& startmom,
+                TVector3& endmom)
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -138,15 +132,14 @@ namespace {
   // In this function, the extracted start and end momenta are converted to GeV
   // (MCTrack stores momenta in Mev).
   //----------------------------------------------------------------------------
-  double
-  length(detinfo::DetectorClocksData const& clockData,
-         detinfo::DetectorPropertiesData const& detProp,
-         const sim::MCTrack& mctrk,
-         double dx,
-         TVector3& start,
-         TVector3& end,
-         TVector3& startmom,
-         TVector3& endmom)
+  double length(detinfo::DetectorClocksData const& clockData,
+                detinfo::DetectorPropertiesData const& detProp,
+                const sim::MCTrack& mctrk,
+                double dx,
+                TVector3& start,
+                TVector3& end,
+                TVector3& startmom,
+                TVector3& endmom)
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -196,8 +189,7 @@ namespace {
 
   // Fill efficiency histogram assuming binomial errors.
 
-  void
-  effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
+  void effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
@@ -238,8 +230,7 @@ namespace {
 
     ~flattener() {}
 
-    void
-    Convert(const std::vector<std::vector<unsigned int>>& input)
+    void Convert(const std::vector<std::vector<unsigned int>>& input)
     {
       clear();
       size_t length = 0;
@@ -714,8 +705,7 @@ namespace trkf {
                             << " Origin value " << fOriginValue;
   }
 
-  void
-  TrackAna::analyze(const art::Event& evt)
+  void TrackAna::analyze(const art::Event& evt)
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -1279,10 +1269,9 @@ namespace trkf {
     }       // fPrintLevel > 0
   }
 
-  void
-  TrackAna::anaStitch(const art::Event& evt,
-                      detinfo::DetectorClocksData const& clockData,
-                      detinfo::DetectorPropertiesData const& detProp)
+  void TrackAna::anaStitch(const art::Event& evt,
+                           detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp)
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -1489,8 +1478,7 @@ namespace trkf {
     }
   }
 
-  void
-  TrackAna::endJob()
+  void TrackAna::endJob()
   {
     // Print summary.
 
@@ -1522,8 +1510,7 @@ namespace trkf {
   }
 
   // Stole this from online. Returns indices sorted by corresponding vector values.
-  std::vector<size_t>
-  TrackAna::fsort_indexes(const std::vector<double>& v)
+  std::vector<size_t> TrackAna::fsort_indexes(const std::vector<double>& v)
   {
     // initialize original index locations
     std::vector<size_t> idx(v.size());

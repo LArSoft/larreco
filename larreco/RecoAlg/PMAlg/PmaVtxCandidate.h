@@ -53,11 +53,7 @@ public:
 
   double MaxAngle(double minLength = 0.0) const;
 
-  size_t
-  Size() const
-  {
-    return fAssigned.size();
-  }
+  size_t Size() const { return fAssigned.size(); }
   size_t Size(double minLength) const;
 
   bool MergeWith(const VtxCandidate& other);
@@ -68,31 +64,17 @@ public:
                   pma::TrkCandidateColl& tracks,
                   pma::TrkCandidateColl& src);
 
-  const TVector3&
-  Center() const
-  {
-    return fCenter;
-  }
-  double
-  Mse() const
-  {
-    return fMse;
-  }
-  double
-  Mse2D() const
-  {
-    return fMse2D;
-  }
+  const TVector3& Center() const { return fCenter; }
+  double Mse() const { return fMse; }
+  double Mse2D() const { return fMse2D; }
 
-  std::pair<pma::Track3D*, size_t>
-  Track(size_t i) const
+  std::pair<pma::Track3D*, size_t> Track(size_t i) const
   {
     return std::pair<pma::Track3D*, size_t>(fAssigned[i].first.Track(), fAssigned[i].second);
   }
 
 private:
-  bool
-  has(const std::vector<int>& v, int id) const
+  bool has(const std::vector<int>& v, int id) const
   {
     for (auto c : v)
       if (c == id) return true;

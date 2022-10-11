@@ -43,82 +43,26 @@ public:
   void Info(const art::Event& evt);
   void Findtpcborders(const art::Event& evt);
 
-  int
-  GetNgammas() const
-  {
-    return fNgammas;
-  }
+  int GetNgammas() const { return fNgammas; }
 
-  double
-  GetMompi0() const
-  {
-    return fMompi0;
-  }
-  double
-  GetMomGamma1() const
-  {
-    return fGammamom1;
-  }
-  double
-  GetMomGamma2() const
-  {
-    return fGammamom2;
-  }
+  double GetMompi0() const { return fMompi0; }
+  double GetMomGamma1() const { return fGammamom1; }
+  double GetMomGamma2() const { return fGammamom2; }
 
-  double
-  GetCosine()
-  {
-    return fCosine;
-  }
+  double GetCosine() { return fCosine; }
 
-  TVector3 const&
-  GetPrimary() const
-  {
-    return fPrimary;
-  }
-  TVector3 const&
-  GetPospi0() const
-  {
-    return fPi0pos;
-  }
-  TVector3 const&
-  GetPosgamma1() const
-  {
-    return fConvgamma1;
-  }
-  TVector3 const&
-  GetPosgamma2() const
-  {
-    return fConvgamma2;
-  }
+  TVector3 const& GetPrimary() const { return fPrimary; }
+  TVector3 const& GetPospi0() const { return fPi0pos; }
+  TVector3 const& GetPosgamma1() const { return fConvgamma1; }
+  TVector3 const& GetPosgamma2() const { return fConvgamma2; }
 
-  TVector3 const&
-  GetDirgamma1() const
-  {
-    return fDirgamma1;
-  }
-  TVector3 const&
-  GetDirgamma2() const
-  {
-    return fDirgamma2;
-  }
+  TVector3 const& GetDirgamma1() const { return fDirgamma1; }
+  TVector3 const& GetDirgamma2() const { return fDirgamma2; }
 
-  bool const&
-  IsInside1() const
-  {
-    return fInside1;
-  }
-  bool const&
-  IsInside2() const
-  {
-    return fInside2;
-  }
+  bool const& IsInside1() const { return fInside1; }
+  bool const& IsInside2() const { return fInside2; }
 
-  bool const&
-  IsCompton() const
-  {
-    return fCompton;
-  }
+  bool const& IsCompton() const { return fCompton; }
 
 private:
   bool insideFidVol(const TLorentzVector& pvtx) const;
@@ -157,8 +101,7 @@ ems::MCinfo::MCinfo(const art::Event& evt) : fFidVolCut(2.0)
   Findtpcborders(evt);
 }
 
-void
-ems::MCinfo::Findtpcborders(const art::Event& evt)
+void ems::MCinfo::Findtpcborders(const art::Event& evt)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -179,8 +122,7 @@ ems::MCinfo::Findtpcborders(const art::Event& evt)
   }
 }
 
-void
-ems::MCinfo::Info(const art::Event& evt)
+void ems::MCinfo::Info(const art::Event& evt)
 {
   fMompi0 = 0.0;
   fPi0pos.SetXYZ(0, 0, 0);
@@ -258,8 +200,7 @@ ems::MCinfo::Info(const art::Event& evt)
   }
 }
 
-bool
-ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) const
+bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) const
 {
 
   bool inside = false;
@@ -389,8 +330,7 @@ ems::MultiEMShowers::MultiEMShowers(fhicl::ParameterSet const& p) : EDAnalyzer(p
   fShsModuleLabel = p.get<art::InputTag>("ShsModuleLabel");
 }
 
-void
-ems::MultiEMShowers::beginJob()
+void ems::MultiEMShowers::beginJob()
 {
   art::ServiceHandle<art::TFileService const> tfs;
 
@@ -434,8 +374,7 @@ ems::MultiEMShowers::beginJob()
   fShTree->Branch("fDedxU", &fDedxU, "fDedxU/D");
 }
 
-void
-ems::MultiEMShowers::endJob()
+void ems::MultiEMShowers::endJob()
 {
   mf::LogInfo log("MultiEMShower");
   log << "******************** fEvFidVol =  " << fEvFidVol << "\n";
@@ -449,8 +388,7 @@ ems::MultiEMShowers::endJob()
     log << "******************** reco %  =    " << double(fEvReco) / double(fEvInput) << "\n";
 }
 
-void
-ems::MultiEMShowers::analyze(art::Event const& e)
+void ems::MultiEMShowers::analyze(art::Event const& e)
 {
   fEvNumber = e.id().event();
   fNGroups = 0;
@@ -656,8 +594,7 @@ ems::MultiEMShowers::analyze(art::Event const& e)
 }
 
 // true if there are clusters corresponding to mc conversion points
-bool
-ems::MultiEMShowers::convCluster(art::Event const& evt)
+bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 {
   ems::MCinfo mc(evt);
   TVector3 convp[2];
@@ -729,13 +666,12 @@ ems::MultiEMShowers::convCluster(art::Event const& evt)
   return result;
 }
 
-double
-ems::MultiEMShowers::getMinDist(detinfo::DetectorPropertiesData const& detProp,
-                                std::vector<art::Ptr<recob::Hit>> const& v,
-                                TVector3 const& convmc,
-                                size_t view,
-                                size_t tpc,
-                                size_t cryo)
+double ems::MultiEMShowers::getMinDist(detinfo::DetectorPropertiesData const& detProp,
+                                       std::vector<art::Ptr<recob::Hit>> const& v,
+                                       TVector3 const& convmc,
+                                       size_t view,
+                                       size_t tpc,
+                                       size_t cryo)
 {
   double mindist = 9999;
   // MC vertex projected to view

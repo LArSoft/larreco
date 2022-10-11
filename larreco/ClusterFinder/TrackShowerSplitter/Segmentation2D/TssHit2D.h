@@ -26,64 +26,20 @@ class tss::Hit2D {
 public:
   Hit2D(detinfo::DetectorPropertiesData const& detProp, const art::Ptr<recob::Hit>& src);
 
-  art::Ptr<recob::Hit>
-  Hit2DPtr() const
-  {
-    return fHit;
-  }
+  art::Ptr<recob::Hit> Hit2DPtr() const { return fHit; }
 
-  TVector2 const&
-  Point2D() const
-  {
-    return fPoint2D;
-  }
+  TVector2 const& Point2D() const { return fPoint2D; }
 
-  unsigned int
-  Cryo() const
-  {
-    return fHit->WireID().Cryostat;
-  }
-  unsigned int
-  TPC() const
-  {
-    return fHit->WireID().TPC;
-  }
-  unsigned int
-  View() const
-  {
-    return fPlane;
-  }
-  unsigned int
-  Wire() const
-  {
-    return fWire;
-  }
-  float
-  PeakTime() const
-  {
-    return fHit->PeakTime();
-  }
-  int
-  StartTick() const
-  {
-    return fHit->StartTick();
-  }
-  int
-  EndTick() const
-  {
-    return fHit->EndTick();
-  }
+  unsigned int Cryo() const { return fHit->WireID().Cryostat; }
+  unsigned int TPC() const { return fHit->WireID().TPC; }
+  unsigned int View() const { return fPlane; }
+  unsigned int Wire() const { return fWire; }
+  float PeakTime() const { return fHit->PeakTime(); }
+  int StartTick() const { return fHit->StartTick(); }
+  int EndTick() const { return fHit->EndTick(); }
 
-  float
-  SummedADC() const
-  {
-    return fHit->SummedADC();
-  }
-  float
-  GetAmplitude() const
-  {
-    return fHit->PeakAmplitude();
-  }
+  float SummedADC() const { return fHit->SummedADC(); }
+  float GetAmplitude() const { return fHit->PeakAmplitude(); }
 
 private:
   art::Ptr<recob::Hit> fHit; // source 2D hit

@@ -37,110 +37,38 @@ public:
   TrkCandidate();
   TrkCandidate(pma::Track3D* trk, int key = -1, int tid = -1);
 
-  bool
-  IsValid() const
-  {
-    return fTrack;
-  }
+  bool IsValid() const { return fTrack; }
 
-  bool
-  IsGood() const
-  {
-    return fGood;
-  }
-  void
-  SetGood(bool b)
-  {
-    fGood = b;
-  }
+  bool IsGood() const { return fGood; }
+  void SetGood(bool b) { fGood = b; }
 
-  pma::Track3D*
-  Track() const
-  {
-    return fTrack;
-  }
+  pma::Track3D* Track() const { return fTrack; }
   void SetTrack(pma::Track3D* trk);
   void DeleteTrack();
 
-  const std::vector<size_t>&
-  Clusters() const
-  {
-    return fClusters;
-  }
-  std::vector<size_t>&
-  Clusters()
-  {
-    return fClusters;
-  }
+  const std::vector<size_t>& Clusters() const { return fClusters; }
+  std::vector<size_t>& Clusters() { return fClusters; }
 
   /// Get key of an external object (like a source PFParticle) associated to this track candidate.
-  int
-  Key() const
-  {
-    return fKey;
-  }
+  int Key() const { return fKey; }
 
   /// Set key of an external object associated to this track candidate.
-  void
-  SetKey(int key)
-  {
-    fKey = key;
-  }
+  void SetKey(int key) { fKey = key; }
 
-  int
-  TreeId() const
-  {
-    return fTreeId;
-  }
-  void
-  SetTreeId(int id)
-  {
-    fTreeId = id;
-  }
+  int TreeId() const { return fTreeId; }
+  void SetTreeId(int id) { fTreeId = id; }
 
-  double
-  Mse() const
-  {
-    return fMse;
-  }
-  void
-  SetMse(double m)
-  {
-    fMse = m;
-  }
+  double Mse() const { return fMse; }
+  void SetMse(double m) { fMse = m; }
 
-  double
-  Validation() const
-  {
-    return fValidation;
-  }
-  void
-  SetValidation(double v)
-  {
-    fValidation = v;
-  }
+  double Validation() const { return fValidation; }
+  void SetValidation(double v) { fValidation = v; }
 
-  int
-  Parent() const
-  {
-    return fParent;
-  }
-  void
-  SetParent(int idx)
-  {
-    fParent = idx;
-  }
+  int Parent() const { return fParent; }
+  void SetParent(int idx) { fParent = idx; }
 
-  const std::vector<size_t>&
-  Daughters() const
-  {
-    return fDaughters;
-  }
-  std::vector<size_t>&
-  Daughters()
-  {
-    return fDaughters;
-  }
+  const std::vector<size_t>& Daughters() const { return fDaughters; }
+  std::vector<size_t>& Daughters() { return fDaughters; }
 
 private:
   int fParent;
@@ -157,79 +85,27 @@ private:
 
 class pma::TrkCandidateColl {
 public:
-  size_t
-  size() const
-  {
-    return fCandidates.size();
-  }
-  void
-  resize(size_t n)
-  {
-    return fCandidates.resize(n);
-  }
-  bool
-  empty() const
-  {
-    return fCandidates.empty();
-  }
+  size_t size() const { return fCandidates.size(); }
+  void resize(size_t n) { return fCandidates.resize(n); }
+  bool empty() const { return fCandidates.empty(); }
 
-  void
-  push_back(const TrkCandidate& trk)
-  {
-    fCandidates.push_back(trk);
-  }
-  void
-  erase_at(size_t pos)
-  {
-    fCandidates.erase(fCandidates.begin() + pos);
-  }
-  void
-  clear()
-  {
-    fCandidates.clear();
-  }
+  void push_back(const TrkCandidate& trk) { fCandidates.push_back(trk); }
+  void erase_at(size_t pos) { fCandidates.erase(fCandidates.begin() + pos); }
+  void clear() { fCandidates.clear(); }
 
   TrkCandidate& operator[](size_t i) { return fCandidates[i]; }
   TrkCandidate const& operator[](size_t i) const { return fCandidates[i]; }
 
-  TrkCandidate&
-  front()
-  {
-    return fCandidates.front();
-  }
-  TrkCandidate const&
-  front() const
-  {
-    return fCandidates.front();
-  }
+  TrkCandidate& front() { return fCandidates.front(); }
+  TrkCandidate const& front() const { return fCandidates.front(); }
 
-  TrkCandidate&
-  back()
-  {
-    return fCandidates.back();
-  }
-  TrkCandidate const&
-  back() const
-  {
-    return fCandidates.back();
-  }
+  TrkCandidate& back() { return fCandidates.back(); }
+  TrkCandidate const& back() const { return fCandidates.back(); }
 
-  std::vector<TrkCandidate> const&
-  tracks() const
-  {
-    return fCandidates;
-  }
-  std::vector<TrkCandidate>&
-  tracks()
-  {
-    return fCandidates;
-  }
+  std::vector<TrkCandidate> const& tracks() const { return fCandidates; }
+  std::vector<TrkCandidate>& tracks() { return fCandidates; }
 
-  std::vector<TrkCandidate> const&
-  parents() const
-  {
-    return fParents;
-  }
+  std::vector<TrkCandidate> const& parents() const { return fParents; }
 
   int getCandidateIndex(pma::Track3D const* candidate) const;
   int getCandidateTreeId(pma::Track3D const* candidate) const;

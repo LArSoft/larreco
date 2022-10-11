@@ -15,8 +15,8 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -101,8 +101,7 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
   fManager.Algo(fShowerAlgo);
 }
 
-void
-ShowerReco3D::produce(art::Event& e)
+void ShowerReco3D::produce(art::Event& e)
 {
   auto const& geom = *lar::providerFrom<geo::Geometry>();
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);

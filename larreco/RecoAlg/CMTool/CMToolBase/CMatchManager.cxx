@@ -30,8 +30,7 @@ namespace cmtool {
     Reset();
   }
 
-  void
-  CMatchManager::Reset()
+  void CMatchManager::Reset()
   {
     CMManagerBase::Reset();
     if (_match_algo) _match_algo->Reset();
@@ -39,8 +38,7 @@ namespace cmtool {
     _book_keeper.Reset();
   }
 
-  void
-  CMatchManager::EventBegin()
+  void CMatchManager::EventBegin()
   {
     if (_debug_mode <= kPerMerging) {
       if (_match_algo) _match_algo->SetVerbose(true);
@@ -51,35 +49,30 @@ namespace cmtool {
     if (_priority_algo) _priority_algo->IterationBegin(_in_clusters);
   }
 
-  void
-  CMatchManager::IterationBegin()
+  void CMatchManager::IterationBegin()
   {
     _match_algo->IterationBegin(_in_clusters);
     if (_priority_algo) _priority_algo->IterationBegin(_in_clusters);
   }
 
-  void
-  CMatchManager::IterationEnd()
+  void CMatchManager::IterationEnd()
   {
     _match_algo->IterationEnd();
     if (_priority_algo) _priority_algo->IterationEnd();
   }
 
-  void
-  CMatchManager::EventEnd()
+  void CMatchManager::EventEnd()
   {
     _match_algo->EventEnd();
     if (_priority_algo) _priority_algo->EventEnd();
   }
 
-  unsigned int
-  CMFactorial(unsigned int n)
+  unsigned int CMFactorial(unsigned int n)
   {
     return (n == 1 || n == 0) ? 1 : CMFactorial(n - 1) * n;
   }
 
-  std::vector<std::vector<size_t>>
-  SimpleCombination(size_t n, size_t r)
+  std::vector<std::vector<size_t>> SimpleCombination(size_t n, size_t r)
   {
 
     if (!n || !r) exit(1);
@@ -103,8 +96,7 @@ namespace cmtool {
     return res;
   }
 
-  std::vector<std::vector<size_t>>
-  ClusterCombinations(const std::vector<size_t>& seed)
+  std::vector<std::vector<size_t>> ClusterCombinations(const std::vector<size_t>& seed)
   {
 
     std::vector<size_t> ctr(seed.size(), 0);
@@ -139,8 +131,8 @@ namespace cmtool {
     return res;
   }
 
-  std::vector<std::vector<std::pair<size_t, size_t>>>
-  PlaneClusterCombinations(const std::vector<size_t>& seed)
+  std::vector<std::vector<std::pair<size_t, size_t>>> PlaneClusterCombinations(
+    const std::vector<size_t>& seed)
   {
     // Result container
     std::vector<std::vector<std::pair<size_t, size_t>>> result;
@@ -177,8 +169,7 @@ namespace cmtool {
     return result;
   }
 
-  bool
-  CMatchManager::IterationProcess(util::GeometryUtilities const& gser)
+  bool CMatchManager::IterationProcess(util::GeometryUtilities const& gser)
   {
     TStopwatch localWatch;
 

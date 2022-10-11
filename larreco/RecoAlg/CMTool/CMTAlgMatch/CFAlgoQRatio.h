@@ -51,11 +51,7 @@ namespace cmtool {
     void Reset() override;
 
     /// Setter for the minimum value for charge ratio (below this value Float() returns -1)
-    void
-    SetQRatioCut(float cut)
-    {
-      _qratio_cut = cut;
-    }
+    void SetQRatioCut(float cut) { _qratio_cut = cut; }
 
   protected:
     float _qratio_cut;

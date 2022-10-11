@@ -37,62 +37,42 @@ namespace cmtool {
     virtual ~CMAlgoBase() = default;
 
     /// Function to reset the algorithm instance called within CMergeManager/CMatchManager's Reset() ... maybe implemented via child class
-    virtual void
-    Reset()
-    {}
+    virtual void Reset() {}
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
      */
-    virtual void
-    EventBegin(const std::vector<cluster::ClusterParamsAlg>&)
-    {}
+    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg>&) {}
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
-    virtual void
-    EventEnd()
-    {}
+    virtual void EventEnd() {}
 
     /**
        Optional function: called at the beggining of each iteration over all pairs of clusters.
        This provides all clusters' information in case the algorithm need them. Note this
        is called per iteration which may be more than once per event.
      */
-    virtual void
-    IterationBegin(const std::vector<cluster::ClusterParamsAlg>&)
-    {}
+    virtual void IterationBegin(const std::vector<cluster::ClusterParamsAlg>&) {}
 
     /**
        Optional function: called at the end of each iteration over all pairs of clusters.
      */
-    virtual void
-    IterationEnd()
-    {}
+    virtual void IterationEnd() {}
 
     /**
        Optional function: called after Bool() function is called for all possible cluster
        pairs by CMergeManager/CMatchManager IFF run with verbosity level kPerIteration.
        Maybe useful for debugging.
      */
-    virtual void
-    Report()
-    {}
+    virtual void Report() {}
 
     /// Setter function for an output plot TFile pointer
-    void
-    SetAnaFile(TFile* fout)
-    {
-      _fout = fout;
-    }
+    void SetAnaFile(TFile* fout) { _fout = fout; }
 
     /// Setter function for verbosity
-    virtual void
-    SetVerbose(bool doit = true)
-    {
-      _verbose = doit;
-    }
+    virtual void SetVerbose(bool doit = true) { _verbose = doit; }
 
   protected:
     /// TFile pointer to an output file

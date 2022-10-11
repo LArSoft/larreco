@@ -19,7 +19,6 @@
 /** @addtogroup genfit
  * @{ */
 
-
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
@@ -46,10 +45,9 @@ public:
   /** @brief Virtual abstract method to produce a RecoHit.
    * Implemented in GFRecoHitProducer
    */
-  virtual GFAbsRecoHit* produce(int index)=0;
+  virtual GFAbsRecoHit* produce(int index) = 0;
   virtual ~GFAbsRecoHitProducer();
 };
-
 
 /** @brief Template class for a hit producer module
  *
@@ -73,14 +71,13 @@ public:
  * @param hit_t template parameter specifying cluster class
  * @param recoHit_t template parameter specifying recoHit
  */
-template <class hit_T,class recoHit_T>
+template <class hit_T, class recoHit_T>
 class GFRecoHitProducer : public GFAbsRecoHitProducer {
- private:
+private:
   /** @brief pointer to array with cluster data */
   TClonesArray* hitArrayTClones;
   //std::vector<GFAbsRecoHit*>* hitArrayVector;
- public:
-
+public:
   /** @brief Constructor takes pointer to the cluster array */
   GFRecoHitProducer(TClonesArray*);
   //GFRecoHitProducer(std::vector<GFAbsRecoHit*>*);
@@ -93,8 +90,9 @@ class GFRecoHitProducer : public GFAbsRecoHitProducer {
 };
 /** @} */
 
-template <class hit_T,class recoHit_T>
-GFRecoHitProducer<hit_T,recoHit_T>::GFRecoHitProducer(TClonesArray* theArr) {
+template <class hit_T, class recoHit_T>
+GFRecoHitProducer<hit_T, recoHit_T>::GFRecoHitProducer(TClonesArray* theArr)
+{
   hitArrayTClones = theArr;
   //hitArrayVector = NULL;
 }
@@ -106,24 +104,26 @@ template <class hit_T,class recoHit_T>
 }
 */
 
-template <class hit_T,class recoHit_T>
-GFRecoHitProducer<hit_T,recoHit_T>::~GFRecoHitProducer() {
+template <class hit_T, class recoHit_T>
+GFRecoHitProducer<hit_T, recoHit_T>::~GFRecoHitProducer()
+{
   //we dont assume ownership over the hit arrays
 }
 
-
-template <class hit_T,class recoHit_T>
-GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
-  if (!hitArrayTClones)
-    throw GFException("GFRecoHitProducer(): no hit set up", __LINE__, __FILE__);
+template <class hit_T, class recoHit_T>
+GFAbsRecoHit* GFRecoHitProducer<hit_T, recoHit_T>::produce(int index)
+{
+  if (!hitArrayTClones) throw GFException("GFRecoHitProducer(): no hit set up", __LINE__, __FILE__);
   //assert(hitArrayTClones!=NULL || hitArrayVector!=NULL);//at least one exists
   //assert(!(hitArrayTClones!=NULL && hitArrayVector!=NULL));//but not both
   //if(hitArrayTClones!=NULL){
-    //the ROOT guys really use 0 and not NULL grrr...
-  if(hitArrayTClones->At(index) == 0) {
-    throw GFException("In GFRecoHitProducer: index for hit in TClonesArray out of bounds",__LINE__,__FILE__).setFatal();
+  //the ROOT guys really use 0 and not NULL grrr...
+  if (hitArrayTClones->At(index) == 0) {
+    throw GFException(
+      "In GFRecoHitProducer: index for hit in TClonesArray out of bounds", __LINE__, __FILE__)
+      .setFatal();
   }
-  return ( new recoHit_T( (hit_T*) hitArrayTClones->At(index) ) );
+  return (new recoHit_T((hit_T*)hitArrayTClones->At(index)));
   //}
   //else{//after assertions this is save: the hitArrayVector is good
   //  if(index >= hitArrayVector->size()) {
@@ -134,6 +134,5 @@ GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
   //  return ( new recoHit_T( (hit_T*) hitArrayVector->at(index) ) );
   //}
 }
-
 
 #endif

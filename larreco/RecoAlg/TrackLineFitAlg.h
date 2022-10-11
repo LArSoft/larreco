@@ -16,20 +16,25 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-namespace geo { struct WireID; }
+namespace geo {
+  struct WireID;
+}
 
 class TVector3;
 
 namespace trkf {
 
   class TrackLineFitAlg {
-    public:
+  public:
+    void TrkLineFit(std::vector<geo::WireID>& hitWID,
+                    std::vector<double>& hitX,
+                    std::vector<double>& hitXErr,
+                    double XOrigin,
+                    TVector3& Pos,
+                    TVector3& Dir,
+                    float& ChiDOF) const;
 
-    void TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
-                    double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF) const;
-
-    private:
-
+  private:
     art::ServiceHandle<geo::Geometry const> geom;
 
   }; // class TrackLineFitAlg

@@ -29,20 +29,18 @@ pma::PMAlgStitching::PMAlgStitching(const pma::PMAlgStitching::Config& config)
 }
 
 // CPA stitching wrapper
-void
-pma::PMAlgStitching::StitchTracksCPA(const detinfo::DetectorClocksData& clockData,
-                                     const detinfo::DetectorPropertiesData& detProp,
-                                     pma::TrkCandidateColl& tracks)
+void pma::PMAlgStitching::StitchTracksCPA(const detinfo::DetectorClocksData& clockData,
+                                          const detinfo::DetectorPropertiesData& detProp,
+                                          pma::TrkCandidateColl& tracks)
 {
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for CPA stitching.";
   StitchTracks(clockData, detProp, tracks, true);
 }
 
 // APA stitching wrapper
-void
-pma::PMAlgStitching::StitchTracksAPA(const detinfo::DetectorClocksData& clockData,
-                                     const detinfo::DetectorPropertiesData& detProp,
-                                     pma::TrkCandidateColl& tracks)
+void pma::PMAlgStitching::StitchTracksAPA(const detinfo::DetectorClocksData& clockData,
+                                          const detinfo::DetectorPropertiesData& detProp,
+                                          pma::TrkCandidateColl& tracks)
 {
   mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for APA stitching.";
   StitchTracks(clockData, detProp, tracks, false);
@@ -51,11 +49,10 @@ pma::PMAlgStitching::StitchTracksAPA(const detinfo::DetectorClocksData& clockDat
 // Main function of the algorithm
 // isCPA = true  : attempt to stitch tracks across the cathode.
 //       = false : attempt to stitch tracks across the anode.
-void
-pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockData,
-                                  const detinfo::DetectorPropertiesData& detProp,
-                                  pma::TrkCandidateColl& tracks,
-                                  bool isCPA)
+void pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockData,
+                                       const detinfo::DetectorPropertiesData& detProp,
+                                       pma::TrkCandidateColl& tracks,
+                                       bool isCPA)
 {
 
   unsigned int minTrkLength = 2 * fNodesFromEnd + 3;
@@ -307,12 +304,11 @@ pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockData,
 }
 
 // Perform the matching, allowing the shift to vary within +/- 5cm.
-double
-pma::PMAlgStitching::GetOptimalStitchShift(TVector3& pos1,
-                                           TVector3& pos2,
-                                           TVector3& dir1,
-                                           TVector3& dir2,
-                                           double& shift) const
+double pma::PMAlgStitching::GetOptimalStitchShift(TVector3& pos1,
+                                                  TVector3& pos2,
+                                                  TVector3& dir1,
+                                                  TVector3& dir2,
+                                                  double& shift) const
 {
 
   double stepSize = 0.1;
@@ -338,11 +334,10 @@ pma::PMAlgStitching::GetOptimalStitchShift(TVector3& pos1,
 }
 
 // Perform the extrapolation between the two vectors and return the distance between them.
-double
-pma::PMAlgStitching::GetTrackPairDelta(TVector3& pos1,
-                                       TVector3& pos2,
-                                       TVector3& dir1,
-                                       TVector3& dir2) const
+double pma::PMAlgStitching::GetTrackPairDelta(TVector3& pos1,
+                                              TVector3& pos2,
+                                              TVector3& dir1,
+                                              TVector3& dir2) const
 {
 
   double delta = -999.;
@@ -362,8 +357,7 @@ pma::PMAlgStitching::GetTrackPairDelta(TVector3& pos1,
 }
 
 // Get the CPA and APA positions from the geometry
-void
-pma::PMAlgStitching::GetTPCXOffsets()
+void pma::PMAlgStitching::GetTPCXOffsets()
 {
 
   // Grab hold of the geometry
@@ -407,8 +401,7 @@ pma::PMAlgStitching::GetTPCXOffsets()
 }
 
 // Interface to get the CPA and APA positions from the maps in which they are stored.
-double
-pma::PMAlgStitching::GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA)
+double pma::PMAlgStitching::GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA)
 {
 
   geo::TPCID thisTPCID(cryo, tpc);

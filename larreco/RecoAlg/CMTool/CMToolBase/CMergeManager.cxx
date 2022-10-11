@@ -24,8 +24,7 @@ namespace cmtool {
     Reset();
   }
 
-  void
-  CMergeManager::Reset()
+  void CMergeManager::Reset()
   {
     CMManagerBase::Reset();
     _tmp_merged_clusters.clear();
@@ -39,8 +38,7 @@ namespace cmtool {
   }
 
   /// FMWK function called @ beginning of Process()
-  void
-  CMergeManager::EventBegin()
+  void CMergeManager::EventBegin()
   {
     // Initialization per event
     if (!_merge_algo) throw CMTException("No algorithm to run!");
@@ -79,8 +77,7 @@ namespace cmtool {
   }
 
   /// FMWK function called @ beginning of iterative loop inside Process()
-  void
-  CMergeManager::IterationBegin()
+  void CMergeManager::IterationBegin()
   {
 
     if (!_iter_ctr) {
@@ -109,8 +106,7 @@ namespace cmtool {
   }
 
   /// FMWK function called @ end of iterative loop inside Process()
-  void
-  CMergeManager::IterationEnd()
+  void CMergeManager::IterationEnd()
   {
 
     _merge_algo->IterationEnd();
@@ -143,8 +139,7 @@ namespace cmtool {
   }
 
   /// FMWK function called @ end of Process()
-  void
-  CMergeManager::EventEnd()
+  void CMergeManager::EventEnd()
   {
     // Gather the full book keeping result
     for (auto const& bk : _book_keeper_v)
@@ -161,8 +156,7 @@ namespace cmtool {
     _tmp_merged_indexes.clear();
   }
 
-  bool
-  CMergeManager::IterationProcess(util::GeometryUtilities const& gser)
+  bool CMergeManager::IterationProcess(util::GeometryUtilities const& gser)
   {
     // Configure input for RunMerge
     CMergeBookKeeper bk;
@@ -233,17 +227,15 @@ namespace cmtool {
     return true;
   }
 
-  void
-  CMergeManager::RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
-                          CMergeBookKeeper& book_keeper) const
+  void CMergeManager::RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                               CMergeBookKeeper& book_keeper) const
   {
     RunMerge(in_clusters, std::vector<bool>(in_clusters.size(), true), book_keeper);
   }
 
-  void
-  CMergeManager::RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
-                          const std::vector<bool>& merge_flag,
-                          CMergeBookKeeper& book_keeper) const
+  void CMergeManager::RunMerge(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                               const std::vector<bool>& merge_flag,
+                               CMergeBookKeeper& book_keeper) const
   {
     if (merge_flag.size() != in_clusters.size())
       throw CMTException(
@@ -323,9 +315,8 @@ namespace cmtool {
     }
   }
 
-  void
-  CMergeManager::RunSeparate(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
-                             CMergeBookKeeper& book_keeper) const
+  void CMergeManager::RunSeparate(const std::vector<cluster::ClusterParamsAlg>& in_clusters,
+                                  CMergeBookKeeper& book_keeper) const
   {
     /*
     if(separate_flag.size() != in_clusters.size())

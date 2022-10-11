@@ -9,9 +9,9 @@
 #include <stdint.h>
 #include <vector>
 
+#include "RStarTree/RStarTree.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for WireID
-#include "RStarTree/RStarTree.h"
 namespace detinfo {
   class DetectorClocksData;
   class DetectorPropertiesData;
@@ -38,8 +38,7 @@ struct dbsPoint {
   dbsPoint(double X = 0.0, double Y = 0.0, double dX = 0.0, double dY = 0.0)
     : x(X), y(Y), dx(dX), dy(dY){};
   BoundingBox bounds() const;
-  void
-  Expand(double DX, double DY)
+  void Expand(double DX, double DY)
   {
     dx += DX;
     dy += DY;

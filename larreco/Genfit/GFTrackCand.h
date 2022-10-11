@@ -23,8 +23,8 @@
 #define GFTRACKCAND_H
 
 #include <iostream>
-#include <vector>
 #include <set>
+#include <vector>
 
 #include "TObject.h"
 #include "TVector3.h"
@@ -55,7 +55,6 @@ namespace genf {
 
   class GFTrackCand : public TObject {
   public:
-
     // Constructors/Destructors ---------
     GFTrackCand();
     ~GFTrackCand();
@@ -72,129 +71,158 @@ namespace genf {
      * a corresponding GFRecoHitProducer. See RecoHitFactory for details.
      * @param hitIDs collection of hit indices.
      */
-    GFTrackCand(double curv, double dip, double inv, std::vector<unsigned int> detIDs, std::vector<unsigned int> hitIDs);
+    GFTrackCand(double curv,
+                double dip,
+                double inv,
+                std::vector<unsigned int> detIDs,
+                std::vector<unsigned int> hitIDs);
     /* @brief same as previous ctor, but with ordering parameters */
-    GFTrackCand(double curv, double dip, double inv, std::vector<unsigned int> detIDs, std::vector<unsigned int> hitIDs, std::vector<double> rhos);
+    GFTrackCand(double curv,
+                double dip,
+                double inv,
+                std::vector<unsigned int> detIDs,
+                std::vector<unsigned int> hitIDs,
+                std::vector<double> rhos);
 
     /* @brief == operator does not check for rho */
-    friend bool operator== (const GFTrackCand& lhs, const GFTrackCand& rhs);
+    friend bool operator==(const GFTrackCand& lhs, const GFTrackCand& rhs);
 
     // Accessors -----------------------
     /** @brief Get detector ID and cluster index (hitId) for hit number i
      */
-    void getHit(unsigned int i,
-		unsigned int& detId,
-		unsigned int& hitId) const {
+    void getHit(unsigned int i, unsigned int& detId, unsigned int& hitId) const
+    {
       if (i >= getNHits())
-        throw GFException("genf::GFTrackCand::getHit(int, int, int): hit index out of range", __LINE__, __FILE__).setFatal();
-      detId=fDetId.at(i);hitId=fHitId.at(i);
+        throw GFException(
+          "genf::GFTrackCand::getHit(int, int, int): hit index out of range", __LINE__, __FILE__)
+          .setFatal();
+      detId = fDetId.at(i);
+      hitId = fHitId.at(i);
     }
     /** @brief Get detector ID and cluster index (hitId) for
      * hit number i with ordering parameter rho
      */
-    void getHit(unsigned int i,
-		unsigned int& detId,
-		unsigned int& hitId,
-		double &rho) const {
+    void getHit(unsigned int i, unsigned int& detId, unsigned int& hitId, double& rho) const
+    {
       if (i >= getNHits())
-        throw GFException("genf::GFTrackCand::getHit(int, int, int, double): hit index out of range", __LINE__, __FILE__).setFatal();
-      detId=fDetId.at(i);hitId=fHitId.at(i);
-      rho=fRho.at(i);
+        throw GFException(
+          "genf::GFTrackCand::getHit(int, int, int, double): hit index out of range",
+          __LINE__,
+          __FILE__)
+          .setFatal();
+      detId = fDetId.at(i);
+      hitId = fHitId.at(i);
+      rho = fRho.at(i);
     }
     /** @brief Get detector ID and cluster index (hitId) for
      * hit number i with plane id
      */
     void getHitWithPlane(unsigned int i,
-			 unsigned int& detId,
-			 unsigned int& hitId,
-			 unsigned int& planeId) const {
+                         unsigned int& detId,
+                         unsigned int& hitId,
+                         unsigned int& planeId) const
+    {
       if (i >= getNHits())
-        throw GFException("genf::GFTrackCand::getHitWithPlane(): hit index out of range", __LINE__, __FILE__).setFatal();
-      detId=fDetId.at(i);hitId=fHitId.at(i);
-      planeId=fPlaneId.at(i);
+        throw GFException(
+          "genf::GFTrackCand::getHitWithPlane(): hit index out of range", __LINE__, __FILE__)
+          .setFatal();
+      detId = fDetId.at(i);
+      hitId = fHitId.at(i);
+      planeId = fPlaneId.at(i);
     }
 
-    unsigned int getNHits() const {return fDetId.size();}
-    double getCurv() const {return fCurv;}
-    double getDip() const {return fDip;}
-    bool inverted() const {return fInv;}
-    std::vector<unsigned int> GetHitIDs(int detId=-1);
-    std::vector<unsigned int> GetDetIDs() const {return fDetId;}
-    std::vector<double>       GetRhos() const {return fRho;}
-    std::set<unsigned int> GetUniqueDetIDs() const {
+    unsigned int getNHits() const { return fDetId.size(); }
+    double getCurv() const { return fCurv; }
+    double getDip() const { return fDip; }
+    bool inverted() const { return fInv; }
+    std::vector<unsigned int> GetHitIDs(int detId = -1);
+    std::vector<unsigned int> GetDetIDs() const { return fDetId; }
+    std::vector<double> GetRhos() const { return fRho; }
+    std::set<unsigned int> GetUniqueDetIDs() const
+    {
       std::set<unsigned int> retVal;
-      for(unsigned int i=0;i<fDetId.size();++i){
-	retVal.insert(fDetId.at(i));
+      for (unsigned int i = 0; i < fDetId.size(); ++i) {
+        retVal.insert(fDetId.at(i));
       }
       return retVal;
     }
     /** @brief get the MCT track id, for MC simulations - def. value -1
      */
-    int getMcTrackId() const {return fMcTrackId;}
+    int getMcTrackId() const { return fMcTrackId; }
     /** @brief get the seed value for track: pos */
-    TVector3 getPosSeed() const {return fPosSeed;}
+    TVector3 getPosSeed() const { return fPosSeed; }
     /** @brief get the seed value for track: direction */
-    TVector3 getDirSeed() const {return fDirSeed;}
+    TVector3 getDirSeed() const { return fDirSeed; }
     /** @brief get the seed value for track: qoverp */
-    double getQoverPseed() const {return fQoverpSeed;}
-    TVector3 getPosError() const {return fPosError;}
+    double getQoverPseed() const { return fQoverpSeed; }
+    TVector3 getPosError() const { return fPosError; }
     /** @brief get the seed value for track: error on direction (standard deviation)*/
-    TVector3 getDirError() const {return fDirError;}
+    TVector3 getDirError() const { return fDirError; }
     /** @brief get the PDG code*/
-    int getPdgCode() const {return fPdg;}
+    int getPdgCode() const { return fPdg; }
 
     // Modifiers -----------------------
-    void addHit(unsigned int detId, unsigned int hitId, double rho=0., unsigned int planeId=0);
-    void setCurv(double c){fCurv=c;}
-    void setDip(double d){fDip=d;}
-    void setInverted(bool f=true) {fInv=f;}
+    void addHit(unsigned int detId, unsigned int hitId, double rho = 0., unsigned int planeId = 0);
+    void setCurv(double c) { fCurv = c; }
+    void setDip(double d) { fDip = d; }
+    void setInverted(bool f = true) { fInv = f; }
     /** @brief set the MCT track id, for MC simulations
      */
-    void setMcTrackId(int i){fMcTrackId=i;}
+    void setMcTrackId(int i) { fMcTrackId = i; }
     /** @brief Test if hit already is part of this track candidate
      */
     bool HitInTrack(unsigned int detId, unsigned int hitId);
     /** @brief set the seed values for track: pos, direction, q/p
      */
-    void setTrackSeed(const TVector3& p,const TVector3& d,double qop){
-      fPosSeed=p;fDirSeed=d;fQoverpSeed=qop;
+    void setTrackSeed(const TVector3& p, const TVector3& d, double qop)
+    {
+      fPosSeed = p;
+      fDirSeed = d;
+      fQoverpSeed = qop;
     }
 
-    void setComplTrackSeed(const TVector3& pos,const TVector3& mom, const int pdgCode, TVector3 posError = TVector3(1.0,1.0,1.0), TVector3 dirError = TVector3(1.0,1.0,1.0));
+    void setComplTrackSeed(const TVector3& pos,
+                           const TVector3& mom,
+                           const int pdgCode,
+                           TVector3 posError = TVector3(1.0, 1.0, 1.0),
+                           TVector3 dirError = TVector3(1.0, 1.0, 1.0));
     /** @brief set a particle hypothesis in form of a PDG code
      */
-    void setPdgCode(int pdgCode){fPdg=pdgCode;}
+    void setPdgCode(int pdgCode) { fPdg = pdgCode; }
 
     void append(const GFTrackCand&);
 
     // Operations ----------------------
     void reset();
-    void Print(std::ostream& out = std::cout) const ;
+    void Print(std::ostream& out = std::cout) const;
 
   private:
-
     // Private Data Members ------------
     std::vector<unsigned int> fDetId;
     std::vector<unsigned int> fHitId;
     std::vector<unsigned int> fPlaneId;
-    std::vector<double>       fRho;
+    std::vector<double> fRho;
 
     double fCurv; // curvature from pattern reco
     double fDip;  // dip angle from pattern reco
-    bool fInv;  // true if inverted track
+    bool fInv;    // true if inverted track
 
     TVector3 fPosSeed;  //seed value for the track: pos
     TVector3 fDirSeed;  //direction
     double fQoverpSeed; //q/p
-    TVector3 fPosError;  //error on position seed given as a standard deviation
-    TVector3 fDirError;  //error on direction seed given as a standard deviation
-    int fPdg; // particle data groupe's id for a particle
+    TVector3 fPosError; //error on position seed given as a standard deviation
+    TVector3 fDirError; //error on direction seed given as a standard deviation
+    int fPdg;           // particle data groupe's id for a particle
 
     int fMcTrackId; //if MC simulation, store the mct track id here
     // Private Methods -----------------
 
     virtual void Print(Option_t*) const
-      { throw GFException(std::string(__func__) + "::Print(Option_t*) not available", __LINE__, __FILE__).setFatal(); }
+    {
+      throw GFException(
+        std::string(__func__) + "::Print(Option_t*) not available", __LINE__, __FILE__)
+        .setFatal();
+    }
 
     //public:
     //ClassDef(GFTrackCand,3)

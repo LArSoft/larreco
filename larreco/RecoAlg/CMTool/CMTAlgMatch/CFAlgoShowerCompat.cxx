@@ -31,15 +31,13 @@ namespace cmtool {
   }
 
   //-----------------------------
-  void
-  CFAlgoShowerCompat::Reset()
+  void CFAlgoShowerCompat::Reset()
   //-----------------------------
   {}
 
   //----------------------------------------------------------------------------------------------
-  float
-  CFAlgoShowerCompat::Float(util::GeometryUtilities const&,
-                            const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  float CFAlgoShowerCompat::Float(util::GeometryUtilities const&,
+                                  const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
     _o_ang_avg = 0;
@@ -97,13 +95,11 @@ namespace cmtool {
   }
 
   //------------------------------
-  void
-  CFAlgoShowerCompat::Report()
+  void CFAlgoShowerCompat::Report()
   //------------------------------
   {}
 
-  void
-  CFAlgoShowerCompat::PrintClusterInfo(const cluster::ClusterParamsAlg& c)
+  void CFAlgoShowerCompat::PrintClusterInfo(const cluster::ClusterParamsAlg& c)
   {
     std::cout << "    This cluster's info is as follows:" << std::endl;
     std::cout << "        Opening Angle: " << c.GetParams().opening_angle << std::endl;

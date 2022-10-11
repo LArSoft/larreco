@@ -269,8 +269,7 @@ namespace hit {
 
   MCHitAnaExample::~MCHitAnaExample() {}
 
-  void
-  MCHitAnaExample::analyze(art::Event const& e)
+  void MCHitAnaExample::analyze(art::Event const& e)
   {
     fAnaWatch.Start();
 

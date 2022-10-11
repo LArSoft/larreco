@@ -18,5 +18,4 @@
 */
 #include "larreco/Genfit/GFRecoHitProducer.h"
 
-GFAbsRecoHitProducer::~GFAbsRecoHitProducer() {
-}
+GFAbsRecoHitProducer::~GFAbsRecoHitProducer() {}

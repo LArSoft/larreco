@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 
 namespace util {
   class GeometryUtilities;
@@ -28,31 +28,15 @@ namespace cluster {
 
     void Initialize();
 
-    void
-    SetMinNHits(size_t nhit)
-    {
-      fMinNHits = nhit;
-    }
+    void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
 
-    size_t
-    MinNHits() const
-    {
-      return fMinNHits;
-    }
+    size_t MinNHits() const { return fMinNHits; }
 
     int SetHits(const std::vector<util::PxHit>&);
 
-    void
-    SetRefineDirectionQMin(double qmin)
-    {
-      fQMinRefDir = qmin;
-    }
+    void SetRefineDirectionQMin(double qmin) { fQMinRefDir = qmin; }
 
-    void
-    SetVerbose(bool yes = true)
-    {
-      verbose = yes;
-    }
+    void SetVerbose(bool yes = true) { verbose = yes; }
 
     template <typename Stream>
     void TimeReport(Stream& stream) const;
@@ -95,11 +79,7 @@ namespace cluster {
                     bool override_DoTrackShowerSep = false,
                     bool override_DoEndCharge = false);
 
-    const cluster_params&
-    GetParams() const
-    {
-      return fParams;
-    }
+    const cluster_params& GetParams() const { return fParams; }
 
     /**
        Calculates the following variables:
@@ -168,37 +148,17 @@ namespace cluster {
 
     void TrackShowerSeparation(bool override = false);
 
-    void
-    setNeuralNetPath(std::string s)
-    {
-      fNeuralNetPath = s;
-    }
+    void setNeuralNetPath(std::string s) { fNeuralNetPath = s; }
 
     void FillPolygon(util::GeometryUtilities const& gser);
 
     void GetOpeningAngle();
 
-    const util::PxPoint&
-    RoughStartPoint()
-    {
-      return fRoughBeginPoint;
-    }
-    const util::PxPoint&
-    RoughEndPoint()
-    {
-      return fRoughEndPoint;
-    }
+    const util::PxPoint& RoughStartPoint() { return fRoughBeginPoint; }
+    const util::PxPoint& RoughEndPoint() { return fRoughEndPoint; }
 
-    double
-    RoughSlope()
-    {
-      return fRough2DSlope;
-    }
-    double
-    RoughIntercept()
-    {
-      return fRough2DIntercept;
-    }
+    double RoughSlope() { return fRough2DSlope; }
+    double RoughIntercept() { return fRough2DIntercept; }
 
     /**
      * @brief Returns the expected charge at the beginning of the cluster
@@ -264,27 +224,11 @@ namespace cluster {
 
     void EnableFANN();
 
-    void
-    DisableFANN()
-    {
-      enableFANN = false;
-    }
+    void DisableFANN() { enableFANN = false; }
 
-    size_t
-    GetNHits() const
-    {
-      return fHitVector.size();
-    }
-    const std::vector<util::PxHit>&
-    GetHitVector() const
-    {
-      return fHitVector;
-    }
-    int
-    Plane() const
-    {
-      return fPlane;
-    }
+    size_t GetNHits() const { return fHitVector.size(); }
+    const std::vector<util::PxHit>& GetHitVector() const { return fHitVector; }
+    int Plane() const { return fPlane; }
     void SetPlane(int p);
 
   protected:
@@ -398,8 +342,7 @@ namespace cluster {
 namespace cluster {
 
   template <typename Stream>
-  void
-  ClusterParamsAlg::TimeReport(Stream& stream) const
+  void ClusterParamsAlg::TimeReport(Stream& stream) const
   {
 
     stream << "  <<ClusterParamsAlg::TimeReport>> starts...\n";

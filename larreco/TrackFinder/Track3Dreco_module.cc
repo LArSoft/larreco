@@ -80,8 +80,7 @@ namespace trkf {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  Track3Dreco::produce(art::Event& evt)
+  void Track3Dreco::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
     auto const detProp =

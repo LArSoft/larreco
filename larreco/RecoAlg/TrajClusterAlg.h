@@ -15,7 +15,9 @@
 #include <vector>
 
 // framework libraries
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
@@ -39,17 +41,12 @@ namespace tca {
     bool SetInputHits(std::vector<recob::Hit> const& inputHits,
                       unsigned int run,
                       unsigned int event);
-    void
-    SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle)
+    void SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle)
     {
       evt.sptHandle = &sptHandle;
     }
     void SetSourceHits(std::vector<recob::Hit> const& srcHits);
-    void
-    ExpectSlicedHits()
-    {
-      evt.expectSlicedHits = true;
-    }
+    void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
                            detinfo::DetectorPropertiesData const& detProp,
                            std::vector<unsigned int>& hitsInSlice,
@@ -62,34 +59,17 @@ namespace tca {
 
     void DefineShTree(TTree* t);
 
-    unsigned short
-    GetSlicesSize() const
-    {
-      return slices.size();
-    }
-    TCSlice const&
-    GetSlice(unsigned short sliceIndex) const
-    {
-      return slices[sliceIndex];
-    }
+    unsigned short GetSlicesSize() const { return slices.size(); }
+    TCSlice const& GetSlice(unsigned short sliceIndex) const { return slices[sliceIndex]; }
     void MergeTPHits(std::vector<unsigned int>& tpHits,
                      std::vector<recob::Hit>& newHitCol,
                      std::vector<unsigned int>& newHitAssns) const;
 
-    std::vector<unsigned int> const&
-    GetAlgModCount() const
-    {
-      return fAlgModCount;
-    }
-    std::vector<std::string> const&
-    GetAlgBitNames() const
-    {
-      return AlgBitNames;
-    }
+    std::vector<unsigned int> const& GetAlgModCount() const { return fAlgModCount; }
+    std::vector<std::string> const& GetAlgBitNames() const { return AlgBitNames; }
 
     /// Deletes all the results
-    void
-    ClearResults()
+    void ClearResults()
     {
       slices.resize(0);
       evt.sptHits.resize(0);

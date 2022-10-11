@@ -184,8 +184,7 @@ namespace vertex {
 
   // -----------------------------------------------------------------------------
   // Produce
-  void
-  FeatureVertexFinder::produce(art::Event& evt)
+  void FeatureVertexFinder::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
     auto const detProp =
@@ -486,8 +485,7 @@ namespace vertex {
   // -----------------------------------------------------------------------------
   // Get 3d Vertex Candidates
   // -----------------------------------------------------------------------------
-  void
-  vertex::FeatureVertexFinder::Get3dVertexCandidates(
+  void vertex::FeatureVertexFinder::Get3dVertexCandidates(
     detinfo::DetectorPropertiesData const& detProp,
     std::vector<art::Ptr<recob::EndPoint2D>> EndPoints,
     bool PlaneDet)
@@ -664,8 +662,7 @@ namespace vertex {
   // -----------------------------------------------------------------------------
   // Get 2d Vertex Candidates from clusters
   // -----------------------------------------------------------------------------
-  void
-  vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(
+  void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(
     detinfo::DetectorPropertiesData const& detProp,
     art::PtrVector<recob::Cluster> RawClusters,
     art::FindManyP<recob::Hit> fmhit)
@@ -954,8 +951,7 @@ namespace vertex {
   // -----------------------------------------------------------------------------
   // Get 3d Vertex Candidates from clusters 2d Vertex candidates
   // -----------------------------------------------------------------------------
-  void
-  vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(
+  void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(
     detinfo::DetectorPropertiesData const& detProp,
     std::vector<double> const& Wire_2dvtx,
     std::vector<double> const& Time_2dvtx,
@@ -1118,11 +1114,10 @@ namespace vertex {
   // -----------------------------------------------------------------------------
   // Get 3d Vertex Candidates from clusters 2d Vertex candidates
   // -----------------------------------------------------------------------------
-  void
-  vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(std::vector<double> merge_vtxX,
-                                                          std::vector<double> merge_vtxY,
-                                                          std::vector<double> merge_vtxZ,
-                                                          std::vector<double> merge_vtxStgth)
+  void vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(std::vector<double> merge_vtxX,
+                                                               std::vector<double> merge_vtxY,
+                                                               std::vector<double> merge_vtxZ,
+                                                               std::vector<double> merge_vtxStgth)
   {
 
     std::vector<double> x_3dVertex_dupRemoved = {0.};

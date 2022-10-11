@@ -72,8 +72,7 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------------------
-  void
-  HoughLineFinder::produce(art::Event& evt)
+  void HoughLineFinder::produce(art::Event& evt)
   {
     //////////////////////////////////////////////////////
     // here is how to get a collection of objects out of the file

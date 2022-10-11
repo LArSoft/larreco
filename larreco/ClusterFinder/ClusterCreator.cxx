@@ -49,8 +49,7 @@ namespace cluster {
   {} // ClusterCreator::ClusterCreator()
 
   //----------------------------------------------------------------------
-  recob::Cluster
-  ClusterCreator::CreateCluster(
+  recob::Cluster ClusterCreator::CreateCluster(
     util::GeometryUtilities const& gser,
     ClusterParamsAlgBase& algo,
     float start_wire,

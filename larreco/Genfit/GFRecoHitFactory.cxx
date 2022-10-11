@@ -21,61 +21,64 @@
 #include "larreco/Genfit/GFRecoHitProducer.h"
 #include "larreco/Genfit/GFTrackCand.h"
 
+genf::GFRecoHitFactory::GFRecoHitFactory() {}
 
-genf::GFRecoHitFactory::GFRecoHitFactory(){
-}
-
-genf::GFRecoHitFactory::~GFRecoHitFactory(){
+genf::GFRecoHitFactory::~GFRecoHitFactory()
+{
   clear();
 }
 
-void genf::GFRecoHitFactory::addProducer(int detID, GFAbsRecoHitProducer* hitProd) {
-  if(fHitProdMap[detID] != NULL) {
-	GFException exc("GFRecoHitFactory: detID already in use",__LINE__,__FILE__);
-	exc.setFatal();
-	std::vector<double> numbers;
-	numbers.push_back(detID);
-	exc.setNumbers("detID",numbers);
-	throw exc;
+void genf::GFRecoHitFactory::addProducer(int detID, GFAbsRecoHitProducer* hitProd)
+{
+  if (fHitProdMap[detID] != NULL) {
+    GFException exc("GFRecoHitFactory: detID already in use", __LINE__, __FILE__);
+    exc.setFatal();
+    std::vector<double> numbers;
+    numbers.push_back(detID);
+    exc.setNumbers("detID", numbers);
+    throw exc;
   }
   else {
-	fHitProdMap[detID] = hitProd;
+    fHitProdMap[detID] = hitProd;
   }
 }
 
-void genf::GFRecoHitFactory::clear(){
-  std::map<int, GFAbsRecoHitProducer*>::iterator it=fHitProdMap.begin();
-  while(it!=fHitProdMap.end()){
-	delete it->second;
-	++it;
+void genf::GFRecoHitFactory::clear()
+{
+  std::map<int, GFAbsRecoHitProducer*>::iterator it = fHitProdMap.begin();
+  while (it != fHitProdMap.end()) {
+    delete it->second;
+    ++it;
   }
   fHitProdMap.clear();
 }
 
-genf::GFAbsRecoHit* genf::GFRecoHitFactory::createOne(int detID, int index) {
-  if(fHitProdMap[detID] != NULL) {
+genf::GFAbsRecoHit* genf::GFRecoHitFactory::createOne(int detID, int index)
+{
+  if (fHitProdMap[detID] != NULL) {
     return (genf::GFAbsRecoHit*)(fHitProdMap[detID]->produce(index));
   }
 
-
   else {
-	GFException exc("GFRecoHitFactory: no hitProducer for this detID available",__LINE__,__FILE__);
-	exc.setFatal();
-	std::vector<double> numbers;
-	numbers.push_back(detID);
-	exc.setNumbers("detID",numbers);
-	throw exc;
+    GFException exc(
+      "GFRecoHitFactory: no hitProducer for this detID available", __LINE__, __FILE__);
+    exc.setFatal();
+    std::vector<double> numbers;
+    numbers.push_back(detID);
+    exc.setNumbers("detID", numbers);
+    throw exc;
   }
 }
 
-std::vector<genf::GFAbsRecoHit*> genf::GFRecoHitFactory::createMany(const GFTrackCand& cand){
+std::vector<genf::GFAbsRecoHit*> genf::GFRecoHitFactory::createMany(const GFTrackCand& cand)
+{
   std::vector<genf::GFAbsRecoHit*> hitVec;
-  unsigned int nHits=cand.getNHits();
-  for(unsigned int i=0;i<nHits;i++) {
+  unsigned int nHits = cand.getNHits();
+  for (unsigned int i = 0; i < nHits; i++) {
     unsigned int detID;
     unsigned int index;
-    cand.getHit(i,detID,index);
-    hitVec.push_back( createOne(detID,index) );
+    cand.getHit(i, detID, index);
+    hitVec.push_back(createOne(detID, index));
   }
   return hitVec;
 }

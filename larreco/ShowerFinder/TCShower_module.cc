@@ -90,8 +90,7 @@ shower::TCShower::TCShower(fhicl::ParameterSet const& pset)
 
 // -----------------------------------------------------
 
-void
-shower::TCShower::produce(art::Event& evt)
+void shower::TCShower::produce(art::Event& evt)
 {
   auto showers = std::make_unique<std::vector<recob::Shower>>();
   auto hitShowerAssociations = std::make_unique<art::Assns<recob::Shower, recob::Hit>>();
@@ -162,11 +161,10 @@ shower::TCShower::produce(art::Event& evt)
 } // produce
 
 // -----------------------------------------------------
-int
-shower::TCShower::getShowersWithSlices(art::Event const& evt,
-                                       detinfo::DetectorClocksData const& clockData,
-                                       detinfo::DetectorPropertiesData const& detProp,
-                                       art::Ptr<recob::Slice> const& thisslice)
+int shower::TCShower::getShowersWithSlices(art::Event const& evt,
+                                           detinfo::DetectorClocksData const& clockData,
+                                           detinfo::DetectorPropertiesData const& detProp,
+                                           art::Ptr<recob::Slice> const& thisslice)
 {
   art::Handle<std::vector<recob::Hit>> hitListHandle;
   evt.getByLabel(fHitModuleLabel, hitListHandle);
@@ -238,10 +236,9 @@ shower::TCShower::getShowersWithSlices(art::Event const& evt,
 }
 
 // -----------------------------------------------------
-int
-shower::TCShower::getShowersWithoutSlices(art::Event const& evt,
-                                          detinfo::DetectorClocksData const& clockData,
-                                          detinfo::DetectorPropertiesData const& detProp)
+int shower::TCShower::getShowersWithoutSlices(art::Event const& evt,
+                                              detinfo::DetectorClocksData const& clockData,
+                                              detinfo::DetectorPropertiesData const& detProp)
 {
   // pfparticles
   art::Handle<std::vector<recob::PFParticle>> pfpListHandle;

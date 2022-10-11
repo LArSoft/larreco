@@ -64,9 +64,7 @@ namespace showerreco {
 
   protected:
     /// Function to reorganize input cluster information
-    virtual void
-    ProcessInputClusters()
-    {}
+    virtual void ProcessInputClusters() {}
 
     /// Function to reconstruct one shower
     virtual ::recob::Shower RecoOneShower(

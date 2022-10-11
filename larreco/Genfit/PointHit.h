@@ -9,37 +9,35 @@
 
 namespace genf {
 
-typedef GFRecoHitIfc<GFSpacepointHitPolicy> SpacepointRecoHit;
+  typedef GFRecoHitIfc<GFSpacepointHitPolicy> SpacepointRecoHit;
 
-class PointHit : public SpacepointRecoHit {
-public:
+  class PointHit : public SpacepointRecoHit {
+  public:
+    // Constructors/Destructors ---------
+    PointHit();
+    PointHit(TVector3 point, double res);
+    PointHit(TVector3 point, std::vector<double>& ref);
+    PointHit(TVector3 point, TVector3 res);
 
-  // Constructors/Destructors ---------
-  PointHit();
-  PointHit(TVector3 point, double res);
-  PointHit(TVector3 point, std::vector<double> &ref);
-  PointHit(TVector3 point,TVector3 res);
+    virtual ~PointHit();
 
-  virtual ~PointHit();
+    virtual GFAbsRecoHit* clone();
 
-  virtual GFAbsRecoHit* clone();
+    // Operations ----------------------
+    virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector);
+    virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector,
+                                          const Double_t&,
+                                          const Double_t&);
 
-  // Operations ----------------------
-  virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector);
-  virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector, const Double_t&, const Double_t&);
+  private:
+    // Private Data Members ------------
+    static const int NparHitRep = 3;
 
-private:
+    // Private Methods -----------------
 
-  // Private Data Members ------------
-  static const int NparHitRep = 3;
-
-  // Private Methods -----------------
-
-  //public:
-  //ClassDef(PointHit,1)
-
-};
-
+    //public:
+    //ClassDef(PointHit,1)
+  };
 
 } // namespace genf
 

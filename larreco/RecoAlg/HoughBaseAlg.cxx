@@ -77,22 +77,13 @@ namespace cluster {
     std::array<int, 3> AddPointReturnMax(int x, int y);
     bool SubtractPoint(int x, int y);
     int GetCell(int row, int col) const;
-    void
-    SetCell(int row, int col, int value)
-    {
-      m_accum[row].set(col, value);
-    }
-    void
-    GetAccumSize(int& numRows, int& numCols)
+    void SetCell(int row, int col, int value) { m_accum[row].set(col, value); }
+    void GetAccumSize(int& numRows, int& numCols)
     {
       numRows = m_accum.size();
       numCols = (int)m_rowLength;
     }
-    int
-    NumAccumulated()
-    {
-      return m_numAccumulated;
-    }
+    int NumAccumulated() { return m_numAccumulated; }
     void GetEquation(float row, float col, float& rho, float& theta) const;
     int GetMax(int& xmax, int& ymax) const;
 
@@ -124,23 +115,22 @@ namespace cluster {
 }
 
 template <typename T>
-inline T
-sqr(T v)
+inline T sqr(T v)
 {
   return v * v;
 }
 
 //------------------------------------------------------------------------------
 template <typename K, typename C, size_t S, typename A, unsigned int SC>
-inline void
-cluster::HoughTransformCounters<K, C, S, A, SC>::increment(Key_t key_begin, Key_t key_end)
+inline void cluster::HoughTransformCounters<K, C, S, A, SC>::increment(Key_t key_begin,
+                                                                       Key_t key_end)
 {
   unchecked_add_range_max(key_begin, key_end, +1, std::numeric_limits<SubCounter_t>::max());
 } // cluster::HoughTransformCounters<>::increment(begin, end)
 
 template <typename K, typename C, size_t S, typename A, unsigned int SC>
-inline void
-cluster::HoughTransformCounters<K, C, S, A, SC>::decrement(Key_t key_begin, Key_t key_end)
+inline void cluster::HoughTransformCounters<K, C, S, A, SC>::decrement(Key_t key_begin,
+                                                                       Key_t key_end)
 {
   unchecked_add_range_max(key_begin, key_end, -1, std::numeric_limits<SubCounter_t>::max());
 } // cluster::HoughTransformCounters<>::decrement(begin, end)
@@ -276,15 +266,15 @@ cluster::HoughBaseAlg::HoughBaseAlg(fhicl::ParameterSet const& pset)
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::HoughBaseAlg::Transform(detinfo::DetectorClocksData const& clockData,
-                                 detinfo::DetectorPropertiesData const& detProp,
-                                 std::vector<art::Ptr<recob::Hit>> const& hits,
-                                 CLHEP::HepRandomEngine& engine,
-                                 std::vector<unsigned int>* fpointId_to_clusterId,
-                                 unsigned int clusterId, // The id of the cluster we are examining
-                                 unsigned int* nClusters,
-                                 std::vector<protoTrack>* linesFound)
+size_t cluster::HoughBaseAlg::Transform(
+  detinfo::DetectorClocksData const& clockData,
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> const& hits,
+  CLHEP::HepRandomEngine& engine,
+  std::vector<unsigned int>* fpointId_to_clusterId,
+  unsigned int clusterId, // The id of the cluster we are examining
+  unsigned int* nClusters,
+  std::vector<protoTrack>* linesFound)
 {
   int nClustersTemp = *nClusters;
 
@@ -647,8 +637,7 @@ cluster::HoughBaseAlg::Transform(detinfo::DetectorClocksData const& clockData,
 }
 
 //------------------------------------------------------------------------------
-inline int
-cluster::HoughTransform::GetCell(int row, int col) const
+inline int cluster::HoughTransform::GetCell(int row, int col) const
 {
   return m_accum[row][col];
 } // cluster::HoughTransform::GetCell()
@@ -656,8 +645,7 @@ cluster::HoughTransform::GetCell(int row, int col) const
 //------------------------------------------------------------------------------
 // returns a vector<int> where the first is the overall maximum,
 // the second is the max x value, and the third is the max y value.
-inline std::array<int, 3>
-cluster::HoughTransform::AddPointReturnMax(int x, int y)
+inline std::array<int, 3> cluster::HoughTransform::AddPointReturnMax(int x, int y)
 {
   if ((x > (int)m_dx) || (y > (int)m_dy) || x < 0.0 || y < 0.0) {
     std::array<int, 3> max;
@@ -668,8 +656,7 @@ cluster::HoughTransform::AddPointReturnMax(int x, int y)
 }
 
 //------------------------------------------------------------------------------
-inline bool
-cluster::HoughTransform::SubtractPoint(int x, int y)
+inline bool cluster::HoughTransform::SubtractPoint(int x, int y)
 {
   if ((x > (int)m_dx) || (y > (int)m_dy) || x < 0.0 || y < 0.0) return false;
   DoAddPointReturnMax(x, y, true); // true = subtract
@@ -677,11 +664,10 @@ cluster::HoughTransform::SubtractPoint(int x, int y)
 }
 
 //------------------------------------------------------------------------------
-void
-cluster::HoughTransform::Init(unsigned int dx,
-                              unsigned int dy,
-                              float rhores,
-                              unsigned int numACells)
+void cluster::HoughTransform::Init(unsigned int dx,
+                                   unsigned int dy,
+                                   float rhores,
+                                   unsigned int numACells)
 {
   m_numAngleCells = numACells;
   m_rhoResolutionFactor = rhores;
@@ -726,16 +712,14 @@ cluster::HoughTransform::Init(unsigned int dx,
 }
 
 //------------------------------------------------------------------------------
-void
-cluster::HoughTransform::GetEquation(float row, float col, float& rho, float& theta) const
+void cluster::HoughTransform::GetEquation(float row, float col, float& rho, float& theta) const
 {
   theta = (TMath::Pi() * row) / m_numAngleCells;
   rho = (col - (m_rowLength / 2.)) / m_rhoResolutionFactor;
 } // cluster::HoughTransform::GetEquation()
 
 //------------------------------------------------------------------------------
-int
-cluster::HoughTransform::GetMax(int& xmax, int& ymax) const
+int cluster::HoughTransform::GetMax(int& xmax, int& ymax) const
 {
   int maxVal = -1;
   for (unsigned int i = 0; i < m_accum.size(); i++) {
@@ -754,8 +738,9 @@ cluster::HoughTransform::GetMax(int& xmax, int& ymax) const
 //------------------------------------------------------------------------------
 // returns a vector<int> where the first is the overall maximum,
 // the second is the max x value, and the third is the max y value.
-std::array<int, 3>
-cluster::HoughTransform::DoAddPointReturnMax(int x, int y, bool bSubtract /* = false */)
+std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax(int x,
+                                                                int y,
+                                                                bool bSubtract /* = false */)
 {
   std::array<int, 3> max;
   max.fill(-1);
@@ -847,8 +832,7 @@ cluster::HoughTransform::DoAddPointReturnMax(int x, int y, bool bSubtract /* = f
 
 //------------------------------------------------------------------------------
 //this method saves a BMP image of the Hough Accumulator, which can be viewed with gimp
-void
-cluster::HoughBaseAlg::HLSSaveBMPFile(const char* fileName, unsigned char* pix, int dx, int dy)
+void cluster::HoughBaseAlg::HLSSaveBMPFile(const char* fileName, unsigned char* pix, int dx, int dy)
 {
   std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
@@ -882,13 +866,12 @@ cluster::HoughBaseAlg::HLSSaveBMPFile(const char* fileName, unsigned char* pix, 
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster>>& clusIn,
-                                     std::vector<recob::Cluster>& ccol,
-                                     std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-                                     CLHEP::HepRandomEngine& engine,
-                                     art::Event const& evt,
-                                     std::string const& label)
+size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster>>& clusIn,
+                                            std::vector<recob::Cluster>& ccol,
+                                            std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                                            CLHEP::HepRandomEngine& engine,
+                                            art::Event const& evt,
+                                            std::string const& label)
 {
   std::vector<int> skip;
 
@@ -1012,12 +995,11 @@ cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster>>
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockData,
-                                     detinfo::DetectorPropertiesData const& detProp,
-                                     std::vector<art::Ptr<recob::Hit>> const& clusIn,
-                                     std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-                                     CLHEP::HepRandomEngine& engine)
+size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockData,
+                                            detinfo::DetectorPropertiesData const& detProp,
+                                            std::vector<art::Ptr<recob::Hit>> const& clusIn,
+                                            std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                                            CLHEP::HepRandomEngine& engine)
 {
   std::vector<double> slopevec;
   std::vector<ChargeInfo_t> totalQvec;
@@ -1025,14 +1007,13 @@ cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockDat
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockData,
-                                     detinfo::DetectorPropertiesData const& detProp,
-                                     std::vector<art::Ptr<recob::Hit>> const& clusIn,
-                                     std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
-                                     CLHEP::HepRandomEngine& engine,
-                                     std::vector<double>& slopevec,
-                                     std::vector<ChargeInfo_t>& totalQvec)
+size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockData,
+                                            detinfo::DetectorPropertiesData const& detProp,
+                                            std::vector<art::Ptr<recob::Hit>> const& clusIn,
+                                            std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                                            CLHEP::HepRandomEngine& engine,
+                                            std::vector<double>& slopevec,
+                                            std::vector<ChargeInfo_t>& totalQvec)
 {
   std::vector<int> skip;
 
@@ -1371,11 +1352,10 @@ cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& clockDat
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::HoughBaseAlg::Transform(detinfo::DetectorPropertiesData const& detProp,
-                                 std::vector<art::Ptr<recob::Hit>> const& hits,
-                                 double& slope,
-                                 double& intercept)
+size_t cluster::HoughBaseAlg::Transform(detinfo::DetectorPropertiesData const& detProp,
+                                        std::vector<art::Ptr<recob::Hit>> const& hits,
+                                        double& slope,
+                                        double& intercept)
 {
   HoughTransform c;
 

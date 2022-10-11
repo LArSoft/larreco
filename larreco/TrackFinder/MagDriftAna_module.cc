@@ -34,7 +34,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
-#include "nug4/MagneticFieldServices/MagneticFieldService.h" 
+#include "nug4/MagneticFieldServices/MagneticFieldService.h"
 
 /// Detector simulation of raw signals on wires
 namespace hit {
@@ -92,8 +92,7 @@ namespace hit {
   {}
 
   //-------------------------------------------------
-  void
-  MagDriftAna::ensureHists(art::Event const& evt, detinfo::DetectorClocksData const& clockData)
+  void MagDriftAna::ensureHists(art::Event const& evt, detinfo::DetectorClocksData const& clockData)
   {
     if (initDone) return; // Bail if we've already done this.
     initDone = true;      // Insure that we bail later on
@@ -168,8 +167,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  MagDriftAna::endJob()
+  void MagDriftAna::endJob()
   {
     // Add a line on the deltaZ/X graph to denote the calculated value
     // of the drift ration
@@ -189,8 +187,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  MagDriftAna::analyze(const art::Event& evt)
+  void MagDriftAna::analyze(const art::Event& evt)
   {
     if (evt.isRealData()) {
       throw cet::exception("MagDriftAna: ") << "Not for use on Data yet...\n";

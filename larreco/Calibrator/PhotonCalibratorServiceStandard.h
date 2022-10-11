@@ -40,11 +40,7 @@ namespace calib {
     {}
 
   private:
-    provider_type const*
-    provider() const override
-    {
-      return &fProvider;
-    }
+    provider_type const* provider() const override { return &fProvider; }
 
     PhotonCalibratorStandard fProvider;
   };

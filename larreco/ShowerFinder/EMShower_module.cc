@@ -63,11 +63,7 @@ namespace {
   struct AddMany {
     AddMany(art::Ptr<T> const& ptr, art::Assns<T, U>& assns) : ptr_{ptr}, assns_{assns} {}
 
-    void
-    operator()(art::Ptr<U> const& b) const
-    {
-      assns_.addSingle(ptr_, b);
-    }
+    void operator()(art::Ptr<U> const& b) const { assns_.addSingle(ptr_, b); }
 
     art::Ptr<T> const ptr_;
     art::Assns<T, U>& assns_;
@@ -135,8 +131,7 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset)
   produces<art::Assns<recob::SpacePoint, recob::Hit>>();
 }
 
-void
-shower::EMShower::produce(art::Event& evt)
+void shower::EMShower::produce(art::Event& evt)
 {
   // Output -- showers and associations with hits and clusters
   auto showers = std::make_unique<std::vector<recob::Shower>>();

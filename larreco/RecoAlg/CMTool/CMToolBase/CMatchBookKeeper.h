@@ -14,8 +14,8 @@
 #ifndef RECOTOOL_CMATCHBOOKKEEPER_H
 #define RECOTOOL_CMATCHBOOKKEEPER_H
 
-#include <vector>
 #include <map>
+#include <vector>
 
 namespace cmtool {
   /**
@@ -26,7 +26,6 @@ namespace cmtool {
   class CMatchBookKeeper {
 
   public:
-
     /// Default constructor
     CMatchBookKeeper();
 
@@ -34,19 +33,16 @@ namespace cmtool {
     void Reset();
 
     /// Method to register matched clusters
-    void Match(const std::vector<unsigned int>& matched_indexes,
-	       const float& score);
+    void Match(const std::vector<unsigned int>& matched_indexes, const float& score);
 
     /// Method to get result
-    std::vector<std::vector<unsigned int> > GetResult() const;
+    std::vector<std::vector<unsigned int>> GetResult() const;
 
     /// Method to pass result
-    void PassResult(std::vector<std::vector<unsigned int> >& result) const;
+    void PassResult(std::vector<std::vector<unsigned int>>& result) const;
 
   protected:
-
-    std::multimap<float,std::vector<unsigned int> > _register;
-
+    std::multimap<float, std::vector<unsigned int>> _register;
   };
 }
 #endif

@@ -27,8 +27,7 @@
 #include "RtypesCore.h"
 class TVector3;
 
-#include"GFAbsEnergyLoss.h"
-
+#include "GFAbsEnergyLoss.h"
 
 /** @brief Energy loss for electrons/positrons due to bremsstrahlung, energy loss straggeling
  *
@@ -43,32 +42,31 @@ class TVector3;
  */
 namespace genf {
 
-class GFEnergyLossBrems : public GFAbsEnergyLoss{
- public:
-  //! Returns energy loss, optional calculation of energy loss straggeling
-  /** Can be called with any pdg, but only calculates energy loss and straggeling for electrons and positrons (otherwise returns 0).
+  class GFEnergyLossBrems : public GFAbsEnergyLoss {
+  public:
+    //! Returns energy loss, optional calculation of energy loss straggeling
+    /** Can be called with any pdg, but only calculates energy loss and straggeling for electrons and positrons (otherwise returns 0).
     * Uses a gaussian approximation (Bethe-Heitler formula with Migdal corrections).
     * For positrons the energy loss is weighed with a correction factor.
   */
-  double energyLoss(const double& step,
-                    const double& mom,
-                    const int&    pdg,
-                    const double& matDensity,
-                    const double& matZ,
-                    const double& matA,
-                    const double& radiationLength,
-                    const double& meanExcitationEnergy,
-                    const bool&   doNoise = false,
-                          TMatrixT<Double_t>* noise = NULL,
-                    const TMatrixT<Double_t>* jacobian = NULL,
-                    const TVector3* directionBefore = NULL,
-                    const TVector3* directionAfter = NULL);
-  virtual ~GFEnergyLossBrems();
+    double energyLoss(const double& step,
+                      const double& mom,
+                      const int& pdg,
+                      const double& matDensity,
+                      const double& matZ,
+                      const double& matA,
+                      const double& radiationLength,
+                      const double& meanExcitationEnergy,
+                      const bool& doNoise = false,
+                      TMatrixT<Double_t>* noise = NULL,
+                      const TMatrixT<Double_t>* jacobian = NULL,
+                      const TVector3* directionBefore = NULL,
+                      const TVector3* directionAfter = NULL);
+    virtual ~GFEnergyLossBrems();
 
-  // public:
-  //ClassDef(GFEnergyLossBrems,1);
-
-};
+    // public:
+    //ClassDef(GFEnergyLossBrems,1);
+  };
 }
 
 #endif

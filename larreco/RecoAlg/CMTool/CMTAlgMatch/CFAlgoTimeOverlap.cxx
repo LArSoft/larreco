@@ -14,15 +14,13 @@ namespace cmtool {
   }
 
   //-----------------------------
-  void
-  CFAlgoTimeOverlap::Reset()
+  void CFAlgoTimeOverlap::Reset()
   //-----------------------------
   {}
 
   //----------------------------------------------------------------------------------------------
-  float
-  CFAlgoTimeOverlap::Float(util::GeometryUtilities const&,
-                           const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  float CFAlgoTimeOverlap::Float(util::GeometryUtilities const&,
+                                 const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
 
@@ -224,8 +222,7 @@ namespace cmtool {
   */
 
   //------------------------------
-  void
-  CFAlgoTimeOverlap::Report()
+  void CFAlgoTimeOverlap::Report()
   //------------------------------
   {}
 

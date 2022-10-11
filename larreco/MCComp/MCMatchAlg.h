@@ -89,11 +89,7 @@ namespace btutil {
                                             const size_t plane_id) const;
 
     /// BTAlgo getter
-    const MCBTAlg&
-    BTAlg() const
-    {
-      return fBTAlgo;
-    }
+    const MCBTAlg& BTAlg() const { return fBTAlgo; }
 
   protected:
     bool BuildMap(detinfo::DetectorClocksData const& clockData,

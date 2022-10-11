@@ -14,13 +14,13 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
-#include "larreco/MCComp/MCBTAlg.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/Simulation/SimChannel.h"
+#include "larreco/MCComp/MCBTAlg.h"
 #include <iostream>
 
 class MCBTDemo : public art::EDAnalyzer {
@@ -44,8 +44,7 @@ private:
 
 MCBTDemo::MCBTDemo(fhicl::ParameterSet const& p) : EDAnalyzer(p) {}
 
-void
-MCBTDemo::analyze(art::Event const& e)
+void MCBTDemo::analyze(art::Event const& e)
 {
   // Implementation of required member function here.
   art::Handle<std::vector<sim::MCTrack>> mctHandle;

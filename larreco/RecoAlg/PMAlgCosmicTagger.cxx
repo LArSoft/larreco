@@ -19,9 +19,8 @@
 
 #include <numeric> // std::accumulate
 
-void
-pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
-                            pma::TrkCandidateColl& tracks)
+void pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
+                                 pma::TrkCandidateColl& tracks)
 {
   // Get the detector dimensions
   GetDimensions();
@@ -42,8 +41,7 @@ pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
   mf::LogInfo("pma::PMAlgCosmicTagger") << "...tagged " << n << " cosmic-like tracks.";
 }
 
-size_t
-pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
 {
   mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks out of 1 drift window;";
   size_t n = 0;
@@ -103,9 +101,8 @@ pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) const
 
 // Leigh: Make use of the fact that our cathode and anode crossing tracks have a reconstructed T0.
 // Check to see if this time is consistent with the beam
-size_t
-pma::PMAlgCosmicTagger::nonBeamT0Tag(detinfo::DetectorClocksData const& clockData,
-                                     pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(detinfo::DetectorClocksData const& clockData,
+                                            pma::TrkCandidateColl& tracks) const
 {
   size_t n = 0;
 
@@ -128,8 +125,7 @@ pma::PMAlgCosmicTagger::nonBeamT0Tag(detinfo::DetectorClocksData const& clockDat
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) const
 {
 
   size_t n = 0;
@@ -172,8 +168,7 @@ pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks) const
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks) const
 {
 
   size_t n = 0;
@@ -299,8 +294,7 @@ pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks) const
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks) const
 {
 
   // Just use the first tpc to get the height dimension (instead of assuming y).
@@ -314,8 +308,7 @@ pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks) const
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks) const
 {
 
   // Just use the first tpc to get the width dimension (instead of assuming x).
@@ -329,8 +322,7 @@ pma::PMAlgCosmicTagger::fullWidthCrossing(pma::TrkCandidateColl& tracks) const
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks) const
+size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks) const
 {
 
   // Just use the first tpc to get the length dimension (instead of assuming z).
@@ -344,8 +336,8 @@ pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks) const
   return n;
 }
 
-size_t
-pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction) const
+size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
+                                                  int direction) const
 {
 
   if (direction == -1) {
@@ -388,17 +380,17 @@ pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int di
   return n;
 }
 
-bool
-pma::PMAlgCosmicTagger::isTopVertex(const TVector3& pos, double tolerance, short int dirIndx) const
+bool pma::PMAlgCosmicTagger::isTopVertex(const TVector3& pos,
+                                         double tolerance,
+                                         short int dirIndx) const
 {
 
   return (fabs(pos[dirIndx] - fDimensionsMax[dirIndx]) < tolerance);
 }
 
-bool
-pma::PMAlgCosmicTagger::isFrontBackVertex(const TVector3& pos,
-                                          double tolerance,
-                                          short int dirIndx) const
+bool pma::PMAlgCosmicTagger::isFrontBackVertex(const TVector3& pos,
+                                               double tolerance,
+                                               short int dirIndx) const
 {
 
   bool front = (fabs(pos[dirIndx] - fDimensionsMin[dirIndx]) < tolerance);
@@ -407,8 +399,7 @@ pma::PMAlgCosmicTagger::isFrontBackVertex(const TVector3& pos,
   return front || back;
 }
 
-void
-pma::PMAlgCosmicTagger::GetDimensions()
+void pma::PMAlgCosmicTagger::GetDimensions()
 {
 
   // Need to find the minimum and maximum height values from the geometry.
@@ -454,8 +445,7 @@ pma::PMAlgCosmicTagger::GetDimensions()
   fDimensionsMax.push_back(maxZ);
 }
 
-short int
-pma::PMAlgCosmicTagger::ConvertDirToInt(const TVector3& dir) const
+short int pma::PMAlgCosmicTagger::ConvertDirToInt(const TVector3& dir) const
 {
 
   if (dir.X() > 0.99) return 0;

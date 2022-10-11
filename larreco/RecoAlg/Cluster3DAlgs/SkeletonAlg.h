@@ -8,7 +8,9 @@
 #define SkeletonAlg_h
 
 // Framework Includes
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
@@ -18,21 +20,19 @@ namespace fhicl { class ParameterSet; }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
+namespace lar_cluster3d {
 
-/**
+  /**
  *  @brief  Cluster3D class
  */
-class SkeletonAlg
-{
-public:
+  class SkeletonAlg {
+  public:
     /**
      *  @brief  Constructor
      *
      *  @param  pset
      */
-    SkeletonAlg(fhicl::ParameterSet const &pset);
+    SkeletonAlg(fhicl::ParameterSet const& pset);
 
     /**
      *  @brief  Destructor
@@ -42,7 +42,7 @@ public:
     /**
      *  @brief a handler for the case where the algorithm control parameters are to be reset
      */
-    void reconfigure(fhicl::ParameterSet const &pset);
+    void reconfigure(fhicl::ParameterSet const& pset);
 
     /**
      *  @brief This is intended to find the medial skeleton given a list of input hit pairs
@@ -58,7 +58,8 @@ public:
      *  @param inputHitList - input list of pointers to internal Cluster3D 3D hits
      *  @param skeletonHitList - output list of skeleton hits
      */
-    void GetSkeletonHits(const reco::HitPairListPtr& inputHitList, reco::HitPairListPtr& skeletonHitList) const;
+    void GetSkeletonHits(const reco::HitPairListPtr& inputHitList,
+                         reco::HitPairListPtr& skeletonHitList) const;
 
     /**
      *  @brief Modifies the position of input skeleton hits by averaging along the "best"
@@ -68,24 +69,23 @@ public:
      */
     void AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList) const;
 
-private:
-
+  private:
     /**
      *  @brief A function to find the bounding wires in a given view
      *
      */
     double FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>& hitVec,
-                                 int                                     planeToCheck,
-                                 int                                     referenceWire,
-                                 double                                  referenceTicks,
-                                 int&                                    firstWire,
-                                 int&                                    lastWire) const;
+                                 int planeToCheck,
+                                 int referenceWire,
+                                 double referenceTicks,
+                                 int& firstWire,
+                                 int& lastWire) const;
 
-    double                    m_minimumDeltaTicks;
-    double                    m_maximumDeltaTicks;
+    double m_minimumDeltaTicks;
+    double m_maximumDeltaTicks;
 
-    fhicl::ParameterSet       m_pset;
-};
+    fhicl::ParameterSet m_pset;
+  };
 
 } // namespace lar_cluster3d
 #endif

@@ -202,8 +202,7 @@ namespace DUNE {
     fDriftVelocity = detProp.DriftVelocity() * 1e-3; // cm/ns
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::beginJob()
+  void NeutrinoTrackingEff::beginJob()
   {
     std::cout << "job begin..." << std::endl;
     auto const* geo = lar::providerFrom<geo::Geometry>();
@@ -412,28 +411,21 @@ namespace DUNE {
     h_michelwtrk_length->Sumw2();
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::endJob()
-  {
-    doEfficiencies();
-  }
+  void NeutrinoTrackingEff::endJob() { doEfficiencies(); }
   //========================================================================
-  void
-  NeutrinoTrackingEff::beginRun(const art::Run& /*run*/)
+  void NeutrinoTrackingEff::beginRun(const art::Run& /*run*/)
   {
     mf::LogInfo("NeutrinoTrackingEff") << "begin run..." << std::endl;
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::analyze(const art::Event& event)
+  void NeutrinoTrackingEff::analyze(const art::Event& event)
   {
     if (event.isRealData()) return;
 
     processEff(event);
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::processEff(const art::Event& event)
+  void NeutrinoTrackingEff::processEff(const art::Event& event)
   {
     // Save neutrino's interaction info
     art::Handle<std::vector<simb::MCTruth>> MCtruthHandle;
@@ -880,13 +872,12 @@ namespace DUNE {
     }
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
-                                    std::vector<art::Ptr<recob::Hit>> all_hits,
-                                    std::vector<art::Ptr<recob::Hit>> track_hits,
-                                    const simb::MCParticle*& MCparticle,
-                                    double& Efrac,
-                                    double& Ecomplet)
+  void NeutrinoTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                         std::vector<art::Ptr<recob::Hit>> all_hits,
+                                         std::vector<art::Ptr<recob::Hit>> track_hits,
+                                         const simb::MCParticle*& MCparticle,
+                                         double& Efrac,
+                                         double& Ecomplet)
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -945,10 +936,9 @@ namespace DUNE {
     Ecomplet = partial_E / totenergy;
   }
   //========================================================================
-  double
-  NeutrinoTrackingEff::truthLength(const detinfo::DetectorClocksData& clockData,
-                                   const detinfo::DetectorPropertiesData& detProp,
-                                   const simb::MCParticle* MCparticle)
+  double NeutrinoTrackingEff::truthLength(const detinfo::DetectorClocksData& clockData,
+                                          const detinfo::DetectorPropertiesData& detProp,
+                                          const simb::MCParticle* MCparticle)
   {
     // Calculate the truth length considering only the part that is
     // inside the TPC Base on a peace of code from
@@ -994,8 +984,7 @@ namespace DUNE {
     return TPCLength;
   }
   //========================================================================
-  bool
-  NeutrinoTrackingEff::insideFV(double vertex[4])
+  bool NeutrinoTrackingEff::insideFV(double vertex[4])
   {
     double const x = vertex[0];
     double const y = vertex[1];
@@ -1005,8 +994,7 @@ namespace DUNE {
            z > fFidVolZmin && z < fFidVolZmax;
   }
   //========================================================================
-  void
-  NeutrinoTrackingEff::doEfficiencies()
+  void NeutrinoTrackingEff::doEfficiencies()
   {
     art::ServiceHandle<art::TFileService const> tfs;
 

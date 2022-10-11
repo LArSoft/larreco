@@ -13,24 +13,22 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/IEvent.h"
 
 // std includes
-#include <vector>
 #include <algorithm>
+#include <vector>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace voronoi2d
-{
-using RootsPair = std::pair<double,double>;
+namespace voronoi2d {
+  using RootsPair = std::pair<double, double>;
 
-/**
+  /**
  *  @brief Internal class definitions to facilitate construction of diagram
  */
-class EventUtilities
-{
-public:
-    double computeArcVal(const double, const double, const IEvent*)             const;
+  class EventUtilities {
+  public:
+    double computeArcVal(const double, const double, const IEvent*) const;
     double computeBreak(const double, const IEvent*, const IEvent*, RootsPair&) const;
-    bool   newSiteToLeft(const IEvent*, const IEvent*, const IEvent*)           const;
-};
+    bool newSiteToLeft(const IEvent*, const IEvent*, const IEvent*) const;
+  };
 
 } // namespace lar_cluster3d
 #endif

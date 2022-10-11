@@ -6,13 +6,13 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 namespace detinfo {
   class DetectorClocksData;
 }
@@ -25,8 +25,8 @@ namespace geo {
 #include "CLHEP/Random/RandGauss.h"
 
 #include <algorithm>
-#include <string>
 #include <optional>
+#include <string>
 #include <vector>
 
 img::DataProviderAlg::DataProviderAlg(const Config& config)
@@ -111,11 +111,11 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
 img::DataProviderAlg::~DataProviderAlg() = default;
 // ------------------------------------------------------
 
-img::DataProviderAlgView
-img::DataProviderAlg::resizeView(detinfo::DetectorClocksData const& clock_data,
-                                 detinfo::DetectorPropertiesData const& det_prop,
-                                 size_t wires,
-                                 size_t drifts)
+img::DataProviderAlgView img::DataProviderAlg::resizeView(
+  detinfo::DetectorClocksData const& clock_data,
+  detinfo::DetectorPropertiesData const& det_prop,
+  size_t wires,
+  size_t drifts)
 {
   img::DataProviderAlgView result;
   result.fNWires = wires;
@@ -142,8 +142,7 @@ img::DataProviderAlg::resizeView(detinfo::DetectorClocksData const& clock_data,
 }
 // ------------------------------------------------------
 
-float
-img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
+float img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
 {
   size_t rw = r, rd = r;
   if (!fDownscaleFullView) { rd *= fDriftWindow; }
@@ -194,10 +193,9 @@ img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
 //    return sum;
 //}
 // ------------------------------------------------------
-std::vector<float>
-img::DataProviderAlg::downscaleMax(std::size_t dst_size,
-                                   std::vector<float> const& adc,
-                                   size_t tick0) const
+std::vector<float> img::DataProviderAlg::downscaleMax(std::size_t dst_size,
+                                                      std::vector<float> const& adc,
+                                                      size_t tick0) const
 {
   size_t kStop = dst_size;
   std::vector<float> result(dst_size);
@@ -216,10 +214,9 @@ img::DataProviderAlg::downscaleMax(std::size_t dst_size,
   return result;
 }
 
-std::vector<float>
-img::DataProviderAlg::downscaleMaxMean(std::size_t dst_size,
-                                       std::vector<float> const& adc,
-                                       size_t tick0) const
+std::vector<float> img::DataProviderAlg::downscaleMaxMean(std::size_t dst_size,
+                                                          std::vector<float> const& adc,
+                                                          size_t tick0) const
 {
   size_t kStop = dst_size;
   std::vector<float> result(dst_size);
@@ -252,10 +249,9 @@ img::DataProviderAlg::downscaleMaxMean(std::size_t dst_size,
   return result;
 }
 
-std::vector<float>
-img::DataProviderAlg::downscaleMean(std::size_t dst_size,
-                                    std::vector<float> const& adc,
-                                    size_t tick0) const
+std::vector<float> img::DataProviderAlg::downscaleMean(std::size_t dst_size,
+                                                       std::vector<float> const& adc,
+                                                       size_t tick0) const
 {
   size_t kStop = dst_size;
   std::vector<float> result(dst_size);
@@ -274,8 +270,8 @@ img::DataProviderAlg::downscaleMean(std::size_t dst_size,
   return result;
 }
 
-std::optional<std::vector<float>>
-img::DataProviderAlg::setWireData(std::vector<float> const& adc, size_t wireIdx) const
+std::optional<std::vector<float>> img::DataProviderAlg::setWireData(std::vector<float> const& adc,
+                                                                    size_t wireIdx) const
 {
   if (wireIdx >= fAlgView.fWireDriftData.size()) return std::nullopt;
   auto& wData = fAlgView.fWireDriftData[wireIdx];
@@ -298,13 +294,12 @@ img::DataProviderAlg::setWireData(std::vector<float> const& adc, size_t wireIdx)
 }
 // ------------------------------------------------------
 
-bool
-img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_data,
-                                       detinfo::DetectorPropertiesData const& det_prop,
-                                       const std::vector<recob::Wire>& wires,
-                                       unsigned int plane,
-                                       unsigned int tpc,
-                                       unsigned int cryo)
+bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_data,
+                                            detinfo::DetectorPropertiesData const& det_prop,
+                                            const std::vector<recob::Wire>& wires,
+                                            unsigned int plane,
+                                            unsigned int tpc,
+                                            unsigned int cryo)
 {
   mf::LogInfo("DataProviderAlg") << "Create image for cryo:" << cryo << " tpc:" << tpc
                                  << " plane:" << plane;
@@ -371,8 +366,7 @@ img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_
 }
 // ------------------------------------------------------
 
-float
-img::DataProviderAlg::scaleAdcSample(float val) const
+float img::DataProviderAlg::scaleAdcSample(float val) const
 {
   val *= fAmplCalibConst[fPlane]; // prescale by plane-to-plane calibration factors
 
@@ -386,8 +380,7 @@ img::DataProviderAlg::scaleAdcSample(float val) const
            (val - fAdcMin); // shift and scale to the output range, shift to the output min
 }
 // ------------------------------------------------------
-void
-img::DataProviderAlg::scaleAdcSamples(std::vector<float>& values) const
+void img::DataProviderAlg::scaleAdcSamples(std::vector<float>& values) const
 {
   float calib = fAmplCalibConst[fPlane];
   auto* data = values.data();
@@ -426,8 +419,7 @@ img::DataProviderAlg::scaleAdcSamples(std::vector<float>& values) const
 }
 // ------------------------------------------------------
 
-void
-img::DataProviderAlg::applyBlur()
+void img::DataProviderAlg::applyBlur()
 {
   if (fBlurKernel.size() < 2) return;
 
@@ -452,12 +444,11 @@ img::DataProviderAlg::applyBlur()
 // ------------------------------------------------------
 
 // MUST give the same result as get_patch() in scripts/utils.py
-bool
-img::DataProviderAlg::patchFromDownsampledView(size_t wire,
-                                               float drift,
-                                               size_t size_w,
-                                               size_t size_d,
-                                               std::vector<std::vector<float>>& patch) const
+bool img::DataProviderAlg::patchFromDownsampledView(size_t wire,
+                                                    float drift,
+                                                    size_t size_w,
+                                                    size_t size_d,
+                                                    std::vector<std::vector<float>>& patch) const
 {
   int halfSizeW = size_w / 2;
   int halfSizeD = size_d / 2;
@@ -490,12 +481,11 @@ img::DataProviderAlg::patchFromDownsampledView(size_t wire,
   return true;
 }
 
-bool
-img::DataProviderAlg::patchFromOriginalView(size_t wire,
-                                            float drift,
-                                            size_t size_w,
-                                            size_t size_d,
-                                            std::vector<std::vector<float>>& patch) const
+bool img::DataProviderAlg::patchFromOriginalView(size_t wire,
+                                                 float drift,
+                                                 size_t size_w,
+                                                 size_t size_d,
+                                                 std::vector<std::vector<float>>& patch) const
 {
   int dsize = fDriftWindow * size_d;
   int halfSizeW = size_w / 2;
@@ -532,8 +522,7 @@ img::DataProviderAlg::patchFromOriginalView(size_t wire,
 }
 // ------------------------------------------------------
 
-void
-img::DataProviderAlg::addWhiteNoise()
+void img::DataProviderAlg::addWhiteNoise()
 {
   if (fNoiseSigma == 0) return;
 
@@ -551,8 +540,7 @@ img::DataProviderAlg::addWhiteNoise()
 }
 // ------------------------------------------------------
 
-void
-img::DataProviderAlg::addCoherentNoise()
+void img::DataProviderAlg::addCoherentNoise()
 {
   if (fCoherentSigma == 0) return;
 

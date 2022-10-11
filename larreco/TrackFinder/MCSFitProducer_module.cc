@@ -3,9 +3,9 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 
+#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
-#include "canvas/Utilities/InputTag.h"
 
 #include "lardataobj/RecoBase/MCSFitResult.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -32,38 +32,34 @@ namespace trkf {
    */
   class MCSFitProducer : public art::EDProducer {
   public:
-
     struct Inputs {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
-      fhicl::Atom<art::InputTag> inputLabel {
-	Name("inputLabel"),
-	Comment("Label of recob::TrackTrajectory Collection to be fit")
-      };
+      fhicl::Atom<art::InputTag> inputLabel{
+        Name("inputLabel"),
+        Comment("Label of recob::TrackTrajectory Collection to be fit")};
     };
 
     struct Config {
       using Name = fhicl::Name;
-      fhicl::Table<MCSFitProducer::Inputs> inputs {
-	Name("inputs"),
+      fhicl::Table<MCSFitProducer::Inputs> inputs{
+        Name("inputs"),
       };
-      fhicl::Table<TrajectoryMCSFitter::Config> fitter {
-	Name("fitter")
-      };
+      fhicl::Table<TrajectoryMCSFitter::Config> fitter{Name("fitter")};
     };
     using Parameters = art::EDProducer::Table<Config>;
 
-    explicit MCSFitProducer(Parameters const & p);
+    explicit MCSFitProducer(Parameters const& p);
     ~MCSFitProducer();
 
     // Plugins should not be copied or assigned.
-    MCSFitProducer(MCSFitProducer const &) = delete;
-    MCSFitProducer(MCSFitProducer &&) = delete;
-    MCSFitProducer & operator = (MCSFitProducer const &) = delete;
-    MCSFitProducer & operator = (MCSFitProducer &&) = delete;
+    MCSFitProducer(MCSFitProducer const&) = delete;
+    MCSFitProducer(MCSFitProducer&&) = delete;
+    MCSFitProducer& operator=(MCSFitProducer const&) = delete;
+    MCSFitProducer& operator=(MCSFitProducer&&) = delete;
 
   private:
-    void produce(art::Event & e) override;
+    void produce(art::Event& e) override;
 
     Parameters p_;
     art::InputTag inputTag;
@@ -71,23 +67,25 @@ namespace trkf {
   };
 }
 
-trkf::MCSFitProducer::MCSFitProducer(trkf::MCSFitProducer::Parameters const & p)
+trkf::MCSFitProducer::MCSFitProducer(trkf::MCSFitProducer::Parameters const& p)
   : EDProducer{p}, p_(p), mcsfitter(p_().fitter)
 {
   inputTag = art::InputTag(p_().inputs().inputLabel());
-  produces<std::vector<recob::MCSFitResult> >();
+  produces<std::vector<recob::MCSFitResult>>();
 }
 
 trkf::MCSFitProducer::~MCSFitProducer() {}
 
-void trkf::MCSFitProducer::produce(art::Event & e)
+void trkf::MCSFitProducer::produce(art::Event& e)
 {
   //
-  auto output  = std::make_unique<std::vector<recob::MCSFitResult> >();
+  auto output = std::make_unique<std::vector<recob::MCSFitResult>>();
   //
-  art::Handle<std::vector<recob::Track> > inputH;
-  bool ok = e.getByLabel(inputTag,inputH);
-  if (!ok) throw cet::exception("MCSFitProducer") << "Cannot find input art::Handle with inputTag " << inputTag;
+  art::Handle<std::vector<recob::Track>> inputH;
+  bool ok = e.getByLabel(inputTag, inputH);
+  if (!ok)
+    throw cet::exception("MCSFitProducer")
+      << "Cannot find input art::Handle with inputTag " << inputTag;
   const auto& inputVec = *(inputH.product());
   for (const auto& element : inputVec) {
     //fit

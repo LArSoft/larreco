@@ -78,11 +78,7 @@ public:
     std::vector<std::vector<double>> const& image) const;
 
   /// Minimum size of cluster to save
-  unsigned int
-  GetMinSize() const noexcept
-  {
-    return fMinSize;
-  }
+  unsigned int GetMinSize() const noexcept { return fMinSize; }
 
   /// Converts a 2D vector in a histogram for the debug pdf
   TH2F* MakeHistogram(std::vector<std::vector<double>> const& image, TString name) const;

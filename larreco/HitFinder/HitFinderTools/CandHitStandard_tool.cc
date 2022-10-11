@@ -46,12 +46,12 @@ namespace reco_tool {
     : fRoiThreshold(pset.get<float>("RoiThreshold", 5.))
   {}
 
-  void
-  CandHitStandard::findHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
-                                     const size_t roiStartTick,
-                                     const size_t channel,
-                                     const size_t eventCount,
-                                     HitCandidateVec& hitCandidateVec) const
+  void CandHitStandard::findHitCandidates(
+    const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
+    const size_t roiStartTick,
+    const size_t channel,
+    const size_t eventCount,
+    HitCandidateVec& hitCandidateVec) const
   {
     // Recover the actual waveform
     const Waveform& waveform = dataRange.data();
@@ -66,12 +66,11 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitStandard::findHitCandidates(std::vector<float>::const_iterator startItr,
-                                     std::vector<float>::const_iterator stopItr,
-                                     const size_t roiStartTick,
-                                     const size_t planeIdx,
-                                     HitCandidateVec& hitCandidateVec) const
+  void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator startItr,
+                                          std::vector<float>::const_iterator stopItr,
+                                          const size_t roiStartTick,
+                                          const size_t planeIdx,
+                                          HitCandidateVec& hitCandidateVec) const
   {
     // Need a minimum number of ticks to do any work here
     if (std::distance(startItr, stopItr) > 4) {
@@ -141,8 +140,7 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitStandard::MergeHitCandidates(
+  void CandHitStandard::MergeHitCandidates(
     const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
     const HitCandidateVec& hitCandidateVec,
     MergeHitCandidateVec& mergedHitsVec) const

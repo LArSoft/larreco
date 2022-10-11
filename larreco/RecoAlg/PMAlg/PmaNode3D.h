@@ -41,21 +41,13 @@ public:
          bool vtx = false,
          double xshift = 0);
 
-  TVector3 const&
-  Point3D() const
-  {
-    return fPoint3D;
-  }
+  TVector3 const& Point3D() const { return fPoint3D; }
 
   /// Returns true if the new position was accepted; returns false if the new position
   /// was trimmed to fit insite TPC volume + fMargin.
   bool SetPoint3D(const TVector3& p3d);
 
-  TVector2 const&
-  Projection2D(unsigned int view) const
-  {
-    return fProj2D[view];
-  }
+  TVector2 const& Projection2D(unsigned int view) const { return fProj2D[view]; }
 
   double GetDistToWall() const;
 
@@ -70,18 +62,9 @@ public:
   bool IsTPCEdge() const;
 
   /// Check fIsVertex flag.
-  bool
-  IsVertex() const
-  {
-    return fIsVertex;
-  }
-  void
-  SetVertex(bool state)
-  {
-    fIsVertex = state;
-  }
-  void
-  SetVertexToBranching(bool setAllNodes)
+  bool IsVertex() const { return fIsVertex; }
+  void SetVertex(bool state) { fIsVertex = state; }
+  void SetVertexToBranching(bool setAllNodes)
   {
     if (setAllNodes || !fIsVertex) fIsVertex = IsBranching();
   }
@@ -100,8 +83,7 @@ public:
   pma::Vector3D GetDirection3D() const override;
 
   /// In case of a node it is simply 3D position of the node.
-  TVector3
-  GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const override
+  TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const override
   {
     return fPoint3D;
   }
@@ -134,21 +116,15 @@ public:
 
   void ClearAssigned(pma::Track3D* trk = 0) override;
 
-  void
-  ApplyDriftShift(double dx)
+  void ApplyDriftShift(double dx)
   {
     fPoint3D[0] += dx;
     fDriftOffset += dx;
   }
-  double
-  GetDriftShift() const
-  {
-    return fDriftOffset;
-  }
+  double GetDriftShift() const { return fDriftOffset; }
 
   /// Set allowed node position margin around TPC.
-  static void
-  SetMargin(double m)
+  static void SetMargin(double m)
   {
     if (m >= 0.0) fMargin = m;
   }

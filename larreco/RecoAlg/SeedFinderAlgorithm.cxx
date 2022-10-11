@@ -13,7 +13,6 @@
 #include "canvas/Utilities/Exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larreco/RecoAlg/SpacePointAlg.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -21,6 +20,7 @@
 #include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
 
 namespace trkf {
 
@@ -28,8 +28,7 @@ namespace trkf {
   SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset) { reconfigure(pset); }
 
   //----------------------------------------------------------------------------
-  void
-  SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
+  void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
   {
 
     fSptalg = new trkf::SpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
@@ -57,12 +56,12 @@ namespace trkf {
   // Given a set of spacepoints, find seeds, and catalogue
   //  spacepoints by the seeds they formed
   //
-  std::vector<recob::Seed>
-  SeedFinderAlgorithm::FindSeeds(detinfo::DetectorClocksData const& clockData,
-                                 detinfo::DetectorPropertiesData const& detProp,
-                                 art::PtrVector<recob::Hit> const& HitsFlat,
-                                 std::vector<art::PtrVector<recob::Hit>>& CataloguedHits,
-                                 unsigned int StopAfter) const
+  std::vector<recob::Seed> SeedFinderAlgorithm::FindSeeds(
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp,
+    art::PtrVector<recob::Hit> const& HitsFlat,
+    std::vector<art::PtrVector<recob::Hit>>& CataloguedHits,
+    unsigned int StopAfter) const
   {
     // Vector of seeds found to return
     std::vector<recob::Seed> ReturnVector;
@@ -370,13 +369,12 @@ namespace trkf {
   // Latest extendseed method
   //
 
-  void
-  SeedFinderAlgorithm::ConsolidateSeed(detinfo::DetectorPropertiesData const& detProp,
-                                       recob::Seed& TheSeed,
-                                       art::PtrVector<recob::Hit> const& HitsFlat,
-                                       std::vector<char>& HitStatus,
-                                       std::vector<std::vector<std::vector<int>>>& OrgHits,
-                                       bool Extend) const
+  void SeedFinderAlgorithm::ConsolidateSeed(detinfo::DetectorPropertiesData const& detProp,
+                                            recob::Seed& TheSeed,
+                                            art::PtrVector<recob::Hit> const& HitsFlat,
+                                            std::vector<char>& HitStatus,
+                                            std::vector<std::vector<std::vector<int>>>& OrgHits,
+                                            bool Extend) const
   {
 
     bool ThrowOutSeed = false;
@@ -603,12 +601,11 @@ namespace trkf {
 
   //------------------------------------------------------------
 
-  void
-  SeedFinderAlgorithm::GetHitDistAndProj(detinfo::DetectorPropertiesData const& detProp,
-                                         recob::Seed const& ASeed,
-                                         art::Ptr<recob::Hit> const& AHit,
-                                         double& disp,
-                                         double& s) const
+  void SeedFinderAlgorithm::GetHitDistAndProj(detinfo::DetectorPropertiesData const& detProp,
+                                              recob::Seed const& ASeed,
+                                              art::Ptr<recob::Hit> const& AHit,
+                                              double& disp,
+                                              double& s) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -643,13 +640,13 @@ namespace trkf {
   // Try to find one seed at the high Z end of a set of spacepoints
   //
 
-  recob::Seed
-  SeedFinderAlgorithm::FindSeedAtEnd(detinfo::DetectorPropertiesData const& detProp,
-                                     std::vector<recob::SpacePoint> const& Points,
-                                     std::vector<char>& PointStatus,
-                                     std::vector<int>& PointsInRange,
-                                     art::PtrVector<recob::Hit> const& HitsFlat,
-                                     std::vector<std::vector<std::vector<int>>>& OrgHits) const
+  recob::Seed SeedFinderAlgorithm::FindSeedAtEnd(
+    detinfo::DetectorPropertiesData const& detProp,
+    std::vector<recob::SpacePoint> const& Points,
+    std::vector<char>& PointStatus,
+    std::vector<int>& PointsInRange,
+    art::PtrVector<recob::Hit> const& HitsFlat,
+    std::vector<std::vector<std::vector<int>>>& OrgHits) const
   {
     // This pointer will be returned later
     recob::Seed ReturnSeed;
@@ -786,14 +783,13 @@ namespace trkf {
 
   //-----------------------------------------------------------
 
-  void
-  SeedFinderAlgorithm::GetCenterAndDirection(detinfo::DetectorPropertiesData const& detProp,
-                                             art::PtrVector<recob::Hit> const& HitsFlat,
-                                             std::vector<int>& HitsToUse,
-                                             TVector3& Center,
-                                             TVector3& Direction,
-                                             std::vector<double>& ViewRMS,
-                                             std::vector<int>& N) const
+  void SeedFinderAlgorithm::GetCenterAndDirection(detinfo::DetectorPropertiesData const& detProp,
+                                                  art::PtrVector<recob::Hit> const& HitsFlat,
+                                                  std::vector<int>& HitsToUse,
+                                                  TVector3& Center,
+                                                  TVector3& Direction,
+                                                  std::vector<double>& ViewRMS,
+                                                  std::vector<int>& N) const
   {
     N.resize(3);
 
@@ -927,8 +923,7 @@ namespace trkf {
   }
 
   //-----------------------------------------------
-  void
-  SeedFinderAlgorithm::CalculateGeometricalElements()
+  void SeedFinderAlgorithm::CalculateGeometricalElements()
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -972,8 +967,7 @@ namespace trkf {
 
   //-----------------------------------------------
 
-  std::vector<recob::Seed>
-  SeedFinderAlgorithm::GetSeedsFromUnSortedHits(
+  std::vector<recob::Seed> SeedFinderAlgorithm::GetSeedsFromUnSortedHits(
     detinfo::DetectorClocksData const& clockData,
     detinfo::DetectorPropertiesData const& detProp,
     art::PtrVector<recob::Hit> const& Hits,
@@ -986,8 +980,7 @@ namespace trkf {
 
   //---------------------------------------------
 
-  std::vector<std::vector<recob::Seed>>
-  SeedFinderAlgorithm::GetSeedsFromSortedHits(
+  std::vector<std::vector<recob::Seed>> SeedFinderAlgorithm::GetSeedsFromSortedHits(
     detinfo::DetectorClocksData const& clockData,
     detinfo::DetectorPropertiesData const& detProp,
     std::vector<std::vector<art::PtrVector<recob::Hit>>> const& SortedHits,

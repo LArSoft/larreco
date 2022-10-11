@@ -20,12 +20,11 @@
  * @{
  */
 
-
 #ifndef GFFIELDMANAGER_H
 #define GFFIELDMANAGER_H
 
-#include"GFAbsBField.h"
-#include<iostream>
+#include "GFAbsBField.h"
+#include <iostream>
 
 /** @brief Singleton which provides access to magnetic field for track representations
  *
@@ -35,47 +34,50 @@
  */
 namespace genf {
 
-class GFFieldManager{
- private:
-  GFFieldManager(){}
-  static GFFieldManager* fInstance;
-  static GFAbsBField* fField;
+  class GFFieldManager {
+  private:
+    GFFieldManager() {}
+    static GFFieldManager* fInstance;
+    static GFAbsBField* fField;
 
- public:
-  GFAbsBField* getField(){
-    if(fField==NULL){
-      std::cerr << "Appareantly GFFieldManager hasnt been initialized with a correct GFAbsBField pointer -> abort" << std::endl;
-      throw;
+  public:
+    GFAbsBField* getField()
+    {
+      if (fField == NULL) {
+        std::cerr << "Appareantly GFFieldManager hasnt been initialized with a correct GFAbsBField "
+                     "pointer -> abort"
+                  << std::endl;
+        throw;
+      }
+      return fField;
     }
-    return fField;
-  }
 
-  static TVector3 getFieldVal(const TVector3& x){
-    if(fInstance==NULL){
-      std::cerr << "Appareantly GFFieldManager hasnt been instantiated yet, call getInstance() and init() before getFieldVal() -> abort" << std::endl;
-      throw;
+    static TVector3 getFieldVal(const TVector3& x)
+    {
+      if (fInstance == NULL) {
+        std::cerr << "Appareantly GFFieldManager hasnt been instantiated yet, call getInstance() "
+                     "and init() before getFieldVal() -> abort"
+                  << std::endl;
+        throw;
+      }
+      if (fField == NULL) {
+        std::cerr << "Appareantly GFFieldManager hasnt been initialized with a correct GFAbsBField "
+                     "pointer -> abort"
+                  << std::endl;
+        throw;
+      }
+      return fField->get(x);
     }
-    if(fField==NULL){
-      std::cerr << "Appareantly GFFieldManager hasnt been initialized with a correct GFAbsBField pointer -> abort" << std::endl;
-      throw;
+
+    //! set the magntic field here. Magnetic field classes must be derived from GFAbsBField
+    void init(GFAbsBField* b) { fField = b; }
+
+    static GFFieldManager* getInstance()
+    {
+      if (fInstance == NULL) { fInstance = new GFFieldManager(); }
+      return fInstance;
     }
-    return fField->get(x);
-  }
-
-  //! set the magntic field here. Magnetic field classes must be derived from GFAbsBField
-  void init(GFAbsBField* b) {
-    fField=b;
-  }
-
-  static GFFieldManager* getInstance(){
-    if(fInstance==NULL) {
-      fInstance = new GFFieldManager();
-    }
-    return fInstance;
-  }
-
-
-};
+  };
 }
 #endif
 /** @} */

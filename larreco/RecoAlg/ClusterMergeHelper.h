@@ -37,11 +37,7 @@ namespace cluster {
 
   class ClusterMergeHelper {
   public:
-    ::cmtool::CMergeManager&
-    GetManager()
-    {
-      return fMgr;
-    }
+    ::cmtool::CMergeManager& GetManager() { return fMgr; }
 
     /// Utility method to set cluster input information to CMergeManager from LArSoft data product (vector of recob::Hit art::Ptr)
     void SetClusters(util::GeometryUtilities const& gser,
@@ -69,9 +65,8 @@ namespace cluster {
 
   protected:
     /// Internal method to transfer input cluster information in the right format to CMergeManager
-    void
-    SetClusters(util::GeometryUtilities const& gser,
-                const std::vector<std::vector<util::PxHit>>& clusters)
+    void SetClusters(util::GeometryUtilities const& gser,
+                     const std::vector<std::vector<util::PxHit>>& clusters)
     {
       fMgr.Reset();
       fMgr.SetClusters(gser, clusters);

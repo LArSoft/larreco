@@ -15,22 +15,20 @@ namespace btutil {
 
   MCMatchAlg::MCMatchAlg() { _view_to_plane.clear(); }
 
-  bool
-  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
-                       const std::vector<unsigned int>& g4_trackid_v,
-                       const std::vector<sim::SimChannel>& simch_v,
-                       const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
+  bool MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                            const std::vector<unsigned int>& g4_trackid_v,
+                            const std::vector<sim::SimChannel>& simch_v,
+                            const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
     fBTAlgo.Reset(g4_trackid_v, simch_v);
 
     return BuildMap(clockData, cluster_v);
   }
 
-  bool
-  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
-                       const std::vector<std::vector<unsigned int>>& g4_trackid_v,
-                       const std::vector<sim::SimChannel>& simch_v,
-                       const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
+  bool MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                            const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+                            const std::vector<sim::SimChannel>& simch_v,
+                            const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
 
     fBTAlgo.Reset(g4_trackid_v, simch_v);
@@ -38,9 +36,8 @@ namespace btutil {
     return BuildMap(clockData, cluster_v);
   }
 
-  bool
-  MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
-                       const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
+  bool MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
+                            const std::vector<std::vector<art::Ptr<recob::Hit>>>& cluster_v)
   {
     size_t num_mcobj = fBTAlgo.NumParts();
     size_t num_cluster = cluster_v.size();
@@ -122,8 +119,7 @@ namespace btutil {
     return true;
   }
 
-  double
-  MCMatchAlg::ClusterCorrectness(const size_t cluster_index, const size_t mc_index) const
+  double MCMatchAlg::ClusterCorrectness(const size_t cluster_index, const size_t mc_index) const
   {
 
     if (!_bmatch_id.size()) throw MCBTException("Preparation not done yet!");
@@ -146,8 +142,8 @@ namespace btutil {
            _cluster_mcq_v.at(best_cluster_index).at(mc_index);
   }
 
-  std::pair<size_t, double>
-  MCMatchAlg::ShowerCorrectness(const std::vector<unsigned int> cluster_indices) const
+  std::pair<size_t, double> MCMatchAlg::ShowerCorrectness(
+    const std::vector<unsigned int> cluster_indices) const
   {
 
     if (!_bmatch_id.size()) throw MCBTException("Preparation not done yet!");
@@ -187,8 +183,8 @@ namespace btutil {
     return result;
   }
 
-  std::pair<double, double>
-  MCMatchAlg::ClusterEP(const size_t cluster_index, const size_t mc_index) const
+  std::pair<double, double> MCMatchAlg::ClusterEP(const size_t cluster_index,
+                                                  const size_t mc_index) const
   {
     if (!_bmatch_id.size()) throw MCBTException("Preparation not done yet!");
 
@@ -218,8 +214,7 @@ namespace btutil {
     return result;
   }
 
-  const std::vector<int>&
-  MCMatchAlg::BestClusters(const size_t mc_index) const
+  const std::vector<int>& MCMatchAlg::BestClusters(const size_t mc_index) const
   {
     if (!_bmatch_id.size()) throw MCBTException("Preparation not done yet!");
 
@@ -230,8 +225,8 @@ namespace btutil {
     return _bmatch_id[mc_index];
   }
 
-  std::pair<double, double>
-  MCMatchAlg::BestClusterEP(const size_t mc_index, const size_t plane_id) const
+  std::pair<double, double> MCMatchAlg::BestClusterEP(const size_t mc_index,
+                                                      const size_t plane_id) const
   {
 
     auto c_index_v = BestClusters(mc_index);

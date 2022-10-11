@@ -26,7 +26,6 @@ namespace cmtool {
   class CBAlgoProhibitAllTracks : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoProhibitAllTracks();
 
@@ -59,8 +58,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /**
        Optional function: called after each Merge() function call by CMergeManager IFF
@@ -71,15 +70,11 @@ namespace cmtool {
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
 
-
     void SetMinEP(double value) { _min_EP = value; }
 
   protected:
-
     double _min_EP;
-
   };
-
 
 }
 #endif

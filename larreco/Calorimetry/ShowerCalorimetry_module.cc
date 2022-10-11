@@ -22,8 +22,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
@@ -70,8 +70,7 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Shower, anab::Calorimetry>>();
 }
 
-void
-calo::ShowerCalorimetry::produce(art::Event& e)
+void calo::ShowerCalorimetry::produce(art::Event& e)
 {
 
   art::ServiceHandle<geo::Geometry> geom;

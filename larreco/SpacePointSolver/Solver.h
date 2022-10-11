@@ -9,13 +9,11 @@
 
 /// Allow InductionWireHit and CollectionWireHit to be put in the same maps
 /// where necessary.
-class WireHit
-{
+class WireHit {
   // Do not add any virtual functions: will increase memory usage of all wires
 };
 
-class InductionWireHit: public WireHit
-{
+class InductionWireHit : public WireHit {
 public:
   InductionWireHit(int chan, double q);
 
@@ -28,8 +26,7 @@ public:
 };
 
 class SpaceCharge;
-class Neighbour
-{
+class Neighbour {
 public:
   Neighbour(SpaceCharge* sc, double coupling);
 
@@ -39,12 +36,14 @@ public:
 
 class CollectionWireHit;
 
-class SpaceCharge
-{
+class SpaceCharge {
 public:
-  SpaceCharge(double x, double y, double z,
+  SpaceCharge(double x,
+              double y,
+              double z,
               CollectionWireHit* cwire,
-              InductionWireHit* wire1, InductionWireHit* wire2);
+              InductionWireHit* wire1,
+              InductionWireHit* wire2);
 
   void AddCharge(double dq);
 
@@ -59,8 +58,7 @@ public:
   double fNeiPotential; ///< Neighbour-induced potential
 };
 
-class CollectionWireHit: public WireHit
-{
+class CollectionWireHit : public WireHit {
 public:
   CollectionWireHit(int chan, double q, const std::vector<SpaceCharge*>& cross);
   ~CollectionWireHit();
@@ -78,8 +76,10 @@ double Metric(const std::vector<CollectionWireHit*>& cwires, double alpha);
 QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha);
 
 double SolvePair(CollectionWireHit* cwire,
-                 SpaceCharge* sci, SpaceCharge* scj,
-                 double xmin, double xmax,
+                 SpaceCharge* sci,
+                 SpaceCharge* scj,
+                 double xmin,
+                 double xmax,
                  double alpha);
 void Iterate(CollectionWireHit* cwire, double alpha);
 void Iterate(SpaceCharge* sc, double alpha);

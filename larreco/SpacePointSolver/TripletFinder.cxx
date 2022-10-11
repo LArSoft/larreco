@@ -35,10 +35,9 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  void
-  TripletFinder::FillHitMap(const detinfo::DetectorPropertiesData& detProp,
-                            const std::vector<art::Ptr<recob::Hit>>& hits,
-                            std::map<geo::TPCID, std::vector<HitOrChan>>& out)
+  void TripletFinder::FillHitMap(const detinfo::DetectorPropertiesData& detProp,
+                                 const std::vector<art::Ptr<recob::Hit>>& hits,
+                                 std::map<geo::TPCID, std::vector<HitOrChan>>& out)
   {
     for (const art::Ptr<recob::Hit>& hit : hits) {
       for (geo::TPCID tpc : geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()))) {
@@ -58,9 +57,8 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  void
-  TripletFinder::FillBadMap(const std::vector<raw::ChannelID_t>& bads,
-                            std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out)
+  void TripletFinder::FillBadMap(const std::vector<raw::ChannelID_t>& bads,
+                                 std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out)
   {
     for (raw::ChannelID_t chan : bads) {
       for (geo::TPCID tpc : geom->ROPtoTPCs(geom->ChannelToROP(chan))) {
@@ -76,8 +74,7 @@ namespace reco3d {
       : geom(art::ServiceHandle<geo::Geometry const>()->provider()), fTPC(tpc)
     {}
 
-    bool
-    operator()(raw::ChannelID_t a, raw::ChannelID_t b, geo::WireIDIntersection& pt)
+    bool operator()(raw::ChannelID_t a, raw::ChannelID_t b, geo::WireIDIntersection& pt)
     {
       const auto key = std::make_pair(a, b);
 
@@ -94,8 +91,7 @@ namespace reco3d {
     }
 
   protected:
-    bool
-    ISect(raw::ChannelID_t chanA, raw::ChannelID_t chanB, geo::WireIDIntersection& pt) const
+    bool ISect(raw::ChannelID_t chanA, raw::ChannelID_t chanB, geo::WireIDIntersection& pt) const
     {
       for (geo::WireID awire : geom->ChannelToWire(chanA)) {
         if (geo::TPCID(awire) != fTPC) continue;
@@ -118,15 +114,13 @@ namespace reco3d {
   };
 
   // -------------------------------------------------------------------------
-  bool
-  TripletFinder::CloseDrift(double xa, double xb) const
+  bool TripletFinder::CloseDrift(double xa, double xb) const
   {
     return fabs(xa - xb) < fDistThreshDrift;
   }
 
   // -------------------------------------------------------------------------
-  bool
-  TripletFinder::CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb) const
+  bool TripletFinder::CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb) const
   {
     const TVector3 pa(ra.y, ra.z, 0);
     const TVector3 pb(rb.y, rb.z, 0);
@@ -134,8 +128,7 @@ namespace reco3d {
     return (pa - pb).Mag() < fDistThresh;
   }
 
-  bool
-  LessThanXHit(const ChannelDoublet& a, const ChannelDoublet& b)
+  bool LessThanXHit(const ChannelDoublet& a, const ChannelDoublet& b)
   {
     // Make sure the bad hits get sorted too
     if (a.a.hit == 0 && b.a.hit == 0) return a.a.chan < b.a.chan;
@@ -143,16 +136,14 @@ namespace reco3d {
     return a.a.hit < b.a.hit;
   }
 
-  bool
-  SameXHit(const ChannelDoublet& a, const ChannelDoublet& b)
+  bool SameXHit(const ChannelDoublet& a, const ChannelDoublet& b)
   {
     if (a.a.hit == 0 && b.a.hit == 0) return a.a.chan == b.a.chan;
     return a.a.hit == b.a.hit;
   }
 
   // -------------------------------------------------------------------------
-  std::vector<HitTriplet>
-  TripletFinder::Triplets()
+  std::vector<HitTriplet> TripletFinder::Triplets()
   {
     std::vector<HitTriplet> ret;
 
@@ -234,8 +225,7 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  std::vector<HitTriplet>
-  TripletFinder::TripletsTwoView()
+  std::vector<HitTriplet> TripletFinder::TripletsTwoView()
   {
     std::vector<HitTriplet> ret;
 
@@ -268,8 +258,7 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  std::vector<ChannelDoublet>
-  TripletFinder::DoubletsXU(geo::TPCID tpc)
+  std::vector<ChannelDoublet> TripletFinder::DoubletsXU(geo::TPCID tpc)
   {
     std::vector<ChannelDoublet> ret =
       DoubletHelper(tpc, fX_by_tpc[tpc], fU_by_tpc[tpc], fUbad_by_tpc[tpc]);
@@ -283,8 +272,7 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  std::vector<ChannelDoublet>
-  TripletFinder::DoubletsXV(geo::TPCID tpc)
+  std::vector<ChannelDoublet> TripletFinder::DoubletsXV(geo::TPCID tpc)
   {
     std::vector<ChannelDoublet> ret =
       DoubletHelper(tpc, fX_by_tpc[tpc], fV_by_tpc[tpc], fVbad_by_tpc[tpc]);
@@ -298,11 +286,11 @@ namespace reco3d {
   }
 
   // -------------------------------------------------------------------------
-  std::vector<ChannelDoublet>
-  TripletFinder::DoubletHelper(geo::TPCID tpc,
-                               const std::vector<HitOrChan>& ahits,
-                               const std::vector<HitOrChan>& bhits,
-                               const std::vector<raw::ChannelID_t>& bbads) const
+  std::vector<ChannelDoublet> TripletFinder::DoubletHelper(
+    geo::TPCID tpc,
+    const std::vector<HitOrChan>& ahits,
+    const std::vector<HitOrChan>& bhits,
+    const std::vector<raw::ChannelID_t>& bbads) const
   {
     std::vector<ChannelDoublet> ret;
 

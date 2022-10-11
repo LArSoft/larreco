@@ -11,8 +11,8 @@
 #include "TVector3.h"
 
 #include <optional>
-#include <vector>
 #include <tuple>
+#include <vector>
 
 class TPolyLine3D;
 
@@ -20,11 +20,11 @@ namespace trkf {
 
   class TrackMomentumCalculator {
   public:
-    TrackMomentumCalculator(double minLength = 100.0,
-                            double maxLength = 1350.0);
+    TrackMomentumCalculator(double minLength = 100.0, double maxLength = 1350.0);
 
     double GetTrackMomentum(double trkrange, int pdg) const;
-    double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk, const bool checkValidPoints = false);
+    double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk,
+                                       const bool checkValidPoints = false);
     double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk);
     double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
@@ -62,7 +62,8 @@ namespace trkf {
                        std::vector<float> const& dEj,
                        std::vector<float> const& dthij,
                        std::vector<float> const& ind,
-                       double x0, double x1) const;
+                       double x0,
+                       double x1) const;
 
     float seg_stop{-1.};
     int n_seg{};
@@ -99,7 +100,6 @@ namespace trkf {
     TGraph gr_seg_xy{};
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
-
   };
 
 } // namespace trkf

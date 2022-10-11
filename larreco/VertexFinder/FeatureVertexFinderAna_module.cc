@@ -130,8 +130,7 @@ namespace vertex {
     fEndPoint2dModuleLabel = pset.get<std::string>("EndPoint2dModuleLabel");
   }
 
-  void
-  FeatureVertexFinderAna::beginJob()
+  void FeatureVertexFinderAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -253,8 +252,7 @@ namespace vertex {
       "fRecoCheck3dVtxZvsZ", "(Reco Z - True Z)/True Z vs True Z", 1000, -10, 1000, 120, -20, 20);
   }
 
-  void
-  FeatureVertexFinderAna::analyze(const art::Event& evt)
+  void FeatureVertexFinderAna::analyze(const art::Event& evt)
   {
     // Filling Run/Event Histo
     fRun->Fill(evt.run());

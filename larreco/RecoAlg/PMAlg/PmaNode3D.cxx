@@ -78,8 +78,7 @@ pma::Node3D::Node3D(detinfo::DetectorPropertiesData const& detProp,
   SetPoint3D(p3d);
 }
 
-double
-pma::Node3D::GetDistToWall() const
+double pma::Node3D::GetDistToWall() const
 {
   double d, dmin = fPoint3D.X() - fMinX;
   d = fMaxX - fPoint3D.X();
@@ -98,8 +97,7 @@ pma::Node3D::GetDistToWall() const
   return dmin;
 }
 
-bool
-pma::Node3D::SameTPC(const TVector3& p3d, float margin) const
+bool pma::Node3D::SameTPC(const TVector3& p3d, float margin) const
 {
   if (((fMinX - margin) <= p3d.X()) && (p3d.X() <= (fMaxX + margin)) &&
       ((fMinY - margin) <= p3d.Y()) && (p3d.Y() <= (fMaxY + margin)) &&
@@ -109,8 +107,7 @@ pma::Node3D::SameTPC(const TVector3& p3d, float margin) const
     return false;
 }
 
-bool
-pma::Node3D::SameTPC(const pma::Vector3D& p3d, float margin) const
+bool pma::Node3D::SameTPC(const pma::Vector3D& p3d, float margin) const
 {
   if (((fMinX - margin) <= p3d.X()) && (p3d.X() <= (fMaxX + margin)) &&
       ((fMinY - margin) <= p3d.Y()) && (p3d.Y() <= (fMaxY + margin)) &&
@@ -120,8 +117,7 @@ pma::Node3D::SameTPC(const pma::Vector3D& p3d, float margin) const
     return false;
 }
 
-bool
-pma::Node3D::LimitPoint3D()
+bool pma::Node3D::LimitPoint3D()
 {
   bool trimmed = false;
 
@@ -155,16 +151,14 @@ pma::Node3D::LimitPoint3D()
   return trimmed;
 }
 
-void
-pma::Node3D::UpdateProj2D()
+void pma::Node3D::UpdateProj2D()
 {
   for (size_t i = 0; i < fTpcGeo.Nplanes(); ++i) {
     fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(fPoint3D), fPoint3D.X() - fDriftOffset);
   }
 }
 
-bool
-pma::Node3D::SetPoint3D(const TVector3& p3d)
+bool pma::Node3D::SetPoint3D(const TVector3& p3d)
 {
   fPoint3D = p3d;
 
@@ -174,20 +168,17 @@ pma::Node3D::SetPoint3D(const TVector3& p3d)
   return accepted;
 }
 
-double
-pma::Node3D::GetDistance2To(const TVector3& p3d) const
+double pma::Node3D::GetDistance2To(const TVector3& p3d) const
 {
   return pma::Dist2(fPoint3D, p3d);
 }
 
-double
-pma::Node3D::GetDistance2To(const TVector2& p2d, unsigned int view) const
+double pma::Node3D::GetDistance2To(const TVector2& p2d, unsigned int view) const
 {
   return pma::Dist2(fProj2D[view], p2d);
 }
 
-double
-pma::Node3D::SumDist2Hits() const
+double pma::Node3D::SumDist2Hits() const
 {
   double sum = 0.0F;
   for (auto h : fAssignedHits) {
@@ -202,8 +193,7 @@ pma::Node3D::SumDist2Hits() const
   return sum;
 }
 
-pma::Vector3D
-pma::Node3D::GetDirection3D() const
+pma::Vector3D pma::Node3D::GetDirection3D() const
 {
   pma::Element3D* seg = 0;
   if (next) { seg = dynamic_cast<pma::Element3D*>(next); }
@@ -220,8 +210,7 @@ pma::Node3D::GetDirection3D() const
   }
 }
 
-void
-pma::Node3D::SetProjection(pma::Hit3D& h) const
+void pma::Node3D::SetProjection(pma::Hit3D& h) const
 {
   TVector2 gstart;
   TVector3 g3d;
@@ -295,8 +284,7 @@ pma::Node3D::SetProjection(pma::Hit3D& h) const
   }
 }
 
-double
-pma::Node3D::Length2() const
+double pma::Node3D::Length2() const
 {
   double l = 0.0;
   if (next) l += (static_cast<pma::Segment3D*>(next))->Length();
@@ -308,8 +296,7 @@ pma::Node3D::Length2() const
     return l * l;
 }
 
-double
-pma::Node3D::SegmentCos() const
+double pma::Node3D::SegmentCos() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -329,8 +316,7 @@ pma::Node3D::SegmentCos() const
   }
 }
 
-double
-pma::Node3D::SegmentCosWirePlane() const
+double pma::Node3D::SegmentCosWirePlane() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -348,8 +334,7 @@ pma::Node3D::SegmentCosWirePlane() const
   }
 }
 
-double
-pma::Node3D::SegmentCosTransverse() const
+double pma::Node3D::SegmentCosTransverse() const
 {
   if (prev && next) {
     auto const& vStop1 = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -368,8 +353,7 @@ pma::Node3D::SegmentCosTransverse() const
 }
 
 // *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
-double
-pma::Node3D::EndPtCos2Transverse() const
+double pma::Node3D::EndPtCos2Transverse() const
 {
   if (prev && next) {
     auto const& vStart = static_cast<pma::Node3D*>(prev->Prev())->fPoint3D;
@@ -386,8 +370,7 @@ pma::Node3D::EndPtCos2Transverse() const
     return 0.0;
 }
 
-double
-pma::Node3D::PiInWirePlane() const
+double pma::Node3D::PiInWirePlane() const
 {
   if (prev && NextCount()) {
     pma::Segment3D* seg0 = dynamic_cast<pma::Segment3D*>(prev);
@@ -408,8 +391,7 @@ pma::Node3D::PiInWirePlane() const
 // drift time are penalized with this constraint); PiInWirePlane() components are reduced if
 // there are Ind1 / geo::kU hits which add information to the object shape.
 // *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
-double
-pma::Node3D::PenaltyInWirePlane() const
+double pma::Node3D::PenaltyInWirePlane() const
 {
   if (fIsVertex) return 0.0;
 
@@ -432,8 +414,7 @@ pma::Node3D::PenaltyInWirePlane() const
     return 0.0;
 }
 
-bool
-pma::Node3D::IsBranching() const
+bool pma::Node3D::IsBranching() const
 {
   size_t nnext = NextCount();
   if (nnext > 1) return true; // 1 trk -> vtx -> n*trk
@@ -447,8 +428,7 @@ pma::Node3D::IsBranching() const
   return false;
 }
 
-bool
-pma::Node3D::IsTPCEdge() const
+bool pma::Node3D::IsTPCEdge() const
 {
   if (prev && (NextCount() == 1)) {
     pma::Segment3D* segPrev = static_cast<pma::Segment3D*>(prev);
@@ -459,8 +439,7 @@ pma::Node3D::IsTPCEdge() const
   return false;
 }
 
-std::vector<pma::Track3D*>
-pma::Node3D::GetBranches() const
+std::vector<pma::Track3D*> pma::Node3D::GetBranches() const
 {
   std::vector<pma::Track3D*> branches;
   if (NextCount()) {
@@ -473,8 +452,7 @@ pma::Node3D::GetBranches() const
   return branches;
 }
 
-double
-pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
+double pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
 {
   if (fIsVertex) return 0.0;
 
@@ -530,8 +508,7 @@ pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
   }
 }
 
-double
-pma::Node3D::Penalty(float endSegWeight) const
+double pma::Node3D::Penalty(float endSegWeight) const
 {
   unsigned int nseg = 1;
   double penalty = Pi(endSegWeight, true);
@@ -550,8 +527,7 @@ pma::Node3D::Penalty(float endSegWeight) const
   return penalty / nseg;
 }
 
-double
-pma::Node3D::Mse() const
+double pma::Node3D::Mse() const
 {
   unsigned int nhits = NPrecalcEnabledHits(); //NEnabledHits();
   double mse = SumDist2();
@@ -573,14 +549,12 @@ pma::Node3D::Mse() const
     return mse / nhits;
 }
 
-double
-pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
+double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
 {
   return Mse() + penaltyValue * (Penalty(endSegWeight) + PenaltyInWirePlane());
 }
 
-double
-pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
+double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 {
   double l1 = 0.0, l2 = 0.0, minLength2 = 0.0;
   TVector3 tmp(fPoint3D), gpoint(fPoint3D);
@@ -663,8 +637,7 @@ pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
   return g0;
 }
 
-double
-pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float weight)
+double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float weight)
 {
   unsigned int steps = 0;
   double t, t1, t2, t3, g, g0, g1, g2, g3, p1, p2;
@@ -839,8 +812,7 @@ pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float weight
   return (g0 - g) / g;
 }
 
-void
-pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
+void pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
 {
   if (!fFrozen) {
     double dg = StepWithGradient(0.1F, 0.002F, penaltyValue, endSegWeight);
@@ -849,8 +821,7 @@ pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
   }
 }
 
-void
-pma::Node3D::ClearAssigned(pma::Track3D* trk)
+void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 {
   if (!trk) {
     // like in the base class:

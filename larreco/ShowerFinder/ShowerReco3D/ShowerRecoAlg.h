@@ -20,30 +20,14 @@ namespace showerreco {
   class ShowerRecoAlg : public ShowerRecoAlgBase {
   public:
     /// Function to decide if to use Area or Pulse Amplitude for calculations
-    void
-    SetUseArea(bool on)
-    {
-      fUseArea = on;
-    }
+    void SetUseArea(bool on) { fUseArea = on; }
 
-    void
-    Verbose(bool verbose)
-    {
-      fVerbosity = verbose;
-    }
+    void Verbose(bool verbose) { fVerbosity = verbose; }
 
-    void
-    CaloAlgo(calo::CalorimetryAlg* alg)
-    {
-      fCaloAlg = alg;
-    }
+    void CaloAlgo(calo::CalorimetryAlg* alg) { fCaloAlg = alg; }
 
     /// Function to set whether to use E correction
-    void
-    setEcorrection(bool on)
-    {
-      _Ecorrection = on;
-    }
+    void setEcorrection(bool on) { _Ecorrection = on; }
 
     /// Function to reconstruct a shower
     recob::Shower RecoOneShower(geo::GeometryCore const& geom,

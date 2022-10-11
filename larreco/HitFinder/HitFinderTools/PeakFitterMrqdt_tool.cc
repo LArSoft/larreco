@@ -1,6 +1,6 @@
-#include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
-#include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
+#include "larreco/RecoAlg/GausFitCache.h"      // hit::GausFitCache
 #include "larvecutils/MarqFitAlg/MarqFitAlg.h" //marqfit functions
 
 #include "art/Utilities/ToolMacros.h"
@@ -50,12 +50,11 @@ namespace reco_tool {
 
   //------------------------
   //output parameters should be replaced with a returned value
-  void
-  PeakFitterMrqdt::findPeakParameters(const std::vector<float>& signal,
-                                      const ICandidateHitFinder::HitCandidateVec& fhc_vec,
-                                      PeakParamsVec& mhpp_vec,
-                                      double& chi2PerNDF,
-                                      int& NDF) const
+  void PeakFitterMrqdt::findPeakParameters(const std::vector<float>& signal,
+                                           const ICandidateHitFinder::HitCandidateVec& fhc_vec,
+                                           PeakParamsVec& mhpp_vec,
+                                           double& chi2PerNDF,
+                                           int& NDF) const
   {
     if (fhc_vec.empty()) return;
 

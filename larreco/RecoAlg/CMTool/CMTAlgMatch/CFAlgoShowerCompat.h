@@ -58,8 +58,7 @@ namespace cmtool {
 
     void PrintClusterInfo(const cluster::ClusterParamsAlg& c);
 
-    void
-    WriteHaxFile()
+    void WriteHaxFile()
     {
       _fout_hax->cd();
       _ana_tree->Write();

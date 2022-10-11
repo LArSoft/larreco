@@ -25,7 +25,6 @@ namespace cmtool {
   class CPAlgoNHits : public CPriorityAlgoBase {
 
   public:
-
     /// Default constructor
     CPAlgoNHits();
 
@@ -36,17 +35,14 @@ namespace cmtool {
        Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
-    virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
+    virtual float Priority(const ::cluster::ClusterParamsAlg& cluster);
 
     /// Setter for minimum # hits
     void SetMinHits(size_t n) { _min_hits = n; }
 
   protected:
-
     size_t _min_hits;
-
   };
 }
 #endif
 /** @} */ // end of doxygen group
-

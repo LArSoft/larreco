@@ -183,8 +183,7 @@ namespace trkf {
                                  << "  UseMC = " << fUseMC;
   }
 
-  void
-  SpacePointAna::bookHistograms(bool mc)
+  void SpacePointAna::bookHistograms(bool mc)
   {
     if (!fBooked) {
       fBooked = true;
@@ -276,8 +275,7 @@ namespace trkf {
     }
   }
 
-  void
-  SpacePointAna::analyze(const art::Event& evt)
+  void SpacePointAna::analyze(const art::Event& evt)
   {
     ++fNumEvent;
 

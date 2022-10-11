@@ -62,8 +62,7 @@ namespace trkf {
   };                                    // class SpacePts
 
   struct SortByWire {
-    bool
-    operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
+    bool operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
     {
       return h1->Channel() < h2->Channel();
     }
@@ -87,8 +86,7 @@ namespace trkf {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  SpacePts::produce(art::Event& evt)
+  void SpacePts::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
     auto const detProp =

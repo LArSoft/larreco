@@ -289,8 +289,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(
   }
 }
 
-void
-trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
+void trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
 {
   auto outputTracks = std::make_unique<std::vector<recob::Track>>();
   auto outputHitsMeta =
@@ -570,8 +569,7 @@ trkf::KalmanFilterFinalTrackFitter::produce(art::Event& e)
   }
 }
 
-void
-trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(
+void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(
   const recob::Trajectory& track,
   const std::vector<art::Ptr<recob::Hit>>& inHits,
   recob::Track& outTrack,
@@ -608,8 +606,7 @@ trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(
     outHits.push_back(h);
 }
 
-double
-trkf::KalmanFilterFinalTrackFitter::setMomValue(
+double trkf::KalmanFilterFinalTrackFitter::setMomValue(
   art::Ptr<recob::Track> ptrack,
   const std::unique_ptr<art::FindManyP<anab::Calorimetry>>& trackCalo,
   const double pMC,
@@ -642,8 +639,7 @@ trkf::KalmanFilterFinalTrackFitter::setMomValue(
   return result;
 }
 
-int
-trkf::KalmanFilterFinalTrackFitter::setPId(
+int trkf::KalmanFilterFinalTrackFitter::setPId(
   const unsigned int iTrack,
   const std::unique_ptr<art::FindManyP<anab::ParticleID>>& trackId,
   const int pfPid) const
@@ -665,8 +661,7 @@ trkf::KalmanFilterFinalTrackFitter::setPId(
   return -1;
 }
 
-bool
-trkf::KalmanFilterFinalTrackFitter::setDirFlip(
+bool trkf::KalmanFilterFinalTrackFitter::setDirFlip(
   const recob::Track& track,
   TVector3& mcdir,
   const std::vector<art::Ptr<recob::Vertex>>* vertices) const

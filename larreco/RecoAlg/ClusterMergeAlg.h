@@ -18,17 +18,16 @@ namespace fhicl {
 #include "canvas/Persistency/Common/Ptr.h"
 
 // LArSoft
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Cluster.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 // STL
 #include <vector>
 
 class TTree;
 
-namespace cluster
-{
+namespace cluster {
 
   /**
      \struct cluster_merge_info
@@ -37,48 +36,47 @@ namespace cluster
   struct cluster_merge_info {
 
     unsigned int cluster_index; ///< Input cluster ID
-    geo::View_t  view;          ///< Wire plane ID
+    geo::View_t view;           ///< Wire plane ID
     geo::PlaneID planeID;       ///< plane ID
 
-    float  start_wire;          ///< Vertex wire
-    float  start_time;          ///< Vertex time
-    float  end_wire;            ///< End point wire
-    float  end_time;            ///< End point time
+    float start_wire; ///< Vertex wire
+    float start_time; ///< Vertex time
+    float end_wire;   ///< End point wire
+    float end_time;   ///< End point time
 
-    double start_wire_err;      ///< Vertex wire error
-    double start_time_err;      ///< Vertex time error
-    double end_wire_err;        ///< End point wire error
-    double end_time_err;        ///< End point time error
+    double start_wire_err; ///< Vertex wire error
+    double start_time_err; ///< Vertex time error
+    double end_wire_err;   ///< End point wire error
+    double end_time_err;   ///< End point time error
 
-    float  angle;               ///< 2D starting angle (in radians)
+    float angle; ///< 2D starting angle (in radians)
 
     /// Default constructor
-    cluster_merge_info(): planeID() {
+    cluster_merge_info() : planeID()
+    {
 
       cluster_index = 0xffffffff;
       view = geo::kUnknown;
       start_wire = start_time = end_wire = end_time = -1;
-      start_wire_err = start_time_err = end_wire_err =end_time_err = -1;
-
+      start_wire_err = start_time_err = end_wire_err = end_time_err = -1;
     };
 
     /// Initialization from a recob::Cluster
     explicit cluster_merge_info(const recob::Cluster& cl)
-      :cluster_index(cl.ID())
-      ,view(cl.View())
-      ,planeID(cl.Plane())
-      ,start_wire(cl.StartWire())
-      ,start_time(cl.StartTick())
-      ,end_wire(cl.EndWire())
-      ,end_time(cl.EndTick())
-      ,angle(cl.StartAngle())
-      {}
+      : cluster_index(cl.ID())
+      , view(cl.View())
+      , planeID(cl.Plane())
+      , start_wire(cl.StartWire())
+      , start_time(cl.StartTick())
+      , end_wire(cl.EndWire())
+      , end_time(cl.EndTick())
+      , angle(cl.StartAngle())
+    {}
   };
 
   class ClusterMergeAlg {
 
   public:
-
     /// Default constructor with fhicl parameters
     ClusterMergeAlg(fhicl::ParameterSet const& pset);
 
@@ -95,12 +93,12 @@ namespace cluster
     void SetSquaredDistanceCut(double d) { _max_2D_dist2 = d; }
 
     /// Method to add a cluster information for processing
-    void AppendClusterInfo(const recob::Cluster &in_cluster,
-			   const std::vector<art::Ptr<recob::Hit> > &in_hit_v);
+    void AppendClusterInfo(const recob::Cluster& in_cluster,
+                           const std::vector<art::Ptr<recob::Hit>>& in_hit_v);
 
     /// Method to add a cluster information for processing
     void AppendClusterInfo(const art::Ptr<recob::Cluster> in_cluster,
-			   const std::vector<art::Ptr<recob::Hit> > &in_hit_v);
+                           const std::vector<art::Ptr<recob::Hit>>& in_hit_v);
 
     /// Method to clear event-wise information (both input cluster info & output merged cluster sets)
     void ClearEventInfo();
@@ -113,19 +111,19 @@ namespace cluster
     void ProcessMergeAlg();
 
     /// Method to extract resulting set of cluster IDs for merging computed by ProcessMergeAlg() function.
-    const std::vector<std::vector<unsigned int> > GetClusterSets () const {return _cluster_sets_v;};
+    const std::vector<std::vector<unsigned int>> GetClusterSets() const { return _cluster_sets_v; };
 
     /// Method to compare a compatibility between two clusters
-    bool CompareClusters(const cluster_merge_info &clus_info_A,
-			 const cluster_merge_info &clus_info_B);
+    bool CompareClusters(const cluster_merge_info& clus_info_A,
+                         const cluster_merge_info& clus_info_B);
 
     /**
        Function to compare the 2D angles of two clusters and return true if they are
        within the maximum allowed parameter. Includes shifting by 180 for backwards clusters.
        This is called within CompareClusters().
     */
-    bool Angle2DCompatibility(const cluster_merge_info &clus_info_A,
-			      const cluster_merge_info &clus_info_B) const;
+    bool Angle2DCompatibility(const cluster_merge_info& clus_info_A,
+                              const cluster_merge_info& clus_info_B) const;
 
     /**
        Function to compare the 2D distance of two clusters and return true if they are
@@ -133,16 +131,19 @@ namespace cluster
        function, ShortestDistanceSquared().
        This is called within CompareClusters().
     */
-    bool ShortestDistanceCompatibility(const cluster_merge_info &clus_info_A,
-				       const cluster_merge_info &clus_info_B) const;
+    bool ShortestDistanceCompatibility(const cluster_merge_info& clus_info_A,
+                                       const cluster_merge_info& clus_info_B) const;
 
     /**
        Function to compute a distance between a 2D point (point_x, point_y) to a 2D finite line segment
        (start_x, start_y) => (end_x, end_y).
     */
-    double ShortestDistanceSquared(double point_x, double point_y,
-				   double start_x, double start_y,
-				   double end_x,   double end_y  ) const;
+    double ShortestDistanceSquared(double point_x,
+                                   double point_y,
+                                   double start_x,
+                                   double start_y,
+                                   double end_x,
+                                   double end_y) const;
 
     /**
        Function to print to screen a specific cluser's info
@@ -158,7 +159,6 @@ namespace cluster
     int isInClusterSets(unsigned int index) const;
 
   protected:
-
     /// Method to set a conversion factor from wire to cm scale
     void SetWire2Cm(double f) { _wire_2_cm = f; }
 
@@ -181,15 +181,14 @@ namespace cluster
     void PrepareDetParams();
 
     /// Method to fill hit-array-related information
-    void AppendHitInfo(cluster_merge_info &ci,
-		       const std::vector<art::Ptr<recob::Hit> > &in_hit_v);
+    void AppendHitInfo(cluster_merge_info& ci, const std::vector<art::Ptr<recob::Hit>>& in_hit_v);
 
     /**
        For a given pair of clusters, this function calls CompareClusters() and append to the resulting
        merged cluster sets (_cluster_sets_v) by calling AppendToClusterSets() when they are compatible.
     */
-    void BuildClusterSets(const cluster_merge_info &clus_info_A,
-			  const cluster_merge_info &clus_info_B);
+    void BuildClusterSets(const cluster_merge_info& clus_info_A,
+                          const cluster_merge_info& clus_info_B);
 
     /**
        Function to loop through _cluster_sets_v and add in the un-mergable clusters
@@ -198,10 +197,9 @@ namespace cluster
     void FinalizeClusterSets();
 
     /// A function to add a cluster to a merged sets (_cluster_sets_v)
-    int AppendToClusterSets(unsigned int cluster_index, int merged_index=-1);
+    int AppendToClusterSets(unsigned int cluster_index, int merged_index = -1);
 
   protected:
-
     bool _verbose;             ///< Verbose mode boolean
     bool _det_params_prepared; ///< Boolean to keep track of detector parameter preparation
     TTree* _merge_tree;        ///< Quality Control TTree pointer
@@ -220,18 +218,18 @@ namespace cluster
        The structure is such that the inner vector holds the cluster IDs to be merged into one cluster.
        Naturally we expect multiple merged clusters, hence it's a vector of vector.
     */
-    std::vector<std::vector<unsigned int> > _cluster_sets_v;
+    std::vector<std::vector<unsigned int>> _cluster_sets_v;
 
     std::vector<cluster::cluster_merge_info> _u_clusters; ///< Input U-plane clusters' information
     std::vector<cluster::cluster_merge_info> _v_clusters; ///< Input V-plane clusters' information
     std::vector<cluster::cluster_merge_info> _w_clusters; ///< Input W-plane clusters' information
 
-    double _wire_2_cm; ///< Conversion factor from wire number to cm scale
-    double _time_2_cm; ///< Conversion factor from time to cm scale
+    double _wire_2_cm;                 ///< Conversion factor from wire number to cm scale
+    double _time_2_cm;                 ///< Conversion factor from time to cm scale
     double _max_allowed_2D_angle_diff; //in degrees
     double _max_2D_dist2;              //in cm^2
     double _min_distance_unit;         //in cm^2
-  }; // class ClusterMergeAlg
+  };                                   // class ClusterMergeAlg
 
 } //namespace cluster
 #endif

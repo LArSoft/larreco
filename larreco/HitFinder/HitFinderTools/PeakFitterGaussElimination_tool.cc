@@ -10,12 +10,10 @@
 
 #include <algorithm>
 
-namespace reco_tool
-{
+namespace reco_tool {
 
-class PeakFitterGaussElimination : IPeakFitter
-{
-public:
+  class PeakFitterGaussElimination : IPeakFitter {
+  public:
     explicit PeakFitterGaussElimination(const fhicl::ParameterSet& pset);
 
     void findPeakParameters(const std::vector<float>&,
@@ -24,34 +22,35 @@ public:
                             double&,
                             int&) const override;
 
-private:
+  private:
     // Member variables from the fhicl file
-    float fStepSize;     ///< Step size used by gaussian elim alg
-    float fMax;          ///< Max
+    float fStepSize; ///< Step size used by gaussian elim alg
+    float fMax;      ///< Max
 
     std::unique_ptr<util::GaussianEliminationAlg> fGEAlg;
-};
+  };
 
-//----------------------------------------------------------------------
-// Constructor.
-PeakFitterGaussElimination::PeakFitterGaussElimination(const fhicl::ParameterSet& pset)
-{
+  //----------------------------------------------------------------------
+  // Constructor.
+  PeakFitterGaussElimination::PeakFitterGaussElimination(const fhicl::ParameterSet& pset)
+  {
     // Start by recovering the parameters
     fStepSize = pset.get<float>("StepSize", 0.1);
-    fMax      = pset.get<float>("Max",      0.5);
+    fMax = pset.get<float>("Max", 0.5);
 
-//    fGEAlg    = std::make_unique<util::GaussianEliminationAlg>(fStepSize, fMax);
+    //    fGEAlg    = std::make_unique<util::GaussianEliminationAlg>(fStepSize, fMax);
 
     return;
-}
+  }
 
-// --------------------------------------------------------------------------------------------
-void PeakFitterGaussElimination::findPeakParameters(const std::vector<float>&                   roiSignalVec,
-                                                    const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
-                                                    PeakParamsVec&                              peakParamsVec,
-                                                    double&                                     chi2PerNDF,
-                                                    int&                                        NDF) const
-{
+  // --------------------------------------------------------------------------------------------
+  void PeakFitterGaussElimination::findPeakParameters(
+    const std::vector<float>& roiSignalVec,
+    const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
+    PeakParamsVec& peakParamsVec,
+    double& chi2PerNDF,
+    int& NDF) const
+  {
     // This module tries to use the method for fitting hits found in the RRFHitFinder
     // from Wes Ketchum. It uses the gaussian elimation algorithm he set up.
     //
@@ -64,23 +63,23 @@ void PeakFitterGaussElimination::findPeakParameters(const std::vector<float>&   
     std::vector<float> sigmaVec;
     std::vector<float> heightVec;
 
-    for(const auto& hitCandidate : hitCandidateVec)
-    {
-        float  candMean   = hitCandidate.hitCenter;
-        float  candSigma  = hitCandidate.hitSigma;
-        size_t bin        = std::floor(candMean);
+    for (const auto& hitCandidate : hitCandidateVec) {
+      float candMean = hitCandidate.hitCenter;
+      float candSigma = hitCandidate.hitSigma;
+      size_t bin = std::floor(candMean);
 
-        bin = std::min(bin, roiSignalVec.size() - 1);
+      bin = std::min(bin, roiSignalVec.size() - 1);
 
-        float  candHeight = roiSignalVec[bin] - (candMean-(float)bin)*(roiSignalVec[bin]-roiSignalVec[bin+1]);
+      float candHeight =
+        roiSignalVec[bin] - (candMean - (float)bin) * (roiSignalVec[bin] - roiSignalVec[bin + 1]);
 
-        meanVec.push_back(candMean);
-        sigmaVec.push_back(candSigma);
-        heightVec.push_back(candHeight);
+      meanVec.push_back(candMean);
+      sigmaVec.push_back(candSigma);
+      heightVec.push_back(candHeight);
     }
 
     return;
-}
+  }
 
-DEFINE_ART_CLASS_TOOL(PeakFitterGaussElimination)
+  DEFINE_ART_CLASS_TOOL(PeakFitterGaussElimination)
 }

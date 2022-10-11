@@ -20,9 +20,8 @@ namespace btutil {
     Reset(g4_trackid_v, simch_v);
   }
 
-  void
-  MCBTAlg::Reset(const std::vector<unsigned int>& g4_trackid_v,
-                 const std::vector<sim::SimChannel>& simch_v)
+  void MCBTAlg::Reset(const std::vector<unsigned int>& g4_trackid_v,
+                      const std::vector<sim::SimChannel>& simch_v)
   {
     _num_parts = 0;
     _sum_mcq.clear();
@@ -35,9 +34,8 @@ namespace btutil {
     ProcessSimChannel(simch_v);
   }
 
-  void
-  MCBTAlg::Reset(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
-                 const std::vector<sim::SimChannel>& simch_v)
+  void MCBTAlg::Reset(const std::vector<std::vector<unsigned int>>& g4_trackid_v,
+                      const std::vector<sim::SimChannel>& simch_v)
   {
     _num_parts = 0;
     _sum_mcq.clear();
@@ -50,8 +48,7 @@ namespace btutil {
     ProcessSimChannel(simch_v);
   }
 
-  void
-  MCBTAlg::ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v)
+  void MCBTAlg::ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v)
   {
 
     art::ServiceHandle<geo::Geometry const> geo;
@@ -94,16 +91,15 @@ namespace btutil {
     }
   }
 
-  const std::vector<double>&
-  MCBTAlg::MCQSum(const size_t plane_id) const
+  const std::vector<double>& MCBTAlg::MCQSum(const size_t plane_id) const
   {
     if (plane_id > _sum_mcq.size())
       throw MCBTException(Form("Invalid plane requested: %zu", plane_id));
     return _sum_mcq[plane_id];
   }
 
-  std::vector<double>
-  MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData, const WireRange_t& hit) const
+  std::vector<double> MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData,
+                                   const WireRange_t& hit) const
   {
     std::vector<double> res(_num_parts, 0);
 
@@ -127,8 +123,8 @@ namespace btutil {
     return res;
   }
 
-  std::vector<double>
-  MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData, const WireRange_t& hit) const
+  std::vector<double> MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                       const WireRange_t& hit) const
   {
     auto res = MCQ(clockData, hit);
     if (!res.size()) return res;
@@ -142,9 +138,8 @@ namespace btutil {
     return res;
   }
 
-  std::vector<double>
-  MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData,
-               const std::vector<WireRange_t>& hit_v) const
+  std::vector<double> MCBTAlg::MCQ(detinfo::DetectorClocksData const& clockData,
+                                   const std::vector<WireRange_t>& hit_v) const
   {
     std::vector<double> res(_num_parts, 0);
     for (auto const& h : hit_v) {
@@ -155,9 +150,8 @@ namespace btutil {
     return res;
   }
 
-  std::vector<double>
-  MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData,
-                   const std::vector<WireRange_t>& hit_v) const
+  std::vector<double> MCBTAlg::MCQFrac(detinfo::DetectorClocksData const& clockData,
+                                       const std::vector<WireRange_t>& hit_v) const
   {
     auto res = MCQ(clockData, hit_v);
     if (!res.size()) return res;
@@ -171,15 +165,13 @@ namespace btutil {
     return res;
   }
 
-  size_t
-  MCBTAlg::Index(const unsigned int g4_track_id) const
+  size_t MCBTAlg::Index(const unsigned int g4_track_id) const
   {
     if (g4_track_id >= _trkid_to_index.size()) return kINVALID_INDEX;
     return _trkid_to_index[g4_track_id];
   }
 
-  void
-  MCBTAlg::Register(const unsigned int& g4_track_id)
+  void MCBTAlg::Register(const unsigned int& g4_track_id)
   {
     if (_trkid_to_index.size() <= g4_track_id)
       _trkid_to_index.resize(g4_track_id + 1, kINVALID_INDEX);
@@ -190,8 +182,7 @@ namespace btutil {
     }
   }
 
-  void
-  MCBTAlg::Register(const std::vector<unsigned int>& track_id_v)
+  void MCBTAlg::Register(const std::vector<unsigned int>& track_id_v)
   {
     unsigned int max_id = 0;
     for (auto const& id : track_id_v)

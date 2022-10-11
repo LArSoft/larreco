@@ -27,7 +27,6 @@ namespace cmtool {
   class CPAlgoIgnoreTracks : public CPriorityAlgoBase {
 
   public:
-
     /// Default constructor
     CPAlgoIgnoreTracks();
 
@@ -44,7 +43,7 @@ namespace cmtool {
        Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
-    virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
+    virtual float Priority(const ::cluster::ClusterParamsAlg& cluster);
 
     /**
        Optional function: called after each iterative approach if a manager class is
@@ -78,7 +77,7 @@ namespace cmtool {
     //virtual void IterationEnd();
 
     /// Function to check if cluster is a track
-    bool IsTrack(const ::cluster::ClusterParamsAlg &cluster);
+    bool IsTrack(const ::cluster::ClusterParamsAlg& cluster);
 
     /// Setter for track-like parameters
     void SetMinHits(size_t BAKA) { _min_hits = BAKA; }
@@ -86,14 +85,11 @@ namespace cmtool {
     void SetMinMHitWires(Double_t BOKE) { _min_multihit_wires = BOKE; }
     void SetMinPrincipal(Double_t HEKOKI) { _min_principal = HEKOKI; }
 
-
   protected:
-
     size_t _min_hits;
     Double_t _min_mod_hit_dens;
     Double_t _min_multihit_wires;
     Double_t _min_principal;
-
   };
 }
 #endif

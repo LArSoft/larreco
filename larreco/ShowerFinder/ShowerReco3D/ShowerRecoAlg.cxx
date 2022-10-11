@@ -13,11 +13,11 @@
 
 namespace showerreco {
 
-  recob::Shower
-  ShowerRecoAlg::RecoOneShower(geo::GeometryCore const& geom,
-                               detinfo::DetectorClocksData const& clockData,
-                               detinfo::DetectorPropertiesData const& detProp,
-                               std::vector<showerreco::ShowerCluster_t> const& clusters)
+  recob::Shower ShowerRecoAlg::RecoOneShower(
+    geo::GeometryCore const& geom,
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp,
+    std::vector<showerreco::ShowerCluster_t> const& clusters)
   {
     recob::Shower result;
     //

@@ -19,8 +19,6 @@
 /** @addtogroup genfit
  * @{ */
 
-
-
 #ifndef GFWIREHITPOLICY_H
 #define GFWIREHITPOLICY_H
 
@@ -31,10 +29,10 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
+  class GFAbsRecoHit;
+  class GFAbsTrackRep;
 
-/** @brief policy class for hits in wire detectors (STT and DCH)
+  /** @brief policy class for hits in wire detectors (STT and DCH)
  *  which do not measure the coordinate along the wire
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Lia Lavezzi (INFN Pavia, original author)
@@ -51,49 +49,46 @@ class GFAbsTrackRep;
  * coordinate in the plane)
  *
  */
-class GFWireHitPolicy : public TObject {
-public:
+  class GFWireHitPolicy : public TObject {
+  public:
+    GFWireHitPolicy();
 
-
-  GFWireHitPolicy();
-
-  // Operations ----------------------
-   /** @brief Get detector plane
+    // Operations ----------------------
+    /** @brief Get detector plane
     * Calls GFAbsTrackRep::extrapolateToLine for POCA.
     */
-  const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
+    const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
 
-  /** @brief Hit coordinates in detector plane.
+    /** @brief Hit coordinates in detector plane.
    */
-  TMatrixT<Double_t> hitCoord(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCoord(GFAbsRecoHit*, const GFDetPlane&);
 
-  /** @brief Hit covariances in detector plane.
+    /** @brief Hit covariances in detector plane.
    */
-  TMatrixT<Double_t> hitCov(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCov(GFAbsRecoHit*, const GFDetPlane&);
 
-  /** @brief Check if the detector plane is valid
+    /** @brief Check if the detector plane is valid
    */
-  void checkPlane(GFAbsRecoHit*,const GFDetPlane&);
+    void checkPlane(GFAbsRecoHit*, const GFDetPlane&);
 
-  virtual ~GFWireHitPolicy(){;}
+    virtual ~GFWireHitPolicy() { ; }
 
-  double getMaxDistance(){return fMaxdistance;}
-  void setMaxDistance(double d){fMaxdistance=d;}
+    double getMaxDistance() { return fMaxdistance; }
+    void setMaxDistance(double d) { fMaxdistance = d; }
 
-  const std::string& getName(){return fPolicyName;}
- private:
-  static const std::string fPolicyName;
+    const std::string& getName() { return fPolicyName; }
 
+  private:
+    static const std::string fPolicyName;
 
-  // Private Data Members ------------
-  GFDetPlane fDetPlane;
-  double fMaxdistance;
-  // Private Methods -----------------
+    // Private Data Members ------------
+    GFDetPlane fDetPlane;
+    double fMaxdistance;
+    // Private Methods -----------------
 
-  // public:
-  //ClassDef(GFWireHitPolicy,1);
-
-};
+    // public:
+    //ClassDef(GFWireHitPolicy,1);
+  };
 } // namespace genf
 #endif
 

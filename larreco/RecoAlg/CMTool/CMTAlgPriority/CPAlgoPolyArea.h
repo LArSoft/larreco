@@ -25,7 +25,6 @@ namespace cmtool {
   class CPAlgoPolyArea : public CPriorityAlgoBase {
 
   public:
-
     /// Default constructor
     CPAlgoPolyArea();
 
@@ -33,13 +32,12 @@ namespace cmtool {
        Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
-    virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
+    virtual float Priority(const ::cluster::ClusterParamsAlg& cluster);
 
     /// Setter for minimum area
     void SetMinArea(double area) { _area_cut = area; }
 
   private:
-
     double _area_cut;
   };
 }

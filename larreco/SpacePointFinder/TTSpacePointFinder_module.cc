@@ -65,8 +65,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void
-  TTSpacePointFinder::beginRun(art::Run& run)
+  void TTSpacePointFinder::beginRun(art::Run& run)
   {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();
@@ -75,8 +74,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void
-  TTSpacePointFinder::produce(art::Event& evt)
+  void TTSpacePointFinder::produce(art::Event& evt)
   {
     //initialize our spacepoint collection
     auto spptCollection = std::make_unique<std::vector<recob::SpacePoint>>();

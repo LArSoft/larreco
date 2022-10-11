@@ -26,24 +26,23 @@
 namespace trkf {
 
   class VertexFitAlg {
-    public:
-
+  public:
     void VertexFit(std::vector<std::vector<geo::WireID>> const& hitWID,
-                      std::vector<std::vector<double>> const& hitX,
-                      std::vector<std::vector<double>> const& hitXErr,
-                      TVector3& VtxPos, TVector3& VtxPosErr,
-                      std::vector<TVector3>& TrkDir, std::vector<TVector3>& TrkDirErr,
-                      float& ChiDOF) const;
+                   std::vector<std::vector<double>> const& hitX,
+                   std::vector<std::vector<double>> const& hitXErr,
+                   TVector3& VtxPos,
+                   TVector3& VtxPosErr,
+                   std::vector<TVector3>& TrkDir,
+                   std::vector<TVector3>& TrkDirErr,
+                   float& ChiDOF) const;
 
     // Variables for minuit.
     static VertexFitMinuitStruct fVtxFitMinStr;
 
-    static void fcnVtxPos(Int_t &, Double_t *, Double_t &fval, double *par, Int_t flag);
+    static void fcnVtxPos(Int_t&, Double_t*, Double_t& fval, double* par, Int_t flag);
 
-    private:
-
+  private:
     art::ServiceHandle<geo::Geometry const> geom;
-
 
   }; // class VertexFitAlg
 

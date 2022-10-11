@@ -99,11 +99,7 @@ namespace hit {
   };
 
   class HitAnaAlgException : public std::exception {
-    virtual const char*
-    what() const throw()
-    {
-      return "HitAnaAlg Exception";
-    }
+    virtual const char* what() const throw() { return "HitAnaAlg Exception"; }
   } hitanaalgexception;
 
   class HitAnaAlg {

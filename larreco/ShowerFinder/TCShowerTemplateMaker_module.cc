@@ -159,8 +159,7 @@ shower::TCShowerTemplateMaker::TCShowerTemplateMaker(fhicl::ParameterSet const& 
 
 // -------------------------------------------------
 
-void
-shower::TCShowerTemplateMaker::beginJob()
+void shower::TCShowerTemplateMaker::beginJob()
 {
 
   art::ServiceHandle<art::TFileService const> tfs;
@@ -575,8 +574,7 @@ shower::TCShowerTemplateMaker::beginJob()
 
 // -------------------------------------------------
 
-void
-shower::TCShowerTemplateMaker::analyze(const art::Event& evt)
+void shower::TCShowerTemplateMaker::analyze(const art::Event& evt)
 {
 
   art::Handle<std::vector<recob::Hit>> hitListHandle;
@@ -628,13 +626,12 @@ shower::TCShowerTemplateMaker::analyze(const art::Event& evt)
 
 // -------------------------------------------------
 
-void
-shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData const& clockData,
-                                             detinfo::DetectorPropertiesData const& detProp,
-                                             std::vector<art::Ptr<recob::Hit>> showerhits,
-                                             TVector3 shwvtx,
-                                             TVector3 shwdir,
-                                             double elep)
+void shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData const& clockData,
+                                                  detinfo::DetectorPropertiesData const& detProp,
+                                                  std::vector<art::Ptr<recob::Hit>> showerhits,
+                                                  TVector3 shwvtx,
+                                                  TVector3 shwdir,
+                                                  double elep)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -740,11 +737,11 @@ shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData const& 
 
 // -------------------------------------------------
 
-void
-shower::TCShowerTemplateMaker::showerProfileTrue(detinfo::DetectorClocksData const& clockData,
-                                                 detinfo::DetectorPropertiesData const& detProp,
-                                                 std::vector<art::Ptr<recob::Hit>> allhits,
-                                                 double elep)
+void shower::TCShowerTemplateMaker::showerProfileTrue(
+  detinfo::DetectorClocksData const& clockData,
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> allhits,
+  double elep)
 {
   art::ServiceHandle<geo::Geometry const> geom;
   auto collectionPlane = geo::PlaneID(0, 0, 1);
@@ -888,9 +885,9 @@ shower::TCShowerTemplateMaker::showerProfileTrue(detinfo::DetectorClocksData con
 
 // -------------------------------------------------
 
-void
-shower::TCShowerTemplateMaker::showerProfileTrue(std::vector<art::Ptr<sim::SimChannel>> allchan,
-                                                 simb::MCParticle electron)
+void shower::TCShowerTemplateMaker::showerProfileTrue(
+  std::vector<art::Ptr<sim::SimChannel>> allchan,
+  simb::MCParticle electron)
 {
   art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
   art::ServiceHandle<geo::Geometry const> geom;

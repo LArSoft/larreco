@@ -29,18 +29,20 @@
 #include "TMath.h"
 #include "TVector3.h"
 
-#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFException.h"
 
 const std::string genf::GFWireHitPolicy::fPolicyName = "GFWireHitPolicy";
 
-genf::GFWireHitPolicy::GFWireHitPolicy() :fMaxdistance(1.E50) {;}
-
-TMatrixT<Double_t>
-genf::GFWireHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane& plane)
+genf::GFWireHitPolicy::GFWireHitPolicy() : fMaxdistance(1.E50)
 {
-  TMatrixT<Double_t> returnMat(1,1);
+  ;
+}
+
+TMatrixT<Double_t> genf::GFWireHitPolicy::hitCoord(GFAbsRecoHit* hit, const GFDetPlane& plane)
+{
+  TMatrixT<Double_t> returnMat(1, 1);
 
   checkPlane(hit, plane);
 
@@ -51,27 +53,24 @@ genf::GFWireHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane& plane)
   return returnMat;
 }
 
-TMatrixT<Double_t>
-genf::GFWireHitPolicy::hitCov(GFAbsRecoHit* hit,const GFDetPlane& plane)
+TMatrixT<Double_t> genf::GFWireHitPolicy::hitCov(GFAbsRecoHit* hit, const GFDetPlane& plane)
 {
   checkPlane(hit, plane);
 
-  TMatrixT<Double_t> returnCov(1,1);
+  TMatrixT<Double_t> returnCov(1, 1);
   TMatrixT<Double_t> rawCov = hit->getRawHitCov();
 
   returnCov[0][0] = rawCov[6][6];
 
-  return  returnCov;
+  return returnCov;
 }
 
-
-
-void genf::GFWireHitPolicy::checkPlane(GFAbsRecoHit* hit,const GFDetPlane& plane)
+void genf::GFWireHitPolicy::checkPlane(GFAbsRecoHit* hit, const GFDetPlane& plane)
 {
   // raw x1, y1, z1, x2, y2, z2, rdrift, zreco
   TMatrixT<Double_t> rC = hit->getRawHitCoord();
 
-  assert(rC.GetNrows()==7);
+  assert(rC.GetNrows() == 7);
 
   TVector3 wire1(rC[0][0], rC[1][0], rC[2][0]);
   TVector3 wire2(rC[3][0], rC[4][0], rC[5][0]);
@@ -81,40 +80,37 @@ void genf::GFWireHitPolicy::checkPlane(GFAbsRecoHit* hit,const GFDetPlane& plane
   wiredirection.SetMag(1.);
   vaxis.SetMag(1.);
 
-  if(fabs(TMath::Abs(wiredirection.Dot(vaxis)) - 1) > 1e-3)
-    {
+  if (fabs(TMath::Abs(wiredirection.Dot(vaxis)) - 1) > 1e-3) {
 
-      std::cout << "GFWireHitPolicy: plane not valid!!" << std::endl;
-    }
+    std::cout << "GFWireHitPolicy: plane not valid!!" << std::endl;
+  }
 }
 
-
-const genf::GFDetPlane&
-genf::GFWireHitPolicy::detPlane(GFAbsRecoHit* hit, GFAbsTrackRep* rep)
+const genf::GFDetPlane& genf::GFWireHitPolicy::detPlane(GFAbsRecoHit* hit, GFAbsTrackRep* rep)
 {
 
-  TMatrixT<Double_t> x=hit->getRawHitCoord();
-  assert(x.GetNrows()==7);
-  TVector3 wire1(x[0][0],x[1][0],x[2][0]);
-  TVector3 wire2(x[3][0],x[4][0],x[5][0]);
+  TMatrixT<Double_t> x = hit->getRawHitCoord();
+  assert(x.GetNrows() == 7);
+  TVector3 wire1(x[0][0], x[1][0], x[2][0]);
+  TVector3 wire2(x[3][0], x[4][0], x[5][0]);
 
   //  distance of one (the first) of the wire extremities from the plane
-  Double_t d_from_refplane =  fDetPlane.dist(wire1).Mag();
-  if(d_from_refplane < 1e-5) return fDetPlane;
-
+  Double_t d_from_refplane = fDetPlane.dist(wire1).Mag();
+  if (d_from_refplane < 1e-5) return fDetPlane;
 
   // point of closest approach
   TVector3 poca, poca_onwire, dirInPoca;
 
   rep->extrapolateToLine(wire1, wire2, poca, dirInPoca, poca_onwire);
 
-
   Double_t distance;
-  distance = TMath::Sqrt(fabs(((wire1-poca).Mag2()*(wire2-wire1).Mag2()-pow((wire1-poca).Dot(wire2-wire1),2))/(wire2-wire1).Mag2()));
+  distance = TMath::Sqrt(fabs(
+    ((wire1 - poca).Mag2() * (wire2 - wire1).Mag2() - pow((wire1 - poca).Dot(wire2 - wire1), 2)) /
+    (wire2 - wire1).Mag2()));
 
   // check poca inside tube
-  if(distance > fMaxdistance) {
-    GFException exc("distance poca-wire > maxdistance", __LINE__,__FILE__);
+  if (distance > fMaxdistance) {
+    GFException exc("distance poca-wire > maxdistance", __LINE__, __FILE__);
     throw exc;
   }
 
@@ -128,8 +124,8 @@ genf::GFWireHitPolicy::detPlane(GFAbsRecoHit* hit, GFAbsTrackRep* rep)
   wiredirection.SetMag(1.);
 
   // check orthogonality
-  if(fabs(fromwiretoextr * wiredirection) > 1e-3) {
-    GFException exc("fromwiretoextr*wiredirection > 1e-3", __LINE__,__FILE__);
+  if (fabs(fromwiretoextr * wiredirection) > 1e-3) {
+    GFException exc("fromwiretoextr*wiredirection > 1e-3", __LINE__, __FILE__);
     throw exc;
   }
 

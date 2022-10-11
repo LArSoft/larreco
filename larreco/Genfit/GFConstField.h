@@ -23,7 +23,7 @@
 #ifndef GFCONSTFIELD_H
 #define GFCONSTFIELD_H
 
-#include"GFAbsBField.h"
+#include "GFAbsBField.h"
 #include "TVector3.h"
 
 /** @brief Constant Magnetic field
@@ -34,19 +34,22 @@
  */
 namespace genf {
 
-class GFConstField : public GFAbsBField{
- public:
-  //! define the constant field in this ctor
-  GFConstField(double b1,double b2, double b3){
-    fF1 = b1;    fF2 = b2;    fF3 = b3;
-  }
+  class GFConstField : public GFAbsBField {
+  public:
+    //! define the constant field in this ctor
+    GFConstField(double b1, double b2, double b3)
+    {
+      fF1 = b1;
+      fF2 = b2;
+      fF3 = b3;
+    }
 
-  //! return value at position
-  TVector3 get(const TVector3& pos) const;
+    //! return value at position
+    TVector3 get(const TVector3& pos) const;
 
- private:
-  double fF1,fF2,fF3;
-};
+  private:
+    double fF1, fF2, fF3;
+  };
 } //  namespace genf
 #endif
 /** @} */

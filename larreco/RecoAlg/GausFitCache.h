@@ -12,7 +12,6 @@
 #ifndef GAUSFITCACHE_H
 #define GAUSFITCACHE_H 1
 
-
 // C/C++ standard libraries
 #include <string>
 #include <vector>
@@ -44,9 +43,9 @@ namespace hit {
    * Then `pFunc` is used for fitting but *never* destroyed.
    */
   class GausFitCache {
-      public:
+  public:
     /// Constructor; optionally set the name of the repository
-    GausFitCache(std::string new_name = "GausFitCache"): name(new_name) {}
+    GausFitCache(std::string new_name = "GausFitCache") : name(new_name) {}
 
     /// Destructor
     virtual ~GausFitCache();
@@ -74,8 +73,7 @@ namespace hit {
     /// Returns a name for the function with nFunc base functions
     virtual std::string FunctionName(size_t nFunc) const;
 
-      protected:
-
+  protected:
     std::string name; ///< name of the cache
 
     ///< Gaussian sum functions; n-th element is sum of n base functions
@@ -86,13 +84,13 @@ namespace hit {
 
   }; // class GausFitCache
 
-
-
   namespace details {
 
     template <typename T>
-    inline T sqr(T v) { return v*v; }
-
+    inline T sqr(T v)
+    {
+      return v * v;
+    }
 
     /// Struct with member type corresponding to the NArg-th type from Args
     template <unsigned int NArg, typename FirstArg, typename... Args>
@@ -100,14 +98,11 @@ namespace hit {
       using type = typename TemplateArgumentHelper<NArg - 1, Args...>::type;
     }; // struct TemplateArgumentHelper
 
-
     /// Struct with member type corresponding to the NArg-th type from Args
     template <unsigned int NArg, typename... Args>
     struct TemplateArgument {
       using type = typename TemplateArgumentHelper<NArg, Args...>::type;
     }; // struct TemplateArgument
-
-
 
     /**
      * @brief A sum of NFunc base functions Func
@@ -123,29 +118,22 @@ namespace hit {
      * the second one the next set of NFuncParams parameters, and so on.
      * If NFunc is 0, the value 0 is always returned.
      */
-    template <
-      unsigned int NFunc,
-      Double_t Func(Double_t const*, Double_t const*),
-      unsigned int NFuncParams
-      >
+    template <unsigned int NFunc,
+              Double_t Func(Double_t const*, Double_t const*),
+              unsigned int NFuncParams>
     struct FuncSum {
       static Double_t eval(Double_t const*, Double_t const*);
       static constexpr unsigned int NParams = NFunc * NFuncParams;
     }; // struct FuncSum
 
     // partial specialization (declaration)
-    template <
-      Double_t Func(Double_t const*, Double_t const*),
-      unsigned int NFuncParams
-      >
-    struct FuncSum<0U, Func, NFuncParams>{
+    template <Double_t Func(Double_t const*, Double_t const*), unsigned int NFuncParams>
+    struct FuncSum<0U, Func, NFuncParams> {
       static Double_t eval(Double_t const*, Double_t const*);
       static constexpr unsigned int NParams = 0;
     }; // struct FuncSum<0>
 
-
-
-    class CompiledGausFitCacheBaseStruct: public GausFitCache {
+    class CompiledGausFitCacheBaseStruct : public GausFitCache {
       /*
        * Since, as most of C++ metaprogramming code, this one is quite messy,
        * some explanations follow.
@@ -178,7 +166,7 @@ namespace hit {
        *
        *
        */
-        public:
+    public:
       using GausFitCache::GausFitCache;
 
       /// Throws an exception (ROOT does not support cloning compiled functions)
@@ -186,7 +174,6 @@ namespace hit {
 
       /// Returns the maximum number of Gaussians in a function that we support
       virtual unsigned int MaxGaussians() const { return funcs.size() - 1; }
-
 
       /**
        * @brief Single Gaussian function
@@ -201,24 +188,24 @@ namespace hit {
       template <unsigned int CutOff>
       static Double_t gaus_trunc(Double_t const* x, Double_t const* params);
 
-
       template <unsigned int NGaus>
       static Double_t ngaus(Double_t const* x, Double_t const* params)
-        { return gaus(x, params) + ngaus<NGaus-1>(x, params + 3); }
-
+      {
+        return gaus(x, params) + ngaus<NGaus - 1>(x, params + 3);
+      }
 
       /// Sum of NGaus Gaussian functions truncated at CutOff sigmas
       template <unsigned int NGaus, unsigned int CutOff>
       static Double_t ngaus_trunc(Double_t const* x, Double_t const* params)
-        { return FuncSum<NGaus, gaus_trunc<CutOff>, 3U>::eval(x, params); }
+      {
+        return FuncSum<NGaus, gaus_trunc<CutOff>, 3U>::eval(x, params);
+      }
 
       /// Class around sum of NGaus Gaussian functions truncated at CutOff sigmas
       template <unsigned int NGaus, unsigned int CutOff>
       using NGaussTruncClass = FuncSum<NGaus, gaus_trunc<CutOff>, 3U>;
 
-
-        protected:
-
+    protected:
       /**
        * @brief A helper class initializing the function vector
        * @tparam NFunc the maximum number of base functions in a function
@@ -248,7 +235,6 @@ namespace hit {
         static void fill(CompiledGausFitCacheBaseStruct& cache);
       }; // struct InitializeFuncSumVector<0, Func>
 
-
       /// Returns a vector initialized with multigaussians
       template <unsigned int NGaus>
       void InitializeCompiledGausFitVector();
@@ -262,9 +248,7 @@ namespace hit {
 
     }; // class CompiledGausFitCacheBaseStruct
 
-
   } // namespace details
-
 
   /** **************************************************************************
    * @brief A set of TF1 linear sum of Gaussians
@@ -274,28 +258,25 @@ namespace hit {
    * from pre-compiled functions.
    */
   template <unsigned int MaxGaus = 10>
-  class CompiledGausFitCache: public details::CompiledGausFitCacheBaseStruct
-  {
-      public:
-
+  class CompiledGausFitCache : public details::CompiledGausFitCacheBaseStruct {
+  public:
     /// Constructor: initializes all the functions
-    CompiledGausFitCache(std::string new_name = "CompiledGausFitCache"):
-      details::CompiledGausFitCacheBaseStruct(new_name)
-      { InitializeCompiledGausFitVector<MaxGaus>(); }
+    CompiledGausFitCache(std::string new_name = "CompiledGausFitCache")
+      : details::CompiledGausFitCacheBaseStruct(new_name)
+    {
+      InitializeCompiledGausFitVector<MaxGaus>();
+    }
 
     virtual unsigned int MaxGaussians() const { return StoredMaxGaussians(); }
 
     /// Returns the maximum number of Gaussians in a function that we support
     constexpr unsigned int StoredMaxGaussians() const { return MaxGaus; }
 
-      protected:
-
+  protected:
     /// Throws an error, since this class can't create functions run-time
-    virtual TF1* CreateFunction [[noreturn]] (size_t nGaus) const
-      { CannotCreateFunction(nGaus); }
+    virtual TF1* CreateFunction [[noreturn]] (size_t nGaus) const { CannotCreateFunction(nGaus); }
 
   }; // class CompiledGausFitCache
-
 
   /** **************************************************************************
    * @brief A set of TF1 linear sum of truncated Gaussians
@@ -307,37 +288,28 @@ namespace hit {
    * MaxGaus of them,
    */
   template <unsigned int MaxGaus = 10, unsigned int CutOff = 5>
-  class CompiledTruncatedGausFitCache:
-    public details::CompiledGausFitCacheBaseStruct
-  {
+  class CompiledTruncatedGausFitCache : public details::CompiledGausFitCacheBaseStruct {
     template <unsigned int NGaus>
     using CutOffNGaussianClass = NGaussTruncClass<NGaus, CutOff>;
 
-      public:
-
+  public:
     /// Constructor: initializes all the functions
-    CompiledTruncatedGausFitCache
-      (std::string new_name = "CompiledTruncatedGausFitCache"):
-      details::CompiledGausFitCacheBaseStruct(new_name)
+    CompiledTruncatedGausFitCache(std::string new_name = "CompiledTruncatedGausFitCache")
+      : details::CompiledGausFitCacheBaseStruct(new_name)
     {
       InitializeFuncSumVector<MaxGaus, CutOffNGaussianClass>::fill(*this);
     }
-
 
     virtual unsigned int MaxGaussians() const { return StoredMaxGaussians(); }
 
     /// Returns the maximum number of Gaussians in a function that we support
     constexpr unsigned int StoredMaxGaussians() const { return MaxGaus; }
 
-      protected:
-
+  protected:
     /// Throws an error, since this class can't create functions run-time
-    virtual TF1* CreateFunction [[noreturn]] (size_t nGaus) const
-      { CannotCreateFunction(nGaus); }
+    virtual TF1* CreateFunction [[noreturn]] (size_t nGaus) const { CannotCreateFunction(nGaus); }
 
   }; // class CompiledTruncatedGausFitCache
-
-
 
   //
   // template implementation
@@ -346,111 +318,91 @@ namespace hit {
   namespace details {
 
     // --- FuncSum -------------------------------------------------------------
-    template <
-      unsigned int NFunc,
-      Double_t Func(Double_t const*, Double_t const*),
-      unsigned int NFuncParams
-      >
+    template <unsigned int NFunc,
+              Double_t Func(Double_t const*, Double_t const*),
+              unsigned int NFuncParams>
     constexpr unsigned int FuncSum<NFunc, Func, NFuncParams>::NParams;
 
-    template<
-      unsigned int NFunc,
-      Double_t Func(Double_t const*, Double_t const*),
-      unsigned int NFuncParams
-      >
-    Double_t FuncSum<NFunc, Func, NFuncParams>::eval
-      (Double_t const* x, Double_t const* params)
+    template <unsigned int NFunc,
+              Double_t Func(Double_t const*, Double_t const*),
+              unsigned int NFuncParams>
+    Double_t FuncSum<NFunc, Func, NFuncParams>::eval(Double_t const* x, Double_t const* params)
     {
-      return Func(x, params + NFuncParams*(NFunc-1)) // use the last parameters
-        + FuncSum<NFunc - 1, Func, NFuncParams>::eval(x, params);
+      return Func(x, params + NFuncParams * (NFunc - 1)) // use the last parameters
+             + FuncSum<NFunc - 1, Func, NFuncParams>::eval(x, params);
     } // CompiledGausFitCacheBaseStruct::FuncSum<NFunc, Func>::eval()
 
-
     // partial specialization: 0 of any function
-    template <
-      Double_t Func(Double_t const*, Double_t const*),
-      unsigned int NFuncParams
-      >
-    Double_t FuncSum<0U, Func, NFuncParams>::eval
-      (Double_t const*, Double_t const*)
-      { return 0.; }
-
-
+    template <Double_t Func(Double_t const*, Double_t const*), unsigned int NFuncParams>
+    Double_t FuncSum<0U, Func, NFuncParams>::eval(Double_t const*, Double_t const*)
+    {
+      return 0.;
+    }
 
     // --- CompiledGausFitCacheBaseStruct --------------------------------------
 
     template <unsigned int NGaus>
-    void CompiledGausFitCacheBaseStruct::InitializeCompiledGausFitVector() {
-      if (NGaus > 0) InitializeCompiledGausFitVector<NGaus-1>();
+    void CompiledGausFitCacheBaseStruct::InitializeCompiledGausFitVector()
+    {
+      if (NGaus > 0) InitializeCompiledGausFitVector<NGaus - 1>();
       AppendFunction<NGaus>();
     } // CompiledGausFitCacheBaseStruct::InitializeCompiledGausFitVector()
 
-
     template <>
-    inline void
-    CompiledGausFitCacheBaseStruct::InitializeCompiledGausFitVector<0>()
-      { AppendFunction<0>(); }
-
+    inline void CompiledGausFitCacheBaseStruct::InitializeCompiledGausFitVector<0>()
+    {
+      AppendFunction<0>();
+    }
 
     template <unsigned int NGaus>
-    void CompiledGausFitCacheBaseStruct::AppendFunction() {
+    void CompiledGausFitCacheBaseStruct::AppendFunction()
+    {
       // create a function in the ficticious range [ 0, 1 ]:
-      funcs.push_back
-        (new TF1(FunctionName(NGaus).c_str(), &ngaus<NGaus>, 0., 1., 3*NGaus));
+      funcs.push_back(new TF1(FunctionName(NGaus).c_str(), &ngaus<NGaus>, 0., 1., 3 * NGaus));
     } // CompiledGausFitCacheBaseStruct::AppendFunction()
 
-
     template <unsigned int CutOff>
-    Double_t CompiledGausFitCacheBaseStruct::gaus_trunc
-      (Double_t const* x, Double_t const* params)
+    Double_t CompiledGausFitCacheBaseStruct::gaus_trunc(Double_t const* x, Double_t const* params)
     {
-      const Double_t z = (x[0] - params[1])/params[2];
-      return ((z > -((Double_t) CutOff)) && (z < (Double_t) CutOff))?
-        params[0] * std::exp(-0.5*sqr(z)): 0.;
+      const Double_t z = (x[0] - params[1]) / params[2];
+      return ((z > -((Double_t)CutOff)) && (z < (Double_t)CutOff)) ?
+               params[0] * std::exp(-0.5 * sqr(z)) :
+               0.;
     } // CompiledGausFitCacheBaseStruct::gaus_trunc()
 
-
     template <>
-    inline Double_t CompiledGausFitCacheBaseStruct::ngaus<0>
-      (Double_t const* x, Double_t const* params)
-      { return 0.; }
-
-
+    inline Double_t CompiledGausFitCacheBaseStruct::ngaus<0>(Double_t const* x,
+                                                             Double_t const* params)
+    {
+      return 0.;
+    }
 
     // --- CompiledGausFitCacheBaseStruct::InitializeFuncSumVector -------------
 
     template <unsigned int NFunc, template <unsigned int> class Func>
-    void
-    CompiledGausFitCacheBaseStruct::InitializeFuncSumVector<NFunc, Func>::fill
-      (CompiledGausFitCacheBaseStruct& cache)
+    void CompiledGausFitCacheBaseStruct::InitializeFuncSumVector<NFunc, Func>::fill(
+      CompiledGausFitCacheBaseStruct& cache)
     {
       // first fill the lower functions
       InitializeFuncSumVector<NFunc - 1, Func>::fill(cache);
       // then add one
       cache.funcs.push_back(new TF1(
-        cache.FunctionName(NFunc).c_str(), Func<NFunc>::eval,
-        0., 1., Func<NFunc>::NParams
-        ));
+        cache.FunctionName(NFunc).c_str(), Func<NFunc>::eval, 0., 1., Func<NFunc>::NParams));
     } // InitializeFuncSumVector<NFunc, Func>::fill()
 
-
     template <template <unsigned int> class Func>
-    void
-    CompiledGausFitCacheBaseStruct::InitializeFuncSumVector<0U, Func>::fill
-      (CompiledGausFitCacheBaseStruct& cache)
+    void CompiledGausFitCacheBaseStruct::InitializeFuncSumVector<0U, Func>::fill(
+      CompiledGausFitCacheBaseStruct& cache)
     {
-      cache.funcs.push_back
-        (new TF1(cache.FunctionName(0).c_str(), Func<0U>::eval, 0., 1., 0));
+      cache.funcs.push_back(new TF1(cache.FunctionName(0).c_str(), Func<0U>::eval, 0., 1., 0));
     } // InitializeFuncSumVector<0, Func>::fill()
 
     // -------------------------------------------------------------------------
 
   } // namespace details
 
-
   // ---------------------------------------------------------------------------
 
 } // namespace hit
-
 
 #endif // GAUSFITCACHE_H

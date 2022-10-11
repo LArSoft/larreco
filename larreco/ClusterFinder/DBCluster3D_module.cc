@@ -84,8 +84,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const& p)
   fMinHitDis *= fMinHitDis;
 }
 
-void
-cluster::DBCluster3D::produce(art::Event& evt)
+void cluster::DBCluster3D::produce(art::Event& evt)
 {
   auto scol = std::make_unique<std::vector<recob::Slice>>();
   auto slc_hit_assn = std::make_unique<art::Assns<recob::Slice, recob::Hit>>();

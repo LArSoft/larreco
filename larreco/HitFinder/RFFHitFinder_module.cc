@@ -22,55 +22,53 @@
 
 #include "larreco/HitFinder/RFFHitFinderAlg.h"
 
-namespace hit{
+namespace hit {
   class RFFHitFinder;
 }
 
-namespace hit{
+namespace hit {
 
   class RFFHitFinder : public art::EDProducer {
   public:
-    explicit RFFHitFinder(fhicl::ParameterSet const & p);
+    explicit RFFHitFinder(fhicl::ParameterSet const& p);
 
     // Plugins should not be copied or assigned.
-    RFFHitFinder(RFFHitFinder const &) = delete;
-    RFFHitFinder(RFFHitFinder &&) = delete;
-    RFFHitFinder & operator = (RFFHitFinder const &) = delete;
-    RFFHitFinder & operator = (RFFHitFinder &&) = delete;
+    RFFHitFinder(RFFHitFinder const&) = delete;
+    RFFHitFinder(RFFHitFinder&&) = delete;
+    RFFHitFinder& operator=(RFFHitFinder const&) = delete;
+    RFFHitFinder& operator=(RFFHitFinder&&) = delete;
 
   private:
     // Required functions.
-    void produce(art::Event & e) override;
+    void produce(art::Event& e) override;
 
     // Selected optional functions.
     void beginJob() override;
 
-    art::InputTag   fWireModuleLabel;
+    art::InputTag fWireModuleLabel;
     RFFHitFinderAlg fAlg;
   };
 
-
-  RFFHitFinder::RFFHitFinder(fhicl::ParameterSet const & p)
-    :
-    EDProducer{p},
-    fWireModuleLabel(p.get<std::string>("WireModuleLabel")),
-    fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
+  RFFHitFinder::RFFHitFinder(fhicl::ParameterSet const& p)
+    : EDProducer{p}
+    , fWireModuleLabel(p.get<std::string>("WireModuleLabel"))
+    , fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
   {
     //calls the produces stuff for me!
     recob::HitCollectionCreator::declare_products(producesCollector());
   }
 
-  void RFFHitFinder::produce(art::Event & e)
+  void RFFHitFinder::produce(art::Event& e)
   {
     art::ServiceHandle<geo::Geometry const> geoHandle;
 
-    art::Handle< std::vector<recob::Wire> > wireHandle;
-    e.getByLabel(fWireModuleLabel,wireHandle);
+    art::Handle<std::vector<recob::Wire>> wireHandle;
+    e.getByLabel(fWireModuleLabel, wireHandle);
 
-    std::unique_ptr< std::vector<recob::Hit> > hitCollection(new std::vector<recob::Hit>);
-    fAlg.Run(*wireHandle,*hitCollection,*geoHandle);
+    std::unique_ptr<std::vector<recob::Hit>> hitCollection(new std::vector<recob::Hit>);
+    fAlg.Run(*wireHandle, *hitCollection, *geoHandle);
 
-    recob::HitCollectionAssociator hcol(e,fWireModuleLabel,true);
+    recob::HitCollectionAssociator hcol(e, fWireModuleLabel, true);
     hcol.use_hits(std::move(hitCollection));
     hcol.put_into(e);
 

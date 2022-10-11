@@ -10,21 +10,21 @@
 #define IClusterAlg_h
 
 // Framework Includes
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
-/**
+namespace lar_cluster3d {
+  /**
  *  @brief  IClusterAlg interface class definiton
  */
-class IClusterAlg
-{
-public:
+  class IClusterAlg {
+  public:
     /**
      *  @brief  Virtual Destructor
      */
@@ -43,8 +43,8 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Cluster3DHits(reco::HitPairList&           hitPairList,
-                       reco::ClusterParametersList& clusterParametersList) const = 0;
+    virtual void Cluster3DHits(reco::HitPairList& hitPairList,
+                               reco::ClusterParametersList& clusterParametersList) const = 0;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -52,26 +52,26 @@ public:
      *  @param hitPairListPtr        The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Cluster3DHits(reco::HitPairListPtr&        hitPairList,
+    virtual void Cluster3DHits(reco::HitPairListPtr& hitPairList,
                                reco::ClusterParametersList& clusterParametersList) const = 0;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
      */
-    enum TimeValues {BUILDTHREEDHITS  = 0,
-                     BUILDHITTOHITMAP = 1,
-                     RUNDBSCAN        = 2,
-                     BUILDCLUSTERINFO = 3,
-                     PATHFINDING      = 4,
-                     NUMTIMEVALUES
+    enum TimeValues {
+      BUILDTHREEDHITS = 0,
+      BUILDHITTOHITMAP = 1,
+      RUNDBSCAN = 2,
+      BUILDCLUSTERINFO = 3,
+      PATHFINDING = 4,
+      NUMTIMEVALUES
     };
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
     virtual float getTimeToExecute(TimeValues index) const = 0;
-
-};
+  };
 
 } // namespace lar_cluster3d
 #endif

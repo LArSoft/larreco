@@ -18,13 +18,13 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "RStarTree/RStarBoundingBox.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "RStarTree/RStarBoundingBox.h"
 #include "larreco/RecoAlg/DBScanAlg.h"
 
 #include <cmath>
@@ -33,8 +33,7 @@
 //----------------------------------------------------------
 // RStarTree stuff
 //----------------------------------------------------------
-BoundingBox
-dbsPoint::bounds() const
+BoundingBox dbsPoint::bounds() const
 {
   BoundingBox bb;
   bb.edges[0].first = x - std::abs(dx);
@@ -56,8 +55,7 @@ struct Visitor {
   std::set<unsigned int> sResult;
   const bool ContinueVisiting;
   Visitor() : count(0), vResult(), sResult(), ContinueVisiting(true){};
-  void
-  operator()(const RTree::Leaf* const leaf)
+  void operator()(const RTree::Leaf* const leaf)
   {
     vResult.push_back(leaf->leaf);
     sResult.insert(leaf->leaf);
@@ -84,14 +82,12 @@ struct AcceptEllipse {
     d[0] = (m_bound.edges[0].second - m_bound.edges[0].first) / 2.0;
     d[1] = (m_bound.edges[1].second - m_bound.edges[1].first) / 2.0;
   }
-  bool
-  operator()(const RTree::Node* const node) const
+  bool operator()(const RTree::Node* const node) const
   {
     // At the node level we use a rectangualr overlap condition
     return m_bound.overlaps(node->bound);
   }
-  bool
-  operator()(const RTree::Leaf* const leaf) const
+  bool operator()(const RTree::Leaf* const leaf) const
   {
     // At the leaf level we have to more careful
     double C[2], D[2];
@@ -150,22 +146,16 @@ struct AcceptFindNeighbors {
     fEps[1] = eps2;
   }
   // return a point-like box at the center of b
-  BoundingBox
-  center(const BoundingBox& b) const
+  BoundingBox center(const BoundingBox& b) const
   {
     BoundingBox c;
     c.edges[0].first = c.edges[0].second = (b.edges[0].first + b.edges[0].second) / 2.0;
     c.edges[1].first = c.edges[1].second = (b.edges[1].first + b.edges[1].second) / 2.0;
     return c;
   }
-  BoundingBox
-  center() const
-  {
-    return center(fBound);
-  }
+  BoundingBox center() const { return center(fBound); }
   // Here we implement the findNeighbor algorithm from point to point
-  bool
-  isNear(const BoundingBox& b) const
+  bool isNear(const BoundingBox& b) const
   {
     // Precomupation of a few things...box centers, wire bridging
     // quantities, etc...
@@ -207,8 +197,7 @@ struct AcceptFindNeighbors {
     // Now we implement the test...see FindNeighbors
     return (((sim) / (fEps[0] * fEps[0])) + ((sim2) / (fEps[1] * fEps[1] * (WFactor))) <= 1);
   }
-  BoundingBox
-  nearestPoint(const BoundingBox& b) const
+  BoundingBox nearestPoint(const BoundingBox& b) const
   {
     BoundingBox n;
     BoundingBox c = center();
@@ -233,8 +222,7 @@ struct AcceptFindNeighbors {
     n.edges[1].second += fMaxWidth / 2.0;
     return n;
   }
-  bool
-  operator()(const RTree::Node* const node) const
+  bool operator()(const RTree::Node* const node) const
   {
     // if the our point overlaps the bounding box, accept immediately
     if (fBound.overlaps(node->bound)) return true;
@@ -243,11 +231,7 @@ struct AcceptFindNeighbors {
     // point
     return isNear(nearestPoint(node->bound));
   }
-  bool
-  operator()(const RTree::Leaf* const leaf) const
-  {
-    return isNear(leaf->bound);
-  }
+  bool operator()(const RTree::Leaf* const leaf) const { return isNear(leaf->bound); }
 };
 
 namespace cluster {
@@ -268,12 +252,11 @@ cluster::DBScanAlg::DBScanAlg(fhicl::ParameterSet const& p)
 }
 
 //----------------------------------------------------------
-void
-cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
-                             const detinfo::DetectorPropertiesData& detProp,
-                             const std::vector<art::Ptr<recob::Hit>>& allhits,
-                             std::set<uint32_t> badChannels,
-                             const std::vector<geo::WireID>& wireids)
+void cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
+                                  const detinfo::DetectorPropertiesData& detProp,
+                                  const std::vector<art::Ptr<recob::Hit>>& allhits,
+                                  std::set<uint32_t> badChannels,
+                                  const std::vector<geo::WireID>& wireids)
 {
   if (wireids.size() && wireids.size() != allhits.size()) {
     throw cet::exception("DBScanAlg") << "allhits size = " << allhits.size()
@@ -361,8 +344,7 @@ cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
 }
 
 //----------------------------------------------------------
-double
-cluster::DBScanAlg::getSimilarity(const std::vector<double> v1, const std::vector<double> v2)
+double cluster::DBScanAlg::getSimilarity(const std::vector<double> v1, const std::vector<double> v2)
 {
 
   //for Euclidean distance comment everything out except this-->>>
@@ -398,8 +380,8 @@ cluster::DBScanAlg::getSimilarity(const std::vector<double> v1, const std::vecto
 }
 
 //----------------------------------------------------------------
-double
-cluster::DBScanAlg::getSimilarity2(const std::vector<double> v1, const std::vector<double> v2)
+double cluster::DBScanAlg::getSimilarity2(const std::vector<double> v1,
+                                          const std::vector<double> v2)
 {
 
   //-------------------------------------------
@@ -437,8 +419,8 @@ cluster::DBScanAlg::getSimilarity2(const std::vector<double> v1, const std::vect
 }
 
 //----------------------------------------------------------------
-double
-cluster::DBScanAlg::getWidthFactor(const std::vector<double> v1, const std::vector<double> v2)
+double cluster::DBScanAlg::getWidthFactor(const std::vector<double> v1,
+                                          const std::vector<double> v2)
 {
 
   //double k=0.13; //this number was determined by looking at flat muon hits' widths.
@@ -466,8 +448,9 @@ cluster::DBScanAlg::getWidthFactor(const std::vector<double> v1, const std::vect
 //----------------------------------------------------------------
 //\todo this is O(n) in the number of hits, while the high performance
 //      claimed for DBSCAN relies on it being O(log n)!
-std::vector<unsigned int>
-cluster::DBScanAlg::findNeighbors(unsigned int pid, double threshold, double threshold2)
+std::vector<unsigned int> cluster::DBScanAlg::findNeighbors(unsigned int pid,
+                                                            double threshold,
+                                                            double threshold2)
 {
   std::vector<unsigned int> ne;
 
@@ -483,8 +466,7 @@ cluster::DBScanAlg::findNeighbors(unsigned int pid, double threshold, double thr
 }
 
 //-----------------------------------------------------------------
-void
-cluster::DBScanAlg::computeSimilarity()
+void cluster::DBScanAlg::computeSimilarity()
 {
   int size = fps.size();
   fsim.resize(size, std::vector<double>(size));
@@ -496,8 +478,7 @@ cluster::DBScanAlg::computeSimilarity()
 }
 
 //------------------------------------------------------------------
-void
-cluster::DBScanAlg::computeSimilarity2()
+void cluster::DBScanAlg::computeSimilarity2()
 {
   int size = fps.size();
   fsim2.resize(size, std::vector<double>(size));
@@ -509,8 +490,7 @@ cluster::DBScanAlg::computeSimilarity2()
 }
 
 //------------------------------------------------------------------
-void
-cluster::DBScanAlg::computeWidthFactor()
+void cluster::DBScanAlg::computeWidthFactor()
 {
   int size = fps.size();
   fsim3.resize(size, std::vector<double>(size));
@@ -526,8 +506,7 @@ cluster::DBScanAlg::computeWidthFactor()
 /////////////////////////////////////////////////////////////////
 // This is the algorithm that finds clusters:
 // Run the selected clustering algorithm
-void
-cluster::DBScanAlg::run_cluster()
+void cluster::DBScanAlg::run_cluster()
 {
   switch (fClusterMethod) {
   case 2: return run_dbscan_cluster();
@@ -545,8 +524,7 @@ cluster::DBScanAlg::run_cluster()
 // This is the algorithm that finds clusters:
 //
 //  DWM's implementation of DBScanAlg as much like the paper as possible
-void
-cluster::DBScanAlg::run_dbscan_cluster()
+void cluster::DBScanAlg::run_dbscan_cluster()
 {
   unsigned int cid = 0;
   // foreach pid
@@ -589,8 +567,7 @@ cluster::DBScanAlg::run_dbscan_cluster()
 
 //----------------------------------------------------------------
 // Find the neighbos of the given point
-std::set<unsigned int>
-cluster::DBScanAlg::RegionQuery(unsigned int point)
+std::set<unsigned int> cluster::DBScanAlg::RegionQuery(unsigned int point)
 {
   dbsPoint region(fRect[point]);
   Visitor visitor = fRTree.Query(AcceptFindNeighbors(region.bounds(),
@@ -605,8 +582,7 @@ cluster::DBScanAlg::RegionQuery(unsigned int point)
 }
 //----------------------------------------------------------------
 // Find the neighbos of the given point
-std::vector<unsigned int>
-cluster::DBScanAlg::RegionQuery_vector(unsigned int point)
+std::vector<unsigned int> cluster::DBScanAlg::RegionQuery_vector(unsigned int point)
 {
   dbsPoint region(fRect[point]);
   Visitor visitor = fRTree.Query(AcceptFindNeighbors(region.bounds(),
@@ -627,8 +603,7 @@ cluster::DBScanAlg::RegionQuery_vector(unsigned int point)
 
 //----------------------------------------------------------------
 // Try to make a new cluster on the basis of point
-bool
-cluster::DBScanAlg::ExpandCluster(unsigned int point, unsigned int clusterID)
+bool cluster::DBScanAlg::ExpandCluster(unsigned int point, unsigned int clusterID)
 {
   /* GetSetOfPoints for point*/
   std::set<unsigned int> seeds = RegionQuery(point);
@@ -672,8 +647,7 @@ cluster::DBScanAlg::ExpandCluster(unsigned int point, unsigned int clusterID)
 //
 // The original findNeignbor based code converted to use a R*-tree,
 // but not rearranged
-void
-cluster::DBScanAlg::run_FN_cluster()
+void cluster::DBScanAlg::run_FN_cluster()
 {
 
   unsigned int cid = 0;
@@ -750,8 +724,7 @@ cluster::DBScanAlg::run_FN_cluster()
 // This is the algorithm that finds clusters:
 //
 // The original findNeighrbor-based code.
-void
-cluster::DBScanAlg::run_FN_naive_cluster()
+void cluster::DBScanAlg::run_FN_naive_cluster()
 {
 
   unsigned int cid = 0;

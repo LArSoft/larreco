@@ -20,8 +20,7 @@ namespace {
     double score;
   };
 
-  bool
-  comparePFP(const pfpStuff& l, const pfpStuff& r)
+  bool comparePFP(const pfpStuff& l, const pfpStuff& r)
   {
     art::Ptr<recob::Vertex> const& lvtx = l.vtx;
     art::Ptr<recob::Vertex> const& rvtx = r.vtx;
@@ -47,20 +46,19 @@ namespace shower {
     , fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
   {}
 
-  int
-  TCShowerAlg::makeShowers(detinfo::DetectorClocksData const& clockData,
-                           detinfo::DetectorPropertiesData const& detProp,
-                           std::vector<art::Ptr<recob::PFParticle>> const& pfplist,
-                           std::vector<art::Ptr<recob::Vertex>> const& vertexlist,
-                           std::vector<art::Ptr<recob::Cluster>> const& clusterlist,
-                           std::vector<art::Ptr<recob::Hit>> const& hitlist,
-                           art::FindManyP<recob::Hit> const& cls_fm,
-                           art::FindManyP<recob::Cluster> const& clspfp_fm,
-                           art::FindManyP<recob::Vertex> const& vtxpfp_fm,
-                           art::FindManyP<recob::PFParticle> const& hit_fm,
-                           art::FindManyP<recob::Cluster> const& hitcls_fm,
-                           art::FindManyP<recob::Track> const& trkpfp_fm,
-                           art::FindManyP<anab::Calorimetry> const& fmcal)
+  int TCShowerAlg::makeShowers(detinfo::DetectorClocksData const& clockData,
+                               detinfo::DetectorPropertiesData const& detProp,
+                               std::vector<art::Ptr<recob::PFParticle>> const& pfplist,
+                               std::vector<art::Ptr<recob::Vertex>> const& vertexlist,
+                               std::vector<art::Ptr<recob::Cluster>> const& clusterlist,
+                               std::vector<art::Ptr<recob::Hit>> const& hitlist,
+                               art::FindManyP<recob::Hit> const& cls_fm,
+                               art::FindManyP<recob::Cluster> const& clspfp_fm,
+                               art::FindManyP<recob::Vertex> const& vtxpfp_fm,
+                               art::FindManyP<recob::PFParticle> const& hit_fm,
+                               art::FindManyP<recob::Cluster> const& hitcls_fm,
+                               art::FindManyP<recob::Track> const& trkpfp_fm,
+                               art::FindManyP<anab::Calorimetry> const& fmcal)
   {
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
@@ -359,16 +357,15 @@ namespace shower {
   // return 1 if hit is close to the shower axis
   // return 0 otherwise
 
-  int
-  TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
-                       detinfo::DetectorPropertiesData const& detProp,
-                       art::Ptr<recob::Hit> const& hit,
-                       double const maxDist,
-                       double const minDistVert,
-                       std::map<geo::PlaneID, double> const& trk_wire1,
-                       std::map<geo::PlaneID, double> const& trk_tick1,
-                       std::map<geo::PlaneID, double> const& trk_wire2,
-                       std::map<geo::PlaneID, double> const& trk_tick2) const
+  int TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           art::Ptr<recob::Hit> const& hit,
+                           double const maxDist,
+                           double const minDistVert,
+                           std::map<geo::PlaneID, double> const& trk_wire1,
+                           std::map<geo::PlaneID, double> const& trk_tick1,
+                           std::map<geo::PlaneID, double> const& trk_wire2,
+                           std::map<geo::PlaneID, double> const& trk_tick2) const
   {
     int pull = 0;
     return goodHit(clockData,
@@ -389,17 +386,16 @@ namespace shower {
   // return 1 if hit is close to the shower axis
   // return 0 otherwise
 
-  int
-  TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
-                       detinfo::DetectorPropertiesData const& detProp,
-                       art::Ptr<recob::Hit> const& hit,
-                       double maxDist,
-                       double const minDistVert,
-                       std::map<geo::PlaneID, double> const& trk_wire1,
-                       std::map<geo::PlaneID, double> const& trk_tick1,
-                       std::map<geo::PlaneID, double> const& trk_wire2,
-                       std::map<geo::PlaneID, double> const& trk_tick2,
-                       int& pull) const
+  int TCShowerAlg::goodHit(detinfo::DetectorClocksData const& clockData,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           art::Ptr<recob::Hit> const& hit,
+                           double maxDist,
+                           double const minDistVert,
+                           std::map<geo::PlaneID, double> const& trk_wire1,
+                           std::map<geo::PlaneID, double> const& trk_tick1,
+                           std::map<geo::PlaneID, double> const& trk_wire2,
+                           std::map<geo::PlaneID, double> const& trk_tick2,
+                           int& pull) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -451,9 +447,8 @@ namespace shower {
 
   // -----------------------------------------------------
 
-  bool
-  TCShowerAlg::addShowerHit(art::Ptr<recob::Hit> hit,
-                            std::vector<art::Ptr<recob::Hit>> showerhits) const
+  bool TCShowerAlg::addShowerHit(art::Ptr<recob::Hit> hit,
+                                 std::vector<art::Ptr<recob::Hit>> showerhits) const
   {
 
     for (size_t i = 0; i < showerhits.size(); ++i) {

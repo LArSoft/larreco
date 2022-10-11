@@ -19,21 +19,20 @@
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
-/**
+namespace lar_cluster3d {
+  /**
  *  @brief  ConvexHull class definiton
  */
-class ConvexHull
-{
-public:
+  class ConvexHull {
+  public:
     /**
      *  @brief Definitions used by the ConvexHull algorithm
      */
-    using Point           = std::tuple<float,float,const reco::ClusterHit3D*>;   ///< projected x,y position and 3D hit
-    using PointList       = std::list<Point>;                                    ///< The list of the projected points
-    using PointPair       = std::pair<Point,Point>;
-    using MinMaxPointPair = std::pair<PointPair,PointPair>;
+    using Point =
+      std::tuple<float, float, const reco::ClusterHit3D*>; ///< projected x,y position and 3D hit
+    using PointList = std::list<Point>;                    ///< The list of the projected points
+    using PointPair = std::pair<Point, Point>;
+    using MinMaxPointPair = std::pair<PointPair, PointPair>;
 
     /**
      *  @brief  Constructor
@@ -50,17 +49,17 @@ public:
     /**
      *  @brief recover the list of points used to build convex hull
      */
-    const PointList& getPointsList() {return fPoints;}
+    const PointList& getPointsList() { return fPoints; }
 
     /**
      *  @brief recover the list of convex hull vertices
      */
-    const PointList& getConvexHull() const {return fConvexHull;}
+    const PointList& getConvexHull() const { return fConvexHull; }
 
     /**
      *  @brief find the ends of the convex hull (along its x axis)
      */
-    const MinMaxPointPair& getMinMaxPointPair() const {return fMinMaxPointPair;}
+    const MinMaxPointPair& getMinMaxPointPair() const { return fMinMaxPointPair; }
 
     /**
      *  @brief Find the two points on the hull which are furthest apart
@@ -75,7 +74,7 @@ public:
     /**
      *  @brief recover the area of the convex hull
      */
-    float getConvexHullArea() const {return fConvexHullArea;}
+    float getConvexHullArea() const { return fConvexHullArea; }
 
     /**
      *  @brief Given an input Point, find the nearest edge
@@ -87,8 +86,7 @@ public:
      */
     float findNearestDistance(const Point&) const;
 
-private:
-
+  private:
     /**
      *  @brief Given an input set of 2D points build a convex hull around them
      *
@@ -111,16 +109,16 @@ private:
      */
     bool isLeft(const Point& p0, const Point& p1, const Point& pCheck) const;
 
-    float                         fKinkAngle;
-    float                         fMinEdgeDistance;
+    float fKinkAngle;
+    float fMinEdgeDistance;
 
-    const PointList&              fPoints;
-    PointList                     fConvexHull;
-    MinMaxPointPair               fMinMaxPointPair;
-    float                         fConvexHullArea;
-    PointList                     fExtremePoints;
+    const PointList& fPoints;
+    PointList fConvexHull;
+    MinMaxPointPair fMinMaxPointPair;
+    float fConvexHullArea;
+    PointList fExtremePoints;
     reco::ConvexHullKinkTupleList fKinkPoints;
-};
+  };
 
 } // namespace lar_cluster3d
 #endif

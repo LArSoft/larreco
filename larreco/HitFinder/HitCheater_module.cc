@@ -91,8 +91,7 @@ hit::HitCheater::HitCheater(fhicl::ParameterSet const& p) : EDProducer{p}
 }
 
 //-------------------------------------------------------------------
-void
-hit::HitCheater::produce(art::Event& e)
+void hit::HitCheater::produce(art::Event& e)
 {
   // this object contains the hit collection
   // and its associations to wires and raw digits:
@@ -152,10 +151,9 @@ hit::HitCheater::produce(art::Event& e)
 }
 
 //-------------------------------------------------------------------
-void
-hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
-                                   std::vector<recob::Hit>& hits,
-                                   int spill)
+void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
+                                        std::vector<recob::Hit>& hits,
+                                        int spill)
 {
   art::ServiceHandle<geo::Geometry const> geo;
 

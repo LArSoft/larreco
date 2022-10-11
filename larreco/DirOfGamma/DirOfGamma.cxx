@@ -38,8 +38,7 @@ ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
 
 ems::Bin2D::Bin2D(const TVector2& center) : fCenter2D(center), fTotCharge(0.0), fSize(0) {}
 
-void
-ems::Bin2D::Add(Hit2D* hit)
+void ems::Bin2D::Add(Hit2D* hit)
 {
   fHits2D.push_back(hit);
   fTotCharge += hit->GetCharge();
@@ -47,20 +46,18 @@ ems::Bin2D::Add(Hit2D* hit)
   SortLess();
 }
 
-void
-ems::Bin2D::Sort()
+void ems::Bin2D::Sort()
 {
   return std::sort(fHits2D.begin(), fHits2D.end(), bDistCentMore2D(fCenter2D));
 }
 
-void
-ems::Bin2D::SortLess()
+void ems::Bin2D::SortLess()
 {
   return std::sort(fHits2D.begin(), fHits2D.end(), bDistCentLess2D(fCenter2D));
 }
 
-std::vector<art::Ptr<recob::Hit>>
-ems::Bin2D::GetIniHits(const double radius, const unsigned int nhits) const
+std::vector<art::Ptr<recob::Hit>> ems::Bin2D::GetIniHits(const double radius,
+                                                         const unsigned int nhits) const
 {
 
   std::vector<art::Ptr<recob::Hit>> vec;
@@ -91,8 +88,7 @@ ems::EndPoint::EndPoint(const Hit2D& center, const std::vector<Hit2D*>& hits, un
   fCryo = center.GetHitPtr()->WireID().Cryostat;
 }
 
-void
-ems::EndPoint::FillBins()
+void ems::EndPoint::FillBins()
 {
   TVector2 vstart(0, 1);
 
@@ -130,8 +126,7 @@ ems::EndPoint::FillBins()
       fBins[id].Add(fPoints2D[saveid]);
 }
 
-void
-ems::EndPoint::ComputeMaxCharge()
+void ems::EndPoint::ComputeMaxCharge()
 {
   fMaxCharge = 0.0;
   unsigned int saveid = 0;
@@ -144,8 +139,7 @@ ems::EndPoint::ComputeMaxCharge()
   fMaxChargeIdBin = saveid;
 }
 
-void
-ems::EndPoint::ComputeMeanCharge()
+void ems::EndPoint::ComputeMeanCharge()
 {
   fMeanCharge = 0.0;
   if (fNbins == 0) return;
@@ -167,8 +161,7 @@ ems::EndPoint::ComputeMeanCharge()
   fMeanCharge = sumcharge / double(fNbins);
 }
 
-double
-ems::EndPoint::GetAsymmetry() const
+double ems::EndPoint::GetAsymmetry() const
 {
   if ((fMaxCharge + fMeanCharge) == 0) return 0.0;
   return ((fMaxCharge - fMeanCharge) / (fMaxCharge + fMeanCharge));
@@ -200,8 +193,7 @@ ems::DirOfGamma::DirOfGamma(detinfo::DetectorPropertiesData const& detProp,
   }
 }
 
-void
-ems::DirOfGamma::ComputeBaryCenter()
+void ems::DirOfGamma::ComputeBaryCenter()
 {
   double nomx = 0.0;
   double nomy = 0.0;
@@ -217,8 +209,7 @@ ems::DirOfGamma::ComputeBaryCenter()
   fBaryCenter.Set(bx, by);
 }
 
-void
-ems::DirOfGamma::FillBins()
+void ems::DirOfGamma::FillBins()
 {
   TVector2 vstart(0, 1);
 
@@ -245,8 +236,7 @@ ems::DirOfGamma::FillBins()
     fBins[id].Sort();
 }
 
-void
-ems::DirOfGamma::ComputeMaxDist()
+void ems::DirOfGamma::ComputeMaxDist()
 {
   double maxdist2 = 0.0;
 
@@ -264,8 +254,7 @@ ems::DirOfGamma::ComputeMaxDist()
   fNormDist = std::sqrt(maxdist2);
 }
 
-bool
-ems::DirOfGamma::FindCandidates()
+bool ems::DirOfGamma::FindCandidates()
 {
   float rad = 0.5F * fNormDist;
   unsigned int nbins = fNbins * 4;
@@ -294,8 +283,7 @@ ems::DirOfGamma::FindCandidates()
     return false;
 }
 
-void
-ems::DirOfGamma::ComputeMaxCharge()
+void ems::DirOfGamma::ComputeMaxCharge()
 {
   fNormCharge = 0.0;
   for (unsigned int i = 0; i < fCandidates.size(); i++) {
@@ -305,8 +293,7 @@ ems::DirOfGamma::ComputeMaxCharge()
   }
 }
 
-void
-ems::DirOfGamma::FindInitialPart()
+void ems::DirOfGamma::FindInitialPart()
 {
   double max_asymmetry = 0.0;
   unsigned int saveid = 0;

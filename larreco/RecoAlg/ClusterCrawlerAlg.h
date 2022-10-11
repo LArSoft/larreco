@@ -38,18 +38,15 @@ namespace cluster {
     typedef unsigned int CTP_t;
 
     static constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
-    static CTP_t
-    EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane)
+    static CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane)
     {
       return cryo * CTPpad * CTPpad + tpc * CTPpad + plane;
     }
-    static CTP_t
-    EncodeCTP(const geo::PlaneID& planeID)
+    static CTP_t EncodeCTP(const geo::PlaneID& planeID)
     {
       return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane);
     }
-    static geo::PlaneID
-    DecodeCTP(CTP_t CTP)
+    static geo::PlaneID DecodeCTP(CTP_t CTP)
     {
       return {CTP / (CTPpad * CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad};
     }
@@ -120,46 +117,22 @@ namespace cluster {
     /// @{
     /// @name Result retrieval
 
-    std::vector<short> const&
-    GetinClus() const
-    {
-      return inClus;
-    }
+    std::vector<short> const& GetinClus() const { return inClus; }
 
     /// Returns (and loses) the collection of reconstructed hits
-    std::vector<recob::Hit>&&
-    YieldHits()
-    {
-      return std::move(fHits);
-    }
+    std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
 
     /// Returns the collection of reconstructed hits
-    std::vector<recob::Hit>
-    GetHits()
-    {
-      return fHits;
-    }
+    std::vector<recob::Hit> GetHits() { return fHits; }
 
     /// Returns a constant reference to the clusters found
-    std::vector<ClusterStore> const&
-    GetClusters() const
-    {
-      return tcl;
-    }
+    std::vector<ClusterStore> const& GetClusters() const { return tcl; }
 
     /// Returns a constant reference to the 2D end points found
-    std::vector<VtxStore> const&
-    GetEndPoints() const
-    {
-      return vtx;
-    }
+    std::vector<VtxStore> const& GetEndPoints() const { return vtx; }
 
     /// Returns a constant reference to the 3D vertices found
-    std::vector<Vtx3Store> const&
-    GetVertices() const
-    {
-      return vtx3;
-    }
+    std::vector<Vtx3Store> const& GetVertices() const { return vtx3; }
 
     /// Deletes all the results (might saves memory)
     /// @note The current implementation typically does NOT save memory.

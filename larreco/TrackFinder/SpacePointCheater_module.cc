@@ -89,8 +89,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  SpacePointCheater::produce(art::Event& evt)
+  void SpacePointCheater::produce(art::Event& evt)
   //
   // Purpose: Produce method.
   //
@@ -311,8 +310,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  SpacePointCheater::endJob()
+  void SpacePointCheater::endJob()
   //
   // Purpose: Print summary.
   //

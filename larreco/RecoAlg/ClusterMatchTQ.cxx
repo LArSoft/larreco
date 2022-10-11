@@ -24,14 +24,9 @@ namespace {
     float length;
   };
 
-  bool
-  SortByLength(CluLen const& c1, CluLen const& c2)
-  {
-    return c1.length > c2.length;
-  }
+  bool SortByLength(CluLen const& c1, CluLen const& c2) { return c1.length > c2.length; }
 
-  bool
-  SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
+  bool SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
   {
     return h1->WireID().Wire < h2->WireID().Wire;
   }
@@ -48,11 +43,11 @@ namespace cluster {
   }
 
   //---------------------------------------------------------------------
-  std::vector<std::vector<unsigned int>>
-  ClusterMatchTQ::MatchedClusters(const detinfo::DetectorClocksData& clockdata,
-                                  const detinfo::DetectorPropertiesData& detProp,
-                                  const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
-                                  const art::FindManyP<recob::Hit>& fm) const
+  std::vector<std::vector<unsigned int>> ClusterMatchTQ::MatchedClusters(
+    const detinfo::DetectorClocksData& clockdata,
+    const detinfo::DetectorPropertiesData& detProp,
+    const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
+    const art::FindManyP<recob::Hit>& fm) const
   {
     std::vector<std::vector<unsigned int>> matchedclusters;
 

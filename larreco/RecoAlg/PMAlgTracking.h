@@ -63,20 +63,15 @@ namespace pma {
 
 class pma::PMAlgTrackingBase {
 public:
-  const pma::TrkCandidateColl&
-  result()
-  {
-    return fResult;
-  }
+  const pma::TrkCandidateColl& result() { return fResult; }
 
-  std::vector<std::pair<TVector3, std::vector<std::pair<size_t, bool>>>>
-  getVertices(bool onlyBranching = false) const
+  std::vector<std::pair<TVector3, std::vector<std::pair<size_t, bool>>>> getVertices(
+    bool onlyBranching = false) const
   {
     return fPMAlgVertexing.getVertices(fResult, onlyBranching);
   }
 
-  std::vector<std::pair<TVector3, size_t>>
-  getKinks() const
+  std::vector<std::pair<TVector3, size_t>> getKinks() const
   {
     return fPMAlgVertexing.getKinks(fResult);
   }
@@ -136,8 +131,7 @@ private:
   void buildTracks(detinfo::DetectorPropertiesData const& detProp);
   void buildShowers(detinfo::DetectorPropertiesData const& detProp);
 
-  bool
-  has(const std::vector<int>& v, int i) const
+  bool has(const std::vector<int>& v, int i) const
   {
     for (auto c : v) {
       if (c == i) return true;
@@ -322,13 +316,12 @@ private:
                                  unsigned int cryo,
                                  geo::View_t first_view);
 
-  pma::TrkCandidate
-  matchCluster(detinfo::DetectorPropertiesData const& detProp,
-               int first_clu_idx,
-               size_t minSizeCompl,
-               unsigned int tpc,
-               unsigned int cryo,
-               geo::View_t first_view)
+  pma::TrkCandidate matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                                 int first_clu_idx,
+                                 size_t minSizeCompl,
+                                 unsigned int tpc,
+                                 unsigned int cryo,
+                                 geo::View_t first_view)
   {
     return matchCluster(
       detProp, first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view);
@@ -363,8 +356,7 @@ private:
 
   void listUsedClusters(detinfo::DetectorPropertiesData const& detProp) const;
 
-  bool
-  has(const std::vector<size_t>& v, size_t idx) const
+  bool has(const std::vector<size_t>& v, size_t idx) const
   {
     for (auto c : v)
       if (c == idx) return true;

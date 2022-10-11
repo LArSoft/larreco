@@ -74,8 +74,7 @@ namespace trkf {
   //----------------------------------------------------------------------
   // Print geometry and properties constants.
   //
-  void
-  SpacePointAlg::update(detinfo::DetectorPropertiesData const& detProp) const
+  void SpacePointAlg::update(detinfo::DetectorPropertiesData const& detProp) const
   {
     // Generate info report on first call only.
 
@@ -163,9 +162,8 @@ namespace trkf {
 
   //----------------------------------------------------------------------
   // Get corrected time for the specified hit.
-  double
-  SpacePointAlg::correctedTime(detinfo::DetectorPropertiesData const& detProp,
-                               const recob::Hit& hit) const
+  double SpacePointAlg::correctedTime(detinfo::DetectorPropertiesData const& detProp,
+                                      const recob::Hit& hit) const
   {
     // Get services.
 
@@ -187,8 +185,7 @@ namespace trkf {
 
   //----------------------------------------------------------------------
   // Spatial separation of hits (zero if two or fewer).
-  double
-  SpacePointAlg::separation(const art::PtrVector<recob::Hit>& hits) const
+  double SpacePointAlg::separation(const art::PtrVector<recob::Hit>& hits) const
   {
     // Get geometry service.
 
@@ -273,10 +270,9 @@ namespace trkf {
   // Check hits for compatibility.
   // Check hits pairwise for different views and maximum time difference.
   // Check three hits for spatial compatibility.
-  bool
-  SpacePointAlg::compatible(detinfo::DetectorPropertiesData const& detProp,
-                            const art::PtrVector<recob::Hit>& hits,
-                            bool useMC) const
+  bool SpacePointAlg::compatible(detinfo::DetectorPropertiesData const& detProp,
+                                 const art::PtrVector<recob::Hit>& hits,
+                                 bool useMC) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -424,11 +420,10 @@ namespace trkf {
   // Fill one space point using a colleciton of hits.
   // Assume points have already been tested for compatibility.
   //
-  void
-  SpacePointAlg::fillSpacePoint(detinfo::DetectorPropertiesData const& detProp,
-                                const art::PtrVector<recob::Hit>& hits,
-                                std::vector<recob::SpacePoint>& sptv,
-                                int sptid) const
+  void SpacePointAlg::fillSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                                     const art::PtrVector<recob::Hit>& hits,
+                                     std::vector<recob::SpacePoint>& sptv,
+                                     int sptid) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -569,10 +564,9 @@ namespace trkf {
   /// either two or three Hits (even for three-plane detectors), if
   /// the space point algorithm is configured to allow it.
   ///
-  void
-  SpacePointAlg::fillSpacePoints(detinfo::DetectorPropertiesData const& detProp,
-                                 std::vector<recob::SpacePoint>& spts,
-                                 std::multimap<double, KHitTrack> const& trackMap) const
+  void SpacePointAlg::fillSpacePoints(detinfo::DetectorPropertiesData const& detProp,
+                                      std::vector<recob::SpacePoint>& spts,
+                                      std::multimap<double, KHitTrack> const& trackMap) const
   {
     // Loop over KHitTracks.
 
@@ -630,11 +624,10 @@ namespace trkf {
   // This version assumes there can be multiple hits per view,
   // and gives unequal weight to different hits.
   //
-  void
-  SpacePointAlg::fillComplexSpacePoint(detinfo::DetectorPropertiesData const& detProp,
-                                       const art::PtrVector<recob::Hit>& hits,
-                                       std::vector<recob::SpacePoint>& sptv,
-                                       int sptid) const
+  void SpacePointAlg::fillComplexSpacePoint(detinfo::DetectorPropertiesData const& detProp,
+                                            const art::PtrVector<recob::Hit>& hits,
+                                            std::vector<recob::SpacePoint>& sptv,
+                                            int sptid) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -793,11 +786,10 @@ namespace trkf {
   // Fill a vector of space points for all compatible combinations of hits
   // from an input vector of hits (non-mc-truth version).
   //
-  void
-  SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
-                                 detinfo::DetectorPropertiesData const& detProp,
-                                 const art::PtrVector<recob::Hit>& hits,
-                                 std::vector<recob::SpacePoint>& spts) const
+  void SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      const art::PtrVector<recob::Hit>& hits,
+                                      std::vector<recob::SpacePoint>& spts) const
   {
     makeSpacePoints(clockData, detProp, hits, spts, false);
   }
@@ -806,11 +798,10 @@ namespace trkf {
   // Fill a vector of space points for all compatible combinations of hits
   // from an input vector of hits (mc-truth version).
   //
-  void
-  SpacePointAlg::makeMCTruthSpacePoints(detinfo::DetectorClocksData const& clockData,
-                                        detinfo::DetectorPropertiesData const& detProp,
-                                        const art::PtrVector<recob::Hit>& hits,
-                                        std::vector<recob::SpacePoint>& spts) const
+  void SpacePointAlg::makeMCTruthSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                             detinfo::DetectorPropertiesData const& detProp,
+                                             const art::PtrVector<recob::Hit>& hits,
+                                             std::vector<recob::SpacePoint>& spts) const
   {
     makeSpacePoints(clockData, detProp, hits, spts, true);
   }
@@ -819,12 +810,11 @@ namespace trkf {
   // Fill a vector of space points for all compatible combinations of hits
   // from an input vector of hits (general version).
   //
-  void
-  SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
-                                 detinfo::DetectorPropertiesData const& detProp,
-                                 const art::PtrVector<recob::Hit>& hits,
-                                 std::vector<recob::SpacePoint>& spts,
-                                 bool useMC) const
+  void SpacePointAlg::makeSpacePoints(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      const art::PtrVector<recob::Hit>& hits,
+                                      std::vector<recob::SpacePoint>& spts,
+                                      bool useMC) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
 
@@ -1491,8 +1481,8 @@ namespace trkf {
   //----------------------------------------------------------------------
   // Get hits associated with a particular space point, based on most recent
   // call of any make*SpacePoints method.
-  const art::PtrVector<recob::Hit>&
-  SpacePointAlg::getAssociatedHits(const recob::SpacePoint& spt) const
+  const art::PtrVector<recob::Hit>& SpacePointAlg::getAssociatedHits(
+    const recob::SpacePoint& spt) const
   {
     // It is an error if no hits are associated with this space point (throw exception).
 

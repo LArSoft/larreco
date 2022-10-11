@@ -21,7 +21,6 @@
  *
  */
 
-
 /** @addtogroup genfit
  * @{
  */
@@ -29,9 +28,9 @@
 #ifndef GFABSFINITEPLANE_H
 #define GFABSFINITEPLANE_H
 
-#include<stdexcept> // std::logic_error
-#include<string>
-#include<iostream>
+#include <iostream>
+#include <stdexcept> // std::logic_error
+#include <string>
 
 #include "TObject.h"
 
@@ -44,23 +43,24 @@
  */
 namespace genf {
 
-class GFAbsFinitePlane : public TObject {
-public:
-  //! Returns whether a u,v point is in the active plane or not. Needs to be implemented
-  //! in child class.
-  virtual bool inActive(const double& u,const double& v)const = 0;
-  virtual void Print(std::ostream& out = std::cout) const = 0;
-  //! Deep copy ctor for polymorphic class.
-  virtual GFAbsFinitePlane* clone() const = 0;
-  virtual ~GFAbsFinitePlane();
+  class GFAbsFinitePlane : public TObject {
+  public:
+    //! Returns whether a u,v point is in the active plane or not. Needs to be implemented
+    //! in child class.
+    virtual bool inActive(const double& u, const double& v) const = 0;
+    virtual void Print(std::ostream& out = std::cout) const = 0;
+    //! Deep copy ctor for polymorphic class.
+    virtual GFAbsFinitePlane* clone() const = 0;
+    virtual ~GFAbsFinitePlane();
 
-    private:
-  virtual void Print(Option_t*) const
-    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
+  private:
+    virtual void Print(Option_t*) const
+    {
+      throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available");
+    }
 
-  // ClassDef(GFAbsFinitePlane,1)
-};
-
+    // ClassDef(GFAbsFinitePlane,1)
+  };
 
 } // namespace genf
 

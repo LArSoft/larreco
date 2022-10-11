@@ -164,8 +164,7 @@ struct houghCorner {
     p1 = p1Temp;
   }
 
-  bool
-  operator<(const houghCorner& houghCornerComp) const
+  bool operator<(const houghCorner& houghCornerComp) const
   {
     return (strength < houghCornerComp.strength);
   }
@@ -222,21 +221,20 @@ struct protoTrack {
   std::vector<art::Ptr<recob::Hit>> hits;
   protoTrack() {}
 
-  void
-  Init(unsigned int num = 999999,
-       unsigned int pnum = 999999,
-       float slope = 999999,
-       float intercept = 999999,
-       float totalQTemp = -999999,
-       float Min0 = 999999,
-       float Min1 = 999999,
-       float Max0 = -999999,
-       float Max1 = -999999,
-       int iMinWireTemp = 999999,
-       int iMaxWireTemp = -999999,
-       int minWireTemp = 999999,
-       int maxWireTemp = -999999,
-       std::vector<art::Ptr<recob::Hit>> hitsTemp = std::vector<art::Ptr<recob::Hit>>())
+  void Init(unsigned int num = 999999,
+            unsigned int pnum = 999999,
+            float slope = 999999,
+            float intercept = 999999,
+            float totalQTemp = -999999,
+            float Min0 = 999999,
+            float Min1 = 999999,
+            float Max0 = -999999,
+            float Max1 = -999999,
+            int iMinWireTemp = 999999,
+            int iMaxWireTemp = -999999,
+            int minWireTemp = 999999,
+            int maxWireTemp = -999999,
+            std::vector<art::Ptr<recob::Hit>> hitsTemp = std::vector<art::Ptr<recob::Hit>>())
   {
     clusterNumber = num;
     planeNumber = pnum;
@@ -308,33 +306,21 @@ namespace cluster {
      * @param value the count value
      * @return new value of the counter
      */
-    SubCounter_t
-    set(Key_t key, SubCounter_t value)
-    {
-      return Base_t::set(key, value);
-    }
+    SubCounter_t set(Key_t key, SubCounter_t value) { return Base_t::set(key, value); }
 
     /**
      * @brief Increments by 1 the specified counter
      * @param key key of the counter to be increased
      * @return new value of the counter
      */
-    SubCounter_t
-    increment(Key_t key)
-    {
-      return Base_t::increment(key);
-    }
+    SubCounter_t increment(Key_t key) { return Base_t::increment(key); }
 
     /**
      * @brief Decrements by 1 the specified counter
      * @param key key of the counter to be decreased
      * @return new value of the counter
      */
-    SubCounter_t
-    decrement(Key_t key)
-    {
-      return Base_t::decrement(key);
-    }
+    SubCounter_t decrement(Key_t key) { return Base_t::decrement(key); }
 
     /**
      * @brief Sets the specified range of counters to a count value
@@ -344,8 +330,7 @@ namespace cluster {
      * @return new value of all the counters
      * @see increment(), decrement(), increment_and_get_max()
      */
-    SubCounter_t
-    set(Key_t key_begin, Key_t key_end, SubCounter_t value)
+    SubCounter_t set(Key_t key_begin, Key_t key_end, SubCounter_t value)
     {
       return unchecked_set_range(key_begin, key_end, value);
     }
@@ -378,8 +363,7 @@ namespace cluster {
      * Note that if all the counters are at the minimum possible value, no
      * maximum will be returned.
      */
-    PairValue_t
-    increment_and_get_max(Key_t key_begin, Key_t key_end)
+    PairValue_t increment_and_get_max(Key_t key_begin, Key_t key_end)
     {
       return unchecked_add_range_max(key_begin, key_end, +1);
     }
@@ -398,8 +382,7 @@ namespace cluster {
      * value is equal to current_max, while the iterator points to the end of
      * the map (end()).
      */
-    PairValue_t
-    increment_and_get_max(Key_t key_begin, Key_t key_end, SubCounter_t current_max)
+    PairValue_t increment_and_get_max(Key_t key_begin, Key_t key_end, SubCounter_t current_max)
     {
       return unchecked_add_range_max(key_begin, key_end, +1, current_max);
     }

@@ -39,8 +39,7 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double
-  bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
 
@@ -59,10 +58,9 @@ namespace {
   // Find the closest matching mc trajectory point (sim::MCStep) for a given seed.
   // Returned value is index of the trajectory point.
   // Return -1 in case of no match.
-  int
-  mcmatch(detinfo::DetectorPropertiesData const& detProp,
-          const sim::MCTrack& mctrk,
-          const recob::Seed& seed)
+  int mcmatch(detinfo::DetectorPropertiesData const& detProp,
+              const sim::MCTrack& mctrk,
+              const recob::Seed& seed)
   {
     // Get seed point.
 
@@ -97,16 +95,15 @@ namespace {
   // In this function, the extracted start and end momenta are converted to GeV
   // (MCTrack stores momenta in Mev).
   //----------------------------------------------------------------------------
-  double
-  length(detinfo::DetectorPropertiesData const& detProp,
-         const sim::MCTrack& mctrk,
-         double dx,
-         TVector3& start,
-         TVector3& end,
-         TVector3& startmom,
-         TVector3& endmom,
-         unsigned int /*tpc*/ = 0,
-         unsigned int /*cstat*/ = 0)
+  double length(detinfo::DetectorPropertiesData const& detProp,
+                const sim::MCTrack& mctrk,
+                double dx,
+                TVector3& start,
+                TVector3& end,
+                TVector3& startmom,
+                TVector3& endmom,
+                unsigned int /*tpc*/ = 0,
+                unsigned int /*cstat*/ = 0)
   {
     // Get services.
 
@@ -158,8 +155,7 @@ namespace {
 
   // Fill efficiency histogram assuming binomial errors.
 
-  void
-  effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
+  void effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
@@ -193,8 +189,7 @@ namespace {
 
   // Fill multiplicity histogram.
 
-  void
-  mulcalc(const TH1* hnum, const TH1* hden, TH1* hmul)
+  void mulcalc(const TH1* hnum, const TH1* hden, TH1* hmul)
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
@@ -570,8 +565,7 @@ namespace trkf {
                            << "  MinMCLen = " << fMinMCLen;
   }
 
-  void
-  SeedAna::analyze(const art::Event& evt)
+  void SeedAna::analyze(const art::Event& evt)
   //
   // Purpose: Analyze method.
   //
@@ -930,8 +924,7 @@ namespace trkf {
     }
   }
 
-  void
-  SeedAna::endJob()
+  void SeedAna::endJob()
   //
   // Purpose: End of job.
   //

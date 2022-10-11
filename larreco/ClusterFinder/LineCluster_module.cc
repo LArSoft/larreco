@@ -99,8 +99,7 @@ namespace cluster {
   } // LineCluster::LineCluster()
 
   //----------------------------------------------------------------------------
-  void
-  LineCluster::produce(art::Event& evt)
+  void LineCluster::produce(art::Event& evt)
   {
     // fetch the wires needed by CCHitFinder
 

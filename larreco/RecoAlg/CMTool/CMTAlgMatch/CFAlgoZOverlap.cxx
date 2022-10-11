@@ -10,15 +10,13 @@ namespace cmtool {
   }
 
   //-----------------------------
-  void
-  CFAlgoZOverlap::Reset()
+  void CFAlgoZOverlap::Reset()
   //-----------------------------
   {}
 
   //----------------------------------------------------------------------------------------------
-  float
-  CFAlgoZOverlap::Float(util::GeometryUtilities const&,
-                        const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  float CFAlgoZOverlap::Float(util::GeometryUtilities const&,
+                              const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //----------------------------------------------------------------------------------------------
   {
 
@@ -101,8 +99,7 @@ namespace cmtool {
   }
 
   //------------------------------
-  void
-  CFAlgoZOverlap::Report()
+  void CFAlgoZOverlap::Report()
   //------------------------------
   {}
 

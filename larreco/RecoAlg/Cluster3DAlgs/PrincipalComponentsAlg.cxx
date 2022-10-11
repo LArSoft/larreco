@@ -44,34 +44,30 @@ namespace lar_cluster3d {
   }
 
   struct Sort3DHitsByDocaToAxis {
-    bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return left->getDocaToAxis() < right->getDocaToAxis();
     }
   };
 
   struct Sort3DHitsByArcLen3D {
-    bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return left->getArclenToPoca() < right->getArclenToPoca();
     }
   };
 
   struct Sort3DHitsByAbsArcLen3D {
-    bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
     }
   };
 
-  void
-  PrincipalComponentsAlg::PCAAnalysis(const detinfo::DetectorPropertiesData& detProp,
-                                      const reco::HitPairListPtr& hitPairVector,
-                                      reco::PrincipalComponents& pca,
-                                      float doca3DScl) const
+  void PrincipalComponentsAlg::PCAAnalysis(const detinfo::DetectorPropertiesData& detProp,
+                                           const reco::HitPairListPtr& hitPairVector,
+                                           reco::PrincipalComponents& pca,
+                                           float doca3DScl) const
   {
     // This is the controlling outside function for running
     // a Principal Components Analysis on the hits in our
@@ -137,10 +133,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairVector,
-                                         reco::PrincipalComponents& pca,
-                                         bool skeletonOnly) const
+  void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairVector,
+                                              reco::PrincipalComponents& pca,
+                                              bool skeletonOnly) const
   {
     // We want to run a PCA on the input TkrVecPoints...
     // The steps are:
@@ -283,11 +278,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  PrincipalComponentsAlg::PCAAnalysis_2D(const detinfo::DetectorPropertiesData& detProp,
-                                         const reco::HitPairListPtr& hitPairVector,
-                                         reco::PrincipalComponents& pca,
-                                         bool updateAvePos) const
+  void PrincipalComponentsAlg::PCAAnalysis_2D(const detinfo::DetectorPropertiesData& detProp,
+                                              const reco::HitPairListPtr& hitPairVector,
+                                              reco::PrincipalComponents& pca,
+                                              bool updateAvePos) const
   {
     // Once an axis has been found our goal is to refine it by using only the 2D hits
     // We'll get 3D information for each of these by using the axis as a reference and use
@@ -493,9 +487,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr& hitPairVector,
-                                                  const reco::PrincipalComponents& pca) const
+  void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr& hitPairVector,
+                                                       const reco::PrincipalComponents& pca) const
   {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
     // any outliers. Basically, any hit outside a scaled range of the average doca from the
@@ -548,9 +541,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr& hit2DListPtr,
-                                                  const reco::PrincipalComponents& pca) const
+  void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr& hit2DListPtr,
+                                                       const reco::PrincipalComponents& pca) const
   {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
     // any outliers. Basically, any hit outside a scaled range of the average doca from the
@@ -634,10 +626,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  int
-  PrincipalComponentsAlg::PCAAnalysis_reject2DOutliers(const reco::HitPairListPtr& hitPairVector,
-                                                       reco::PrincipalComponents& pca,
-                                                       float maxDocaAllowed) const
+  int PrincipalComponentsAlg::PCAAnalysis_reject2DOutliers(
+    const reco::HitPairListPtr& hitPairVector,
+    reco::PrincipalComponents& pca,
+    float maxDocaAllowed) const
   {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
     // any outliers. Basically, any hit outside a scaled range of the average doca from the
@@ -663,10 +655,10 @@ namespace lar_cluster3d {
     return numRejHits;
   }
 
-  int
-  PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairListPtr& hitPairVector,
-                                                       const reco::PrincipalComponents& pca,
-                                                       float maxDocaAllowed) const
+  int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(
+    const reco::HitPairListPtr& hitPairVector,
+    const reco::PrincipalComponents& pca,
+    float maxDocaAllowed) const
   {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
     // any outliers. Basically, any hit outside a scaled range of the average doca from the

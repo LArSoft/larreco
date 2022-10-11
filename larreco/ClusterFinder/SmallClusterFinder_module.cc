@@ -103,8 +103,7 @@ namespace cluster {
   }
 
   // ***************** //
-  void
-  SmallClusterFinder::beginJob()
+  void SmallClusterFinder::beginJob()
   {
     // this will not change on a run per run basis.
     fNPlanes = geom->Nplanes(); //get the number of planes in the TPC
@@ -112,8 +111,7 @@ namespace cluster {
 
   // ***************** //
   // This method actually makes the clusters.
-  void
-  SmallClusterFinder::produce(art::Event& evt)
+  void SmallClusterFinder::produce(art::Event& evt)
   {
     /**Get Clusters*/
 

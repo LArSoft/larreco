@@ -112,8 +112,7 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   }
 }
 //
-void
-TrackProducerFromPFParticle::produce(art::Event& e)
+void TrackProducerFromPFParticle::produce(art::Event& e)
 {
   // Output collections
   auto outputTracks = std::make_unique<std::vector<recob::Track>>();

@@ -56,24 +56,21 @@ cluster::EndPointAlg::EndPointAlg(fhicl::ParameterSet const& p)
 }
 
 //-----------------------------------------------------------------------------
-double
-cluster::EndPointAlg::Gaussian(int x, int y, double sigma) const
+double cluster::EndPointAlg::Gaussian(int x, int y, double sigma) const
 {
   double const Norm = 1. / std::sqrt(2 * TMath::Pi() * cet::square(sigma));
   return Norm * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(sigma)));
 }
 
 //-----------------------------------------------------------------------------
-double
-cluster::EndPointAlg::GaussianDerivativeX(int x, int y) const
+double cluster::EndPointAlg::GaussianDerivativeX(int x, int y) const
 {
   double const Norm = 1. / (std::sqrt(2 * TMath::Pi()) * cet::cube(fGsigma));
   return Norm * (-x) * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(fGsigma)));
 }
 
 //-----------------------------------------------------------------------------
-double
-cluster::EndPointAlg::GaussianDerivativeY(int x, int y) const
+double cluster::EndPointAlg::GaussianDerivativeY(int x, int y) const
 {
   double const Norm = 1. / (std::sqrt(2 * TMath::Pi()) * cet::cube(fGsigma));
   return Norm * (-y) * exp(-cet::sum_of_squares(x, y) / (2 * cet::square(fGsigma)));
@@ -81,8 +78,10 @@ cluster::EndPointAlg::GaussianDerivativeY(int x, int y) const
 
 //-----------------------------------------------------------------------------
 //this method saves a BMP image of the vertex map space, which can be viewed with gimp
-void
-cluster::EndPointAlg::VSSaveBMPFile(const char* fileName, unsigned char* pix, int dx, int dy) const
+void cluster::EndPointAlg::VSSaveBMPFile(const char* fileName,
+                                         unsigned char* pix,
+                                         int dx,
+                                         int dy) const
 {
   std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
@@ -118,12 +117,11 @@ cluster::EndPointAlg::VSSaveBMPFile(const char* fileName, unsigned char* pix, in
 }
 
 //......................................................
-size_t
-cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
-                               std::vector<recob::EndPoint2D>& vtxcol,
-                               std::vector<art::PtrVector<recob::Hit>>& vtxHitsOut,
-                               art::Event const& evt,
-                               std::string const& label) const
+size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clusIn,
+                                      std::vector<recob::EndPoint2D>& vtxcol,
+                                      std::vector<art::PtrVector<recob::Hit>>& vtxHitsOut,
+                                      art::Event const& evt,
+                                      std::string const& label) const
 {
 
   art::ServiceHandle<geo::Geometry const> geom;
