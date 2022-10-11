@@ -1,7 +1,7 @@
 /**
  *  @file   INormalizeCharge.h
  *
- *  @brief  This is an interface for an art Tool which scales charge by some 
+ *  @brief  This is an interface for an art Tool which scales charge by some
  *          factor given information about its associated hit.
  *
  *  @author grayputnam@uchicago.edu
