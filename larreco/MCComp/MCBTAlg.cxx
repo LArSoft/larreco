@@ -1,7 +1,7 @@
 #include "MCBTAlg.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -50,11 +50,11 @@ namespace btutil {
 
   void MCBTAlg::ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v)
   {
-
     art::ServiceHandle<geo::Geometry const> geo;
-    //auto geo = ::larutil::Geometry::GetME();
     _sum_mcq.resize(geo->Nplanes(), std::vector<double>(_num_parts, 0));
 
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     for (auto const& sch : simch_v) {
 
       auto const ch = sch.Channel();
@@ -62,8 +62,7 @@ namespace btutil {
 
       auto& ch_info = _event_info[ch];
 
-      size_t plane = geo->ChannelToWire(ch)[0].Plane;
-      //size_t plane = geo->ChannelToPlane(ch);
+      size_t plane = channelMapAlg->ChannelToWire(ch)[0].Plane;
 
       for (auto const& time_ide : sch.TDCIDEMap()) {
 

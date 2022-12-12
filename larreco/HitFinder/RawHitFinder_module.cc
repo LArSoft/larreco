@@ -28,7 +28,7 @@
 
 //LArSoft From FFT
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 namespace hit {
@@ -99,9 +99,6 @@ namespace hit {
   //-------------------------------------------------
   void RawHitFinder::produce(art::Event& evt)
   {
-    //GET THE GEOMETRY.
-    art::ServiceHandle<geo::Geometry const> geom;
-
     //READ IN THE DIGIT LIST OBJECTS(S).
     art::Handle<std::vector<raw::RawDigit>> digitVecHandle;
 
@@ -138,6 +135,8 @@ namespace hit {
     std::stringstream numConv;
 
     hcol.reserve(digitVecHandle->size());
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     for (size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter) {
       holder.clear();
 
@@ -168,7 +167,7 @@ namespace hit {
         holder[bin] = (rawadc[bin] - digitVec->GetPedestal());
       }
 
-      sigType = geom->SignalType(channel);
+      sigType = channelMapAlg->SignalTypeForChannel(channel);
 
       peakHeight.clear();
       endTimes.clear();
@@ -196,10 +195,6 @@ namespace hit {
         //
         if (sigType == geo::kInduction && !fSkipInd) {
           threshold = fMinSigInd;
-          //	std::cout<< "Threshold is " << threshold << std::endl;
-          // fitWidth = fIndWidth;
-          // minWidth = fIndMinWidth;
-          //	continue;
           float negthr = -1.0 * threshold;
           unsigned int bin = 1;
           float minadc = 0;
@@ -210,11 +205,9 @@ namespace hit {
             float nextadc = holder[bin + 1];
             if (thisadc < negthr &&
                 nextadc < negthr) { // new region, require two ticks above threshold
-              //              	    std::cout << "new region" << bin << " " << thisadc << std::endl;
               // step back to find zero crossing
               unsigned int place = bin;
               while (thisadc <= 0 && bin > 0) {
-                //		std::cout << bin << " " << thisadc << std::endl;
                 bin--;
                 thisadc = holder[bin];
               }
@@ -228,13 +221,11 @@ namespace hit {
                 stop = 0;
               }
               while (thisadc < threshold && bin > stop) {
-                //		std::cout << bin << " " << thisadc << std::endl;
                 bin--;
                 thisadc = holder[bin];
               }
               if (bin >= 2) bin -= 2;
               while (thisadc > threshold && bin > stop) {
-                //		std::cout << bin << " " << thisadc << std::endl;
                 bin--;
                 thisadc = holder[bin];
               }
@@ -255,12 +246,9 @@ namespace hit {
               peakHeight.push_back(-1.0 * minadc);
               charge.push_back(totSig);
               hitrms.push_back(5.0);
-              //	    std::cout << "TOTAL SIGNAL INDUCTION " << totSig << "  5.0" << std::endl;
-              // std::cout << "filled end times " << bin-1 << "peak height vector size " << peakHeight.size() << std::endl;
 
               // don't look for a new hit until it returns to baseline
               while (thisadc < 0 && bin < fDataSize) {
-                //	      std::cout << bin << " " << thisadc << std::endl;
                 bin++;
                 if (bin == fDataSize) break;
                 thisadc = holder[bin];
@@ -334,31 +322,6 @@ namespace hit {
                 mynorm = totSig;
                 myrms /= mynorm;
                 hitrms.push_back(sqrt(myrms));
-
-                //PRE CHANGES MADE 04/14/16. A BOOTH, DUNE 35T.
-                /*
-                   int moreTail = std::ceil(fIncludeMoreTail*(end-start));
-
-                   for(int i = start-moreTail; i <= end+moreTail; i++)
-                   {
-                   totSig += holder[i];
-                   float temp2 = holder[i]*holder[i];
-                   mynorm += temp2;
-                   float temp = ibin-i;
-                   myrms += temp*temp*temp2;
-                   }
-
-                   charge.push_back(totSig);
-                   myrms/=mynorm;
-                   if((end-start+2*moreTail+1)!=0)
-                   {
-                   myrms/=(float)(end-start+2*moreTail+1);
-                   hitrms.push_back(sqrt(myrms));
-                   }
-                   else
-                   {
-                   hitrms.push_back(sqrt(myrms));
-                   }*/
               }
             }
             start = 0;
@@ -389,7 +352,7 @@ namespace hit {
         chargeErr = -1;
         totSig = charge[i];
 
-        std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+        std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(channel);
         geo::WireID wid = wids[0];
 
         if (start >= end) {

@@ -20,6 +20,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft libraries
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -81,6 +82,7 @@ namespace quad {
     bool fSavePlots;
 
     const geo::GeometryCore* geom;
+    const geo::ChannelMapAlg* channelMapAlg;
   };
 
   DEFINE_ART_MODULE(QuadVtx)
@@ -95,7 +97,11 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void QuadVtx::beginJob() { geom = art::ServiceHandle<const geo::Geometry>()->provider(); }
+  void QuadVtx::beginJob()
+  {
+    geom = art::ServiceHandle<const geo::Geometry>()->provider();
+    channelMapAlg = art::ServiceHandle<const geo::ExptGeoHelperInterface>()->ChannelMapAlgPtr();
+  }
 
   // ---------------------------------------------------------------------------
   // x = m*z+c. z1 and z2 are the two intercepts in case of returning true
@@ -315,7 +321,8 @@ namespace quad {
                 const std::vector<recob::Hit>& hits,
                 std::vector<std::vector<Pt2D>>& pts,
                 std::vector<recob::tracking::Vector_t>& dirs,
-                const geo::GeometryCore* geom)
+                const geo::GeometryCore* geom,
+                const geo::ChannelMapAlg* channelMapAlg)
   {
     pts.resize(3); // 3 views
 
@@ -332,7 +339,7 @@ namespace quad {
 
       const double energy = hit.Integral();
 
-      if (geom->View(hit.Channel()) == geo::kZ) {
+      if (channelMapAlg->View(hit.Channel()) == geo::kZ) {
         pts[0].emplace_back(xpos, r0.z(), 0, energy);
         continue;
       }
@@ -380,7 +387,7 @@ namespace quad {
     std::vector<std::vector<Pt2D>> pts;
     std::vector<recob::tracking::Vector_t> dirs;
 
-    GetPts2D(detProp, hits, pts, dirs, geom);
+    GetPts2D(detProp, hits, pts, dirs, geom, channelMapAlg);
 
     double minx = +1e9;
     double maxx = -1e9;

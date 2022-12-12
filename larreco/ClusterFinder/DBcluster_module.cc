@@ -19,6 +19,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -98,6 +99,8 @@ namespace cluster {
     ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
 
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
 
     art::Handle<std::vector<recob::Hit>> hitcol;
     evt.getByLabel(fhitsModuleLabel, hitcol);
@@ -120,10 +123,10 @@ namespace cluster {
       art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const det_prop =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
-    util::GeometryUtilities const gser{*geom, clock_data, det_prop};
+    util::GeometryUtilities const gser{*geom, *channelMapAlg, clock_data, det_prop};
     for (auto& itr : planeIDToHits) {
 
-      geo::SigType_t sigType = geom->SignalType(itr.first);
+      geo::SigType_t sigType = channelMapAlg->SignalType(itr.first);
       allhits.resize(itr.second.size());
       allhits.swap(itr.second);
 

@@ -41,17 +41,7 @@ namespace hit {
 
   //------------------------------------------------------------------------------
   CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset)
-    : FitCache(
-        new GausFitCache // run-time, on demand TFormula cache
-                         //  CompiledGausFitCache<MaxGaussians> // precompiled Gaussian set
-        //  CompiledTruncatedGausFitCache<MaxGaussians, 4> // precompiled truncated Gaussian set
-        //  CompiledTruncatedGausFitCache<MaxGaussians, 5> // precompiled truncated Gaussian set
-        ("GausFitCache_CCHitFinderAlg"))
-  {
-    this->reconfigure(pset);
-  }
-
-  void CCHitFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
+    : FitCache{"GausFitCache_CCHitFinderAlg"}
   {
     if (pset.has_key("MinSigInd"))
       throw art::Exception(art::errors::Configuration)
@@ -100,25 +90,16 @@ namespace hit {
       if (fUWireRange.size() != 2 || fUTickRange.size() != 2 || fVWireRange.size() != 2 ||
           fVTickRange.size() != 2 || fWWireRange.size() != 2 || fWTickRange.size() != 2) {
         mf::LogError("CCHF") << "Invalid vector size for StudyHits. Must be 2";
-        return;
       }
     } // fStudyHits
   }
 
   //------------------------------------------------------------------------------
-  CCHitFinderAlg::HitChannelInfo_t::HitChannelInfo_t(recob::Wire const* w,
-                                                     geo::WireID wid,
-                                                     geo::Geometry const& geom)
-    : wire(w), wireID(wid), sigType(geom.SignalType(w->Channel()))
-  {}
-
-  //------------------------------------------------------------------------------
   void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires)
   {
-
     allhits.clear();
 
-    unsigned short maxticks = 1000;
+    constexpr unsigned short maxticks = 1000;
     float* ticks = new float[maxticks];
     // define the ticks array used for fitting
     for (unsigned short ii = 0; ii < maxticks; ++ii) {
@@ -130,38 +111,24 @@ namespace hit {
     if (fStudyHits) StudyHits(0);
     bool first;
 
-    //    prt = false;
     lariov::ChannelStatusProvider const& channelStatus =
       art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
     for (size_t wireIter = 0; wireIter < Wires.size(); wireIter++) {
-
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
       if (channelStatus.IsBad(theChannel)) continue;
-      /*
-      geo::SigType_t SigType = geom->SignalType(theChannel);
-      minSig = 0.;
-      minRMS = 0.;
-      if(SigType == geo::kInduction){
-        minSig = fMinSigInd;
-        minRMS = fMinRMSInd;
-      }//<-- End if Induction Plane
-      else if(SigType == geo::kCollection){
-        minSig = fMinSigCol;
-        minRMS  = fMinRMSCol;
-      }//<-- End if Collection Plane
-*/
 
-      std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
+      std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
       if (thePlane > fMinPeak.size() - 1) {
         mf::LogError("CCHF") << "MinPeak vector too small for plane " << thePlane;
         return;
       }
       theWireNum = wids[0].Wire;
-      HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
+      HitChannelInfo_t WireInfo{
+        &theWire, wids[0], channelMapAlg->SignalTypeForChannel(theWire.Channel())};
 
       // minimum number of time samples
       unsigned short minSamples = 2 * fMinRMS[thePlane];
@@ -169,8 +136,6 @@ namespace hit {
       // factor used to normalize the chi/dof fits for each plane
       chinorm = fChiNorms[thePlane];
 
-      // edit this line to debug hit fitting on a particular plane/wire
-      //      prt = (thePlane == 1 && theWireNum == 839);
       std::vector<float> signal(theWire.Signal());
 
       unsigned short nabove = 0;
@@ -208,7 +173,6 @@ namespace hit {
               if (signal[ii] > signal[ii - 1] && signal[ii - 1] > signal[ii - 2] &&
                   signal[ii] > signal[ii + 1] && signal[ii + 1] > signal[ii + 2])
                 bumps.push_back(npt);
-              //  if(prt) mf::LogVerbatim("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
               ++npt;
             }
             // decide if this RAT should be studied
@@ -242,8 +206,7 @@ namespace hit {
                 HitStored = true;
                 break;
               }
-              // the previous fit was better, so revert to it and
-              // store it
+              // the previous fit was better, so revert to it and store it
               ++nHitsFit;
               ++nfit;
             } // nHitsFit < fMaxXtraHits
@@ -361,9 +324,8 @@ namespace hit {
     } // if we don't need ROOT to fit
 
     if (bNeedROOTfit) {
-      // we may land here either because the simple Gaussian fit did not work
-      // (either failed, or we chose not to trust it)
-      // or because the fit is multi-Gaussian
+      // we may land here either because the simple Gaussian fit did not work (either
+      // failed, or we chose not to trust it) or because the fit is multi-Gaussian
 
       // define the fit string to pass to TF1
 
@@ -379,14 +341,8 @@ namespace hit {
       }
 
       auto Gn = std::make_unique<TF1>("gn", eqn.c_str());
-      /*
-      TF1* Gn = FitCache->Get(nGaus);
-      */
       TGraph* fitn = new TGraph(npt, ticks, signl);
-      /*
-    if(prt) mf::LogVerbatim("CCHitFinder")
-      <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
-  */
+
       // put in the bump parameters. Assume that nGaus >= bumps.size()
       for (unsigned short ii = 0; ii < bumps.size(); ++ii) {
         unsigned short index = ii * 3;
@@ -398,10 +354,6 @@ namespace hit {
         Gn->SetParLimits(index + 1, 0, (double)npt);
         Gn->SetParameter(index + 2, (double)fMinRMS[thePlane]);
         Gn->SetParLimits(index + 2, 1., 3 * (double)fMinRMS[thePlane]);
-        /*
-    if(prt) mf::LogVerbatim("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
-      <<" "<<(int)bumptime<<" "<<(int)fMinRMS[thePlane];
-  */
       } // ii bumps
 
       // search for other bumps that may be hidden by the already found ones
@@ -417,10 +369,6 @@ namespace hit {
           }
         } // jj
         if (imbig > 0) {
-          /*
-    if(prt) mf::LogVerbatim("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
-      <<" "<<imbig;
-  */
           // set the parameters for the bump
           unsigned short index = ii * 3;
           Gn->SetParameter(index, (double)big);
@@ -481,17 +429,7 @@ namespace hit {
         partmperr = partmperrt;
       } // sortem
     }   // nGaus > 1
-        /*
-  if(prt) {
-    mf::LogVerbatim("CCHitFinder")<<"Fit "<<nGaus<<" chi "<<chidof
-      <<" npars "<<partmp.size();
-    mf::LogVerbatim("CCHitFinder")<<"pars    errs ";
-    for(unsigned short ii = 0; ii < partmp.size(); ++ii) {
-      mf::LogVerbatim("CCHitFinder")<<ii<<" "<<partmp[ii]<<" "
-        <<partmperr[ii];
-    }
-  }
-*/
+
     // ensure that the fit is reasonable
     bool fitok = true;
     for (unsigned short ii = 0; ii < nGaus; ++ii) {
@@ -533,10 +471,7 @@ namespace hit {
     else {
       chidof = 9999.;
       dof = -1;
-      //      if(prt) mf::LogVerbatim("CCHitFinder")<<"Bad fit parameters";
     }
-
-    return;
   } // FitNG
 
   /////////////////////////////////////////
@@ -558,10 +493,6 @@ namespace hit {
     rms = std::sqrt(rms / sumS);
     float amp = sumS / (Sqrt2Pi * rms);
     par.clear();
-    /*
-  if(prt) mf::LogVerbatim("CCHitFinder")<<"Crude hit Amp "<<(int)amp<<" mean "
-    <<(int)mean<<" rms "<<rms;
-*/
     par.push_back(amp);
     par.push_back(mean);
     par.push_back(rms);
@@ -573,10 +504,6 @@ namespace hit {
     parerr.push_back(amperr);
     parerr.push_back(meanerr);
     parerr.push_back(rmserr);
-    /*
-  if(prt) mf::LogVerbatim("CCHitFinder")<<" errors Amp "<<amperr<<" mean "
-    <<meanerr<<" rms "<<rmserr;
-*/
     chidof = 9999.;
     dof = -1;
   } // MakeCrudeHit
@@ -635,19 +562,6 @@ namespace hit {
                            info.sigType,            // signal_type
                            info.wireID              // wireID
       );
-      /*
-  if(prt) {
-    mf::LogVerbatim("CCHitFinder")<<"W:T "<<allhits.back().WireID().Wire
-      <<":"<<(short)allhits.back().PeakTime()
-      <<" Chg "<<(short)allhits.back().Integral()
-      <<" RMS "<<allhits.back().RMS()
-      <<" lo ID "<<allhits.back().LocalIndex()
-      <<" numHits "<<allhits.back().Multiplicity()
-      <<" loTime "<<allhits.back().StartTick()<<" hiTime "<<allhits.back().EndTick()
-      <<" chidof "<<allhits.back().GoodnessOfFit()
-      << " DOF " << allhits.back().DegreesOfFreedom();
-  }
-*/
     } // hit
   }   // StoreHits
 
@@ -836,11 +750,11 @@ namespace hit {
     MultiGausFits.resize(nGaus);
     std::fill(MultiGausFits.begin(), MultiGausFits.end(), 0);
     FastFits = 0;
-  } // CCHitFinderAlg::FitStats_t::Reset()
+  }
 
   void CCHitFinderAlg::FitStats_t::AddMultiGaus(unsigned int nGaus)
   {
     ++MultiGausFits[std::min(nGaus, (unsigned int)MultiGausFits.size()) - 1];
-  } // CCHitFinderAlg::FitStats_t::AddMultiGaus()
+  }
 
 } // namespace hit

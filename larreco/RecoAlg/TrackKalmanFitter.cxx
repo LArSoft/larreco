@@ -265,7 +265,7 @@ bool trkf::TrackKalmanFitter::setupInputStates(
       detProp.ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
     double xerr = terr * detProp.GetXTicksCoefficient();
     hitstatev.emplace_back(
-      x, hitErr2ScaleFact_ * xerr * xerr, hit->WireID(), geom->WireIDToWireGeo(hit->WireID()));
+      x, hitErr2ScaleFact_ * xerr * xerr, hit->WireID(), geom->Wire(hit->WireID()));
     //
     if (fsize > 0 && ihit < fsize)
       hitflagsv.push_back(flags[ihit].mask());

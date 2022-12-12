@@ -165,7 +165,7 @@ void cluster::DBCluster3D::produce(art::Event& evt)
       }
     }
     if (!found) {
-      double wirePitch = fGeom->WirePitch(hit->WireID());
+      double wirePitch = fGeom->Plane(hit->WireID()).WirePitch();
       double UnitsPerTick = tickToDist / wirePitch;
       double x0 = hit->WireID().Wire;
       double y0 = hit->PeakTime() * UnitsPerTick;

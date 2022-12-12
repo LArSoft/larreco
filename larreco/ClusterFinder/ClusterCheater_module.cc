@@ -9,6 +9,7 @@
 #include <string>
 
 // LArSoft includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
@@ -140,7 +141,11 @@ namespace cluster {
 
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{*geo, clockData, detProp};
+    util::GeometryUtilities const gser{
+      *geo,
+      *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr(),
+      clockData,
+      detProp};
 
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -183,14 +188,15 @@ namespace cluster {
       unsigned int w1 = 0;
       unsigned int w2 = 0;
 
+      auto const& planeg = geo->Plane(planeID);
       try {
-        w1 = geo->NearestWireID(xyz, planeID).Wire;
+        w1 = planeg.NearestWireID(xyz).Wire;
       }
       catch (cet::exception& e) {
         w1 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());
       }
       try {
-        w2 = geo->NearestWireID(xyz2, planeID).Wire;
+        w2 = planeg.NearestWireID(xyz2).Wire;
       }
       catch (cet::exception& e) {
         w2 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());

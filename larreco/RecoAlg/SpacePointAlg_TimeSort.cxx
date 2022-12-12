@@ -82,9 +82,9 @@ namespace sppt {
   {
     art::ServiceHandle<geo::Geometry const> geom;
     constexpr geo::TPCID tpcid{0, 0};
-    geo::PlaneID const uplane_id{tpcid, geo::View_t::kU};
-    geo::PlaneID const vplane_id{tpcid, geo::View_t::kV};
-    geo::PlaneID const zplane_id{tpcid, geo::View_t::kZ};
+    constexpr geo::PlaneID uplane_id{tpcid, geo::View_t::kU};
+    constexpr geo::PlaneID vplane_id{tpcid, geo::View_t::kV};
+    constexpr geo::PlaneID zplane_id{tpcid, geo::View_t::kZ};
 
     unsigned int nwires_u = geom->Nwires(uplane_id);
     unsigned int nwires_v = geom->Nwires(vplane_id);
@@ -95,17 +95,18 @@ namespace sppt {
     coordinates_UY_y.resize(boost::extents[nwires_y][nwires_u]);
     coordinates_UY_z.resize(boost::extents[nwires_y][nwires_u]);
     for (unsigned int iu = 0; iu < nwires_u; iu++) {
+      geo::WireID const uplane_wire_id{uplane_id, iu};
       for (unsigned int iv = 0; iv < nwires_v; iv++) {
-        geom->IntersectionPoint(geo::WireID{uplane_id, iu},
-                                geo::WireID{vplane_id, iv},
-                                coordinates_UV_y[iv][iu],  //y
-                                coordinates_UV_z[iv][iu]); //z
+        auto intersection = geom->WireIDsIntersect(uplane_wire_id, geo::WireID{vplane_id, iv})
+                              .value_or(geo::WireIDIntersection::invalid());
+        coordinates_UV_y[iv][iu] = intersection.y;
+        coordinates_UV_z[iv][iu] = intersection.z;
       }
       for (unsigned int iy = 0; iy < nwires_y; iy++) {
-        geom->IntersectionPoint(geo::WireID{uplane_id, iu},
-                                geo::WireID{zplane_id, iy},
-                                coordinates_UY_y[iy][iu],
-                                coordinates_UY_z[iy][iu]);
+        auto intersection = geom->WireIDsIntersect(uplane_wire_id, geo::WireID{zplane_id, iy})
+                              .value_or(geo::WireIDIntersection::invalid());
+        coordinates_UY_y[iy][iu] = intersection.y;
+        coordinates_UY_z[iy][iu] = intersection.z;
       }
     }
 

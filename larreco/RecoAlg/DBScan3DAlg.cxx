@@ -1,4 +1,5 @@
 #include "larreco/RecoAlg/DBScan3DAlg.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larcorealg/Geometry/GeometryCore.h"
@@ -29,11 +30,12 @@ cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
 void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
                                 art::FindManyP<recob::Hit>& hitFromSp)
 {
-
   if (badchannelmap.empty()) {
     lariov::ChannelStatusProvider const& channelStatus =
       art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-    geo::GeometryCore const* geom = &*(art::ServiceHandle<geo::Geometry const>());
+    geo::GeometryCore const* geom = art::ServiceHandle<geo::Geometry const>{}.get();
+    geo::ChannelMapAlg const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     // build a map to count bad channels around each wire ID
     for (auto& pid : geom->Iterate<geo::PlaneID>()) {
       for (auto& wid1 : geom->Iterate<geo::WireID>(pid)) {
@@ -41,7 +43,7 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
         for (auto& wid2 : geom->Iterate<geo::WireID>(pid)) {
           if (wid1 == wid2) continue;
           if (lar::util::absDiff(wid1.Wire, wid2.Wire) < neighbors &&
-              !channelStatus.IsGood(geom->PlaneWireToChannel(wid2)))
+              !channelStatus.IsGood(channelMapAlg->PlaneWireToChannel(wid2)))
             ++nbadchs;
         }
         badchannelmap[wid1] = nbadchs;
@@ -68,11 +70,11 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
 node_t* cluster::DBScan3DAlg::create_node(unsigned int index)
 {
   node_t* n = (node_t*)calloc(1, sizeof(node_t));
-  if (n == NULL)
+  if (n == nullptr)
     perror("Failed to allocate node.");
   else {
     n->index = index;
-    n->next = NULL;
+    n->next = nullptr;
   }
   return n;
 }
@@ -80,11 +82,11 @@ node_t* cluster::DBScan3DAlg::create_node(unsigned int index)
 int cluster::DBScan3DAlg::append_at_end(unsigned int index, epsilon_neighbours_t* en)
 {
   node_t* n = create_node(index);
-  if (n == NULL) {
+  if (n == nullptr) {
     free(en);
     return FAILURE;
   }
-  if (en->head == NULL) {
+  if (en->head == nullptr) {
     en->head = n;
     en->tail = n;
   }
@@ -99,7 +101,7 @@ int cluster::DBScan3DAlg::append_at_end(unsigned int index, epsilon_neighbours_t
 epsilon_neighbours_t* cluster::DBScan3DAlg::get_epsilon_neighbours(unsigned int index)
 {
   epsilon_neighbours_t* en = (epsilon_neighbours_t*)calloc(1, sizeof(epsilon_neighbours_t));
-  if (en == NULL) {
+  if (en == nullptr) {
     perror("Failed to allocate epsilon neighbours.");
     return en;
   }
@@ -110,7 +112,7 @@ epsilon_neighbours_t* cluster::DBScan3DAlg::get_epsilon_neighbours(unsigned int 
     else {
       if (append_at_end(i, en) == FAILURE) {
         destroy_epsilon_neighbours(en);
-        en = NULL;
+        en = nullptr;
         break;
       }
     }
@@ -145,7 +147,7 @@ int cluster::DBScan3DAlg::expand(unsigned int index, unsigned int cluster_id)
 {
   int return_value = NOT_CORE_POINT;
   epsilon_neighbours_t* seeds = get_epsilon_neighbours(index);
-  if (seeds == NULL) return FAILURE;
+  if (seeds == nullptr) return FAILURE;
 
   if (seeds->num_members < minpts)
     points[index].cluster_id = NOISE;
@@ -174,7 +176,7 @@ int cluster::DBScan3DAlg::spread(unsigned int index,
                                  unsigned int cluster_id)
 {
   epsilon_neighbours_t* spread = get_epsilon_neighbours(index);
-  if (spread == NULL) return FAILURE;
+  if (spread == nullptr) return FAILURE;
   if (spread->num_members >= minpts) {
     node_t* n = spread->head;
     point_t* d;

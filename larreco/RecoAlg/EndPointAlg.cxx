@@ -295,6 +295,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
 
     std::sort(Cornerness2.rbegin(), Cornerness2.rend());
 
+    auto const& plane = geom->Plane({0, 0, 0});
     for (int vertexnum = 0; vertexnum < fMaxCorners; ++vertexnum) {
       flag = 0;
       for (unsigned int wire = 0; wire < numberwires && flag == 0; ++wire) {
@@ -332,7 +333,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
 
               double drifttick = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
               drifttick *= sampling_rate(clock_data) * 1.e-3;
-              double wirepitch = geom->WirePitch();
+              double wirepitch = plane.WirePitch();
               double corrfactor = drifttick / wirepitch;
 
               for (int wireout =

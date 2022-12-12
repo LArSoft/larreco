@@ -23,6 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -51,9 +52,9 @@
 namespace lar_cluster3d {
 
   /**
- *   @brief What follows are several highly useful typedefs which we
- *          want to expose to the outside world
- */
+   *   @brief What follows are several highly useful typedefs which we
+   *          want to expose to the outside world
+   */
 
   // forward declaration to define an ordering function for our hit set
   struct Hit2DSetCompare {
@@ -75,9 +76,9 @@ namespace lar_cluster3d {
   using PlaneSnippetHitMapItrPairVec = std::vector<SnippetHitMapItrPair>;
 
   /**
- *  @brief  SnippetHit3DBuilder class definiton
- */
-  class SnippetHit3DBuilder : virtual public IHit3DBuilder {
+   *  @brief  SnippetHit3DBuilder class definiton
+   */
+  class SnippetHit3DBuilder : public IHit3DBuilder {
   public:
     /**
      *  @brief  Constructor
@@ -90,9 +91,7 @@ namespace lar_cluster3d {
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::ProducesCollector&) override;
-
-    virtual void configure(const fhicl::ParameterSet&) override;
+    void produces(art::ProducesCollector&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -100,12 +99,12 @@ namespace lar_cluster3d {
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
+    void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    virtual float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
+    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
     {
       return m_timeVector[index];
     }
@@ -315,28 +314,12 @@ namespace lar_cluster3d {
     mutable bool m_weHaveAllBeenHereBefore = false;
 
     const geo::Geometry* m_geometry; //< pointer to the Geometry service
+    const geo::ChannelMapAlg* m_channelMapAlg;
     const lariov::ChannelStatusProvider* m_channelFilter;
   };
 
   SnippetHit3DBuilder::SnippetHit3DBuilder(fhicl::ParameterSet const& pset)
     : m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
-
-  {
-    this->configure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void SnippetHit3DBuilder::produces(art::ProducesCollector& collector)
-  {
-    collector.produces<std::vector<recob::Hit>>();
-    collector.produces<art::Assns<recob::Wire, recob::Hit>>();
-    collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void SnippetHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
     m_hitFinderTagVec = pset.get<std::vector<art::InputTag>>(
       "HitFinderTagVec", std::vector<art::InputTag>() = {"gaushit"});
@@ -354,12 +337,13 @@ namespace lar_cluster3d {
     m_outputHistograms = pset.get<bool>("OutputHistograms", false);
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
+    m_channelMapAlg = art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    m_wirePitch[0] = m_geometry->WirePitch(geo::PlaneID{tpcid, 0});
-    m_wirePitch[1] = m_geometry->WirePitch(geo::PlaneID{tpcid, 1});
-    m_wirePitch[2] = m_geometry->WirePitch(geo::PlaneID{tpcid, 2});
+    m_wirePitch[0] = m_geometry->Plane(geo::PlaneID{tpcid, 0}).WirePitch();
+    m_wirePitch[1] = m_geometry->Plane(geo::PlaneID{tpcid, 1}).WirePitch();
+    m_wirePitch[2] = m_geometry->Plane(geo::PlaneID{tpcid, 2}).WirePitch();
 
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
@@ -385,6 +369,17 @@ namespace lar_cluster3d {
       m_tupleTree->Branch("HitAsymmetry", "std::vector<float>", &m_hitAsymmetryVec);
     }
   }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
+
+  void SnippetHit3DBuilder::produces(art::ProducesCollector& collector)
+  {
+    collector.produces<std::vector<recob::Hit>>();
+    collector.produces<art::Assns<recob::Wire, recob::Hit>>();
+    collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
+  }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
 
   void SnippetHit3DBuilder::clear()
   {
@@ -419,10 +414,10 @@ namespace lar_cluster3d {
     }
 
     // Loop through the channels and mark those that are "bad"
-    for (size_t channel = 0; channel < m_geometry->Nchannels(); channel++) {
+    for (size_t channel = 0; channel < m_channelMapAlg->Nchannels(); channel++) {
       if (m_channelFilter->IsGood(channel)) continue;
 
-      std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
+      std::vector<geo::WireID> wireIDVec = m_channelMapAlg->ChannelToWire(channel);
       geo::WireID wireID = wireIDVec[0];
       lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
 
@@ -464,12 +459,12 @@ namespace lar_cluster3d {
 
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt);
+    CollectArtHits(evt);
 
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
     if (!m_planeToWireToHitSetMap.empty()) {
       // Call the algorithm that builds 3D hits
-      this->BuildHit3D(hitPairList);
+      BuildHit3D(hitPairList);
 
       // If we built 3D points then attempt to output a new hit list as well
       if (!hitPairList.empty())
@@ -661,9 +656,6 @@ namespace lar_cluster3d {
         if (pair.first != pair.second) nPlanesWithHits++;
 
       if (nPlanesWithHits < 2) break;
-
-      // End condition: no more hit snippets
-      //        if (snippetHitMapItrVec.front().first == snippetHitMapItrVec.front().second) break;
 
       // This loop iteration's snippet iterator
       SnippetHitMap::iterator firstSnippetItr = snippetHitMapItrVec.front().first;
@@ -1009,9 +1001,7 @@ namespace lar_cluster3d {
           result = true;
         }
       }
-      //        else std::cout << "-MakeHitPair, deltaPeakTime: " << deltaPeakTime << ", scl fctr: " << m_deltaPeakTimeSig << ", sigmaPeakTime: " << sigmaPeakTime << std::endl;
     }
-    //    else std::cout << "-MakeHitPair, delta peak: " << hit1Peak - hit2Peak << ", hit1Width: " << hit1Width << ", hit2Width: " << hit2Width << std::endl;
 
     // Send it back
     return result;
@@ -1097,7 +1087,6 @@ namespace lar_cluster3d {
 
             // Basically, allow the range to extend to the nearest end of the snippet
             if (hit2D->getHit()->DegreesOfFreedom() < 2) hitRMS *= m_LongHitStretchFctr;
-            //hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
             float weight = 1. / (hitRMS * hitRMS);
 
@@ -1126,7 +1115,6 @@ namespace lar_cluster3d {
 
             // Basically, allow the range to extend to the nearest end of the snippet
             if (hit2D->getHit()->DegreesOfFreedom() < 2) hitRMS *= m_LongHitStretchFctr;
-            //hitRMS = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
             float combRMS = std::sqrt(hitRMS * hitRMS - sigmaPeakTime * sigmaPeakTime);
             float peakTime = hit2D->getTimeTicks();
@@ -1151,7 +1139,6 @@ namespace lar_cluster3d {
 
             // Basically, allow the range to extend to the nearest end of the snippet
             if (hit2D->getHit()->DegreesOfFreedom() < 2) range *= m_LongHitStretchFctr;
-            //range = std::min(hit2D->getTimeTicks() - float(hit2D->getHit()->StartTick()),float(hit2D->getHit()->EndTick())-hit2D->getTimeTicks());
 
             int hitStart = hit2D->getHit()->PeakTime() - range - 0.5;
             int hitStop = hit2D->getHit()->PeakTime() + range + 0.5;
@@ -1264,11 +1251,9 @@ namespace lar_cluster3d {
 
             result = true;
           }
-          //                else std::cout << "-Rejecting triple with chiSquare: " << hitChiSquare << " and hiMinIndex: " << hiMinIndex << ", loMaxIndex: " << lowMaxIndex << std::endl;
         }
       }
     }
-    //    else std::cout << "-MakeTriplet hit cut, delta: " << hitTimeTicks - pair.getAvePeakTime() << ", min scale fctr: " <<m_hitWidthSclFctr << ", pair sig: " << pair.getSigmaPeakTime() << ", hitSigma: " << hitSigma << std::endl;
 
     // return success/fail
     return result;
@@ -1286,8 +1271,8 @@ namespace lar_cluster3d {
       return success;
 
     // Recover wire geometry information for each wire
-    const geo::WireGeo& wireGeo0 = m_geometry->WireIDToWireGeo(wireID0);
-    const geo::WireGeo& wireGeo1 = m_geometry->WireIDToWireGeo(wireID1);
+    const geo::WireGeo& wireGeo0 = m_geometry->Wire(wireID0);
+    const geo::WireGeo& wireGeo1 = m_geometry->Wire(wireID1);
 
     // Get wire position and direction for first wire
     auto wirePosArr = wireGeo0.GetCenter();
@@ -1296,20 +1281,12 @@ namespace lar_cluster3d {
     Eigen::Vector3f wireDir0(
       wireGeo0.Direction().X(), wireGeo0.Direction().Y(), wireGeo0.Direction().Z());
 
-    //*********************************
-    // Kludge
-    //    if (wireID0.Plane > 0) wireDir0[2] = -wireDir0[2];
-
     // And now the second one
     wirePosArr = wireGeo1.GetCenter();
 
     Eigen::Vector3f wirePos1(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
     Eigen::Vector3f wireDir1(
       wireGeo1.Direction().X(), wireGeo1.Direction().Y(), wireGeo1.Direction().Z());
-
-    //**********************************
-    // Kludge
-    //    if (wireID1.Plane > 0) wireDir1[2] = -wireDir1[2];
 
     // Get the distance of closest approach
     float arcLen0;
@@ -1417,18 +1394,14 @@ namespace lar_cluster3d {
       if (!wireStatus) wireID.Wire += 1;
 
       // Want to refine position since we "know" the missing wire
-      geo::WireIDIntersection widIntersect0;
-
-      if (m_geometry->WireIDsIntersect(wireID0, wireID, widIntersect0)) {
-        geo::WireIDIntersection widIntersect1;
-
-        if (m_geometry->WireIDsIntersect(wireID1, wireID, widIntersect1)) {
+      if (auto widIntersect0 = m_geometry->WireIDsIntersect(wireID0, wireID)) {
+        if (auto widIntersect1 = m_geometry->WireIDsIntersect(wireID1, wireID)) {
           Eigen::Vector3f newPosition(
             pair.getPosition()[0], pair.getPosition()[1], pair.getPosition()[2]);
 
-          newPosition[1] = (newPosition[1] + widIntersect0.y + widIntersect1.y) / 3.;
+          newPosition[1] = (newPosition[1] + widIntersect0->y + widIntersect1->y) / 3.;
           newPosition[2] =
-            (newPosition[2] + widIntersect0.z + widIntersect1.z - 2. * m_zPosOffset) / 3.;
+            (newPosition[2] + widIntersect0->z + widIntersect1->z - 2. * m_zPosOffset) / 3.;
 
           pairOut = pair;
           pairOut.setWireID(wireID);
@@ -1524,7 +1497,7 @@ namespace lar_cluster3d {
                                   << exc.what() << std::endl;
 
       // Assume extremum for wire number depending on z coordinate
-      if (position[2] < 0.5 * m_geometry->DetLength())
+      if (position[2] < 0.5 * m_geometry->TPC().Length())
         wireID.Wire = 0;
       else
         wireID.Wire = m_geometry->Nwires(wireIDIn.asPlaneID()) - 1;
@@ -1541,7 +1514,7 @@ namespace lar_cluster3d {
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try {
       // Recover wire geometry information for each wire
-      const geo::WireGeo& wireGeo = m_geometry->WireIDToWireGeo(wireIDIn);
+      const geo::WireGeo& wireGeo = m_geometry->Wire(wireIDIn);
 
       // Get wire position and direction for first wire
       auto const wirePosArr = wireGeo.GetCenter();
@@ -1549,10 +1522,6 @@ namespace lar_cluster3d {
       Eigen::Vector3f wirePos(wirePosArr.X(), wirePosArr.Y(), wirePosArr.Z());
       Eigen::Vector3f wireDir(
         wireGeo.Direction().X(), wireGeo.Direction().Y(), wireGeo.Direction().Z());
-
-      //*********************************
-      // Kludge
-      //        if (wireIDIn.Plane > 0) wireDir[2] = -wireDir[2];
 
       // Want the hit position to have same x value as wire coordinates
       Eigen::Vector3f hitPosition(wirePos[0], position[1], position[2]);
@@ -1691,7 +1660,7 @@ namespace lar_cluster3d {
 
       // For some detectors we can have multiple wire ID's associated to a given channel.
       // So we recover the list of these wire IDs
-      const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
+      const std::vector<geo::WireID>& wireIDs = m_channelMapAlg->ChannelToWire(recobHit->Channel());
 
       // Start/End ticks to identify the snippet
       HitStartEndPair hitStartEndPair(recobHit->StartTick(), recobHit->EndTick());
@@ -1705,7 +1674,6 @@ namespace lar_cluster3d {
       }
 
       // And then loop over all possible to build out our maps
-      //for(const auto& wireID : wireIDs)
       for (auto wireID : wireIDs) {
         // Check if this is an invalid TPC
         // (for example, in protoDUNE there are logical TPC's which see no signal)
@@ -1727,10 +1695,6 @@ namespace lar_cluster3d {
         m_planeToWireToHitSetMap[planeID][wireID.Wire].insert(&m_clusterHit2DMasterList.back());
       }
     }
-
-    // Make a loop through to sort the recover hits in time order
-    //    for(auto& hitVectorMap : m_planeToSnippetHitMap)
-    //        std::sort(hitVectorMap.second.begin(), hitVectorMap.second.end(), SetHitTimeOrder);
 
     if (m_enableMonitoring) {
       theClockMakeHits.stop();
@@ -1842,15 +1806,10 @@ namespace lar_cluster3d {
       std::unordered_map<raw::ChannelID_t, art::Ptr<recob::Wire>>::iterator chanWireItr =
         channelToWireMap.find(channel);
 
-      if (!(chanWireItr != channelToWireMap.end())) {
-        //mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
-        continue;
-      }
+      if (!(chanWireItr != channelToWireMap.end())) { continue; }
 
       wireAssns.addSingle(chanWireItr->second, hitPtrPair.second);
     }
-
-    return;
   }
 
   void SnippetHit3DBuilder::makeRawDigitAssns(const art::Event& evt,
@@ -1887,15 +1846,10 @@ namespace lar_cluster3d {
       std::unordered_map<raw::ChannelID_t, art::Ptr<raw::RawDigit>>::iterator chanRawDigitItr =
         channelToRawDigitMap.find(channel);
 
-      if (chanRawDigitItr == channelToRawDigitMap.end()) {
-        //mf::LogDebug("Cluster3D") << "** Did not find channel to wire match! Skipping..." << std::endl;
-        continue;
-      }
+      if (chanRawDigitItr == channelToRawDigitMap.end()) { continue; }
 
       rawDigitAssns.addSingle(chanRawDigitItr->second, hitPtrPair.second);
     }
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------

@@ -83,6 +83,8 @@ namespace trkf {
   void Track3Dreco::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    constexpr geo::TPCID tpcid{0, 0};
+    auto const& tpc = geom->TPC(tpcid);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
@@ -93,11 +95,7 @@ namespace trkf {
     auto shassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
     auto hassn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
 
-    // define TPC parameters
-    TString tpcName = geom->GetLArTPCVolumeName();
-
-    double YC = (geom->DetHalfHeight()) * 2.; // *ArgoNeuT* TPC active-volume height in cm
-    constexpr geo::TPCID tpcid{0, 0};
+    double YC = tpc.HalfHeight() * 2.; // *ArgoNeuT* TPC active-volume height in cm
     double Angle = geom->Plane(geo::PlaneID{tpcid, 1}).Wire(0).ThetaZ(false) -
                    TMath::Pi() / 2.; // wire angle with respect to the vertical direction
     // Parameters temporary defined here, but possibly to be retrieved somewhere in the code
@@ -105,8 +103,8 @@ namespace trkf {
     double presamplings = 60.;
     const double wireShift =
       50.; // half the number of wires from the Induction(Collection) plane intersecting with a wire from the Collection(Induction) plane.
-    double plane_pitch = geom->PlanePitch(tpcid, 0, 1); //wire plane pitch in cm
-    double wire_pitch = geom->WirePitch();              //wire pitch in cm
+    double plane_pitch = tpc.PlanePitch(0, 1);               //wire plane pitch in cm
+    double wire_pitch = geom->Plane({tpcid, 0}).WirePitch(); //wire pitch in cm
     double Efield_drift = 0.5; // Electric Field in the drift region in kV/cm
     double Efield_SI = 0.7;    // Electric Field between Shield and Induction planes in kV/cm
     double Efield_IC = 0.9;    // Electric Field between Induction and Collection planes in kV/cm

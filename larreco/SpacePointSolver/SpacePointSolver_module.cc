@@ -19,7 +19,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft libraries
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/ChargedSpacePointCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -52,7 +52,6 @@ namespace reco3d {
 
   private:
     void produce(art::Event& evt) override;
-    void beginJob() override;
 
     void AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const;
 
@@ -101,7 +100,6 @@ namespace reco3d {
 
     double fXHitOffset;
 
-    const geo::GeometryCore* geom;
     std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
 
     unsigned int fMinNHits;
@@ -132,12 +130,6 @@ namespace reco3d {
     }
 
     fHitReader = art::make_tool<reco3d::IHitReader>(pset.get<fhicl::ParameterSet>("HitReaderTool"));
-  }
-
-  // ---------------------------------------------------------------------------
-  void SpacePointSolver::beginJob()
-  {
-    geom = art::ServiceHandle<geo::Geometry const>()->provider();
   }
 
   // ---------------------------------------------------------------------------
@@ -332,9 +324,7 @@ namespace reco3d {
                                        int id,
                                        recob::ChargedSpacePointCollectionCreator& points) const
   {
-    static const double err[6] = {
-      0,
-    };
+    static const double err[6] = {0};
 
     const float charge = sc.fPred;
     if (charge == 0) return false;
@@ -438,22 +428,24 @@ namespace reco3d {
       return;
     }
 
-    art::ServiceHandle<geo::Geometry const> geom;
-
     std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
     bool is2view = fHitReader->readHits(hitlist, xhits, uhits, vhits);
 
     std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     if (fAllowBadInductionHit || fAllowBadCollectionHit) {
       for (raw::ChannelID_t cid :
            art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels()) {
-        if (geom->SignalType(cid) == geo::kCollection) {
-          if (fAllowBadCollectionHit && geom->View(cid) == geo::kZ) { xbadchans.push_back(cid); }
+        if (channelMapAlg->SignalTypeForChannel(cid) == geo::kCollection) {
+          if (fAllowBadCollectionHit && channelMapAlg->View(cid) == geo::kZ) {
+            xbadchans.push_back(cid);
+          }
         }
         else {
           if (fAllowBadInductionHit) {
-            if (geom->View(cid) == geo::kU) ubadchans.push_back(cid);
-            if (geom->View(cid) == geo::kV) vbadchans.push_back(cid);
+            if (channelMapAlg->View(cid) == geo::kU) ubadchans.push_back(cid);
+            if (channelMapAlg->View(cid) == geo::kV) vbadchans.push_back(cid);
           }
         }
       }

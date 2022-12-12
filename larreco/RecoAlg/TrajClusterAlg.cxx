@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -314,6 +315,7 @@ namespace tca {
     evt.event = event;
     // refresh service references
     tcc.geom = lar::providerFrom<geo::Geometry>();
+    tcc.channelMapAlg = art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     evt.WorkID = 0;
     evt.globalT_UID = 0;
     evt.global2V_UID = 0;

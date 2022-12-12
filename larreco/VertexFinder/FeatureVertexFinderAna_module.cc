@@ -289,7 +289,7 @@ namespace vertex {
     // get the wire pitch for each view
     size_t vn = 0;
     for (auto v : geom->Views()) {
-      WirePitch_CurrentPlane[vn] = geom->WirePitch(v);
+      WirePitch_CurrentPlane[vn] = geom->Plane({0, 0, v}).WirePitch();
       ++vn;
     }
 
@@ -329,10 +329,11 @@ namespace vertex {
     fTruthVtxZPos->Fill(truth_vertex.Z());
 
     // Looping over geo::PlaneIDs
-    for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
+    for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
+      auto const& pid = plane.ID();
       // Calculating the nearest wire the vertex corresponds to in each plane
       try {
-        VtxWireNum[pid.Plane] = geom->NearestWireID(truth_vertex, pid).Wire;
+        VtxWireNum[pid.Plane] = plane.NearestWireID(truth_vertex).Wire;
       }
       catch (...) {
         mf::LogWarning("FeatureVertexFinderAna") << "Can't find nearest wire";

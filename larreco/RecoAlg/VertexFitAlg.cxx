@@ -120,16 +120,16 @@ namespace trkf {
     fVtxFitMinStr.Cstat = tpcid.Cryostat;
     fVtxFitMinStr.TPC = tpcid.TPC;
     fVtxFitMinStr.NPlanes = nplanes;
-    fVtxFitMinStr.WirePitch = geom->WirePitch(hitWID[0][0]);
+    fVtxFitMinStr.WirePitch = geom->Plane(hitWID[0][0]).WirePitch();
 
     // Put geometry conversion factors into the struct
     for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
-      geo::PlaneID const planeID{tpcid, ipl};
-      fVtxFitMinStr.FirstWire[ipl] = -geom->WireCoordinate(geo::Point_t{0, 0, 0}, planeID);
+      auto const& plane = geom->Plane({tpcid, ipl});
+      fVtxFitMinStr.FirstWire[ipl] = -plane.WireCoordinate(geo::Point_t{0, 0, 0});
       fVtxFitMinStr.OrthY[ipl] =
-        geom->WireCoordinate(geo::Point_t{0, 1, 0}, planeID) + fVtxFitMinStr.FirstWire[ipl];
+        plane.WireCoordinate(geo::Point_t{0, 1, 0}) + fVtxFitMinStr.FirstWire[ipl];
       fVtxFitMinStr.OrthZ[ipl] =
-        geom->WireCoordinate(geo::Point_t{0, 0, 1}, planeID) + fVtxFitMinStr.FirstWire[ipl];
+        plane.WireCoordinate(geo::Point_t{0, 0, 1}) + fVtxFitMinStr.FirstWire[ipl];
     }
     // and the vertex starting position
     fVtxFitMinStr.VtxPos = VtxPos;

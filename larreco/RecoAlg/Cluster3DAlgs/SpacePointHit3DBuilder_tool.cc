@@ -21,6 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -63,17 +64,10 @@ namespace lar_cluster3d {
     explicit SpacePointHit3DBuilder(fhicl::ParameterSet const& pset);
 
     /**
-     *  @brief  Destructor
-     */
-    ~SpacePointHit3DBuilder();
-
-    /**
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::ProducesCollector&) override;
-
-    void configure(const fhicl::ParameterSet&) override;
+    void produces(art::ProducesCollector&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -137,28 +131,10 @@ namespace lar_cluster3d {
     mutable Hit2DVector m_clusterHit2DMasterVec;
 
     const geo::Geometry* fGeometry;
+    const geo::ChannelMapAlg* fChannelMapAlg;
   };
 
   SpacePointHit3DBuilder::SpacePointHit3DBuilder(fhicl::ParameterSet const& pset)
-  {
-    this->configure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  SpacePointHit3DBuilder::~SpacePointHit3DBuilder() {}
-
-  void SpacePointHit3DBuilder::produces(art::ProducesCollector& collector)
-  {
-    collector.produces<std::vector<recob::Hit>>();
-
-    if (fDoWireAssns) collector.produces<art::Assns<recob::Wire, recob::Hit>>();
-    if (fDoRawDigitAssns) collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
     fSpacePointProducerLabel = pset.get<art::InputTag>("SpacePointProducerLabel");
     fHitProducerLabel = pset.get<art::InputTag>("HitProducerLabel");
@@ -192,7 +168,20 @@ namespace lar_cluster3d {
     }
 
     fGeometry = art::ServiceHandle<geo::Geometry const>().get();
+    fChannelMapAlg = art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
   }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
+
+  void SpacePointHit3DBuilder::produces(art::ProducesCollector& collector)
+  {
+    collector.produces<std::vector<recob::Hit>>();
+
+    if (fDoWireAssns) collector.produces<art::Assns<recob::Wire, recob::Hit>>();
+    if (fDoRawDigitAssns) collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
+  }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
 
   void SpacePointHit3DBuilder::clear()
   {
@@ -208,8 +197,6 @@ namespace lar_cluster3d {
     m_qualityMetricVec.clear();
     m_spacePointChargeVec.clear();
     m_hitAsymmetryVec.clear();
-
-    return;
   }
 
   void SpacePointHit3DBuilder::Hit3DBuilder(art::Event& evt,
@@ -276,7 +263,7 @@ namespace lar_cluster3d {
 
         // Recover the list of possible WireIDs from the geometry service
         const std::vector<geo::WireID>& wireIDs =
-          fGeometry->ChannelToWire(recobHit.get()->Channel());
+          fChannelMapAlg->ChannelToWire(recobHit.get()->Channel());
 
         // Loop to find match
         for (const auto& wireID : wireIDs) {
@@ -562,8 +549,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> 3D hit building done, found " << hitPairList.size()
                               << " 3D Hits" << std::endl;
-
-    return;
   }
 
   float SpacePointHit3DBuilder::chargeIntegral(float peakMean,

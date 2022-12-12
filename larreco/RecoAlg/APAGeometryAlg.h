@@ -8,44 +8,33 @@
 #include <stdint.h>
 #include <vector>
 
-#include "TVector3.h"
-
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-namespace fhicl {
-  class ParameterSet;
-}
-
 namespace apa {
 
   // each APA has 4 separate views
-  typedef enum _apa_plane_proj {
+  enum APAView_t {
     kU,  ///< U view on both sides of the APA
     kV,  ///< V view on both sides of the APA
     kZ0, ///< Z view on the smaller-x side of the APA
     kZ1, ///< Z view on the larger-x side of the APA
     kUnknown
-  } APAView_t;
+  };
 
   //---------------------------------------------------------------
   class APAGeometryAlg {
   public:
-    APAGeometryAlg(fhicl::ParameterSet const& pset);
     APAGeometryAlg();
-
-    void reconfigure(fhicl::ParameterSet const& p);
-
-    void Init(); ///< Initialize some chanel numbers to speed up other methods
 
     bool APAChannelsIntersect(uint32_t chan1,
                               uint32_t chan2,
                               std::vector<geo::WireIDIntersection>& IntersectVector) const;
     ///< If the channels intersect, get all intersections
 
-    bool LineSegChanIntersect(TVector3 xyzStart,
-                              TVector3 xyzEnd,
+    bool LineSegChanIntersect(geo::Point_t const& xyzStart,
+                              geo::Point_t const& xyzEnd,
                               uint32_t chan,
                               std::vector<geo::WireID>& widsCrossed,
                               bool ExtendLine) const;
@@ -58,11 +47,9 @@ namespace apa {
     std::vector<double> ThreeChanPos(uint32_t u, uint32_t v, uint32_t z) const;
     ///< Find the center of the 3 intersections, choose best if multiple
 
-    geo::WireID NearestWireIDOnChan(const double WorldLoc[3],
+    geo::WireID NearestWireIDOnChan(geo::Point_t const& WorldLoc,
                                     uint32_t chan,
-                                    unsigned int const plane,
-                                    unsigned int const tpc = 0,
-                                    unsigned int const cstat = 0) const;
+                                    geo::PlaneID const& planeID) const;
 
     unsigned int ChannelToAPA(
       uint32_t chan) const; ///< Get number of the APA containing the given channel
@@ -73,10 +60,11 @@ namespace apa {
     uint32_t FirstChannelInView(geo::View_t geoview, uint32_t chan) const;
     uint32_t FirstChannelInView(uint32_t chan) const;
     unsigned int ChannelsInAPAView(APAView_t apaview) const;
-    unsigned int ChannelsPerAPA() const { return fChannelsPerAPA; };
+    unsigned int ChannelsPerAPA() const { return fChannelsPerAPA; }
 
   private:
     art::ServiceHandle<geo::Geometry const> fGeom; // handle to geometry service
+    geo::ChannelMapAlg const* fChannelMapAlg;
 
     unsigned int fChannelsPerAPA; ///< All APAs have this same number of channels
     unsigned int fAPAsPerCryo;

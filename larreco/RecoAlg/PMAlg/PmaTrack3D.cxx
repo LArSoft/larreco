@@ -173,22 +173,21 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   if (hit0_a && hit0_b && hit1_a && hit1_b) {
     geo::PlaneID const hit0_b_planeid{tpcid, hit0_b->View2D()};
     geo::PlaneID const hit1_b_planeid{tpcid, hit1_b->View2D()};
-    double x = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid) +
-                      detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b_planeid));
-    double y, z;
-    geom->IntersectionPoint(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
-                            geo::WireID{hit0_b_planeid, hit0_b->Wire()},
-                            y,
-                            z);
-    v3d_1.SetXYZ(x, y, z);
+    double const x0 = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid) +
+                             detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b_planeid));
+    auto const intersection0 = geom
+                                 ->WireIDsIntersect(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
+                                                    geo::WireID{hit0_b_planeid, hit0_b->Wire()})
+                                 .value_or(geo::WireIDIntersection::invalid());
+    v3d_1.SetXYZ(x0, intersection0.y, intersection0.z);
 
-    x = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid) +
-               detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b_planeid));
-    geom->IntersectionPoint(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
-                            geo::WireID{hit1_b_planeid, hit1_b->Wire()},
-                            y,
-                            z);
-    v3d_2.SetXYZ(x, y, z);
+    double const x1 = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid) +
+                             detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b_planeid));
+    auto const intersection1 = geom
+                                 ->WireIDsIntersect(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
+                                                    geo::WireID{hit1_b_planeid, hit1_b->Wire()})
+                                 .value_or(geo::WireIDIntersection::invalid());
+    v3d_2.SetXYZ(x1, intersection1.y, intersection1.z);
 
     ClearNodes();
     AddNode(detProp, v3d_1, tpc, cryo);

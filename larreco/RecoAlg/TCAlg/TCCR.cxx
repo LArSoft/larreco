@@ -1,4 +1,5 @@
 #include "larreco/RecoAlg/TCAlg/TCCR.h"
+#include "larcorealg/Geometry/ChannelMapAlg.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
@@ -28,7 +29,6 @@ namespace tca {
                   bool prt,
                   bool fIsRealData)
   {
-
     //Check the origin of pfp
     if (tcc.modes[kSaveCRTree]) {
       if (fIsRealData) { slc.crt.cr_origin.push_back(-1); }
@@ -55,7 +55,6 @@ namespace tca {
     if (std::abs(endPos[1] - tpc.MaxY()) < mindis1) mindis1 = std::abs(endPos[1] - tpc.MaxY());
     if (std::abs(endPos[2] - tpc.MinZ()) < mindis1) mindis1 = std::abs(endPos[2] - tpc.MinZ());
     if (std::abs(endPos[2] - tpc.MaxZ()) < mindis1) mindis1 = std::abs(endPos[2] - tpc.MaxZ());
-    //std::cout<<startPos[1]<<" "<<startPos[2]<<" "<<endPos[1]<<" "<<endPos[2]<<" "<<tpc.MinY()<<" "<<tpc.MaxY()<<" "<<tpc.MinZ()<<" "<<tpc.MaxZ()<<" "<<mindis0<<" "<<mindis1<<" "<<mindis0+mindis1<<std::endl;
     slc.crt.cr_pfpyzmindis.push_back(mindis0 + mindis1);
 
     if (slc.crt.cr_pfpxmin.back() < -2 || slc.crt.cr_pfpxmax.back() > 260 ||
@@ -69,14 +68,12 @@ namespace tca {
   ////////////////////////////////////////////////
   int GetOrigin(detinfo::DetectorClocksData const& clockData, TCSlice& slc, PFPStruct& pfp)
   {
-
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
     std::map<int, float> omap; //<origin, energy>
 
     for (auto& tjID : pfp.TjIDs) {
-
       Trajectory& tj = slc.tjs[tjID - 1];
       for (auto& tp : tj.Pts) {
         for (unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -84,7 +81,7 @@ namespace tca {
           unsigned int iht = tp.Hits[ii];
           TCHit& slhit = slc.slHits[iht];
           auto& hit = (*evt.allHits)[slhit.allHitsIndex];
-          raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel(hit.WireID());
+          raw::ChannelID_t channel = tcc.channelMapAlg->PlaneWireToChannel(hit.WireID());
           double startTick = hit.PeakTime() - hit.RMS();
           double endTick = hit.PeakTime() + hit.RMS();
           // get a list of track IDEs that are close to this hit

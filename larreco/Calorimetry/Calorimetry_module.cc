@@ -12,15 +12,14 @@
 #include <math.h>
 #include <string>
 
-#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
-
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/AnalysisBase/T0.h"
@@ -30,9 +29,9 @@
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-
 #include "larevt/SpaceCharge/SpaceCharge.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 // ROOT includes
 #include <TF1.h>
@@ -177,10 +176,8 @@ void calo::Calorimetry::produce(art::Event& evt)
   size_t nplanes = geom->Nplanes();
 
   //create anab::Calorimetry objects and make association with recob::Track
-  std::unique_ptr<std::vector<anab::Calorimetry>> calorimetrycol(
-    new std::vector<anab::Calorimetry>);
-  std::unique_ptr<art::Assns<recob::Track, anab::Calorimetry>> assn(
-    new art::Assns<recob::Track, anab::Calorimetry>);
+  auto calorimetrycol = std::make_unique<std::vector<anab::Calorimetry>>();
+  auto assn = std::make_unique<art::Assns<recob::Track, anab::Calorimetry>>();
 
   art::FindManyP<recob::Hit> fmht(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(
@@ -189,6 +186,8 @@ void calo::Calorimetry::produce(art::Event& evt)
     fTrackModuleLabel); //this has more information about hit-track association, only available in PMA for now
   art::FindManyP<anab::T0> fmt0(trackListHandle, evt, fT0ModuleLabel);
 
+  auto const* channelMapAlg =
+    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
   for (size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter) {
 
     decltype(auto) larEnd = tracklist[trkIter]->Trajectory().End();
@@ -414,7 +413,9 @@ void calo::Calorimetry::produce(art::Event& evt)
               const geo::Vector_t& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma =
                 std::abs(std::sin(angleToVert) * dir.Y() + std::cos(angleToVert) * dir.Z());
-              if (cosgamma) { pitch = geom->WirePitch(vhit[ii]->View()) / cosgamma; }
+              if (cosgamma) {
+                pitch = geom->Plane({0, 0, vhit[ii]->View()}).WirePitch() / cosgamma;
+              }
               else {
                 pitch = 0;
               }
@@ -613,7 +614,7 @@ void calo::Calorimetry::produce(art::Event& evt)
         plane = allHits[hits[ipl][0]]->WireID().Plane;
         tpc = allHits[hits[ipl][0]]->WireID().TPC;
         cstat = allHits[hits[ipl][0]]->WireID().Cryostat;
-        channel = geom->PlaneWireToChannel(geo::WireID{cstat, tpc, plane, iw});
+        channel = channelMapAlg->PlaneWireToChannel(geo::WireID{cstat, tpc, plane, iw});
         if (channelStatus.IsBad(channel)) {
           MF_LOG_DEBUG("Calorimetry") << "Found dead wire at Plane = " << plane << " Wire =" << iw;
           unsigned int closestwire = 0;
@@ -695,7 +696,7 @@ void calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop
   //save the sign of distance
   std::map<size_t, int> sptsignmap;
 
-  double wire_pitch = geom->WirePitch(geo::WireID(0, 0, 0, 0));
+  double wire_pitch = geom->Plane({0, 0, 0}).WirePitch();
 
   double t0 = hit->PeakTime() - TickT0;
   double x0 = det_prop.ConvertTicksToX(t0, hit->WireID().asPlaneID());
@@ -823,7 +824,7 @@ void calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop
     ky /= tot;
     kz /= tot;
     //get pitch
-    double wirePitch = geom->WirePitch(hit->WireID().asPlaneID());
+    double wirePitch = geom->Plane(hit->WireID().asPlaneID()).WirePitch();
     double angleToVert =
       geom->Plane(hit->WireID().asPlaneID()).Wire(0).ThetaZ(false) - 0.5 * TMath::Pi();
     double cosgamma = TMath::Abs(TMath::Sin(angleToVert) * ky + TMath::Cos(angleToVert) * kz);
@@ -852,8 +853,4 @@ void calo::Calorimetry::GetPitch(detinfo::DetectorPropertiesData const& det_prop
   }
 }
 
-namespace calo {
-
-  DEFINE_ART_MODULE(Calorimetry)
-
-} // end namespace
+DEFINE_ART_MODULE(calo::Calorimetry)

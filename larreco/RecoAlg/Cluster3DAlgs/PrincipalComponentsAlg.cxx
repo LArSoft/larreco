@@ -317,7 +317,7 @@ namespace lar_cluster3d {
         // the cluster's current axis.
         // Get this wire's geometry object
         const geo::WireID& hitID = hit->WireID();
-        const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
+        const geo::WireGeo& wire_geom = m_geometry->Wire(hitID);
 
         // From this, get the parameters of the line for the wire
         auto const wirePosArr = wire_geom.GetCenter();
@@ -565,7 +565,7 @@ namespace lar_cluster3d {
       // cluster's axis with a plane defined by the wire the hit is associated with.
       // Get this wire's geometry object
       const geo::WireID& hitID = hit->WireID();
-      const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
+      const geo::WireGeo& wire_geom = m_geometry->Wire(hitID);
 
       // From this, get the parameters of the line for the wire
       auto const wirePosArr = wire_geom.GetCenter();

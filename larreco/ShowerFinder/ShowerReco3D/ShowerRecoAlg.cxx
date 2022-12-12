@@ -15,6 +15,7 @@ namespace showerreco {
 
   recob::Shower ShowerRecoAlg::RecoOneShower(
     geo::GeometryCore const& geom,
+    geo::ChannelMapAlg const& channelMapAlg,
     detinfo::DetectorClocksData const& clockData,
     detinfo::DetectorPropertiesData const& detProp,
     std::vector<showerreco::ShowerCluster_t> const& clusters)
@@ -27,7 +28,7 @@ namespace showerreco {
     std::vector<util::PxPoint> fEndPoint;   // for each plane
     std::vector<double> fOmega2D;           // for each plane
 
-    util::GeometryUtilities const gser{geom, clockData, detProp};
+    util::GeometryUtilities const gser{geom, channelMapAlg, clockData, detProp};
     std::vector<double> fEnergy(gser.Nplanes(), -1);    // for each plane
     std::vector<double> fMIPEnergy(gser.Nplanes(), -1); // for each plane
     std::vector<double> fdEdx(gser.Nplanes(), -1);

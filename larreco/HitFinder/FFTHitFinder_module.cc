@@ -21,7 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -82,7 +82,6 @@ namespace hit {
   //-------------------------------------------------
   void FFTHitFinder::produce(art::Event& evt)
   {
-
     // this object contains the hit collection
     // and its associations to wires and raw digits:
     recob::HitCollectionCreator hcol(evt);
@@ -90,7 +89,8 @@ namespace hit {
     // Read in the wire List object(s).
     art::Handle<std::vector<recob::Wire>> wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel, wireVecHandle);
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
 
     // also get the raw digits associated with wires
     art::FindOneP<raw::RawDigit> WireToRawDigits(wireVecHandle, evt, fCalDataModuleLabel);
@@ -122,7 +122,7 @@ namespace hit {
       minTimeHolder = 0;
       maxFound = false;
       channel = wire->Channel();
-      sigType = geom->SignalType(channel);
+      sigType = channelMapAlg->SignalTypeForChannel(channel);
 
       //Set the appropriate signal widths and thresholds
       if (sigType == geo::kInduction) {
@@ -310,7 +310,7 @@ namespace hit {
               totSig = std::sqrt(2 * TMath::Pi()) * amplitude * width / fAreaNorms[(size_t)sigType];
 
             // get the WireID for this hit
-            std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+            std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(channel);
             ///\todo need to have a disambiguation algorithm somewhere in here
             // for now, just take the first option returned from ChannelToWire
             geo::WireID wid = wids[0];

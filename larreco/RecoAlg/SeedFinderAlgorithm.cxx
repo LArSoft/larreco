@@ -13,6 +13,7 @@
 #include "canvas/Utilities/Exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -25,12 +26,8 @@
 namespace trkf {
 
   //----------------------------------------------------------------------------
-  SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset) { reconfigure(pset); }
-
-  //----------------------------------------------------------------------------
-  void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
+  SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset)
   {
-
     fSptalg = new trkf::SpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
 
     fInitSeedLength = pset.get<double>("InitSeedLength");
@@ -930,13 +927,14 @@ namespace trkf {
     art::ServiceHandle<geo::Geometry const> geom;
 
     // Total number of channels in the detector
-    fNChannels = geom->Nchannels();
+    fNChannels =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()->Nchannels();
 
     // Find pitch of each wireplane
     fPitches.resize(3);
-    fPitches.at(0) = fabs(geom->WirePitch(geo::kU));
-    fPitches.at(1) = fabs(geom->WirePitch(geo::kV));
-    fPitches.at(2) = fabs(geom->WirePitch(geo::kW));
+    fPitches.at(0) = fabs(geom->Plane({0, 0, geo::kU}).WirePitch());
+    fPitches.at(1) = fabs(geom->Plane({0, 0, geo::kV}).WirePitch());
+    fPitches.at(2) = fabs(geom->Plane({0, 0, geo::kW}).WirePitch());
 
     // Setup basis vectors
     fXDir = TVector3(1, 0, 0);

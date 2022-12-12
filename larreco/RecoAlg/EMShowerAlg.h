@@ -16,11 +16,10 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // larsoft
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -274,6 +273,8 @@ private:
 
   // Services used by this class
   art::ServiceHandle<geo::Geometry const> fGeom;
+  geo::ChannelMapAlg const* fChannelMapAlg{
+    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
 
   // Algs used by this class
   shower::ShowerEnergyAlg const fShowerEnergyAlg;

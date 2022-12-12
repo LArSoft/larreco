@@ -16,6 +16,7 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -104,7 +105,9 @@ namespace trkf {
     std::vector<recob::Wire> const& wireVec(*wireHandle);
 
     //First, have it process the wires.
-    fCorner.GrabWires(wireVec, *fGeometryHandle);
+    fCorner.GrabWires(wireVec,
+                      *fGeometryHandle,
+                      *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr());
 
     std::vector<recob::EndPoint2D> EndPoints;
     fCorner.get_feature_points(EndPoints, *fGeometryHandle);
@@ -285,9 +288,10 @@ namespace trkf {
     uvw.resize(NPlanes);
     t.resize(NPlanes);
 
-    for (unsigned int plane = 0; plane != NPlanes; plane++) {
-      uvw[plane] = geo->NearestWireID(xyz, geo::PlaneID{tpcID, plane}).Wire;
-      t[plane] = detProp.ConvertXToTicks(xyz.X(), geo::PlaneID{tpcID, plane});
+    for (auto const& plane : geo->Iterate<geo::PlaneGeo>(tpcID)) {
+      auto const p = plane.ID().Plane;
+      uvw[p] = plane.NearestWireID(xyz).Wire;
+      t[p] = detProp.ConvertXToTicks(xyz.X(), plane.ID());
     }
   }
 

@@ -27,6 +27,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -104,11 +105,12 @@ namespace trkf {
     auto shassn = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
 
     // define TPC parameters
-    TString tpcName = geom->GetLArTPCVolumeName();
+    constexpr geo::TPCID tpcid{0, 0};
+    auto const& tpc = geom->TPC(tpcid);
+    TString tpcName = tpc.ActiveVolume()->GetName();
 
     //TPC dimensions
-    double YC = (geom->DetHalfHeight()) * 2.; // TPC height in cm
-    constexpr geo::TPCID tpcid{0, 0};
+    double YC = tpc.HalfHeight() * 2.; // TPC height in cm
     double Angle = geom->Plane(geo::PlaneID{tpcid, 1}).Wire(0).ThetaZ(false) -
                    TMath::Pi() / 2.; // wire angle with respect to the vertical direction
     // Parameters temporary defined here, but possibly to be retrieved somewhere in the code
@@ -116,8 +118,8 @@ namespace trkf {
     double presamplings = fPreSamplings; // 60.;
     const double wireShift =
       50.; // half the number of wires from the Induction(Collection) plane intersecting with a wire from the Collection(Induction) plane.
-    double plane_pitch = geom->PlanePitch(tpcid, 0, 1); //wire plane pitch in cm
-    double wire_pitch = geom->WirePitch();              //wire pitch in cm
+    double plane_pitch = tpc.PlanePitch(0, 1);               //wire plane pitch in cm
+    double wire_pitch = geom->Plane({tpcid, 0}).WirePitch(); //wire pitch in cm
     double Efield_drift = 0.5; // Electric Field in the drift region in kV/cm
     double Efield_SI = 0.7;    // Electric Field between Shield and Induction planes in kV/cm
     double Efield_IC = 0.9;    // Electric Field between Induction and Collection planes in kV/cm
@@ -173,6 +175,8 @@ namespace trkf {
 
     art::FindManyP<recob::Hit> fm(clusterListHandle, evt, fClusterModuleLabel);
 
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     for (unsigned int ii = 0; ii < clusterListHandle->size(); ++ii) {
       art::Ptr<recob::Cluster> cl(clusterListHandle, ii);
 
@@ -223,10 +227,11 @@ namespace trkf {
 
         time -= presamplings;
 
-        if (geom->SignalType((*theHit)->Channel()) == geo::kCollection) time -= tIC; // Collection
+        if (channelMapAlg->SignalTypeForChannel((*theHit)->Channel()) == geo::kCollection)
+          time -= tIC; // Collection
         //transform hit wire and time into cm
         double wire_cm = 0.;
-        if (geom->SignalType((*theHit)->Channel()) == geo::kInduction)
+        if (channelMapAlg->SignalTypeForChannel((*theHit)->Channel()) == geo::kInduction)
           wire_cm = (double)(((*theHit)->WireID().Wire + 3.95) * wire_pitch);
         else
           wire_cm = (double)(((*theHit)->WireID().Wire + 1.84) * wire_pitch);
@@ -268,7 +273,7 @@ namespace trkf {
       double t1_line = intercept + (w1)*slope; // time coordinate at wire w1 on the fit line (cm)
 
       // actually store the 2Dtrack info
-      switch (geom->SignalType((*hitlist.begin())->Channel())) {
+      switch (channelMapAlg->SignalTypeForChannel((*hitlist.begin())->Channel())) {
       case geo::kInduction:
         Iwirefirsts.push_back(w0);
         Iwirelasts.push_back(w1);
@@ -303,8 +308,6 @@ namespace trkf {
       // Recover previously stored info
       double Cw0 = Cwirefirsts[collectionIter];
       double Cw1 = Cwirelasts[collectionIter];
-      //double Ct0 = Ctimefirsts[collectionIter];
-      //double Ct1 = Ctimelasts[collectionIter];
       double Ct0_line = Ctimefirsts_line[collectionIter];
       double Ct1_line = Ctimelasts_line[collectionIter];
       std::vector<art::Ptr<recob::Hit>> hitsCtrk = CclusHitlists[collectionIter];
@@ -317,8 +320,6 @@ namespace trkf {
         // Recover previously stored info
         double Iw0 = Iwirefirsts[inductionIter];
         double Iw1 = Iwirelasts[inductionIter];
-        //double It0 = Itimefirsts[inductionIter];
-        //double It1 = Itimelasts[inductionIter];
         double It0_line = Itimefirsts_line[inductionIter];
         double It1_line = Itimelasts_line[inductionIter];
         std::vector<art::Ptr<recob::Hit>> hitsItrk = IclusHitlists[inductionIter];
@@ -422,7 +423,6 @@ namespace trkf {
           size_t spStart = spcol->size();
           for (unsigned int imin = 0; imin < minhits.size(); imin++) { //loop over hits
             //get wire - time coordinate of the hit
-            //unsigned int channel,wire,plane1,plane2,tpc,cstat;
             geo::WireID hit1WireID = minhits[imin]->WireID();
             auto const hitSigType = minhits[imin]->SignalType();
             double w1 = 0;
@@ -435,8 +435,7 @@ namespace trkf {
 
             double temptime1 = minhits[imin]->PeakTime() - presamplings;
             if (hitSigType == geo::kCollection) temptime1 -= tIC;
-            double
-              t1; // = plane1==1?(double)((minhits[imin]->PeakTime()-presamplings-tIC)*timepitch):(double)((minhits[imin]->PeakTime()-presamplings)*timepitch); //in cm
+            double t1;
             if (temptime1 > tSI)
               t1 = (double)((temptime1 - tSI) * timepitch + tSI * driftvelocity_SI * timetick);
             else
@@ -503,7 +502,6 @@ namespace trkf {
             geo::WireID hit2WireID = maxhits[imaximum]->WireID();
             auto const hit2SigType = maxhits[imaximum]->SignalType();
 
-            //double w1_match = (double)((wire+1)*wire_pitch);
             double w1_match = 0.;
             if (hit2SigType == geo::kInduction)
               w1_match = (double)((hit2WireID.Wire + 3.95) * wire_pitch);
@@ -533,21 +531,6 @@ namespace trkf {
             hitcoord[0] = hit3d.X();
             hitcoord[1] = hit3d.Y();
             hitcoord[2] = hit3d.Z();
-
-            /*
-            double yy,zz;
-            if(geom->ChannelsIntersect(geom->PlaneWireToChannel(0,(int)((Iw/wire_pitch)-3.95)),      geom->PlaneWireToChannel(1,(int)((Cw/wire_pitch)-1.84)),yy,zz))
-            {
-            //channelsintersect provides a slightly more accurate set of y and z coordinates. use channelsintersect in case the wires in question do cross.
-            hitcoord[1] = yy;
-            hitcoord[2] = zz;
-            mf::LogInfo("SpacePts: ") << "SpacePoint adding xyz ..." << hitcoord[0] <<","<< hitcoord[1] <<","<< hitcoord[2];
-            //             std::cout<<"wire 1: "<<(Iw/wire_pitch)-3.95<<" "<<(Cw/wire_pitch)-1.84<<std::endl;
-            //                std::cout<<"Intersect: "<<yy<<" "<<zz<<std::endl;
-            }
-            else
-            continue;
-          */
 
             double err[6] = {util::kBogusD};
             recob::SpacePoint mysp(hitcoord,

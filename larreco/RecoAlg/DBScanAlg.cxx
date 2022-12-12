@@ -20,6 +20,7 @@
 
 #include "RStarTree/RStarBoundingBox.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
@@ -283,7 +284,7 @@ void cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
 
   //------------------------------------------------------------------
   // Determine spacing between wires (different for each detector)
-  ///get 2 first wires and find their spacing (wire_dist)
+  // get 2 first wires and find their spacing (wire_dist)
 
   art::ServiceHandle<geo::Geometry const> geom;
   constexpr geo::TPCID tpcid{0, 0};
@@ -292,7 +293,9 @@ void cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
 
   // Collect the bad wire list into a useful form
   if (fClusterMethod) { // Using the R*-tree
-    fBadWireSum.resize(geom->Nchannels());
+    auto const nchannels =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()->Nchannels();
+    fBadWireSum.resize(nchannels);
     unsigned int count = 0;
     for (unsigned int i = 0; i < fBadWireSum.size(); ++i) {
       count += fBadChannels.count(i);

@@ -44,14 +44,14 @@ namespace {
   {
     // Get geometry.
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
-    double d1 = pos.X();                             // Distance to right side (wires).
-    double d2 = 2. * geom->DetHalfWidth() - pos.X(); // Distance to left side (cathode).
-    double d3 = pos.Y() + geom->DetHalfHeight();     // Distance to bottom.
-    double d4 = geom->DetHalfHeight() - pos.Y();     // Distance to top.
-    double d5 = pos.Z();                             // Distance to front.
-    double d6 = geom->DetLength() - pos.Z();         // Distance to back.
+    double d1 = pos.X();                        // Distance to right side (wires).
+    double d2 = 2. * tpc.HalfWidth() - pos.X(); // Distance to left side (cathode).
+    double d3 = pos.Y() + tpc.HalfHeight();     // Distance to bottom.
+    double d4 = tpc.HalfHeight() - pos.Y();     // Distance to top.
+    double d5 = pos.Z();                        // Distance to front.
+    double d6 = tpc.Length() - pos.Z();         // Distance to back.
 
     return std::min({d1, d2, d3, d4, d5, d6});
   }
@@ -102,22 +102,20 @@ namespace {
                 TVector3& start,
                 TVector3& end,
                 TVector3& startmom,
-                TVector3& endmom,
-                unsigned int /*tpc*/ = 0,
-                unsigned int /*cstat*/ = 0)
+                TVector3& endmom)
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
     // Get fiducial volume boundary.
 
     double xmin = 0.;
-    double xmax = 2. * geom->DetHalfWidth();
-    double ymin = -geom->DetHalfHeight();
-    double ymax = geom->DetHalfHeight();
+    double xmax = 2. * tpc.HalfWidth();
+    double ymin = -tpc.HalfHeight();
+    double ymax = tpc.HalfHeight();
     double zmin = 0.;
-    double zmax = geom->DetLength();
+    double zmax = tpc.Length();
     double result = 0.;
     TVector3 disp;
     int n = mctrk.size();
@@ -367,14 +365,11 @@ namespace trkf {
   // RecoHists methods.
 
   SeedAna::RecoHists::RecoHists(const std::string& subdir)
-  //
-  // Purpose: Initializing constructor.
-  //
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
     // Make histogram directory.
 
@@ -383,12 +378,10 @@ namespace trkf {
 
     // Book histograms.
 
-    fHx =
-      dir.make<TH1F>("x", "X Position", 100, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHy = dir.make<TH1F>("y", "Y Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHz = dir.make<TH1F>("z", "Z Position", 100, 0., geom->DetLength());
-    fHdist =
-      dir.make<TH1F>("dist", "Position Distance to Boundary", 100, -10., geom->DetHalfWidth());
+    fHx = dir.make<TH1F>("x", "X Position", 100, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHy = dir.make<TH1F>("y", "Y Position", 100, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHz = dir.make<TH1F>("z", "Z Position", 100, 0., tpc.Length());
+    fHdist = dir.make<TH1F>("dist", "Position Distance to Boundary", 100, -10., tpc.HalfWidth());
     fHtheta = dir.make<TH1F>("theta", "Theta", 100, 0., 3.142);
     fHphi = dir.make<TH1F>("phi", "Phi", 100, -3.142, 3.142);
     fHtheta_xz = dir.make<TH1F>("theta_xz", "Theta_xz", 100, -3.142, 3.142);
@@ -398,14 +391,11 @@ namespace trkf {
   // MCHists methods.
 
   SeedAna::MCHists::MCHists(const std::string& subdir)
-  //
-  // Purpose: Initializing constructor.
-  //
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
     // Make histogram directory.
 
@@ -424,129 +414,103 @@ namespace trkf {
     fHmcdvdw = dir.make<TH1F>("mcdvdw", "MV Truth V Slope", 100, -0.2, 0.2);
 
     fHmcstartx = dir.make<TH1F>(
-      "mcxstart", "MC X Start Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHmcstarty = dir.make<TH1F>(
-      "mcystart", "MC Y Start Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position", 10, 0., geom->DetLength());
+      "mcxstart", "MC X Start Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHmcstarty =
+      dir.make<TH1F>("mcystart", "MC Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position", 10, 0., tpc.Length());
     fHmcendx = dir.make<TH1F>(
-      "mcxend", "MC X End Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHmcendy = dir.make<TH1F>(
-      "mcyend", "MC Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position", 10, 0., geom->DetLength());
+      "mcxend", "MC X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHmcendy =
+      dir.make<TH1F>("mcyend", "MC Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position", 10, 0., tpc.Length());
     fHmctheta = dir.make<TH1F>("mctheta", "MC Theta", 20, 0., 3.142);
     fHmcphi = dir.make<TH1F>("mcphi", "MC Phi", 10, -3.142, 3.142);
     fHmctheta_xz = dir.make<TH1F>("mctheta_xz", "MC Theta_xz", 40, -3.142, 3.142);
     fHmctheta_yz = dir.make<TH1F>("mctheta_yz", "MC Theta_yz", 40, -3.142, 3.142);
     fHmcmom = dir.make<TH1F>("mcmom", "MC Momentum", 10, 0., 10.);
-    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * tpc.Length());
 
-    fHmstartx = dir.make<TH1F>("mxstart",
-                               "Matched X Start Position",
-                               10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
+    fHmstartx = dir.make<TH1F>(
+      "mxstart", "Matched X Start Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
     fHmstarty = dir.make<TH1F>(
-      "mystart", "Matched Y Start Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmstartz = dir.make<TH1F>("mzstart", "Matched Z Start Position", 10, 0., geom->DetLength());
+      "mystart", "Matched Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmstartz = dir.make<TH1F>("mzstart", "Matched Z Start Position", 10, 0., tpc.Length());
     fHmendx = dir.make<TH1F>(
-      "mxend", "Matched X End Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHmendy = dir.make<TH1F>(
-      "myend", "Matched Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmendz = dir.make<TH1F>("mzend", "Matched Z End Position", 10, 0., geom->DetLength());
+      "mxend", "Matched X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHmendy =
+      dir.make<TH1F>("myend", "Matched Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmendz = dir.make<TH1F>("mzend", "Matched Z End Position", 10, 0., tpc.Length());
     fHmtheta = dir.make<TH1F>("mtheta", "Matched Theta", 20, 0., 3.142);
     fHmphi = dir.make<TH1F>("mphi", "Matched Phi", 10, -3.142, 3.142);
     fHmtheta_xz = dir.make<TH1F>("mtheta_xz", "Matched Theta_xz", 40, -3.142, 3.142);
     fHmtheta_yz = dir.make<TH1F>("mtheta_yz", "Matched Theta_yz", 40, -3.142, 3.142);
     fHmmom = dir.make<TH1F>("mmom", "Matched Momentum", 10, 0., 10.);
-    fHmlen = dir.make<TH1F>("mlen", "Matched Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHmlen = dir.make<TH1F>("mlen", "Matched Particle Length", 10, 0., 1.1 * tpc.Length());
 
-    fHgstartx = dir.make<TH1F>("gxstart",
-                               "Good X Start Position",
-                               10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
-    fHgstarty = dir.make<TH1F>(
-      "gystart", "Good Y Start Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position", 10, 0., geom->DetLength());
+    fHgstartx = dir.make<TH1F>(
+      "gxstart", "Good X Start Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHgstarty =
+      dir.make<TH1F>("gystart", "Good Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position", 10, 0., tpc.Length());
     fHgendx = dir.make<TH1F>(
-      "gxend", "Good X End Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHgendy = dir.make<TH1F>(
-      "gyend", "Good Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHgendz = dir.make<TH1F>("gzend", "Good Z End Position", 10, 0., geom->DetLength());
+      "gxend", "Good X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHgendy =
+      dir.make<TH1F>("gyend", "Good Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHgendz = dir.make<TH1F>("gzend", "Good Z End Position", 10, 0., tpc.Length());
     fHgtheta = dir.make<TH1F>("gtheta", "Good Theta", 20, 0., 3.142);
     fHgphi = dir.make<TH1F>("gphi", "Good Phi", 10, -3.142, 3.142);
     fHgtheta_xz = dir.make<TH1F>("gtheta_xz", "Good Theta_xz", 40, -3.142, 3.142);
     fHgtheta_yz = dir.make<TH1F>("gtheta_yz", "Good Theta_yz", 40, -3.142, 3.142);
     fHgmom = dir.make<TH1F>("gmom", "Good Momentum", 10, 0., 10.);
-    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * tpc.Length());
 
     fHmulstartx = dir.make<TH1F>("mulxstart",
                                  "Multiplicity vs. X Start Position",
                                  10,
-                                 -2. * geom->DetHalfWidth(),
-                                 4. * geom->DetHalfWidth());
-    fHmulstarty = dir.make<TH1F>("mulystart",
-                                 "Multiplicity vs. Y Start Position",
-                                 10,
-                                 -geom->DetHalfHeight(),
-                                 geom->DetHalfHeight());
+                                 -2. * tpc.HalfWidth(),
+                                 4. * tpc.HalfWidth());
+    fHmulstarty = dir.make<TH1F>(
+      "mulystart", "Multiplicity vs. Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
     fHmulstartz =
-      dir.make<TH1F>("mulzstart", "Multiplicity vs. Z Start Position", 10, 0., geom->DetLength());
+      dir.make<TH1F>("mulzstart", "Multiplicity vs. Z Start Position", 10, 0., tpc.Length());
     fHmulendx = dir.make<TH1F>("mulxend",
                                "Multiplicity vs. X End Position",
                                10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
-    fHmulendy = dir.make<TH1F>("mulyend",
-                               "Multiplicity vs. Y End Position",
-                               10,
-                               -geom->DetHalfHeight(),
-                               geom->DetHalfHeight());
-    fHmulendz =
-      dir.make<TH1F>("mulzend", "Multiplicity vs. Z End Position", 10, 0., geom->DetLength());
+                               -2. * tpc.HalfWidth(),
+                               4. * tpc.HalfWidth());
+    fHmulendy = dir.make<TH1F>(
+      "mulyend", "Multiplicity vs. Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmulendz = dir.make<TH1F>("mulzend", "Multiplicity vs. Z End Position", 10, 0., tpc.Length());
     fHmultheta = dir.make<TH1F>("multheta", "Multiplicity vs. Theta", 20, 0., 3.142);
     fHmulphi = dir.make<TH1F>("mulphi", "Multiplicity vs. Phi", 10, -3.142, 3.142);
     fHmultheta_xz = dir.make<TH1F>("multheta_xz", "Multiplicity vs. Theta_xz", 40, -3.142, 3.142);
     fHmultheta_yz = dir.make<TH1F>("multheta_yz", "Multiplicity vs. Theta_yz", 40, -3.142, 3.142);
     fHmulmom = dir.make<TH1F>("mulmom", "Multiplicity vs. Momentum", 10, 0., 10.);
     fHmullen =
-      dir.make<TH1F>("mullen", "Multiplicity vs. Particle Length", 10, 0., 1.1 * geom->DetLength());
+      dir.make<TH1F>("mullen", "Multiplicity vs. Particle Length", 10, 0., 1.1 * tpc.Length());
 
     fHestartx = dir.make<TH1F>("exstart",
                                "Efficiency vs. X Start Position",
                                10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
-    fHestarty = dir.make<TH1F>("eystart",
-                               "Efficiency vs. Y Start Position",
-                               10,
-                               -geom->DetHalfHeight(),
-                               geom->DetHalfHeight());
-    fHestartz =
-      dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position", 10, 0., geom->DetLength());
-    fHeendx = dir.make<TH1F>("exend",
-                             "Efficiency vs. X End Position",
-                             10,
-                             -2. * geom->DetHalfWidth(),
-                             4. * geom->DetHalfWidth());
+                               -2. * tpc.HalfWidth(),
+                               4. * tpc.HalfWidth());
+    fHestarty = dir.make<TH1F>(
+      "eystart", "Efficiency vs. Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHestartz = dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position", 10, 0., tpc.Length());
+    fHeendx = dir.make<TH1F>(
+      "exend", "Efficiency vs. X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
     fHeendy = dir.make<TH1F>(
-      "eyend", "Efficiency vs. Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position", 10, 0., geom->DetLength());
+      "eyend", "Efficiency vs. Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position", 10, 0., tpc.Length());
     fHetheta = dir.make<TH1F>("etheta", "Efficiency vs. Theta", 20, 0., 3.142);
     fHephi = dir.make<TH1F>("ephi", "Efficiency vs. Phi", 10, -3.142, 3.142);
     fHetheta_xz = dir.make<TH1F>("etheta_xz", "Efficiency vs. Theta_xz", 40, -3.142, 3.142);
     fHetheta_yz = dir.make<TH1F>("etheta_yz", "Efficiency vs. Theta_yz", 40, -3.142, 3.142);
     fHemom = dir.make<TH1F>("emom", "Efficiency vs. Momentum", 10, 0., 10.);
-    fHelen =
-      dir.make<TH1F>("elen", "Efficiency vs. Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHelen = dir.make<TH1F>("elen", "Efficiency vs. Particle Length", 10, 0., 1.1 * tpc.Length());
   }
 
   SeedAna::SeedAna(const fhicl::ParameterSet& pset)
-    //
-    // Purpose: Constructor.
-    //
-    // Arguments: pset - Module parameters.
-    //
     : EDAnalyzer(pset)
     , fSeedModuleLabel(pset.get<std::string>("SeedModuleLabel"))
     , fMCTrackModuleLabel(pset.get<std::string>("MCTrackModuleLabel"))
@@ -567,11 +531,6 @@ namespace trkf {
   }
 
   void SeedAna::analyze(const art::Event& evt)
-  //
-  // Purpose: Analyze method.
-  //
-  // Arguments: event - Art event.
-  //
   {
     ++fNumEvent;
 
@@ -580,7 +539,7 @@ namespace trkf {
     std::unique_ptr<mf::LogInfo> pdump;
     if (fDump > 0) {
       --fDump;
-      pdump = std::unique_ptr<mf::LogInfo>(new mf::LogInfo("TrackAna"));
+      pdump = std::make_unique<mf::LogInfo>("TrackAna");
     }
 
     // Make sure histograms are booked.
@@ -618,249 +577,238 @@ namespace trkf {
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
-      for (std::vector<sim::MCTrack>::const_iterator imctrk = mctrackh->begin();
-           imctrk != mctrackh->end();
-           ++imctrk) {
-        const sim::MCTrack& mctrk = *imctrk;
+      for (auto const& mctrk : *mctrackh) {
         int pdg = mctrk.PdgCode();
         if (fIgnoreSign) pdg = std::abs(pdg);
 
         // Ignore everything except stable charged nonshowering particles.
-
         int apdg = std::abs(pdg);
-        if (apdg == 13 ||   // Muon
-            apdg == 211 ||  // Charged pion
-            apdg == 321 ||  // Charged kaon
-            apdg == 2212) { // (Anti)proton
-
-          // Apply minimum energy cut.
-
-          if (mctrk.Start().E() >= mctrk.Start().Momentum().Mag() + 1000. * fMinMCKE) {
-
-            // Calculate the x offset due to nonzero mc particle time.
-
-            double mctime = mctrk.Start().T();                      // nsec
-            double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
-
-            // Calculate the length of this mc particle inside the fiducial volume.
-
-            TVector3 mcstart;
-            TVector3 mcend;
-            TVector3 mcstartmom;
-            TVector3 mcendmom;
-            double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
-
-            // Apply minimum fiducial length cut.  Always reject particles that have
-            // zero length in the tpc regardless of the configured cut.
-
-            if (plen > 0. && plen > fMinMCLen) {
-
-              // Dump MC particle information here.
-
-              if (pdump) {
-                double pstart = mcstartmom.Mag();
-                double pend = mcendmom.Mag();
-                *pdump << "\nOffset" << std::setw(3) << mctrk.TrackID() << std::setw(6)
-                       << mctrk.PdgCode() << "  " << std::fixed << std::setprecision(2)
-                       << std::setw(10) << mcdx << "\nStart " << std::setw(3) << mctrk.TrackID()
-                       << std::setw(6) << mctrk.PdgCode() << "  " << std::fixed
-                       << std::setprecision(2) << std::setw(10) << mcstart[0] << std::setw(10)
-                       << mcstart[1] << std::setw(10) << mcstart[2];
-                if (pstart > 0.) {
-                  *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
-                         << mcstartmom[0] / pstart << std::setw(10) << mcstartmom[1] / pstart
-                         << std::setw(10) << mcstartmom[2] / pstart;
-                }
-                else
-                  *pdump << std::setw(32) << " ";
-                *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
-                *pdump << "\nEnd   " << std::setw(3) << mctrk.TrackID() << std::setw(6)
-                       << mctrk.PdgCode() << "  " << std::fixed << std::setprecision(2)
-                       << std::setw(10) << mcend[0] << std::setw(10) << mcend[1] << std::setw(10)
-                       << mcend[2];
-                if (pend > 0.01) {
-                  *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
-                         << mcendmom[0] / pend << std::setw(10) << mcendmom[1] / pend
-                         << std::setw(10) << mcendmom[2] / pend;
-                }
-                else
-                  *pdump << std::setw(32) << " ";
-                *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
-              }
-
-              // Fill histograms.
-
-              if (fMCHistMap.count(pdg) == 0) {
-                std::ostringstream ostr;
-                ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
-                fMCHistMap.emplace(pdg, MCHists{ostr.str()});
-              }
-              const MCHists& mchists = fMCHistMap.at(pdg);
-
-              double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
-              double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
-
-              mchists.fHmcstartx->Fill(mcstart.X());
-              mchists.fHmcstarty->Fill(mcstart.Y());
-              mchists.fHmcstartz->Fill(mcstart.Z());
-              mchists.fHmcendx->Fill(mcend.X());
-              mchists.fHmcendy->Fill(mcend.Y());
-              mchists.fHmcendz->Fill(mcend.Z());
-              mchists.fHmctheta->Fill(mcstartmom.Theta());
-              mchists.fHmcphi->Fill(mcstartmom.Phi());
-              mchists.fHmctheta_xz->Fill(mctheta_xz);
-              mchists.fHmctheta_yz->Fill(mctheta_yz);
-              mchists.fHmcmom->Fill(mcstartmom.Mag());
-              mchists.fHmclen->Fill(plen);
-
-              // Loop over seeds and do matching.
-
-              int nmatch = 0;
-              if (seedh.isValid()) {
-
-                // Loop over seeds.
-
-                int nseed = seedh->size();
-                for (int i = 0; i < nseed; ++i) {
-                  art::Ptr<recob::Seed> pseed(seedh, i);
-                  const recob::Seed& seed = *pseed;
-                  if (seedmap.count(&seed) == 0) seedmap[&seed] = -1;
-
-                  // Get parameters of this seed.
-
-                  TVector3 pos;
-                  TVector3 dir;
-                  double err[3];
-                  seed.GetPoint(&pos[0], err);
-                  seed.GetDirection(&dir[0], err);
-
-                  // Calculate the global-to-local rotation matrix.
-                  // Copied from Track.cxx.
-
-                  TMatrixD rot(3, 3);
-                  double dirmag = dir.Mag();
-                  double diryz = std::sqrt(dir.Y() * dir.Y() + dir.Z() * dir.Z());
-
-                  double sinth = dir.X() / dirmag;
-                  double costh = diryz / dirmag;
-                  double sinphi = 0.;
-                  double cosphi = 1.;
-                  if (diryz != 0) {
-                    sinphi = -dir.Y() / diryz;
-                    cosphi = dir.Z() / diryz;
-                  }
-                  rot(0, 0) = costh;
-                  rot(1, 0) = 0.;
-                  rot(2, 0) = sinth;
-                  rot(0, 1) = sinth * sinphi;
-                  rot(1, 1) = cosphi;
-                  rot(2, 1) = -costh * sinphi;
-                  rot(0, 2) = -sinth * cosphi;
-                  rot(1, 2) = sinphi;
-                  rot(2, 2) = costh * cosphi;
-
-                  // Get best matching mc trajectory point.
-
-                  int itraj = mcmatch(detProp, mctrk, seed);
-                  if (itraj >= 0) {
-
-                    // Get mc relative position and direction at matching trajectory point.
-
-                    TVector3 mcpos = mctrk[itraj].Position().Vect() - pos;
-                    TVector3 mcmom = mctrk[itraj].Momentum().Vect();
-                    mcpos[0] += mcdx;
-
-                    // Rotate the momentum and position to the
-                    // seed-local coordinate system.
-
-                    TVector3 mcmoml = rot * mcmom;
-                    TVector3 mcposl = rot * mcpos;
-
-                    if (mcmoml.Z() < 0.) mcmoml = -mcmoml;
-                    double costh = mcmoml.Z() / mcmoml.Mag();
-
-                    double u = mcposl.X();
-                    double v = mcposl.Y();
-                    double w = mcposl.Z();
-
-                    double pu = mcmoml.X();
-                    double pv = mcmoml.Y();
-                    double pw = mcmoml.Z();
-
-                    double dudw = pu / pw;
-                    double dvdw = pv / pw;
-
-                    double u0 = u - w * dudw;
-                    double v0 = v - w * dvdw;
-                    double uv0 = std::sqrt(u0 * u0 + v0 * v0);
-
-                    // Fill matching histograms.
-
-                    mchists.fHduvcosth->Fill(costh, uv0);
-                    if (std::abs(uv0) < fMatchDisp) {
-
-                      // Fill slope matching histograms.
-
-                      mchists.fHmcdudw->Fill(dudw);
-                      mchists.fHmcdvdw->Fill(dvdw);
-                    }
-                    mchists.fHcosth->Fill(costh);
-                    if (costh > fMatchColinearity) {
-
-                      // Fill displacement matching histograms.
-
-                      mchists.fHmcu->Fill(u0);
-                      mchists.fHmcv->Fill(v0);
-                      mchists.fHmcw->Fill(w);
-
-                      if (std::abs(uv0) < fMatchDisp) {
-
-                        // Now we have passed all matching cuts and we have a matching
-                        // mc particle + seed pair.
-
-                        ++nmatch;
-                        seedmap[&seed] = mctrk.TrackID();
-
-                        // Fill matched seed histograms (seed multiplicity).
-
-                        mchists.fHmstartx->Fill(mcstart.X());
-                        mchists.fHmstarty->Fill(mcstart.Y());
-                        mchists.fHmstartz->Fill(mcstart.Z());
-                        mchists.fHmendx->Fill(mcend.X());
-                        mchists.fHmendy->Fill(mcend.Y());
-                        mchists.fHmendz->Fill(mcend.Z());
-                        mchists.fHmtheta->Fill(mcstartmom.Theta());
-                        mchists.fHmphi->Fill(mcstartmom.Phi());
-                        mchists.fHmtheta_xz->Fill(mctheta_xz);
-                        mchists.fHmtheta_yz->Fill(mctheta_yz);
-                        mchists.fHmmom->Fill(mcstartmom.Mag());
-                        mchists.fHmlen->Fill(plen);
-                      }
-                    }
-                  }
-                }
-
-                // If we found at least one matched seed, fill good
-                // particle histograms.
-
-                if (nmatch > 0) {
-                  mchists.fHgstartx->Fill(mcstart.X());
-                  mchists.fHgstarty->Fill(mcstart.Y());
-                  mchists.fHgstartz->Fill(mcstart.Z());
-                  mchists.fHgendx->Fill(mcend.X());
-                  mchists.fHgendy->Fill(mcend.Y());
-                  mchists.fHgendz->Fill(mcend.Z());
-                  mchists.fHgtheta->Fill(mcstartmom.Theta());
-                  mchists.fHgphi->Fill(mcstartmom.Phi());
-                  mchists.fHgtheta_xz->Fill(mctheta_xz);
-                  mchists.fHgtheta_yz->Fill(mctheta_yz);
-                  mchists.fHgmom->Fill(mcstartmom.Mag());
-                  mchists.fHglen->Fill(plen);
-                }
-              }
-            }
-          }
+        if (apdg != 13 &&   // Muon
+            apdg != 211 &&  // Charged pion
+            apdg != 321 &&  // Charged kaon
+            apdg != 2212) { // (Anti)proton
+          continue;
         }
+
+        // Apply minimum energy cut.
+
+        if (mctrk.Start().E() < mctrk.Start().Momentum().Mag() + 1000. * fMinMCKE) { continue; }
+
+        // Calculate the x offset due to nonzero mc particle time.
+
+        double mctime = mctrk.Start().T();                      // nsec
+        double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
+
+        // Calculate the length of this mc particle inside the fiducial volume.
+
+        TVector3 mcstart;
+        TVector3 mcend;
+        TVector3 mcstartmom;
+        TVector3 mcendmom;
+        double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+
+        // Apply minimum fiducial length cut.  Always reject particles that have
+        // zero length in the tpc regardless of the configured cut.
+
+        if (plen <= std::max(fMinMCLen, 0.)) { continue; }
+
+        // Dump MC particle information here.
+
+        if (pdump) {
+          double pstart = mcstartmom.Mag();
+          double pend = mcendmom.Mag();
+          *pdump << "\nOffset" << std::setw(3) << mctrk.TrackID() << std::setw(6) << mctrk.PdgCode()
+                 << "  " << std::fixed << std::setprecision(2) << std::setw(10) << mcdx
+                 << "\nStart " << std::setw(3) << mctrk.TrackID() << std::setw(6) << mctrk.PdgCode()
+                 << "  " << std::fixed << std::setprecision(2) << std::setw(10) << mcstart[0]
+                 << std::setw(10) << mcstart[1] << std::setw(10) << mcstart[2];
+          if (pstart > 0.) {
+            *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
+                   << mcstartmom[0] / pstart << std::setw(10) << mcstartmom[1] / pstart
+                   << std::setw(10) << mcstartmom[2] / pstart;
+          }
+          else
+            *pdump << std::setw(32) << " ";
+          *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
+          *pdump << "\nEnd   " << std::setw(3) << mctrk.TrackID() << std::setw(6) << mctrk.PdgCode()
+                 << "  " << std::fixed << std::setprecision(2) << std::setw(10) << mcend[0]
+                 << std::setw(10) << mcend[1] << std::setw(10) << mcend[2];
+          if (pend > 0.01) {
+            *pdump << "  " << std::fixed << std::setprecision(3) << std::setw(10)
+                   << mcendmom[0] / pend << std::setw(10) << mcendmom[1] / pend << std::setw(10)
+                   << mcendmom[2] / pend;
+          }
+          else
+            *pdump << std::setw(32) << " ";
+          *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+        }
+
+        // Fill histograms.
+
+        if (fMCHistMap.count(pdg) == 0) {
+          std::ostringstream ostr;
+          ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
+          fMCHistMap.emplace(pdg, MCHists{ostr.str()});
+        }
+        const MCHists& mchists = fMCHistMap.at(pdg);
+
+        double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
+        double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+
+        mchists.fHmcstartx->Fill(mcstart.X());
+        mchists.fHmcstarty->Fill(mcstart.Y());
+        mchists.fHmcstartz->Fill(mcstart.Z());
+        mchists.fHmcendx->Fill(mcend.X());
+        mchists.fHmcendy->Fill(mcend.Y());
+        mchists.fHmcendz->Fill(mcend.Z());
+        mchists.fHmctheta->Fill(mcstartmom.Theta());
+        mchists.fHmcphi->Fill(mcstartmom.Phi());
+        mchists.fHmctheta_xz->Fill(mctheta_xz);
+        mchists.fHmctheta_yz->Fill(mctheta_yz);
+        mchists.fHmcmom->Fill(mcstartmom.Mag());
+        mchists.fHmclen->Fill(plen);
+
+        // Loop over seeds and do matching.
+
+        int nmatch = 0;
+        if (!seedh.isValid()) { continue; }
+
+        // Loop over seeds.
+
+        int nseed = seedh->size();
+        for (int i = 0; i < nseed; ++i) {
+          art::Ptr<recob::Seed> pseed(seedh, i);
+          const recob::Seed& seed = *pseed;
+          if (seedmap.count(&seed) == 0) seedmap[&seed] = -1;
+
+          // Get parameters of this seed.
+
+          TVector3 pos;
+          TVector3 dir;
+          double err[3];
+          seed.GetPoint(&pos[0], err);
+          seed.GetDirection(&dir[0], err);
+
+          // Calculate the global-to-local rotation matrix.
+          // Copied from Track.cxx.
+
+          TMatrixD rot(3, 3);
+          double dirmag = dir.Mag();
+          double diryz = std::sqrt(dir.Y() * dir.Y() + dir.Z() * dir.Z());
+
+          double sinth = dir.X() / dirmag;
+          double costh = diryz / dirmag;
+          double sinphi = 0.;
+          double cosphi = 1.;
+          if (diryz != 0) {
+            sinphi = -dir.Y() / diryz;
+            cosphi = dir.Z() / diryz;
+          }
+          rot(0, 0) = costh;
+          rot(1, 0) = 0.;
+          rot(2, 0) = sinth;
+          rot(0, 1) = sinth * sinphi;
+          rot(1, 1) = cosphi;
+          rot(2, 1) = -costh * sinphi;
+          rot(0, 2) = -sinth * cosphi;
+          rot(1, 2) = sinphi;
+          rot(2, 2) = costh * cosphi;
+
+          // Get best matching mc trajectory point.
+
+          int itraj = mcmatch(detProp, mctrk, seed);
+          if (itraj < 0) { continue; }
+
+          // Get mc relative position and direction at matching trajectory point.
+
+          TVector3 mcpos = mctrk[itraj].Position().Vect() - pos;
+          TVector3 mcmom = mctrk[itraj].Momentum().Vect();
+          mcpos[0] += mcdx;
+
+          // Rotate the momentum and position to the
+          // seed-local coordinate system.
+
+          TVector3 mcmoml = rot * mcmom;
+          TVector3 mcposl = rot * mcpos;
+
+          if (mcmoml.Z() < 0.) mcmoml = -mcmoml;
+          costh = mcmoml.Z() / mcmoml.Mag();
+
+          double u = mcposl.X();
+          double v = mcposl.Y();
+          double w = mcposl.Z();
+
+          double pu = mcmoml.X();
+          double pv = mcmoml.Y();
+          double pw = mcmoml.Z();
+
+          double dudw = pu / pw;
+          double dvdw = pv / pw;
+
+          double u0 = u - w * dudw;
+          double v0 = v - w * dvdw;
+          double uv0 = std::sqrt(u0 * u0 + v0 * v0);
+
+          // Fill matching histograms.
+
+          mchists.fHduvcosth->Fill(costh, uv0);
+          if (std::abs(uv0) < fMatchDisp) {
+
+            // Fill slope matching histograms.
+
+            mchists.fHmcdudw->Fill(dudw);
+            mchists.fHmcdvdw->Fill(dvdw);
+          }
+          mchists.fHcosth->Fill(costh);
+          if (costh <= fMatchColinearity) { continue; }
+
+          // Fill displacement matching histograms.
+
+          mchists.fHmcu->Fill(u0);
+          mchists.fHmcv->Fill(v0);
+          mchists.fHmcw->Fill(w);
+
+          if (std::abs(uv0) >= fMatchDisp) { continue; }
+
+          // Now we have passed all matching cuts and we have a matching
+          // mc particle + seed pair.
+
+          ++nmatch;
+          seedmap[&seed] = mctrk.TrackID();
+
+          // Fill matched seed histograms (seed multiplicity).
+
+          mchists.fHmstartx->Fill(mcstart.X());
+          mchists.fHmstarty->Fill(mcstart.Y());
+          mchists.fHmstartz->Fill(mcstart.Z());
+          mchists.fHmendx->Fill(mcend.X());
+          mchists.fHmendy->Fill(mcend.Y());
+          mchists.fHmendz->Fill(mcend.Z());
+          mchists.fHmtheta->Fill(mcstartmom.Theta());
+          mchists.fHmphi->Fill(mcstartmom.Phi());
+          mchists.fHmtheta_xz->Fill(mctheta_xz);
+          mchists.fHmtheta_yz->Fill(mctheta_yz);
+          mchists.fHmmom->Fill(mcstartmom.Mag());
+          mchists.fHmlen->Fill(plen);
+        }
+
+        // If we found at least one matched seed, fill good
+        // particle histograms.
+
+        if (nmatch == 0) { continue; }
+
+        mchists.fHgstartx->Fill(mcstart.X());
+        mchists.fHgstarty->Fill(mcstart.Y());
+        mchists.fHgstartz->Fill(mcstart.Z());
+        mchists.fHgendx->Fill(mcend.X());
+        mchists.fHgendy->Fill(mcend.Y());
+        mchists.fHgendz->Fill(mcend.Z());
+        mchists.fHgtheta->Fill(mcstartmom.Theta());
+        mchists.fHgphi->Fill(mcstartmom.Phi());
+        mchists.fHgtheta_xz->Fill(mctheta_xz);
+        mchists.fHgtheta_yz->Fill(mctheta_yz);
+        mchists.fHgmom->Fill(mcstartmom.Mag());
+        mchists.fHglen->Fill(plen);
       }
     }
 
@@ -926,9 +874,6 @@ namespace trkf {
   }
 
   void SeedAna::endJob()
-  //
-  // Purpose: End of job.
-  //
   {
     // Print summary.
 

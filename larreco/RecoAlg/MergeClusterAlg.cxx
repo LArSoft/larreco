@@ -11,13 +11,17 @@
 ////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/MergeClusterAlg.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 
 #include "TPrincipal.h"
 #include "TTree.h"
 
 cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset)
+  : fChannelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
 {
-  this->reconfigure(pset);
+  fMinMergeClusterSize = pset.get<int>("MinMergeClusterSize");
+  fMaxMergeSeparation = pset.get<double>("MaxMergeSeparation");
+  fProjWidthThreshold = pset.get<double>("ProjWidthThreshold");
   fTree = tfs->make<TTree>("MatchingVariables", "MatchingVariables");
   fTree->Branch("Angle", &fAngle);
   fTree->Branch("Eigenvalue", &fEigenvalue);
@@ -38,23 +42,19 @@ void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> c
                                                     TVector2& start,
                                                     TVector2& end) const
 {
-
   /// Find estimates of cluster start/end points
 
-  TVector2 pos;
   std::map<double, TVector2> hitProjection;
 
   // Project all hits onto line to determine end points
   for (auto& hit : cluster) {
-    pos = HitCoordinates(hit) - centre;
+    TVector2 pos = HitCoordinates(hit) - centre;
     hitProjection[direction * pos] = pos;
   }
 
   // Project end points onto line which passes through centre of cluster
   start = hitProjection.begin()->second.Proj(direction) + centre;
   end = hitProjection.rbegin()->second.Proj(direction) + centre;
-
-  return;
 }
 
 double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction,
@@ -64,7 +64,6 @@ double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction,
                                                     TVector2 const& start2,
                                                     TVector2 const& end2) const
 {
-
   /// Calculates the overlap of the clusters on the line projected between them
 
   double clusterOverlap = 0;
@@ -100,7 +99,6 @@ double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const& direction1
                                                       TVector2 const& direction2,
                                                       TVector2 const& centre2) const
 {
-
   /// Finds the distance between the crossing point of the lines and the closest line centre
 
   // Find intersection point of two lines drawn through the centre of the clusters
@@ -110,15 +108,12 @@ double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const& direction1
   TVector2 crossing = centre1 + ((pcrossd / dcross) * direction1);
 
   // Get distance from this point to the clusters
-  double crossingDistance = std::min((centre1 - crossing).Mod(), (centre2 - crossing).Mod());
-
-  return crossingDistance;
+  return std::min((centre1 - crossing).Mod(), (centre2 - crossing).Mod());
 }
 
 double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> const& cluster1,
                                                    art::PtrVector<recob::Hit> const& cluster2) const
 {
-
   /// Calculates the minimum separation between two clusters
 
   double minDistance = 99999.;
@@ -146,7 +141,6 @@ double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1,
                                                     TVector2 const& start2,
                                                     TVector2 const& end2) const
 {
-
   /// Projects clusters parallel to the line which runs through their centres and finds the minimum containing width
 
   // Get the line running through the centre of the two clusters
@@ -163,20 +157,18 @@ double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1,
   double projectionStart = std::max(TMath::Abs(s1), TMath::Abs(s2));
   double projectionEnd = std::max(TMath::Abs(e1), TMath::Abs(e2));
 
-  double projectionWidth = projectionStart + projectionEnd;
-
-  return projectionWidth;
+  return projectionStart + projectionEnd; // FIXME (KJK): Really?  The width is the start + the end?
 }
 
 double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const
 {
   /// Find the global wire position
 
-  auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
+  auto const wireCenter = fGeom->Wire(wireID).GetCenter();
   geo::PlaneID const planeID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane};
 
-  if (fGeom->SignalType(wireID) == geo::kInduction) {
-    return fGeom->WireCoordinate(wireCenter, planeID);
+  if (fChannelMapAlg->SignalType(wireID) == geo::kInduction) {
+    return fGeom->Plane(planeID).WireCoordinate(wireCenter);
   }
   return wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(planeID));
 }
@@ -184,7 +176,6 @@ double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const
 TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) const
 {
   /// Return the coordinates of this hit in global wire/tick space
-
   return TVector2(GlobalWire(hit->WireID()), hit->PeakTime());
 }
 
@@ -325,14 +316,13 @@ int cluster::MergeClusterAlg::MergeClusters(
   return clusters.size();
 }
 
-bool cluster::MergeClusterAlg::PassCuts(double const& angle,
-                                        double const& crossingDistance,
-                                        double const& projectedWidth,
-                                        double const& separation,
-                                        double const& overlap,
-                                        double const& longLength) const
+bool cluster::MergeClusterAlg::PassCuts(double const angle,
+                                        double const crossingDistance,
+                                        double const projectedWidth,
+                                        double const separation,
+                                        double const overlap,
+                                        double const longLength) const
 {
-
   /// Boolean function which decides whether or not two clusters should be merged, depending on their properties
 
   bool passCrossingDistanceAngle = false;
@@ -346,11 +336,4 @@ bool cluster::MergeClusterAlg::PassCuts(double const& angle,
     passProjectedWidth = true;
 
   return passCrossingDistanceAngle and passSeparationAngle and passProjectedWidth;
-}
-
-void cluster::MergeClusterAlg::reconfigure(fhicl::ParameterSet const& p)
-{
-  fMinMergeClusterSize = p.get<int>("MinMergeClusterSize");
-  fMaxMergeSeparation = p.get<double>("MaxMergeSeparation");
-  fProjWidthThreshold = p.get<double>("ProjWidthThreshold");
 }

@@ -574,6 +574,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
     geom->WireAngleToVertical(hit->View(), hit->WireID().asPlaneID()) - 0.5 * ::util::pi<>();
 
   geo::Vector_t dir;
+  auto const& plane = geom->Plane({0, 0, hit->View()});
 
   // "dir" should be the direction that the wires see. If the track already has the field
   // distortion corrections applied, then we need to de-apply them to get the direction as
@@ -584,8 +585,8 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
 
     // compute the dir of the track trajectory
     geo::Vector_t track_dir = track.DirectionAtPoint(meta->Index());
-    geo::Point_t loc_mdx = loc - track_dir * (geom->WirePitch(hit->View()) / 2.);
-    geo::Point_t loc_pdx = loc + track_dir * (geom->WirePitch(hit->View()) / 2.);
+    geo::Point_t loc_mdx = loc - track_dir * plane.WirePitch() / 2.;
+    geo::Point_t loc_pdx = loc + track_dir * plane.WirePitch() / 2.;
 
     loc_mdx = TrajectoryToWirePosition(loc_mdx, hit->WireID());
     loc_pdx = TrajectoryToWirePosition(loc_pdx, hit->WireID());
@@ -600,11 +601,8 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
   }
 
   double cosgamma = std::abs(std::sin(angleToVert) * dir.Y() + std::cos(angleToVert) * dir.Z());
-  double pitch;
-  if (cosgamma) { pitch = geom->WirePitch(hit->View()) / cosgamma; }
-  else {
-    pitch = 0.;
-  }
+  double pitch{0.};
+  if (cosgamma) { pitch = plane.WirePitch() / cosgamma; }
 
   // now take the pitch computed on the wires and correct it back to the particle trajectory
   geo::Point_t loc_w = GetLocationAtWires(track, hit, meta);

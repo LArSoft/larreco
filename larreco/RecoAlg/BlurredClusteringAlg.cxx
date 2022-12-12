@@ -177,7 +177,7 @@ std::vector<std::vector<double>> cluster::BlurredClusteringAlg::ConvertRecobHits
   geo::PlaneID const& planeID = hits.front()->WireID();
 
   for (int wire = fLowerWire; wire < fUpperWire; ++wire) {
-    raw::ChannelID_t const channel = fGeom->PlaneWireToChannel(geo::WireID(planeID, wire));
+    raw::ChannelID_t const channel = fChannelMapAlg->PlaneWireToChannel(geo::WireID(planeID, wire));
     fDeadWires[wire - fLowerWire] = !fChanStatus.IsGood(channel);
   }
 
@@ -374,10 +374,10 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
   double globalWire = -999;
 
   // Induction
-  if (fGeom->SignalType(wireID) == geo::kInduction) {
-    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
-    globalWire = fGeom->WireCoordinate(wireCenter,
-                                       geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
+  if (fChannelMapAlg->SignalType(wireID) == geo::kInduction) {
+    auto const wireCenter = fGeom->Wire(wireID).GetCenter();
+    globalWire = fGeom->Plane(geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane})
+                   .WireCoordinate(wireCenter);
   }
 
   // Collection
@@ -405,9 +405,9 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
-      globalWire = fGeom->WireCoordinate(
-        wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
+      auto const wireCenter = fGeom->Wire(wireID).GetCenter();
+      globalWire = fGeom->Plane(geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane})
+                     .WireCoordinate(wireCenter);
     }
   }
 

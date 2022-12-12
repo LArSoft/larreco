@@ -27,12 +27,13 @@ namespace showerreco {
   }
 
   ClusterAss_t ShowerRecoManager::Reconstruct(geo::GeometryCore const& geom,
+                                              geo::ChannelMapAlg const& channelMapAlg,
                                               detinfo::DetectorClocksData const& clockData,
                                               detinfo::DetectorPropertiesData const& detProp,
                                               const std::vector<std::vector<util::PxHit>>& clusters,
                                               std::vector<::recob::Shower>& showers)
   {
-    util::GeometryUtilities const gser{geom, clockData, detProp};
+    util::GeometryUtilities const gser{geom, channelMapAlg, clockData, detProp};
     showers.clear();
     fMatchMgr->SetClusters(gser, clusters);
 
@@ -47,12 +48,13 @@ namespace showerreco {
     }
     res_ass = fMatchMgr->GetBookKeeper().GetResult();
 
-    Process(geom, clockData, detProp, res_ass, showers);
+    Process(geom, channelMapAlg, clockData, detProp, res_ass, showers);
 
     return res_ass;
   }
 
   void ShowerRecoManager::Reconstruct(geo::GeometryCore const& geom,
+                                      geo::ChannelMapAlg const& channelMapAlg,
                                       detinfo::DetectorClocksData const& clockData,
                                       detinfo::DetectorPropertiesData const& detProp,
                                       const std::vector<std::vector<util::PxHit>>& clusters,
@@ -60,13 +62,14 @@ namespace showerreco {
                                       std::vector<::recob::Shower>& showers)
   {
     showers.clear();
-    util::GeometryUtilities const gser{geom, clockData, detProp};
+    util::GeometryUtilities const gser{geom, channelMapAlg, clockData, detProp};
     fMatchMgr->SetClusters(gser, clusters);
 
-    Process(geom, clockData, detProp, ass, showers);
+    Process(geom, channelMapAlg, clockData, detProp, ass, showers);
   }
 
   void ShowerRecoManager::Process(geo::GeometryCore const& geom,
+                                  geo::ChannelMapAlg const& channelMapAlg,
                                   detinfo::DetectorClocksData const& clockData,
                                   detinfo::DetectorPropertiesData const& detProp,
                                   const ClusterAss_t& ass,
@@ -85,7 +88,7 @@ namespace showerreco {
     }
 
     // Run shower reco
-    showers = fShowerAlgo->Reconstruct(geom, clockData, detProp);
+    showers = fShowerAlgo->Reconstruct(geom, channelMapAlg, clockData, detProp);
   }
 
 }

@@ -29,9 +29,9 @@
 namespace lar_cluster3d {
 
   /**
- *  @brief  DBScanAlg class definiton
- */
-  class DBScanAlg : virtual public IClusterAlg {
+   *  @brief  DBScanAlg class definiton
+   */
+  class DBScanAlg : public IClusterAlg {
   public:
     /**
      *  @brief  Constructor
@@ -39,13 +39,6 @@ namespace lar_cluster3d {
      *  @param  pset
      */
     explicit DBScanAlg(fhicl::ParameterSet const& pset);
-
-    /**
-     *  @brief  Destructor
-     */
-    ~DBScanAlg();
-
-    void configure(const fhicl::ParameterSet&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -94,15 +87,7 @@ namespace lar_cluster3d {
     kdTree m_kdTree;    // For the kdTree
   };
 
-  DBScanAlg::DBScanAlg(fhicl::ParameterSet const& pset) { this->configure(pset); }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  DBScanAlg::~DBScanAlg() {}
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void DBScanAlg::configure(fhicl::ParameterSet const& pset)
+  DBScanAlg::DBScanAlg(fhicl::ParameterSet const& pset)
   {
     m_enableMonitoring = pset.get<bool>("EnableMonitoring", true);
     m_minPairPts = pset.get<size_t>("MinPairPts", 2);
@@ -118,9 +103,9 @@ namespace lar_cluster3d {
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    std::vector<double> const wirePitchVec{geometry->WirePitch(geo::PlaneID{tpcid, 0}),
-                                           geometry->WirePitch(geo::PlaneID{tpcid, 1}),
-                                           geometry->WirePitch(geo::PlaneID{tpcid, 2})};
+    std::vector<double> const wirePitchVec{geometry->Plane(geo::PlaneID{tpcid, 0}).WirePitch(),
+                                           geometry->Plane(geo::PlaneID{tpcid, 1}).WirePitch(),
+                                           geometry->Plane(geo::PlaneID{tpcid, 2}).WirePitch()};
 
     float maxBestDist = 1.99 * *std::max_element(wirePitchVec.begin(), wirePitchVec.end());
 
@@ -204,8 +189,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> DBScan done, found " << clusterParametersList.size()
                               << " clusters" << std::endl;
-
-    return;
   }
 
   void DBScanAlg::Cluster3DHits(reco::HitPairListPtr& hitPairList,
@@ -283,8 +266,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> DBScan done, found " << clusterParametersList.size()
                               << " clusters" << std::endl;
-
-    return;
   }
 
   void DBScanAlg::expandCluster(const kdTree::KdTreeNode& topNode,
@@ -326,8 +307,6 @@ namespace lar_cluster3d {
 
       candPairList.pop_front();
     }
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------

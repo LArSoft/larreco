@@ -27,6 +27,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -109,20 +110,18 @@ namespace vertex {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
-    // define TPC parameters
-    TString tpcName = geom->GetLArTPCVolumeName();
-
-    double YC = (geom->DetHalfHeight()) * 2.;
+    auto const& tpc = geom->TPC({0, 0});
+    double YC = tpc.HalfHeight() * 2.;
 
     // wire angle with respect to the vertical direction
-    double Angle = geom->Plane(geo::PlaneID{0, 0, 1}).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
+    double Angle = geom->Plane({tpc.ID(), 1}).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
 
     // Parameters temporary defined here, but possibly to be retrieved somewhere
     // in the code
     double timetick = sampling_rate(clockData) * 1.e-3; // time sample in us
     double presamplings = trigger_offset(clockData);
 
-    double wire_pitch = geom->WirePitch();      //wire pitch in cm
+    double wire_pitch = geom->Plane({0, 0, 0}).WirePitch(); //wire pitch in cm
     double Efield_drift = detProp.Efield();     // Electric Field in the drift region in kV/cm
     double Temperature = detProp.Temperature(); // LAr Temperature in K
 
@@ -231,6 +230,8 @@ namespace vertex {
     std::vector<double> vtx_w;
     std::vector<double> vtx_t;
 
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     for (int i = 0; i < nplanes; ++i) {
       if (Cls[i].size() >= 1) {
         //at least one cluster
@@ -372,9 +373,7 @@ namespace vertex {
         for (size_t h = 0; h < hits.size(); ++h)
           totalQ += hits[h]->Integral();
 
-        geo::WireID wireID(hits[0]->WireID().Cryostat,
-                           hits[0]->WireID().TPC,
-                           hits[0]->WireID().Plane,
+        geo::WireID wireID(hits[0]->WireID().asPlaneID(),
                            (unsigned int)vtx_w.back()); //for update to EndPoint2D ... WK 4/22/13
 
         recob::EndPoint2D vertex(vtx_t.back(),
@@ -393,7 +392,6 @@ namespace vertex {
         vtx_t.push_back(-1);
       }
     }
-    //std::cout<<vtx_w[0]<<" "<<vtx_t[0]<<" "<<vtx_w[1]<<" "<<vtx_t[1]<<std::endl;
 
     Double_t vtxcoord[3];
     if (Cls[0].size() > 0 && Cls[1].size() > 0) { //ignore w view
@@ -408,17 +406,16 @@ namespace vertex {
       vtxcoord[1] = (Cw0 - Iw0) / (2. * std::sin(Angle));
       vtxcoord[2] = (Cw0 + Iw0) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle);
 
-      double yy, zz;
       if (vtx_w[0] >= 0 && vtx_w[0] <= 239 && vtx_w[1] >= 0 && vtx_w[1] <= 239) {
-        if (geom->ChannelsIntersect(
-              geom->PlaneWireToChannel(geo::WireID(0, 0, 0, (int)((Iw0 / wire_pitch) - 3.95))),
-              geom->PlaneWireToChannel(geo::WireID(0, 0, 1, (int)((Cw0 / wire_pitch) - 1.84))),
-              yy,
-              zz)) {
-          //channelsintersect provides a slightly more accurate set of y and z coordinates.
+        if (auto intersection = channelMapAlg->ChannelsIntersect(
+              channelMapAlg->PlaneWireToChannel(
+                geo::WireID(0, 0, 0, (int)((Iw0 / wire_pitch) - 3.95))),
+              channelMapAlg->PlaneWireToChannel(
+                geo::WireID(0, 0, 1, (int)((Cw0 / wire_pitch) - 1.84))))) {
+          // channelsintersect provides a slightly more accurate set of y and z coordinates.
           // use channelsintersect in case the wires in question do cross.
-          vtxcoord[1] = yy;
-          vtxcoord[2] = zz;
+          vtxcoord[1] = intersection->y;
+          vtxcoord[2] = intersection->z;
         }
         else {
           vtxcoord[0] = -99999;
@@ -463,10 +460,6 @@ namespace vertex {
   } // end of produce
 } // end of vertex namespace
 
-// //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-namespace vertex {
-
-  DEFINE_ART_MODULE(VertexFinder2D)
-
-} // end of vertex namespace
+DEFINE_ART_MODULE(vertex::VertexFinder2D)

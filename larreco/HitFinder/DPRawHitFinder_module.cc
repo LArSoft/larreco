@@ -52,6 +52,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -295,14 +296,8 @@ namespace hit {
     //==================================================================================================
     TH1::AddDirectory(kFALSE);
 
-    //Instantiate and Reset a stop watch
-    //TStopwatch StopWatch;
-    //StopWatch.Reset();
-
-    // ################################
-    // ### Calling Geometry service ###
-    // ################################
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const* channelMapAlg =
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
 
     // ###############################################
     // ### Making a ptr vector to put on the event ###
@@ -340,7 +335,7 @@ namespace hit {
       // --- Setting Channel Number and Signal type ---
       channel = wire->Channel();
       // get the WireID for this hit
-      std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+      std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(channel);
       // for now, just take the first option returned from ChannelToWire
       geo::WireID wid = wids[0];
 
@@ -889,7 +884,6 @@ namespace hit {
               fHitParamWriter.addVector(hitID, fitParams);
               numHits++;
             } // <---End loop over Exponentials
-              //            } // <---End if chi2 <= chi2Max
           } // <---End if(NumberOfPeaksBeforeFit <= fMaxMultiHit && width <= fMaxGroupLength), then fit
 
           // #######################################################
@@ -939,15 +933,6 @@ namespace hit {
                   << "---> DO NOT fit. Split group of peaks into hits with equal length instead."
                   << std::endl;
               }
-              /*
-	      if( ( nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFMax ) || ( nExponentialsForFit >= 2 && chi2PerNDF > fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) )
-	      {
-		std::cout << std::endl;
-	      	std::cout << "WARNING: For fit of this group (" <<  NumberOfPeaksBeforeFit << " peaks before refit, " << nExponentialsForFit << " peaks after refit): " << std::endl;
-	      	if ( nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFMax ) std::cout << "chi2/ndf of this fit (" << chi2PerNDF << ") is higher than threshold (" << fChi2NDFMax << ")." << std::endl;
-	      	if ( nExponentialsForFit >= 2 && chi2PerNDF > fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) std::cout << "chi2/ndf of this fit (" << chi2PerNDF << ") is higher than threshold (" << fChi2NDFMaxFactorMultiHits*fChi2NDFMax << ")." << std::endl;
-	        std::cout << "---> DO NOT create hit object but split group of peaks into hits with equal length instead." << std::endl;
-	      }*/
               std::cout << "---> Group goes from tick " << roiFirstBinTick + startT << " to "
                         << roiFirstBinTick + endT << ". Split group into ("
                         << roiFirstBinTick + endT << " - " << roiFirstBinTick + startT << ")/"
@@ -1183,7 +1168,6 @@ namespace hit {
           int CurrentStartT = startT;
           int CurrentMaxT = maxT;
           int CurrentEndT = endT;
-          //int CurrentWidT=widT;
 
           timeVal = *timeValsVecItr++;
           int NextMaxT = std::get<1>(timeVal);
@@ -1520,9 +1504,6 @@ namespace hit {
                                                      PeakTimeWidVec fpeakVals,
                                                      PeakDevVec& fPeakDev)
   {
-    //   int size = fEndTime - fStartTime + 1;
-    //    if(fEndTime - fStartTime < 0){size = 0;}
-
     std::string eqn =
       CreateFitFunction(fNPeaks, fSameShape); // string for equation of Exponentials fit
 

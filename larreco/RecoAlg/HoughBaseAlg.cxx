@@ -42,6 +42,7 @@
 
 // larsoft libraries
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
@@ -286,7 +287,10 @@ size_t cluster::HoughBaseAlg::Transform(
   unsigned int wireMax = 0;
   geo::WireID const& wireid = hits[0]->WireID();
 
-  geo::SigType_t sigt = geom->SignalType(wireid);
+  auto const* channelMapAlg =
+    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+
+  geo::SigType_t sigt = channelMapAlg->SignalType(wireid);
   std::vector<int> skip;
 
   auto const num_planes = geom->Nplanes(wireid.asPlaneID().asTPCID());
@@ -875,12 +879,14 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const* channelMapAlg =
+    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
   HoughTransform c;
 
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-  util::GeometryUtilities const gser{*geom, clockData, detProp};
+  util::GeometryUtilities const gser{*geom, *channelMapAlg, clockData, detProp};
 
   // prepare the algorithm to compute the cluster characteristics;
   // we use the "standard" one here; configuration would happen here,
@@ -1015,6 +1021,8 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
   std::vector<int> skip;
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const* channelMapAlg =
+    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
   lariov::ChannelStatusProvider const* channelStatus =
     lar::providerFrom<lariov::ChannelStatusService>();
 
@@ -1036,7 +1044,7 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
   geo::WireID const& wireid = hit.at(0)->WireID();
   auto const& tpcid = wireid.asPlaneID().asTPCID();
 
-  geo::SigType_t sigt = geom->SignalType(wireid);
+  geo::SigType_t sigt = channelMapAlg->SignalType(wireid);
 
   if (hit.size() == 0) {
     if (fPerCluster) { ++cinctr; }

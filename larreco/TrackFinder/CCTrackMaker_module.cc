@@ -377,7 +377,7 @@ namespace trkf {
   //------------------------------------------------------------------------------------//
   void CCTrackMaker::produce(art::Event& evt)
   {
-    fWirePitch = geom->WirePitch();
+    fWirePitch = geom->Plane({0, 0, 0}).WirePitch();
 
     fChgWindow = 40; // window (ticks) for identifying shower-like clusters
 
@@ -1399,7 +1399,8 @@ namespace trkf {
 
     if (vtx.empty()) return;
 
-    for (auto const& planeID : geom->Iterate<geo::PlaneID>(tpcid)) {
+    for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+      auto const& planeID = plane.ID();
       unsigned int const ipl = planeID.Cryostat;
       for (unsigned int icl = 0; icl < cls[ipl].size(); ++icl) {
         for (unsigned int end = 0; end < 2u; ++end) {
@@ -1412,9 +1413,8 @@ namespace trkf {
           for (std::size_t ivx = 0; ivx < vtx.size(); ++ivx) {
             // ignore if the other end is attached to this vertex (which can happen with short clusters)
             if (cls[ipl][icl].VtxIndex[oend] == static_cast<short>(ivx)) continue;
-            float const dWire =
-              geom->WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z}, planeID) -
-              cls[ipl][icl].Wire[end];
+            float const dWire = plane.WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z}) -
+                                cls[ipl][icl].Wire[end];
             if (end == 0) {
               if (dWire > 30 || dWire < -2) continue;
             }
@@ -2085,8 +2085,9 @@ namespace trkf {
     short idir, ioend, jdir, joend, kdir;
 
     double yp, zp;
-    float tpcSizeY = geom->DetHalfWidth();
-    float tpcSizeZ = geom->DetLength();
+    auto const& first_tpc = geom->TPC({0, 0});
+    float tpcSizeY = first_tpc.HalfWidth();
+    float tpcSizeZ = first_tpc.Length();
 
     float dxcut = 2;
     float dxkcut;
@@ -2130,25 +2131,36 @@ namespace trkf {
               kSlp = geom->ThirdPlaneSlope(
                 ipl, clsChain[ipl][icl].Slope[iend], jpl, clsChain[jpl][jcl].Slope[jend], tpcid);
               kAng = atan(kSlp);
+
               // Ensure the match end is within the TPC
-              geom->IntersectionPoint(
-                geo::WireID{iplane_id, (unsigned int)(0.5 + clsChain[ipl][icl].Wire[iend])},
-                geo::WireID{jplane_id, (unsigned int)(0.5 + clsChain[jpl][jcl].Wire[jend])},
-                yp,
-                zp);
+              auto const intersection =
+                geom
+                  ->WireIDsIntersect(
+                    geo::WireID{iplane_id, (unsigned int)(0.5 + clsChain[ipl][icl].Wire[iend])},
+                    geo::WireID{jplane_id, (unsigned int)(0.5 + clsChain[jpl][jcl].Wire[jend])})
+                  .value_or(geo::WireIDIntersection::invalid());
+              yp = intersection.y;
+              zp = intersection.z;
               if (yp > tpcSizeY || yp < -tpcSizeY) continue;
               if (zp < 0 || zp > tpcSizeZ) continue;
+
               kX = 0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]);
-              kWir = geom->WireCoordinate(geo::Point_t{0, yp, zp}, geo::PlaneID{tpcid, kpl});
+              auto const& kplane = geom->Plane({tpcid, kpl});
+              kWir = kplane.WireCoordinate(geo::Point_t{0, yp, zp});
+
               // now look at the other end
-              geom->IntersectionPoint(
-                geo::WireID{iplane_id, (unsigned int)(0.5 + clsChain[ipl][icl].Wire[ioend])},
-                geo::WireID{jplane_id, (unsigned int)(0.5 + clsChain[jpl][jcl].Wire[joend])},
-                yp,
-                zp);
+              auto const ointersection =
+                geom
+                  ->WireIDsIntersect(
+                    geo::WireID{iplane_id, (unsigned int)(0.5 + clsChain[ipl][icl].Wire[ioend])},
+                    geo::WireID{jplane_id, (unsigned int)(0.5 + clsChain[jpl][jcl].Wire[joend])})
+                  .value_or(geo::WireIDIntersection::invalid());
+              yp = ointersection.y;
+              zp = ointersection.z;
               if (yp > tpcSizeY || yp < -tpcSizeY) continue;
               if (zp < 0 || zp > tpcSizeZ) continue;
-              okWir = geom->WireCoordinate(geo::Point_t{0, yp, zp}, geo::PlaneID{tpcid, kpl});
+              okWir = kplane.WireCoordinate(geo::Point_t{0, yp, zp});
+
               if (prt)
                 mf::LogVerbatim("CCTM")
                   << "PlnMatch: chk i " << ipl << ":" << icl << ":" << iend << " idir " << idir
@@ -2737,7 +2749,6 @@ namespace trkf {
     // two cases: a 3-plane match or a 2-plane match
     // and with/without an other end vertex
 
-    double ypos, zpos;
     float kWir, okWir;
     float kSlp, okSlp, kAng, okAng, okX, kX, kTim, okTim;
 
@@ -2774,6 +2785,7 @@ namespace trkf {
     geo::PlaneID const iplaneid{tpcid, ipl};
     geo::PlaneID const jplaneid{tpcid, jpl};
     geo::PlaneID const kplaneid{tpcid, kpl};
+    auto const& kplane = geom->Plane(kplaneid);
     /////////// Wire, Angle, X and Time at the Other end
     okSlp = geom->ThirdPlaneSlope(ipl, oSlp[ipl], jpl, oSlp[jpl], tpcid);
     okAng = atan(okSlp);
@@ -2783,14 +2795,15 @@ namespace trkf {
     if (ignoreSign) okAng = fabs(okAng);
     if (match.oVtx >= 0) {
       // a vertex exists at the other end
-      okWir = geom->WireCoordinate(geo::Point_t{0, vtx[match.oVtx].Y, vtx[match.oVtx].Z}, kplaneid);
+      okWir = kplane.WireCoordinate(geo::Point_t{0, vtx[match.oVtx].Y, vtx[match.oVtx].Z});
       okX = vtx[match.oVtx].X;
     }
     else {
       // no vertex at the other end
-      geom->IntersectionPoint(
-        geo::WireID(iplaneid, oWir[ipl]), geo::WireID(jplaneid, oWir[jpl]), ypos, zpos);
-      okWir = (0.5 + geom->WireCoordinate(geo::Point_t{0, ypos, zpos}, kplaneid));
+      auto const [ypos, zpos, _] =
+        geom->WireIDsIntersect(geo::WireID(iplaneid, oWir[ipl]), geo::WireID(jplaneid, oWir[jpl]))
+          .value_or(geo::WireIDIntersection::invalid());
+      okWir = 0.5 + kplane.WireCoordinate(geo::Point_t{0, ypos, zpos});
       okX = 0.5 * (oX[ipl] + oX[jpl]);
     }
     okTim = detProp.ConvertXToTicks(okX, kplaneid);
@@ -2811,16 +2824,17 @@ namespace trkf {
         return;
       }
       // a vertex exists at the match end
-      kWir = geom->WireCoordinate(geo::Point_t{0, vtx[match.Vtx].Y, vtx[match.Vtx].Z}, kplaneid);
+      kWir = kplane.WireCoordinate(geo::Point_t{0, vtx[match.Vtx].Y, vtx[match.Vtx].Z});
       kX = vtx[match.Vtx].X;
     }
     else {
       // no vertex at the match end
-      geom->IntersectionPoint(geo::WireID(iplaneid, clsChain[ipl][icl].Wire[iend]),
-                              geo::WireID(jplaneid, clsChain[jpl][jcl].Wire[jend]),
-                              ypos,
-                              zpos);
-      kWir = (0.5 + geom->WireCoordinate(geo::Point_t{0, ypos, zpos}, kplaneid));
+      auto const [ypos, zpos, _] =
+        geom
+          ->WireIDsIntersect(geo::WireID(iplaneid, clsChain[ipl][icl].Wire[iend]),
+                             geo::WireID(jplaneid, clsChain[jpl][jcl].Wire[jend]))
+          .value_or(geo::WireIDIntersection::invalid());
+      kWir = 0.5 + kplane.WireCoordinate(geo::Point_t{0, ypos, zpos});
       kX = 0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]);
     }
     kTim = detProp.ConvertXToTicks(kX, kplaneid);
@@ -3199,9 +3213,9 @@ namespace trkf {
       myprt << std::right << std::setw(5) << vtx[ivx].nClusInPln[1];
       myprt << std::right << std::setw(5) << vtx[ivx].nClusInPln[2];
       myprt << "    ";
-      for (auto const& planeID : geom->Iterate<geo::PlaneID>(tpcid)) {
-        int time = (0.5 + detProp.ConvertXToTicks(vtx[ivx].X, planeID));
-        int wire = geom->WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z}, planeID);
+      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+        int time = 0.5 + detProp.ConvertXToTicks(vtx[ivx].X, plane.ID());
+        int wire = plane.WireCoordinate(geo::Point_t{0, vtx[ivx].Y, vtx[ivx].Z});
         myprt << std::right << std::setw(7) << wire << ":" << time;
       }
 

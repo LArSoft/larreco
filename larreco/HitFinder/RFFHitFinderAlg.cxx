@@ -11,7 +11,8 @@
 */
 
 #include "fhiclcpp/ParameterSet.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/ChannelMapAlg.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larreco/HitFinder/RFFHitFitter.h"
 
 #include "RFFHitFinderAlg.h"
@@ -25,7 +26,7 @@ hit::RFFHitFinderAlg::RFFHitFinderAlg(fhicl::ParameterSet const& p)
   fAmpThresholdVec = p.get<std::vector<float>>("AmplitudeThreshold", std::vector<float>(1, 0.0));
 }
 
-void hit::RFFHitFinderAlg::SetFitterParamsVectors(geo::Geometry const& geo)
+void hit::RFFHitFinderAlg::SetFitterParamsVectors(geo::GeometryCore const& geo)
 {
   const unsigned int n_planes = geo.Nplanes();
 
@@ -56,12 +57,12 @@ void hit::RFFHitFinderAlg::SetFitterParams(unsigned int p)
 
 void hit::RFFHitFinderAlg::Run(std::vector<recob::Wire> const& wireVector,
                                std::vector<recob::Hit>& hitVector,
-                               geo::Geometry const& geo)
+                               geo::ChannelMapAlg const& channelMapAlg)
 {
   hitVector.reserve(wireVector.size());
   for (auto const& wire : wireVector) {
-    geo::SigType_t const& sigtype = geo.SignalType(wire.Channel());
-    geo::WireID const wireID = geo.ChannelToWire(wire.Channel()).at(0);
+    geo::SigType_t const& sigtype = channelMapAlg.SignalTypeForChannel(wire.Channel());
+    geo::WireID const& wireID = channelMapAlg.ChannelToWire(wire.Channel()).at(0);
 
     SetFitterParams(wire.View());
 

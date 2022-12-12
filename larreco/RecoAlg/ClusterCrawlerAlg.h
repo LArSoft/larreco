@@ -16,11 +16,9 @@
 
 // framework libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-namespace geo {
-  class Geometry;
-}
 
 // LArSoft libraries
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -216,6 +214,8 @@ namespace cluster {
     unsigned short NClusters;
 
     art::ServiceHandle<geo::Geometry const> geom;
+    geo::ChannelMapAlg const* channelMapAlg{
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
 
     std::vector<recob::Hit> fHits;    ///< our version of the hits
     std::vector<short> inClus;        ///< Hit used in cluster (-1 = obsolete, 0 = free)

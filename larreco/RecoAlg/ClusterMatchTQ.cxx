@@ -63,7 +63,7 @@ namespace cluster {
 
     for (size_t iclu = 0; iclu < clusterlist.size(); ++iclu) {
 
-      float wire_pitch = geom->WirePitch(clusterlist[iclu]->Plane());
+      float wire_pitch = geom->Plane(clusterlist[iclu]->Plane()).WirePitch();
 
       float w0 = clusterlist[iclu]->StartWire();
       float w1 = clusterlist[iclu]->EndWire();
@@ -73,14 +73,8 @@ namespace cluster {
       CluLen clulen;
       clulen.index = iclu;
 
-      auto const x0 = detProp.ConvertTicksToX(t0,
-                                              clusterlist[iclu]->Plane().Plane,
-                                              clusterlist[iclu]->Plane().TPC,
-                                              clusterlist[iclu]->Plane().Cryostat);
-      auto const x1 = detProp.ConvertTicksToX(t1,
-                                              clusterlist[iclu]->Plane().Plane,
-                                              clusterlist[iclu]->Plane().TPC,
-                                              clusterlist[iclu]->Plane().Cryostat);
+      auto const x0 = detProp.ConvertTicksToX(t0, clusterlist[iclu]->Plane());
+      auto const x1 = detProp.ConvertTicksToX(t1, clusterlist[iclu]->Plane());
       clulen.length = std::hypot((w0 - w1) * wire_pitch, x0 - x1);
 
       switch (clusterlist[iclu]->View()) {

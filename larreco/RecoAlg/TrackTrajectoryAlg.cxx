@@ -26,7 +26,6 @@ namespace trkf {
                                            std::vector<TVector3>& TrajPos,
                                            std::vector<TVector3>& TrajDir)
   {
-
     // Make a track trajectory (position, direction) and return it in the TrajPos
     // and TrajDir vectors. The track hits are received as 3 vectors (one vector per wire plane)
     // of Wire ID's, hit X and X position errors. The X position errors are used to 1) determine
@@ -304,15 +303,11 @@ namespace trkf {
     // Make a short track trajectory composed of a space point at each end.
 
     std::vector<unsigned short> usePlns;
-    double y, z, endX, endY, endZ;
-    unsigned short ipl, iht, nend, jpl, iPlane, jPlane;
-    unsigned int iWire, jWire;
 
     // do the min X end first
-    float xCut;
+    float xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
     for (unsigned short nit = 0; nit < 5; ++nit) {
-      xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
-      for (ipl = 0; ipl < 3; ++ipl) {
+      for (unsigned int ipl = 0; ipl < 3; ++ipl) {
         if (trkX[ipl].size() == 0) continue;
         if (trkX[ipl][0] < xCut) usePlns.push_back(ipl);
       } // ipl
@@ -324,25 +319,27 @@ namespace trkf {
       mf::LogVerbatim("TTA") << "ShortTrack minX end " << xCut << " usePlns size "
                              << usePlns.size();
     if (usePlns.size() < 2) return;
-    endY = 0;
-    endZ = 0;
-    nend = 0;
-    iht = 0;
-    ipl = usePlns[0];
-    endX = trkX[ipl][iht];
-    iPlane = trkWID[ipl][iht].Plane;
-    iWire = trkWID[ipl][iht].Wire;
+    double endY = 0;
+    double endZ = 0;
+    unsigned short nend = 0;
+    unsigned short iht = 0;
+    unsigned short ipl = usePlns[0];
+    double endX = trkX[ipl][iht];
+    unsigned short iPlane = trkWID[ipl][iht].Plane;
+    unsigned int iWire = trkWID[ipl][iht].Wire;
     unsigned int cstat = trkWID[ipl][iht].Cryostat;
     unsigned int tpc = trkWID[ipl][iht].TPC;
     for (unsigned short jj = 1; jj < usePlns.size(); ++jj) {
-      jpl = usePlns[jj];
+      unsigned short jpl = usePlns[jj];
       endX += trkX[jpl][iht];
-      jPlane = trkWID[jpl][iht].Plane;
-      jWire = trkWID[jpl][iht].Wire;
-      geom->IntersectionPoint(
-        geo::WireID{cstat, tpc, iPlane, iWire}, geo::WireID{cstat, tpc, jPlane, jWire}, y, z);
-      endY += y;
-      endZ += z;
+      unsigned short jPlane = trkWID[jpl][iht].Plane;
+      unsigned int jWire = trkWID[jpl][iht].Wire;
+      auto intersection = geom
+                            ->WireIDsIntersect(geo::WireID{cstat, tpc, iPlane, iWire},
+                                               geo::WireID{cstat, tpc, jPlane, jWire})
+                            .value_or(geo::WireIDIntersection::invalid());
+      endY += intersection.y;
+      endZ += intersection.z;
       ++nend;
     } // ii
     // nend is the number of y,z values. There are (nend + 1) X values
@@ -355,7 +352,6 @@ namespace trkf {
 
     // do the same for the other end
     fHitWidthFactor = 5;
-    //    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
     usePlns.clear();
     for (unsigned short nit = 0; nit < 5; ++nit) {
       xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
@@ -385,15 +381,17 @@ namespace trkf {
     iPlane = trkWID[ipl][iht].Plane;
     iWire = trkWID[ipl][iht].Wire;
     for (unsigned short jj = 1; jj < usePlns.size(); ++jj) {
-      jpl = usePlns[jj];
+      unsigned short jpl = usePlns[jj];
       iht = trkX[jpl].size() - 1;
       endX += trkX[jpl][iht];
-      jPlane = trkWID[jpl][iht].Plane;
-      jWire = trkWID[jpl][iht].Wire;
-      geom->IntersectionPoint(
-        geo::WireID{cstat, tpc, iPlane, iWire}, geo::WireID{cstat, tpc, jPlane, jWire}, y, z);
-      endY += y;
-      endZ += z;
+      unsigned short jPlane = trkWID[jpl][iht].Plane;
+      unsigned int jWire = trkWID[jpl][iht].Wire;
+      auto intersection = geom
+                            ->WireIDsIntersect(geo::WireID{cstat, tpc, iPlane, iWire},
+                                               geo::WireID{cstat, tpc, jPlane, jWire})
+                            .value_or(geo::WireIDIntersection::invalid());
+      endY += intersection.y;
+      endZ += intersection.z;
       ++nend;
     } // ii
     // nend is the number of y,z values. There are nend + 1 X values

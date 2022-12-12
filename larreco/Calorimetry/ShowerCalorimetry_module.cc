@@ -145,7 +145,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e)
         auto& theHit = hits[hit_index];
         if (!planeID.isValid) { planeID = theHit->WireID(); }
         hitIndex[k] = theHit.key();
-        float wire_pitch = geom->WirePitch(theHit->View());
+        float wire_pitch = geom->Plane({0, 0, theHit->View()}).WirePitch();
 
         float theHit_Xpos = -999.;
         float theHit_Ypos = -999.;

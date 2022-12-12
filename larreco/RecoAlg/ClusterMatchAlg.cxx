@@ -354,15 +354,18 @@ namespace cluster {
                                      const geo::View_t v2) const
   {
     art::ServiceHandle<geo::Geometry const> geo_h;
-    double y, z_min, z_max;
-    y = z_min = z_max = -1;
+    double z_min{-1}, z_max{-1};
     constexpr geo::TPCID tpcid{0, 0};
     geo::PlaneID const plane_1{tpcid, v1};
     geo::PlaneID const plane_2{tpcid, v2};
-    geo_h->IntersectionPoint(
-      geo::WireID{plane_1, ci1.wire_min}, geo::WireID{plane_2, ci2.wire_min}, y, z_min);
-    geo_h->IntersectionPoint(
-      geo::WireID{plane_1, ci1.wire_max}, geo::WireID{plane_2, ci2.wire_max}, y, z_max);
+    if (auto intersection = geo_h->WireIDsIntersect(geo::WireID{plane_1, ci1.wire_min},
+                                                    geo::WireID{plane_2, ci2.wire_min})) {
+      z_min = intersection->z;
+    }
+    if (auto intersection = geo_h->WireIDsIntersect(geo::WireID{plane_1, ci1.wire_max},
+                                                    geo::WireID{plane_2, ci2.wire_max})) {
+      z_max = intersection->z;
+    }
     return z_max > z_min;
   }
 

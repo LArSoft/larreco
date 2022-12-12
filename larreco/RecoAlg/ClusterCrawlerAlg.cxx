@@ -126,14 +126,10 @@ namespace cluster {
 
   bool ClusterCrawlerAlg::SortByMultiplet(recob::Hit const& a, recob::Hit const& b)
   {
-    // compare the wire IDs first:
-    int cmp_res = a.WireID().cmp(b.WireID());
-    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
-    // decide by start time
-    if (a.StartTick() != b.StartTick()) return a.StartTick() < b.StartTick();
-    // if still undecided, resolve by local index
-    return a.LocalIndex() < b.LocalIndex(); // if still unresolved, it's a bug!
-  }                                         // ClusterCrawlerAlg::SortByMultiplet()
+    auto const a_tup = std::make_tuple(a.WireID(), a.StartTick(), a.LocalIndex());
+    auto const b_tup = std::make_tuple(b.WireID(), b.StartTick(), b.LocalIndex());
+    return a_tup < b_tup;
+  }
 
   //------------------------------------------------------------------------------
   void ClusterCrawlerAlg::ClearResults()
@@ -143,7 +139,7 @@ namespace cluster {
     vtx.clear();
     vtx3.clear();
     inClus.clear();
-  } // ClusterCrawlerAlg::ClearResults()
+  }
 
   //------------------------------------------------------------------------------
   void ClusterCrawlerAlg::CrawlInit()
@@ -243,7 +239,7 @@ namespace cluster {
         raw::ChannelID_t channel = fHits[fFirstHit].Channel();
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
-        float wirePitch = geom->WirePitch(geom->View(channel));
+        float wirePitch = geom->Plane({tpcid, channelMapAlg->View(channel)}).WirePitch();
         float tickToDist = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
         tickToDist *= 1.e-3 * sampling_rate(clock_data); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
@@ -5580,7 +5576,6 @@ namespace cluster {
 
     // Match in 3D
     float dX;
-    double y, z;
     unsigned short icl, jpl, jcl, kpl, splitPos;
     for (ipl = 0; ipl < 3; ++ipl) {
       if (hamrVec[ipl].size() == 0) continue;
@@ -5594,10 +5589,12 @@ namespace cluster {
           if (fabs(dX) > fVertex3DCut) continue;
           geo::PlaneID const plane_i{tpcid, ipl};
           geo::PlaneID const plane_j{tpcid, jpl};
-          geom->IntersectionPoint(geo::WireID{plane_i, hamrVec[ipl][ii].Wire},
-                                  geo::WireID{plane_j, hamrVec[jpl][jj].Wire},
-                                  y,
-                                  z);
+          auto const intersection =
+            geom->WireIDsIntersect(geo::WireID{plane_i, hamrVec[ipl][ii].Wire},
+                                   geo::WireID{plane_j, hamrVec[jpl][jj].Wire});
+          if (!intersection) continue;
+
+          auto const [y, z] = std::make_pair(intersection->y, intersection->z);
           if (y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
           // mark them used
           hamrVec[ipl][ii].Used = true;
@@ -5660,7 +5657,7 @@ namespace cluster {
           newVtx3.Ptr2D[kpl] = -1;
           geo::Point_t const WPos{0, y, z};
           try {
-            newVtx3.Wire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
+            newVtx3.Wire = geom->Plane({cstat, tpc, kpl}).NearestWireID(WPos).Wire;
           }
           catch (geo::InvalidWireError const& e) {
             newVtx3.Wire = e.suggestedWireID().Wire; // pick the closest valid wire
@@ -5699,7 +5696,7 @@ namespace cluster {
     }
 
     // wire spacing in cm
-    float wirePitch = geom->WirePitch(geo::PlaneID{tpcid, 0});
+    float wirePitch = geom->Plane(geo::PlaneID{tpcid, 0}).WirePitch();
 
     // fill temp vectors of 2D vertex X and X errors
     std::vector<float> vX(vtx.size());
@@ -5739,7 +5736,6 @@ namespace cluster {
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
 
-    double y = 0, z = 0;
     geo::Point_t WPos{0, 0, 0};
     // i, j, k indicates 3 different wire planes
     unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
@@ -5789,7 +5785,10 @@ namespace cluster {
                 << (int)vtx[jvx].Time << " dXChi " << dXChi << " fVertex3DCut " << fVertex3DCut;
 
             if (dXChi > fVertex3DCut) continue;
-            geom->IntersectionPoint(geo::WireID{plane_i, iWire}, geo::WireID{plane_j, jWire}, y, z);
+            auto const intersection =
+              geom->WireIDsIntersect(geo::WireID{plane_i, iWire}, geo::WireID{plane_j, jWire});
+            if (!intersection) continue;
+            auto const [y, z] = std::make_pair(intersection->y, intersection->z);
             if (y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
             WPos.SetY(y);
             WPos.SetZ(z);
@@ -5798,7 +5797,7 @@ namespace cluster {
             kWire = -1;
             if (TPC.Nplanes() > 2) {
               try {
-                kWire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
+                kWire = geom->Plane({cstat, tpc, kpl}).NearestWireID(WPos).Wire;
               }
               catch (geo::InvalidWireError const& e) {
                 kWire = e.suggestedWireID().Wire; // pick the closest valid wire
@@ -5984,7 +5983,7 @@ namespace cluster {
     flag.second = -1;
     unsigned int nbad = 0;
     for (wire = 0; wire < nwires; ++wire) {
-      raw::ChannelID_t chan = geom->PlaneWireToChannel(geo::WireID(planeID, wire));
+      raw::ChannelID_t chan = channelMapAlg->PlaneWireToChannel(geo::WireID(planeID, wire));
       if (!channelStatus.IsGood(chan)) {
         WireHitRange[wire] = flag;
         ++nbad;

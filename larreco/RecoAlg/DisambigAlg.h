@@ -70,6 +70,7 @@ namespace apa {
     art::ServiceHandle<geo::Geometry const> geom;
     // **temporarily** here to look at performance without noise hits
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    geo::ChannelMapAlg const* fChannelMapAlg;
 
     // Hits organization
     std::map<raw::ChannelID_t, std::vector<art::Ptr<recob::Hit>>> fChannelToHits;

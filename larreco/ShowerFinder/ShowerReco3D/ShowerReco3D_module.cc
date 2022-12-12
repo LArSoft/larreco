@@ -16,6 +16,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -104,10 +105,12 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
 void ShowerReco3D::produce(art::Event& e)
 {
   auto const& geom = *lar::providerFrom<geo::Geometry>();
+  auto const& channelMapAlg =
+    *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clockData);
-  util::GeometryUtilities const gser{geom, clockData, detProp};
+  util::GeometryUtilities const gser{geom, channelMapAlg, clockData, detProp};
 
   // Create output data product containers
   std::unique_ptr<std::vector<recob::Shower>> out_shower_v(new std::vector<recob::Shower>);
@@ -153,7 +156,8 @@ void ShowerReco3D::produce(art::Event& e)
   std::vector<recob::Shower> shower_v;
 
   if (!fUsePFParticle) {
-    matched_pairs = fManager.Reconstruct(geom, clockData, detProp, local_clusters, shower_v);
+    matched_pairs =
+      fManager.Reconstruct(geom, channelMapAlg, clockData, detProp, local_clusters, shower_v);
   }
   else {
 
@@ -198,7 +202,8 @@ void ShowerReco3D::produce(art::Event& e)
       shower_pfpart_index.push_back(i);
     }
     // Run reconstruction
-    fManager.Reconstruct(geom, clockData, detProp, local_clusters, matched_pairs, shower_v);
+    fManager.Reconstruct(
+      geom, channelMapAlg, clockData, detProp, local_clusters, matched_pairs, shower_v);
   }
 
   // Make sure output shower vector size is same as expected length

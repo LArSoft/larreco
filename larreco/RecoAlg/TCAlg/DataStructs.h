@@ -15,6 +15,7 @@
 #include <vector>
 
 // LArSoft libraries
+#include "larcorealg/Geometry/fwd.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -24,9 +25,6 @@ namespace TMVA {
 }
 namespace calo {
   class CalorimetryAlg;
-}
-namespace geo {
-  class GeometryCore;
 }
 
 namespace tca {
@@ -567,6 +565,7 @@ namespace tca {
     float multHitSep; ///< preferentially "merge" hits with < this separation
     float maxChi;
     const geo::GeometryCore* geom;
+    const geo::ChannelMapAlg* channelMapAlg;
     calo::CalorimetryAlg* caloAlg;
     TMVA::Reader* showerParentReader;
     std::vector<float> showerParentVars;

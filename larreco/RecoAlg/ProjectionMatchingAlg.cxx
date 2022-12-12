@@ -5,6 +5,7 @@
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "lardata/ArtDataHelper/ToElement.h"
@@ -35,6 +36,7 @@ pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingA
   , fHitTestingDist2D{config.HitTestingDist2D()}
   , fMinTwoViewFraction{config.MinTwoViewFraction()}
   , fGeom{lar::providerFrom<geo::Geometry>()}
+  , fChannelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
 {
   pma::Node3D::SetMargin(config.NodeMargin3D());
 
@@ -79,15 +81,15 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
     while ((f < 1.0) && node->SameTPC(p)) {
-      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), geo::PlaneID{cryo, tpc, testPlane}),
-                        p.X());
-      geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+      geo::PlaneID const planeID{cryo, tpc, testPlane};
+      pma::Vector2D const p2d(fGeom->Plane(planeID).WireCoordinate(toPoint(p)), p.X());
+      geo::WireID const wireID(planeID, (int)p2d.X());
 
       int widx = (int)p2d.X();
       int didx = (int)detProp.ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
 
       if (fGeom->HasWire(wireID)) {
-        raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+        raw::ChannelID_t ch = fChannelMapAlg->PlaneWireToChannel(wireID);
         if (channelStatus.IsGood(ch)) {
           float max_adc = adcImage.poolMax(widx, didx, 2); // +/- 2 wires, can be parameterized
           if (max_adc > thr) nPassed++;
@@ -193,17 +195,17 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
 
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
-    double wirepitch = fGeom->Plane(geo::PlaneID(cryo, tpc, testPlane)).WirePitch();
+    geo::PlaneID const planeID{cryo, tpc, testPlane};
+    double wirepitch = fGeom->Plane(planeID).WirePitch();
     while ((f < 1.0) && node->SameTPC(p)) {
-      geo::PlaneID const planeID{cryo, tpc, testPlane};
-      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
+      pma::Vector2D p2d(fGeom->Plane(planeID).WireCoordinate(toPoint(p)), p.X());
       geo::WireID const wireID{planeID, static_cast<unsigned int>(p2d.X())};
 
       int widx = (int)p2d.X();
       int didx = (int)detProp.ConvertXToTicks(p2d.Y(), planeID);
 
       if (fGeom->HasWire(wireID)) {
-        raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+        raw::ChannelID_t ch = fChannelMapAlg->PlaneWireToChannel(wireID);
         if (channelStatus.IsGood(ch)) {
           bool is_close = false;
           float max_adc = adcImage.poolMax(widx, didx, 2);
@@ -228,8 +230,6 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
             if (histoRejected) histoRejected->Fill(max_adc);
           }
         }
-        //else mf::LogVerbatim("ProjectionMatchingAlg")
-        //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
       }
 
       p += dc;
@@ -319,12 +319,13 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
     double f = pma::GetSegmentProjVector(p, p0, p1);
 
     geo::PlaneID const planeID{cryo, tpc, testPlane};
-    double const wirepitch = fGeom->Plane(planeID).WirePitch();
+    auto const& plane = fGeom->Plane(planeID);
+    double const wirepitch = plane.WirePitch();
     while ((f < 1.0) && node->SameTPC(p)) {
-      pma::Vector2D p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
+      pma::Vector2D p2d(plane.WireCoordinate(toPoint(p)), p.X());
       geo::WireID const wireID{planeID, static_cast<unsigned int>(p2d.X())};
       if (fGeom->HasWire(wireID)) {
-        raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+        raw::ChannelID_t ch = fChannelMapAlg->PlaneWireToChannel(wireID);
         if (channelStatus.IsGood(ch)) {
           if (points.size()) {
             p2d.SetX(wirepitch * p2d.X());
@@ -337,8 +338,6 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
           }
           nAll++;
         }
-        //else mf::LogVerbatim("ProjectionMatchingAlg")
-        //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
       }
 
       p += dc;
@@ -379,10 +378,10 @@ double pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData cons
   geo::PlaneID const planeID{cryo, tpc, testPlane};
   double const wirepitch = fGeom->Plane(planeID).WirePitch();
   while (f < 1.0) {
-    TVector2 p2d(fGeom->WireCoordinate(toPoint(p), planeID), p.X());
-    geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+    TVector2 p2d(fGeom->Plane(planeID).WireCoordinate(toPoint(p)), p.X());
+    geo::WireID wireID(planeID, (int)p2d.X());
     if (fGeom->HasWire(wireID)) {
-      raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+      raw::ChannelID_t ch = fChannelMapAlg->PlaneWireToChannel(wireID);
       if (channelStatus.IsGood(ch)) {
         p2d.Set(wirepitch * p2d.X(), p2d.Y());
         for (const auto& h : hits)
@@ -485,7 +484,6 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
     mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
 
     trk->SortHits();
-    // trk->ShiftEndsToHits(); // not sure if useful already here
     return trk;
   }
   else {
@@ -1037,7 +1035,7 @@ bool pma::ProjectionMatchingAlg::addEndpointRef_(
   unsigned int tpc,
   unsigned int cryo) const
 {
-  double x = 0.0, y = 0.0, z = 0.0;
+  double x = 0.0;
   std::vector<std::pair<int, unsigned int>> wire_view;
   for (unsigned int i = 0; i < 3; i++)
     if (wires[i].first >= 0) {
@@ -1061,8 +1059,11 @@ bool pma::ProjectionMatchingAlg::addEndpointRef_(
     x /= wire_view.size();
     auto const [wire0, plane0] = wire_view[0];
     auto const [wire1, plane1] = wire_view[1];
-    fGeom->IntersectionPoint(
-      geo::WireID(cryo, tpc, plane0, wire0), geo::WireID(cryo, tpc, plane1, wire1), y, z);
+    auto const [y, z, _] = fGeom
+                             ->WireIDsIntersect(geo::WireID(cryo, tpc, plane0, wire0),
+                                                geo::WireID(cryo, tpc, plane1, wire1))
+                             .value_or(geo::WireIDIntersection::invalid());
+
     trk.AddRefPoint(x, y, z);
     mf::LogVerbatim("ProjectionMatchingAlg")
       << "trk tpc:" << tpc << " size:" << trk.size() << " add ref.point (" << x << "; " << y << "; "

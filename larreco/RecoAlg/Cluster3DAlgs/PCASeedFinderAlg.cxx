@@ -257,16 +257,17 @@ namespace lar_cluster3d {
     // Loop over the 2D hits in the above
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
+      auto const& plane = m_geometry->Plane(wireID);
       unsigned int ipl = wireID.Plane;
 
       // get the wire plane offset
-      double const off = m_geometry->WireCoordinate(geo::Point_t{0, 0, 0}, wireID);
+      double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
 
       // get the "cosine-like" component
-      double const cw = m_geometry->WireCoordinate(geo::Point_t{0, 1, 0}, wireID) - off;
+      double const cw = plane.WireCoordinate(geo::Point_t{0, 1, 0}) - off;
 
       // the "sine-like" component
-      double const sw = m_geometry->WireCoordinate(geo::Point_t{0, 0, 1}, wireID) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0, 0, 1}) - off;
 
       double const x = hit->getXPosition() - XOrigin;
 
@@ -298,9 +299,10 @@ namespace lar_cluster3d {
 
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
-      double const off = m_geometry->WireCoordinate(geo::Point_t{0, 0, 0}, wireID);
-      double const cw = m_geometry->WireCoordinate(geo::Point_t{0, 1, 0}, wireID) - off;
-      double const sw = m_geometry->WireCoordinate(geo::Point_t{0, 0, 1}, wireID) - off;
+      auto const& plane = m_geometry->Plane(wireID);
+      double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
+      double const cw = plane.WireCoordinate(geo::Point_t{0, 1, 0}) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0, 0, 1}) - off;
       double const x = hit->getXPosition() - XOrigin;
       double const ypr = tVec[0] + tVec[2] * x;
       double const zpr = tVec[1] + tVec[3] * x;
@@ -308,7 +310,8 @@ namespace lar_cluster3d {
       ChiDOF += diff * diff;
     }
 
-    float werr2 = m_geometry->WirePitch() * m_geometry->WirePitch();
+    auto const& plane = m_geometry->Plane({0, 0, 0});
+    float werr2 = plane.WirePitch() * plane.WirePitch();
     ChiDOF /= werr2;
     ChiDOF /= (float)(npts - 4);
 
@@ -322,129 +325,5 @@ namespace lar_cluster3d {
     Pos[2] = tVec[1];
 
   } // TrkLineFit()
-
-  /*
-    //------------------------------------------------------------------------------
-    void PCASeedFinderAlg::LineFit2DHits(const reco::HitPairListPtr& hit3DList,
-                                         double                      XOrigin,
-                                         TVector3&                   Pos,
-                                         TVector3&                   Dir,
-                                         double&                     ChiDOF) const
-    {
-        // Linear fit using X as the independent variable. Hits to be fitted
-        // are passed in the hits vector in a pair form (X, WireID). The
-        // fitted track position at XOrigin is returned in the Pos vector.
-        // The direction cosines are returned in the Dir vector.
-        //
-        // SVD fit adapted from $ROOTSYS/tutorials/matrix/solveLinear.C
-        // Fit equation is w = A(X)v, where w is a vector of hit wires, A is
-        // a matrix to calculate a track projected to a point at X, and v is
-        // a vector (Yo, Zo, dY/dX, dZ/dX).
-        //
-        // Note: The covariance matrix should also be returned
-        // B. Baller August 2014
-
-        // assume failure
-        ChiDOF = -1;
-
-        if(hit3DList.size() < 4) return;
-
-        const unsigned int nvars = 4;
-        unsigned int       npts  = 3 * hit3DList.size();
-
-        TMatrixD A(npts, nvars);
-        // vector holding the Wire number
-        TVectorD w(npts);
-        unsigned short ninpl[3] = {0};
-        unsigned short nok = 0;
-        unsigned short iht(0), cstat, tpc, ipl;
-        double x, cw, sw, off;
-
-        for (const auto& hit3D : hit3DList)
-        {
-            // Inner loop over the 2D hits in the above
-            for (const auto& hit : hit3D->getHits())
-            {
-                geo::WireID wireID = hit->getHit().WireID();
-
-                cstat = wireID.Cryostat;
-                tpc   = wireID.TPC;
-                ipl   = wireID.Plane;
-
-                // get the wire plane offset
-                off = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
-
-                // get the "cosine-like" component
-                cw  = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
-
-                // the "sine-like" component
-                sw  = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-
-                x = hit->getXPosition() - XOrigin;
-
-                A[iht][0] = cw;
-                A[iht][1] = sw;
-                A[iht][2] = cw * x;
-                A[iht][3] = sw * x;
-                w[iht]    = wireID.Wire - off;
-
-                ++ninpl[ipl];
-
-                // need at least two points in a plane
-                if(ninpl[ipl] == 2) ++nok;
-
-                iht++;
-            }
-        }
-
-        // need at least 2 planes with at least two points
-        if(nok < 2) return;
-
-        TDecompSVD svd(A);
-        bool ok;
-        TVectorD tVec = svd.Solve(w, ok);
-
-        ChiDOF = 0;
-
-        // not enough points to calculate Chisq
-        if(npts <= 4) return;
-
-        double ypr, zpr, diff;
-
-        for(const auto& hit3D : hit3DList)
-        {
-            for (const auto& hit : hit3D->getHits())
-            {
-                geo::WireID wireID = hit->getHit().WireID();
-
-                cstat = wireID.Cryostat;
-                tpc   = wireID.TPC;
-                ipl   = wireID.Plane;
-                off   = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
-                cw    = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
-                sw    = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-                x     = hit->getXPosition() - XOrigin;
-                ypr   = tVec[0] + tVec[2] * x;
-                zpr   = tVec[1] + tVec[3] * x;
-                diff  = ypr * cw + zpr * sw - (wireID.Wire - off);
-                ChiDOF += diff * diff;
-            }
-        }
-
-        float werr2 = m_geometry->WirePitch() * m_geometry->WirePitch();
-        ChiDOF /= werr2;
-        ChiDOF /= (float)(npts - 4);
-
-        double norm = sqrt(1 + tVec[2] * tVec[2] + tVec[3] * tVec[3]);
-        Dir[0] = 1 / norm;
-        Dir[1] = tVec[2] / norm;
-        Dir[2] = tVec[3] / norm;
-
-        Pos[0] = XOrigin;
-        Pos[1] = tVec[0];
-        Pos[2] = tVec[1];
-
-    } // TrkLineFit()
-    */
 
 } // namespace lar_cluster3d

@@ -9,6 +9,7 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -17,10 +18,6 @@ namespace detinfo {
   class DetectorClocksData;
 }
 #include "lardataobj/RecoBase/Wire.h"
-
-namespace geo {
-  class GeometryCore;
-}
 
 #include "CLHEP/Random/RandGauss.h"
 
@@ -35,10 +32,10 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
   , fDriftWindow(10)
   , fCalorimetryAlg(config.CalorimetryAlg())
   , fGeometry(art::ServiceHandle<geo::Geometry const>().get())
+  , fChannelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
   , fAdcSumOverThr(0)
-  , fAdcSumThr(10)
-  , // set fixed threshold of 10 ADC counts for counting the sum
-  fAdcAreaOverThr(0)
+  , fAdcSumThr(10) // set fixed threshold of 10 ADC counts for counting the sum
+  , fAdcAreaOverThr(0)
   , fNoiseSigma(0)
   , fCoherentSigma(0)
 {
@@ -317,7 +314,7 @@ bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& c
     if (!channelStatus.IsGood(wireChannelNumber)) { continue; }
 
     size_t w_idx = 0;
-    for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber)) {
+    for (auto const& id : fChannelMapAlg->ChannelToWire(wireChannelNumber)) {
       if ((id.Plane == plane) && (id.TPC == tpc) && (id.Cryostat == cryo)) {
         w_idx = id.Wire;
 

@@ -15,6 +15,7 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
@@ -60,26 +61,23 @@ namespace hit {
 
   void RFFHitFinder::produce(art::Event& e)
   {
-    art::ServiceHandle<geo::Geometry const> geoHandle;
-
     art::Handle<std::vector<recob::Wire>> wireHandle;
     e.getByLabel(fWireModuleLabel, wireHandle);
 
     std::unique_ptr<std::vector<recob::Hit>> hitCollection(new std::vector<recob::Hit>);
-    fAlg.Run(*wireHandle, *hitCollection, *geoHandle);
+    fAlg.Run(*wireHandle,
+             *hitCollection,
+             *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr());
 
     recob::HitCollectionAssociator hcol(e, fWireModuleLabel, true);
     hcol.use_hits(std::move(hitCollection));
     hcol.put_into(e);
-
-    //e.put(std::move(hitCollection));
   }
 
   void RFFHitFinder::beginJob()
   {
     art::ServiceHandle<geo::Geometry const> geoHandle;
-    geo::Geometry const& geo(*geoHandle);
-    fAlg.SetFitterParamsVectors(geo);
+    fAlg.SetFitterParamsVectors(*geoHandle);
   }
 
 }

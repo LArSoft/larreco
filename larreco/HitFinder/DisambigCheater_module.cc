@@ -14,6 +14,7 @@
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/Exceptions.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
@@ -38,6 +39,8 @@ namespace hit {
 
     art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    geo::ChannelMapAlg const* channelMapAlg{
+      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
 
     std::string fChanHitLabel;
     std::string fWidHitLabel;
@@ -131,7 +134,7 @@ namespace hit {
 
     // find the wireIDs each hit is on
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
-    this->InitHitToWids(clockData, ChHits);
+    InitHitToWids(clockData, ChHits);
 
     // make all of the hits
     for (size_t h = 0; h < ChHits.size(); h++) {
@@ -142,7 +145,7 @@ namespace hit {
 
       // the trivial Z hits
       if (ChHits[h]->View() == geo::kZ) {
-        this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, hits);
+        MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, hits);
         continue;
       }
 
@@ -151,11 +154,11 @@ namespace hit {
       /// \todo: Decide how to handle the hits with multiple-wid activity. For now, randomly choose.
       std::pair<double, double> ChanTime(ChHits[h]->Channel() * 1., ChHits[h]->PeakTime() * 1.);
       if (fHitToWids[ChanTime].size() == 1)
-        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits);
+        MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits);
       else if (fHitToWids[ChanTime].size() == 0)
         fFalseChanHits++;
       else if (fHitToWids[ChanTime].size() > 1)
-        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits); // same thing for now
+        MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, hits); // same thing for now
 
     } // for
 
@@ -187,7 +190,6 @@ namespace hit {
   void DisambigCheater::InitHitToWids(detinfo::DetectorClocksData const& clockData,
                                       const std::vector<art::Ptr<recob::Hit>>& ChHits)
   {
-
     unsigned int Ucount(0), Vcount(0);
     for (size_t h = 0; h < ChHits.size(); h++) {
       recob::Hit const& chit = *(ChHits[h]);
@@ -196,7 +198,7 @@ namespace hit {
         Ucount++;
       else if (ChHits[h]->View() == geo::kV)
         Vcount++;
-      std::vector<geo::WireID> cwids = geom->ChannelToWire(chit.Channel());
+      std::vector<geo::WireID> cwids = channelMapAlg->ChannelToWire(chit.Channel());
       std::pair<double, double> ChanTime((double)chit.Channel(),
                                          (double)chit.PeakTime()); // hit key value
 
@@ -250,7 +252,7 @@ namespace hit {
         /// \todo: Why would an IDE ossociated with a hit return a nearest wire not on the hit's channel? Usually only one off.
         geo::WireID IdeWid;
         try {
-          IdeWid = geom->NearestWireID(xyzIde, geo::PlaneID{tpcID, cwids[0].Plane});
+          IdeWid = geom->Plane({tpcID, cwids[0].Plane}).NearestWireID(xyzIde);
         }
         catch (geo::InvalidWireError const& e) { // adopt suggestion if possible
           if (!e.hasSuggestedWire()) throw;

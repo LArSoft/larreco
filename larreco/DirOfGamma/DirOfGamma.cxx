@@ -17,11 +17,11 @@ ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   auto const& wireID = src->WireID();
 
-  auto const wireCenter = geom->WireIDToWireGeo(wireID).GetCenter();
+  auto const wireCenter = geom->Wire(wireID).GetCenter();
   double const x = detProp.ConvertTicksToX(src->PeakTime(), wireID);
 
   double const globalWire =
-    geom->WireCoordinate(wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
+    geom->Plane({wireID.Cryostat, wireID.TPC % 2, wireID.Plane}).WireCoordinate(wireCenter);
   fPoint.Set(globalWire, x);
   fCharge = src->SummedADC();
 }

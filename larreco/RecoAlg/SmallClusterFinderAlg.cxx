@@ -72,7 +72,7 @@ void cluster::SmallClusterFinderAlg::FindSmallClusters(
 {
   ///These lines determine the conversion factors to take wires and times to CMs
   fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
-  fWirePitch = geom->WirePitch();
+  fWirePitch = geom->Plane({0, 0, 0}).WirePitch();
   fTimeTick = sampling_rate(clockData) / 1000.;
   fWiretoCm = fWirePitch;
   fTimetoCm = fTimeTick * fDriftVelocity;
@@ -86,15 +86,10 @@ void cluster::SmallClusterFinderAlg::FindSmallClusters(
     return;
   }
 
-  art::Ptr<recob::Hit> theHit;
-
   //sort the hits into hits by plane
-  for (std::vector<art::Ptr<recob::Hit>>::iterator HitIter = allHits.begin();
-       HitIter != allHits.end();
-       HitIter++) {
-    theHit = *HitIter;
-    unsigned int p(0), w(0), t(0), cs(0);  //c=channel, p=plane, w=wire, but what is t?
-    GetPlaneAndTPC(*HitIter, p, cs, t, w); //Find out what plane this hit is on.
+  for (auto const& theHit : allHits) {
+    unsigned int p(0), w(0), t(0), cs(0); //c=channel, p=plane, w=wire, but what is t?
+    GetPlaneAndTPC(theHit, p, cs, t, w);  //Find out what plane this hit is on.
     //add this hit to the list specific to this plane
     hitlistbyplane[p].push_back(theHit);
   } // End loop on hits.
@@ -125,8 +120,6 @@ void cluster::SmallClusterFinderAlg::FindSmallClusters(
   //I was going to use lists instead of vectors to do this, because lists are more efficient
   //at insertion and removal at arbitrary places.  But, the number of gammas is so small that
   //it just doesn't seem worth it
-  //
-  //Also, larsoft is so slow on its own that i think the difference is undetectable
 
   // The method to split the gammas into individual clusters that I want is:
   // Use the existing method below to find all the hits within a certain distance from a given hit
@@ -156,11 +149,6 @@ void cluster::SmallClusterFinderAlg::FindSmallClusters(
     std::vector<art::Ptr<recob::Hit>> splittingVector = hitlistrefined[iplane];
 
     while (splittingVector.size() != 0) {
-
-      // std::cout << "\nThe hits remaining to be spilt are:" << std::endl;
-      //for (unsigned int j = 0; j < splittingVector.size();j++){
-      //	std::cout << *splittingVector[j] << std::endl;
-      //}
 
       //find the first small cluster of gammas:
       std::vector<int> index;
@@ -223,10 +211,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
   double radlimit) const
 {
   //loop over the hits in "hitlist", which should contain the hits we're selecting from
-  for (std::vector<art::Ptr<recob::Hit>>::const_iterator hitIter = hitlist.begin();
-       hitIter != hitlist.end();
-       hitIter++) {
-    art::Ptr<recob::Hit> theHit = (*hitIter);
+  for (auto const& theHit : hitlist) {
     double time = theHit->PeakTime();
     unsigned int plane, cstat, tpc, wire;
     GetPlaneAndTPC(theHit, plane, cstat, tpc, wire);
@@ -253,10 +238,7 @@ void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
 {
   // loop over the hits in "hitlist", which should contain the hits we're selecting from
   int i = 0; //i keeps track of the index of the hit.
-  for (std::vector<art::Ptr<recob::Hit>>::const_iterator hitIter = hitlist.begin();
-       hitIter != hitlist.end();
-       hitIter++) {
-    art::Ptr<recob::Hit> theHit = (*hitIter);
+  for (auto const& theHit : hitlist) {
     double time = theHit->PeakTime();
     unsigned int plane, cstat, tpc, wire;
     GetPlaneAndTPC(theHit, plane, cstat, tpc, wire);
@@ -294,7 +276,6 @@ std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::CreateHighHitl
 
     double time = theHit->PeakTime();
     unsigned int plane(0), cstat(0), tpc(0), wire(0);
-    //std::cout << "The hit is " << (*theHit) << std::endl;
     GetPlaneAndTPC(theHit, plane, cstat, tpc, wire);
     //use the wire and time of this hit as a seed.
     // ^^^^^ This could probably be optimized?
@@ -332,9 +313,6 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
                                                    unsigned int& t,        //time
                                                    unsigned int& w) const  //wire
 {
-  art::ServiceHandle<geo::Geometry const> geom;
-  unsigned int channel = a->Channel();
-  geom->ChannelToWire(channel);
   p = a->WireID().Plane;
   t = a->PeakTime();
   w = a->WireID().Wire;

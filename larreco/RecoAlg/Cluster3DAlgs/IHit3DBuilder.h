@@ -11,24 +11,14 @@
 #define IHit3DBuilder_h
 
 // Framework Includes
-namespace art {
-  class Event;
-  class ProducesCollector;
-}
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
 
 // Algorithm includes
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-
-namespace art {
-  class ProducesCollector;
-}
 
 namespace lar_cluster3d {
   /**
@@ -46,13 +36,6 @@ namespace lar_cluster3d {
      *         for those hits which combine to form space points - a nice noise filter!
      */
     virtual void produces(art::ProducesCollector&) = 0;
-
-    /**
-     *  @brief Interface for configuring the particular algorithm tool
-     *
-     *  @param ParameterSet  The input set of parameters for configuration
-     */
-    virtual void configure(const fhicl::ParameterSet&) = 0;
 
     /**
      *  @brief Defines a structure mapping art representation to internal

@@ -62,7 +62,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
         double x_pos = track.LocationAtPoint(i_trjpt).X();
         float tick = det_prop.ConvertXToTicks(x_pos, (int)i_plane, 0, 0);
         traj_points_in_plane[i_trjpt] =
-          std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), planeID), tick);
+          std::make_pair(geom.Plane(planeID).NearestWireID(track.LocationAtPoint(i_trjpt)), tick);
       }
 
       HitPropertiesMultiset_t HitPropertiesMultiset;
@@ -77,7 +77,6 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
                    HitPropertiesMultiset,
                    geom);
 
-      //PrintHitPropertiesMultiset(HitPropertiesMultiset);
       MakeCalorimetryObject(
         HitPropertiesMultiset, track, i_track, caloVector, assnTrackCaloVector, planeID);
 
@@ -92,10 +91,10 @@ public:
   dist_projected(recob::Hit const& h, geo::GeometryCore const& g) : hit(h), geom(g) {}
   bool operator()(std::pair<geo::WireID, float> const& i, std::pair<geo::WireID, float> const& j)
   {
-    float dw_i =
-      ((int)(i.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(i.first.asPlaneID());
-    float dw_j =
-      ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(j.first.asPlaneID());
+    float dw_i = ((int)(i.first.Wire) - (int)(hit.WireID().Wire)) *
+                 geom.Plane(i.first.asPlaneID()).WirePitch();
+    float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) *
+                 geom.Plane(j.first.asPlaneID()).WirePitch();
     float dt_i = i.second - hit.PeakTime();
     float dt_j = j.second - hit.PeakTime();
     return std::hypot(dw_i, dt_i) < std::hypot(dw_j, dt_j);
@@ -109,7 +108,6 @@ private:
 std::vector<float> calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(
   recob::Track const& track)
 {
-
   std::vector<float> trk_path_length_frac_vec(track.NumberTrajectoryPoints());
 
   float cumulative_path_length = 0;
@@ -132,12 +130,12 @@ void calo::TrackCalorimetryAlg::AnalyzeHit(
   HitPropertiesMultiset_t& HitPropertiesMultiset,
   geo::GeometryCore const& geom)
 {
-
   size_t traj_iter = std::distance(traj_points_in_plane.begin(),
                                    std::min_element(traj_points_in_plane.begin(),
                                                     traj_points_in_plane.end(),
                                                     dist_projected(hit, geom)));
-  float pitch = lar::util::TrackPitchInView(track, geom.View(hit.WireID().Plane), traj_iter);
+  float pitch =
+    lar::util::TrackPitchInView(track, geom.Plane(hit.WireID().asPlaneID()).View(), traj_iter);
 
   HitPropertiesMultiset.emplace(hit.Integral(),
                                 hit.Integral() / pitch,
@@ -168,7 +166,7 @@ bool calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& h
     if (counter == fNHitsToDetermineStart) break;
   }
 
-  return (charge_start > charge_end);
+  return charge_start > charge_end;
 }
 
 void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t const& hpm,
@@ -191,25 +189,22 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 
   float kinetic_energy = 0, track_length = track.Length();
   if (IsInvertedTrack(hpm)) {
-
-    for (HitPropertiesMultiset_t::iterator it_hpm = hpm.begin(); it_hpm != hpm.end(); it_hpm++) {
-      dEdxVector.push_back((*it_hpm).dEdx);
-      dQdxVector.push_back((*it_hpm).dQdx);
-      resRangeVector.push_back((*it_hpm).path_fraction * track_length);
-      pitchVector.push_back((*it_hpm).pitch);
-      XYZVector.push_back((*it_hpm).xyz);
+    for (auto it_hpm = hpm.begin(); it_hpm != hpm.end(); ++it_hpm) {
+      dEdxVector.push_back(it_hpm->dEdx);
+      dQdxVector.push_back(it_hpm->dQdx);
+      resRangeVector.push_back(it_hpm->path_fraction * track_length);
+      pitchVector.push_back(it_hpm->pitch);
+      XYZVector.push_back(it_hpm->xyz);
       kinetic_energy += dEdxVector.back() * pitchVector.back();
     }
   }
   else {
-
-    for (HitPropertiesMultiset_t::reverse_iterator it_hpm = hpm.rbegin(); it_hpm != hpm.rend();
-         it_hpm++) {
-      dEdxVector.push_back((*it_hpm).dEdx);
-      dQdxVector.push_back((*it_hpm).dQdx);
-      resRangeVector.push_back((1 - (*it_hpm).path_fraction) * track_length);
-      pitchVector.push_back((*it_hpm).pitch);
-      XYZVector.push_back((*it_hpm).xyz);
+    for (auto it_hpm = hpm.rbegin(); it_hpm != hpm.rend(); ++it_hpm) {
+      dEdxVector.push_back(it_hpm->dEdx);
+      dQdxVector.push_back(it_hpm->dQdx);
+      resRangeVector.push_back((1 - it_hpm->path_fraction) * track_length);
+      pitchVector.push_back(it_hpm->pitch);
+      XYZVector.push_back(it_hpm->xyz);
       kinetic_energy += dEdxVector.back() * pitchVector.back();
     }
   }

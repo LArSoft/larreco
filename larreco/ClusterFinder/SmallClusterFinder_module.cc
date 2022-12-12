@@ -46,6 +46,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //All the larsoft goodies:
+#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -74,8 +76,6 @@ namespace cluster {
     //input parameters
     std::string fHitFinderModuleLabel;
     bool verbose;
-    //  double fRadiusSizePar;		//Determines the max radius of the cluster, must be separated
-    //  double fNHitsInClust;		//Forces cluster to have a max number of hits
     // Remember, this is the *small* cluster finder
 
     SmallClusterFinderAlg fSmallClusterFinderAlg; //object that actually finds and sorts gammas
@@ -138,13 +138,15 @@ namespace cluster {
       hitlist[iHit] = art::Ptr<recob::Hit>(HitListHandle, iHit);
     }
 
-    //std::cout << "Passing " << hitlist.size() << " hits to the alg." << std::endl;
-
     // Now run the alg to find the gammas:
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{*geom, clockData, detProp};
+    util::GeometryUtilities const gser{
+      *geom,
+      *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr(),
+      clockData,
+      detProp};
     fSmallClusterFinderAlg.FindSmallClusters(gser, clockData, detProp, hitlist);
 
     // make an art::PtrVector of the clusters
