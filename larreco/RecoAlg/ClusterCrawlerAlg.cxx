@@ -223,8 +223,12 @@ namespace cluster {
       mergeAvailable[iht] = false;
     }
 
+    // FIXME (KJK): The 'cstat', 'tpc', and 'plane' class variables should be removed.
     for (geo::TPCID const& tpcid : geom->Iterate<geo::TPCID>()) {
+      cstat = tpcid.Cryostat;
+      tpc = tpcid.TPC;
       for (geo::PlaneID const& planeid : geom->Iterate<geo::PlaneID>(tpcid)) {
+        plane = planeid.Plane;
         WireHitRange.clear();
         // define a code to ensure clusters are compared within the same plane
         clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, planeid.Plane);
