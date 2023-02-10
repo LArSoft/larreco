@@ -92,6 +92,20 @@ namespace reco_tool {
 
     const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
 
+    void SetFitParameters(TF1& Gaus,
+                          const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
+                          const unsigned int nGaus,
+                          const float baseline,
+                          const float startTime,
+                          const float roiSize) const;
+
+    void GetFitParameters(const TF1& Gaus,
+                          PeakParamsVec& peakParamsVec,
+                          const unsigned int nGaus,
+                          const float startTime,
+                          double& chi2PerNDF,
+                          int& NDF) const;
+
     ICandidateHitFinder::HitCandidate FindRefitCand(
       const TF1& fittedGaus,
       const std::vector<float>& waveform,
@@ -187,15 +201,7 @@ namespace reco_tool {
     TF1 Gaus = *(fFitCache.Get(nGaus));
 
     // Set the baseline if so desired
-    float baseline(0.);
-
-    if (fFloatBaseline) {
-      baseline = roiSignalVec[startTime];
-      Gaus.SetParameter(nGaus * 3, baseline);
-      Gaus.SetParLimits(nGaus * 3, baseline - 12., baseline + 12.);
-    }
-    else
-      Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
+    const float baseline(fFloatBaseline ? roiSignalVec[startTime] : 0.f);
 
     if (fOutputHistograms) {
       fNumCandHitsHist->Fill(hitCandidateVec.size(), 1.);
@@ -203,10 +209,81 @@ namespace reco_tool {
       fCandBaselineHist->Fill(baseline, 1.);
     }
 
-    // ### Setting the parameters for the Gaussian Fit ###
+    SetFitParameters(Gaus, hitCandidateVec, nGaus, baseline, startTime, roiSize);
+
+    int fitResult{-1};
+
+    try {
+      fitResult = fHistogram.Fit(&Gaus, "QNWB", "", 0., roiSize);
+    }
+    catch (...) {
+      mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";
+    }
+
+    // If the fit result is not zero there was an error
+    if (!fitResult) {
+      GetFitParameters(Gaus, peakParamsVec, nGaus, startTime, chi2PerNDF, NDF);
+
+      if (fRefit && chi2PerNDF > fRefitThreshold &&
+          chi2PerNDF < std::numeric_limits<double>::infinity()) {
+
+        const ICandidateHitFinder::HitCandidate refitParams =
+          FindRefitCand(Gaus, roiSignalVec, startTime, roiSize, hitCandidateVec, peakParamsVec);
+
+        if (refitParams.hitHeight > 0) {
+
+          ICandidateHitFinder::HitCandidateVec newHitCandidateVec = hitCandidateVec;
+          newHitCandidateVec.push_back(refitParams);
+
+          // Build the string to describe the fit formula
+          unsigned int const nGausNew = nGaus + 1;
+          assert(fFitCache.Get(nGausNew));
+          Gaus = *(fFitCache.Get(nGausNew));
+
+          SetFitParameters(Gaus, newHitCandidateVec, nGausNew, baseline, startTime, roiSize);
+
+          int newFitResult{-1};
+          try {
+            newFitResult = fHistogram.Fit(&Gaus, "QNWB", "", 0., roiSize);
+          }
+          catch (...) {
+            mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";
+          }
+
+          // If the fit result is not zero there was an error
+          if (!newFitResult) {
+            const float newChi2PerNDF = Gaus.GetChisquare() / Gaus.GetNDF();
+            if (newChi2PerNDF * fRefitImprovement < chi2PerNDF || newChi2PerNDF < fRefitThreshold) {
+              peakParamsVec.clear();
+              GetFitParameters(Gaus, peakParamsVec, nGausNew, startTime, chi2PerNDF, NDF);
+            }
+          }
+        }
+      }
+
+      if (fOutputHistograms) fFitBaselineHist->Fill(Gaus.GetParameter(3 * nGaus), 1.);
+    }
+    return;
+  }
+
+  void PeakFitterGaussian::SetFitParameters(
+    TF1& Gaus,
+    const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
+    const unsigned int nGaus,
+    const float baseline,
+    const float startTime,
+    const float roiSize) const
+  {
+    if (fFloatBaseline) {
+      Gaus.SetParameter(nGaus * 3, baseline);
+      Gaus.SetParLimits(nGaus * 3, baseline - 12., baseline + 12.);
+    }
+    else
+      Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
+
     int parIdx{0};
     for (auto const& candidateHit : hitCandidateVec) {
-      double const peakMean = candidateHit.hitCenter - float(startTime);
+      double const peakMean = candidateHit.hitCenter - startTime;
       double const peakWidth = candidateHit.hitSigma;
       double const amplitude = candidateHit.hitHeight - baseline;
       double const meanLowLim = std::max(peakMean - fPeakRange * peakWidth, 0.);
@@ -228,133 +305,39 @@ namespace reco_tool {
 
       parIdx += 3;
     }
+  }
 
-    int fitResult{-1};
+  void PeakFitterGaussian::GetFitParameters(const TF1& Gaus,
+                                            PeakParamsVec& peakParamsVec,
+                                            const unsigned int nGaus,
+                                            const float startTime,
+                                            double& chi2PerNDF,
+                                            int& NDF) const
+  {
+    chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
+    NDF = Gaus.GetNDF();
 
-    try {
-      fitResult = fHistogram.Fit(&Gaus, "QNWB", "", 0., roiSize);
-    }
-    catch (...) {
-      mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";
-    }
+    int parIdx{0};
+    for (size_t idx = 0; idx < nGaus; idx++) {
+      PeakFitParams_t peakParams;
 
-    // If the fit result is not zero there was an error
-    if (!fitResult) {
-      // ##################################################
-      // ### Getting the fitted parameters from the fit ###
-      // ##################################################
-      chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
-      NDF = Gaus.GetNDF();
+      peakParams.peakAmplitude = Gaus.GetParameter(parIdx);
+      peakParams.peakAmplitudeError = Gaus.GetParError(parIdx);
+      peakParams.peakCenter = Gaus.GetParameter(parIdx + 1) + startTime;
+      peakParams.peakCenterError = Gaus.GetParError(parIdx + 1);
+      peakParams.peakSigma = Gaus.GetParameter(parIdx + 2);
+      peakParams.peakSigmaError = Gaus.GetParError(parIdx + 2);
 
-      int parIdx{0};
-      for (size_t idx = 0; idx < hitCandidateVec.size(); idx++) {
-        PeakFitParams_t peakParams;
-
-        peakParams.peakAmplitude = Gaus.GetParameter(parIdx);
-        peakParams.peakAmplitudeError = Gaus.GetParError(parIdx);
-        peakParams.peakCenter = Gaus.GetParameter(parIdx + 1) + float(startTime);
-        peakParams.peakCenterError = Gaus.GetParError(parIdx + 1);
-        peakParams.peakSigma = Gaus.GetParameter(parIdx + 2);
-        peakParams.peakSigmaError = Gaus.GetParError(parIdx + 2);
-
-        if (fOutputHistograms) {
-          fFitPeakPositionHist->Fill(peakParams.peakCenter, 1.);
-          fFitPeakWidHist->Fill(peakParams.peakSigma, 1.);
-          fFitPeakAmpitudeHist->Fill(peakParams.peakAmplitude, 1.);
-        }
-
-        peakParamsVec.emplace_back(peakParams);
-
-        parIdx += 3;
+      if (fOutputHistograms) {
+        fFitPeakPositionHist->Fill(peakParams.peakCenter, 1.);
+        fFitPeakWidHist->Fill(peakParams.peakSigma, 1.);
+        fFitPeakAmpitudeHist->Fill(peakParams.peakAmplitude, 1.);
       }
 
-      if (fRefit && chi2PerNDF > fRefitThreshold &&
-          chi2PerNDF < std::numeric_limits<double>::infinity()) {
+      peakParamsVec.emplace_back(peakParams);
 
-        const ICandidateHitFinder::HitCandidate refitParams =
-          FindRefitCand(Gaus, roiSignalVec, startTime, roiSize, hitCandidateVec, peakParamsVec);
-
-        if (refitParams.hitHeight > 0) {
-
-          ICandidateHitFinder::HitCandidateVec newHitCandidateVec = hitCandidateVec;
-          newHitCandidateVec.push_back(refitParams);
-
-          // Build the string to describe the fit formula
-          unsigned int const nGausNew = nGaus + 1;
-          assert(fFitCache.Get(nGausNew));
-          Gaus = *(fFitCache.Get(nGausNew));
-
-          // ### Setting the parameters for the Gaussian Fit ###
-          int parIdx{0};
-          for (auto const& candidateHit : newHitCandidateVec) {
-            double const peakMean = candidateHit.hitCenter - float(startTime);
-            double const peakWidth = candidateHit.hitSigma;
-            double const amplitude = candidateHit.hitHeight - baseline;
-            double const meanLowLim = std::max(peakMean - fPeakRange * peakWidth, 0.);
-            double const meanHiLim = std::min(peakMean + fPeakRange * peakWidth, double(roiSize));
-            double const widthLim = std::min(fMaxWidthMult * peakWidth,
-                                             double(roiSize) / (2 * newHitCandidateVec.size()));
-
-            if (fOutputHistograms) {
-              fCandPeakPositionHist->Fill(peakMean, 1.);
-              fCandPeakWidHist->Fill(peakWidth, 1.);
-              fCandPeakAmpitudeHist->Fill(amplitude, 1.);
-            }
-
-            Gaus.SetParameter(parIdx, amplitude);
-            Gaus.SetParameter(1 + parIdx, peakMean);
-            Gaus.SetParameter(2 + parIdx, peakWidth);
-            Gaus.SetParLimits(parIdx, 0.1 * amplitude, fAmpRange * amplitude);
-            Gaus.SetParLimits(1 + parIdx, meanLowLim, meanHiLim);
-            Gaus.SetParLimits(2 + parIdx, std::max(fMinWidth, 0.1 * peakWidth), widthLim);
-
-            parIdx += 3;
-          }
-
-          int newFitResult{-1};
-          try {
-            newFitResult = fHistogram.Fit(&Gaus, "QNWB", "", 0., roiSize);
-          }
-          catch (...) {
-            mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";
-          }
-
-          // If the fit result is not zero there was an error
-          if (!newFitResult) {
-            // ##################################################
-            // ### Getting the fitted parameters from the fit ###
-            // ##################################################
-            float newChi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
-
-            if (newChi2PerNDF * fRefitImprovement < chi2PerNDF || newChi2PerNDF < fRefitThreshold) {
-              peakParamsVec.clear();
-
-              chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
-              NDF = Gaus.GetNDF();
-
-              int parIdx{0};
-              for (size_t idx = 0; idx < nGausNew; idx++) {
-                PeakFitParams_t peakParams;
-
-                peakParams.peakAmplitude = Gaus.GetParameter(parIdx);
-                peakParams.peakAmplitudeError = Gaus.GetParError(parIdx);
-                peakParams.peakCenter = Gaus.GetParameter(parIdx + 1) + float(startTime);
-                peakParams.peakCenterError = Gaus.GetParError(parIdx + 1);
-                peakParams.peakSigma = Gaus.GetParameter(parIdx + 2);
-                peakParams.peakSigmaError = Gaus.GetParError(parIdx + 2);
-
-                peakParamsVec.emplace_back(peakParams);
-
-                parIdx += 3;
-              }
-            }
-          }
-        }
-      }
-
-      if (fOutputHistograms) fFitBaselineHist->Fill(Gaus.GetParameter(3 * nGaus), 1.);
+      parIdx += 3;
     }
-    return;
   }
 
   ICandidateHitFinder::HitCandidate PeakFitterGaussian::FindRefitCand(
