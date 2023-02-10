@@ -88,7 +88,7 @@ namespace calo {
       fhicl::Atom<unsigned> ChargeMethod{
         Name("ChargeMethod"),
         Comment("Method used to extract charge from a hit. Options: 0==Amplitude(), 1==Integral(), "
-                "2==SummedADC(). See the ChargeMethod enum.")};
+                "2==SummedADC(), 3==SummedIntegral(). See the ChargeMethod enum.")};
 
       fhicl::Atom<bool> FieldDistortion{
         Name("FieldDistortion"),
@@ -165,7 +165,7 @@ namespace calo {
                     const art::Ptr<recob::Hit> hit,
                     const recob::TrackHitMeta* meta);
     double GetCharge(const art::Ptr<recob::Hit> hit,
-                     const std::vector<art::Ptr<recob::Hit>>& sharedHits);
+                     const std::vector<recob::Hit const*>& sharedHits);
     double GetEfield(const detinfo::DetectorPropertiesData& dprop,
                      const recob::Track& track,
                      const art::Ptr<recob::Hit> hit,
@@ -263,9 +263,10 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
       for (unsigned hit_i = 0; hit_i < hit_indices[plane_i].size(); hit_i++) {
         unsigned hit_index = hit_indices[plane_i][hit_i].first;
 
-        std::vector<art::Ptr<recob::Hit>> sharedHits = {};
+        std::vector<recob::Hit const*> sharedHits = {};
+        sharedHits.reserve(hit_indices[plane_i][hit_i].second.size());
         for (const unsigned shared_hit_index : hit_indices[plane_i][hit_i].second)
-          sharedHits.push_back(hits[shared_hit_index]);
+          sharedHits.push_back(hits[shared_hit_index].get());
 
         // Get the location of this point
         geo::Point_t location = GetLocation(track, hits[hit_index], thms[hit_index]);
@@ -462,23 +463,24 @@ std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsSn
 
       // check if we have found a hit on this snippet before
       bool found_snippet = false;
-      for (unsigned j = 0; j < ret[hits[i]->WireID().Plane].size(); j++) {
-        if (this_ident == hit_idents[hits[i]->WireID().Plane][j]) {
+      auto const plane = hits[i]->WireID().Plane;
+      for (unsigned j = 0; j < ret[plane].size(); j++) {
+        if (this_ident == hit_idents[plane][j]) {
           found_snippet = true;
-          if (this_ident > hit_idents[hits[i]->WireID().Plane][j]) {
-            ret[hits[i]->WireID().Plane][j].second.push_back(ret[hits[i]->WireID().Plane][j].first);
-            ret[hits[i]->WireID().Plane][j].first = i;
-            hit_idents[hits[i]->WireID().Plane][j] = this_ident;
+          if (this_ident > hit_idents[plane][j]) {
+            ret[plane][j].second.push_back(ret[plane][j].first);
+            ret[plane][j].first = i;
+            hit_idents[plane][j] = this_ident;
           }
           else {
-            ret[hits[i]->WireID().Plane][j].second.push_back(i);
+            ret[plane][j].second.push_back(i);
           }
           break;
         }
       }
       if (!found_snippet) {
-        ret[hits[i]->WireID().Plane].push_back({i, {}});
-        hit_idents[hits[i]->WireID().Plane].push_back(this_ident);
+        ret[plane].push_back({i, {}});
+        hit_idents[plane].push_back(this_ident);
       }
     }
   }
@@ -608,7 +610,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
 }
 
 double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
-                                           const std::vector<art::Ptr<recob::Hit>>& sharedHits)
+                                           const std::vector<recob::Hit const*>& sharedHits)
 {
   switch (fConfig.ChargeMethod()) {
   case calo::GnocchiCalorimetry::Config::cmIntegral: return hit->Integral();
@@ -619,7 +621,7 @@ double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
       sharedHits.cbegin(),
       sharedHits.cend(),
       hit->Integral(),
-      [](double sum, const art::Ptr<recob::Hit> sharedHit) { return sum + sharedHit->Integral(); });
+      [](double sum, recob::Hit const* sharedHit) { return sum + sharedHit->Integral(); });
   default: return 0.;
   }
   return 0.;
