@@ -224,6 +224,10 @@ namespace reco_tool {
     if (!fitResult) {
       GetFitParameters(Gaus, peakParamsVec, nGaus, startTime, chi2PerNDF, NDF);
 
+      // TODO: The refit functionality should be split out into a dedicated tool that will take in
+      // the fit previous fit result, find the new parameters for the refit, and call a
+      // fitting tool to perform the refit. This would enable the use with any fitting tool
+      // rather than being bound within this tool.
       if (fRefit && chi2PerNDF > fRefitThreshold &&
           chi2PerNDF < std::numeric_limits<double>::infinity()) {
 
