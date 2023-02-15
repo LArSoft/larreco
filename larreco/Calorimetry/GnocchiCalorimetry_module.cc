@@ -37,6 +37,7 @@
 #include <TF1.h>
 #include <TGraph.h>
 #include <TMath.h>
+#include <vector>
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
@@ -53,6 +54,7 @@
 
 namespace {
   constexpr unsigned int int_max_as_unsigned_int{std::numeric_limits<int>::max()};
+  typedef std::pair<unsigned, std::vector<unsigned>> OrganizedHits;
 }
 
 namespace calo {
@@ -67,6 +69,7 @@ namespace calo {
         cmAmplitude = 0,
         cmIntegral = 1,
         cmSummedADC = 2,
+        cmSummedIntegral = 3,
       };
 
       fhicl::Atom<std::string> TrackModuleLabel{Name("TrackModuleLabel"),
@@ -85,7 +88,7 @@ namespace calo {
       fhicl::Atom<unsigned> ChargeMethod{
         Name("ChargeMethod"),
         Comment("Method used to extract charge from a hit. Options: 0==Amplitude(), 1==Integral(), "
-                "2==SummedADC(). See the ChargeMethod enum.")};
+                "2==SummedADC(), 3==SummedIntegral(). See the ChargeMethod enum.")};
 
       fhicl::Atom<bool> FieldDistortion{
         Name("FieldDistortion"),
@@ -132,17 +135,17 @@ namespace calo {
     std::vector<std::unique_ptr<INormalizeCharge>> fNormTools;
 
     // helper functions
-    std::vector<std::vector<unsigned>> OrganizeHits(
+    std::vector<std::vector<OrganizedHits>> OrganizeHits(
       const std::vector<art::Ptr<recob::Hit>>& hits,
       const std::vector<const recob::TrackHitMeta*>& thms,
       const recob::Track& track,
       unsigned nplanes);
-    std::vector<std::vector<unsigned>> OrganizeHitsIndividual(
+    std::vector<std::vector<OrganizedHits>> OrganizeHitsIndividual(
       const std::vector<art::Ptr<recob::Hit>>& hits,
       const std::vector<const recob::TrackHitMeta*>& thms,
       const recob::Track& track,
       unsigned nplanes);
-    std::vector<std::vector<unsigned>> OrganizeHitsSnippets(
+    std::vector<std::vector<OrganizedHits>> OrganizeHitsSnippets(
       const std::vector<art::Ptr<recob::Hit>>& hits,
       const std::vector<const recob::TrackHitMeta*>& thms,
       const recob::Track& track,
@@ -161,7 +164,8 @@ namespace calo {
     double GetPitch(const recob::Track& track,
                     const art::Ptr<recob::Hit> hit,
                     const recob::TrackHitMeta* meta);
-    double GetCharge(const art::Ptr<recob::Hit> hit);
+    double GetCharge(const art::Ptr<recob::Hit> hit,
+                     const std::vector<recob::Hit const*>& sharedHits);
     double GetEfield(const detinfo::DetectorPropertiesData& dprop,
                      const recob::Track& track,
                      const art::Ptr<recob::Hit> hit,
@@ -181,7 +185,6 @@ calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param)
 {
   produces<std::vector<anab::Calorimetry>>();
   produces<art::Assns<recob::Track, anab::Calorimetry>>();
-
   std::vector<fhicl::ParameterSet> norm_tool_configs =
     fConfig.NormTools.get<std::vector<fhicl::ParameterSet>>();
   for (const fhicl::ParameterSet& p : norm_tool_configs) {
@@ -235,7 +238,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
     }
 
     // organize the hits by plane
-    std::vector<std::vector<unsigned>> hit_indices = OrganizeHits(hits, thms, track, nplanes);
+    std::vector<std::vector<OrganizedHits>> hit_indices = OrganizeHits(hits, thms, track, nplanes);
 
     for (unsigned plane_i = 0; plane_i < nplanes; plane_i++) {
 
@@ -258,7 +261,12 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
       std::vector<float> lengths;
       for (unsigned hit_i = 0; hit_i < hit_indices[plane_i].size(); hit_i++) {
-        unsigned hit_index = hit_indices[plane_i][hit_i];
+        unsigned hit_index = hit_indices[plane_i][hit_i].first;
+
+        std::vector<recob::Hit const*> sharedHits = {};
+        sharedHits.reserve(hit_indices[plane_i][hit_i].second.size());
+        for (const unsigned shared_hit_index : hit_indices[plane_i][hit_i].second)
+          sharedHits.push_back(hits[shared_hit_index].get());
 
         // Get the location of this point
         geo::Point_t location = GetLocation(track, hits[hit_index], thms[hit_index]);
@@ -267,7 +275,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
         double pitch = GetPitch(track, hits[hit_index], thms[hit_index]);
 
         // And the charge
-        double charge = GetCharge(hits[hit_index]);
+        double charge = GetCharge(hits[hit_index], sharedHits);
 
         // Get the EField
         double EField = GetEfield(det_prop, track, hits[hit_index], thms[hit_index]);
@@ -381,7 +389,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
   return;
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHits(
+std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHits(
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const std::vector<const recob::TrackHitMeta*>& thms,
   const recob::Track& track,
@@ -398,21 +406,21 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHits(
   }
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsIndividual(
+std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsIndividual(
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const std::vector<const recob::TrackHitMeta*>& thms,
   const recob::Track& track,
   unsigned nplanes)
 {
-  std::vector<std::vector<unsigned>> ret(nplanes);
+  std::vector<std::vector<OrganizedHits>> ret(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
-    if (HitIsValid(hits[i], thms[i], track)) { ret[hits[i]->WireID().Plane].push_back(i); }
+    if (HitIsValid(hits[i], thms[i], track)) { ret[hits[i]->WireID().Plane].push_back({i, {}}); }
   }
 
   return ret;
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippets(
+std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsSnippets(
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const std::vector<const recob::TrackHitMeta*>& thms,
   const recob::Track& track,
@@ -447,7 +455,7 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippet
     inline bool operator>(const HitIdentifier& rhs) const { return integral > rhs.integral; }
   };
 
-  std::vector<std::vector<unsigned>> ret(nplanes);
+  std::vector<std::vector<OrganizedHits>> ret(nplanes);
   std::vector<std::vector<HitIdentifier>> hit_idents(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
     if (HitIsValid(hits[i], thms[i], track)) {
@@ -455,19 +463,24 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippet
 
       // check if we have found a hit on this snippet before
       bool found_snippet = false;
-      for (unsigned j = 0; j < ret[hits[i]->WireID().Plane].size(); j++) {
-        if (this_ident == hit_idents[hits[i]->WireID().Plane][j]) {
+      auto const plane = hits[i]->WireID().Plane;
+      for (unsigned j = 0; j < ret[plane].size(); j++) {
+        if (this_ident == hit_idents[plane][j]) {
           found_snippet = true;
-          if (this_ident > hit_idents[hits[i]->WireID().Plane][j]) {
-            ret[hits[i]->WireID().Plane][j] = i;
-            hit_idents[hits[i]->WireID().Plane][j] = this_ident;
+          if (this_ident > hit_idents[plane][j]) {
+            ret[plane][j].second.push_back(ret[plane][j].first);
+            ret[plane][j].first = i;
+            hit_idents[plane][j] = this_ident;
+          }
+          else {
+            ret[plane][j].second.push_back(i);
           }
           break;
         }
       }
       if (!found_snippet) {
-        ret[hits[i]->WireID().Plane].push_back(i);
-        hit_idents[hits[i]->WireID().Plane].push_back(this_ident);
+        ret[plane].push_back({i, {}});
+        hit_idents[plane].push_back(this_ident);
       }
     }
   }
@@ -595,12 +608,19 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
   return pitch;
 }
 
-double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit)
+double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
+                                           const std::vector<recob::Hit const*>& sharedHits)
 {
   switch (fConfig.ChargeMethod()) {
   case calo::GnocchiCalorimetry::Config::cmIntegral: return hit->Integral();
   case calo::GnocchiCalorimetry::Config::cmAmplitude: return hit->PeakAmplitude();
   case calo::GnocchiCalorimetry::Config::cmSummedADC: return hit->SummedADC();
+  case calo::GnocchiCalorimetry::Config::cmSummedIntegral:
+    return std::accumulate(
+      sharedHits.cbegin(),
+      sharedHits.cend(),
+      hit->Integral(),
+      [](double sum, recob::Hit const* sharedHit) { return sum + sharedHit->Integral(); });
   default: return 0.;
   }
   return 0.;
