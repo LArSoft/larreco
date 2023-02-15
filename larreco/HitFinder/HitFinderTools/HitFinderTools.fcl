@@ -48,12 +48,16 @@ candhitfinder_standard:
 
 peakfitter_gaussian:
 {
-    tool_type:     "PeakFitterGaussian"
-    MinWidth:      0.5
-    MaxWidthMult:  3.
-    PeakRangeFact: 2.
-    PeakAmpRange:  2.
-    FloatBaseline: false
+    tool_type:        "PeakFitterGaussian"
+    MinWidth:         0.5
+    MaxWidthMult:     3.
+    PeakRangeFact:    2.
+    PeakAmpRange:     2.
+    FloatBaseline:    false
+    Refit:            false
+    RefitThreshold:   40
+    RefitImprovement: 2
+
 }
 
 peakfitter_mrqdt:
