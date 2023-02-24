@@ -19,8 +19,8 @@
 #include "fhiclcpp/fwd.h"
 
 // LArSoft includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 namespace detinfo {
@@ -169,9 +169,8 @@ private:
   std::string fDebugPDFName{};
 
   // art service handles
-  art::ServiceHandle<geo::Geometry const> fGeom;
-  geo::ChannelMapAlg const* fChannelMapAlg{
-    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
+  geo::WireReadoutGeom const* fWireReadoutGeom{
+    &art::ServiceHandle<geo::WireReadout const>()->Get()};
   lariov::ChannelStatusProvider const& fChanStatus{
     art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
 };

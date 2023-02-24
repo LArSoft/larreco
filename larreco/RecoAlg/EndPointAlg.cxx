@@ -33,7 +33,7 @@
 #include "cetlib/pow.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -123,8 +123,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
                                       art::Event const& evt,
                                       std::string const& label) const
 {
-
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const det_prop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
@@ -165,7 +164,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
 
   unsigned int wire = 0;
   unsigned int wire2 = 0;
-  for (auto view : geom->Views()) {
+  for (auto view : wireReadoutGeom.Views()) {
     art::PtrVector<recob::Hit> vHits;
     art::PtrVector<recob::Cluster>::const_iterator clusterIter = clusIn.begin();
     hit.clear();
@@ -181,7 +180,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
     if (hit.size() == 0) continue;
 
     geo::WireID wid = hit[0]->WireID();
-    numberwires = geom->Plane(wid.asPlaneID()).Nwires();
+    numberwires = wireReadoutGeom.Plane(wid.asPlaneID()).Nwires();
     mf::LogInfo("EndPointAlg") << " --- endpoints check " << numberwires << " " << numbertimesamples
                                << " " << fTimeBins;
 
@@ -295,7 +294,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
 
     std::sort(Cornerness2.rbegin(), Cornerness2.rend());
 
-    auto const& plane = geom->Plane({0, 0, 0});
+    auto const& plane = wireReadoutGeom.Plane({0, 0, 0});
     for (int vertexnum = 0; vertexnum < fMaxCorners; ++vertexnum) {
       flag = 0;
       for (unsigned int wire = 0; wire < numberwires && flag == 0; ++wire) {

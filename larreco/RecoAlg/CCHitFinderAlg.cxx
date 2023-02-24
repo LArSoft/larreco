@@ -120,15 +120,14 @@ namespace hit {
       // ignore bad channels
       if (channelStatus.IsBad(theChannel)) continue;
 
-      std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(theChannel);
+      std::vector<geo::WireID> wids = wireReadoutGeom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
       if (thePlane > fMinPeak.size() - 1) {
         mf::LogError("CCHF") << "MinPeak vector too small for plane " << thePlane;
         return;
       }
       theWireNum = wids[0].Wire;
-      HitChannelInfo_t WireInfo{
-        &theWire, wids[0], channelMapAlg->SignalTypeForChannel(theWire.Channel())};
+      HitChannelInfo_t WireInfo{&theWire, wids[0], wireReadoutGeom->SignalType(theWire.Channel())};
 
       // minimum number of time samples
       unsigned short minSamples = 2 * fMinRMS[thePlane];

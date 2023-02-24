@@ -26,7 +26,7 @@ services:
 				 }
 }
 
-services.ExptGeoHelperInterface: @local::argoneut_geometry_helper
+services.WireReadout: @local::argoneut_geometry_helper
 services.Geometry:	        @local::argoneut_geo
 services.DetectorPropertiesService: @local::argoneut_detproperties
 services.LArPropertiesService:    @local::argoneut_properties

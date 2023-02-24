@@ -22,7 +22,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardataobj/RawData/RawDigit.h"
@@ -104,8 +104,7 @@ namespace hit {
     int width = 3;
 
     //Loop over wires
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     for (unsigned int wireIter = 0; wireIter < wireVec.size(); wireIter++) {
 
       //get our wire
@@ -115,10 +114,10 @@ namespace hit {
       std::vector<float> signal(wire->Signal());
       std::vector<float>::iterator timeIter; // iterator for time bins
       geo::WireID wire_id =
-        channelMapAlg->ChannelToWire(wire->Channel()).at(0); //just grabbing the first one
+        wireReadoutGeom.ChannelToWire(wire->Channel()).at(0); //just grabbing the first one
 
       //set the thresholds and widths based on wire type
-      geo::SigType_t sigType = channelMapAlg->SignalTypeForChannel(wire->Channel());
+      geo::SigType_t sigType = wireReadoutGeom.SignalType(wire->Channel());
       if (sigType == geo::kInduction) {
         threshold_peak = fMinSigPeakInd;
         threshold_tail = fMinSigTailInd;

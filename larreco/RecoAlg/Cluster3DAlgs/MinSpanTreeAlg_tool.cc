@@ -14,8 +14,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -142,7 +142,7 @@ namespace lar_cluster3d {
     std::vector<std::vector<float>> m_wireDir; ///<
 
     geo::GeometryCore const* m_geometry; //< pointer to the Geometry provider
-    geo::ChannelMapAlg const* m_channelMapAlg;
+    geo::WireReadoutGeom const* m_wireReadoutGeom;
 
     PrincipalComponentsAlg m_pcaAlg; // For running Principal Components Analysis
     kdTree m_kdTree;                 // For the kdTree
@@ -154,7 +154,7 @@ namespace lar_cluster3d {
   MinSpanTreeAlg::MinSpanTreeAlg(fhicl::ParameterSet const& pset)
     : m_enableMonitoring{pset.get<bool>("EnableMonitoring", true)}
     , m_geometry{art::ServiceHandle<geo::Geometry const>{}.get()}
-    , m_channelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>{}->ChannelMapAlgPtr()}
+    , m_wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>{}->Get()}
     , m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
     , m_kdTree(pset.get<fhicl::ParameterSet>("kdTree"))
   {
@@ -164,15 +164,15 @@ namespace lar_cluster3d {
     m_wireDir.resize(3);
 
     raw::ChannelID_t uChannel(0);
-    std::vector<geo::WireID> uWireID = m_channelMapAlg->ChannelToWire(uChannel);
-    const geo::WireGeo* uWireGeo = m_geometry->WirePtr(uWireID[0]);
+    std::vector<geo::WireID> uWireID = m_wireReadoutGeom->ChannelToWire(uChannel);
+    const geo::WireGeo* uWireGeo = m_wireReadoutGeom->WirePtr(uWireID[0]);
 
     auto const uWireDir = uWireGeo->Direction();
     m_wireDir[0] = {(float)uWireDir.X(), (float)-uWireDir.Z(), (float)uWireDir.Y()};
 
     raw::ChannelID_t vChannel(2400);
-    std::vector<geo::WireID> vWireID = m_channelMapAlg->ChannelToWire(vChannel);
-    const geo::WireGeo* vWireGeo = m_geometry->WirePtr(vWireID[0]);
+    std::vector<geo::WireID> vWireID = m_wireReadoutGeom->ChannelToWire(vChannel);
+    const geo::WireGeo* vWireGeo = m_wireReadoutGeom->WirePtr(vWireID[0]);
 
     auto const vWireDir = vWireGeo->Direction();
     m_wireDir[1] = {(float)vWireDir.X(), (float)-vWireDir.Z(), (float)vWireDir.Y()};

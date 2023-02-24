@@ -26,7 +26,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -80,15 +80,15 @@ namespace sppt {
   //-------------------------------------------------
   void SpacePointAlg_TimeSort::fillCoordinatesArrays()
   {
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     constexpr geo::TPCID tpcid{0, 0};
     constexpr geo::PlaneID uplane_id{tpcid, geo::View_t::kU};
     constexpr geo::PlaneID vplane_id{tpcid, geo::View_t::kV};
     constexpr geo::PlaneID zplane_id{tpcid, geo::View_t::kZ};
 
-    unsigned int nwires_u = geom->Nwires(uplane_id);
-    unsigned int nwires_v = geom->Nwires(vplane_id);
-    unsigned int nwires_y = geom->Nwires(zplane_id);
+    unsigned int nwires_u = wireReadoutGeom.Nwires(uplane_id);
+    unsigned int nwires_v = wireReadoutGeom.Nwires(vplane_id);
+    unsigned int nwires_y = wireReadoutGeom.Nwires(zplane_id);
 
     coordinates_UV_y.resize(boost::extents[nwires_v][nwires_u]);
     coordinates_UV_z.resize(boost::extents[nwires_v][nwires_u]);
@@ -97,14 +97,16 @@ namespace sppt {
     for (unsigned int iu = 0; iu < nwires_u; iu++) {
       geo::WireID const uplane_wire_id{uplane_id, iu};
       for (unsigned int iv = 0; iv < nwires_v; iv++) {
-        auto intersection = geom->WireIDsIntersect(uplane_wire_id, geo::WireID{vplane_id, iv})
-                              .value_or(geo::WireIDIntersection::invalid());
+        auto intersection =
+          wireReadoutGeom.WireIDsIntersect(uplane_wire_id, geo::WireID{vplane_id, iv})
+            .value_or(geo::WireIDIntersection::invalid());
         coordinates_UV_y[iv][iu] = intersection.y;
         coordinates_UV_z[iv][iu] = intersection.z;
       }
       for (unsigned int iy = 0; iy < nwires_y; iy++) {
-        auto intersection = geom->WireIDsIntersect(uplane_wire_id, geo::WireID{zplane_id, iy})
-                              .value_or(geo::WireIDIntersection::invalid());
+        auto intersection =
+          wireReadoutGeom.WireIDsIntersect(uplane_wire_id, geo::WireID{zplane_id, iy})
+            .value_or(geo::WireIDIntersection::invalid());
         coordinates_UY_y[iy][iu] = intersection.y;
         coordinates_UY_z[iy][iu] = intersection.z;
       }

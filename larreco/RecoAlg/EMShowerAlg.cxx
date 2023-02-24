@@ -141,7 +141,7 @@ void shower::EMShowerAlg::CheckIsolatedHits_(
 
   // and get the other planes with at least three hits
   std::vector<int> otherPlanes;
-  for (int plane = 0; plane < (int)fGeom->MaxPlanes(); ++plane)
+  for (int plane = 0; plane < (int)fWireReadoutGeom->MaxPlanes(); ++plane)
     if (plane != problemPlane and showerHitsMap.count(plane) and
         showerHitsMap.at(plane).size() >= 3)
       otherPlanes.push_back(plane);
@@ -398,7 +398,7 @@ geo::Point_t shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesD
              (double)2;
 
   // y and z got from the wire interections
-  auto intersection = fGeom->WireIDsIntersect(hit1->WireID(), hit2->WireID())
+  auto intersection = fWireReadoutGeom->WireIDsIntersect(hit1->WireID(), hit2->WireID())
                         .value_or(geo::WireIDIntersection::invalid());
   return {x, intersection.y, intersection.z};
 }
@@ -1015,7 +1015,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(
   std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
 
   // Look at each of the planes
-  for (unsigned int plane = 0; plane < fGeom->MaxPlanes(); ++plane) {
+  for (unsigned int plane = 0; plane < fWireReadoutGeom->MaxPlanes(); ++plane) {
 
     // If there's hits on this plane...
     if (planeHitsMap.count(plane)) {
@@ -1140,7 +1140,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const&
         shwdir = spts[i] - spts[spts.size() - 1];
         shwdir = shwdir.Unit();
       }
-      for (unsigned int plane = 0; plane < fGeom->MaxPlanes(); ++plane) {
+      for (unsigned int plane = 0; plane < fWireReadoutGeom->MaxPlanes(); ++plane) {
         if (planeHitsMap.find(plane) != planeHitsMap.end()) {
           totalEnergy.push_back(
             fShowerEnergyAlg.ShowerEnergy(clockData, detProp, planeHitsMap[plane], plane));
@@ -1154,11 +1154,11 @@ recob::Shower shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const&
           double avgT = 0;
           double pitch = 0;
           double wirepitch =
-            fGeom->Plane(initialTrackHits[plane][0]->WireID().planeID()).WirePitch();
-          double angleToVert =
-            fGeom->WireAngleToVertical(fGeom->Plane(geo::PlaneID{0, 0, plane}).View(),
-                                       initialTrackHits[plane][0]->WireID().planeID()) -
-            0.5 * TMath::Pi();
+            fWireReadoutGeom->Plane(initialTrackHits[plane][0]->WireID().planeID()).WirePitch();
+          double angleToVert = fWireReadoutGeom->WireAngleToVertical(
+                                 fWireReadoutGeom->Plane(geo::PlaneID{0, 0, plane}).View(),
+                                 initialTrackHits[plane][0]->WireID().planeID()) -
+                               0.5 * TMath::Pi();
           double cosgamma = std::abs(sin(angleToVert) * shwdir.Y() + cos(angleToVert) * shwdir.Z());
           if (cosgamma > 0) pitch = wirepitch / cosgamma;
           if (pitch) {
@@ -1246,7 +1246,7 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(
 
     // Find the other planes with hits
     std::vector<int> otherPlanes;
-    for (unsigned int otherPlane = 0; otherPlane < fGeom->MaxPlanes(); ++otherPlane)
+    for (unsigned int otherPlane = 0; otherPlane < fWireReadoutGeom->MaxPlanes(); ++otherPlane)
       if ((int)otherPlane != showerHitIt->first and showerHits.count(otherPlane))
         otherPlanes.push_back(otherPlane);
 
@@ -1415,7 +1415,7 @@ std::map<int, std::vector<art::Ptr<recob::Hit>>> shower::EMShowerAlg::OrderShowe
     planeOtherRMS[planeRMSIt->first] = 0;
     planeOtherRMSGradients[planeRMSIt->first] = 0;
     int nOtherPlanes = 0;
-    for (int plane = 0; plane < (int)fGeom->MaxPlanes(); ++plane) {
+    for (int plane = 0; plane < (int)fWireReadoutGeom->MaxPlanes(); ++plane) {
       if (plane != planeRMSIt->first and planeRMS.count(plane)) {
         planeOtherRMS[planeRMSIt->first] += planeRMS.at(plane);
         planeOtherRMSGradients[planeRMSIt->first] += planeRMSGradients.at(plane);
@@ -1596,8 +1596,8 @@ void shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const
   TVector2 coord0 = TVector2(hit0->WireID().Wire, hit0->PeakTime());
   TVector2 coord1 = TVector2(hit1->WireID().Wire, hit1->PeakTime());
   auto const& planeID = hit0->WireID().parentID();
-  TVector2 coordvtx =
-    TVector2(fGeom->Plane(planeID).WireCoordinate(xyz), detProp.ConvertXToTicks(xyz.X(), planeID));
+  TVector2 coordvtx = TVector2(fWireReadoutGeom->Plane(planeID).WireCoordinate(xyz),
+                               detProp.ConvertXToTicks(xyz.X(), planeID));
   if ((coord1 - coordvtx).Mod() < (coord0 - coordvtx).Mod()) {
     std::reverse(showerHits.begin(), showerHits.end());
   }
@@ -1679,7 +1679,8 @@ TVector2 shower::EMShowerAlg::HitPosition_(detinfo::DetectorPropertiesData const
                                            TVector2 const& pos,
                                            geo::PlaneID planeID) const
 {
-  return {pos.X() * fGeom->Plane(planeID).WirePitch(), detProp.ConvertTicksToX(pos.Y(), planeID)};
+  return {pos.X() * fWireReadoutGeom->Plane(planeID).WirePitch(),
+          detProp.ConvertTicksToX(pos.Y(), planeID)};
 }
 
 double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
@@ -1687,9 +1688,9 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
   double globalWire = -999;
 
   // Induction
-  if (fChannelMapAlg->SignalType(wireID) == geo::kInduction) {
-    auto const wireCenter = fGeom->Wire(wireID).GetCenter();
-    globalWire = fGeom
+  if (fWireReadoutGeom->SignalType(wireID) == geo::kInduction) {
+    auto const wireCenter = fWireReadoutGeom->Wire(wireID).GetCenter();
+    globalWire = fWireReadoutGeom
                    ->Plane({wireID.Cryostat,
                             wireID.TPC % 2, // 0 or 1
                             wireID.Plane})
@@ -1701,7 +1702,8 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
     // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
     // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
     if (fDetector == "dune35t") {
-      unsigned int nwires = fGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
+      unsigned int nwires =
+        fWireReadoutGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
       if (wireID.TPC == 0 or wireID.TPC == 1)
         globalWire = wireID.Wire;
       else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5)
@@ -1714,14 +1716,15 @@ double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
           << " (geometry" << fDetector << ")";
     }
     else if (fDetector == "dune10kt") {
-      unsigned int nwires = fGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
+      unsigned int nwires =
+        fWireReadoutGeom->Nwires(geo::PlaneID{wireID.Cryostat, 0, wireID.Plane});
       // Detector geometry has four TPCs, two on top of each other, repeated along z...
       int block = wireID.TPC / 4;
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      auto const wireCenter = fGeom->Wire(wireID).GetCenter();
-      globalWire = fGeom
+      auto const wireCenter = fWireReadoutGeom->Wire(wireID).GetCenter();
+      globalWire = fWireReadoutGeom
                      ->Plane({wireID.Cryostat,
                               wireID.TPC % 2, // 0 or 1
                               wireID.Plane})
@@ -1752,7 +1755,7 @@ std::map<double, int> shower::EMShowerAlg::RelativeWireWidth_(
        planeWireLengthIt != planeWireLength.end();
        ++planeWireLengthIt) {
     double quad = 0.;
-    for (int plane = 0; plane < (int)fGeom->MaxPlanes(); ++plane)
+    for (int plane = 0; plane < (int)fWireReadoutGeom->MaxPlanes(); ++plane)
       if (plane != planeWireLengthIt->first and planeWireLength.count(plane))
         quad += cet::square(planeWireLength[plane]);
     quad = std::sqrt(quad);
@@ -1935,7 +1938,7 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane_(
   geo::PlaneID const planeID(cryostat, tpc, plane);
   geo::WireID wireID;
   try {
-    wireID = fGeom->Plane(planeID).NearestWireID(point);
+    wireID = fWireReadoutGeom->Plane(planeID).NearestWireID(point);
   }
   catch (geo::InvalidWireError const& e) {
     wireID = e.suggestedWireID(); // pick the closest valid wire
@@ -1959,7 +1962,7 @@ int shower::EMShowerAlg::WorstPlane_(
        planeWireLengthIt != planeWireLength.end();
        ++planeWireLengthIt) {
     double quad = 0.;
-    for (int plane = 0; plane < (int)fGeom->MaxPlanes(); ++plane)
+    for (int plane = 0; plane < (int)fWireReadoutGeom->MaxPlanes(); ++plane)
       if (plane != planeWireLengthIt->first and planeWireLength.count(plane))
         quad += cet::square(planeWireLength[plane]);
     quad = std::sqrt(quad);

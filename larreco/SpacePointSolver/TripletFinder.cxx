@@ -4,9 +4,7 @@
 
 #include "TVector3.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 namespace reco3d {
@@ -21,8 +19,7 @@ namespace reco3d {
                                double distThresh,
                                double distThreshDrift,
                                double xhitOffset)
-    : geom(art::ServiceHandle<geo::Geometry const>()->provider())
-    , channelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
+    : wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
     , fDistThresh(distThresh)
     , fDistThreshDrift(distThreshDrift)
     , fXHitOffset(xhitOffset)
@@ -42,12 +39,13 @@ namespace reco3d {
                                  std::map<geo::TPCID, std::vector<HitOrChan>>& out)
   {
     for (const art::Ptr<recob::Hit>& hit : hits) {
-      for (geo::TPCID tpc : channelMapAlg->ROPtoTPCs(channelMapAlg->ChannelToROP(hit->Channel()))) {
+      for (geo::TPCID tpc :
+           wireReadoutGeom->ROPtoTPCs(wireReadoutGeom->ChannelToROP(hit->Channel()))) {
         double xpos = 0;
-        for (geo::WireID wire : channelMapAlg->ChannelToWire(hit->Channel())) {
+        for (geo::WireID wire : wireReadoutGeom->ChannelToWire(hit->Channel())) {
           if (geo::TPCID(wire) == tpc) {
             xpos = detProp.ConvertTicksToX(hit->PeakTime(), wire);
-            if (channelMapAlg->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
+            if (wireReadoutGeom->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
           }
         }
 
@@ -63,7 +61,7 @@ namespace reco3d {
                                  std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out)
   {
     for (raw::ChannelID_t chan : bads) {
-      for (geo::TPCID tpc : channelMapAlg->ROPtoTPCs(channelMapAlg->ChannelToROP(chan))) {
+      for (geo::TPCID tpc : wireReadoutGeom->ROPtoTPCs(wireReadoutGeom->ChannelToROP(chan))) {
         out[tpc].push_back(chan);
       }
     }
@@ -72,8 +70,8 @@ namespace reco3d {
   // -------------------------------------------------------------------------
   class IntersectionCache {
   public:
-    IntersectionCache(geo::GeometryCore const* geo, geo::ChannelMapAlg const* cmAlg, geo::TPCID tpc)
-      : geom(geo), channelMapAlg{cmAlg}, fTPC(tpc)
+    IntersectionCache(geo::WireReadoutGeom const* cmAlg, geo::TPCID tpc)
+      : wireReadoutGeom{cmAlg}, fTPC(tpc)
     {}
 
     std::optional<geo::WireIDIntersection> const& operator()(raw::ChannelID_t a, raw::ChannelID_t b)
@@ -90,20 +88,19 @@ namespace reco3d {
     std::optional<geo::WireIDIntersection> ISect(raw::ChannelID_t chanA,
                                                  raw::ChannelID_t chanB) const
     {
-      for (geo::WireID awire : channelMapAlg->ChannelToWire(chanA)) {
+      for (geo::WireID awire : wireReadoutGeom->ChannelToWire(chanA)) {
         if (geo::TPCID(awire) != fTPC) continue;
-        for (geo::WireID bwire : channelMapAlg->ChannelToWire(chanB)) {
+        for (geo::WireID bwire : wireReadoutGeom->ChannelToWire(chanB)) {
           if (geo::TPCID(bwire) != fTPC) continue;
 
-          if (auto pt = geom->WireIDsIntersect(awire, bwire)) return pt;
+          if (auto pt = wireReadoutGeom->WireIDsIntersect(awire, bwire)) return pt;
         }
       }
 
       return std::nullopt;
     }
 
-    const geo::GeometryCore* geom;
-    const geo::ChannelMapAlg* channelMapAlg;
+    const geo::WireReadoutGeom* wireReadoutGeom;
 
     using key_t = std::pair<raw::ChannelID_t, raw::ChannelID_t>;
     std::map<key_t, std::optional<geo::WireIDIntersection>> fPtMap;
@@ -152,7 +149,7 @@ namespace reco3d {
       std::vector<ChannelDoublet> xvs = DoubletsXV(tpc);
 
       // Cache to prevent repeating the same questions
-      IntersectionCache isectUV(geom, channelMapAlg, tpc);
+      IntersectionCache isectUV(wireReadoutGeom, tpc);
 
       // For the efficient looping below to work we need to sort the doublet
       // lists so the X hits occur in the same order.
@@ -293,7 +290,7 @@ namespace reco3d {
   {
     std::vector<ChannelDoublet> ret;
 
-    IntersectionCache isect(geom, channelMapAlg, tpc);
+    IntersectionCache isect(wireReadoutGeom, tpc);
 
     auto b_begin = bhits.begin();
 

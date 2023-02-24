@@ -19,7 +19,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft libraries
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/ChargedSpacePointCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -432,20 +432,19 @@ namespace reco3d {
     bool is2view = fHitReader->readHits(hitlist, xhits, uhits, vhits);
 
     std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     if (fAllowBadInductionHit || fAllowBadCollectionHit) {
       for (raw::ChannelID_t cid :
            art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels()) {
-        if (channelMapAlg->SignalTypeForChannel(cid) == geo::kCollection) {
-          if (fAllowBadCollectionHit && channelMapAlg->View(cid) == geo::kZ) {
+        if (wireReadoutGeom.SignalType(cid) == geo::kCollection) {
+          if (fAllowBadCollectionHit && wireReadoutGeom.View(cid) == geo::kZ) {
             xbadchans.push_back(cid);
           }
         }
         else {
           if (fAllowBadInductionHit) {
-            if (channelMapAlg->View(cid) == geo::kU) ubadchans.push_back(cid);
-            if (channelMapAlg->View(cid) == geo::kV) vbadchans.push_back(cid);
+            if (wireReadoutGeom.View(cid) == geo::kU) ubadchans.push_back(cid);
+            if (wireReadoutGeom.View(cid) == geo::kV) vbadchans.push_back(cid);
           }
         }
       }

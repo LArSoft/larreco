@@ -35,8 +35,10 @@ namespace hit {
   public:
     RFFHitFinderAlg(fhicl::ParameterSet const&);
 
-    void SetFitterParamsVectors(geo::GeometryCore const&);
-    void Run(std::vector<recob::Wire> const&, std::vector<recob::Hit>&, geo::ChannelMapAlg const&);
+    void SetFitterParamsVectors(unsigned int num_planes);
+    void Run(std::vector<recob::Wire> const&,
+             std::vector<recob::Hit>&,
+             geo::WireReadoutGeom const&);
 
   private:
     std::vector<float> fMatchThresholdVec;

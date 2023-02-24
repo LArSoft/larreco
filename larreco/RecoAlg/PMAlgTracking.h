@@ -21,6 +21,7 @@
 #include "fhiclcpp/types/Sequence.h"
 
 // LArSoft includes
+#include "larcorealg/Geometry/fwd.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -37,9 +38,6 @@
 
 namespace detinfo {
   class DetectorProperties;
-}
-namespace geo {
-  class GeometryCore;
 }
 
 // ROOT & C++
@@ -420,6 +418,7 @@ private:
 
   // *********************** services *************************
   geo::GeometryCore const* fGeom;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 };
 
 #endif

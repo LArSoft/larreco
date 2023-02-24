@@ -64,7 +64,7 @@ namespace apa {
 
   private:
     art::ServiceHandle<geo::Geometry const> fGeom; // handle to geometry service
-    geo::ChannelMapAlg const* fChannelMapAlg;
+    geo::WireReadoutGeom const* fWireReadoutGeom;
 
     unsigned int fChannelsPerAPA; ///< All APAs have this same number of channels
     unsigned int fAPAsPerCryo;

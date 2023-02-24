@@ -30,7 +30,7 @@ namespace showerreco {
 
   std::vector<::recob::Shower> ShowerRecoAlgBase::Reconstruct(
     geo::GeometryCore const& geom,
-    geo::ChannelMapAlg const& channelMapAlg,
+    geo::WireReadoutGeom const& wireReadoutGeom,
     detinfo::DetectorClocksData const& clockData,
     detinfo::DetectorPropertiesData const& detProp)
   {
@@ -40,7 +40,7 @@ namespace showerreco {
     output.reserve(fInputClusters.size());
 
     for (auto const& clusters : fInputClusters)
-      output.push_back(RecoOneShower(geom, channelMapAlg, clockData, detProp, clusters));
+      output.push_back(RecoOneShower(geom, wireReadoutGeom, clockData, detProp, clusters));
 
     return output;
   }

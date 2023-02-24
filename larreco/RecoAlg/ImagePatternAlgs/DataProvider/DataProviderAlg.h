@@ -236,8 +236,8 @@ protected:
   calo::CalorimetryAlg fCalorimetryAlg;
 
   // Geometry and detector properties:
-  geo::GeometryCore const* fGeometry;
-  geo::ChannelMapAlg const* fChannelMapAlg;
+  geo::Geometry const* fGeometry;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 
 private:
   float scaleAdcSample(float val) const;

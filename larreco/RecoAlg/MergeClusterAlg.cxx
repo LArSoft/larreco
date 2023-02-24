@@ -11,13 +11,13 @@
 ////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/MergeClusterAlg.h"
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 
 #include "TPrincipal.h"
 #include "TTree.h"
 
 cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset)
-  : fChannelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
+  : fWireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
 {
   fMinMergeClusterSize = pset.get<int>("MinMergeClusterSize");
   fMaxMergeSeparation = pset.get<double>("MaxMergeSeparation");
@@ -164,13 +164,13 @@ double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const
 {
   /// Find the global wire position
 
-  auto const wireCenter = fGeom->Wire(wireID).GetCenter();
+  auto const wireCenter = fWireReadoutGeom->Wire(wireID).GetCenter();
   geo::PlaneID const planeID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane};
 
-  if (fChannelMapAlg->SignalType(wireID) == geo::kInduction) {
-    return fGeom->Plane(planeID).WireCoordinate(wireCenter);
+  if (fWireReadoutGeom->SignalType(wireID) == geo::kInduction) {
+    return fWireReadoutGeom->Plane(planeID).WireCoordinate(wireCenter);
   }
-  return wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(planeID));
+  return wireID.Wire + ((wireID.TPC / 2) * fWireReadoutGeom->Nwires(planeID));
 }
 
 TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) const

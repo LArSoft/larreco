@@ -26,13 +26,14 @@
 
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcorealg/Geometry/ChannelMapAlg.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 
 // NOTE: In the .h file I assumed this would belong in the cluster class....if
 // we decide otherwise we will need to search and replace for this
@@ -69,7 +70,7 @@ corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
 }
 
 //-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::InitializeGeometry(geo::GeometryCore const& my_geometry)
+void corner::CornerFinderAlg::InitializeGeometry(geo::WireReadoutGeom const& wireReadoutGeom)
 {
   // Reset containers
   WireData_histos.clear();
@@ -81,7 +82,7 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::GeometryCore const& my_geo
 
   // set the sizes of the WireData_histos and WireData_IDs
   constexpr geo::TPCID tpcid{0, 0};
-  unsigned int nPlanes = my_geometry.Nplanes(tpcid);
+  unsigned int nPlanes = wireReadoutGeom.Nplanes(tpcid);
   WireData_histos.resize(nPlanes);
   WireData_histos_ProjectionX.resize(nPlanes);
   WireData_histos_ProjectionY.resize(nPlanes);
@@ -89,25 +90,24 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::GeometryCore const& my_geo
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
   WireData_IDs.resize(nPlanes);
-  for (auto const& planeid : my_geometry.Iterate<geo::PlaneID>(tpcid))
-    WireData_IDs[planeid.Plane].resize(my_geometry.Nwires(planeid));
+  for (auto const& planeid : wireReadoutGeom.Iterate<geo::PlaneID>(tpcid))
+    WireData_IDs[planeid.Plane].resize(wireReadoutGeom.Nwires(planeid));
 
   WireData_trimmed_histos.resize(0);
 }
 
 //-----------------------------------------------------------------------------
 void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
-                                        geo::GeometryCore const& my_geometry,
-                                        geo::ChannelMapAlg const& channelMapAlg)
+                                        geo::WireReadoutGeom const& wireReadoutGeom)
 {
-  InitializeGeometry(my_geometry);
+  InitializeGeometry(wireReadoutGeom);
 
   const unsigned int nTimeTicks = wireVec.at(0).NSignal();
 
   // Initialize the histograms.
   // All of this should eventually be changed to not need to use histograms...
   constexpr geo::TPCID tpcid{0, 0};
-  for (auto const& planeid : my_geometry.Iterate<geo::PlaneID>(tpcid)) {
+  for (auto const& planeid : wireReadoutGeom.Iterate<geo::PlaneID>(tpcid)) {
     auto const i_plane = planeid.Plane;
 
     std::stringstream ss_tmp_name, ss_tmp_title;
@@ -115,7 +115,7 @@ void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
     ss_tmp_title << fCalDataModuleLabel << " wire data for plane " << i_plane
                  << ";Wire Number;Time Tick";
 
-    auto const num_wires = my_geometry.Nwires(planeid);
+    auto const num_wires = wireReadoutGeom.Nwires(planeid);
     if (static_cast<unsigned int>(WireData_histos[i_plane].GetNbinsX()) == num_wires) {
       WireData_histos[i_plane].Reset();
       WireData_histos[i_plane].SetName(ss_tmp_name.str().c_str());
@@ -134,7 +134,7 @@ void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
 
   /* Now do the loop over the wires. */
   for (auto const& wire : wireVec) {
-    std::vector<geo::WireID> possible_wireIDs = channelMapAlg.ChannelToWire(wire.Channel());
+    std::vector<geo::WireID> possible_wireIDs = wireReadoutGeom.ChannelToWire(wire.Channel());
     geo::WireID this_wireID;
     try {
       this_wireID = possible_wireIDs.at(0);
@@ -156,7 +156,7 @@ void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
 
   } //<-- End loop over wires
 
-  for (unsigned int i_plane = 0; i_plane < my_geometry.Nplanes(); i_plane++) {
+  for (unsigned int i_plane = 0; i_plane < wireReadoutGeom.Nplanes(); i_plane++) {
     WireData_histos_ProjectionX.at(i_plane) = *(WireData_histos.at(i_plane).ProjectionX());
     WireData_histos_ProjectionY.at(i_plane) = *(WireData_histos.at(i_plane).ProjectionY());
   }
@@ -165,12 +165,12 @@ void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
 void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D>& corner_vector,
-                                                 geo::GeometryCore const& my_geometry)
+                                                 geo::WireReadoutGeom const& wireReadoutGeom)
 {
-  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
+  for (auto const& pid : wireReadoutGeom.Iterate<geo::PlaneID>()) {
     attach_feature_points(WireData_histos.at(pid.Plane),
                           WireData_IDs.at(pid.Plane),
-                          my_geometry.Plane(pid).View(),
+                          wireReadoutGeom.Plane(pid).View(),
                           corner_vector);
   }
 }
@@ -178,15 +178,16 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D>&
 //-----------------------------------------------------------------------------------
 // This gives us a vector of EndPoint2D objects that correspond to possible corners, but quickly!
 void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D>& corner_vector,
-                                                      geo::GeometryCore const& my_geometry)
+                                                      geo::GeometryCore const& my_geometry,
+                                                      geo::WireReadoutGeom const& wireReadoutGeom)
 {
-  create_smaller_histos(my_geometry);
+  create_smaller_histos(wireReadoutGeom);
 
   for (auto const& cryostat : my_geometry.Iterate<geo::CryostatGeo>()) {
     for (unsigned int tpc = 0; tpc < cryostat.NTPC(); ++tpc) {
       for (size_t histos = 0; histos != WireData_trimmed_histos.size(); histos++) {
 
-        int plane = std::get<0>(WireData_trimmed_histos.at(histos));
+        unsigned int plane = std::get<0>(WireData_trimmed_histos.at(histos));
         int startx = std::get<2>(WireData_trimmed_histos.at(histos));
         int starty = std::get<3>(WireData_trimmed_histos.at(histos));
 
@@ -195,7 +196,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 
         attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
                               WireData_IDs.at(plane),
-                              cryostat.TPC(tpc).Plane(plane).View(),
+                              wireReadoutGeom.Plane({cryostat.ID().Cryostat, tpc, plane}).View(),
                               corner_vector,
                               startx,
                               starty);
@@ -211,12 +212,12 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 // Uses line integral score as corner strength
 void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(
   std::vector<recob::EndPoint2D>& corner_vector,
-  geo::GeometryCore const& my_geometry)
+  geo::WireReadoutGeom const& wireReadoutGeom)
 {
-  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
+  for (auto const& pid : wireReadoutGeom.Iterate<geo::PlaneID>()) {
     attach_feature_points_LineIntegralScore(WireData_histos.at(pid.Plane),
                                             WireData_IDs.at(pid.Plane),
-                                            my_geometry.Plane(pid).View(),
+                                            wireReadoutGeom.Plane(pid).View(),
                                             corner_vector);
   }
 }
@@ -231,9 +232,9 @@ namespace {
 
 //-----------------------------------------------------------------------------
 // This looks for areas of the wires that are non-noise, to speed up evaluation
-void corner::CornerFinderAlg::create_smaller_histos(geo::GeometryCore const& my_geometry)
+void corner::CornerFinderAlg::create_smaller_histos(geo::WireReadoutGeom const& wireReadoutGeom)
 {
-  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
+  for (auto const& pid : wireReadoutGeom.Iterate<geo::PlaneID>()) {
 
     MF_LOG_DEBUG("CornerFinderAlg") << "Working plane " << pid.Plane << ".";
 

@@ -1,7 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/TCCR.h"
-#include "larcorealg/Geometry/ChannelMapAlg.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
@@ -81,7 +81,7 @@ namespace tca {
           unsigned int iht = tp.Hits[ii];
           TCHit& slhit = slc.slHits[iht];
           auto& hit = (*evt.allHits)[slhit.allHitsIndex];
-          raw::ChannelID_t channel = tcc.channelMapAlg->PlaneWireToChannel(hit.WireID());
+          raw::ChannelID_t channel = tcc.wireReadoutGeom->PlaneWireToChannel(hit.WireID());
           double startTick = hit.PeakTime() - hit.RMS();
           double endTick = hit.PeakTime() + hit.RMS();
           // get a list of track IDEs that are close to this hit

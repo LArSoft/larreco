@@ -65,7 +65,7 @@ namespace reco3d {
 
   protected:
     const geo::GeometryCore* geom;
-    const geo::ChannelMapAlg* channelMapAlg;
+    const geo::WireReadoutGeom* wireReadoutGeom;
 
     /// Helper for constructor
     void FillHitMap(const detinfo::DetectorPropertiesData& clockData,

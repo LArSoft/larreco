@@ -2,9 +2,7 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -65,12 +63,10 @@ namespace shower {
     dEdx.resize(2);
     dEdxErr.resize(2);
 
-    art::ServiceHandle<geo::Geometry const> geom;
-
     std::vector<pfpStuff> allpfps;
 
     // put together pfparticle information
-    auto const& plane_2 = geom->Plane({0, 0, 2});
+    auto const& plane_2 = art::ServiceHandle<geo::WireReadout>()->Get().Plane({0, 0, 2});
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
       thispfp.hits.clear();
@@ -127,6 +123,7 @@ namespace shower {
 
     bool showerCandidate = false;
 
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     for (size_t i = 0; i < allpfps.size(); ++i) {
 
       showerHits.clear();
@@ -192,7 +189,7 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
-      for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
         auto const& planeid = plane.ID();
         trk_tick1[planeid] = detProp.ConvertXToTicks(pfpStart.X(), planeid);
         trk_wire1[planeid] = plane.WireCoordinate(pfpStart);
@@ -398,9 +395,8 @@ namespace shower {
                            std::map<geo::PlaneID, double> const& trk_tick2,
                            int& pull) const
   {
-    art::ServiceHandle<geo::Geometry const> geom;
-
-    double wirePitch = geom->Plane(hit->WireID()).WirePitch();
+    double wirePitch =
+      art::ServiceHandle<geo::WireReadout>()->Get().Plane(hit->WireID()).WirePitch();
     double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
     double UnitsPerTick = tickToDist / wirePitch;

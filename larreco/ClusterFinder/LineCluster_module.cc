@@ -15,6 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
@@ -35,7 +36,6 @@ namespace cluster {
    *
    */
   class LineCluster : public art::EDProducer {
-
   public:
     explicit LineCluster(fhicl::ParameterSet const& pset);
 
@@ -135,7 +135,7 @@ namespace cluster {
     // make EndPoints (aka 2D vertices)
     std::vector<ClusterCrawlerAlg::VtxStore> const& EndPts = fCCAlg.GetEndPoints();
     std::vector<unsigned int> indxToIndx(EndPts.size());
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     unsigned short vtxID = 0, end, wire, ivx;
     for (ivx = 0; ivx < EndPts.size(); ++ivx) {
       if (EndPts[ivx].NClusters == 0) continue;
@@ -144,7 +144,7 @@ namespace cluster {
       wire = (0.5 + EndPts[ivx].Wire);
       geo::PlaneID plID = ClusterCrawlerAlg::DecodeCTP(EndPts[ivx].CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
-      geo::View_t view = geom->Plane(wID).View();
+      geo::View_t view = wireReadoutGeom.Plane(wID).View();
       sv2col.emplace_back((double)EndPts[ivx].Time, // Time
                           wID,                      // WireID
                           0,                        // strength - not relevant

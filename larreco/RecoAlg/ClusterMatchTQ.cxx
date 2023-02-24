@@ -12,7 +12,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/ClusterMatchTQ.h"
 
@@ -52,8 +53,8 @@ namespace cluster {
     std::vector<std::vector<unsigned int>> matchedclusters;
 
     // get services
-    art::ServiceHandle<geo::Geometry const> geom;
-    int nplanes = geom->Nplanes();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+    int nplanes = wireReadoutGeom.Nplanes();
     int nts = detProp.NumberTimeSamples();
 
     std::vector<std::vector<TH1D>> signals(nplanes);
@@ -63,7 +64,7 @@ namespace cluster {
 
     for (size_t iclu = 0; iclu < clusterlist.size(); ++iclu) {
 
-      float wire_pitch = geom->Plane(clusterlist[iclu]->Plane()).WirePitch();
+      float wire_pitch = wireReadoutGeom.Plane(clusterlist[iclu]->Plane()).WirePitch();
 
       float w0 = clusterlist[iclu]->StartWire();
       float w1 = clusterlist[iclu]->EndWire();

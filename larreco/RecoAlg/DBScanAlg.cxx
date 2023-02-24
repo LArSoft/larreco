@@ -20,8 +20,8 @@
 
 #include "RStarTree/RStarBoundingBox.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -286,15 +286,15 @@ void cluster::DBScanAlg::InitScan(const detinfo::DetectorClocksData& clockData,
   // Determine spacing between wires (different for each detector)
   // get 2 first wires and find their spacing (wire_dist)
 
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
   art::ServiceHandle<geo::Geometry const> geom;
   constexpr geo::TPCID tpcid{0, 0};
-  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid))
+  for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(tpcid))
     fWirePitch.push_back(plane.WirePitch());
 
   // Collect the bad wire list into a useful form
   if (fClusterMethod) { // Using the R*-tree
-    auto const nchannels =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()->Nchannels();
+    auto const nchannels = wireReadoutGeom.Nchannels();
     fBadWireSum.resize(nchannels);
     unsigned int count = 0;
     for (unsigned int i = 0; i < fBadWireSum.size(); ++i) {

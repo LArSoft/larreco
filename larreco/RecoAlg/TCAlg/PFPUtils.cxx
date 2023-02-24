@@ -21,6 +21,7 @@
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -629,17 +630,17 @@ namespace tca {
         if (std::find(pln1pln2.begin(), pln1pln2.end(), p1p2) != pln1pln2.end()) continue;
         // find two wires that have a valid intersection
         for (unsigned int wire = firstWire; wire < maxWire; ++wire) {
-          auto const intersection00 = tcc.geom->WireIDsIntersect(
+          auto const intersection00 = tcc.wireReadoutGeom->WireIDsIntersect(
             geo::WireID{cstat, tpc, pln1, wire}, geo::WireID{cstat, tpc, pln2, wire});
           if (!intersection00) continue;
 
           // increment by one wire in pln1 and find another valid intersection
-          auto const intersection10 = tcc.geom->WireIDsIntersect(
+          auto const intersection10 = tcc.wireReadoutGeom->WireIDsIntersect(
             geo::WireID{cstat, tpc, pln1, wire + 10}, geo::WireID{cstat, tpc, pln2, wire});
           if (!intersection10) continue;
 
           // increment by one wire in pln2 and find another valid intersection
-          auto const intersection01 = tcc.geom->WireIDsIntersect(
+          auto const intersection01 = tcc.wireReadoutGeom->WireIDsIntersect(
             geo::WireID{cstat, tpc, pln1, wire}, geo::WireID{cstat, tpc, pln2, wire + 10});
           if (!intersection01) continue;
 
@@ -980,8 +981,8 @@ namespace tca {
         auto& jtp = slc.tjs[jTjPt.id - 1].Pts[jTjPt.ipt];
         unsigned short jPlane = jTjPt.plane;
         unsigned int jWire = jtp.Pos[0];
-        if (!tcc.geom->WireIDsIntersect(geo::WireID(cstat, tpc, iPlane, iWire),
-                                        geo::WireID(cstat, tpc, jPlane, jWire)))
+        if (!tcc.wireReadoutGeom->WireIDsIntersect(geo::WireID(cstat, tpc, iPlane, iWire),
+                                                   geo::WireID(cstat, tpc, jPlane, jWire)))
           continue;
         tIDs[0] = iTjPt.id;
         tIDs[1] = jTjPt.id;
@@ -1447,7 +1448,7 @@ namespace tca {
     std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for (unsigned short p = 0; p < slc.nPlanes; ++p) {
       auto planeID = geo::PlaneID{slc.TPCID, p};
-      auto const& plane = tcc.geom->Plane(planeID);
+      auto const& plane = tcc.wireReadoutGeom->Plane(planeID);
       // plane offset
       ocs[p][0] = plane.WireCoordinate(geo::Point_t{0, 0, 0});
       // get the "cosine-like" component
@@ -2414,7 +2415,7 @@ namespace tca {
         tj2pt.wire = std::nearbyint(tp.Pos[0]);
         ++cnt;
         // don't try matching if the wire doesn't exist
-        if (!tcc.geom->HasWire(geo::WireID(cstat, tpc, plane, tj2pt.wire))) continue;
+        if (!tcc.wireReadoutGeom->HasWire(geo::WireID(cstat, tpc, plane, tj2pt.wire))) continue;
         float xpos = detProp.ConvertTicksToX(tp.Pos[1] / tcc.unitsPerTick, plane, tpc, cstat);
         tj2pt.xlo = xpos - rms;
         tj2pt.xhi = xpos + rms;
@@ -2475,8 +2476,8 @@ namespace tca {
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
     // wire offset
-    auto const& iplane = tcc.geom->Plane(iPlnID);
-    auto const& jplane = tcc.geom->Plane(jPlnID);
+    auto const& iplane = tcc.wireReadoutGeom->Plane(iPlnID);
+    auto const& jplane = tcc.wireReadoutGeom->Plane(jPlnID);
     double iw0 = iplane.WireCoordinate(geo::Point_t{0, 0, 0});
     // cosine-like component
     double ics = iplane.WireCoordinate(geo::Point_t{0, 1, 0}) - iw0;
@@ -2702,11 +2703,11 @@ namespace tca {
     time = tp.Pos[1] / tcc.unitsPerTick;
     geo::PlaneID plnID = DecodeCTP(tp.CTP);
     if (dQ == 0) return 0;
-    double angleToVert = tcc.geom->Plane(plnID).ThetaZ() - 0.5 * ::util::pi<>();
+    double angleToVert = tcc.wireReadoutGeom->Plane(plnID).ThetaZ() - 0.5 * ::util::pi<>();
     double cosgamma =
       std::abs(std::sin(angleToVert) * tp3d.Dir[1] + std::cos(angleToVert) * tp3d.Dir[2]);
     if (cosgamma < 1.E-5) return 0;
-    double dx = tcc.geom->Plane(plnID).WirePitch() / cosgamma;
+    double dx = tcc.wireReadoutGeom->Plane(plnID).WirePitch() / cosgamma;
     double dQdx = dQ / dx;
     double t0 = 0;
     float dedx = tcc.caloAlg->dEdx_AREA(clockData, detProp, dQdx, time, plnID.Plane, t0);
@@ -2782,7 +2783,8 @@ namespace tca {
       float best = 1E6;
       for (std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
         auto& sf = pfp.SectionFits[sfi];
-        float sfWire = tcc.geom->Plane(plnID).WireCoordinate(geo::Point_t{0, sf.Pos[1], sf.Pos[2]});
+        float sfWire =
+          tcc.wireReadoutGeom->Plane(plnID).WireCoordinate(geo::Point_t{0, sf.Pos[1], sf.Pos[2]});
         float sep = std::abs(sfWire - tp3d.Wire);
         if (sep < best) {
           best = sep;
@@ -3196,7 +3198,8 @@ namespace tca {
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         tp.CTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
         geo::PlaneID const planeID{slc.TPCID, plane};
-        tp.Pos[0] = tcc.geom->Plane(planeID).WireCoordinate(geo::Point_t{0, pos1[1], pos1[2]});
+        tp.Pos[0] =
+          tcc.wireReadoutGeom->Plane(planeID).WireCoordinate(geo::Point_t{0, pos1[1], pos1[2]});
         tp.Pos[1] = detProp.ConvertXToTicks(pos1[0], planeID) * tcc.unitsPerTick;
         ++cnt;
         if (SignalAtTp(tp)) ++sum;
@@ -3235,7 +3238,8 @@ namespace tca {
         tjids[0] = tjid;
         Point2_t pos2;
         geo::PlaneID planeID = geo::PlaneID{pfp.TPCID, plane};
-        pos2[0] = tcc.geom->Plane(planeID).WireCoordinate(geo::Point_t{0, pos3[1], pos3[2]});
+        pos2[0] =
+          tcc.wireReadoutGeom->Plane(planeID).WireCoordinate(geo::Point_t{0, pos3[1], pos3[2]});
         if (pos2[0] < -0.4) continue;
         // check for dead wires
         unsigned int wire = std::nearbyint(pos2[0]);

@@ -14,7 +14,8 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Seed.h"
 
 // ROOT includes
@@ -42,7 +43,8 @@ namespace lar_cluster3d {
     m_gapDistance = pset.get<double>("GapDistance", 5.);
     m_numSeed2DHits = pset.get<size_t>("NumSeed2DHits", 80);
     m_minAllowedCosAng = pset.get<double>("MinAllowedCosAng", 0.7);
-    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const> {}
+    ->Get();
   }
 
   bool PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
@@ -257,7 +259,7 @@ namespace lar_cluster3d {
     // Loop over the 2D hits in the above
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
-      auto const& plane = m_geometry->Plane(wireID);
+      auto const& plane = m_wireReadoutGeom->Plane(wireID);
       unsigned int ipl = wireID.Plane;
 
       // get the wire plane offset
@@ -299,7 +301,7 @@ namespace lar_cluster3d {
 
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
-      auto const& plane = m_geometry->Plane(wireID);
+      auto const& plane = m_wireReadoutGeom->Plane(wireID);
       double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
       double const cw = plane.WireCoordinate(geo::Point_t{0, 1, 0}) - off;
       double const sw = plane.WireCoordinate(geo::Point_t{0, 0, 1}) - off;
@@ -310,7 +312,7 @@ namespace lar_cluster3d {
       ChiDOF += diff * diff;
     }
 
-    auto const& plane = m_geometry->Plane({0, 0, 0});
+    auto const& plane = m_wireReadoutGeom->Plane({0, 0, 0});
     float werr2 = plane.WirePitch() * plane.WirePitch();
     ChiDOF /= werr2;
     ChiDOF /= (float)(npts - 4);

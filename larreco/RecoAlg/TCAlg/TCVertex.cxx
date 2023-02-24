@@ -1,6 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
@@ -1339,7 +1340,7 @@ namespace tca {
                 << (int)jvx2.Pos[1] << " dX " << dX;
             }
             double y = -1000, z = -1000;
-            if (auto intersection = tcc.geom->WireIDsIntersect(
+            if (auto intersection = tcc.wireReadoutGeom->WireIDsIntersect(
                   geo::WireID{cstat, tpc, ipl, iWire}, geo::WireID{cstat, tpc, jpl, jWire})) {
               y = intersection->y;
               z = intersection->z;
@@ -1349,7 +1350,8 @@ namespace tca {
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             int kWire = -1;
             if (slc.nPlanes > 2) {
-              kWire = tcc.geom->Plane({slc.TPCID, kpl}).WireCoordinate(geo::Point_t{0, y, z});
+              kWire =
+                tcc.wireReadoutGeom->Plane({slc.TPCID, kpl}).WireCoordinate(geo::Point_t{0, y, z});
               std::array<int, 2> wireWindow;
               std::array<float, 2> timeWindow;
               wireWindow[0] = kWire - maxSep;
@@ -1418,7 +1420,7 @@ namespace tca {
               if (dW > tcc.vtx3DCuts[1]) continue;
               // put the Y,Z difference in YErr and ZErr
               double y = -1000, z = -1000;
-              if (auto intersection = tcc.geom->WireIDsIntersect(
+              if (auto intersection = tcc.wireReadoutGeom->WireIDsIntersect(
                     geo::WireID(cstat, tpc, ipl, iWire), geo::WireID(cstat, tpc, kpl, kWire))) {
                 y = intersection->y;
                 z = intersection->z;
@@ -2858,7 +2860,7 @@ namespace tca {
   {
     // returns the 2D position of the vertex in the plane
     geo::PlaneID const planeID{vx3.TPCID, plane};
-    pos[0] = tcc.geom->Plane(planeID).WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z});
+    pos[0] = tcc.wireReadoutGeom->Plane(planeID).WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z});
     pos[1] = detProp.ConvertXToTicks(vx3.X, planeID) * tcc.unitsPerTick;
   }
 

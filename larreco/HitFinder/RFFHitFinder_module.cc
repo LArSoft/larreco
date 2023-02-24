@@ -15,8 +15,7 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
 #include <memory>
@@ -65,9 +64,7 @@ namespace hit {
     e.getByLabel(fWireModuleLabel, wireHandle);
 
     std::unique_ptr<std::vector<recob::Hit>> hitCollection(new std::vector<recob::Hit>);
-    fAlg.Run(*wireHandle,
-             *hitCollection,
-             *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr());
+    fAlg.Run(*wireHandle, *hitCollection, art::ServiceHandle<geo::WireReadout const>()->Get());
 
     recob::HitCollectionAssociator hcol(e, fWireModuleLabel, true);
     hcol.use_hits(std::move(hitCollection));
@@ -76,8 +73,7 @@ namespace hit {
 
   void RFFHitFinder::beginJob()
   {
-    art::ServiceHandle<geo::Geometry const> geoHandle;
-    fAlg.SetFitterParamsVectors(*geoHandle);
+    fAlg.SetFitterParamsVectors(art::ServiceHandle<geo::WireReadout const>()->Get().Nplanes());
   }
 
 }

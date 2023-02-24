@@ -15,8 +15,8 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/MCBase/MCDataHolder.h"
@@ -638,8 +638,8 @@ void shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData co
                                                   TVector3 shwdir,
                                                   double elep)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
-  auto const& collectionPlane = geom->Plane(collectionPlaneID);
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+  auto const& collectionPlane = wireReadoutGeom.Plane(collectionPlaneID);
 
   double shwVtxTime = detProp.ConvertXToTicks(shwvtx[0], collectionPlaneID);
   using geo::vect::toPoint;
@@ -660,7 +660,7 @@ void shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData co
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlaneID.Plane) continue;
 
-    double wirePitch = geom->Plane(showerhits[i]->WireID()).WirePitch();
+    double wirePitch = wireReadoutGeom.Plane(showerhits[i]->WireID()).WirePitch();
     double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
 
@@ -747,8 +747,8 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(
   std::vector<art::Ptr<recob::Hit>> allhits,
   double elep)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
-  auto const& collectionPlane = geom->Plane(collectionPlaneID);
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+  auto const& collectionPlane = wireReadoutGeom.Plane(collectionPlaneID);
   art::ServiceHandle<cheat::BackTrackerService const> btserv;
   art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
   std::map<int, double> trkID_E;
@@ -813,7 +813,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(
         geo::Point_t const vtwo{xtwo, ytwo, ztwo};
         shwtwoW = collectionPlane.WireCoordinate(vtwo);
 
-        wirePitch = geom->Plane(hit->WireID()).WirePitch();
+        wirePitch = wireReadoutGeom.Plane(hit->WireID()).WirePitch();
         tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
         tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
 
@@ -896,8 +896,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(
   simb::MCParticle electron)
 {
   art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
-  auto const* channelMapAlg =
-    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
   std::vector<sim::MCEnDep> alledep;
 
@@ -913,7 +912,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(
   // get electron energy depositions
   for (size_t i = 0; i < allchan.size(); ++i) {
     art::Ptr<sim::SimChannel> simchan = allchan[i];
-    if (channelMapAlg->View(simchan->Channel()) != geo::kV) continue;
+    if (wireReadoutGeom.View(simchan->Channel()) != geo::kV) continue;
     auto tdc_ide_map = simchan->TDCIDEMap();
 
     for (auto const& tdc_ide_pair : tdc_ide_map) {

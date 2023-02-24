@@ -18,7 +18,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -244,8 +244,8 @@ namespace cluster {
   {
     if (!_det_params_prepared) {
       // Total number of planes
-      art::ServiceHandle<geo::Geometry const> geo;
-      _tot_planes = geo->Nplanes();
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+      _tot_planes = wireReadoutGeom.Nplanes();
 
       // Ask DetectorPrperties about time-offset among different wire planes ... used to correct timing
       // difference among different wire planes in the following loop.
@@ -353,17 +353,17 @@ namespace cluster {
                                      const geo::View_t v1,
                                      const geo::View_t v2) const
   {
-    art::ServiceHandle<geo::Geometry const> geo_h;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     double z_min{-1}, z_max{-1};
     constexpr geo::TPCID tpcid{0, 0};
     geo::PlaneID const plane_1{tpcid, v1};
     geo::PlaneID const plane_2{tpcid, v2};
-    if (auto intersection = geo_h->WireIDsIntersect(geo::WireID{plane_1, ci1.wire_min},
-                                                    geo::WireID{plane_2, ci2.wire_min})) {
+    if (auto intersection = wireReadoutGeom.WireIDsIntersect(geo::WireID{plane_1, ci1.wire_min},
+                                                             geo::WireID{plane_2, ci2.wire_min})) {
       z_min = intersection->z;
     }
-    if (auto intersection = geo_h->WireIDsIntersect(geo::WireID{plane_1, ci1.wire_max},
-                                                    geo::WireID{plane_2, ci2.wire_max})) {
+    if (auto intersection = wireReadoutGeom.WireIDsIntersect(geo::WireID{plane_1, ci1.wire_max},
+                                                             geo::WireID{plane_2, ci2.wire_max})) {
       z_max = intersection->z;
     }
     return z_max > z_min;

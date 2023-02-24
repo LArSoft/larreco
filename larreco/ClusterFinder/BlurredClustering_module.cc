@@ -22,8 +22,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -103,10 +103,7 @@ void cluster::BlurredClustering::produce(art::Event& evt)
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
   util::GeometryUtilities const gser{
-    *geom,
-    *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr(),
-    clockData,
-    detProp};
+    *geom, art::ServiceHandle<geo::WireReadout const>()->Get(), clockData, detProp};
   int const readoutWindowSize = detProp.ReadOutWindowSize();
 
   // Get the hits from the event

@@ -18,7 +18,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
@@ -39,7 +39,7 @@ using ranges::views::transform;
 namespace apa {
 
   DisambigAlg::DisambigAlg(fhicl::ParameterSet const& p)
-    : fChannelMapAlg{art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()}
+    : fWireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
     , fCrawl{p.get<bool>("Crawl")}
     , fUseEndP{p.get<bool>("UseEndP")}
     , fCompareViews{p.get<bool>("CompareViews")}
@@ -241,17 +241,15 @@ namespace apa {
       raw::ChannelID_t chan = hit.Channel();
       unsigned int peakT = hit.PeakTime();
 
-      std::vector<geo::WireID> hitwids = fChannelMapAlg->ChannelToWire(chan);
+      std::vector<geo::WireID> hitwids = fWireReadoutGeom->ChannelToWire(chan);
       std::vector<bool> IsReasonableWid(hitwids.size(), false);
       unsigned short nPossibleWids(0);
       for (size_t w = 0; w < hitwids.size(); w++) {
         geo::WireID wid = hitwids[w];
 
-        double xyzStart[3] = {0.};
-        double xyzEnd[3] = {0.};
-        geom->WireEndPoints(wid, xyzStart, xyzEnd);
+        auto const [start, end] = fWireReadoutGeom->WireEndPoints(wid);
         unsigned int side(wid.TPC % 2), cryo(wid.Cryostat);
-        double zminPos(xyzStart[2]), zmaxPos(xyzEnd[2]);
+        double zminPos(start.Z()), zmaxPos(end.Z());
 
         // get appropriate x and y with tpc center
         unsigned int tpc =
@@ -263,8 +261,10 @@ namespace apa {
         Min.SetZ(zminPos);
         auto Max = tpcCenter;
         Max.SetZ(zmaxPos);
-        raw::ChannelID_t ZminChan = fChannelMapAlg->NearestChannel(Min, geo::PlaneID{cryo, tpc, 2});
-        raw::ChannelID_t ZmaxChan = fChannelMapAlg->NearestChannel(Max, geo::PlaneID{cryo, tpc, 2});
+        raw::ChannelID_t ZminChan =
+          fWireReadoutGeom->NearestChannel(Min, geo::PlaneID{cryo, tpc, 2});
+        raw::ChannelID_t ZmaxChan =
+          fWireReadoutGeom->NearestChannel(Max, geo::PlaneID{cryo, tpc, 2});
 
         for (auto const& zhit : fAPAToZHits[apa] | transform(to_element)) {
           raw::ChannelID_t chan = zhit.Channel();
@@ -313,8 +313,8 @@ namespace apa {
     // wireID adjacent to supplied *wid*.  Returns number of NEW hits
     // made.
 
-    raw::ChannelID_t Dchan = fChannelMapAlg->PlaneWireToChannel(Dwid);
-    geo::View_t view = fChannelMapAlg->View(Dchan);
+    raw::ChannelID_t Dchan = fWireReadoutGeom->PlaneWireToChannel(Dwid);
+    geo::View_t view = fWireReadoutGeom->View(Dchan);
     if (view == geo::kZ)
       throw cet::exception("MakeCloseHits") << "Function not meant for non-wrapped channels.\n";
 
@@ -337,7 +337,7 @@ namespace apa {
       art::Ptr<recob::Hit> closeHit = fChannelToHits[chan][i];
       double st = closeHit->PeakTimeMinusRMS();
       double et = closeHit->PeakTimePlusRMS();
-      std::vector<geo::WireID> wids = fChannelMapAlg->ChannelToWire(chan);
+      std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(chan);
 
       if (!(Dmin <= st && st <= Dmax) && !(Dmin <= et && et <= Dmax)) continue;
 
@@ -423,7 +423,7 @@ namespace apa {
         plane = 2;
       std::vector<double> ChanTimeCenter(2, 0.);
       unsigned int relchan = centhit->Channel() - fAPAGeo.FirstChannelInView(centhit->Channel());
-      auto const wire_pitch = geom->Plane({0, 0, view}).WirePitch();
+      auto const wire_pitch = fWireReadoutGeom->Plane({0, 0, view}).WirePitch();
       ChanTimeCenter[0] = relchan * wire_pitch;
       ChanTimeCenter[1] = detProp.ConvertTicksToX(centhit->PeakTime(),
                                                   plane,
@@ -668,7 +668,7 @@ namespace apa {
       std::pair<double, double> ambigChanTime(ambigchan * 1., ambighit.PeakTime());
       if (fHasBeenDisambiged[apa][ambigChanTime]) continue;
       geo::View_t view = ambighit.View();
-      std::vector<geo::WireID> ambigwids = fChannelMapAlg->ChannelToWire(ambigchan);
+      std::vector<geo::WireID> ambigwids = fWireReadoutGeom->ChannelToWire(ambigchan);
       std::vector<unsigned int> widDcounts(ambigwids.size(), 0);
       std::vector<unsigned int> widAcounts(ambigwids.size(), 0);
 
@@ -679,12 +679,12 @@ namespace apa {
         // An other-view-hit overlaps in time, see what
         // wids of the ambiguous hit's channels it overlaps
         raw::ChannelID_t chan = hit.Channel();
-        std::vector<geo::WireID> wids = fChannelMapAlg->ChannelToWire(chan);
+        std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(chan);
         std::pair<double, double> ChanTime(chan * 1., hit.PeakTime());
         if (fHasBeenDisambiged[apa][ChanTime]) {
           for (size_t a = 0; a < ambigwids.size(); a++)
             if (ambigwids[a].TPC == fChanTimeToWid[ChanTime].TPC &&
-                geom->WireIDsIntersect(ambigwids[a], fChanTimeToWid[ChanTime]))
+                fWireReadoutGeom->WireIDsIntersect(ambigwids[a], fChanTimeToWid[ChanTime]))
               widDcounts[a]++;
         }
         else {
@@ -692,7 +692,8 @@ namespace apa {
           // from the ambiguous hits at this time
           for (size_t a = 0; a < ambigwids.size(); a++)
             for (size_t w = 0; w < wids.size(); w++)
-              if (ambigwids[a].TPC == wids[w].TPC && geom->WireIDsIntersect(ambigwids[a], wids[w]))
+              if (ambigwids[a].TPC == wids[w].TPC &&
+                  fWireReadoutGeom->WireIDsIntersect(ambigwids[a], wids[w]))
                 widAcounts[a]++;
         }
       } // end loop through close-time hits

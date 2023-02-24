@@ -23,8 +23,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -314,7 +314,7 @@ namespace lar_cluster3d {
     mutable bool m_weHaveAllBeenHereBefore = false;
 
     const geo::Geometry* m_geometry; //< pointer to the Geometry service
-    const geo::ChannelMapAlg* m_channelMapAlg;
+    const geo::WireReadoutGeom* m_wireReadoutGeom;
     const lariov::ChannelStatusProvider* m_channelFilter;
   };
 
@@ -337,13 +337,13 @@ namespace lar_cluster3d {
     m_outputHistograms = pset.get<bool>("OutputHistograms", false);
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
-    m_channelMapAlg = art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    m_wirePitch[0] = m_geometry->Plane(geo::PlaneID{tpcid, 0}).WirePitch();
-    m_wirePitch[1] = m_geometry->Plane(geo::PlaneID{tpcid, 1}).WirePitch();
-    m_wirePitch[2] = m_geometry->Plane(geo::PlaneID{tpcid, 2}).WirePitch();
+    m_wirePitch[0] = m_wireReadoutGeom->Plane(geo::PlaneID{tpcid, 0}).WirePitch();
+    m_wirePitch[1] = m_wireReadoutGeom->Plane(geo::PlaneID{tpcid, 1}).WirePitch();
+    m_wirePitch[2] = m_wireReadoutGeom->Plane(geo::PlaneID{tpcid, 2}).WirePitch();
 
     // Access ART's TFileService, which will handle creating and writing
     // histograms and n-tuples for us.
@@ -405,19 +405,20 @@ namespace lar_cluster3d {
     m_channelStatus.clear();
 
     m_numBadChannels = 0;
-    m_channelStatus.resize(m_geometry->Nplanes());
+    m_channelStatus.resize(m_wireReadoutGeom->Nplanes());
 
     // Loop through views/planes to set the wire length vectors
     constexpr geo::TPCID tpcid{0, 0};
     for (unsigned int idx = 0; idx < m_channelStatus.size(); idx++) {
-      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(geo::PlaneID{tpcid, idx}), 5);
+      m_channelStatus[idx] =
+        ChannelStatusVec(m_wireReadoutGeom->Nwires(geo::PlaneID{tpcid, idx}), 5);
     }
 
     // Loop through the channels and mark those that are "bad"
-    for (size_t channel = 0; channel < m_channelMapAlg->Nchannels(); channel++) {
+    for (size_t channel = 0; channel < m_wireReadoutGeom->Nchannels(); channel++) {
       if (m_channelFilter->IsGood(channel)) continue;
 
-      std::vector<geo::WireID> wireIDVec = m_channelMapAlg->ChannelToWire(channel);
+      std::vector<geo::WireID> wireIDVec = m_wireReadoutGeom->ChannelToWire(channel);
       geo::WireID wireID = wireIDVec[0];
       lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
 
@@ -1271,8 +1272,8 @@ namespace lar_cluster3d {
       return success;
 
     // Recover wire geometry information for each wire
-    const geo::WireGeo& wireGeo0 = m_geometry->Wire(wireID0);
-    const geo::WireGeo& wireGeo1 = m_geometry->Wire(wireID1);
+    const geo::WireGeo& wireGeo0 = m_wireReadoutGeom->Wire(wireID0);
+    const geo::WireGeo& wireGeo1 = m_wireReadoutGeom->Wire(wireID1);
 
     // Get wire position and direction for first wire
     auto wirePosArr = wireGeo0.GetCenter();
@@ -1394,8 +1395,8 @@ namespace lar_cluster3d {
       if (!wireStatus) wireID.Wire += 1;
 
       // Want to refine position since we "know" the missing wire
-      if (auto widIntersect0 = m_geometry->WireIDsIntersect(wireID0, wireID)) {
-        if (auto widIntersect1 = m_geometry->WireIDsIntersect(wireID1, wireID)) {
+      if (auto widIntersect0 = m_wireReadoutGeom->WireIDsIntersect(wireID0, wireID)) {
+        if (auto widIntersect1 = m_wireReadoutGeom->WireIDsIntersect(wireID1, wireID)) {
           Eigen::Vector3f newPosition(
             pair.getPosition()[0], pair.getPosition()[1], pair.getPosition()[2]);
 
@@ -1487,7 +1488,7 @@ namespace lar_cluster3d {
     try {
       // Switch from NearestWireID to this method to avoid the roundoff error issues...
       double distanceToWire =
-        m_geometry->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
+        m_wireReadoutGeom->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
 
       wireID.Wire = int(distanceToWire);
     }
@@ -1500,7 +1501,7 @@ namespace lar_cluster3d {
       if (position[2] < 0.5 * m_geometry->TPC().Length())
         wireID.Wire = 0;
       else
-        wireID.Wire = m_geometry->Nwires(wireIDIn.asPlaneID()) - 1;
+        wireID.Wire = m_wireReadoutGeom->Nwires(wireIDIn.asPlaneID()) - 1;
     }
 
     return wireID;
@@ -1514,7 +1515,7 @@ namespace lar_cluster3d {
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try {
       // Recover wire geometry information for each wire
-      const geo::WireGeo& wireGeo = m_geometry->Wire(wireIDIn);
+      const geo::WireGeo& wireGeo = m_wireReadoutGeom->Wire(wireIDIn);
 
       // Get wire position and direction for first wire
       auto const wirePosArr = wireGeo.GetCenter();
@@ -1660,7 +1661,8 @@ namespace lar_cluster3d {
 
       // For some detectors we can have multiple wire ID's associated to a given channel.
       // So we recover the list of these wire IDs
-      const std::vector<geo::WireID>& wireIDs = m_channelMapAlg->ChannelToWire(recobHit->Channel());
+      const std::vector<geo::WireID>& wireIDs =
+        m_wireReadoutGeom->ChannelToWire(recobHit->Channel());
 
       // Start/End ticks to identify the snippet
       HitStartEndPair hitStartEndPair(recobHit->StartTick(), recobHit->EndTick());

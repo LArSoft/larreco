@@ -13,6 +13,7 @@
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -180,6 +181,7 @@ namespace DUNE {
 
     double fDriftVelocity; // in cm/ns
     art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   }; // class NeutrinoTrackingEff
 
@@ -957,8 +959,7 @@ namespace DUNE {
       geo::TPCID tpcid = geom->FindTPCAtPosition(position);
       if (tpcid.isValid) {
         // -- Check if hit is within drift window...
-        geo::TPCGeo const& tpc = geom->TPC(tpcid);
-        double XPlanePosition = tpc.Plane(0).GetCenter().X();
+        double XPlanePosition = wireReadoutGeom.FirstPlane(tpcid).GetCenter().X();
         double DriftTimeCorrection = fabs(position.X() - XPlanePosition) / fDriftVelocity;
         double TimeAtPlane = MCparticle->T() + DriftTimeCorrection;
 

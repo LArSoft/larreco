@@ -82,9 +82,8 @@ private:
     fProjWidthThreshold; // Maximum projected width (width of a tube parallel to the line connecting centres of clusters which just encompasses the clusters) for merging
 
   // Create geometry and detector property handle
-  art::ServiceHandle<geo::Geometry const> fGeom;
   art::ServiceHandle<art::TFileService const> tfs;
-  geo::ChannelMapAlg const* fChannelMapAlg;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 
   std::map<int, int> trueClusterMap;
 

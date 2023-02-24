@@ -334,7 +334,7 @@ namespace trkf {
       endX += trkX[jpl][iht];
       unsigned short jPlane = trkWID[jpl][iht].Plane;
       unsigned int jWire = trkWID[jpl][iht].Wire;
-      auto intersection = geom
+      auto intersection = wireReadoutGeom
                             ->WireIDsIntersect(geo::WireID{cstat, tpc, iPlane, iWire},
                                                geo::WireID{cstat, tpc, jPlane, jWire})
                             .value_or(geo::WireIDIntersection::invalid());
@@ -386,7 +386,7 @@ namespace trkf {
       endX += trkX[jpl][iht];
       unsigned short jPlane = trkWID[jpl][iht].Plane;
       unsigned int jWire = trkWID[jpl][iht].Wire;
-      auto intersection = geom
+      auto intersection = wireReadoutGeom
                             ->WireIDsIntersect(geo::WireID{cstat, tpc, iPlane, iWire},
                                                geo::WireID{cstat, tpc, jPlane, jWire})
                             .value_or(geo::WireIDIntersection::invalid());

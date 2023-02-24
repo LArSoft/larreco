@@ -17,7 +17,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "ShowerRecoException.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCShower.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -193,7 +193,6 @@ void ShowerQuality::beginJob()
     throw ::showerreco::ShowerRecoException(msg.c_str());
   }
 
-  art::ServiceHandle<geo::Geometry const> geo;
   art::ServiceHandle<art::TFileService const> tfs;
 
   if (fTree) delete fTree;
@@ -302,11 +301,12 @@ void ShowerQuality::beginJob()
   //
   // Best plane ID histogram initialization
   //
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   hBestPlane = tfs->make<TH1D>("hBestPlane",
                                "Best Plane (for energy & dE/dx estimate); Plane ID; Showers",
-                               geo->Nplanes(),
+                               wireReadoutGeom.Nplanes(),
                                -0.5,
-                               geo->Nplanes() - 0.5);
+                               wireReadoutGeom.Nplanes() - 0.5);
 
   InitializeAnaTree();
 }

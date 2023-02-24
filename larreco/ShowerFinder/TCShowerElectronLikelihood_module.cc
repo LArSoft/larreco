@@ -16,7 +16,8 @@
 #include "cetlib/pow.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -279,10 +280,10 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(
   TVector3 shwvtx,
   TVector3 shwdir)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
   auto collectionPlaneID = geo::PlaneID(0, 0, 1);
-  auto const& collectionPlane = geom->Plane(collectionPlaneID);
+  auto const& collectionPlane = wireReadoutGeom.Plane(collectionPlaneID);
 
   using namespace geo::vect;
   auto const shwvtx_p = toPoint(shwvtx);
@@ -297,7 +298,7 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlaneID.Plane) continue;
 
-    double wirePitch = geom->Plane(showerhits[i]->WireID()).WirePitch();
+    double wirePitch = wireReadoutGeom.Plane(showerhits[i]->WireID()).WirePitch();
     double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     tickToDist *= 1.e-3 * sampling_rate(clockdata); // 1e-3 is conversion of 1/us to 1/ns
 

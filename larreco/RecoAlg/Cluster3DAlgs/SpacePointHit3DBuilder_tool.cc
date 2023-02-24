@@ -21,8 +21,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -131,7 +131,7 @@ namespace lar_cluster3d {
     mutable Hit2DVector m_clusterHit2DMasterVec;
 
     const geo::Geometry* fGeometry;
-    const geo::ChannelMapAlg* fChannelMapAlg;
+    const geo::WireReadoutGeom* fWireReadoutGeom;
   };
 
   SpacePointHit3DBuilder::SpacePointHit3DBuilder(fhicl::ParameterSet const& pset)
@@ -168,7 +168,7 @@ namespace lar_cluster3d {
     }
 
     fGeometry = art::ServiceHandle<geo::Geometry const>().get();
-    fChannelMapAlg = art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    fWireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -263,7 +263,7 @@ namespace lar_cluster3d {
 
         // Recover the list of possible WireIDs from the geometry service
         const std::vector<geo::WireID>& wireIDs =
-          fChannelMapAlg->ChannelToWire(recobHit.get()->Channel());
+          fWireReadoutGeom->ChannelToWire(recobHit.get()->Channel());
 
         // Loop to find match
         for (const auto& wireID : wireIDs) {

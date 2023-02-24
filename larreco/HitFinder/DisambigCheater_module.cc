@@ -14,8 +14,8 @@
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/Exceptions.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -39,8 +39,8 @@ namespace hit {
 
     art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-    geo::ChannelMapAlg const* channelMapAlg{
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
+    geo::WireReadoutGeom const* wireReadoutGeom{
+      &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
     std::string fChanHitLabel;
     std::string fWidHitLabel;
@@ -83,10 +83,10 @@ namespace hit {
     }
     else {
       // assume TPC 0 is typical of all in terms of number of channels
-      unsigned int np = geom->TPC().Nplanes();
+      constexpr geo::TPCID tpcid{0, 0};
+      unsigned int np = wireReadoutGeom->Nplanes(tpcid);
       fMaxWireShift.resize(np);
-      for (unsigned int p = 0; p < np; ++p) {
-        auto const& planeGeo = geom->Plane({0, 0, p});
+      for (auto const& planeGeo : wireReadoutGeom->Iterate<geo::PlaneGeo>(tpcid)) {
         unsigned int nw = planeGeo.Nwires();
         for (unsigned int w = 0; w < nw; ++w) {
 
@@ -100,7 +100,7 @@ namespace hit {
           auto const xyz_next = planeGeo.Wire(w + 1).GetCenter();
 
           if (xyz.Z() == xyz_next.Z()) {
-            fMaxWireShift[p] = w;
+            fMaxWireShift[planeGeo.ID().Plane] = w;
             break;
           }
         } // end wire loop
@@ -198,7 +198,7 @@ namespace hit {
         Ucount++;
       else if (ChHits[h]->View() == geo::kV)
         Vcount++;
-      std::vector<geo::WireID> cwids = channelMapAlg->ChannelToWire(chit.Channel());
+      std::vector<geo::WireID> cwids = wireReadoutGeom->ChannelToWire(chit.Channel());
       std::pair<double, double> ChanTime((double)chit.Channel(),
                                          (double)chit.PeakTime()); // hit key value
 
@@ -252,7 +252,7 @@ namespace hit {
         /// \todo: Why would an IDE ossociated with a hit return a nearest wire not on the hit's channel? Usually only one off.
         geo::WireID IdeWid;
         try {
-          IdeWid = geom->Plane({tpcID, cwids[0].Plane}).NearestWireID(xyzIde);
+          IdeWid = wireReadoutGeom->Plane({tpcID, cwids[0].Plane}).NearestWireID(xyzIde);
         }
         catch (geo::InvalidWireError const& e) { // adopt suggestion if possible
           if (!e.hasSuggestedWire()) throw;

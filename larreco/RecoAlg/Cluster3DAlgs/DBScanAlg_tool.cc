@@ -14,7 +14,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
@@ -99,13 +100,14 @@ namespace lar_cluster3d {
     fhicl::ParameterSet kdTreeParams(pset.get<fhicl::ParameterSet>("kdTree"));
 
     // Now work out the maximum wire pitch
-    art::ServiceHandle<geo::Geometry const> geometry;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    std::vector<double> const wirePitchVec{geometry->Plane(geo::PlaneID{tpcid, 0}).WirePitch(),
-                                           geometry->Plane(geo::PlaneID{tpcid, 1}).WirePitch(),
-                                           geometry->Plane(geo::PlaneID{tpcid, 2}).WirePitch()};
+    std::vector<double> const wirePitchVec{
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 0}).WirePitch(),
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 1}).WirePitch(),
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 2}).WirePitch()};
 
     float maxBestDist = 1.99 * *std::max_element(wirePitchVec.begin(), wirePitchVec.end());
 

@@ -9,10 +9,6 @@
 //
 // This is Preliminary Work and needs modifications
 // ////////////////////////////////////////////////////////////////////////
-#include <algorithm>
-#include <cmath>
-#include <iomanip>
-#include <string>
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
@@ -27,8 +23,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -44,6 +40,11 @@
 #include "TGraph.h"
 #include "TH1D.h"
 #include "TMath.h"
+
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <string>
 
 namespace {
   struct CluLen {
@@ -106,6 +107,7 @@ namespace vertex {
   void VertexFinder2D::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
@@ -114,14 +116,14 @@ namespace vertex {
     double YC = tpc.HalfHeight() * 2.;
 
     // wire angle with respect to the vertical direction
-    double Angle = geom->Plane({tpc.ID(), 1}).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
+    double Angle = wireReadoutGeom.Plane({tpc.ID(), 1}).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
 
     // Parameters temporary defined here, but possibly to be retrieved somewhere
     // in the code
     double timetick = sampling_rate(clockData) * 1.e-3; // time sample in us
     double presamplings = trigger_offset(clockData);
 
-    double wire_pitch = geom->Plane({0, 0, 0}).WirePitch(); //wire pitch in cm
+    double wire_pitch = wireReadoutGeom.Plane({0, 0, 0}).WirePitch(); //wire pitch in cm
     double Efield_drift = detProp.Efield();     // Electric Field in the drift region in kV/cm
     double Temperature = detProp.Temperature(); // LAr Temperature in K
 
@@ -155,9 +157,9 @@ namespace vertex {
     std::unique_ptr<art::Assns<recob::Vertex, recob::Hit>> assnh(
       new art::Assns<recob::Vertex, recob::Hit>);
 
-    // nplanes here is really being used as a proxy for the
-    // number of views in the detector
-    int nplanes = geom->Views().size();
+    // nplanes here is really being used as a proxy for the number of views in the
+    // detector
+    int nplanes = wireReadoutGeom.Views().size();
 
     std::vector<std::vector<int>> Cls(nplanes); //index to clusters in each view
     std::vector<std::vector<CluLen>> clulens(nplanes);
@@ -230,8 +232,6 @@ namespace vertex {
     std::vector<double> vtx_w;
     std::vector<double> vtx_t;
 
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
     for (int i = 0; i < nplanes; ++i) {
       if (Cls[i].size() >= 1) {
         //at least one cluster
@@ -407,10 +407,10 @@ namespace vertex {
       vtxcoord[2] = (Cw0 + Iw0) / (2. * std::cos(Angle)) - YC / 2. * std::tan(Angle);
 
       if (vtx_w[0] >= 0 && vtx_w[0] <= 239 && vtx_w[1] >= 0 && vtx_w[1] <= 239) {
-        if (auto intersection = channelMapAlg->ChannelsIntersect(
-              channelMapAlg->PlaneWireToChannel(
+        if (auto intersection = wireReadoutGeom.ChannelsIntersect(
+              wireReadoutGeom.PlaneWireToChannel(
                 geo::WireID(0, 0, 0, (int)((Iw0 / wire_pitch) - 3.95))),
-              channelMapAlg->PlaneWireToChannel(
+              wireReadoutGeom.PlaneWireToChannel(
                 geo::WireID(0, 0, 1, (int)((Cw0 / wire_pitch) - 1.84))))) {
           // channelsintersect provides a slightly more accurate set of y and z coordinates.
           // use channelsintersect in case the wires in question do cross.

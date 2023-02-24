@@ -13,6 +13,7 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -27,6 +28,7 @@ double pma::Node3D::fMargin = 3.0;
 
 pma::Node3D::Node3D()
   : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC())
+  , fChannelMap(art::ServiceHandle<geo::WireReadout>()->Get())
   , fMinX(0)
   , fMaxX(0)
   , fMinY(0)
@@ -52,6 +54,7 @@ pma::Node3D::Node3D(detinfo::DetectorPropertiesData const& detProp,
                     bool vtx,
                     double xshift)
   : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(geo::TPCID(cryo, tpc)))
+  , fChannelMap(art::ServiceHandle<geo::WireReadout>()->Get())
   , fDriftOffset(xshift)
   , fIsVertex(vtx)
 {
@@ -59,7 +62,7 @@ pma::Node3D::Node3D(detinfo::DetectorPropertiesData const& detProp,
   fCryo = cryo;
 
   unsigned int lastPlane = geo::kZ;
-  while ((lastPlane > 0) && !fTpcGeo.HasPlane(lastPlane))
+  while ((lastPlane > 0) && !fChannelMap.HasPlane(geo::PlaneID{fTpcGeo.ID(), lastPlane}))
     lastPlane--;
 
   fMinX = detProp.ConvertTicksToX(0, lastPlane, tpc, cryo);
@@ -153,9 +156,10 @@ bool pma::Node3D::LimitPoint3D()
 
 void pma::Node3D::UpdateProj2D()
 {
-  for (size_t i = 0; i < fTpcGeo.Nplanes(); ++i) {
-    fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(geo::vect::toPoint(fPoint3D)),
-                   fPoint3D.X() - fDriftOffset);
+  unsigned int i = 0;
+  for (auto const& plane : fChannelMap.Iterate<geo::PlaneGeo>(fTpcGeo.ID())) {
+    fProj2D[i++].Set(plane.PlaneCoordinate(geo::vect::toPoint(fPoint3D)),
+                     fPoint3D.X() - fDriftOffset);
   }
 }
 
@@ -583,8 +587,6 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
   double gi, g0, gz;
   gz = g0 = GetObjFunction(penaltyValue, endSegWeight);
 
-  //if (fQPenaltyFactor > 0.0F) gz += fQPenaltyFactor * QPenalty(); <----------------------- maybe later..
-
   if (!fGradFixed[0]) // gradX
   {
     gpoint[0] = tmp[0] + dxi;
@@ -620,13 +622,11 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
     gpoint[2] = tmp[2] + dxi;
     SetPoint3D(gpoint);
     gi = GetObjFunction(penaltyValue, endSegWeight);
-    //if (fQPenaltyFactor > 0.0F) gi += fQPenaltyFactor * QPenalty();
     fGradient[2] = (gz - gi) / dxi;
 
     gpoint[2] = tmp[2] - dxi;
     SetPoint3D(gpoint);
     gi = GetObjFunction(penaltyValue, endSegWeight);
-    //if (fQPenaltyFactor > 0.0F) gi += fQPenaltyFactor * QPenalty();
     fGradient[2] = 0.5 * (fGradient[2] + (gi - gz) / dxi);
 
     gpoint[2] = tmp[2];
@@ -701,9 +701,6 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
       // small shift...
       t2 = 0.05 * t3 + 0.95 * t2;
 
-      // break: starting point is at the minimum
-      //if (t2 == t1) { SetPoint3D(tmp); return 0.0F; }
-
       // break: starting point is very close to the minimum
       if (fabs(t2 - t1) < tol) {
         SetPoint3D(tmp);
@@ -714,7 +711,6 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
       gpoint += (fGradient * t2);
       if (!SetPoint3D(gpoint)) // select the best point to exit
       {
-        //std::cout << "****  SetPoint trimmed 2 ****" << std::endl;
         g2 = GetObjFunction(penalty, weight);
         if (g2 < g0)
           return (g0 - g2) / g2; // exit with the node at the border
@@ -758,7 +754,6 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
     gpoint += (fGradient * t);
     if (!SetPoint3D(gpoint)) // select the best point to exit
     {
-      //std::cout << "****  SetPoint trimmed 3 ****" << std::endl;
       g = GetObjFunction(penalty, weight);
       if ((g < g0) && (g < g1) && (g < g3))
         return (g0 - g) / g; // exit with the node at the border

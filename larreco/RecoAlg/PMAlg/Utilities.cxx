@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -265,10 +265,10 @@ TVector2 pma::GetProjectionToPlane(const TVector3& p,
                                    unsigned int tpc,
                                    unsigned int cryo)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
-
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   return TVector2(
-    geom->Plane(geo::PlaneID(cryo, tpc, plane)).PlaneCoordinate(geo::vect::toPoint(p)), p.X());
+    wireReadoutGeom.Plane(geo::PlaneID(cryo, tpc, plane)).PlaneCoordinate(geo::vect::toPoint(p)),
+    p.X());
 }
 
 TVector2 pma::GetVectorProjectionToPlane(const TVector3& v,
@@ -290,9 +290,9 @@ TVector2 pma::WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
                             unsigned int tpc,
                             unsigned int cryo)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   geo::PlaneID const id{cryo, tpc, plane};
-  return TVector2(geom->Plane(id).WirePitch() * wire, detProp.ConvertTicksToX(drift, id));
+  return TVector2(wireReadoutGeom.Plane(id).WirePitch() * wire, detProp.ConvertTicksToX(drift, id));
 }
 
 TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
@@ -302,9 +302,9 @@ TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
                             unsigned int tpc,
                             unsigned int cryo)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   geo::PlaneID const id{cryo, tpc, plane};
-  return TVector2(xw / geom->Plane(id).WirePitch(), detProp.ConvertXToTicks(yd, id));
+  return TVector2(xw / wireReadoutGeom.Plane(id).WirePitch(), detProp.ConvertXToTicks(yd, id));
 }
 
 bool pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2) const

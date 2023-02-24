@@ -328,7 +328,7 @@ private:
 
   // Geometry and detector properties
   geo::GeometryCore const* fGeom;
-  geo::ChannelMapAlg const* fChannelMapAlg;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 };
 
 #endif

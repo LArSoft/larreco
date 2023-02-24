@@ -15,7 +15,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+
 namespace geo {
   struct WireID;
 }
@@ -35,7 +36,7 @@ namespace trkf {
                     float& ChiDOF) const;
 
   private:
-    art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom = &art::ServiceHandle<geo::WireReadout>()->Get();
 
   }; // class TrackLineFitAlg
 

@@ -18,6 +18,7 @@
 
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
@@ -290,12 +291,12 @@ namespace cluster {
         art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-      auto const* geom = lar::providerFrom<geo::Geometry>();
-      for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (const auto& tpcgeo : tca::tcc.geom->Iterate<geo::TPCGeo>()) {
         // ignore protoDUNE dummy TPCs
-        if (geom->TPC(tpcid).DriftDistance() < 25.0) continue;
+        if (tpcgeo.DriftDistance() < 25.0) continue;
         // a vector for the subset of hits in each slice in a TPC
         //    slice      hits in this tpc
+        auto const& tpcid = tpcgeo.ID();
         std::vector<std::vector<unsigned int>> sltpcHits;
         if (inputSlices.isValid()) {
           // get hits in this TPC and slice
@@ -439,7 +440,7 @@ namespace cluster {
           unsigned int wire = std::nearbyint(vx2.Pos[0]);
           geo::PlaneID plID = tca::DecodeCTP(vx2.CTP);
           geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
-          geo::View_t view = tca::tcc.geom->Plane(wID).View();
+          geo::View_t view = tca::tcc.wireReadoutGeom->Plane(wID).View();
           vx2Col.emplace_back((double)vx2.Pos[1] / tca::tcc.unitsPerTick, // Time
                               wID,                                        // WireID
                               vx2.Score,                                  // strength = score

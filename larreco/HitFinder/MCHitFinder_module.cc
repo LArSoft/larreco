@@ -19,7 +19,7 @@
 
 #include "lardataobj/Simulation/SimChannel.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/MCBase/MCDataHolder.h"
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/MCBase/MCWireCollection.h"
@@ -51,8 +51,7 @@ namespace hit {
 
   void MCHitFinder::produce(art::Event& e)
   {
-    const unsigned int nch =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()->Nchannels();
+    const unsigned int nch = art::ServiceHandle<geo::WireReadout const>()->Get().Nchannels();
 
     std::unique_ptr<std::vector<sim::MCHitCollection>> hits_v(
       new std::vector<sim::MCHitCollection>());

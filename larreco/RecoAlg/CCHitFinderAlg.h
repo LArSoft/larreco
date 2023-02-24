@@ -20,7 +20,7 @@
 #include "fhiclcpp/fwd.h"
 
 // LArSoft libraries
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
@@ -111,8 +111,8 @@ namespace hit {
 
     bool fUseChannelFilter;
 
-    geo::ChannelMapAlg const* channelMapAlg{
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
+    geo::WireReadoutGeom const* wireReadoutGeom{
+      &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float* ticks, float* signl);

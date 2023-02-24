@@ -57,7 +57,7 @@ namespace showerreco {
 
     /// Execute reconstruction
     std::vector<recob::Shower> Reconstruct(geo::GeometryCore const& geom,
-                                           geo::ChannelMapAlg const& channelMapAlg,
+                                           geo::WireReadoutGeom const& wireReadoutGeom,
                                            detinfo::DetectorClocksData const& clockData,
                                            detinfo::DetectorPropertiesData const& detProp);
 
@@ -68,7 +68,7 @@ namespace showerreco {
     /// Function to reconstruct one shower
     virtual ::recob::Shower RecoOneShower(
       geo::GeometryCore const& geom,
-      geo::ChannelMapAlg const& channelMapAlg,
+      geo::WireReadoutGeom const& wireReadoutGeom,
       detinfo::DetectorClocksData const& clockData,
       detinfo::DetectorPropertiesData const& detProp,
       const std::vector<showerreco::ShowerCluster_t>& clusters) = 0;

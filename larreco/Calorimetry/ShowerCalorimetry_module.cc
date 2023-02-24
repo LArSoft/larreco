@@ -23,7 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
@@ -72,8 +72,7 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p)
 
 void calo::ShowerCalorimetry::produce(art::Event& e)
 {
-
-  art::ServiceHandle<geo::Geometry> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
   auto const detProp =
@@ -114,13 +113,13 @@ void calo::ShowerCalorimetry::produce(art::Event& e)
 
     //Sort the hits by their plane
     //This vector stores the index of each hit on each plane
-    std::vector<std::vector<size_t>> hit_indices_per_plane(geom->Nplanes());
+    std::vector<std::vector<size_t>> hit_indices_per_plane(wireReadoutGeom.Nplanes());
     for (size_t j = 0; j < hits.size(); ++j) {
       hit_indices_per_plane[hits[j]->WireID().Plane].push_back(j);
     }
 
     //Go through each plane and make calorimetry objects
-    for (size_t j = 0; j < geom->Nplanes(); ++j) {
+    for (size_t j = 0; j < wireReadoutGeom.Nplanes(); ++j) {
 
       size_t hits_in_plane = hit_indices_per_plane[j].size();
 
@@ -145,7 +144,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e)
         auto& theHit = hits[hit_index];
         if (!planeID.isValid) { planeID = theHit->WireID(); }
         hitIndex[k] = theHit.key();
-        float wire_pitch = geom->Plane({0, 0, theHit->View()}).WirePitch();
+        float wire_pitch = wireReadoutGeom.Plane({0, 0, theHit->View()}).WirePitch();
 
         float theHit_Xpos = -999.;
         float theHit_Ypos = -999.;
@@ -167,7 +166,7 @@ void calo::ShowerCalorimetry::produce(art::Event& e)
         TVector3 pos(theHit_Xpos, theHit_Ypos, theHit_Zpos);
         //correct pitch for hit direction
         float this_pitch = wire_pitch;
-        float angleToVert = geom->WireAngleToVertical(theHit->View(), theHit->WireID());
+        float angleToVert = wireReadoutGeom.WireAngleToVertical(theHit->View(), theHit->WireID());
         angleToVert -= 0.5 * ::util::pi<>();
 
         float cosgamma = std::abs(sin(angleToVert) * shower->Direction().Y() +

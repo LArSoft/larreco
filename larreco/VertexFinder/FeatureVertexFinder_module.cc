@@ -56,8 +56,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft Includes
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -174,24 +174,22 @@ namespace vertex {
     produces<art::Assns<recob::Vertex, recob::Shower>>();
     produces<art::Assns<recob::Vertex, recob::Track>>();
 
-    art::ServiceHandle<geo::Geometry const> geom;
-    Cls.resize(geom->Nplanes(), std::vector<int>());
+    Cls.resize(art::ServiceHandle<geo::WireReadout const>()->Get().Nplanes(), std::vector<int>());
   }
 
   // -----------------------------------------------------------------------------
   void FeatureVertexFinder::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
     // Figuring out if I have a 2 or 3 plane detector
     GT2PlaneDetector = false;
 
-    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
-      if (tpc.Nplanes() > 2) {
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      if (wireReadoutGeom.Nplanes(tpcid) > 2) {
         GT2PlaneDetector = true;
         std::cout << "yeah" << std::endl;
         break;
@@ -297,7 +295,7 @@ namespace vertex {
         // --- Now go make the 2DEndPoints that correspond to each 3d vertex ---
         // ---------------------------------------------------------------------
 
-        for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
+        for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
           auto const& planeID = plane.ID();
           geo::Point_t const temp2dXYZ{
             MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
@@ -321,7 +319,7 @@ namespace vertex {
           }
           // Putting in protection in case NearestChannel Fails
           try {
-            EndPoint2d_Channel = channelMapAlg->NearestChannel(temp2dXYZ, planeID);
+            EndPoint2d_Channel = wireReadoutGeom.NearestChannel(temp2dXYZ, planeID);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -329,7 +327,7 @@ namespace vertex {
           }
 
           // Making geo::WireID and getting the current View number
-          geo::View_t View = channelMapAlg->View(EndPoint2d_Channel);
+          geo::View_t View = wireReadoutGeom.View(EndPoint2d_Channel);
           geo::WireID wireID(planeID, EndPoint2d_Wire);
 
           // Putting the 2d Vertex found on the event
@@ -371,7 +369,7 @@ namespace vertex {
       // ---------------------------------------------------------------------
 
       // Looping over cryostats
-      for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
         auto const& planeID = plane.ID();
         geo::Point_t const temp2dXYZ{MergeSort3dVtx_xpos[position],
                                      MergeSort3dVtx_ypos[position],
@@ -392,7 +390,7 @@ namespace vertex {
         }
         // Putting in protection in case NearestChannel Fails
         try {
-          EndPoint2d_Channel = channelMapAlg->NearestChannel(temp2dXYZ, planeID);
+          EndPoint2d_Channel = wireReadoutGeom.NearestChannel(temp2dXYZ, planeID);
         }
         catch (...) {
           mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -400,7 +398,7 @@ namespace vertex {
         }
 
         // Making geo::WireID and getting the current View number
-        geo::View_t View = channelMapAlg->View(EndPoint2d_Channel);
+        geo::View_t View = wireReadoutGeom.View(EndPoint2d_Channel);
         geo::WireID wireID(planeID, EndPoint2d_Wire);
 
         // Putting the 2d Vertex found on the event
@@ -465,8 +463,7 @@ namespace vertex {
     bool PlaneDet)
   {
     art::ServiceHandle<geo::Geometry const> geom;
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     auto const numEndPoints = size(EndPoints);
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
@@ -494,8 +491,8 @@ namespace vertex {
           geo::WireID const endpt2_wireid{endpt2_planeid, endpt2.WireID().Wire};
 
           auto intersection =
-            channelMapAlg->ChannelsIntersect(channelMapAlg->PlaneWireToChannel(endpt1_wireid),
-                                             channelMapAlg->PlaneWireToChannel(endpt2_wireid));
+            wireReadoutGeom.ChannelsIntersect(wireReadoutGeom.PlaneWireToChannel(endpt1_wireid),
+                                              wireReadoutGeom.PlaneWireToChannel(endpt2_wireid));
           if (!intersection) continue;
 
           // Use this fill if we are in a detector with fewer than 3 plane (e.g. ArgoNeuT)
@@ -533,19 +530,20 @@ namespace vertex {
             }
 
             // Make sure our third feature has an intersecting channel with our other two channels.
-            if (!channelMapAlg->ChannelsIntersect(
-                  channelMapAlg->PlaneWireToChannel(endpt3_wireid),
-                  channelMapAlg->PlaneWireToChannel(endpt1_wireid)) ||
-                !channelMapAlg->ChannelsIntersect(
-                  channelMapAlg->PlaneWireToChannel(endpt3_wireid),
-                  channelMapAlg->PlaneWireToChannel(endpt2_wireid))) {
+            if (!wireReadoutGeom.ChannelsIntersect(
+                  wireReadoutGeom.PlaneWireToChannel(endpt3_wireid),
+                  wireReadoutGeom.PlaneWireToChannel(endpt1_wireid)) ||
+                !wireReadoutGeom.ChannelsIntersect(
+                  wireReadoutGeom.PlaneWireToChannel(endpt3_wireid),
+                  wireReadoutGeom.PlaneWireToChannel(endpt2_wireid))) {
               continue;
             }
             candidate_x.push_back(
               detProp.ConvertTicksToX(endpt1.DriftTime(), endpt1_wireid.asPlaneID()));
 
             // Finding intersection points
-            auto intersection = geom->WireIDsIntersect(endpt1_wireid, endpt2_wireid).value();
+            auto intersection =
+              wireReadoutGeom.WireIDsIntersect(endpt1_wireid, endpt2_wireid).value();
             candidate_y.push_back(intersection.y);
             candidate_z.push_back(intersection.z);
             candidate_strength.push_back(endpt1.Strength() + endpt2.Strength() + endpt3.Strength());
@@ -571,6 +569,7 @@ namespace vertex {
     art::FindManyP<recob::Hit> fmhit)
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     int nClustersFound = 0;
 
@@ -671,8 +670,8 @@ namespace vertex {
 
     // Looping over cryostats
 
-    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
-      for (unsigned int i = 0; i < tpc.Nplanes(); ++i) {
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (unsigned int i = 0; i < wireReadoutGeom.Nplanes(tpcid); ++i) {
 
         // If there is at least one cluster found
 
@@ -765,11 +764,11 @@ namespace vertex {
           // Skipping crap intersection points
           geo::PlaneID const planeid(0, 0, Clu_Plane[m]);
           if (intersection_X2 < 1) { intersection_X2 = -999; }
-          if (intersection_X2 > geom->Nwires(planeid)) { intersection_X2 = -999; }
+          if (intersection_X2 > wireReadoutGeom.Nwires(planeid)) { intersection_X2 = -999; }
           if (intersection_Y2 < 0) { intersection_Y2 = -999; }
           if (intersection_Y2 > detProp.NumberTimeSamples()) { intersection_Y2 = -999; }
           if (intersection_X < 1) { intersection_X = -999; }
-          if (intersection_X > geom->Nwires(planeid)) { intersection_X = -999; }
+          if (intersection_X > wireReadoutGeom.Nwires(planeid)) { intersection_X = -999; }
           if (intersection_Y < 0) { intersection_Y = -999; }
           if (intersection_Y > detProp.NumberTimeSamples()) { intersection_Y = -999; }
 
@@ -824,7 +823,7 @@ namespace vertex {
           // detector
 
           if (intersection_X2 > 1 && intersection_Y2 > 0 &&
-              (intersection_X2 < geom->Nwires(planeid)) &&
+              (intersection_X2 < wireReadoutGeom.Nwires(planeid)) &&
               (intersection_Y2 < detProp.NumberTimeSamples())) {
 
             TwoDvtx_wire.push_back(intersection_X2);
@@ -836,7 +835,7 @@ namespace vertex {
           // detector
 
           if (intersection_X > 1 && intersection_Y > 0 &&
-              (intersection_X < geom->Nwires(planeid)) &&
+              (intersection_X < wireReadoutGeom.Nwires(planeid)) &&
               (intersection_Y < detProp.NumberTimeSamples())) {
             TwoDvtx_wire.push_back(intersection_X);
             TwoDvtx_time.push_back(intersection_Y);
@@ -913,8 +912,7 @@ namespace vertex {
 
     // Having now found a very long list of potential 2-d end points we need to check if
     // any of them match between planes and only keep those that have matches
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
       for (unsigned int vtx = vtx_wire_merged.size(); vtx > 0; --vtx) {
         for (unsigned int vtx1 = 0; vtx1 < vtx; ++vtx1) {
@@ -928,7 +926,7 @@ namespace vertex {
           geo::PlaneID const vtx1_planeid(tpcid, vtx_plane_merged[vtx1]);
           geo::WireID const vtx1_wireid(vtx1_planeid, vtx_wire_merged[vtx1]);
           try {
-            vtx1_channel = channelMapAlg->PlaneWireToChannel(vtx1_wireid);
+            vtx1_channel = wireReadoutGeom.PlaneWireToChannel(vtx1_wireid);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
@@ -938,7 +936,7 @@ namespace vertex {
           geo::PlaneID const vtx2_planeid(tpcid, vtx_plane_merged[vtx]);
           geo::WireID const vtx2_wireid(vtx2_planeid, vtx_wire_merged[vtx]);
           try {
-            vtx2_channel = channelMapAlg->PlaneWireToChannel(vtx2_wireid);
+            vtx2_channel = wireReadoutGeom.PlaneWireToChannel(vtx2_wireid);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
@@ -946,7 +944,7 @@ namespace vertex {
           }
 
           // Check to see if the channels intersect and save the y and z coordinate
-          auto intersection = channelMapAlg->ChannelsIntersect(vtx1_channel, vtx2_channel);
+          auto intersection = wireReadoutGeom.ChannelsIntersect(vtx1_channel, vtx2_channel);
           if (!intersection) {
             mf::LogWarning("FeatureVertexFinder") << "match failed for some reason";
             continue;

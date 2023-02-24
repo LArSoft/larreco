@@ -28,7 +28,7 @@ namespace showerreco {
 
     /// Function to reconstruct a shower
     recob::Shower RecoOneShower(geo::GeometryCore const& geom,
-                                geo::ChannelMapAlg const& channelMapAlg,
+                                geo::WireReadoutGeom const& wireReadoutGeom,
                                 detinfo::DetectorClocksData const& clockData,
                                 detinfo::DetectorPropertiesData const& detProp,
                                 std::vector<showerreco::ShowerCluster_t> const&);

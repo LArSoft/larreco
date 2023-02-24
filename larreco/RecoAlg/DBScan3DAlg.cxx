@@ -1,8 +1,6 @@
 #include "larreco/RecoAlg/DBScan3DAlg.h"
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
-#include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -33,17 +31,16 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
   if (badchannelmap.empty()) {
     lariov::ChannelStatusProvider const& channelStatus =
       art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-    geo::GeometryCore const* geom = art::ServiceHandle<geo::Geometry const>{}.get();
-    geo::ChannelMapAlg const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    geo::WireReadoutGeom const& wireReadoutGeom =
+      art::ServiceHandle<geo::WireReadout const>()->Get();
     // build a map to count bad channels around each wire ID
-    for (auto& pid : geom->Iterate<geo::PlaneID>()) {
-      for (auto& wid1 : geom->Iterate<geo::WireID>(pid)) {
+    for (auto& pid : wireReadoutGeom.Iterate<geo::PlaneID>()) {
+      for (auto& wid1 : wireReadoutGeom.Iterate<geo::WireID>(pid)) {
         unsigned int nbadchs = 0;
-        for (auto& wid2 : geom->Iterate<geo::WireID>(pid)) {
+        for (auto& wid2 : wireReadoutGeom.Iterate<geo::WireID>(pid)) {
           if (wid1 == wid2) continue;
           if (lar::util::absDiff(wid1.Wire, wid2.Wire) < neighbors &&
-              !channelStatus.IsGood(channelMapAlg->PlaneWireToChannel(wid2)))
+              !channelStatus.IsGood(wireReadoutGeom.PlaneWireToChannel(wid2)))
             ++nbadchs;
         }
         badchannelmap[wid1] = nbadchs;

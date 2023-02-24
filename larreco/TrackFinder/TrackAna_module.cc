@@ -34,6 +34,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/MCBase/MCTrack.h"
@@ -689,7 +690,7 @@ namespace trkf {
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     ++fNumEvent;
 
@@ -1155,9 +1156,9 @@ namespace trkf {
                         << " RecoTrkID " << track.ID() << " hitEff " << std::setprecision(2)
                         << hiteff << " hitPur " << hitpurity;
                       // this won't work for DUNE
-                      for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+                      for (unsigned short ipl = 0; ipl < wireReadoutGeom.Nplanes(); ++ipl) {
                         geo::PlaneID const planeID{0, 0, ipl};
-                        auto const& plane = geom->Plane(planeID);
+                        auto const& plane = wireReadoutGeom.Plane(planeID);
                         auto const sWire = plane.NearestWireID(mcstart).Wire;
                         auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
                         auto const eWire = plane.NearestWireID(mcend).Wire;
@@ -1237,9 +1238,9 @@ namespace trkf {
           << plen << " cm";
         if (fPrintLevel > 1) {
           // this won't work for DUNE
-          for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+          for (unsigned short ipl = 0; ipl < wireReadoutGeom.Nplanes(); ++ipl) {
             geo::PlaneID const& planeID{0, 0, ipl};
-            auto const& plane = geom->Plane(planeID);
+            auto const& plane = wireReadoutGeom.Plane(planeID);
             auto const sWire = plane.NearestWireID(mcstart).Wire;
             auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
             auto const eWire = plane.NearestWireID(mcend).Wire;
@@ -1258,7 +1259,6 @@ namespace trkf {
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    art::ServiceHandle<geo::Geometry const> geom;
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>>> hitmap; // trkID, otrk, hitvec
     std::map<int, int> KEmap; // length traveled in det [cm]?, trkID want to sort by KE

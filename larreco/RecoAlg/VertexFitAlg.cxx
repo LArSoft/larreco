@@ -48,7 +48,7 @@ namespace trkf {
         } // ipl != lastpl
         DirY = par[indx];
         DirZ = par[indx + 1];
-        // rotate the track direction DirY, DirZ into the wire coordinate of this plane. The OrthVectors in ChannelMapStandardAlg
+        // rotate the track direction DirY, DirZ into the wire coordinate of this plane. The OrthVectors in WireReadoutStandardGeom
         // are divided by the wire pitch so we need to correct for that here
         DirU = fVtxFitMinStr.WirePitch *
                (DirY * fVtxFitMinStr.OrthY[ipl] + DirZ * fVtxFitMinStr.OrthZ[ipl]);
@@ -115,16 +115,16 @@ namespace trkf {
 
     // Get the cryostat and tpc from the first hit
     geo::TPCID const& tpcid = hitWID[0][0];
-    unsigned int const nplanes = geom->TPC(tpcid).Nplanes();
+    unsigned int const nplanes = wireReadoutGeom->Nplanes(tpcid);
 
     fVtxFitMinStr.Cstat = tpcid.Cryostat;
     fVtxFitMinStr.TPC = tpcid.TPC;
     fVtxFitMinStr.NPlanes = nplanes;
-    fVtxFitMinStr.WirePitch = geom->Plane(hitWID[0][0]).WirePitch();
+    fVtxFitMinStr.WirePitch = wireReadoutGeom->Plane(hitWID[0][0]).WirePitch();
 
     // Put geometry conversion factors into the struct
     for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
-      auto const& plane = geom->Plane({tpcid, ipl});
+      auto const& plane = wireReadoutGeom->Plane({tpcid, ipl});
       fVtxFitMinStr.FirstWire[ipl] = -plane.WireCoordinate(geo::Point_t{0, 0, 0});
       fVtxFitMinStr.OrthY[ipl] =
         plane.WireCoordinate(geo::Point_t{0, 1, 0}) + fVtxFitMinStr.FirstWire[ipl];

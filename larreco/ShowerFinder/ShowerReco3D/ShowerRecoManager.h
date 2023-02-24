@@ -46,8 +46,7 @@ namespace showerreco {
   */
   class ShowerRecoManager {
   public:
-    /// Default constructor
-    ShowerRecoManager();
+    explicit ShowerRecoManager(unsigned int num_planes);
 
     void Algo(ShowerRecoAlgBase* alg) { fShowerAlgo = alg; }
 
@@ -56,14 +55,14 @@ namespace showerreco {
     void Reset();
 
     ClusterAss_t Reconstruct(geo::GeometryCore const& geom,
-                             geo::ChannelMapAlg const& channelMapAlg,
+                             geo::WireReadoutGeom const& wireReadoutGeom,
                              detinfo::DetectorClocksData const& clockData,
                              detinfo::DetectorPropertiesData const& detProp,
                              const std::vector<std::vector<util::PxHit>>& clusters,
                              std::vector<::recob::Shower>& showers);
 
     void Reconstruct(geo::GeometryCore const& geom,
-                     geo::ChannelMapAlg const& channelMapAlg,
+                     geo::WireReadoutGeom const& wireReadoutGeom,
                      detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
                      const std::vector<std::vector<util::PxHit>>& clusters,
@@ -83,7 +82,7 @@ namespace showerreco {
     ::cmtool::CMatchManager* fMatchMgr;
 
     void Process(geo::GeometryCore const& geom,
-                 geo::ChannelMapAlg const& channelMapAlg,
+                 geo::WireReadoutGeom const& wireReadoutGeom,
                  detinfo::DetectorClocksData const& clockData,
                  detinfo::DetectorPropertiesData const& detProp,
                  const ClusterAss_t& ass,

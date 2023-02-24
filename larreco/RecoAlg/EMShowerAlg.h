@@ -19,8 +19,8 @@
 #include "fhiclcpp/fwd.h"
 
 // larsoft
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -273,8 +273,8 @@ private:
 
   // Services used by this class
   art::ServiceHandle<geo::Geometry const> fGeom;
-  geo::ChannelMapAlg const* fChannelMapAlg{
-    art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr()};
+  geo::WireReadoutGeom const* fWireReadoutGeom{
+    &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
   // Algs used by this class
   shower::ShowerEnergyAlg const fShowerEnergyAlg;

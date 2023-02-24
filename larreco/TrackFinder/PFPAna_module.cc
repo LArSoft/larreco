@@ -27,6 +27,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -176,8 +177,8 @@ namespace pfpf {
   void PFPAna::analyze(const art::Event& evt)
   {
     // code stolen from TrackAna_module.cc
-    art::ServiceHandle<geo::Geometry const> geom;
-    if (geom->Nplanes() > 3) return;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+    if (wireReadoutGeom.Nplanes() > 3) return;
 
     // get all hits in the event
     art::Handle<std::vector<recob::Hit>> hitListHandle;
@@ -386,7 +387,7 @@ namespace pfpf {
     // get the plane from the view. Perhaps there is a method that does
     // this somewhere...
     std::map<geo::View_t, unsigned int> ViewToPlane;
-    for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+    for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
       geo::View_t view = plane.View();
       ViewToPlane[view] = plane.ID().Plane;
     }
@@ -462,13 +463,13 @@ namespace pfpf {
       float KE = 1000 * (plist2[ipl]->E() - plist2[ipl]->Mass());
       int PDG = abs(plist2[ipl]->PdgCode());
 
-      std::vector<short> nTru(geom->Nplanes());
-      std::vector<short> nRec(geom->Nplanes());
-      std::vector<short> nTruRec(geom->Nplanes());
-      std::vector<float> eff(geom->Nplanes());
-      std::vector<float> pur(geom->Nplanes());
-      std::vector<float> ep(geom->Nplanes());
-      for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
+      std::vector<short> nTru(wireReadoutGeom.Nplanes());
+      std::vector<short> nRec(wireReadoutGeom.Nplanes());
+      std::vector<short> nTruRec(wireReadoutGeom.Nplanes());
+      std::vector<float> eff(wireReadoutGeom.Nplanes());
+      std::vector<float> pur(wireReadoutGeom.Nplanes());
+      std::vector<float> ep(wireReadoutGeom.Nplanes());
+      for (unsigned int plane = 0; plane < wireReadoutGeom.Nplanes(); ++plane) {
         // count the number of true hits in this plane for the true particle.
         // First count the mother hits
         for (unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii) {
@@ -599,7 +600,7 @@ namespace pfpf {
           // print out the begin/end true hits
           mf::LogVerbatim mfp("PFPAna");
           mfp << " Truth P:W:T ";
-          for (unsigned int plane = 0; plane < geom->Nplanes(); ++plane) {
+          for (unsigned int plane = 0; plane < wireReadoutGeom.Nplanes(); ++plane) {
             unsigned short loW = 9999;
             unsigned short loT = 0;
             unsigned short hiW = 0;

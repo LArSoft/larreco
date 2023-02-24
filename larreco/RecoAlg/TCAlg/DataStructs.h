@@ -565,7 +565,7 @@ namespace tca {
     float multHitSep; ///< preferentially "merge" hits with < this separation
     float maxChi;
     const geo::GeometryCore* geom;
-    const geo::ChannelMapAlg* channelMapAlg;
+    const geo::WireReadoutGeom* wireReadoutGeom;
     calo::CalorimetryAlg* caloAlg;
     TMVA::Reader* showerParentReader;
     std::vector<float> showerParentVars;

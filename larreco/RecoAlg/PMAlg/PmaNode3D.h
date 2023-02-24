@@ -11,6 +11,7 @@
 #ifndef PmaNode3D_h
 #define PmaNode3D_h
 
+#include "larcorealg/Geometry/fwd.h"
 #include "larreco/RecoAlg/PMAlg/PmaElement3D.h"
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
@@ -22,10 +23,6 @@ namespace detinfo {
 #include "TVector3.h"
 
 #include <vector>
-
-namespace geo {
-  class TPCGeo;
-}
 
 namespace pma {
   class Node3D;
@@ -148,6 +145,7 @@ private:
   double SumDist2Hits() const override;
 
   geo::TPCGeo const& fTpcGeo;
+  geo::WireReadoutGeom const& fChannelMap;
 
   double fMinX, fMaxX, fMinY, fMaxY, fMinZ,
     fMaxZ; // TPC boundaries to limit the node position (+margin)

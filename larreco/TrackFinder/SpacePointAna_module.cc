@@ -26,6 +26,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
@@ -157,7 +158,8 @@ namespace trkf {
 
       // Loop over cryostats, tpcs, and planes.
 
-      for (auto const& pgeom : geom->Iterate<geo::PlaneGeo>()) {
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+      for (auto const& pgeom : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
         unsigned int const nwires = pgeom.Nwires();
         switch (pgeom.View()) {
         case geo::kU: nwiresU = nwires; break;

@@ -55,7 +55,7 @@
 //constructor with parameters:
 cluster::SmallClusterFinderAlg::SmallClusterFinderAlg(fhicl::ParameterSet const& pset)
 {
-  fNPlanes = geom->Nplanes();
+  fNPlanes = wireReadoutGeom->Nplanes();
   fRadiusSizePar = pset.get<double>("RadiusSizePar");
   fNHitsInClust = pset.get<double>("NHitsInClust");
   verbose = pset.get<bool>("Verbose");
@@ -72,7 +72,7 @@ void cluster::SmallClusterFinderAlg::FindSmallClusters(
 {
   ///These lines determine the conversion factors to take wires and times to CMs
   fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
-  fWirePitch = geom->Plane({0, 0, 0}).WirePitch();
+  fWirePitch = wireReadoutGeom->Plane({0, 0, 0}).WirePitch();
   fTimeTick = sampling_rate(clockData) / 1000.;
   fWiretoCm = fWirePitch;
   fTimetoCm = fTimeTick * fDriftVelocity;

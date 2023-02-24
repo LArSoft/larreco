@@ -15,6 +15,7 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
@@ -121,7 +122,7 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
                                 int cryo,
                                 float initEndSegW)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   geo::TPCID const tpcid(cryo, tpc);
 
   float wtmp = fEndSegWeight;
@@ -175,17 +176,17 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
     geo::PlaneID const hit1_b_planeid{tpcid, hit1_b->View2D()};
     double const x0 = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid) +
                              detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b_planeid));
-    auto const intersection0 = geom
-                                 ->WireIDsIntersect(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
-                                                    geo::WireID{hit0_b_planeid, hit0_b->Wire()})
+    auto const intersection0 = wireReadoutGeom
+                                 .WireIDsIntersect(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
+                                                   geo::WireID{hit0_b_planeid, hit0_b->Wire()})
                                  .value_or(geo::WireIDIntersection::invalid());
     v3d_1.SetXYZ(x0, intersection0.y, intersection0.z);
 
     double const x1 = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid) +
                              detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b_planeid));
-    auto const intersection1 = geom
-                                 ->WireIDsIntersect(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
-                                                    geo::WireID{hit1_b_planeid, hit1_b->Wire()})
+    auto const intersection1 = wireReadoutGeom
+                                 .WireIDsIntersect(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
+                                                   geo::WireID{hit1_b_planeid, hit1_b->Wire()})
                                  .value_or(geo::WireIDIntersection::invalid());
     v3d_2.SetXYZ(x1, intersection1.y, intersection1.z);
 
@@ -2326,13 +2327,14 @@ void pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
                                detinfo::DetectorPropertiesData const& detProp,
                                double dx)
 {
-  auto const* geom = lar::providerFrom<geo::Geometry>();
-  const geo::TPCGeo& tpcGeo = geom->TPC(geo::TPCID(fNodes.front()->Cryo(), fNodes.front()->TPC()));
+  art::ServiceHandle<geo::Geometry const> geom;
+  geo::TPCID const tpcid(geo::TPCID(fNodes.front()->Cryo(), fNodes.front()->TPC()));
+  auto const driftAxis = geom->TPC(tpcid).DriftAxisWithSign();
 
   // GetXTicksCoefficient has a sign that we don't care about. We need to decide
   // the sign for ourselves based on the drift direction of the TPC
   double correctedSign = 0;
-  if (tpcGeo.DetectDriftDirection() > 0) {
+  if (driftAxis.sign == geo::DriftSign::Positive) {
     if (dx > 0) { correctedSign = 1.0; }
     else {
       correctedSign = -1.0;
@@ -2355,8 +2357,7 @@ void pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
   fT0 = dxInTime;
 
   mf::LogDebug("pma::Track3D") << dx << ", " << dxInTicks << ", " << correctedSign << ", " << fT0
-                               << ", " << tpcGeo.DetectDriftDirection()
-                               << " :: " << clockData.TriggerTime() << ", "
+                               << ", " << driftAxis << " :: " << clockData.TriggerTime() << ", "
                                << clockData.TriggerOffsetTPC() << std::endl;
 
   // Mark this track as having a measured T0

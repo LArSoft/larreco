@@ -11,9 +11,7 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Cluster.h"

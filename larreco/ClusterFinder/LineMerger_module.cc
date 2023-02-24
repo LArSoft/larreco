@@ -31,8 +31,8 @@
 
 //LArSoft includes:
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -355,11 +355,10 @@ namespace cluster {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{
-      *lar::providerFrom<geo::Geometry>(),
-      *art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr(),
-      clockData,
-      detProp};
+    util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(),
+                                       art::ServiceHandle<geo::WireReadout const>()->Get(),
+                                       clockData,
+                                       detProp};
 
     constexpr size_t nViews = 3; // number of views we map
 

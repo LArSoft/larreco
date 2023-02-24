@@ -4,7 +4,7 @@
 // MT note: This implementation is not thread-safe.
 ////////////////////////////////////////////////////////////////////////
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
@@ -118,8 +118,8 @@ namespace reco_tool {
     //< All of the real work is done in the waveform tool
     std::unique_ptr<reco_tool::IWaveformTool> fWaveformTool;
 
-    const geo::ChannelMapAlg* fChannelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    const geo::WireReadoutGeom* fWireReadoutGeom =
+      &art::ServiceHandle<geo::WireReadout const>()->Get();
   };
 
   //----------------------------------------------------------------------
@@ -254,7 +254,7 @@ namespace reco_tool {
     // Keep track of histograms if requested
     if (fOutputWaveforms) {
       // Recover the details...
-      std::vector<geo::WireID> wids = fChannelMapAlg->ChannelToWire(channel);
+      std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(channel);
       size_t plane = wids[0].Plane;
       size_t cryo = wids[0].Cryostat;
       size_t tpc = wids[0].TPC;

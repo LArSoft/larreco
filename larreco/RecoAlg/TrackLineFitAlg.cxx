@@ -10,7 +10,9 @@
 
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
 
-#include <math.h>
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include "TDecompSVD.h"
 #include "TMatrixDfwd.h"
@@ -19,8 +21,8 @@
 #include "TVector3.h"
 #include "TVectorDfwd.h"
 #include "TVectorT.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+
+#include <math.h>
 
 namespace trkf {
 
@@ -60,7 +62,7 @@ namespace trkf {
     unsigned short nok = 0;
     for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
       auto const& wid = hitWID[iht];
-      auto const& plane = geom->Plane(wid);
+      auto const& plane = wireReadoutGeom->Plane(wid);
       // get the wire plane offset
       double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
       // get the "cosine-like" component
@@ -100,7 +102,7 @@ namespace trkf {
     unsigned int tpc{-1u}, cstat{-1u};
     for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
       auto const& wid = hitWID[iht];
-      auto const& plane = geom->Plane(wid);
+      auto const& plane = wireReadoutGeom->Plane(wid);
       tpc = wid.TPC;
       cstat = wid.Cryostat;
       double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
@@ -116,7 +118,7 @@ namespace trkf {
       ChiDOF += diff * diff;
     }
 
-    double werr2 = geom->Plane({cstat, tpc, 0}).WirePitch();
+    double werr2 = wireReadoutGeom->FirstPlane({cstat, tpc}).WirePitch();
     werr2 *= werr2;
     ChiDOF /= werr2;
     ChiDOF /= (double)(npts - 4);

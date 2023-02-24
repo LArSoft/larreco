@@ -31,6 +31,7 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -132,6 +133,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
 
   ++fEventCnt;
   auto const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   //  auto hitsHandle = art::Handle<std::vector<recob::Hit>>();
   if (!evt.getByLabel(fHitModuleLabel, fHitHandle))
     throw cet::exception("ClusterTrackAna")
@@ -343,7 +345,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     unsigned int tpc = tpcid.TPC;
     if (hitRange[tpc].first == UINT_MAX) continue;
     // iterate over planes
-    for (unsigned short plane = 0; plane < geom->Nplanes(); ++plane) {
+    for (unsigned short plane = 0; plane < wireReadoutGeom.Nplanes(); ++plane) {
       unsigned int tpcMatHitCnt = 0;
       unsigned int tpcTotHitCnt = 0;
       // create a list of (MCParticle index, matched hit count> pairs

@@ -7,7 +7,7 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/ToolMacros.h"
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 
 #include <algorithm>
 
@@ -37,8 +37,8 @@ namespace reco_tool {
     // Member variables from the fhicl file
     const float fRoiThreshold; ///< minimum maximum to minimum peak distance
 
-    const geo::ChannelMapAlg* fChannelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    const geo::WireReadoutGeom* fWireReadoutGeom =
+      &art::ServiceHandle<geo::WireReadout const>()->Get();
   };
 
   //----------------------------------------------------------------------
@@ -58,7 +58,7 @@ namespace reco_tool {
     const Waveform& waveform = dataRange.data();
 
     // Recover the plane index for this method
-    std::vector<geo::WireID> wids = fChannelMapAlg->ChannelToWire(channel);
+    std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(channel);
     const size_t plane = wids[0].Plane;
 
     // Use the recursive version to find the candidate hits

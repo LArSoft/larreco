@@ -14,7 +14,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -66,8 +66,7 @@ void MCBTDemo::analyze(art::Event const& e)
 
   if (g4_track_id.size()) {
 
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     btutil::MCBTAlg alg_mct(g4_track_id, *schHandle);
 
     auto sum_mcq_v = alg_mct.MCQSum(2);
@@ -88,7 +87,7 @@ void MCBTDemo::analyze(art::Event const& e)
 
       for (auto const& h_ptr : hit_coll) {
 
-        if (channelMapAlg->ChannelToWire(h_ptr->Channel())[0].Plane != ::geo::kW) continue;
+        if (wireReadoutGeom.ChannelToWire(h_ptr->Channel())[0].Plane != ::geo::kW) continue;
 
         hits.emplace_back(h_ptr->Channel(), h_ptr->StartTick(), h_ptr->EndTick());
       }

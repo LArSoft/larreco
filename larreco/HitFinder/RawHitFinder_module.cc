@@ -28,7 +28,7 @@
 
 //LArSoft From FFT
 
-#include "larcore/Geometry/ExptGeoHelperInterface.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 namespace hit {
@@ -135,8 +135,7 @@ namespace hit {
     std::stringstream numConv;
 
     hcol.reserve(digitVecHandle->size());
-    auto const* channelMapAlg =
-      art::ServiceHandle<geo::ExptGeoHelperInterface const>()->ChannelMapAlgPtr();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     for (size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter) {
       holder.clear();
 
@@ -167,7 +166,7 @@ namespace hit {
         holder[bin] = (rawadc[bin] - digitVec->GetPedestal());
       }
 
-      sigType = channelMapAlg->SignalTypeForChannel(channel);
+      sigType = wireReadoutGeom.SignalType(channel);
 
       peakHeight.clear();
       endTimes.clear();
@@ -352,7 +351,7 @@ namespace hit {
         chargeErr = -1;
         totSig = charge[i];
 
-        std::vector<geo::WireID> wids = channelMapAlg->ChannelToWire(channel);
+        std::vector<geo::WireID> wids = wireReadoutGeom.ChannelToWire(channel);
         geo::WireID wid = wids[0];
 
         if (start >= end) {

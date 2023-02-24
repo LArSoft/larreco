@@ -3,7 +3,8 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
@@ -14,14 +15,14 @@
 ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob::Hit> src)
   : fHit(src)
 {
-  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   auto const& wireID = src->WireID();
 
-  auto const wireCenter = geom->Wire(wireID).GetCenter();
+  auto const wireCenter = wireReadoutGeom.Wire(wireID).GetCenter();
   double const x = detProp.ConvertTicksToX(src->PeakTime(), wireID);
 
-  double const globalWire =
-    geom->Plane({wireID.Cryostat, wireID.TPC % 2, wireID.Plane}).WireCoordinate(wireCenter);
+  double const globalWire = wireReadoutGeom.Plane({wireID.Cryostat, wireID.TPC % 2, wireID.Plane})
+                              .WireCoordinate(wireCenter);
   fPoint.Set(globalWire, x);
   fCharge = src->SummedADC();
 }

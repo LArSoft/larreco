@@ -12,10 +12,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-
-namespace fhicl {
-  class ParamterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
@@ -70,7 +67,7 @@ namespace apa {
     art::ServiceHandle<geo::Geometry const> geom;
     // **temporarily** here to look at performance without noise hits
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-    geo::ChannelMapAlg const* fChannelMapAlg;
+    geo::WireReadoutGeom const* fWireReadoutGeom;
 
     // Hits organization
     std::map<raw::ChannelID_t, std::vector<art::Ptr<recob::Hit>>> fChannelToHits;
