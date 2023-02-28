@@ -25,12 +25,11 @@
 namespace tca {
 
   ////////////////////////////////////////////////
-  void
-  SaveCRInfo(detinfo::DetectorClocksData const& clockData,
-             TCSlice& slc,
-             PFPStruct& pfp,
-             bool prt,
-             bool fIsRealData)
+  void SaveCRInfo(detinfo::DetectorClocksData const& clockData,
+                  TCSlice& slc,
+                  PFPStruct& pfp,
+                  bool prt,
+                  bool fIsRealData)
   {
 
     //Check the origin of pfp
@@ -71,8 +70,7 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  int
-  GetOrigin(detinfo::DetectorClocksData const& clockData, TCSlice& slc, PFPStruct& pfp)
+  int GetOrigin(detinfo::DetectorClocksData const& clockData, TCSlice& slc, PFPStruct& pfp)
   {
 
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
@@ -117,8 +115,7 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  void
-  ClearCRInfo(TCSlice& slc)
+  void ClearCRInfo(TCSlice& slc)
   {
     slc.crt.cr_origin.clear();
     slc.crt.cr_pfpxmin.clear();

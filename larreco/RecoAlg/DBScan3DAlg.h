@@ -39,14 +39,16 @@
 #define SUCCESS 0
 #define FAILURE -3
 
-#include "canvas/Persistency/Provenance/Timestamp.h"
-#include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-namespace fhicl { class ParameterSet; }
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Provenance/Timestamp.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include <map>
 
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"  // for WireID
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for WireID
 
 namespace recob {
   class SpacePoint;
@@ -63,7 +65,7 @@ struct point_s {
 typedef struct node_s node_t;
 struct node_s {
   unsigned int index;
-  node_t *next;
+  node_t* next;
 };
 
 typedef struct epsilon_neighbours_s epsilon_neighbours_t;
@@ -72,42 +74,34 @@ struct epsilon_neighbours_s {
   node_t *head, *tail;
 };
 
-namespace cluster{
+namespace cluster {
 
-//---------------------------------------------------------------
-class DBScan3DAlg {
+  //---------------------------------------------------------------
+  class DBScan3DAlg {
   public:
-
-
     DBScan3DAlg(fhicl::ParameterSet const& pset);
 
     std::vector<point_t> points;
 
     void init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
-              art::FindManyP<recob::Hit>& hitFromSp, 
+              art::FindManyP<recob::Hit>& hitFromSp,
               art::Timestamp ts);
     void dbscan();
 
   private:
-
     double epsilon;
     unsigned int minpts;
     double badchannelweight;
     unsigned int neighbors;
     std::map<geo::WireID, int> badchannelmap;
 
-    node_t *create_node(unsigned int index);
-    int append_at_end(unsigned int index,
-                      epsilon_neighbours_t *en);
-    epsilon_neighbours_t *get_epsilon_neighbours(unsigned int index);
-    void destroy_epsilon_neighbours(epsilon_neighbours_t *en);
-    int expand(unsigned int index,
-               unsigned int cluster_id);
-    int spread(unsigned int index,
-               epsilon_neighbours_t *seeds,
-               unsigned int cluster_id);
-    float dist(point_t *a, point_t *b) const;
-
+    node_t* create_node(unsigned int index);
+    int append_at_end(unsigned int index, epsilon_neighbours_t* en);
+    epsilon_neighbours_t* get_epsilon_neighbours(unsigned int index);
+    void destroy_epsilon_neighbours(epsilon_neighbours_t* en);
+    int expand(unsigned int index, unsigned int cluster_id);
+    int spread(unsigned int index, epsilon_neighbours_t* seeds, unsigned int cluster_id);
+    float dist(point_t* a, point_t* b) const;
 
   }; // class DBScan3DAlg
 } // namespace

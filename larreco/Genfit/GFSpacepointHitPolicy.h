@@ -29,7 +29,6 @@
 
 #include "larreco/Genfit/GFDetPlane.h"
 
-
 /** @brief Policy class implementing a space point hit geometry.
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
@@ -49,48 +48,50 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
+  class GFAbsRecoHit;
+  class GFAbsTrackRep;
 
-class GFSpacepointHitPolicy : public TObject {
-public:
+  class GFSpacepointHitPolicy : public TObject {
+  public:
+    GFSpacepointHitPolicy() { ; }
 
-
-  GFSpacepointHitPolicy(){;}
-
-  // Operations ----------------------
-   /** @brief Get detector plane perpendicular to track.
+    // Operations ----------------------
+    /** @brief Get detector plane perpendicular to track.
     *
     * The detector plane is contructed from the position of the hit and
     * the track representation. For this the track is extrapolated to the
     * point of closest approach to the hit.
     */
-  const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
+    const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
 
-  /** @brief Hit coordinates in detector plane.
+    /** @brief Hit coordinates in detector plane.
    */
-  TMatrixT<double> hitCoord(GFAbsRecoHit*,const GFDetPlane&);
-  TMatrixT<double> hitCoord(GFAbsRecoHit*,const GFDetPlane&,const GFDetPlane&);
+    TMatrixT<double> hitCoord(GFAbsRecoHit*, const GFDetPlane&);
+    TMatrixT<double> hitCoord(GFAbsRecoHit*, const GFDetPlane&, const GFDetPlane&);
 
-  /** @brief Hit covariances in detector plane.
+    /** @brief Hit covariances in detector plane.
    */
-  TMatrixT<double> hitCov(GFAbsRecoHit*,const GFDetPlane&);
-  TMatrixT<double> hitCov(GFAbsRecoHit* hit,const GFDetPlane& plane, const GFDetPlane& planePrev, const TMatrixT<Double_t>& state, const Double_t& mass);
-  virtual ~GFSpacepointHitPolicy(){;}
+    TMatrixT<double> hitCov(GFAbsRecoHit*, const GFDetPlane&);
+    TMatrixT<double> hitCov(GFAbsRecoHit* hit,
+                            const GFDetPlane& plane,
+                            const GFDetPlane& planePrev,
+                            const TMatrixT<Double_t>& state,
+                            const Double_t& mass);
+    virtual ~GFSpacepointHitPolicy() { ; }
 
-  const std::string& getName(){return fPolicyName;}
+    const std::string& getName() { return fPolicyName; }
 
- private:
-  static const std::string fPolicyName;
+  private:
+    static const std::string fPolicyName;
 
-  // Private Data Members ------------
-  GFDetPlane fPlane;
+    // Private Data Members ------------
+    GFDetPlane fPlane;
 
-  // Private Methods -----------------
+    // Private Methods -----------------
 
-  // public:
-  //  ClassDef(GFSpacepointHitPolicy,1);
-};
+    // public:
+    //  ClassDef(GFSpacepointHitPolicy,1);
+  };
 } // namespace genf
 #endif
 

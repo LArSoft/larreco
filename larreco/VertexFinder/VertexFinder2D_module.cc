@@ -50,15 +50,10 @@ namespace {
     float length;
   };
 
-  bool
-  myfunction(CluLen c1, CluLen c2)
-  {
-    return (c1.length > c2.length);
-  }
+  bool myfunction(CluLen c1, CluLen c2) { return (c1.length > c2.length); }
 
   struct SortByWire {
-    bool
-    operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
+    bool operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const
     {
       return h1->Channel() < h2->Channel();
     }
@@ -98,8 +93,7 @@ namespace vertex {
   }
 
   //-------------------------------------------------------------------------
-  void
-  VertexFinder2D::beginJob()
+  void VertexFinder2D::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -108,8 +102,7 @@ namespace vertex {
   }
 
   // //-----------------------------------------------------------------------------
-  void
-  VertexFinder2D::produce(art::Event& evt)
+  void VertexFinder2D::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);

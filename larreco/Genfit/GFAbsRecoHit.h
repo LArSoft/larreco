@@ -19,22 +19,22 @@
 /** @addtogroup genfit */
 /* @{ */
 
-
-
 #ifndef GFABSRECOHIT_H
 #define GFABSRECOHIT_H
 
-#include<stdexcept> // std::logic_error
-#include<iostream>
+#include <iostream>
+#include <stdexcept> // std::logic_error
 
 #include "TMatrixT.h"
 #include "TObject.h"
 
-#include "larreco/Genfit/GFException.h" // PrintROOTobject()
 #include "larreco/Genfit/GFDetPlane.h"
-#include<cmath>
+#include "larreco/Genfit/GFException.h" // PrintROOTobject()
+#include <cmath>
 
-namespace genf { class GFAbsTrackRep; }
+namespace genf {
+  class GFAbsTrackRep;
+}
 
 /** @brief Base Class for representing a Hit in GENFIT
  *
@@ -75,33 +75,33 @@ namespace genf { class GFAbsTrackRep; }
  */
 namespace genf {
 
-class GFAbsRecoHit : public TObject{
-protected:
-  /// Vector of raw coordinates of hit
-  TMatrixT<Double_t> fHitCoord;
+  class GFAbsRecoHit : public TObject {
+  protected:
+    /// Vector of raw coordinates of hit
+    TMatrixT<Double_t> fHitCoord;
 
-  /// Covariance of raw hit coordinates
-  TMatrixT<Double_t> fHitCov;
+    /// Covariance of raw hit coordinates
+    TMatrixT<Double_t> fHitCov;
 
- private:
-  int fNparHit;
+  private:
+    int fNparHit;
 
-public:
-  virtual ~GFAbsRecoHit();
+  public:
+    virtual ~GFAbsRecoHit();
 
-  /** @brief Constructor specifying dimension of coordinate vector
+    /** @brief Constructor specifying dimension of coordinate vector
    *
    * One hit is generally represented by a vector of coordinates.
    * @param NparHit specifies the dimension of this vector.
    * (e.g. 3 for a spacepoint, 2 for a pixel, 1 for a strip)
    */
-  GFAbsRecoHit(int NparHit);
+    GFAbsRecoHit(int NparHit);
 
-  /** @brief Default constructor needed for compatibility with ROOT
+    /** @brief Default constructor needed for compatibility with ROOT
    */
-  GFAbsRecoHit();
+    GFAbsRecoHit();
 
-  /** @brief Get transformation matrix. Transformation between hit
+    /** @brief Get transformation matrix. Transformation between hit
    * coordinates and track representation coordinates.
    *
    * This is a virtual abstract method which has to be implemented in the child
@@ -126,11 +126,12 @@ public:
    *
    * For example code see implementing classes below:
    */
-  virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector)=0;
-  virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector, const Double_t&, const Double_t&)=0;
+    virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector) = 0;
+    virtual TMatrixT<Double_t> getHMatrix(const GFAbsTrackRep* stateVector,
+                                          const Double_t&,
+                                          const Double_t&) = 0;
 
-
-  /** @brief Calculate residual with respect to a track representation.
+    /** @brief Calculate residual with respect to a track representation.
    *
    * Returns the N-dimensional residual of this vector to a given
    * track representation.
@@ -145,65 +146,68 @@ public:
    * @sa setHMatrix
    * @sa getGFDetPlane
    */
-  virtual TMatrixT<Double_t> residualVector(const GFAbsTrackRep* stateVector,
-				  const TMatrixT<Double_t>& state,
-					    const GFDetPlane& d) {
-    std::cout << "GFAbsRecoHit::residualVector(3args) Not correctly Using theta -- multiple scattering -- information !!! Fix this if you really want to use getChi2Hit" << std::endl;
-    TMatrixT<Double_t> H = getHMatrix(stateVector);
-    return ( getHitCoord(d) - (H*state ));
-  }
+    virtual TMatrixT<Double_t> residualVector(const GFAbsTrackRep* stateVector,
+                                              const TMatrixT<Double_t>& state,
+                                              const GFDetPlane& d)
+    {
+      std::cout << "GFAbsRecoHit::residualVector(3args) Not correctly Using theta -- multiple "
+                   "scattering -- information !!! Fix this if you really want to use getChi2Hit"
+                << std::endl;
+      TMatrixT<Double_t> H = getHMatrix(stateVector);
+      return (getHitCoord(d) - (H * state));
+    }
 
-  virtual TMatrixT<Double_t> residualVector(const GFAbsTrackRep* stateVector,
-				  const TMatrixT<Double_t>& state,
-					    const GFDetPlane& d,
-					    const GFDetPlane& dPrev,
-					    const double &mass
-					    )
-  {
-    Double_t dist = (d.getO()-dPrev.getO()).Mag();
-    //    Double_t mass = 0.104; // close enough for muons, pions, I think.
-    Double_t mom = fabs(1.0/state[0][0]);
-    Double_t beta = mom/sqrt(mass*mass+mom*mom);
-    if (std::isnan(dist) || dist<0.2) dist=0.2; // don't allow 0s here.
-    if (std::isnan(beta) || beta<0.04) beta=0.04;
+    virtual TMatrixT<Double_t> residualVector(const GFAbsTrackRep* stateVector,
+                                              const TMatrixT<Double_t>& state,
+                                              const GFDetPlane& d,
+                                              const GFDetPlane& dPrev,
+                                              const double& mass)
+    {
+      Double_t dist = (d.getO() - dPrev.getO()).Mag();
+      //    Double_t mass = 0.104; // close enough for muons, pions, I think.
+      Double_t mom = fabs(1.0 / state[0][0]);
+      Double_t beta = mom / sqrt(mass * mass + mom * mom);
+      if (std::isnan(dist) || dist < 0.2) dist = 0.2; // don't allow 0s here.
+      if (std::isnan(beta) || beta < 0.04) beta = 0.04;
 
-    TMatrixT<Double_t> H = getHMatrix(stateVector,beta,dist);
-    return ( getHitCoord(d,dPrev) - (H*state ));
-  }
+      TMatrixT<Double_t> H = getHMatrix(stateVector, beta, dist);
+      return (getHitCoord(d, dPrev) - (H * state));
+    }
 
-
-  /** @brief Get raw hit covariances.
+    /** @brief Get raw hit covariances.
    *
    */
-  TMatrixT<Double_t> getRawHitCov() const {return fHitCov;}
+    TMatrixT<Double_t> getRawHitCov() const { return fHitCov; }
 
-  /** @brief Get raw hit coordinates.
+    /** @brief Get raw hit coordinates.
    *
    */
-  TMatrixT<Double_t> getRawHitCoord() const {return fHitCoord;}
+    TMatrixT<Double_t> getRawHitCoord() const { return fHitCoord; }
 
-  /** @brief Get hit covariances in a specific detector plane
+    /** @brief Get hit covariances in a specific detector plane
    *
    * Virtual abstract method has to be implemented by inherting classes.
    * Implementation involves transformation from raw coordinates in detector
    * coordinate system to detector plane coordinate system.
    * @sa getGFDetPlane
    */
-  virtual TMatrixT<Double_t> getHitCov(const GFDetPlane&)=0;
-  virtual TMatrixT<Double_t> getHitCov(const GFDetPlane&, const GFDetPlane&, const TMatrixT<Double_t>&, const Double_t&)=0;
+    virtual TMatrixT<Double_t> getHitCov(const GFDetPlane&) = 0;
+    virtual TMatrixT<Double_t> getHitCov(const GFDetPlane&,
+                                         const GFDetPlane&,
+                                         const TMatrixT<Double_t>&,
+                                         const Double_t&) = 0;
 
-  /** @brief Get hit coordinates in a specific detector plane
+    /** @brief Get hit coordinates in a specific detector plane
    *
    * Virtual abstract method has to be implemented by inherting classes.
    * Implementation involves transformation from raw coordinates in detector
    * coordinate system to detector plane coordinate system.
    * @sa getDetPlane
    */
-  virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane&,const GFDetPlane&)=0;
-  virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane&)=0;
+    virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane&, const GFDetPlane&) = 0;
+    virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane&) = 0;
 
-
-  /** @brief Get detector plane for a given track representation.
+    /** @brief Get detector plane for a given track representation.
    *
    * Virtual abstract method has to be implemented by inherting classes.
    *
@@ -217,35 +221,33 @@ public:
    * fixed (detector module specific) plane. This behaviour for example is
    * implemented in PlanarHitPolicy.
    */
-  virtual const GFDetPlane& getDetPlane(GFAbsTrackRep*) = 0;
+    virtual const GFDetPlane& getDetPlane(GFAbsTrackRep*) = 0;
 
-
-
-  /** @brief Get clone of this object.
+    /** @brief Get clone of this object.
    *
    * Virtual abstract method. Has to be implemented by inherting classes.
    * Creates a deep copy of this object.
    * Ownership is trandsferred to the caller!
    */
-  virtual GFAbsRecoHit* clone() = 0;
+    virtual GFAbsRecoHit* clone() = 0;
 
-  /** @brief Print raw hit coordinates.
+    /** @brief Print raw hit coordinates.
    */
-  virtual void Print(std::ostream& out = std::cout) const
-    { PrintROOTobject(out, fHitCoord); }
+    virtual void Print(std::ostream& out = std::cout) const { PrintROOTobject(out, fHitCoord); }
 
-  virtual const std::string& getPolicyName();
+    virtual const std::string& getPolicyName();
 
-  int getNparHit(){return fNparHit;}
+    int getNparHit() { return fNparHit; }
 
-  // public:
-  //ClassDef(GFAbsRecoHit,3)
+    // public:
+    //ClassDef(GFAbsRecoHit,3)
 
   private:
-  virtual void Print(Option_t*) const
-    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
-
-};
+    virtual void Print(Option_t*) const
+    {
+      throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available");
+    }
+  };
 } // namespace
 
 #endif //FITTER_ABSHIT_H

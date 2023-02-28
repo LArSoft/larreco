@@ -12,15 +12,18 @@
 
 #include <vector>
 
-
-namespace trkf{
+namespace trkf {
 
   class LinFitAlg {
-    public:
-
-    void LinFit(std::vector<float>& x, std::vector<float>& y,
-      std::vector<float>& ey2, float& Intercept, float& Slope,
-      float& InterceptError, float& SlopeError, float& ChiDOF) const;
+  public:
+    void LinFit(std::vector<float>& x,
+                std::vector<float>& y,
+                std::vector<float>& ey2,
+                float& Intercept,
+                float& Slope,
+                float& InterceptError,
+                float& SlopeError,
+                float& ChiDOF) const;
 
   }; // class LinFitAlg
 

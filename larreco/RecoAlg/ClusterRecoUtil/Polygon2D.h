@@ -29,26 +29,25 @@
 //\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 //                BEGIN POLYGON CLASS               //
 //\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-class Polygon2D{
+class Polygon2D {
 
 private:
-  std::vector< std::pair<float,float> > vertices;
+  std::vector<std::pair<float, float>> vertices;
 
- public:
-
-  Polygon2D() { }
-  Polygon2D(const std::vector< std::pair<float,float> > &points) { vertices = points; }
-  Polygon2D(const Polygon2D &poly1, const Polygon2D &poly2); /// Create Intersection Polygon
+public:
+  Polygon2D() {}
+  Polygon2D(const std::vector<std::pair<float, float>>& points) { vertices = points; }
+  Polygon2D(const Polygon2D& poly1, const Polygon2D& poly2); /// Create Intersection Polygon
   unsigned int Size() const { return vertices.size(); }
-  const std::pair<float,float>& Point(unsigned int p) const;
-  std::pair<float,float> Project(const std::pair<float,float>&,float) const;
+  const std::pair<float, float>& Point(unsigned int p) const;
+  std::pair<float, float> Project(const std::pair<float, float>&, float) const;
   float Area() const;
   float Perimeter() const;
-  bool Overlap(float slope, const Polygon2D &poly2, const std::pair<float,float> &origin) const;
-  bool PolyOverlap(const Polygon2D &poly2) const;
-  bool PolyOverlapSegments(const Polygon2D &poly2) const;
-  bool PointInside(const std::pair<float,float> &point) const;
-  bool Contained(const Polygon2D &poly2) const; /// check if poly2 is inside poly1
+  bool Overlap(float slope, const Polygon2D& poly2, const std::pair<float, float>& origin) const;
+  bool PolyOverlap(const Polygon2D& poly2) const;
+  bool PolyOverlapSegments(const Polygon2D& poly2) const;
+  bool PointInside(const std::pair<float, float>& point) const;
+  bool Contained(const Polygon2D& poly2) const; /// check if poly2 is inside poly1
   void UntanglePolygon();
 };
 /** @} */ // end of doxygen group

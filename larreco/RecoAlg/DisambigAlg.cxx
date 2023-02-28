@@ -50,10 +50,9 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  void
-  DisambigAlg::RunDisambig(detinfo::DetectorClocksData const& clockData,
-                           detinfo::DetectorPropertiesData const& detProp,
-                           art::Handle<std::vector<recob::Hit>> ChannelHits)
+  void DisambigAlg::RunDisambig(detinfo::DetectorClocksData const& clockData,
+                                detinfo::DetectorPropertiesData const& detProp,
+                                art::Handle<std::vector<recob::Hit>> ChannelHits)
   {
     fUeffSoFar.clear();
     fVeffSoFar.clear();
@@ -172,8 +171,9 @@ namespace apa {
 
   //-------------------------------------------------
   //-------------------------------------------------
-  void
-  DisambigAlg::MakeDisambigHit(art::Ptr<recob::Hit> const& hit, geo::WireID wid, unsigned int apa)
+  void DisambigAlg::MakeDisambigHit(art::Ptr<recob::Hit> const& hit,
+                                    geo::WireID wid,
+                                    unsigned int apa)
   {
     std::pair<double, double> ChanTime(hit->Channel() * 1., hit->PeakTime() * 1.);
     if (fHasBeenDisambiged[apa][ChanTime]) return;
@@ -190,10 +190,9 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  bool
-  DisambigAlg::HitsOverlapInTime(detinfo::DetectorPropertiesData const& detProp,
-                                 recob::Hit const& hitA,
-                                 recob::Hit const& hitB)
+  bool DisambigAlg::HitsOverlapInTime(detinfo::DetectorPropertiesData const& detProp,
+                                      recob::Hit const& hitA,
+                                      recob::Hit const& hitB)
   {
     double AsT = hitA.PeakTimeMinusRMS();
     double AeT = hitA.PeakTimePlusRMS();
@@ -232,10 +231,9 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  void
-  DisambigAlg::TrivialDisambig(detinfo::DetectorClocksData const& clockData,
-                               detinfo::DetectorPropertiesData const& detProp,
-                               unsigned int apa)
+  void DisambigAlg::TrivialDisambig(detinfo::DetectorClocksData const& clockData,
+                                    detinfo::DetectorPropertiesData const& detProp,
+                                    unsigned int apa)
   {
     // Loop through ambiguous hits (U/V) in this APA
     for (auto const& hitPtr : fAPAToUVHits[apa]) {
@@ -308,8 +306,7 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  unsigned int
-  DisambigAlg::MakeCloseHits(int ext, geo::WireID Dwid, double Dmin, double Dmax)
+  unsigned int DisambigAlg::MakeCloseHits(int ext, geo::WireID Dwid, double Dmin, double Dmax)
   {
     // Function to look, on a channel *ext* channels away from a
     // disambiguated hit channel, for hits with time windows touching
@@ -372,8 +369,7 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  void
-  DisambigAlg::Crawl(unsigned int apa)
+  void DisambigAlg::Crawl(unsigned int apa)
   {
 
     std::vector<art::Ptr<recob::Hit>> hits = fAPAToUVHits[apa];
@@ -414,8 +410,8 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  unsigned int
-  DisambigAlg::FindChanTimeEndPts(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
+  unsigned int DisambigAlg::FindChanTimeEndPts(detinfo::DetectorPropertiesData const& detProp,
+                                               unsigned int apa)
   {
     ///\ todo: Clean up and break down into two functions.
     ///\ todo: Make the conditions more robust to some spotty hits around a potential endpoint.
@@ -527,8 +523,7 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  void
-  DisambigAlg::UseEndPts(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
+  void DisambigAlg::UseEndPts(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
   {
 
     ///\ todo: This function could be made much cleaner and more compact
@@ -639,8 +634,7 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  void
-  DisambigAlg::AssessDisambigSoFar(unsigned int apa)
+  void DisambigAlg::AssessDisambigSoFar(unsigned int apa)
   {
     unsigned int nU(0), nV(0);
     for (size_t h = 0; h < fAPAToUVHits[apa].size(); h++) {
@@ -670,8 +664,8 @@ namespace apa {
 
   //----------------------------------------------------------
   //----------------------------------------------------------
-  unsigned int
-  DisambigAlg::CompareViews(detinfo::DetectorPropertiesData const& detProp, unsigned int apa)
+  unsigned int DisambigAlg::CompareViews(detinfo::DetectorPropertiesData const& detProp,
+                                         unsigned int apa)
   {
     unsigned int nDisambiguations(0);
 

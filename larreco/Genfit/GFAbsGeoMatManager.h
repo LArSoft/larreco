@@ -24,8 +24,7 @@
 #ifndef GFABSGEOMATMANAGER_H
 #define GFABSGEOMATMANAGER_H
 
-#include"TObject.h"
-
+#include "TObject.h"
 
 /** @brief Base class for material and geometry interface
  *
@@ -41,44 +40,41 @@
 
 namespace genf {
 
-class GFAbsGeoMatManager : public TObject{
- public:
-  virtual ~GFAbsGeoMatManager(){}
-  //! Gets material parameters (density, Z, A, radiation length, mean excitation energy)
-  /**
+  class GFAbsGeoMatManager : public TObject {
+  public:
+    virtual ~GFAbsGeoMatManager() {}
+    //! Gets material parameters (density, Z, A, radiation length, mean excitation energy)
+    /**
   */
-  virtual void getMaterialParameters(double& matDensity,
-                                     double& matZ,
-                                     double& matA,
-                                     double& radiationLength,
-                                     double& mEE) = 0;
+    virtual void getMaterialParameters(double& matDensity,
+                                       double& matZ,
+                                       double& matA,
+                                       double& radiationLength,
+                                       double& mEE) = 0;
 
-  //! Initializes the track
-  /**
+    //! Initializes the track
+    /**
   */
-  virtual void initTrack(const double& posx,
-                         const double& posy,
-                         const double& posz,
-                         const double& dirx,
-                         const double& diry,
-                         const double& dirz) = 0;
+    virtual void initTrack(const double& posx,
+                           const double& posy,
+                           const double& posz,
+                           const double& dirx,
+                           const double& diry,
+                           const double& dirz) = 0;
 
-  //! Makes a step, limited to next material boundary
-  /**  Tries to make a step with length maxDist along the track. If there is a material boundary,
+    //! Makes a step, limited to next material boundary
+    /**  Tries to make a step with length maxDist along the track. If there is a material boundary,
     *  the step is made to that boundary and the distance to that boundary is returned.
     *  Otherwise the step is made with maxDist.
     *
   */
-  virtual double stepOrNextBoundary(const double& maxDist) = 0;
+    virtual double stepOrNextBoundary(const double& maxDist) = 0;
 
-  // public:
-  //ClassDef(GFAbsGeoMatManager,1)
-
-};
+    // public:
+    //ClassDef(GFAbsGeoMatManager,1)
+  };
 
 } // namespace genf
 #endif
 
 /** @} */
-
-

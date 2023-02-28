@@ -38,11 +38,7 @@ namespace quad {
       : x(_x), z(_z), view(_view), energy(_energy)
     {}
 
-    bool
-    operator<(const Pt2D& p) const
-    {
-      return z < p.z;
-    }
+    bool operator<(const Pt2D& p) const { return z < p.z; }
 
     double x, z;
     int view;
@@ -61,11 +57,7 @@ namespace quad {
       assert(a.z != b.z); // no vertical lines
     }
 
-    bool
-    operator<(const Line2D& l) const
-    {
-      return m < l.m;
-    }
+    bool operator<(const Line2D& l) const { return m < l.m; }
 
     float m, c, /*w,*/ minz, maxz;
   };
@@ -103,16 +95,11 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  QuadVtx::beginJob()
-  {
-    geom = art::ServiceHandle<const geo::Geometry>()->provider();
-  }
+  void QuadVtx::beginJob() { geom = art::ServiceHandle<const geo::Geometry>()->provider(); }
 
   // ---------------------------------------------------------------------------
   // x = m*z+c. z1 and z2 are the two intercepts in case of returning true
-  bool
-  IntersectsCircle(float m, float c, float z0, float x0, float R, float& z1, float& z2)
+  bool IntersectsCircle(float m, float c, float z0, float x0, float R, float& z1, float& z2)
   {
     // Change to the frame where (z0, x0) = (0, 0)
     c += m * z0 - x0;
@@ -139,12 +126,11 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  LinesFromPoints(const std::vector<Pt2D>& pts,
-                  std::vector<Line2D>& lines,
-                  float z0 = 0,
-                  float x0 = 0,
-                  float R = -1)
+  void LinesFromPoints(const std::vector<Pt2D>& pts,
+                       std::vector<Line2D>& lines,
+                       float z0 = 0,
+                       float x0 = 0,
+                       float R = -1)
   {
     constexpr size_t kMaxLines = 10 * 1000 * 1000; // This is 150MB of lines...
 
@@ -184,8 +170,7 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  inline bool
-  CloseAngles(float ma, float mb)
+  inline bool CloseAngles(float ma, float mb)
   {
     const float cosCrit = cos(10 * M_PI / 180.);
     const float dot = 1 + ma * mb; // (1, ma)*(1, mb)
@@ -193,8 +178,7 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  MapFromLines(const std::vector<Line2D>& lines, HeatMap& hm)
+  void MapFromLines(const std::vector<Line2D>& lines, HeatMap& hm)
   {
     // This maximum is driven by runtime
     constexpr size_t kMaxPts = 10 * 1000 * 1000;
@@ -255,8 +239,7 @@ namespace quad {
 
   // ---------------------------------------------------------------------------
   // Assumes that all three maps have the same vertical stride
-  TVector3
-  FindPeak3D(const std::vector<HeatMap>& hs, const std::vector<TVector3>& dirs) noexcept
+  TVector3 FindPeak3D(const std::vector<HeatMap>& hs, const std::vector<TVector3>& dirs) noexcept
   {
     assert(hs.size() == 3);
     assert(dirs.size() == 3);
@@ -328,12 +311,11 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  GetPts2D(const detinfo::DetectorPropertiesData& detProp,
-           const std::vector<recob::Hit>& hits,
-           std::vector<std::vector<Pt2D>>& pts,
-           std::vector<TVector3>& dirs,
-           const geo::GeometryCore* geom)
+  void GetPts2D(const detinfo::DetectorPropertiesData& detProp,
+                const std::vector<recob::Hit>& hits,
+                std::vector<std::vector<Pt2D>>& pts,
+                std::vector<TVector3>& dirs,
+                const geo::GeometryCore* geom)
   {
     pts.resize(3); // 3 views
 
@@ -388,11 +370,10 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  bool
-  QuadVtx::FindVtx(const detinfo::DetectorPropertiesData& detProp,
-                   const std::vector<recob::Hit>& hits,
-                   TVector3& vtx,
-                   int evt) const
+  bool QuadVtx::FindVtx(const detinfo::DetectorPropertiesData& detProp,
+                        const std::vector<recob::Hit>& hits,
+                        TVector3& vtx,
+                        int evt) const
   {
     if (hits.empty()) return false;
 
@@ -495,8 +476,7 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  QuadVtx::produce(art::Event& evt)
+  void QuadVtx::produce(art::Event& evt)
   {
     auto vtxcol = std::make_unique<std::vector<recob::Vertex>>();
 

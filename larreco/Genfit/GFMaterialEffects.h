@@ -25,8 +25,8 @@
 #define GFMATERIALEFFECTS_H
 
 #include "TObject.h"
-#include <vector>
 #include "TVector3.h"
+#include <vector>
 
 class TGeoMaterial;
 
@@ -47,73 +47,74 @@ class TGeoMaterial;
 
 namespace genf {
 
-class GFMaterialEffects : public TObject{
- private:
+  class GFMaterialEffects : public TObject {
+  private:
+    GFMaterialEffects();
+    virtual ~GFMaterialEffects();
+    static GFMaterialEffects* finstance;
 
-  GFMaterialEffects();
-  virtual ~GFMaterialEffects();
-  static GFMaterialEffects* finstance;
+  public:
+    static GFMaterialEffects* getInstance();
+    static void destruct();
 
- public:
-  static GFMaterialEffects* getInstance();
-  static void destruct();
+    void setEnergyLossBetheBloch(bool opt = true) { fEnergyLossBetheBloch = opt; }
+    void setNoiseBetheBloch(bool opt = true) { fNoiseBetheBloch = opt; }
+    void setNoiseCoulomb(bool opt = true) { fNoiseCoulomb = opt; }
+    void setEnergyLossBrems(bool opt = true) { fEnergyLossBrems = opt; }
+    void setNoiseBrems(bool opt = true) { fNoiseBrems = opt; }
 
-  void setEnergyLossBetheBloch(bool opt = true){fEnergyLossBetheBloch=opt;}
-  void setNoiseBetheBloch(bool opt = true){fNoiseBetheBloch=opt;}
-  void setNoiseCoulomb(bool opt = true){fNoiseCoulomb=opt;}
-  void setEnergyLossBrems(bool opt = true){fEnergyLossBrems=opt;}
-  void setNoiseBrems(bool opt = true){fNoiseBrems=opt;}
+    //! Calculates energy loss in the travelled path, optional calculation of noise matrix
+    double effects(const std::vector<TVector3>& points,
+                   const std::vector<double>& pointPaths,
+                   const double& mom,
+                   const int& pdg,
+                   const bool& doNoise = false,
+                   TMatrixT<Double_t>* noise = NULL,
+                   const TMatrixT<Double_t>* jacobian = NULL,
+                   const TVector3* directionBefore = NULL,
+                   const TVector3* directionAfter = NULL);
 
-  //! Calculates energy loss in the travelled path, optional calculation of noise matrix
-  double effects(const std::vector<TVector3>& points,
-                 const std::vector<double>& pointPaths,
-                 const double& mom,
-                 const int& pdg,
-                 const bool& doNoise = false,
-                       TMatrixT<Double_t>* noise = NULL,
-                 const TMatrixT<Double_t>* jacobian = NULL,
-                 const TVector3* directionBefore = NULL,
-                 const TVector3* directionAfter = NULL);
-
-  //! Returns maximum length so that a specified momentum loss will not be exceeded
-  /**  The stepper returns the maximum length that the particle may travel, so that a specified relative momentum loss will not be exceeded.
+    //! Returns maximum length so that a specified momentum loss will not be exceeded
+    /**  The stepper returns the maximum length that the particle may travel, so that a specified relative momentum loss will not be exceeded.
   */
-  double stepper(const double& maxDist,
-                 const double& posx,
-                 const double& posy,
-                 const double& posz,
-                 const double& dirx,
-                 const double& diry,
-                 const double& dirz,
-                 const double& mom,
-                 const int& pdg);
-  double stepper(const double& maxDist,
-                 const TVector3& pos,
-                 const TVector3& dir,
-                 const double& mom,
-                 const int& pdg){
-    return stepper(maxDist, pos.X(),pos.Y(),pos.Z(),dir.X(),dir.Y(),dir.Z(),mom,pdg);};
+    double stepper(const double& maxDist,
+                   const double& posx,
+                   const double& posy,
+                   const double& posz,
+                   const double& dirx,
+                   const double& diry,
+                   const double& dirz,
+                   const double& mom,
+                   const int& pdg);
+    double stepper(const double& maxDist,
+                   const TVector3& pos,
+                   const TVector3& dir,
+                   const double& mom,
+                   const int& pdg)
+    {
+      return stepper(maxDist, pos.X(), pos.Y(), pos.Z(), dir.X(), dir.Y(), dir.Z(), mom, pdg);
+    };
 
- private:
-  //! contains energy loss classes
-  //  std::vector<GFAbsEnergyLoss*> fEnergyLoss;
-  //! interface to material and geometry
-  //GFGeoMatManager *geoMatManager;
-  void getParameters();
+  private:
+    //! contains energy loss classes
+    //  std::vector<GFAbsEnergyLoss*> fEnergyLoss;
+    //! interface to material and geometry
+    //GFGeoMatManager *geoMatManager;
+    void getParameters();
 
-  //! sets fbeta, fgamma, fgammasquare; must only be used after calling getParameters()
-  void calcBeta(double mom);
+    //! sets fbeta, fgamma, fgammasquare; must only be used after calling getParameters()
+    void calcBeta(double mom);
 
-  //! Returns energy loss
-  /**  Uses Bethe Bloch formula to calculate energy loss.
+    //! Returns energy loss
+    /**  Uses Bethe Bloch formula to calculate energy loss.
     *  Calcuates and sets fdedx which needed also for noiseBetheBloch.
     *  Therefore it is not a const function!
     *
   */
-  double energyLossBetheBloch(const double& mom);
+    double energyLossBetheBloch(const double& mom);
 
-  //! calculation of energy loss straggling
-  /**  For the energy loss straggeling, different formulas are used for different regions:
+    //! calculation of energy loss straggling
+    /**  For the energy loss straggeling, different formulas are used for different regions:
     *  - Vavilov-Gaussian regime
     *  - Urban/Landau approximation
     *  - truncated Landau distribution
@@ -121,11 +122,10 @@ class GFMaterialEffects : public TObject{
     *
     *  Needs fdedx, which is calculated in energyLossBetheBloch, so it has to be calles afterwards!
     */
-  void noiseBetheBloch(const double& mom,
-                             TMatrixT<double>* noise) const;
+    void noiseBetheBloch(const double& mom, TMatrixT<double>* noise) const;
 
-  //! calculation of multiple scattering
-  /**  With the calculated multiple scattering angle, two noise matrices are calculated:
+    //! calculation of multiple scattering
+    /**  With the calculated multiple scattering angle, two noise matrices are calculated:
     *  - with respect to #directionBefore: #noiseBefore, which is then propagated with the jacobian
     *  - with respect to #directionAfter: #noiseAfter
     *  The mean value of these two matrices is added to the noise matrix #noise.
@@ -314,59 +314,56 @@ class GFMaterialEffects : public TObject{
     * \n
     * \n
     */
-  void noiseCoulomb(const double& mom,
-                          TMatrixT<double>* noise,
-                    const TMatrixT<double>* jacobian,
-                    const TVector3* directionBefore,
-                    const TVector3* directionAfter) const;
+    void noiseCoulomb(const double& mom,
+                      TMatrixT<double>* noise,
+                      const TMatrixT<double>* jacobian,
+                      const TVector3* directionBefore,
+                      const TVector3* directionAfter) const;
 
-  //! Returns energy loss
-  /** Can be called with any pdg, but only calculates energy loss for electrons and positrons (otherwise returns 0).
+    //! Returns energy loss
+    /** Can be called with any pdg, but only calculates energy loss for electrons and positrons (otherwise returns 0).
     * Uses a gaussian approximation (Bethe-Heitler formula with Migdal corrections).
     * For positrons the energy loss is weighed with a correction factor.
   */
-  double energyLossBrems(const double& mom) const;
+    double energyLossBrems(const double& mom) const;
 
-  //! calculation of energy loss straggeling
-  /** Can be called with any pdg, but only calculates straggeling for electrons and positrons.
+    //! calculation of energy loss straggeling
+    /** Can be called with any pdg, but only calculates straggeling for electrons and positrons.
    *
    */
-  void noiseBrems(const double& mom,
-                        TMatrixT<double>* noise) const;
-  double MeanExcEnergy_get(int Z);
-  double MeanExcEnergy_get(TGeoMaterial*);
+    void noiseBrems(const double& mom, TMatrixT<double>* noise) const;
+    double MeanExcEnergy_get(int Z);
+    double MeanExcEnergy_get(TGeoMaterial*);
 
-  bool fEnergyLossBetheBloch;
-  bool fNoiseBetheBloch;
-  bool fNoiseCoulomb;
-  bool fEnergyLossBrems;
-  bool fNoiseBrems;
+    bool fEnergyLossBetheBloch;
+    bool fNoiseBetheBloch;
+    bool fNoiseCoulomb;
+    bool fEnergyLossBrems;
+    bool fNoiseBrems;
 
-  const double me; // electron mass (GeV)
+    const double me; // electron mass (GeV)
 
-  double fstep; // stepsize
+    double fstep; // stepsize
 
-  // cached values for energy loss and noise calculations
-  double fbeta;
-  double fdedx;
-  double fgamma;
-  double fgammaSquare;
+    // cached values for energy loss and noise calculations
+    double fbeta;
+    double fdedx;
+    double fgamma;
+    double fgammaSquare;
 
-  double fmatDensity;
-  double fmatZ;
-  double fmatA;
-  double fradiationLength;
-  double fmEE; // mean excitation energy
+    double fmatDensity;
+    double fmatZ;
+    double fmatA;
+    double fradiationLength;
+    double fmEE; // mean excitation energy
 
-  int fpdg;
-  double fcharge;
-  double fmass;
+    int fpdg;
+    double fcharge;
+    double fmass;
 
-
-  // public:
-  //classDef(GFMaterialEffects,1)
-
-};
+    // public:
+    //classDef(GFMaterialEffects,1)
+  };
 
 } // end namespace
 

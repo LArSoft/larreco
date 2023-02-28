@@ -17,22 +17,23 @@
 
 #include "larcore/Geometry/Geometry.h"
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
-namespace geo { struct WireID; }
+namespace geo {
+  struct WireID;
+}
 
 class TVector3;
 
 namespace trkf {
 
   class TrackTrajectoryAlg {
-    public:
+  public:
+    void TrackTrajectory(std::array<std::vector<geo::WireID>, 3> trkWID,
+                         std::array<std::vector<double>, 3> trkX,
+                         std::array<std::vector<double>, 3> trkXErr,
+                         std::vector<TVector3>& TrajPos,
+                         std::vector<TVector3>& TrajDir);
 
-    void TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
-                         std::array<std::vector<double>,3> trkX,
-                         std::array<std::vector<double>,3> trkXErr,
-                         std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
-
-    private:
-
+  private:
     art::ServiceHandle<geo::Geometry const> geom;
 
     double minX;
@@ -41,16 +42,16 @@ namespace trkf {
     unsigned short maxXPln;
     bool prt;
 
-    unsigned short fMaxTrajPoints;  // maximum number of trajectory points
-    double fHitWidthFactor;         // scales the number of trajectory points to the hit rms
-
+    unsigned short fMaxTrajPoints; // maximum number of trajectory points
+    double fHitWidthFactor;        // scales the number of trajectory points to the hit rms
 
     TrackLineFitAlg fTrackLineFitAlg;
 
-    void ShortTrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
-                              std::array<std::vector<double>,3> trkX,
-                              std::array<std::vector<double>,3> trkXErr,
-                              std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
+    void ShortTrackTrajectory(std::array<std::vector<geo::WireID>, 3> trkWID,
+                              std::array<std::vector<double>, 3> trkX,
+                              std::array<std::vector<double>, 3> trkXErr,
+                              std::vector<TVector3>& TrajPos,
+                              std::vector<TVector3>& TrajDir);
 
   }; // class TrackTrajectoryAlg
 

@@ -221,8 +221,7 @@ namespace trkf {
   // ------------------------------------------------------
 
   template <size_t N>
-  int
-  PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const
+  int PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const
   {
     int pdg = 0;
     if (fPmaTrackerConfig.TrackLikeThreshold() > 0) {
@@ -265,8 +264,7 @@ namespace trkf {
   }
 
   template <size_t N>
-  bool
-  PMAlgTrackMaker::init(const art::Event& evt, pma::PMAlgTracker& pmalgTracker) const
+  bool PMAlgTrackMaker::init(const art::Event& evt, pma::PMAlgTracker& pmalgTracker) const
   {
     auto cluResults = anab::MVAReader<recob::Cluster, N>::create(evt, fCluModuleLabel);
     if (!cluResults) { return false; }
@@ -290,8 +288,8 @@ namespace trkf {
     return true;
   }
 
-  std::vector<anab::CosmicTagID_t>
-  PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTag) const
+  std::vector<anab::CosmicTagID_t> PMAlgTrackMaker::getCosmicTag(
+    const pma::Track3D::ETag pmaTag) const
   {
     std::vector<anab::CosmicTagID_t> anabTags;
 
@@ -325,8 +323,7 @@ namespace trkf {
     return anabTags;
   }
 
-  void
-  PMAlgTrackMaker::produce(art::Event& evt)
+  void PMAlgTrackMaker::produce(art::Event& evt)
   {
     // ---------------- Create data products --------------------------
     auto tracks = std::make_unique<std::vector<recob::Track>>();

@@ -13,12 +13,11 @@ namespace cmtool {
     SetMaxAngleSep(20.);
     SetMinLength(15.);
     SetMinHits(20);
-
   }
 
   //--------------------------------------------------------
-  bool CBAlgoAngleSeparate::Bool(const ::cluster::ClusterParamsAlg &cluster1,
-				 const ::cluster::ClusterParamsAlg &cluster2)
+  bool CBAlgoAngleSeparate::Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                                 const ::cluster::ClusterParamsAlg& cluster2)
   //--------------------------------------------------------
   {
 
@@ -37,11 +36,10 @@ namespace cmtool {
     size_t hits2 = cluster1.GetHitVector().size();
 
     //if either cluster has less than _minHits don't even try...
-    if ( (hits1 < _minHits) or (hits2 < _minHits)
-	 or (angle1 < -360) or (angle2 < -360) )
+    if ((hits1 < _minHits) or (hits2 < _minHits) or (angle1 < -360) or (angle2 < -360))
       return false;
 
-    if (_debug){
+    if (_debug) {
       std::cout << "Cluster 1:" << std::endl;
       std::cout << "\tStart: ( " << w_start1 << ", " << t_start1 << " )" << std::endl;
       std::cout << "\tAngle: " << angle1 << std::endl;
@@ -60,22 +58,21 @@ namespace cmtool {
     double separation;
 
     //first calculate angle of line in 2D plane connectng the two start points
-    if ( (t_start2-t_start1) == 0 )
+    if ((t_start2 - t_start1) == 0)
       angle = 0.;
     else {
-      double slope = (t_start2-t_start1)/(w_start2-w_start1);
-      angle = atan(slope)*180./3.14;
+      double slope = (t_start2 - t_start1) / (w_start2 - w_start1);
+      angle = atan(slope) * 180. / 3.14;
     }
 
-    separation = abs(angle-angle1);
-    if (_debug){
+    separation = abs(angle - angle1);
+    if (_debug) {
       std::cout << "Angle S1--S2: " << angle << std::endl;
       std::cout << "Angle1--S2: " << separation << std::endl;
     }
-    if ( ( ( (separation > _MaxAngle) and (separation < 180-_MaxAngle) ) or
-	   ( (separation > 180+_MaxAngle) and (separation< 360-_MaxAngle) ) )
-	 and (hits2 > _minHits)
-	 and (len1 > _MinLen)      ){
+    if ((((separation > _MaxAngle) and (separation < 180 - _MaxAngle)) or
+         ((separation > 180 + _MaxAngle) and (separation < 360 - _MaxAngle))) and
+        (hits2 > _minHits) and (len1 > _MinLen)) {
       if (_verbose) { std::cout << "Separate! cluster 1 BIG" << std::endl << std::endl; }
       return true;
     }
@@ -83,15 +80,14 @@ namespace cmtool {
     //now change direction of angle so that it points from cluster 2 (big) to cluster 1 (small)
     angle += 180.;
     angle = (int)(angle) % 360;
-    separation = abs(angle-angle2);
-    if (_debug){
+    separation = abs(angle - angle2);
+    if (_debug) {
       std::cout << "Angle S2--S1: " << angle << std::endl;
       std::cout << "Angle2--S1: " << separation << std::endl;
     }
-    if ( ( ( (separation > _MaxAngle) and (separation < 180-_MaxAngle) ) or
-	   ( (separation > 180+_MaxAngle) and (separation< 360-_MaxAngle) ) )
-	 and (hits1 > _minHits)
-	 and (len2 > _MinLen)    ){
+    if ((((separation > _MaxAngle) and (separation < 180 - _MaxAngle)) or
+         ((separation > 180 + _MaxAngle) and (separation < 360 - _MaxAngle))) and
+        (hits1 > _minHits) and (len2 > _MinLen)) {
       if (_verbose) { std::cout << "Separate! cluster 2 BIG" << std::endl << std::endl; }
       return true;
     }
@@ -100,12 +96,9 @@ namespace cmtool {
     return false;
   }
 
-
   //-----------------------
   void CBAlgoAngleSeparate::Report()
   //-----------------------
-  {
-
-  }
+  {}
 
 }

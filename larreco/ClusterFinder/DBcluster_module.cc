@@ -72,8 +72,7 @@ namespace cluster {
   }
 
   //-------------------------------------------------
-  void
-  DBcluster::beginJob()
+  void DBcluster::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -85,8 +84,7 @@ namespace cluster {
   }
 
   //-----------------------------------------------------------------
-  void
-  DBcluster::produce(art::Event& evt)
+  void DBcluster::produce(art::Event& evt)
   {
 
     //get a collection of clusters

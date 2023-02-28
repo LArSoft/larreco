@@ -33,9 +33,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual float
-    Float(util::GeometryUtilities const&,
-          const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+    virtual float Float(util::GeometryUtilities const&,
+                        const std::vector<const cluster::ClusterParamsAlg*>& clusters)
     {
       if (clusters.size())
         return 1;

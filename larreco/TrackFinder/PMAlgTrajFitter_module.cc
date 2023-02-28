@@ -144,8 +144,7 @@ namespace trkf {
   }
   // ------------------------------------------------------
 
-  void
-  PMAlgTrajFitter::produce(art::Event& evt)
+  void PMAlgTrajFitter::produce(art::Event& evt)
   {
     // ---------------- Create data products ------------------
     auto tracks = std::make_unique<std::vector<recob::Track>>();

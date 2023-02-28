@@ -103,8 +103,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  HitFinderAna::beginJob()
+  void HitFinderAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -170,8 +169,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  HitFinderAna::analyze(const art::Event& evt)
+  void HitFinderAna::analyze(const art::Event& evt)
   {
 
     if (evt.isRealData()) {

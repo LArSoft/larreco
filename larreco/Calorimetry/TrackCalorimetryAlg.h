@@ -72,8 +72,7 @@ private:
     float pitch;
     TVector3 xyz;
     float path_fraction;
-    void
-    Print() const
+    void Print() const
     {
       std::cout << "\tCharge " << charge << "  dQdx " << dQdx << "  dEdx " << dEdx << "  pitch "
                 << pitch << "  (x,y,z) (" << xyz.X() << "," << xyz.Y() << "," << xyz.Z() << ")"
@@ -81,8 +80,7 @@ private:
     }
   };
   struct HitPropertySorter {
-    bool
-    operator()(HitProperties const& i, HitProperties const& j) const
+    bool operator()(HitProperties const& i, HitProperties const& j) const
     {
       return i.path_fraction < j.path_fraction;
     }
@@ -90,12 +88,8 @@ private:
 
   using HitPropertiesMultiset_t = std::multiset<HitProperties, HitPropertySorter>;
 
-  void
-  ClearInternalVectors()
-  {}
-  void
-  ReserveInternalVectors(size_t s)
-  {}
+  void ClearInternalVectors() {}
+  void ReserveInternalVectors(size_t s) {}
 
   std::vector<float> CreatePathLengthFractionVector(recob::Track const& track);
 

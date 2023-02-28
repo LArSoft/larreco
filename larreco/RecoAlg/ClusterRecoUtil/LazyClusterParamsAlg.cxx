@@ -19,93 +19,82 @@
 //===  cluster::LazyClusterParamsAlg
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::StartCharge(util::GeometryUtilities const&)
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::StartCharge(
+  util::GeometryUtilities const&)
 {
   return {(float)params.start_charge};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::EndCharge(util::GeometryUtilities const&)
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::EndCharge(
+  util::GeometryUtilities const&)
 {
   return {(float)params.end_charge};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::StartAngle()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::StartAngle()
 {
   return {(float)util::DegreesToRadians(params.cluster_angle_2d)};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::EndAngle()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::EndAngle()
 {
   return StartAngle();
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::StartOpeningAngle()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::StartOpeningAngle()
 {
   return {(float)params.opening_angle_charge_wgt};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::EndOpeningAngle()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::EndOpeningAngle()
 {
   return {(float)params.closing_angle_charge_wgt};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::Integral()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::Integral()
 {
   return {(float)params.sum_charge};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::IntegralStdDev()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::IntegralStdDev()
 {
   return {(float)params.rms_charge};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::SummedADC()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::SummedADC()
 {
   const double sumADC = params.sum_ADC;
   return {(float)sumADC, (float)std::sqrt(sumADC)};
 }
 
 //------------------------------------------------------------------------------
-cluster::LazyClusterParamsAlg::Measure_t
-cluster::LazyClusterParamsAlg::SummedADCStdDev()
+cluster::LazyClusterParamsAlg::Measure_t cluster::LazyClusterParamsAlg::SummedADCStdDev()
 {
   return {(float)params.rms_ADC};
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::LazyClusterParamsAlg::NHits()
+size_t cluster::LazyClusterParamsAlg::NHits()
 {
   return (size_t)params.N_Hits;
 }
 
 //------------------------------------------------------------------------------
-float
-cluster::LazyClusterParamsAlg::MultipleHitDensity()
+float cluster::LazyClusterParamsAlg::MultipleHitDensity()
 {
   return params.N_Wires ? params.multi_hit_wires / params.N_Wires : 0.;
 }
 
 //------------------------------------------------------------------------------
-float
-cluster::LazyClusterParamsAlg::Width(util::GeometryUtilities const&)
+float cluster::LazyClusterParamsAlg::Width(util::GeometryUtilities const&)
 {
   return params.width;
 }

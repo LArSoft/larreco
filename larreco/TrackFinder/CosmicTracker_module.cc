@@ -58,12 +58,11 @@ public:
   art::Ptr<recob::Hit> hit;
 };
 
-bool
-AnglesConsistent(const TVector3& p1,
-                 const TVector3& p2,
-                 const TVector3& a1,
-                 const TVector3& a2,
-                 double angcut)
+bool AnglesConsistent(const TVector3& p1,
+                      const TVector3& p2,
+                      const TVector3& a1,
+                      const TVector3& a2,
+                      double angcut)
 {
   double angle1 = a1.Angle(a2);
   if (angle1 > TMath::PiOver2()) angle1 = TMath::Pi() - angle1;
@@ -76,11 +75,10 @@ AnglesConsistent(const TVector3& p1,
 }
 
 // compare end points and directions
-bool
-MatchTrack(const std::vector<trkPoint>& trkpts1,
-           const std::vector<trkPoint>& trkpts2,
-           double discut,
-           double angcut)
+bool MatchTrack(const std::vector<trkPoint>& trkpts1,
+                const std::vector<trkPoint>& trkpts2,
+                double discut,
+                double angcut)
 {
   bool match = false;
   if (!trkpts1.size()) return match;
@@ -121,90 +119,77 @@ MatchTrack(const std::vector<trkPoint>& trkpts1,
   return match;
 }
 
-bool
-SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
+bool SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
 {
   return h1->WireID().Wire < h2->WireID().Wire;
 }
 
-bool
-sp_sort_x0(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_x0(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.X() < tp2.pos.X();
 }
 
-bool
-sp_sort_x1(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_x1(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.X() > tp2.pos.X();
 }
 
-bool
-sp_sort_y0(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_y0(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.Y() < tp2.pos.Y();
 }
 
-bool
-sp_sort_y1(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_y1(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.Y() > tp2.pos.Y();
 }
 
-bool
-sp_sort_z0(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_z0(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.Z() < tp2.pos.Z();
 }
 
-bool
-sp_sort_z1(const trkPoint& tp1, const trkPoint& tp2)
+bool sp_sort_z1(const trkPoint& tp1, const trkPoint& tp2)
 {
   return tp1.pos.Z() > tp2.pos.Z();
 }
 
-bool
-spt_sort_x0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_x0(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
   return xyz1[0] < xyz2[0];
 }
 
-bool
-spt_sort_x1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_x1(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
   return xyz1[0] > xyz2[0];
 }
 
-bool
-spt_sort_y0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_y0(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
   return xyz1[1] < xyz2[1];
 }
 
-bool
-spt_sort_y1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_y1(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
   return xyz1[1] > xyz2[1];
 }
 
-bool
-spt_sort_z0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_z0(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
   return xyz1[2] < xyz2[2];
 }
 
-bool
-spt_sort_z1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+bool spt_sort_z1(const recob::SpacePoint h1, const recob::SpacePoint h2)
 {
   const double* xyz1 = h1.XYZ();
   const double* xyz2 = h2.XYZ();
@@ -261,8 +246,7 @@ namespace trkf {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  CosmicTracker::produce(art::Event& evt)
+  void CosmicTracker::produce(art::Event& evt)
   {
 
     // get services

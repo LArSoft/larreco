@@ -6,14 +6,10 @@
 
 namespace showerreco {
 
-  void
-  ShowerRecoAlgBase::Reset()
-  {
-    fInputClusters.clear();
-  }
+  void ShowerRecoAlgBase::Reset() { fInputClusters.clear(); }
 
-  void
-  ShowerRecoAlgBase::AppendInputClusters(const std::vector<::cluster::ClusterParamsAlg>& cpan_v)
+  void ShowerRecoAlgBase::AppendInputClusters(
+    const std::vector<::cluster::ClusterParamsAlg>& cpan_v)
   {
     std::vector<::showerreco::ShowerCluster_t> clusters;
     clusters.reserve(cpan_v.size());
@@ -32,10 +28,10 @@ namespace showerreco {
     fInputClusters.push_back(clusters);
   }
 
-  std::vector<::recob::Shower>
-  ShowerRecoAlgBase::Reconstruct(geo::GeometryCore const& geom,
-                                 detinfo::DetectorClocksData const& clockData,
-                                 detinfo::DetectorPropertiesData const& detProp)
+  std::vector<::recob::Shower> ShowerRecoAlgBase::Reconstruct(
+    geo::GeometryCore const& geom,
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp)
   {
     ProcessInputClusters();
 

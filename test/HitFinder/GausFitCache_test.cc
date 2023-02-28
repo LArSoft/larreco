@@ -10,19 +10,17 @@
 #include <cmath>
 
 // boost test libraries
-#define BOOST_TEST_MODULE ( HitAnaAlg_test )
+#define BOOST_TEST_MODULE (HitAnaAlg_test)
 #include "cetlib/quiet_unit_test.hpp"
 
 // LArSoft libraries
 #include "larreco/HitFinder/GausFitCache.h"
 
-
-
-double gaus(double x, double mean, double sigma, double amplitude) {
+double gaus(double x, double mean, double sigma, double amplitude)
+{
   double z = (x - mean) / sigma;
-  return amplitude * std::exp(-0.5*z*z);
+  return amplitude * std::exp(-0.5 * z * z);
 } // gaus()
-
 
 // test that the test function behaves like a gaussian
 BOOST_AUTO_TEST_CASE(GaussianTest)
@@ -41,14 +39,13 @@ BOOST_AUTO_TEST_CASE(GaussianTest)
       // we use tolerance of 10^-5 (0.001%)
       BOOST_CHECK_CLOSE(gaus(-2., mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
       BOOST_CHECK_CLOSE(gaus(-1., mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus( 0., mean, sigma, amplitude), amplitude, 0.001);
-      BOOST_CHECK_CLOSE(gaus( 1., mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus( 2., mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
+      BOOST_CHECK_CLOSE(gaus(0., mean, sigma, amplitude), amplitude, 0.001);
+      BOOST_CHECK_CLOSE(gaus(1., mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
+      BOOST_CHECK_CLOSE(gaus(2., mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
 
     } // for mean
-  } // for sigma
+  }   // for sigma
 
 } // BOOST_AUTO_TEST_CASE(GaussianTest)
-
 
 BOOST_AUTO_TEST_SUITE_END()

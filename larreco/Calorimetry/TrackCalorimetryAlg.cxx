@@ -25,8 +25,7 @@ calo::TrackCalorimetryAlg::TrackCalorimetryAlg(fhicl::ParameterSet const& p)
   fNHitsToDetermineStart = p.get<unsigned int>("NHitsToDetermineStart", 3);
 }
 
-void
-calo::TrackCalorimetryAlg::ExtractCalorimetry(
+void calo::TrackCalorimetryAlg::ExtractCalorimetry(
   detinfo::DetectorClocksData const& clock_data,
   detinfo::DetectorPropertiesData const& det_prop,
   std::vector<recob::Track> const& trackVector,
@@ -91,8 +90,7 @@ calo::TrackCalorimetryAlg::ExtractCalorimetry(
 class dist_projected {
 public:
   dist_projected(recob::Hit const& h, geo::GeometryCore const& g) : hit(h), geom(g) {}
-  bool
-  operator()(std::pair<geo::WireID, float> i, std::pair<geo::WireID, float> j)
+  bool operator()(std::pair<geo::WireID, float> i, std::pair<geo::WireID, float> j)
   {
     float dw_i = ((int)(i.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(i.first.Plane);
     float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(j.first.Plane);
@@ -106,8 +104,8 @@ private:
   geo::GeometryCore const& geom;
 };
 
-std::vector<float>
-calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(recob::Track const& track)
+std::vector<float> calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(
+  recob::Track const& track)
 {
 
   std::vector<float> trk_path_length_frac_vec(track.NumberTrajectoryPoints());
@@ -122,8 +120,7 @@ calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(recob::Track const& tr
   return trk_path_length_frac_vec;
 }
 
-void
-calo::TrackCalorimetryAlg::AnalyzeHit(
+void calo::TrackCalorimetryAlg::AnalyzeHit(
   detinfo::DetectorClocksData const& clock_data,
   detinfo::DetectorPropertiesData const& det_prop,
   recob::Hit const& hit,
@@ -148,8 +145,7 @@ calo::TrackCalorimetryAlg::AnalyzeHit(
                                 path_length_fraction_vec[traj_iter]);
 }
 
-bool
-calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& hpm)
+bool calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& hpm)
 {
 
   if (hpm.size() <= fNHitsToDetermineStart) return false;
@@ -173,13 +169,12 @@ calo::TrackCalorimetryAlg::IsInvertedTrack(HitPropertiesMultiset_t const& hpm)
   return (charge_start > charge_end);
 }
 
-void
-calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t const& hpm,
-                                                 recob::Track const& track,
-                                                 size_t const& i_track,
-                                                 std::vector<anab::Calorimetry>& caloVector,
-                                                 std::vector<size_t>& assnTrackCaloVector,
-                                                 geo::PlaneID const& planeID)
+void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t const& hpm,
+                                                      recob::Track const& track,
+                                                      size_t const& i_track,
+                                                      std::vector<anab::Calorimetry>& caloVector,
+                                                      std::vector<size_t>& assnTrackCaloVector,
+                                                      geo::PlaneID const& planeID)
 {
   size_t n_hits = hpm.size();
   std::vector<float> dEdxVector, dQdxVector, resRangeVector, deadWireVector, pitchVector;
@@ -229,8 +224,7 @@ calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t const& 
   assnTrackCaloVector.emplace_back(i_track);
 }
 
-void
-calo::TrackCalorimetryAlg::PrintHitPropertiesMultiset(HitPropertiesMultiset_t const& hpm)
+void calo::TrackCalorimetryAlg::PrintHitPropertiesMultiset(HitPropertiesMultiset_t const& hpm)
 {
 
   for (auto const& hit : hpm)

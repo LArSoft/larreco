@@ -42,11 +42,7 @@ namespace {
     int length;
   };
 
-  bool
-  greaterThan(CluLen c1, CluLen c2)
-  {
-    return c1.length > c2.length;
-  }
+  bool greaterThan(CluLen c1, CluLen c2) { return c1.length > c2.length; }
 }
 
 namespace cluster {
@@ -126,14 +122,9 @@ namespace cluster {
   } // reconfigure
 
   // used for sorting hits on wires
-  bool
-  SortByLowHit(unsigned int i, unsigned int j)
-  {
-    return i > j;
-  }
+  bool SortByLowHit(unsigned int i, unsigned int j) { return i > j; }
 
-  bool
-  ClusterCrawlerAlg::SortByMultiplet(recob::Hit const& a, recob::Hit const& b)
+  bool ClusterCrawlerAlg::SortByMultiplet(recob::Hit const& a, recob::Hit const& b)
   {
     // compare the wire IDs first:
     int cmp_res = a.WireID().cmp(b.WireID());
@@ -145,8 +136,7 @@ namespace cluster {
   }                                         // ClusterCrawlerAlg::SortByMultiplet()
 
   //------------------------------------------------------------------------------
-  void
-  ClusterCrawlerAlg::ClearResults()
+  void ClusterCrawlerAlg::ClearResults()
   {
     fHits.clear();
     tcl.clear();
@@ -156,8 +146,7 @@ namespace cluster {
   } // ClusterCrawlerAlg::ClearResults()
 
   //------------------------------------------------------------------------------
-  void
-  ClusterCrawlerAlg::CrawlInit()
+  void ClusterCrawlerAlg::CrawlInit()
   {
     prt = false;
     vtxprt = false;
@@ -189,8 +178,7 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------------------
-  void
-  ClusterCrawlerAlg::ClusterInit()
+  void ClusterCrawlerAlg::ClusterInit()
   {
     fcl2hits.clear();
     chifits.clear();
@@ -204,11 +192,10 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------------------
-  void
-  ClusterCrawlerAlg::RunCrawler(detinfo::DetectorClocksData const& clock_data,
-                                detinfo::DetectorPropertiesData const& det_prop,
-                                std::vector<recob::Hit> const& srchits, 
-                                art::Timestamp ts)
+  void ClusterCrawlerAlg::RunCrawler(detinfo::DetectorClocksData const& clock_data,
+                                     detinfo::DetectorPropertiesData const& det_prop,
+                                     std::vector<recob::Hit> const& srchits,
+                                     art::Timestamp ts)
   {
     // Run the ClusterCrawler algorithm - creating seed clusters and crawling upstream.
 
@@ -293,8 +280,7 @@ namespace cluster {
   } // RunCrawler
 
   ////////////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ClusterLoop()
+  void ClusterCrawlerAlg::ClusterLoop()
   {
     // looks for seed clusters in a plane and crawls along a trail of hits
 
@@ -505,8 +491,7 @@ namespace cluster {
   } // ClusterLoop()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::KillGarbageClusters()
+  void ClusterCrawlerAlg::KillGarbageClusters()
   {
     // Ghost Clusters:
 
@@ -642,8 +627,7 @@ namespace cluster {
   } // KillGarbageClusters
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::MergeOverlap()
+  void ClusterCrawlerAlg::MergeOverlap()
   {
     // Tries to merge overlapping clusters schematically shown below. The minimal condition is that both
     // clusters have a length of at least minLen wires with minOvrLap of the minLen wires in the overlap region
@@ -835,8 +819,7 @@ namespace cluster {
   } // MergeOverlap()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::MakeClusterObsolete(unsigned short icl)
+  void ClusterCrawlerAlg::MakeClusterObsolete(unsigned short icl)
   {
     short& ID = tcl[icl].ID;
     if (ID <= 0) {
@@ -852,8 +835,7 @@ namespace cluster {
   } // ClusterCrawlerAlg::MakeClusterObsolete()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::RestoreObsoleteCluster(unsigned short icl)
+  void ClusterCrawlerAlg::RestoreObsoleteCluster(unsigned short icl)
   {
     short& ID = tcl[icl].ID;
     if (ID > 0) {
@@ -868,8 +850,7 @@ namespace cluster {
   } // RestoreObsoleteCluster()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FclTrimUS(unsigned short nTrim)
+  void ClusterCrawlerAlg::FclTrimUS(unsigned short nTrim)
   {
 
     // Trims nTrim hits off the UpStream end of the fcl2hits, etc vectors.
@@ -888,8 +869,7 @@ namespace cluster {
   } // FclTrim
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::CheckHitClusterAssociations()
+  void ClusterCrawlerAlg::CheckHitClusterAssociations()
   {
     // check hit - cluster associations
 
@@ -947,8 +927,7 @@ namespace cluster {
   } // CheckHitClusterAssociations()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::RemoveObsoleteHits()
+  void ClusterCrawlerAlg::RemoveObsoleteHits()
   {
 
     unsigned int destHit = 0;
@@ -988,8 +967,7 @@ namespace cluster {
   } // RemoveObsoleteHits()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ChkClusterDS()
+  void ClusterCrawlerAlg::ChkClusterDS()
   {
     // Try to extend clusters DS by a few wires.
     // DS hits may not have been  included in a cluster if they have high
@@ -1171,8 +1149,7 @@ namespace cluster {
   }     // ChkClusterDS
 
   //////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::CrawlVtxChk2()
+  bool ClusterCrawlerAlg::CrawlVtxChk2()
   {
     // returns true if the (presumably short) cluster under construction
     // resides between a vertex and another cluster that is associated with
@@ -1207,8 +1184,7 @@ namespace cluster {
   } // CrawlVtxChk2()
 
   //////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::CrawlVtxChk(unsigned int kwire)
+  bool ClusterCrawlerAlg::CrawlVtxChk(unsigned int kwire)
   {
 
     // returns true if the cluster is near a vertex on wire kwire
@@ -1225,12 +1201,11 @@ namespace cluster {
   } // CrawlVtxChk()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::VtxConstraint(unsigned int iwire,
-                                   unsigned int ihit,
-                                   unsigned int jwire,
-                                   unsigned int& useHit,
-                                   bool& doConstrain)
+  void ClusterCrawlerAlg::VtxConstraint(unsigned int iwire,
+                                        unsigned int ihit,
+                                        unsigned int jwire,
+                                        unsigned int& useHit,
+                                        bool& doConstrain)
   {
     // checks hits on wire jwire to see if one is on a line between a US vertex
     // and the hit ihit on wire iwire. If one is found, doConstrain is set true
@@ -1275,8 +1250,7 @@ namespace cluster {
 
   /////////////////////////////////////////
 
-  void
-  ClusterCrawlerAlg::RefineVertexClusters(unsigned short iv)
+  void ClusterCrawlerAlg::RefineVertexClusters(unsigned short iv)
   {
 
     // Try to attach or remove hits on the ends of vertex clusters
@@ -1429,8 +1403,7 @@ namespace cluster {
   } // RefineVertexClusters
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::VtxClusterSplit()
+  bool ClusterCrawlerAlg::VtxClusterSplit()
   {
 
     // split clusters that cross vertices
@@ -1567,8 +1540,7 @@ namespace cluster {
   } // VtxClusterSplit()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::MergeHits(const unsigned int theHit, bool& didMerge)
+  void ClusterCrawlerAlg::MergeHits(const unsigned int theHit, bool& didMerge)
   {
     // Merge all unused separate hits in the multiplet of which
     // theHit is a member into one hit (= theHit).
@@ -1727,10 +1699,9 @@ namespace cluster {
   } // MergeHits()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FixMultipletLocalIndices(size_t begin,
-                                              size_t end,
-                                              short int multiplicity /* = -1 */)
+  void ClusterCrawlerAlg::FixMultipletLocalIndices(size_t begin,
+                                                   size_t end,
+                                                   short int multiplicity /* = -1 */)
   {
     //
     // Resets multiplicity and local index of the hits in the range.
@@ -1783,8 +1754,7 @@ namespace cluster {
   } // FixMultipletLocalIndices()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FindStarVertices()
+  void ClusterCrawlerAlg::FindStarVertices()
   {
     // Make 2D vertices with a star topology with short back-to-back
     // clusters. Vertices must reside on the US end of the longest
@@ -1959,8 +1929,7 @@ namespace cluster {
   } // FindStarVertices()
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::VertexCluster(unsigned short iv)
+  void ClusterCrawlerAlg::VertexCluster(unsigned short iv)
   {
     // try to attach clusters to the specified vertex
     if (vtx[iv].NClusters == 0) return;
@@ -2036,8 +2005,7 @@ namespace cluster {
   }         // VertexCluster
 
   //////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitAllVtx(CTP_t inCTP)
+  void ClusterCrawlerAlg::FitAllVtx(CTP_t inCTP)
   {
 
     for (unsigned short iv = 0; iv < vtx.size(); ++iv) {
@@ -2048,8 +2016,7 @@ namespace cluster {
   } // FitAllVtx
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FindVertices()
+  void ClusterCrawlerAlg::FindVertices()
   {
     // try to make 2D vertices
 
@@ -2293,8 +2260,7 @@ namespace cluster {
   } // FindVertices()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ClusterVertex(unsigned short it)
+  void ClusterCrawlerAlg::ClusterVertex(unsigned short it)
   {
     // try to attach cluster it to an existing vertex
 
@@ -2391,12 +2357,11 @@ namespace cluster {
   }       // ClusterVertex()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ChkVertex(float fvw,
-                               float fvt,
-                               unsigned short it1,
-                               unsigned short it2,
-                               short topo)
+  void ClusterCrawlerAlg::ChkVertex(float fvw,
+                                    float fvt,
+                                    unsigned short it1,
+                                    unsigned short it2,
+                                    short topo)
   {
     // Checks the vertex (vw, fvt) against the existing set of vertices.
     // If there a match, clusters it1 and/or it2 are associated with it
@@ -2592,8 +2557,7 @@ namespace cluster {
   } // ChkVertex()
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::ChkSignal(unsigned int iht, unsigned int jht)
+  bool ClusterCrawlerAlg::ChkSignal(unsigned int iht, unsigned int jht)
   {
     if (iht > fHits.size() - 1) return false;
     if (jht > fHits.size() - 1) return false;
@@ -2605,8 +2569,10 @@ namespace cluster {
   } // ChkSignal
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::ChkSignal(unsigned int wire1, float time1, unsigned int wire2, float time2)
+  bool ClusterCrawlerAlg::ChkSignal(unsigned int wire1,
+                                    float time1,
+                                    unsigned int wire2,
+                                    float time2)
   {
     // returns  true if there is a signal on the line between
     // (wire1, time1) and (wire2, time2).
@@ -2695,8 +2661,7 @@ namespace cluster {
   } // ChkSignal()
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx)
+  bool ClusterCrawlerAlg::SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx)
   {
     // split cluster icl into two clusters
 
@@ -2813,8 +2778,7 @@ namespace cluster {
   } // SplitCluster()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ChkMerge()
+  void ClusterCrawlerAlg::ChkMerge()
   {
     // Try to merge clusters. Clusters that have been subsumed in other
     // clusters, i.e. no longer valid, have ID < 0
@@ -3024,8 +2988,7 @@ namespace cluster {
   }
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ChkMerge12(unsigned short it1, unsigned short it2, bool& didit)
+  void ClusterCrawlerAlg::ChkMerge12(unsigned short it1, unsigned short it2, bool& didit)
   {
     // Calling routine has done a rough check that cluster it2 is a candidate
     // for merging with cluster it1. The wire range spanned by it2 lies
@@ -3158,8 +3121,7 @@ namespace cluster {
   } // ChkMerge12()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::DoMerge(unsigned short it1, unsigned short it2, short inProcCode)
+  void ClusterCrawlerAlg::DoMerge(unsigned short it1, unsigned short it2, short inProcCode)
   {
     // Merge clusters.
 
@@ -3284,8 +3246,7 @@ namespace cluster {
   } // DoMerge
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::PrintVertices()
+  void ClusterCrawlerAlg::PrintVertices()
   {
 
     mf::LogVerbatim myprt("CC");
@@ -3349,8 +3310,7 @@ namespace cluster {
   } // PrintVertices
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::PrintClusters()
+  void ClusterCrawlerAlg::PrintClusters()
   {
 
     // prints clusters to the screen for code development
@@ -3451,8 +3411,7 @@ namespace cluster {
   } // PrintClusters()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::TmpGet(unsigned short it1)
+  void ClusterCrawlerAlg::TmpGet(unsigned short it1)
   {
     // copies temp cluster it1 into the fcl2hits vector, etc. This is
     // effectively the inverse of cl2TmpStore
@@ -3480,8 +3439,7 @@ namespace cluster {
   }
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::TmpStore()
+  bool ClusterCrawlerAlg::TmpStore()
   {
 
     if (fcl2hits.size() < 2) return false;
@@ -3573,8 +3531,7 @@ namespace cluster {
   } // TmpStore()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::LACrawlUS()
+  void ClusterCrawlerAlg::LACrawlUS()
   {
     // Crawl a large angle cluster upstream. Similar to CrawlUS but require
     // that a hit be added on each wire
@@ -3723,8 +3680,7 @@ namespace cluster {
   } // LACrawlUS
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::CrawlUS()
+  void ClusterCrawlerAlg::CrawlUS()
   {
     // Crawl along a trail of hits moving upstream
 
@@ -4024,8 +3980,7 @@ namespace cluster {
   } // CrawlUS()
 
   /////////////////////////////////////////
-  float
-  ClusterCrawlerAlg::EndKinkAngle()
+  float ClusterCrawlerAlg::EndKinkAngle()
   {
     // find the kink angle (crudely) from the 0th and 2nd hit on the cluster under construction
 
@@ -4048,8 +4003,7 @@ namespace cluster {
   }
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2)
+  bool ClusterCrawlerAlg::ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2)
   {
     // This routine is called before two tcl clusters, it1 and it2, are slated to be
     // merged to see if they will satisfy the minimum hit fraction criterion
@@ -4096,8 +4050,7 @@ namespace cluster {
   } // ChkMergedClusterHitFrac
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::CheckClusterHitFrac(bool prt)
+  void ClusterCrawlerAlg::CheckClusterHitFrac(bool prt)
   {
 
     // Find the fraction of the wires on the cluster that have
@@ -4165,17 +4118,15 @@ namespace cluster {
   } // CheckClusterHitFrac()
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitClusterMid(unsigned short it1, unsigned int ihtin, short nhit)
+  void ClusterCrawlerAlg::FitClusterMid(unsigned short it1, unsigned int ihtin, short nhit)
   {
     FitClusterMid(tcl[it1].tclhits, ihtin, nhit);
   } // FitClusterMid
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitClusterMid(std::vector<unsigned int>& hitVec,
-                                   unsigned int ihtin,
-                                   short nhit)
+  void ClusterCrawlerAlg::FitClusterMid(std::vector<unsigned int>& hitVec,
+                                        unsigned int ihtin,
+                                        short nhit)
   {
     // Fits hits on temp cluster it1 to a line starting at hit ihtin and including
     // nhit hits incrementing towards the hit vector End when nhit > 0 and
@@ -4275,8 +4226,7 @@ namespace cluster {
   }
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitCluster()
+  void ClusterCrawlerAlg::FitCluster()
   {
     // Fits the hits on the US end of a cluster. This routine assumes that
     // wires are numbered from lower (upstream) to higher (downstream) and
@@ -4375,8 +4325,7 @@ namespace cluster {
                             << clChisq;
   }
   /////////////////////////////////////////
-  float
-  ClusterCrawlerAlg::AngleFactor(float slope)
+  float ClusterCrawlerAlg::AngleFactor(float slope)
   {
     // returns an angle dependent cluster projection error factor for fitting
     // and hit finding
@@ -4389,8 +4338,7 @@ namespace cluster {
   }
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::CalculateAveHitWidth()
+  void ClusterCrawlerAlg::CalculateAveHitWidth()
   {
     fAveHitWidth = 0;
     for (unsigned short ii = 0; ii < fcl2hits.size(); ++ii)
@@ -4399,8 +4347,7 @@ namespace cluster {
   } // CalculateAveHitWidth
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitClusterChg()
+  void ClusterCrawlerAlg::FitClusterChg()
   {
     // Fits the charge of hits on the fcl2hits vector to a line, or simply
     // uses the average of 1 or 2 hits as determined by NHitsAve
@@ -4520,8 +4467,7 @@ namespace cluster {
   } // fitchg
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::AddLAHit(unsigned int kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
+  void ClusterCrawlerAlg::AddLAHit(unsigned int kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
   {
     // A variant of AddHit for large angle clusters
 
@@ -4712,8 +4658,7 @@ namespace cluster {
   } // AddLAHit()
 
   /////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::ClusterHitsOK(short nHitChk)
+  bool ClusterCrawlerAlg::ClusterHitsOK(short nHitChk)
   {
     // Check StartTick and EndTick of hits on adjacent wires overlap as illustrated below.
     // >>>>>> This is OK
@@ -4772,8 +4717,7 @@ namespace cluster {
   } // ClusterHitsOK
 
   /////////////////////////////////////////
-  void
-  ClusterCrawlerAlg::AddHit(unsigned int kwire, bool& HitOK, bool& SigOK)
+  void ClusterCrawlerAlg::AddHit(unsigned int kwire, bool& HitOK, bool& SigOK)
   {
     // Add a hit to the cluster if it meets several criteria:
     // similar pulse height to the cluster (if fAveChg is defined)
@@ -5027,8 +4971,7 @@ namespace cluster {
   } // AddHit()
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::ChkClusterNearbyHits(bool prt)
+  void ClusterCrawlerAlg::ChkClusterNearbyHits(bool prt)
   {
     // analyze the hitnear vector
     //  0 = no nearby hit exists
@@ -5101,8 +5044,7 @@ namespace cluster {
   } // ChkClusterHitNear()
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FitVtx(unsigned short iv)
+  void ClusterCrawlerAlg::FitVtx(unsigned short iv)
   {
     std::vector<float> x;
     std::vector<float> y;
@@ -5231,10 +5173,9 @@ namespace cluster {
   } // FitVtx
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::Vtx3ClusterMatch(detinfo::DetectorClocksData const& clock_data,
-                                      detinfo::DetectorPropertiesData const& det_prop,
-                                      geo::TPCID const& tpcid)
+  void ClusterCrawlerAlg::Vtx3ClusterMatch(detinfo::DetectorClocksData const& clock_data,
+                                           detinfo::DetectorPropertiesData const& det_prop,
+                                           geo::TPCID const& tpcid)
   {
     // Look for clusters that end/begin near the expected wire/time
     // for incomplete 3D vertices
@@ -5317,11 +5258,10 @@ namespace cluster {
   }   // Vtx3ClusterMatch
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
-                                      detinfo::DetectorPropertiesData const& det_prop,
-                                      geo::TPCID const& tpcid, 
-                                      art::Timestamp ts)
+  void ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
+                                           detinfo::DetectorPropertiesData const& det_prop,
+                                           geo::TPCID const& tpcid,
+                                           art::Timestamp ts)
   {
     // Try to split clusters in a view in which there is no 2D vertex
     // assigned to a 3D vertex
@@ -5544,9 +5484,8 @@ namespace cluster {
   } // Vtx3ClusterSplit()
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
-                                        detinfo::DetectorPropertiesData const& det_prop)
+  void ClusterCrawlerAlg::FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
+                                             detinfo::DetectorPropertiesData const& det_prop)
   {
     // look for a long cluster that stops at a short cluster in two views. This can occur in a CCmu
     // interaction where two protons are emitted back-to-back and are therefore reconstructed as one cluster
@@ -5733,10 +5672,9 @@ namespace cluster {
   } // FindHammerClusters
 
   //////////////////////////////////////
-  void
-  ClusterCrawlerAlg::VtxMatch(detinfo::DetectorClocksData const& clock_data,
-                              detinfo::DetectorPropertiesData const& det_prop,
-                              geo::TPCID const& tpcid)
+  void ClusterCrawlerAlg::VtxMatch(detinfo::DetectorClocksData const& clock_data,
+                                   detinfo::DetectorPropertiesData const& det_prop,
+                                   geo::TPCID const& tpcid)
   {
     // Create 3D vertices from 2D vertices. 3D vertices that are matched
     // in all three planes have Ptr2D >= 0 for all planes
@@ -5997,8 +5935,7 @@ namespace cluster {
   } // VtxMatch
 
   //////////////////////////////////
-  void
-  ClusterCrawlerAlg::GetHitRange(CTP_t CTP, art::Timestamp ts)
+  void ClusterCrawlerAlg::GetHitRange(CTP_t CTP, art::Timestamp ts)
   {
     // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
     // Hits must have been sorted by increasing wire number
@@ -6118,8 +6055,7 @@ namespace cluster {
   } // GetHitRange()
 
   //////////////////////////////////////////
-  unsigned int
-  ClusterCrawlerAlg::DeadWireCount(unsigned int inWire1, unsigned int inWire2)
+  unsigned int ClusterCrawlerAlg::DeadWireCount(unsigned int inWire1, unsigned int inWire2)
   {
     if (inWire1 > inWire2) {
       // put in increasing order
@@ -6135,8 +6071,7 @@ namespace cluster {
   } // DeadWireCount
 
   //////////////////////////////////////////
-  unsigned int
-  ClusterCrawlerAlg::DeadWireCount()
+  unsigned int ClusterCrawlerAlg::DeadWireCount()
   {
     // Counts the number of dead wires in the range spanned by fcl2hits
     if (fcl2hits.size() < 2) return 0;
@@ -6151,16 +6086,15 @@ namespace cluster {
   } // DeadWireCount
 
   //////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::areInSameMultiplet(recob::Hit const& first_hit, recob::Hit const& second_hit)
+  bool ClusterCrawlerAlg::areInSameMultiplet(recob::Hit const& first_hit,
+                                             recob::Hit const& second_hit)
   {
     return (first_hit.StartTick() == second_hit.StartTick()) &&
            (first_hit.WireID() == second_hit.WireID());
   } // ClusterCrawlerAlg::areInSameMultiplet()
 
   //////////////////////////////////////////
-  std::pair<size_t, size_t>
-  ClusterCrawlerAlg::FindHitMultiplet(size_t iHit) const
+  std::pair<size_t, size_t> ClusterCrawlerAlg::FindHitMultiplet(size_t iHit) const
   {
     std::pair<size_t, size_t> range{iHit, iHit};
 
@@ -6171,8 +6105,8 @@ namespace cluster {
   } // ClusterCrawlerAlg::FindHitMultiplet()
 
   //////////////////////////////////////////
-  bool
-  ClusterCrawlerAlg::CheckHitDuplicates(std::string location, std::string marker /* = "" */) const
+  bool ClusterCrawlerAlg::CheckHitDuplicates(std::string location,
+                                             std::string marker /* = "" */) const
   {
     // currently unused, only for debug
     unsigned int nDuplicates = 0;
@@ -6192,8 +6126,7 @@ namespace cluster {
   } // ClusterCrawlerAlg::CheckHitDuplicates()
 
   /////////////////////////////////////////
-  float
-  ClusterCrawlerAlg::DoCA(short icl, unsigned short end, float vwire, float vtick)
+  float ClusterCrawlerAlg::DoCA(short icl, unsigned short end, float vwire, float vtick)
   {
     // Find the Distance of Closest Approach betweeen a cluster and a point (vwire, vtick). The
     // DoCA is returned in Tick units.
@@ -6239,8 +6172,7 @@ namespace cluster {
   } // DoCA
 
   /////////////////////////////////////////
-  float
-  ClusterCrawlerAlg::ClusterVertexChi(short icl, unsigned short end, unsigned short ivx)
+  float ClusterCrawlerAlg::ClusterVertexChi(short icl, unsigned short end, unsigned short ivx)
   {
     // Returns the chisq/DOF between a cluster and a vertex
 
@@ -6307,8 +6239,7 @@ namespace cluster {
   } // ClusterVertexChi
 
   /////////////////////////////////////////
-  float
-  ClusterCrawlerAlg::PointVertexChi(float wire, float tick, unsigned short ivx)
+  float ClusterCrawlerAlg::PointVertexChi(float wire, float tick, unsigned short ivx)
   {
     // Returns the Chisq/DOF between a (Wire, Tick) point and a vertex
 
@@ -6326,8 +6257,7 @@ namespace cluster {
   } // PointVertexChi
 
   /////////////////////////////////////////
-  std::string
-  ClusterCrawlerAlg::PrintHit(unsigned int iht)
+  std::string ClusterCrawlerAlg::PrintHit(unsigned int iht)
   {
 
     if (iht > fHits.size() - 1) return "Bad Hit";

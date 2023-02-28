@@ -17,14 +17,12 @@
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace lar_cluster3d
-{
-/**
+namespace lar_cluster3d {
+  /**
  *  @brief  ClusterParamsBuilder class definiton
  */
-class IClusterParametersBuilder
-{
-public:
+  class IClusterParametersBuilder {
+  public:
     /**
      *  @brief  Destructor
      */
@@ -56,8 +54,8 @@ public:
     virtual void FillClusterParams(reco::ClusterParameters&,
                                    reco::Hit2DToClusterMap&,
                                    double minUniqueFrac = 0.,
-                                   double maxLostFrac=1.) const = 0;
-};
+                                   double maxLostFrac = 1.) const = 0;
+  };
 
 } // namespace lar_cluster3d
 #endif

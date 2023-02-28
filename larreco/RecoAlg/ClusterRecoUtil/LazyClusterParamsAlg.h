@@ -44,9 +44,7 @@ namespace cluster {
     LazyClusterParamsAlg(cluster_params const& new_params) : params(new_params) {}
 
     /// Restores the class to post-configuration, pre-initialization state; dummy
-    void
-    Clear() override
-    {}
+    void Clear() override {}
 
     /**
      * @brief Sets the list of input hits
@@ -56,9 +54,8 @@ namespace cluster {
      * The parameters have already been computed.
      * This function is dummy.
      */
-    void
-    SetHits(util::GeometryUtilities const& gser,
-            std::vector<recob::Hit const*> const& hits) override
+    void SetHits(util::GeometryUtilities const& gser,
+                 std::vector<recob::Hit const*> const& hits) override
     {}
 
     //@{
@@ -173,11 +170,7 @@ namespace cluster {
     float Width(util::GeometryUtilities const&) override;
 
     /// Returns the original precomputed parameters
-    cluster_params const&
-    GetParams() const
-    {
-      return params;
-    }
+    cluster_params const& GetParams() const { return params; }
 
   protected:
     cluster_params const& params; ///< the parameters, already computed

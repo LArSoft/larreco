@@ -26,7 +26,6 @@ namespace cmtool {
   class CBAlgoAngleIncompat : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoAngleIncompat();
 
@@ -37,8 +36,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     void SetAllow180Ambig(bool on) { _allow_180_ambig = on; }
 
@@ -53,7 +52,6 @@ namespace cmtool {
     void SetDebug(bool on) { _debug = on; }
 
   protected:
-
     bool _debug;
     bool _allow_180_ambig;
     double _max_allowed_2D_angle_diff;

@@ -25,7 +25,6 @@ namespace cmtool {
   class CPAlgoQSum : public CPriorityAlgoBase {
 
   public:
-
     /// Default constructor
     CPAlgoQSum();
 
@@ -36,17 +35,14 @@ namespace cmtool {
        Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
-    virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
+    virtual float Priority(const ::cluster::ClusterParamsAlg& cluster);
 
     /// Setter for minimum charge
     void SetMinQ(double v) { _qsum_cut = v; }
 
   protected:
-
     double _qsum_cut;
-
   };
 }
 #endif
 /** @} */ // end of doxygen group
-

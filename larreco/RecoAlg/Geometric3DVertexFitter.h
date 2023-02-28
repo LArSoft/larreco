@@ -65,9 +65,8 @@ namespace trkf {
 
     struct TracksFromVertexSorter {
       TracksFromVertexSorter(const recob::tracking::Point_t& vtxPos) : vtxPos_(vtxPos) {}
-      bool
-      operator()(std::reference_wrapper<const recob::Track> a,
-                 std::reference_wrapper<const recob::Track> b) const
+      bool operator()(std::reference_wrapper<const recob::Track> a,
+                      std::reference_wrapper<const recob::Track> b) const
       {
         return ((a.get().Trajectory().Start() - vtxPos_).Mag2() <
                 (b.get().Trajectory().Start() - vtxPos_).Mag2());
@@ -178,8 +177,7 @@ namespace trkf {
     ParsCovsOnPlane getParsCovsOnPlane(detinfo::DetectorPropertiesData const& detProp,
                                        const trkf::VertexWrapper& vtx,
                                        const recob::Track& tk) const;
-    std::pair<TrackState, double>
-    weightedAverageState(ParsCovsOnPlane& pcop) const
+    std::pair<TrackState, double> weightedAverageState(ParsCovsOnPlane& pcop) const
     {
       return weightedAverageState(pcop.par1, pcop.par2, pcop.cov1, pcop.cov2, pcop.plane);
     };

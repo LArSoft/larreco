@@ -24,17 +24,15 @@ namespace cmtool {
     _time_report = false;
   }
 
-  void
-  CMManagerBase::Reset()
+  void CMManagerBase::Reset()
   {
     _planes.clear();
     _in_clusters.clear();
     if (_priority_algo) _priority_algo->Reset();
   }
 
-  void
-  CMManagerBase::SetClusters(util::GeometryUtilities const& gser,
-                             const std::vector<std::vector<util::PxHit>>& clusters)
+  void CMManagerBase::SetClusters(util::GeometryUtilities const& gser,
+                                  const std::vector<std::vector<util::PxHit>>& clusters)
   {
 
     TStopwatch localWatch;
@@ -74,8 +72,7 @@ namespace cmtool {
     }
   }
 
-  void
-  CMManagerBase::SetClusters(const std::vector<cluster::ClusterParamsAlg>& clusters)
+  void CMManagerBase::SetClusters(const std::vector<cluster::ClusterParamsAlg>& clusters)
   {
     TStopwatch localWatch;
 
@@ -89,8 +86,7 @@ namespace cmtool {
                 << std::endl;
   }
 
-  void
-  CMManagerBase::Process(util::GeometryUtilities const& gser)
+  void CMManagerBase::Process(util::GeometryUtilities const& gser)
   {
 
     if (!(_in_clusters.size())) return;
@@ -156,8 +152,7 @@ namespace cmtool {
                 << std::endl;
   }
 
-  void
-  CMManagerBase::ComputePriority(const std::vector<cluster::ClusterParamsAlg>& clusters)
+  void CMManagerBase::ComputePriority(const std::vector<cluster::ClusterParamsAlg>& clusters)
   {
 
     TStopwatch localWatch;

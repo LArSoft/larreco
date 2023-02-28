@@ -110,8 +110,7 @@ namespace hit {
   }
 
   //-------------------------------------------------------------------
-  void
-  DisambigCheater::produce(art::Event& evt)
+  void DisambigCheater::produce(art::Event& evt)
   {
     // get hits on channels
     art::Handle<std::vector<recob::Hit>> ChanHits;
@@ -168,8 +167,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  DisambigCheater::MakeDisambigHit(
+  void DisambigCheater::MakeDisambigHit(
     art::Ptr<recob::Hit> const& original_hit,
     geo::WireID const& wid,
     art::Ptr<recob::Wire> const& wire, // art::Ptr<raw::RawDigit> const& rawdigits,
@@ -187,9 +185,8 @@ namespace hit {
   }
 
   //-------------------------------------------------------------------
-  void
-  DisambigCheater::InitHitToWids(detinfo::DetectorClocksData const& clockData,
-                                 const std::vector<art::Ptr<recob::Hit>>& ChHits)
+  void DisambigCheater::InitHitToWids(detinfo::DetectorClocksData const& clockData,
+                                      const std::vector<art::Ptr<recob::Hit>>& ChHits)
   {
 
     unsigned int Ucount(0), Vcount(0);
@@ -296,8 +293,7 @@ namespace hit {
   }
 
   //-------------------------------------------------------------------
-  void
-  DisambigCheater::endJob()
+  void DisambigCheater::endJob()
   {
 
     if (fFalseChanHits > 0)

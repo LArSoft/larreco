@@ -148,8 +148,7 @@ namespace cluster {
   }
 
   //------------------------------------------------------------------
-  void
-  ClusterAna::beginJob()
+  void ClusterAna::beginJob()
   {
 
     // get access to the TFile service
@@ -201,14 +200,12 @@ namespace cluster {
     fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot", "NuEP2 proton vs KE", 200, 0, 2000);
   }
 
-  void
-  ClusterAna::endJob()
+  void ClusterAna::endJob()
   {
     if (fPrintLevel == -1) outFile.close();
   }
 
-  void
-  ClusterAna::analyze(const art::Event& evt)
+  void ClusterAna::analyze(const art::Event& evt)
   {
     // code stolen from TrackAna_module.cc
     art::ServiceHandle<geo::Geometry const> geom;

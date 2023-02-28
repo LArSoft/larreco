@@ -14,19 +14,18 @@
 #ifndef RECOTOOL_SHOWERRECOEXCEPTION_H
 #define RECOTOOL_SHOWERRECOEXCEPTION_H
 
-#include <string>
 #include <exception>
+#include <string>
 
 namespace showerreco {
   /**
      \class ShowerRecoException
      Generic (base) exception class
   */
-  class ShowerRecoException : public std::exception{
+  class ShowerRecoException : public std::exception {
 
   public:
-
-    ShowerRecoException(std::string msg="") : std::exception()
+    ShowerRecoException(std::string msg = "") : std::exception()
     {
       _msg = "\033[93m";
       _msg += msg;
@@ -34,11 +33,9 @@ namespace showerreco {
     }
 
     virtual ~ShowerRecoException() throw(){};
-    virtual const char* what() const throw()
-    { return _msg.c_str(); }
+    virtual const char* what() const throw() { return _msg.c_str(); }
 
   private:
-
     std::string _msg;
   };
 

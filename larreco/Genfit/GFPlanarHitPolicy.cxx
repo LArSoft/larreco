@@ -22,20 +22,17 @@
 
 const std::string genf::GFPlanarHitPolicy::fPolicyName = "GFPlanarHitPolicy";
 
-TMatrixT<Double_t>
-genf::GFPlanarHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane&)
+TMatrixT<Double_t> genf::GFPlanarHitPolicy::hitCoord(GFAbsRecoHit* hit, const GFDetPlane&)
 {
   return hit->getRawHitCoord();
 }
 
-TMatrixT<Double_t>
-genf::GFPlanarHitPolicy::hitCov(GFAbsRecoHit* hit,const GFDetPlane&)
+TMatrixT<Double_t> genf::GFPlanarHitPolicy::hitCov(GFAbsRecoHit* hit, const GFDetPlane&)
 {
   return hit->getRawHitCov();
 }
 
-const genf::GFDetPlane&
-genf::GFPlanarHitPolicy::detPlane(GFAbsRecoHit*,const GFAbsTrackRep*)
+const genf::GFDetPlane& genf::GFPlanarHitPolicy::detPlane(GFAbsRecoHit*, const GFAbsTrackRep*)
 {
   return fPhysicalDetPlane;
 }

@@ -62,8 +62,7 @@ namespace cluster {
     ClearEventInfo();
   }
 
-  void
-  ClusterMatchAlg::ReportConfig() const
+  void ClusterMatchAlg::ReportConfig() const
   {
     std::ostringstream msg;
     msg << std::endl
@@ -86,8 +85,7 @@ namespace cluster {
     mf::LogWarning("ClusterMatchAlg") << msg.str();
   }
 
-  void
-  ClusterMatchAlg::ClearMatchInputInfo()
+  void ClusterMatchAlg::ClearMatchInputInfo()
   {
     _ucluster_v.clear();
     _vcluster_v.clear();
@@ -98,8 +96,7 @@ namespace cluster {
     _whits_v.clear();
   }
 
-  void
-  ClusterMatchAlg::ClearMatchOutputInfo()
+  void ClusterMatchAlg::ClearMatchOutputInfo()
   {
     _matched_uclusters_v.clear();
     _matched_vclusters_v.clear();
@@ -107,8 +104,7 @@ namespace cluster {
     _matched_sps_v.clear();
   }
 
-  void
-  ClusterMatchAlg::ClearTTreeInfo()
+  void ClusterMatchAlg::ClearTTreeInfo()
   {
 
     _mc_E = 0;
@@ -146,16 +142,14 @@ namespace cluster {
     _tend_max_v.clear();
   }
 
-  void
-  ClusterMatchAlg::ClearEventInfo()
+  void ClusterMatchAlg::ClearEventInfo()
   {
     ClearMatchInputInfo();
     ClearMatchOutputInfo();
     ClearTTreeInfo();
   }
 
-  void
-  ClusterMatchAlg::PrepareTTree()
+  void ClusterMatchAlg::PrepareTTree()
   {
     if (!_match_tree) {
       art::ServiceHandle<art::TFileService const> fileService;
@@ -202,8 +196,7 @@ namespace cluster {
     }
   }
 
-  void
-  ClusterMatchAlg::FillMCInfo(const art::Event& evt)
+  void ClusterMatchAlg::FillMCInfo(const art::Event& evt)
   {
     if (!_ModName_MCTruth.size()) return;
 
@@ -247,8 +240,7 @@ namespace cluster {
     }
   }
 
-  void
-  ClusterMatchAlg::PrepareDetParams(const detinfo::DetectorPropertiesData& det_prop)
+  void ClusterMatchAlg::PrepareDetParams(const detinfo::DetectorPropertiesData& det_prop)
   {
     if (!_det_params_prepared) {
       // Total number of planes
@@ -265,10 +257,9 @@ namespace cluster {
     }
   }
 
-  void
-  ClusterMatchAlg::AppendClusterInfo(const detinfo::DetectorPropertiesData& det_prop,
-                                     const recob::Cluster& in_cluster,
-                                     const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
+  void ClusterMatchAlg::AppendClusterInfo(const detinfo::DetectorPropertiesData& det_prop,
+                                          const recob::Cluster& in_cluster,
+                                          const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
   {
     PrepareDetParams(det_prop);
     cluster_match_info ci(in_cluster.ID());
@@ -299,10 +290,9 @@ namespace cluster {
     }
   }
 
-  void
-  ClusterMatchAlg::FillHitInfo(cluster_match_info& ci,
-                               art::PtrVector<recob::Hit>& out_hit_v,
-                               const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
+  void ClusterMatchAlg::FillHitInfo(cluster_match_info& ci,
+                                    art::PtrVector<recob::Hit>& out_hit_v,
+                                    const std::vector<art::Ptr<recob::Hit>>& in_hit_v)
   {
 
     out_hit_v.reserve(in_hit_v.size());
@@ -342,8 +332,7 @@ namespace cluster {
     ci.nhits = in_hit_v.size();
   }
 
-  void
-  ClusterMatchAlg::AppendClusterTreeVariables(const cluster_match_info& ci)
+  void ClusterMatchAlg::AppendClusterTreeVariables(const cluster_match_info& ci)
   {
     if (_cluster_tree) {
       _view_v.push_back(ci.view);
@@ -359,11 +348,10 @@ namespace cluster {
   }
 
   //########################################################################################
-  bool
-  ClusterMatchAlg::Match_RoughZ(const cluster_match_info& ci1,
-                                const cluster_match_info& ci2,
-                                const geo::View_t v1,
-                                const geo::View_t v2) const
+  bool ClusterMatchAlg::Match_RoughZ(const cluster_match_info& ci1,
+                                     const cluster_match_info& ci2,
+                                     const geo::View_t v1,
+                                     const geo::View_t v2) const
   {
     art::ServiceHandle<geo::Geometry const> geo_h;
     double y, z_min, z_max;
@@ -373,8 +361,8 @@ namespace cluster {
     return (z_max > z_min);
   }
 
-  bool
-  ClusterMatchAlg::Match_RoughTime(const cluster_match_info& ci1, const cluster_match_info& ci2)
+  bool ClusterMatchAlg::Match_RoughTime(const cluster_match_info& ci1,
+                                        const cluster_match_info& ci2)
   {
     double time_overlay = std::min(ci1.end_time_max, ci2.end_time_max) -
                           std::max(ci1.start_time_min, ci2.start_time_min);
@@ -396,8 +384,7 @@ namespace cluster {
     return (overlay_tratio > _overlay_tratio_cut);
   }
 
-  bool
-  ClusterMatchAlg::Match_SumCharge(const cluster_match_info& uc, const cluster_match_info& vc)
+  bool ClusterMatchAlg::Match_SumCharge(const cluster_match_info& uc, const cluster_match_info& vc)
   {
     double qratio = (uc.sum_charge) / (vc.sum_charge);
 
@@ -407,13 +394,12 @@ namespace cluster {
     return ((1 - _qratio_cut) < qratio && (qratio) < (1 + _qratio_cut));
   }
 
-  bool
-  ClusterMatchAlg::Match_SpacePoint(detinfo::DetectorClocksData const& clock_data,
-                                    detinfo::DetectorPropertiesData const& det_prop,
-                                    const size_t uindex,
-                                    const size_t vindex,
-                                    const size_t windex,
-                                    std::vector<recob::SpacePoint>& sps_v)
+  bool ClusterMatchAlg::Match_SpacePoint(detinfo::DetectorClocksData const& clock_data,
+                                         detinfo::DetectorPropertiesData const& det_prop,
+                                         const size_t uindex,
+                                         const size_t vindex,
+                                         const size_t windex,
+                                         std::vector<recob::SpacePoint>& sps_v)
   {
     bool use_wplane = _tot_planes > 2;
 
@@ -499,8 +485,7 @@ namespace cluster {
     return true;
   }
 
-  std::vector<std::vector<unsigned int>>
-  ClusterMatchAlg::GetMatchedClusters() const
+  std::vector<std::vector<unsigned int>> ClusterMatchAlg::GetMatchedClusters() const
   {
     std::vector<std::vector<unsigned int>> result;
     result.push_back(_matched_uclusters_v);
@@ -509,9 +494,8 @@ namespace cluster {
     return result;
   }
 
-  void
-  ClusterMatchAlg::MatchTwoPlanes(detinfo::DetectorClocksData const& clockData,
-                                  detinfo::DetectorPropertiesData const& detProp)
+  void ClusterMatchAlg::MatchTwoPlanes(detinfo::DetectorClocksData const& clockData,
+                                       detinfo::DetectorPropertiesData const& detProp)
   {
     std::ostringstream msg;
     msg << Form("Received (U,V,W) = (%zu,%zu,%zu) clusters...",
@@ -618,9 +602,8 @@ namespace cluster {
     ClearTTreeInfo();
   }
 
-  void
-  ClusterMatchAlg::MatchThreePlanes(detinfo::DetectorClocksData const& clock_data,
-                                    detinfo::DetectorPropertiesData const& det_prop)
+  void ClusterMatchAlg::MatchThreePlanes(detinfo::DetectorClocksData const& clock_data,
+                                         detinfo::DetectorPropertiesData const& det_prop)
   {
     std::ostringstream msg;
     msg << Form("Received (U,V,W) = (%zu,%zu,%zu) clusters...",

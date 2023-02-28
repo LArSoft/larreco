@@ -66,8 +66,7 @@ namespace tss {
   }
   // ------------------------------------------------------
 
-  bool
-  TrackShowerHits::sortHits(const art::Event& evt)
+  bool TrackShowerHits::sortHits(const art::Event& evt)
   {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
@@ -93,8 +92,7 @@ namespace tss {
   }
   // ------------------------------------------------------
 
-  void
-  TrackShowerHits::produce(art::Event& evt)
+  void TrackShowerHits::produce(art::Event& evt)
   {
     std::unique_ptr<std::vector<recob::Cluster>> clusters(new std::vector<recob::Cluster>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> clu2hit(

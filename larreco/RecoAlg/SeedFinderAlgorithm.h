@@ -62,11 +62,7 @@ namespace trkf {
     // Alg passing
     //----------------------
 
-    SpacePointAlg*
-    GetSpacePointAlg() const
-    {
-      return fSptalg;
-    }
+    SpacePointAlg* GetSpacePointAlg() const { return fSptalg; }
     // Return the SpacePointAlg, as configured for the Seed Finding
 
   private:

@@ -96,11 +96,7 @@ namespace cluster {
     void ReportConfig() const;
 
     /// Method to specify input MCTruth's module name (optional)
-    void
-    SetMCTruthModName(std::string name)
-    {
-      _ModName_MCTruth = name;
-    }
+    void SetMCTruthModName(std::string name) { _ModName_MCTruth = name; }
 
     /// Internal method to fill MCTruth information when available
     void FillMCInfo(const art::Event& evt);
@@ -128,18 +124,13 @@ namespace cluster {
     std::vector<std::vector<unsigned int>> GetMatchedClusters() const;
 
     /// Method to retrieve matched SpacePoint for each combinations.
-    const std::vector<std::vector<recob::SpacePoint>>&
-    GetMatchedSpacePoints() const
+    const std::vector<std::vector<recob::SpacePoint>>& GetMatchedSpacePoints() const
     {
       return _matched_sps_v;
     };
 
     /// Method to check if it is configured to store SpacePoint
-    bool
-    StoreSpacePoints() const
-    {
-      return _store_sps;
-    }
+    bool StoreSpacePoints() const { return _store_sps; }
 
     /// Method to clear event-wise information
     void ClearEventInfo();

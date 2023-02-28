@@ -28,10 +28,10 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
-#include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
 
 namespace detinfo {
   class DetectorPropertiesData;
@@ -103,7 +103,7 @@ public:
                          const lariov::ChannelStatusProvider& channelStatus,
                          const pma::Track3D& trk,
                          const img::DataProviderAlg& adcImage,
-                         float thr, 
+                         float thr,
                          lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of the track that is closer than
@@ -117,7 +117,7 @@ public:
                               const img::DataProviderAlg& adcImage,
                               const std::vector<art::Ptr<recob::Hit>>& hits,
                               TH1F* histoPassing,
-                              TH1F* histoRejected, 
+                              TH1F* histoRejected,
                               lariov::DBTimeStamp_t ts) const;
 
   /// Calculate the fraction of the track that is closer than
@@ -151,19 +151,17 @@ public:
   double twoViewFraction(pma::Track3D& trk) const;
 
   /// Count the number of hits that are closer than eps * fHitTestingDist2D to the track 2D projection.
-  unsigned int
-  testHits(detinfo::DetectorPropertiesData const& detProp,
-           const pma::Track3D& trk,
-           const std::vector<art::Ptr<recob::Hit>>& hits,
-           double eps = 1.0) const
+  unsigned int testHits(detinfo::DetectorPropertiesData const& detProp,
+                        const pma::Track3D& trk,
+                        const std::vector<art::Ptr<recob::Hit>>& hits,
+                        double eps = 1.0) const
   {
     return trk.TestHits(detProp, hits, eps * fHitTestingDist2D);
   }
 
   /// Test if hits at the track endpoinds do not stick out of TPC which they belong to.
   /// Here one can implement some configurable margin if needed for real data imeprfections.
-  bool
-  isContained(const pma::Track3D& trk, float margin = 0.0F) const
+  bool isContained(const pma::Track3D& trk, float margin = 0.0F) const
   {
     return (trk.FirstElement()->SameTPC(trk.front()->Point3D(), margin) &&
             trk.LastElement()->SameTPC(trk.back()->Point3D(), margin));
@@ -260,11 +258,10 @@ public:
   ///        kBackward - particle stop is at the beginning of the track;
   /// dQ/dx difference has to be above thr to actually flip the track;
   /// compares dQ/dx of n hits at each end of the track (default is based on the track length).
-  void
-  autoFlip(pma::Track3D& trk,
-           pma::Track3D::EDirection dir = Track3D::kForward,
-           double thr = 0.0,
-           unsigned int n = 0) const
+  void autoFlip(pma::Track3D& trk,
+                pma::Track3D::EDirection dir = Track3D::kForward,
+                double thr = 0.0,
+                unsigned int n = 0) const
   {
     trk.AutoFlip(dir, thr, n);
   };

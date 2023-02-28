@@ -28,7 +28,6 @@ namespace cmtool {
   class CBAlgoPolyShortestDist : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoPolyShortestDist();
 
@@ -38,7 +37,7 @@ namespace cmtool {
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
     */
-    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
+    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg>& clusters);
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
@@ -61,8 +60,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /**
        Optional function: called after each Merge() function call by CMergeManager IFF
@@ -83,8 +82,6 @@ namespace cmtool {
     void SetDebug(bool flag) { _debug = flag; }
 
   private:
-
-
     size_t _min_hits, _max_hits;
 
     double _dist_sqrd_cut;

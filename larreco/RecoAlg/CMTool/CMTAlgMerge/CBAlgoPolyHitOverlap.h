@@ -22,10 +22,9 @@ namespace cmtool {
      \class CMalgoPolyContain
      Merge Polygons if one is completely inside the other
   */
-  class CBAlgoPolyHitOverlap : public CBoolAlgoBase{
+  class CBAlgoPolyHitOverlap : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoPolyHitOverlap();
 
@@ -36,12 +35,11 @@ namespace cmtool {
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /// Method to re-configure the instance
     void reconfigure();
-
   };
 }
 

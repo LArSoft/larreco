@@ -42,21 +42,16 @@ namespace tca {
     bool SetInputHits(std::vector<recob::Hit> const& inputHits,
                       unsigned int run,
                       unsigned int event);
-    void
-    SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle)
+    void SetInputSpts(std::vector<recob::SpacePoint> const& sptHandle)
     {
       evt.sptHandle = &sptHandle;
     }
     void SetSourceHits(std::vector<recob::Hit> const& srcHits);
-    void
-    ExpectSlicedHits()
-    {
-      evt.expectSlicedHits = true;
-    }
+    void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
                            detinfo::DetectorPropertiesData const& detProp,
                            std::vector<unsigned int>& hitsInSlice,
-                           int sliceID, 
+                           int sliceID,
                            lariov::DBTimeStamp_t ts);
     bool CreateSlice(detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
@@ -67,34 +62,17 @@ namespace tca {
 
     void DefineShTree(TTree* t);
 
-    unsigned short
-    GetSlicesSize() const
-    {
-      return slices.size();
-    }
-    TCSlice const&
-    GetSlice(unsigned short sliceIndex) const
-    {
-      return slices[sliceIndex];
-    }
+    unsigned short GetSlicesSize() const { return slices.size(); }
+    TCSlice const& GetSlice(unsigned short sliceIndex) const { return slices[sliceIndex]; }
     void MergeTPHits(std::vector<unsigned int>& tpHits,
                      std::vector<recob::Hit>& newHitCol,
                      std::vector<unsigned int>& newHitAssns) const;
 
-    std::vector<unsigned int> const&
-    GetAlgModCount() const
-    {
-      return fAlgModCount;
-    }
-    std::vector<std::string> const&
-    GetAlgBitNames() const
-    {
-      return AlgBitNames;
-    }
+    std::vector<unsigned int> const& GetAlgModCount() const { return fAlgModCount; }
+    std::vector<std::string> const& GetAlgBitNames() const { return AlgBitNames; }
 
     /// Deletes all the results
-    void
-    ClearResults()
+    void ClearResults()
     {
       slices.resize(0);
       evt.sptHits.resize(0);

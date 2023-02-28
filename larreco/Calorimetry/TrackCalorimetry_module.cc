@@ -71,8 +71,7 @@ calo::TrackCalorimetry::TrackCalorimetry(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Track, anab::Calorimetry>>();
 }
 
-void
-calo::TrackCalorimetry::produce(art::Event& e)
+void calo::TrackCalorimetry::produce(art::Event& e)
 {
 
   art::Handle<std::vector<recob::Track>> trackHandle;

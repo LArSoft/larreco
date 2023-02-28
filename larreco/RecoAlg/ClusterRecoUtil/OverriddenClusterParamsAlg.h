@@ -109,8 +109,7 @@ namespace cluster {
      *
      * For parameters without uncertainty, the uncertainty will be ignored.
      */
-    This_t&
-    OverrideParameter(ParameterType_t param, Measure_t value)
+    This_t& OverrideParameter(ParameterType_t param, Measure_t value)
     {
       overridden_set.set((size_t)param);
       values[(size_t)param] = value;
@@ -123,19 +122,14 @@ namespace cluster {
      * @return this object
      * @see OverrideParameter()
      */
-    This_t&
-    ReleaseParameter(ParameterType_t param)
+    This_t& ReleaseParameter(ParameterType_t param)
     {
       overridden_set.set((size_t)param);
       return *this;
     }
 
     /// Returns whether the specified parameter is currently overridden
-    bool
-    isOverridden(ParameterType_t param) const
-    {
-      return overridden_set.test((size_t)param);
-    }
+    bool isOverridden(ParameterType_t param) const { return overridden_set.test((size_t)param); }
 
     /// @{
     /// @name Standard ClusterParamsAlgBase interface
@@ -147,11 +141,7 @@ namespace cluster {
      * @brief Restores the class to post-configuration, pre-initialization state
      * @see Algo_t::Clear()
      */
-    void
-    Clear() override
-    {
-      algo.Clear();
-    }
+    void Clear() override { algo.Clear(); }
 
     /**
      * @brief Sets the list of input hits
@@ -159,9 +149,8 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    void
-    SetHits(util::GeometryUtilities const& gser,
-            std::vector<recob::Hit const*> const& hits) override
+    void SetHits(util::GeometryUtilities const& gser,
+                 std::vector<recob::Hit const*> const& hits) override
     {
       algo.SetHits(gser, hits);
     }
@@ -172,15 +161,13 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    void
-    SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
+    void SetHits(util::GeometryUtilities const& gser, std::vector<recob::Hit> const& hits) override
     {
       algo.SetHits(gser, hits);
     }
 
     /// Set the verbosity level; @see Algo_t::SetVerbose().
-    void
-    SetVerbose(int level = 1) override
+    void SetVerbose(int level = 1) override
     {
       ClusterParamsAlgBase::SetVerbose(level);
       algo.SetVerbose(level);
@@ -195,13 +182,11 @@ namespace cluster {
      * @return the charge in ADC counts, with uncertainty
      * @see Algo_t::StartCharge(), Algo_t::EndCharge()
      */
-    Measure_t
-    StartCharge(util::GeometryUtilities const& gser) override
+    Measure_t StartCharge(util::GeometryUtilities const& gser) override
     {
       return ReturnValue(cpStartCharge, &Algo_t::StartCharge, gser);
     }
-    Measure_t
-    EndCharge(util::GeometryUtilities const& gser) override
+    Measure_t EndCharge(util::GeometryUtilities const& gser) override
     {
       return ReturnValue(cpEndCharge, &Algo_t::EndCharge, gser);
     }
@@ -217,17 +202,9 @@ namespace cluster {
      * a cluster parallel to the wire plane and @f$ \pi @f$ to a cluster
      * orthogonal to the wire plane, going farther from it.
      */
-    Measure_t
-    StartAngle() override
-    {
-      return ReturnValue(cpStartAngle, &Algo_t::StartAngle);
-    }
+    Measure_t StartAngle() override { return ReturnValue(cpStartAngle, &Algo_t::StartAngle); }
 
-    Measure_t
-    EndAngle() override
-    {
-      return ReturnValue(cpEndAngle, &Algo_t::EndAngle);
-    }
+    Measure_t EndAngle() override { return ReturnValue(cpEndAngle, &Algo_t::EndAngle); }
     //@}
 
     //@{
@@ -236,13 +213,11 @@ namespace cluster {
      * @return angle at the start of the cluster, in radians
      * @see Algo_t::StartOpeningAngle(), Algo_t::EndOpeningAngle()
      */
-    Measure_t
-    StartOpeningAngle() override
+    Measure_t StartOpeningAngle() override
     {
       return ReturnValue(cpStartOpeningAngle, &Algo_t::StartOpeningAngle);
     }
-    Measure_t
-    EndOpeningAngle() override
+    Measure_t EndOpeningAngle() override
     {
       return ReturnValue(cpEndOpeningAngle, &Algo_t::EndOpeningAngle);
     }
@@ -256,11 +231,7 @@ namespace cluster {
      * @see IntegralStdDev(), SummedADC()
      * @see Algo_t::Integral()
      */
-    Measure_t
-    Integral() override
-    {
-      return ReturnValue(cpIntegral, &Algo_t::Integral);
-    }
+    Measure_t Integral() override { return ReturnValue(cpIntegral, &Algo_t::Integral); }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -268,8 +239,7 @@ namespace cluster {
      * @see Integral()
      * @see Algo_t::IntegralStdDev()
      */
-    Measure_t
-    IntegralStdDev() override
+    Measure_t IntegralStdDev() override
     {
       return ReturnValue(cpIntegralStdDev, &Algo_t::IntegralStdDev);
     }
@@ -280,11 +250,7 @@ namespace cluster {
      * @see SummedADCStdDev(), Integral()
      * @see Algo_t::SummedADC()
      */
-    Measure_t
-    SummedADC() override
-    {
-      return ReturnValue(cpSummedADC, &Algo_t::SummedADC);
-    }
+    Measure_t SummedADC() override { return ReturnValue(cpSummedADC, &Algo_t::SummedADC); }
 
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
@@ -292,8 +258,7 @@ namespace cluster {
      * @see SummedADC()
      * @see Algo_t::SummedADCStdDev()
      */
-    Measure_t
-    SummedADCStdDev() override
+    Measure_t SummedADCStdDev() override
     {
       return ReturnValue(cpSummedADCStdDev, &Algo_t::SummedADCStdDev);
     }
@@ -301,19 +266,14 @@ namespace cluster {
     /// @}
 
     /// Returns the number of hits in the cluster
-    size_t
-    NHits() override
-    {
-      return ReturnValue(cpNHits, &Algo_t::NHits);
-    }
+    size_t NHits() override { return ReturnValue(cpNHits, &Algo_t::NHits); }
 
     /**
      * @brief Fraction of wires in the cluster with more than one hit
      * @return fraction of wires with more than one hit, or 0 if no wires
      * @see Algo_t::MultipleHitDensity()
      */
-    float
-    MultipleHitDensity() override
+    float MultipleHitDensity() override
     {
       return ReturnValue(cpMultipleHitDensity, &Algo_t::MultipleHitDensity);
     }
@@ -323,8 +283,7 @@ namespace cluster {
      * @return width of the cluster
      * @see Algo_t::Width()
      */
-    float
-    Width(util::GeometryUtilities const& gser) override
+    float Width(util::GeometryUtilities const& gser) override
     {
       return ReturnValue(cpWidth, &Algo_t::Width, gser);
     }
@@ -343,8 +302,8 @@ namespace cluster {
     std::bitset<NParameters> overridden_set; ///< bits for overriding
 
     template <typename Func, typename... Args>
-    auto
-    ReturnValue(ParameterType_t param, Func func, Args&&... args) -> decltype((algo.*func)(args...))
+    auto ReturnValue(ParameterType_t param, Func func, Args&&... args)
+      -> decltype((algo.*func)(args...))
     {
       if (isOverridden(param)) {
         // convert here to the return type of the function
@@ -369,8 +328,7 @@ namespace cluster {
 
     // specialization: size_t
     template <>
-    MultiValue&
-    MultiValue::operator=(size_t value)
+    MultiValue& MultiValue::operator=(size_t value)
     {
       size_t_value = value;
       return *this;
@@ -384,8 +342,7 @@ namespace cluster {
 
     // specialization: float
     template <>
-    MultiValue&
-    MultiValue::operator=(float value)
+    MultiValue& MultiValue::operator=(float value)
     {
       float_value = value;
       return *this;
@@ -399,8 +356,7 @@ namespace cluster {
 
     // specialization: Measure_t
     template <>
-    MultiValue&
-    MultiValue::operator=(Measure_t value)
+    MultiValue& MultiValue::operator=(Measure_t value)
     {
       measure_value = value;
       return *this;

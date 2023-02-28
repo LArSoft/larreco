@@ -171,8 +171,7 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const& pset)
 
 //----------------------------------------------------------------------------
 /// Begin job method.
-void
-trkf::Track3DKalmanHit::beginJob()
+void trkf::Track3DKalmanHit::beginJob()
 {
   if (fHist) {
     // Book histograms.
@@ -187,8 +186,7 @@ trkf::Track3DKalmanHit::beginJob()
 //----------------------------------------------------------------------------
 /// Produce method.
 ///
-void
-trkf::Track3DKalmanHit::produce(art::Event& evt)
+void trkf::Track3DKalmanHit::produce(art::Event& evt)
 {
   ++fNumEvent;
   auto tracks = std::make_unique<std::vector<recob::Track>>();
@@ -234,8 +232,7 @@ trkf::Track3DKalmanHit::produce(art::Event& evt)
 
 //----------------------------------------------------------------------------
 /// End job method.
-void
-trkf::Track3DKalmanHit::endJob()
+void trkf::Track3DKalmanHit::endJob()
 {
   mf::LogInfo("Track3DKalmanHit") << "Track3DKalmanHit statistics:\n"
                                   << "  Number of events = " << fNumEvent << "\n";
@@ -243,8 +240,7 @@ trkf::Track3DKalmanHit::endJob()
 
 //----------------------------------------------------------------------------
 //A temporary method till we find an alternative
-void
-trkf::Track3DKalmanHit::prepareForInput()
+void trkf::Track3DKalmanHit::prepareForInput()
 {
   fSpacePointAlg.clearHitMap();
 }
@@ -255,8 +251,7 @@ trkf::Track3DKalmanHit::prepareForInput()
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
 // 3.  All hits (produces one hit collection).
 
-trkf::KalmanInputs
-trkf::Track3DKalmanHit::getInput(const art::Event& evt) const
+trkf::KalmanInputs trkf::Track3DKalmanHit::getInput(const art::Event& evt) const
 {
   if (fUsePFParticleHits) return getPFParticleStuff(evt);
   return KalmanInputs(1, KalmanInput(fUseClusterHits ? getClusteredHits(evt) : getAllHits(evt)));
@@ -264,8 +259,7 @@ trkf::Track3DKalmanHit::getInput(const art::Event& evt) const
 
 //----------------------------------------------------------------------------
 /// Fill a collection using clustered hits
-trkf::Hits
-trkf::Track3DKalmanHit::getClusteredHits(const art::Event& evt) const
+trkf::Hits trkf::Track3DKalmanHit::getClusteredHits(const art::Event& evt) const
 {
   Hits hits;
   art::Handle<std::vector<recob::Cluster>> clusterh;
@@ -284,8 +278,7 @@ trkf::Track3DKalmanHit::getClusteredHits(const art::Event& evt) const
 
 //----------------------------------------------------------------------------
 /// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
-trkf::Hits
-trkf::Track3DKalmanHit::getAllHits(const art::Event& evt) const
+trkf::Hits trkf::Track3DKalmanHit::getAllHits(const art::Event& evt) const
 {
   Hits hits;
   art::Handle<std::vector<recob::Hit>> hith;
@@ -302,8 +295,7 @@ trkf::Track3DKalmanHit::getAllHits(const art::Event& evt) const
 
 //----------------------------------------------------------------------------
 /// If UsePFParticles is true use this method to fill in hits
-trkf::KalmanInputs
-trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event& evt) const
+trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event& evt) const
 {
   KalmanInputs inputs;
   // Our program is to drive the track creation/fitting off the PFParticles in the data store
@@ -376,8 +368,7 @@ trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event& evt) const
 }
 
 //-------------------------------------------------------------------------------------
-void
-trkf::Track3DKalmanHit::createOutputs(
+void trkf::Track3DKalmanHit::createOutputs(
   const art::Event& evt,
   detinfo::DetectorPropertiesData const& detProp,
   std::vector<KalmanOutput> const& outputs,
@@ -467,8 +458,7 @@ trkf::Track3DKalmanHit::createOutputs(
 /// Fill Histograms method
 //fHPull and fHIncChisq are private data members of the class Track3DKalmanHit
 
-void
-trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& outputs)
+void trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& outputs)
 {
   for (auto const& output : outputs) {
     const std::deque<KGTrack>& kalman_tracks = output.tracks;

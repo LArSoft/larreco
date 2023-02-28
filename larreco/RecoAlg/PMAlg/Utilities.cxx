@@ -33,28 +33,24 @@
 #include "range/v3/numeric.hpp"
 #include "range/v3/view.hpp"
 
-double
-pma::Dist2(const TVector2& v1, const TVector2& v2)
+double pma::Dist2(const TVector2& v1, const TVector2& v2)
 {
   double const dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
   return cet::sum_of_squares(dx, dy);
 }
-double
-pma::Dist2(const Vector2D& v1, const Vector2D& v2)
+double pma::Dist2(const Vector2D& v1, const Vector2D& v2)
 {
   double const dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
   return cet::sum_of_squares(dx, dy);
 }
 
-size_t
-pma::GetHitsCount(const std::vector<pma::Hit3D*>& hits, unsigned int view)
+size_t pma::GetHitsCount(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
   if (view == geo::kUnknown) { return hits.size(); }
   return ranges::count_if(hits, [view](auto hit) { return view == hit->View2D(); });
 }
 
-double
-pma::GetSummedADC(const std::vector<pma::Hit3D*>& hits, unsigned int view)
+double pma::GetSummedADC(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
   using namespace ranges;
   auto to_summed_adc = [](auto hit) { return hit->SummedADC(); };
@@ -64,8 +60,7 @@ pma::GetSummedADC(const std::vector<pma::Hit3D*>& hits, unsigned int view)
                     0.);
 }
 
-double
-pma::GetSummedAmpl(const std::vector<pma::Hit3D*>& hits, unsigned int view)
+double pma::GetSummedAmpl(const std::vector<pma::Hit3D*>& hits, unsigned int view)
 {
   using namespace ranges;
   auto to_amplitude = [](auto hit) { return hit->GetAmplitude(); };
@@ -75,8 +70,7 @@ pma::GetSummedAmpl(const std::vector<pma::Hit3D*>& hits, unsigned int view)
                     0.);
 }
 
-double
-pma::GetHitsRadius3D(const std::vector<pma::Hit3D*>& hits, bool exact)
+double pma::GetHitsRadius3D(const std::vector<pma::Hit3D*>& hits, bool exact)
 {
   if (hits.empty()) return 0.0;
 
@@ -94,8 +88,7 @@ pma::GetHitsRadius3D(const std::vector<pma::Hit3D*>& hits, bool exact)
   return sqrt(max_r2);
 }
 
-double
-pma::GetHitsRadius2D(const std::vector<pma::Hit3D*>& hits, bool exact)
+double pma::GetHitsRadius2D(const std::vector<pma::Hit3D*>& hits, bool exact)
 {
   if (hits.empty()) return 0.0;
 
@@ -113,56 +106,54 @@ pma::GetHitsRadius2D(const std::vector<pma::Hit3D*>& hits, bool exact)
   return sqrt(max_r2);
 }
 
-double
-pma::GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1)
+double pma::GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1)
 {
   TVector2 const v0(p - p0);
   TVector2 const v1(p1 - p0);
   return v0 * v1 / v1.Mod2();
 }
 
-double
-pma::GetSegmentProjVector(const pma::Vector2D& p, const pma::Vector2D& p0, const pma::Vector2D& p1)
+double pma::GetSegmentProjVector(const pma::Vector2D& p,
+                                 const pma::Vector2D& p0,
+                                 const pma::Vector2D& p1)
 {
   pma::Vector2D const v0(p - p0);
   pma::Vector2D const v1(p1 - p0);
   return v0.Dot(v1) / v1.Mag2();
 }
 
-double
-pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1)
+double pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1)
 {
   TVector3 const v0(p - p0);
   TVector3 const v1(p1 - p0);
   return v0.Dot(v1) / v1.Mag2();
 }
 
-double
-pma::GetSegmentProjVector(const pma::Vector3D& p, const pma::Vector3D& p0, const pma::Vector3D& p1)
+double pma::GetSegmentProjVector(const pma::Vector3D& p,
+                                 const pma::Vector3D& p0,
+                                 const pma::Vector3D& p1)
 {
   pma::Vector3D const v0(p - p0);
   pma::Vector3D const v1(p1 - p0);
   return v0.Dot(v1) / v1.Mag2();
 }
 
-TVector2
-pma::GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1)
+TVector2 pma::GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1)
 {
   TVector2 const v1(p1 - p0);
   double const b = GetSegmentProjVector(p, p0, p1);
   return p0 + v1 * b;
 }
 
-TVector3
-pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1)
+TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1)
 {
   TVector3 const v1(p1 - p0);
   double const b = GetSegmentProjVector(p, p0, p1);
   return p0 + v1 * b;
 }
 
-double
-pma::SolveLeastSquares3D(const std::vector<std::pair<TVector3, TVector3>>& lines, TVector3& result)
+double pma::SolveLeastSquares3D(const std::vector<std::pair<TVector3, TVector3>>& lines,
+                                TVector3& result)
 {
   // RS: please, ask me if you need examples/explanation of formulas as they
   // are not easy to derive from the code solely; I have Mathcad sources that
@@ -266,22 +257,20 @@ pma::SolveLeastSquares3D(const std::vector<std::pair<TVector3, TVector3>>& lines
   return mse / lines.size();
 }
 
-TVector2
-pma::GetProjectionToPlane(const TVector3& p,
-                          unsigned int plane,
-                          unsigned int tpc,
-                          unsigned int cryo)
+TVector2 pma::GetProjectionToPlane(const TVector3& p,
+                                   unsigned int plane,
+                                   unsigned int tpc,
+                                   unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
   return TVector2(geom->TPC(tpc, cryo).Plane(plane).PlaneCoordinate(p), p.X());
 }
 
-TVector2
-pma::GetVectorProjectionToPlane(const TVector3& v,
-                                unsigned int plane,
-                                unsigned int tpc,
-                                unsigned int cryo)
+TVector2 pma::GetVectorProjectionToPlane(const TVector3& v,
+                                         unsigned int plane,
+                                         unsigned int tpc,
+                                         unsigned int cryo)
 {
   TVector3 v0_3d(0., 0., 0.);
   TVector2 v0_2d = GetProjectionToPlane(v0_3d, plane, tpc, cryo);
@@ -290,34 +279,31 @@ pma::GetVectorProjectionToPlane(const TVector3& v,
   return v1_2d - v0_2d;
 }
 
-TVector2
-pma::WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
-                   unsigned int wire,
-                   float drift,
-                   unsigned int plane,
-                   unsigned int tpc,
-                   unsigned int cryo)
+TVector2 pma::WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
+                            unsigned int wire,
+                            float drift,
+                            unsigned int plane,
+                            unsigned int tpc,
+                            unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
   return TVector2(geom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
                   detProp.ConvertTicksToX(drift, plane, tpc, cryo));
 }
 
-TVector2
-pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
-                   float xw,
-                   float yd,
-                   unsigned int plane,
-                   unsigned int tpc,
-                   unsigned int cryo)
+TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
+                            float xw,
+                            float yd,
+                            unsigned int plane,
+                            unsigned int tpc,
+                            unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
   return TVector2(xw / geom->TPC(tpc, cryo).Plane(plane).WirePitch(),
                   detProp.ConvertXToTicks(yd, plane, tpc, cryo));
 }
 
-bool
-pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
+bool pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
 {
   if (h1 && h2)
     return h1->fSegFraction < h2->fSegFraction;
@@ -325,8 +311,7 @@ pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
     return false;
 }
 
-bool
-pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
+bool pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
 {
   if (h1 && h2)
     return h1->GetDist2ToProj() < h2->GetDist2ToProj();
@@ -334,8 +319,7 @@ pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
     return false;
 }
 
-bool
-pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2)
+bool pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2)
 {
   pma::Track3D* trk1 = t1.Track();
   pma::Track3D* trk2 = t2.Track();

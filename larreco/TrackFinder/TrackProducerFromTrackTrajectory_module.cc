@@ -77,8 +77,7 @@ TrackProducerFromTrackTrajectory::TrackProducerFromTrackTrajectory(fhicl::Parame
   }
 }
 
-void
-TrackProducerFromTrackTrajectory::produce(art::Event& e)
+void TrackProducerFromTrackTrajectory::produce(art::Event& e)
 {
   // Output collections
   auto outputTracks = std::make_unique<std::vector<recob::Track>>();

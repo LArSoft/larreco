@@ -51,12 +51,11 @@ namespace reco_tool {
 
   //------------------------
   //output parameters should be replaced with a returned value
-  void
-  PeakFitterMrqdt::findPeakParameters(const std::vector<float>& signal,
-                                      const ICandidateHitFinder::HitCandidateVec& fhc_vec,
-                                      PeakParamsVec& mhpp_vec,
-                                      double& chi2PerNDF,
-                                      int& NDF) const
+  void PeakFitterMrqdt::findPeakParameters(const std::vector<float>& signal,
+                                           const ICandidateHitFinder::HitCandidateVec& fhc_vec,
+                                           PeakParamsVec& mhpp_vec,
+                                           double& chi2PerNDF,
+                                           int& NDF) const
   {
     if (fhc_vec.empty()) return;
 

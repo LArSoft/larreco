@@ -10,22 +10,23 @@
 #define CCHITFINDERALG_H
 
 // C/C++ standard libraries
-#include <vector>
-#include <memory> // std::unique_ptr<>
+#include <memory>  // std::unique_ptr<>
 #include <ostream> // std::endl
+#include <vector>
 
 // framework libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-namespace fhicl { class ParameterSet; }
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "canvas/Persistency/Provenance/Timestamp.h"
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Wire.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "larreco/RecoAlg/GausFitCache.h"
-
 
 namespace hit {
 
@@ -79,7 +80,6 @@ namespace hit {
   class CCHitFinderAlg {
 
   public:
-
     std::vector<recob::Hit> allhits;
 
     CCHitFinderAlg(fhicl::ParameterSet const& pset);
@@ -97,13 +97,12 @@ namespace hit {
     void PrintStats(Stream& out) const;
 
   private:
-
     std::vector<float> fMinPeak;
     std::vector<float> fMinRMS;
-    unsigned short fMaxBumps; // make a crude hit if > MaxBumps are found in the RAT
+    unsigned short fMaxBumps;    // make a crude hit if > MaxBumps are found in the RAT
     unsigned short fMaxXtraHits; // max num of hits in Region Above Threshold
-    float fChiSplit;      ///<Estimated noise error on the Signal
-  //  float ChgNorm;     // Area norm for the wire we are working on
+    float fChiSplit;             ///<Estimated noise error on the Signal
+                                 //  float ChgNorm;     // Area norm for the wire we are working on
 
     std::vector<float> fChiNorms;
     std::vector<float> fTimeOffsets;
@@ -114,19 +113,18 @@ namespace hit {
     unsigned short thePlane;
 
     float chinorm;
-  //  float timeoff;
+    //  float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
-    static constexpr float SqrtPi  = 1.7725;
+    static constexpr float SqrtPi = 1.7725;
 
     bool fUseChannelFilter;
 
-//    bool prt;
+    //    bool prt;
 
     art::ServiceHandle<geo::Geometry const> geom;
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
-    void FitNG(unsigned short nGaus, unsigned short npt, float *ticks,
-       float *signl);
+    void FitNG(unsigned short nGaus, unsigned short npt, float* ticks, float* signl);
     // parameters, errors, lower limit, upper limits for FitNG
     std::vector<double> par;
     std::vector<double> parerr;
@@ -138,29 +136,29 @@ namespace hit {
 
     /// exchange data about the originating wire
     class HitChannelInfo_t {
-        public:
+    public:
       recob::Wire const* wire;
       geo::WireID wireID;
       geo::SigType_t sigType;
 
-      HitChannelInfo_t
-        (recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
+      HitChannelInfo_t(recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
     }; // HitChannelInfo_t
 
     // make a cruddy hit if fitting fails
-    void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
+    void MakeCrudeHit(unsigned short npt, float* ticks, float* signl);
     // store the hits
-    void StoreHits(unsigned short TStart, unsigned short npt,
-      HitChannelInfo_t info, float adcsum
-      );
+    void StoreHits(unsigned short TStart, unsigned short npt, HitChannelInfo_t info, float adcsum);
 
     // study hit finding and fitting
     bool fStudyHits;
-    std::vector< short > fUWireRange, fUTickRange;
-    std::vector< short > fVWireRange, fVTickRange;
-    std::vector< short > fWWireRange, fWTickRange;
-    void StudyHits(unsigned short flag, unsigned short npt = 0,
-      float *ticks = 0, float *signl = 0, unsigned short tstart = 0);
+    std::vector<short> fUWireRange, fUTickRange;
+    std::vector<short> fVWireRange, fVTickRange;
+    std::vector<short> fWWireRange, fWTickRange;
+    void StudyHits(unsigned short flag,
+                   unsigned short npt = 0,
+                   float* ticks = 0,
+                   float* signl = 0,
+                   unsigned short tstart = 0);
     std::vector<int> bumpCnt;
     std::vector<int> RATCnt;
     std::vector<float> bumpChi;
@@ -178,9 +176,8 @@ namespace hit {
 
     std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
 
-
     typedef struct {
-      unsigned int FastFits; ///< count of single-Gaussian fast fits
+      unsigned int FastFits;                   ///< count of single-Gaussian fast fits
       std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
 
       void Reset(unsigned int nGaus);
@@ -211,12 +208,12 @@ namespace hit {
      * Gaussian to the signal, but from comparing a fitted parabola to the
      * logarithm of the signal.
      */
-    static bool FastGaussianFit(
-      unsigned short npt, float const*ticks, float const*signl,
-      std::array<double, 3>& params,
-      std::array<double, 3>& paramerrors,
-      float& chidof
-      );
+    static bool FastGaussianFit(unsigned short npt,
+                                float const* ticks,
+                                float const* signl,
+                                std::array<double, 3>& params,
+                                std::array<double, 3>& paramerrors,
+                                float& chidof);
 
     static constexpr unsigned int MaxGaussians = 20;
 
@@ -224,37 +221,34 @@ namespace hit {
 
 } // namespace hit
 
-
 //==============================================================================
 //===  Template implementation
 //===
 template <typename Stream>
-void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
+void hit::CCHitFinderAlg::PrintStats(Stream& out) const
+{
 
   out << "CCHitFinderAlg fit statistics:";
   if (fUseFastFit) {
-    out << "\n  fast 1-Gaussian fits: " << FinalFitStats.FastFits
-      << " succeeded (" << TriedFitStats.FastFits << " tried)";
+    out << "\n  fast 1-Gaussian fits: " << FinalFitStats.FastFits << " succeeded ("
+        << TriedFitStats.FastFits << " tried)";
   }
   else
     out << "\n  fast 1-Gaussian fits: disabled";
 
   for (unsigned int nGaus = 1; nGaus < MaxGaussians; ++nGaus) {
-    if (TriedFitStats.MultiGausFits[nGaus-1] == 0) continue;
-    out << "\n  " << nGaus << "-Gaussian fits: "
-      << FinalFitStats.MultiGausFits[nGaus-1]
-      << " accepted (" << TriedFitStats.MultiGausFits[nGaus-1] << " tried)";
+    if (TriedFitStats.MultiGausFits[nGaus - 1] == 0) continue;
+    out << "\n  " << nGaus << "-Gaussian fits: " << FinalFitStats.MultiGausFits[nGaus - 1]
+        << " accepted (" << TriedFitStats.MultiGausFits[nGaus - 1] << " tried)";
   } // for nGaus
   if (TriedFitStats.MultiGausFits.back() > 0) {
     out << "\n  " << FinalFitStats.MultiGausFits.size()
-      << "-Gaussian fits or higher: " << FinalFitStats.MultiGausFits.back()
-      << " accepted (" << TriedFitStats.MultiGausFits.back() << " tried)";
+        << "-Gaussian fits or higher: " << FinalFitStats.MultiGausFits.back() << " accepted ("
+        << TriedFitStats.MultiGausFits.back() << " tried)";
   }
   out << std::endl;
 
 } // CCHitFinderAlg::FitStats_t::Print()
-
-
 
 /////////////////////////////////////////
 

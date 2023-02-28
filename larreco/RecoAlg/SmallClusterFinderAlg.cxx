@@ -64,11 +64,11 @@ cluster::SmallClusterFinderAlg::SmallClusterFinderAlg(fhicl::ParameterSet const&
 
 // ***************** //
 // This method actually makes the clusters.
-void
-cluster::SmallClusterFinderAlg::FindSmallClusters(util::GeometryUtilities const& gser,
-                                                  detinfo::DetectorClocksData const& clockData,
-                                                  detinfo::DetectorPropertiesData const& detProp,
-                                                  std::vector<art::Ptr<recob::Hit>> allHits)
+void cluster::SmallClusterFinderAlg::FindSmallClusters(
+  util::GeometryUtilities const& gser,
+  detinfo::DetectorClocksData const& clockData,
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> allHits)
 {
   ///These lines determine the conversion factors to take wires and times to CMs
   fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
@@ -196,8 +196,7 @@ cluster::SmallClusterFinderAlg::FindSmallClusters(util::GeometryUtilities const&
 
 // ************************************* //
 // Clear and resize - exactly what it sounds like
-void
-cluster::SmallClusterFinderAlg::ClearandResizeVectors()
+void cluster::SmallClusterFinderAlg::ClearandResizeVectors()
 {
   smallClustList.clear();
   hitlistbyplane.clear();
@@ -214,13 +213,13 @@ cluster::SmallClusterFinderAlg::ClearandResizeVectors()
         hit being examined is farther away than a specified distance ("radlimit", in cm) then
         the hit is excluded.  If the hit is within that distance, it's added.
 */
-void
-cluster::SmallClusterFinderAlg::SelectLocalHitlist(util::GeometryUtilities const& gser,
-                                                   std::vector<art::Ptr<recob::Hit>> hitlist,
-                                                   std::vector<art::Ptr<recob::Hit>>& hitlistlocal,
-                                                   double wire_start,
-                                                   double time_start,
-                                                   double radlimit) const
+void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
+  util::GeometryUtilities const& gser,
+  std::vector<art::Ptr<recob::Hit>> hitlist,
+  std::vector<art::Ptr<recob::Hit>>& hitlistlocal,
+  double wire_start,
+  double time_start,
+  double radlimit) const
 {
   //loop over the hits in "hitlist", which should contain the hits we're selecting from
   for (std::vector<art::Ptr<recob::Hit>>::const_iterator hitIter = hitlist.begin();
@@ -243,14 +242,14 @@ cluster::SmallClusterFinderAlg::SelectLocalHitlist(util::GeometryUtilities const
 //This method is identical to the other  method by the same name except that
 //it keeps track of the location of the hits selected.  That is, index is filled with
 //the indices of the selected hits in the hitlist vector (the input vector)
-void
-cluster::SmallClusterFinderAlg::SelectLocalHitlist(util::GeometryUtilities const& gser,
-                                                   std::vector<art::Ptr<recob::Hit>> hitlist,
-                                                   std::vector<art::Ptr<recob::Hit>>& hitlistlocal,
-                                                   double wire_start,
-                                                   double time_start,
-                                                   double radlimit,
-                                                   std::vector<int>& index) const
+void cluster::SmallClusterFinderAlg::SelectLocalHitlist(
+  util::GeometryUtilities const& gser,
+  std::vector<art::Ptr<recob::Hit>> hitlist,
+  std::vector<art::Ptr<recob::Hit>>& hitlistlocal,
+  double wire_start,
+  double time_start,
+  double radlimit,
+  std::vector<int>& index) const
 {
   //loop over the hits in "hitlist", which should contain the hits we're selecting from
   int i = 0; //i keeps track of the index of the hit.
@@ -284,8 +283,7 @@ cluster::SmallClusterFinderAlg::SelectLocalHitlist(util::GeometryUtilities const
 /*		This method sorts this hitlist (which should only be on a single plane)
 
 */
-std::vector<art::Ptr<recob::Hit>>
-cluster::SmallClusterFinderAlg::CreateHighHitlist(
+std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::CreateHighHitlist(
   util::GeometryUtilities const& gser,
   std::vector<art::Ptr<recob::Hit>> const& hitlist,
   std::vector<art::Ptr<recob::Hit>>& leftovers) const
@@ -362,8 +360,8 @@ cluster::SmallClusterFinderAlg::GetSmallClustersByPlane(unsigned int iPlane)
   }
 }
 
-std::vector<art::Ptr<recob::Hit>>
-cluster::SmallClusterFinderAlg::GetLeftoversByPlane(unsigned int iPlane)
+std::vector<art::Ptr<recob::Hit>> cluster::SmallClusterFinderAlg::GetLeftoversByPlane(
+  unsigned int iPlane)
 {
   if (iPlane < fNPlanes)
     return hitlistleftover[iPlane];

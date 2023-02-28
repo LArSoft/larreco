@@ -23,12 +23,10 @@
 #ifndef GFRECOHITIFC_H
 #define GFRECOHITIFC_H
 
-
 #include "TMatrixT.h"
 
 #include "larreco/Genfit/GFAbsRecoHit.h"
 #include "larreco/Genfit/GFDetPlane.h"
-
 
 /** @brief RecoHit interface template class. Provides comfortable
  * interface to create RecoHits
@@ -58,19 +56,18 @@
  */
 namespace genf {
 
-template<class HitPolicy>
-class GFRecoHitIfc : public GFAbsRecoHit{
- protected:
-  HitPolicy fPolicy;
+  template <class HitPolicy>
+  class GFRecoHitIfc : public GFAbsRecoHit {
+  protected:
+    HitPolicy fPolicy;
 
- public:
-
-  /** @brief Constructor specifying dimension of hit coordinate vector
+  public:
+    /** @brief Constructor specifying dimension of hit coordinate vector
    */
-  GFRecoHitIfc(int dim) : GFAbsRecoHit(dim){;}
-  virtual ~GFRecoHitIfc(){;}
+    GFRecoHitIfc(int dim) : GFAbsRecoHit(dim) { ; }
+    virtual ~GFRecoHitIfc() { ; }
 
-  /** @brief Returns the detector plane object for this hit and a given track
+    /** @brief Returns the detector plane object for this hit and a given track
    * representation.
    *
    * The actutal code for this method depends on the hit geometry and is
@@ -79,38 +76,48 @@ class GFRecoHitIfc : public GFAbsRecoHit{
    * @sa SpacepointHitPolicy
    * @sa WirepointHitPolicy
    */
-  virtual const GFDetPlane& getDetPlane(GFAbsTrackRep* rep){return fPolicy.detPlane(this,rep);}
+    virtual const GFDetPlane& getDetPlane(GFAbsTrackRep* rep)
+    {
+      return fPolicy.detPlane(this, rep);
+    }
 
-  /** @brief Get hit coordinates in a specific detector plane
+    /** @brief Get hit coordinates in a specific detector plane
    *
    * Implementation in the HitPolicy
    */
-  virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane& plane,const GFDetPlane& planePrev)
-  {return fPolicy.hitCoord(this,plane,planePrev);}
-  virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane& plane)
-  {return fPolicy.hitCoord(this,plane);}
+    virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane& plane, const GFDetPlane& planePrev)
+    {
+      return fPolicy.hitCoord(this, plane, planePrev);
+    }
+    virtual TMatrixT<Double_t> getHitCoord(const GFDetPlane& plane)
+    {
+      return fPolicy.hitCoord(this, plane);
+    }
 
-  /** @brief Get hit covariances in a specific detector plane
+    /** @brief Get hit covariances in a specific detector plane
    *
    * Implementation in the HitPolicy
    */
-  virtual TMatrixT<Double_t> getHitCov(const GFDetPlane& plane)
-  {return fPolicy.hitCov(this,plane);}
-  virtual TMatrixT<Double_t> getHitCov(const GFDetPlane& plane, const GFDetPlane& planePrev, const TMatrixT<Double_t>& state, const Double_t& mass)
-  {return fPolicy.hitCov(this,plane,planePrev, state, mass);}
+    virtual TMatrixT<Double_t> getHitCov(const GFDetPlane& plane)
+    {
+      return fPolicy.hitCov(this, plane);
+    }
+    virtual TMatrixT<Double_t> getHitCov(const GFDetPlane& plane,
+                                         const GFDetPlane& planePrev,
+                                         const TMatrixT<Double_t>& state,
+                                         const Double_t& mass)
+    {
+      return fPolicy.hitCov(this, plane, planePrev, state, mass);
+    }
 
-  const std::string& getPolicyName(){return fPolicy.getName();}
+    const std::string& getPolicyName() { return fPolicy.getName(); }
 
-  //public:
-  //  ClassDef(GFRecoHitIfc,1);
-
-};
+    //public:
+    //  ClassDef(GFRecoHitIfc,1);
+  };
 
 }
 
 #endif
 
-
 /** @} */
-
-

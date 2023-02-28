@@ -17,14 +17,12 @@
 #include "lardataobj/RecoBase/Hit.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-namespace reco3d
-{
-/**
+namespace reco3d {
+  /**
  *  @brief  IHitReader interface class definiton
  */
-class IHitReader
-{
-public:
+  class IHitReader {
+  public:
     /**
      *  @brief  Virtual Destructor
      */
@@ -43,12 +41,11 @@ public:
      *
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual bool readHits(const std::vector<art::Ptr<recob::Hit>>&,       // input hits
-                          std::vector<art::Ptr<recob::Hit>>&,             // output hits plane 0
-                          std::vector<art::Ptr<recob::Hit>>&,             // output hits plane 1
-                          std::vector<art::Ptr<recob::Hit>>&) const = 0;  // output hits plane 2
-
-};
+    virtual bool readHits(const std::vector<art::Ptr<recob::Hit>>&,      // input hits
+                          std::vector<art::Ptr<recob::Hit>>&,            // output hits plane 0
+                          std::vector<art::Ptr<recob::Hit>>&,            // output hits plane 1
+                          std::vector<art::Ptr<recob::Hit>>&) const = 0; // output hits plane 2
+  };
 
 } // namespace lar_cluster3d
 #endif

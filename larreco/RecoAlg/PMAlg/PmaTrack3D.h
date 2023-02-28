@@ -60,21 +60,9 @@ public:
     kOutsideDrift_Complete = 0x020000,
     kBeamIncompatible = 0x030000
   };
-  ETag
-  GetTag() const noexcept
-  {
-    return fTag;
-  }
-  bool
-  HasTagFlag(ETag value) const noexcept
-  {
-    return (fTag & value);
-  }
-  void
-  SetTagFlag(ETag value)
-  {
-    fTag = (ETag)(fTag | value);
-  }
+  ETag GetTag() const noexcept { return fTag; }
+  bool HasTagFlag(ETag value) const noexcept { return (fTag & value); }
+  void SetTagFlag(ETag value) { fTag = (ETag)(fTag | value); }
 
   Track3D();
   Track3D(const Track3D& src);
@@ -83,8 +71,7 @@ public:
   bool Initialize(detinfo::DetectorPropertiesData const& detProp, float initEndSegW = 0.05F);
 
   pma::Hit3D* release_at(size_t index);
-  void
-  push_back(pma::Hit3D* hit)
+  void push_back(pma::Hit3D* hit)
   {
     hit->fParent = this;
     fHits.push_back(hit);
@@ -94,30 +81,14 @@ public:
 
   pma::Hit3D* operator[](size_t index) { return fHits[index]; }
   pma::Hit3D const* operator[](size_t index) const { return fHits[index]; }
-  pma::Hit3D const*
-  front() const
-  {
-    return fHits.front();
-  }
-  pma::Hit3D const*
-  back() const
-  {
-    return fHits.back();
-  }
-  size_t
-  size() const
-  {
-    return fHits.size();
-  }
+  pma::Hit3D const* front() const { return fHits.front(); }
+  pma::Hit3D const* back() const { return fHits.back(); }
+  size_t size() const { return fHits.size(); }
 
   int index_of(const pma::Hit3D* hit) const;
   int index_of(const pma::Node3D* n) const;
 
-  double
-  Length(size_t step = 1) const
-  {
-    return Length(0, size() - 1, step);
-  }
+  double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
   double Length(size_t start, size_t stop, size_t step = 1) const;
 
   double Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const;
@@ -141,30 +112,13 @@ public:
   std::vector<unsigned int> TPCs() const;
   std::vector<unsigned int> Cryos() const;
 
-  unsigned int
-  FrontTPC() const
-  {
-    return fNodes.front()->TPC();
-  }
-  unsigned int
-  FrontCryo() const
-  {
-    return fNodes.front()->Cryo();
-  }
+  unsigned int FrontTPC() const { return fNodes.front()->TPC(); }
+  unsigned int FrontCryo() const { return fNodes.front()->Cryo(); }
 
-  unsigned int
-  BackTPC() const
-  {
-    return fNodes.back()->TPC();
-  }
-  unsigned int
-  BackCryo() const
-  {
-    return fNodes.back()->Cryo();
-  }
+  unsigned int BackTPC() const { return fNodes.back()->TPC(); }
+  unsigned int BackCryo() const { return fNodes.back()->Cryo(); }
 
-  bool
-  HasTPC(int tpc) const
+  bool HasTPC(int tpc) const
   {
     for (auto n : fNodes)
       if (n->TPC() == tpc) return true;
@@ -258,13 +212,8 @@ public:
                                               unsigned int view) const;
   size_t CompleteMissingWires(detinfo::DetectorPropertiesData const& detProp, unsigned int view);
 
-  void
-  AddRefPoint(const TVector3& p)
-  {
-    fAssignedPoints.push_back(new TVector3(p));
-  }
-  void
-  AddRefPoint(double x, double y, double z)
+  void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
+  void AddRefPoint(double x, double y, double z)
   {
     fAssignedPoints.push_back(new TVector3(x, y, z));
   }
@@ -302,18 +251,10 @@ public:
   void SetT0FromDx(const detinfo::DetectorClocksData& clockData,
                    detinfo::DetectorPropertiesData const& detProp,
                    double dx);
-  double
-  GetT0() const
-  {
-    return fT0;
-  }
+  double GetT0() const { return fT0; }
   /// Check if the T0 has been set - enables us to distinguish between T0 set
   /// very close to zero or not set.
-  bool
-  HasT0() const noexcept
-  {
-    return fT0Flag;
-  }
+  bool HasT0() const noexcept { return fT0Flag; }
 
   /// Cut out tails with no hits assigned.
   void CleanupTails();
@@ -322,37 +263,20 @@ public:
   /// returns true if all OK, false if empty segments found.
   bool ShiftEndsToHits();
 
-  std::vector<pma::Segment3D*> const&
-  Segments() const noexcept
-  {
-    return fSegments;
-  }
+  std::vector<pma::Segment3D*> const& Segments() const noexcept { return fSegments; }
 
   pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
   pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;
 
-  std::vector<pma::Node3D*> const&
-  Nodes() const noexcept
-  {
-    return fNodes;
-  }
-  pma::Node3D*
-  FirstElement() const
-  {
-    return fNodes.front();
-  }
-  pma::Node3D*
-  LastElement() const
-  {
-    return fNodes.back();
-  }
+  std::vector<pma::Node3D*> const& Nodes() const noexcept { return fNodes; }
+  pma::Node3D* FirstElement() const { return fNodes.front(); }
+  pma::Node3D* LastElement() const { return fNodes.back(); }
 
   void AddNode(pma::Node3D* node);
-  void
-  AddNode(detinfo::DetectorPropertiesData const& detProp,
-          TVector3 const& p3d,
-          unsigned int tpc,
-          unsigned int cryo)
+  void AddNode(detinfo::DetectorPropertiesData const& detProp,
+               TVector3 const& p3d,
+               unsigned int tpc,
+               unsigned int cryo)
   {
     double ds = fNodes.empty() ? 0 : fNodes.back()->GetDriftShift();
     AddNode(new pma::Node3D(detProp, p3d, tpc, cryo, false, ds));
@@ -389,38 +313,14 @@ public:
   bool SelectRndHits(size_t segmax, size_t vtxmax);
   bool SelectAllHits();
 
-  float
-  GetEndSegWeight() const noexcept
-  {
-    return fEndSegWeight;
-  }
-  void
-  SetEndSegWeight(float value) noexcept
-  {
-    fEndSegWeight = value;
-  }
+  float GetEndSegWeight() const noexcept { return fEndSegWeight; }
+  void SetEndSegWeight(float value) noexcept { fEndSegWeight = value; }
 
-  float
-  GetPenalty() const noexcept
-  {
-    return fPenaltyFactor;
-  }
-  void
-  SetPenalty(float value) noexcept
-  {
-    fPenaltyFactor = value;
-  }
+  float GetPenalty() const noexcept { return fPenaltyFactor; }
+  void SetPenalty(float value) noexcept { fPenaltyFactor = value; }
 
-  unsigned int
-  GetMaxHitsPerSeg() const noexcept
-  {
-    return fMaxHitsPerSeg;
-  }
-  void
-  SetMaxHitsPerSeg(unsigned int value) noexcept
-  {
-    fMaxHitsPerSeg = value;
-  }
+  unsigned int GetMaxHitsPerSeg() const noexcept { return fMaxHitsPerSeg; }
+  void SetMaxHitsPerSeg(unsigned int value) noexcept { fMaxHitsPerSeg = value; }
 
 private:
   void ClearNodes();

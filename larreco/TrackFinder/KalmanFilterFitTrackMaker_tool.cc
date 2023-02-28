@@ -178,8 +178,7 @@ namespace trkmkr {
     }
 
     /// initialize event: get collection of recob::MCSFitResult
-    void
-    initEvent(const art::Event& e) override
+    void initEvent(const art::Event& e) override
     {
       if (momFromMCSColl_)
         mcs = e.getValidHandle<std::vector<recob::MCSFitResult>>(mcsInputTag_).product();
@@ -204,14 +203,13 @@ namespace trkmkr {
 
     /// override of TrackMaker purely virtual function with
     /// recob::TrackTrajectory as argument
-    bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const recob::TrackTrajectory& traj,
-              const int tkID,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const override
+    bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                   const recob::TrackTrajectory& traj,
+                   const int tkID,
+                   const std::vector<art::Ptr<recob::Hit>>& inHits,
+                   recob::Track& outTrack,
+                   std::vector<art::Ptr<recob::Hit>>& outHits,
+                   OptionalOutputs& optionals) const override
     {
       return makeTrackImpl(detProp,
                            traj,
@@ -225,13 +223,12 @@ namespace trkmkr {
     }
 
     /// override of TrackMaker virtual function with recob::Track as argument
-    bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const recob::Track& track,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const override
+    bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                   const recob::Track& track,
+                   const std::vector<art::Ptr<recob::Hit>>& inHits,
+                   recob::Track& outTrack,
+                   std::vector<art::Ptr<recob::Hit>>& outHits,
+                   OptionalOutputs& optionals) const override
     {
       auto covs = track.Covariances();
       return makeTrackImpl(detProp,
@@ -287,16 +284,16 @@ namespace trkmkr {
   };
 }
 
-bool
-trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const detinfo::DetectorPropertiesData& detProp,
-                                                 const recob::TrackTrajectory& traj,
-                                                 const int tkID,
-                                                 const std::vector<art::Ptr<recob::Hit>>& inHits,
-                                                 const SMatrixSym55& covVtx,
-                                                 const SMatrixSym55& covEnd,
-                                                 recob::Track& outTrack,
-                                                 std::vector<art::Ptr<recob::Hit>>& outHits,
-                                                 OptionalOutputs& optionals) const
+bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(
+  const detinfo::DetectorPropertiesData& detProp,
+  const recob::TrackTrajectory& traj,
+  const int tkID,
+  const std::vector<art::Ptr<recob::Hit>>& inHits,
+  const SMatrixSym55& covVtx,
+  const SMatrixSym55& covEnd,
+  recob::Track& outTrack,
+  std::vector<art::Ptr<recob::Hit>>& outHits,
+  OptionalOutputs& optionals) const
 {
   const int pid = getParticleID(traj, tkID);
   const bool flipDirection = isFlipDirection(traj, tkID);
@@ -320,11 +317,10 @@ trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const detinfo::DetectorProperti
   return true;
 }
 
-double
-trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajectory& traj,
-                                               const int pid,
-                                               const bool isFlip,
-                                               const int tkID) const
+double trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajectory& traj,
+                                                      const int pid,
+                                                      const bool isFlip,
+                                                      const int tkID) const
 {
   double mom = (mom_def_ > 0 ? mom_def_ : traj.StartMomentum());
   if (momFromMCSColl_) {
@@ -353,18 +349,16 @@ trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajectory& tra
   return mom;
 }
 
-int
-trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& traj,
-                                                 const int tkID) const
+int trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& traj,
+                                                     const int tkID) const
 {
   if (pidFromColl_) { return pid->at(tkID).Pdg(); }
   if (mom_len_cut_ > 0.) { return (traj.Length() < mom_len_cut_ ? 2212 : 13); }
   return pid_def_;
 }
 
-bool
-trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory& traj,
-                                                   const int tkID) const
+bool trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory& traj,
+                                                        const int tkID) const
 {
   if (alwaysFlip_) { return true; }
   else if (dirFromVec_) {
@@ -374,8 +368,7 @@ trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory&
   return false;
 }
 
-void
-trkmkr::KalmanFilterFitTrackMaker::restoreInputPoints(
+void trkmkr::KalmanFilterFitTrackMaker::restoreInputPoints(
   const recob::TrackTrajectory& traj,
   const std::vector<art::Ptr<recob::Hit>>& inHits,
   recob::Track& outTrack,

@@ -24,16 +24,17 @@
  * @{
  */
 
-
 #ifndef RKTRACKREP_H
 #define RKTRACKREP_H
 
-#include <stdexcept> // std::logic_error
 #include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFDetPlane.h"
 #include <TMatrixT.h>
+#include <stdexcept> // std::logic_error
 
-namespace genf { class GFTrackCand; }
+namespace genf {
+  class GFTrackCand;
+}
 
 //#include "GFMaterialEffects.h"
 
@@ -50,36 +51,30 @@ namespace genf { class GFTrackCand; }
 
 namespace genf {
 
-class RKTrackRep : public GFAbsTrackRep {
+  class RKTrackRep : public GFAbsTrackRep {
 
- public:
+  public:
+    // Constructors/Destructors ---------
+    RKTrackRep();
+    RKTrackRep(const TVector3& pos,
+               const TVector3& mom,
+               const TVector3& poserr,
+               const TVector3& momerr,
+               const int& PDGCode);
 
-  // Constructors/Destructors ---------
-  RKTrackRep();
-  RKTrackRep(const TVector3& pos,
-	     const TVector3& mom,
-	     const TVector3& poserr,
-	     const TVector3& momerr,
-	     const int& PDGCode);
+    RKTrackRep(const GFTrackCand* aGFTrackCandPtr);
 
-  RKTrackRep(const GFTrackCand* aGFTrackCandPtr);
+    RKTrackRep(const TVector3& pos, const TVector3& mom, const int& PDGCode);
 
-  RKTrackRep(const TVector3& pos,
-	     const TVector3& mom,
-	     const int& PDGCode);
+    RKTrackRep(const GFDetPlane& pl, const TVector3& mom, const int& PDGCode);
 
-  RKTrackRep(const GFDetPlane& pl,
-	     const TVector3& mom,
-	     const int& PDGCode);
+    virtual ~RKTrackRep();
 
-  virtual ~RKTrackRep();
+    virtual GFAbsTrackRep* clone() const { return new RKTrackRep(*this); }
+    virtual GFAbsTrackRep* prototype() const { return new RKTrackRep(); }
 
-
-  virtual GFAbsTrackRep* clone() const {return new RKTrackRep(*this);}
-  virtual GFAbsTrackRep* prototype()const{return new RKTrackRep();}
-
-  //! returns the tracklength spanned in this extrapolation
-  /** The covariance matrix is transformed from the plane coordinate system to the master reference system (for the propagation) and, after propagation, back to the plane coordinate system.\n
+    //! returns the tracklength spanned in this extrapolation
+    /** The covariance matrix is transformed from the plane coordinate system to the master reference system (for the propagation) and, after propagation, back to the plane coordinate system.\n
     * Also the parameter spu (which is +1 or -1 and indicates the direction of the particle) is calculated and stored in #fCacheSpu. The plane is stored in #fCachePlane.
     * \n
     *
@@ -101,90 +96,87 @@ class RKTrackRep : public GFAbsTrackRep {
     * \f$J_{M,p}=\left(\begin{array}{ccccccc} U_{x} & U_{y} & U_{z} & 0 & 0 & 0 & 0\\ V_{x} & V_{y} & V_{z} & 0 & 0 & 0 & 0\\ 0 & 0 & 0 & \frac{U_{x}\left(a_{y}N_{y}+a_{z}N_{z}\right)-N_{x}\left(a_{y}U_{y}+a_{z}U_{z}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & \frac{U_{y}\left(a_{x}N_{x}+a_{z}N_{z}\right)-N_{y}\left(a_{x}U_{x}+a_{z}U_{z}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & \frac{U_{z}\left(a_{x}N_{x}+a_{y}N_{y}\right)-N_{z}\left(a_{x}U_{x}+a_{y}U_{y}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & 0\\ 0 & 0 & 0 & \frac{V_{x}\left(a_{y}N_{y}+a_{z}N_{z}\right)-N_{x}\left(a_{y}V_{y}+a_{z}V_{z}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & \frac{V_{y}\left(a_{x}N_{x}+a_{z}N_{z}\right)-N_{y}\left(a_{x}V_{x}+a_{z}V_{z}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & \frac{V_{z}\left(a_{x}N_{x}+a_{y}N_{y}\right)-N_{z}\left(a_{x}V_{x}+a_{y}V_{y}\right)}{\left(a_{x}N_{x}+a_{y}N_{y}+a_{z}N_{z}\right)^{2}} & 0\\ 0 & 0 & 0 & 0 & 0 & 0 & 1\\ \\\end{array}\right)\f$
     *
     */
-  double extrapolate(const GFDetPlane&,
-			   TMatrixT<Double_t>& statePred,
-			   TMatrixT<Double_t>& covPred);
+    double extrapolate(const GFDetPlane&,
+                       TMatrixT<Double_t>& statePred,
+                       TMatrixT<Double_t>& covPred);
 
-  //! returns the tracklength spanned in this extrapolation
-  double extrapolate(const GFDetPlane&,
-			   TMatrixT<Double_t>& statePred);
+    //! returns the tracklength spanned in this extrapolation
+    double extrapolate(const GFDetPlane&, TMatrixT<Double_t>& statePred);
 
-  //! This method is to extrapolate the track to point of closest approach to a point in space
-  void extrapolateToPoint(const TVector3& pos,
-				 TVector3& poca,
-				 TVector3& dirInPoca);
+    //! This method is to extrapolate the track to point of closest approach to a point in space
+    void extrapolateToPoint(const TVector3& pos, TVector3& poca, TVector3& dirInPoca);
 
-  //! This method extrapolates to the point of closest approach to a line
-  void extrapolateToLine(const TVector3& point1,
-				 const TVector3& point2,
-				 TVector3& poca,
-				 TVector3& dirInPoca,
-				 TVector3& poca_onwire);
+    //! This method extrapolates to the point of closest approach to a line
+    void extrapolateToLine(const TVector3& point1,
+                           const TVector3& point2,
+                           TVector3& poca,
+                           TVector3& dirInPoca,
+                           TVector3& poca_onwire);
 
-
-  //! Returns position of the track in the plane
-  /** If #GFDetPlane equals the reference plane #fRefPlane, returns current position; otherwise it extrapolates
+    //! Returns position of the track in the plane
+    /** If #GFDetPlane equals the reference plane #fRefPlane, returns current position; otherwise it extrapolates
     * the track to the plane and returns the position.
     */
-  TVector3 getPos(const GFDetPlane&);
-  //! Returns momentum of the track in the plane
-  /** If #GFDetPlane equals the reference plane #fRefPlane, returns current momentum; otherwise it extrapolates
+    TVector3 getPos(const GFDetPlane&);
+    //! Returns momentum of the track in the plane
+    /** If #GFDetPlane equals the reference plane #fRefPlane, returns current momentum; otherwise it extrapolates
     * the track to the plane and returns the momentum.
     */
-  TVector3 getMom(const GFDetPlane&);
-  TVector3 getMomLast(const GFDetPlane&);
-  //! Gets position and momentum in the plane by exrapolating or not.
-  /** If #GFDetPlane equals the reference plane #fRefPlane, it gets current position and momentum; otherwise for getMom() it extrapolates
+    TVector3 getMom(const GFDetPlane&);
+    TVector3 getMomLast(const GFDetPlane&);
+    //! Gets position and momentum in the plane by exrapolating or not.
+    /** If #GFDetPlane equals the reference plane #fRefPlane, it gets current position and momentum; otherwise for getMom() it extrapolates
     * the track to the plane and gets the position and momentum. GetMomLast() does no extrapn. EC.
     */
-  void getPosMom(const GFDetPlane&,TVector3& pos,TVector3& mom);
-  //! Returns charge
-  double getCharge()const {return fCharge;}
-  //! deprecated
-  void switchDirection(){fDirection = (!fDirection);}
-  //! Set PDG particle code
-  void setPDG(int);
-  int getPDG();
-  void rescaleCovOffDiags();
+    void getPosMom(const GFDetPlane&, TVector3& pos, TVector3& mom);
+    //! Returns charge
+    double getCharge() const { return fCharge; }
+    //! deprecated
+    void switchDirection() { fDirection = (!fDirection); }
+    //! Set PDG particle code
+    void setPDG(int);
+    int getPDG();
+    void rescaleCovOffDiags();
 
-  //! Sets state, plane and (optionally) covariance
-  /** This function also sets the parameter #fSpu to the value stored in #fCacheSpu. Therefore it has to be ensured that
+    //! Sets state, plane and (optionally) covariance
+    /** This function also sets the parameter #fSpu to the value stored in #fCacheSpu. Therefore it has to be ensured that
     * the plane #pl is the same as the plane of the last extrapolation (i.e. #fCachePlane), where #fCacheSpu was calculated.
     * Hence, if the argument #pl is not equal to #fCachePlane, an error message is shown an an exception is thrown.
     */
-  void setData(const TMatrixT<double>& st, const GFDetPlane& pl, const TMatrixT<double>* cov=NULL, const TMatrixT<double>* aux=NULL);
-  // the base class method is hidden by the one above; which does not make much
-  // sense since polymorphic access will still get to it.
-  // We make it official by explicitly importing the base class method as well.
-  using GFAbsTrackRep::setData;
+    void setData(const TMatrixT<double>& st,
+                 const GFDetPlane& pl,
+                 const TMatrixT<double>* cov = NULL,
+                 const TMatrixT<double>* aux = NULL);
+    // the base class method is hidden by the one above; which does not make much
+    // sense since polymorphic access will still get to it.
+    // We make it official by explicitly importing the base class method as well.
+    using GFAbsTrackRep::setData;
 
-  const TMatrixT<double>* getAuxInfo(const GFDetPlane& pl);
+    const TMatrixT<double>* getAuxInfo(const GFDetPlane& pl);
 
-  bool hasAuxInfo() { return true; }
+    bool hasAuxInfo() { return true; }
 
- private:
+  private:
+    GFDetPlane fCachePlane;
+    double fCacheSpu;
+    double fSpu;
+    TMatrixT<double> fAuxInfo;
 
-  GFDetPlane fCachePlane;
-  double fCacheSpu;
-  double fSpu;
-  TMatrixT<double> fAuxInfo;
+    RKTrackRep& operator=(const RKTrackRep* /* rhs */) { return *this; }
+    RKTrackRep(const RKTrackRep& /* rhs */) : GFAbsTrackRep() {}
+    bool fDirection;
 
+    //! PDG particle code
+    int fPdg;
+    //! Mass (in GeV)
+    double fMass;
+    //! Charge
+    double fCharge;
+    //! Contains all material effects
+    //GFMaterialEffects *fEffect;
 
-  RKTrackRep& operator=(const RKTrackRep* /* rhs */){return *this;}
-  RKTrackRep(const RKTrackRep& /* rhs */): GFAbsTrackRep() {}
-  bool fDirection;
-
-  //! PDG particle code
-  int fPdg;
-  //! Mass (in GeV)
-  double fMass;
-  //! Charge
-  double fCharge;
-  //! Contains all material effects
-  //GFMaterialEffects *fEffect;
-
-  //! Propagates the particle through the magnetic field.
-  /** If the propagation is successfull and the plane is reached, the function returns true.
+    //! Propagates the particle through the magnetic field.
+    /** If the propagation is successfull and the plane is reached, the function returns true.
     * The argument P has to contain the state (#P[0] - #P[6]) and a unity matrix (#P[7] - #P[55])
     * with the last column multiplied wit q/p (hence #P[55] is not 1 but q/p).
     * Propagated state and the jacobian (with the last column multiplied wit q/p) of the extrapolation are written to #P.
@@ -194,27 +186,33 @@ class RKTrackRep : public GFAbsTrackRep {
     * material effects, which are calculated after the propagation, are taken into account properly.
     *
     */
-  bool RKutta (const GFDetPlane& plane,double* P, double& coveredDistance, std::vector<TVector3>& points, std::vector<double>& pointLengths, const double& maxLen=-1, bool calcCov=true) const;
+    bool RKutta(const GFDetPlane& plane,
+                double* P,
+                double& coveredDistance,
+                std::vector<TVector3>& points,
+                std::vector<double>& pointLengths,
+                const double& maxLen = -1,
+                bool calcCov = true) const;
 
-  TVector3 poca2Line(const TVector3& extr1,const TVector3& extr2,const TVector3& point) const;
+    TVector3 poca2Line(const TVector3& extr1, const TVector3& extr2, const TVector3& point) const;
 
-  //! Handles propagation and material effects
-  /** extrapolate(), extrapolateToPoint() and extrapolateToLine() call this function.
+    //! Handles propagation and material effects
+    /** extrapolate(), extrapolateToPoint() and extrapolateToLine() call this function.
     * Extrap() needs a plane as an argument, hence extrapolateToPoint() and extrapolateToLine() create virtual detector planes.
     * In this function, RKutta() is called and the resulting points and point paths are filtered
     * so that the direction doesn't change and tiny steps are filtered out. After the propagation the material effects in #fEffect are called.
     * Extrap() will loop until the plane is reached, unless the propagation fails or the maximum number of
     * iterations is exceeded.
     */
-  double Extrap(const GFDetPlane& plane, TMatrixT<Double_t>* state, TMatrixT<Double_t>* cov=NULL) const;
+    double Extrap(const GFDetPlane& plane,
+                  TMatrixT<Double_t>* state,
+                  TMatrixT<Double_t>* cov = NULL) const;
 
-
-  //  void setData(const TMatrixT<Double_t>& /* st */, const GFDetPlane& /* pl */, const TMatrixT<Double_t>* cov=NULL, const TMatrixT<double>* aux=NULL);
+    //  void setData(const TMatrixT<Double_t>& /* st */, const GFDetPlane& /* pl */, const TMatrixT<Double_t>* cov=NULL, const TMatrixT<double>* aux=NULL);
     //    { throw std::logic_error(std::string(__func__) + "::setData(TMatrixT, GFDetPlane, TMatrixT) not available"); }
 
-  // public:
-  //ClassDef(RKTrackRep,3)
-
+    // public:
+    //ClassDef(RKTrackRep,3)
   };
 
 } // end namespace

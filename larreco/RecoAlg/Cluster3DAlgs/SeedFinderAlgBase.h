@@ -39,8 +39,7 @@ namespace lar_cluster3d {
      *  @brief Define a comparator which will sort hits by arc length along a PCA axis
      */
     struct Sort3DHitsByArcLen3D {
-      bool
-      operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+      bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
       {
         return left->getArclenToPoca() < right->getArclenToPoca();
       }
@@ -51,8 +50,7 @@ namespace lar_cluster3d {
      *         so hits are ordered closed to PCA origin to furthest
      */
     struct Sort3DHitsByAbsArcLen3D {
-      bool
-      operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+      bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
       {
         return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
       }

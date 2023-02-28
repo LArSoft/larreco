@@ -23,14 +23,13 @@
 #ifndef GFPLANARHITPOLICY_H
 #define GFPLANARHITPOLICY_H
 
-#include<string>
+#include <string>
 
 #include "RtypesCore.h"
 #include "TMatrixT.h"
 #include "TObject.h"
 
 #include "larreco/Genfit/GFDetPlane.h"
-
 
 /** @brief Policy class implementing a planar hit geometry.
  *
@@ -47,65 +46,59 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
+  class GFAbsRecoHit;
+  class GFAbsTrackRep;
 
-class GFPlanarHitPolicy : public TObject{
-public:
+  class GFPlanarHitPolicy : public TObject {
+  public:
+    // Constructors/Destructors ---------
+    GFPlanarHitPolicy() {}
 
-  // Constructors/Destructors ---------
- GFPlanarHitPolicy(){}
+    // Accessors -----------------------
 
-
-  // Accessors -----------------------
-
-  /** @brief Returns the physical detector plane.
+    /** @brief Returns the physical detector plane.
    */
-  const GFDetPlane& detPlane(GFAbsRecoHit*,const GFAbsTrackRep*);
+    const GFDetPlane& detPlane(GFAbsRecoHit*, const GFAbsTrackRep*);
 
+    // Modifiers -----------------------
 
-  // Modifiers -----------------------
-
-  /** @brief Set physical detector plane.
+    /** @brief Set physical detector plane.
    * Needs to be called before hit can be used.
    *
    * For the planar detector the detector plane is fixed by the geometry of the
    * detector hardware. This method should be called in the constructor of
    * any derived RecoHit in order to setup the geometry of this hit.
    */
-  void setDetPlane(const GFDetPlane& p){fPhysicalDetPlane=p;}
+    void setDetPlane(const GFDetPlane& p) { fPhysicalDetPlane = p; }
 
-  // Operations ----------------------
-  /** @brief Hit coordinates in detector plane.
+    // Operations ----------------------
+    /** @brief Hit coordinates in detector plane.
    */
-  TMatrixT<Double_t> hitCoord(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCoord(GFAbsRecoHit*, const GFDetPlane&);
 
-  /** @brief Hit covariances in detector plane.
+    /** @brief Hit covariances in detector plane.
    */
-  TMatrixT<Double_t> hitCov(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCov(GFAbsRecoHit*, const GFDetPlane&);
 
-  virtual ~GFPlanarHitPolicy(){;}
+    virtual ~GFPlanarHitPolicy() { ; }
 
-  const std::string& getName(){return fPolicyName;}
+    const std::string& getName() { return fPolicyName; }
 
- private:
-  static const std::string fPolicyName;
+  private:
+    static const std::string fPolicyName;
 
-protected:
+  protected:
+    // Private Data Members ------------
 
-  // Private Data Members ------------
-
-  /** @brief Physical detector plane. Given by detector hardware.
+    /** @brief Physical detector plane. Given by detector hardware.
    */
-  GFDetPlane fPhysicalDetPlane;
+    GFDetPlane fPhysicalDetPlane;
 
-  // Private Methods -----------------
+    // Private Methods -----------------
 
-  // public:
-  //ClassDef(GFPlanarHitPolicy,1)
-
-};
-
+    // public:
+    //ClassDef(GFPlanarHitPolicy,1)
+  };
 
 } // end namespace genf
 #endif

@@ -23,24 +23,21 @@ cluster::StandardClusterParamsAlg::StandardClusterParamsAlg()
 }
 
 //------------------------------------------------------------------------------
-void
-cluster::StandardClusterParamsAlg::SetVerbose(int level /* = 1 */)
+void cluster::StandardClusterParamsAlg::SetVerbose(int level /* = 1 */)
 {
   ClusterParamsAlgBase::SetVerbose(level);
   algo.SetVerbose(level > 0);
 }
 
 //------------------------------------------------------------------------------
-void
-cluster::StandardClusterParamsAlg::Clear()
+void cluster::StandardClusterParamsAlg::Clear()
 {
   algo.Initialize();
 }
 
 //------------------------------------------------------------------------------
-void
-cluster::StandardClusterParamsAlg::SetHits(util::GeometryUtilities const& gser,
-                                           std::vector<recob::Hit const*> const& hits)
+void cluster::StandardClusterParamsAlg::SetHits(util::GeometryUtilities const& gser,
+                                                std::vector<recob::Hit const*> const& hits)
 {
   Clear();
   util::PxHitConverter pxhitconverter{gser};
@@ -48,24 +45,23 @@ cluster::StandardClusterParamsAlg::SetHits(util::GeometryUtilities const& gser,
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::StartCharge(util::GeometryUtilities const& gser)
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::StartCharge(
+  util::GeometryUtilities const& gser)
 {
   if (NInputHits() == 0) return {0.F};
   return {(float)algo.StartCharge(gser)};
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::EndCharge(util::GeometryUtilities const& gser)
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::EndCharge(
+  util::GeometryUtilities const& gser)
 {
   if (NInputHits() == 0) return {0.F};
   return {(float)algo.EndCharge(gser)};
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::StartAngle()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::StartAngle()
 {
   if (NInputHits() < 2) return {0.F};
 
@@ -74,15 +70,13 @@ cluster::StandardClusterParamsAlg::StartAngle()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::EndAngle()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::EndAngle()
 {
   return StartAngle(); // Ummm...this doesn't look right. FIXME
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::StartOpeningAngle()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::StartOpeningAngle()
 {
   if (NInputHits() < 3) return {0.F};
 
@@ -91,8 +85,7 @@ cluster::StandardClusterParamsAlg::StartOpeningAngle()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::EndOpeningAngle()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::EndOpeningAngle()
 {
   if (NInputHits() < 3) return {0.F};
 
@@ -101,8 +94,7 @@ cluster::StandardClusterParamsAlg::EndOpeningAngle()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::Integral()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::Integral()
 {
   if (NInputHits() == 0) return {0.F};
 
@@ -111,8 +103,7 @@ cluster::StandardClusterParamsAlg::Integral()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::IntegralStdDev()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::IntegralStdDev()
 {
   if (NInputHits() < 2) return {0.F};
 
@@ -121,8 +112,7 @@ cluster::StandardClusterParamsAlg::IntegralStdDev()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::SummedADC()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::SummedADC()
 {
   if (NInputHits() == 0) return {0.F};
 
@@ -133,8 +123,7 @@ cluster::StandardClusterParamsAlg::SummedADC()
 }
 
 //------------------------------------------------------------------------------
-cluster::StandardClusterParamsAlg::Measure_t
-cluster::StandardClusterParamsAlg::SummedADCStdDev()
+cluster::StandardClusterParamsAlg::Measure_t cluster::StandardClusterParamsAlg::SummedADCStdDev()
 {
   if (NInputHits() < 2) return {0.F};
 
@@ -143,8 +132,7 @@ cluster::StandardClusterParamsAlg::SummedADCStdDev()
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::StandardClusterParamsAlg::NHits()
+size_t cluster::StandardClusterParamsAlg::NHits()
 {
   if (NInputHits() < 2) return NInputHits();
 
@@ -153,8 +141,7 @@ cluster::StandardClusterParamsAlg::NHits()
 }
 
 //------------------------------------------------------------------------------
-float
-cluster::StandardClusterParamsAlg::MultipleHitDensity()
+float cluster::StandardClusterParamsAlg::MultipleHitDensity()
 {
   if (NInputHits() < 2) return 0.0F;
 
@@ -164,8 +151,7 @@ cluster::StandardClusterParamsAlg::MultipleHitDensity()
 }
 
 //------------------------------------------------------------------------------
-float
-cluster::StandardClusterParamsAlg::Width(util::GeometryUtilities const& gser)
+float cluster::StandardClusterParamsAlg::Width(util::GeometryUtilities const& gser)
 {
   if (NInputHits() < 3) return 0.0F;
 
@@ -174,8 +160,7 @@ cluster::StandardClusterParamsAlg::Width(util::GeometryUtilities const& gser)
 }
 
 //------------------------------------------------------------------------------
-size_t
-cluster::StandardClusterParamsAlg::NInputHits() const
+size_t cluster::StandardClusterParamsAlg::NInputHits() const
 {
   return algo.GetNHits();
 }

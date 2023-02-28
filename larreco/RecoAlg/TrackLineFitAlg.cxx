@@ -22,11 +22,16 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-namespace trkf{
+namespace trkf {
 
-//------------------------------------------------------------------------------
-  void TrackLineFitAlg::TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
-                                   double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF) const
+  //------------------------------------------------------------------------------
+  void TrackLineFitAlg::TrkLineFit(std::vector<geo::WireID>& hitWID,
+                                   std::vector<double>& hitX,
+                                   std::vector<double>& hitXErr,
+                                   double XOrigin,
+                                   TVector3& Pos,
+                                   TVector3& Dir,
+                                   float& ChiDOF) const
   {
     // Linear fit using X as the independent variable. Hits to be fitted
     // are passed in the hits vector in a pair form (X, WireID). The
@@ -41,9 +46,9 @@ namespace trkf{
     // assume failure
     ChiDOF = -1;
 
-    if(hitX.size() < 4) return;
-    if(hitX.size() != hitWID.size()) return;
-    if(hitX.size() != hitXErr.size()) return;
+    if (hitX.size() < 4) return;
+    if (hitX.size() != hitWID.size()) return;
+    if (hitX.size() != hitXErr.size()) return;
 
     const unsigned int nvars = 4;
     unsigned int npts = hitX.size();
@@ -56,7 +61,7 @@ namespace trkf{
     unsigned short iht;
     unsigned int ipl, tpc, cstat;
     double x, cw, sw, off, wght;
-    for(iht = 0; iht < hitX.size(); ++iht) {
+    for (iht = 0; iht < hitX.size(); ++iht) {
       cstat = hitWID[iht].Cryostat;
       tpc = hitWID[iht].TPC;
       ipl = hitWID[iht].Plane;
@@ -67,9 +72,8 @@ namespace trkf{
       // the "sine-like" component
       sw = geom->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
       x = hitX[iht] - XOrigin;
-      if(hitXErr[iht] > 0) {
-        wght = 1 / hitXErr[iht];
-      } else {
+      if (hitXErr[iht] > 0) { wght = 1 / hitXErr[iht]; }
+      else {
         wght = 1;
       }
       A[iht][0] = wght * cw;
@@ -79,11 +83,11 @@ namespace trkf{
       w[iht] = wght * (hitWID[iht].Wire - off);
       ++ninpl[ipl];
       // need at least two points in a plane
-      if(ninpl[ipl] == 2) ++nok;
+      if (ninpl[ipl] == 2) ++nok;
     }
 
     // need at least 2 planes with at least two points
-    if(nok < 2) return;
+    if (nok < 2) return;
 
     TDecompSVD svd(A);
     bool ok;
@@ -92,10 +96,10 @@ namespace trkf{
     ChiDOF = 0;
 
     // not enough points to calculate Chisq
-    if(hitX.size() == 4) return;
+    if (hitX.size() == 4) return;
 
     double ypr, zpr, diff;
-    for(iht = 0; iht < hitX.size(); ++iht) {
+    for (iht = 0; iht < hitX.size(); ++iht) {
       cstat = hitWID[iht].Cryostat;
       tpc = hitWID[iht].TPC;
       ipl = hitWID[iht].Plane;
@@ -105,12 +109,11 @@ namespace trkf{
       x = hitX[iht] - XOrigin;
       ypr = tVec[0] + tVec[2] * x;
       zpr = tVec[1] + tVec[3] * x;
-      if(hitXErr[iht] > 0) {
-        wght = 1 / hitXErr[iht];
-      } else {
+      if (hitXErr[iht] > 0) { wght = 1 / hitXErr[iht]; }
+      else {
         wght = 1;
       }
-      if(wght <= 0) wght = 1;
+      if (wght <= 0) wght = 1;
       diff = (ypr * cw + zpr * sw - (hitWID[iht].Wire - off)) / wght;
       ChiDOF += diff * diff;
     }
@@ -128,7 +131,7 @@ namespace trkf{
     Pos[0] = XOrigin;
     Pos[1] = tVec[0];
     Pos[2] = tVec[1];
-/*
+    /*
     // covariance matrix
     TMatrixD fV = svd.GetV();
     PosCov(1, 1) = fV(0, 0);

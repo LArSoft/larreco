@@ -177,8 +177,7 @@ namespace shwf {
   }
 
   // ***************** //
-  void
-  ShowerReco::beginJob()
+  void ShowerReco::beginJob()
   {
     art::ServiceHandle<geo::Geometry const> geo;
 
@@ -228,8 +227,7 @@ namespace shwf {
     ftree_shwf->Branch("xyz_vertex_fit", "std::vector<double>", &xyz_vertex_fit);
   }
 
-  void
-  ShowerReco::beginRun(art::Run&)
+  void ShowerReco::beginRun(art::Run&)
   {
     auto const* geom = lar::providerFrom<geo::Geometry>();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
@@ -242,8 +240,7 @@ namespace shwf {
     fWireTimetoCmCm = (fTimeTick * fDriftVelocity) / fWirePitch;
   }
 
-  void
-  ShowerReco::ShowerReco::ClearandResizeVectors(unsigned int /*nPlanes*/)
+  void ShowerReco::ShowerReco::ClearandResizeVectors(unsigned int /*nPlanes*/)
   {
     //calculate factorial for number of angles
     int fact = 1;
@@ -347,8 +344,7 @@ namespace shwf {
   }
 
   // ***************** //
-  void
-  ShowerReco::produce(art::Event& evt)
+  void ShowerReco::produce(art::Event& evt)
   {
     auto const* geom = lar::providerFrom<geo::Geometry>();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
@@ -609,12 +605,11 @@ namespace shwf {
   }
 
   //------------------------------------------------------------------------------
-  void
-  ShowerReco::LongTransEnergy(geo::GeometryCore const* geom,
-                              detinfo::DetectorClocksData const& clockData,
-                              detinfo::DetectorPropertiesData const& detProp,
-                              unsigned int set,
-                              std::vector<art::Ptr<recob::Hit>> hitlist)
+  void ShowerReco::LongTransEnergy(geo::GeometryCore const* geom,
+                                   detinfo::DetectorClocksData const& clockData,
+                                   detinfo::DetectorPropertiesData const& detProp,
+                                   unsigned int set,
+                                   std::vector<art::Ptr<recob::Hit>> hitlist)
   {
     // alogorithm for energy vs dx of the shower (roto-translation) COLLECTION
     // VIEW
@@ -810,8 +805,7 @@ namespace shwf {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr<recob::Cluster> clust, unsigned int plane)
+  void ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr<recob::Cluster> clust, unsigned int plane)
   // Get shower vertex and slopes.
   {
     // convert to cm/cm units needed in the calculation

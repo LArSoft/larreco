@@ -16,19 +16,16 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-namespace art
-{
-    class TFileDirectory;
+namespace art {
+  class TFileDirectory;
 }
 
-namespace lar_cluster3d
-{
-/**
+namespace lar_cluster3d {
+  /**
  *  @brief  IClusterModAlg interface class definiton
  */
-class IClusterModAlg
-{
-public:
+  class IClusterModAlg {
+  public:
     /**
      *  @brief  Virtual Destructor
      */
@@ -61,8 +58,7 @@ public:
      *  @brief If monitoring, recover the time to execute a particular function
      */
     virtual float getTimeToExecute() const = 0;
-
-};
+  };
 
 } // namespace lar_cluster3d
 #endif

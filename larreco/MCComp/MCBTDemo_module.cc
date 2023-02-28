@@ -43,8 +43,7 @@ private:
 
 MCBTDemo::MCBTDemo(fhicl::ParameterSet const& p) : EDAnalyzer(p) {}
 
-void
-MCBTDemo::analyze(art::Event const& e)
+void MCBTDemo::analyze(art::Event const& e)
 {
   // Implementation of required member function here.
   art::Handle<std::vector<sim::MCTrack>> mctHandle;

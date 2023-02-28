@@ -25,28 +25,56 @@
 
 //ClassImp(GFTrackCand)
 
-genf::GFTrackCand::GFTrackCand():fCurv(0),fDip(0),fInv(false), fQoverpSeed(0.),fMcTrackId(-1){}
+genf::GFTrackCand::GFTrackCand() : fCurv(0), fDip(0), fInv(false), fQoverpSeed(0.), fMcTrackId(-1)
+{}
 
-genf::GFTrackCand::~GFTrackCand(){}
+genf::GFTrackCand::~GFTrackCand() {}
 
-genf::GFTrackCand::GFTrackCand(double curv, double dip, double inv, std::vector<unsigned int> detIDs, std::vector<unsigned int> hitIDs)
-  : fDetId(detIDs),fHitId(hitIDs),fCurv(curv), fDip(dip), fInv(inv),fQoverpSeed(0.), fMcTrackId(-1)
+genf::GFTrackCand::GFTrackCand(double curv,
+                               double dip,
+                               double inv,
+                               std::vector<unsigned int> detIDs,
+                               std::vector<unsigned int> hitIDs)
+  : fDetId(detIDs)
+  , fHitId(hitIDs)
+  , fCurv(curv)
+  , fDip(dip)
+  , fInv(inv)
+  , fQoverpSeed(0.)
+  , fMcTrackId(-1)
 {
   if (fDetId.size() != fHitId.size())
-    throw GFException("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch", __LINE__, __FILE__).setFatal();
-  fRho.resize(fDetId.size(),0.);
+    throw GFException("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch", __LINE__, __FILE__)
+      .setFatal();
+  fRho.resize(fDetId.size(), 0.);
 }
-genf::GFTrackCand::GFTrackCand(double curv, double dip, double inv, std::vector<unsigned int> detIDs, std::vector<unsigned int> hitIDs,std::vector<double> rhos)
-  : fDetId(detIDs),fHitId(hitIDs),fRho(rhos),fCurv(curv), fDip(dip), fInv(inv),fQoverpSeed(0.), fMcTrackId(-1)
+genf::GFTrackCand::GFTrackCand(double curv,
+                               double dip,
+                               double inv,
+                               std::vector<unsigned int> detIDs,
+                               std::vector<unsigned int> hitIDs,
+                               std::vector<double> rhos)
+  : fDetId(detIDs)
+  , fHitId(hitIDs)
+  , fRho(rhos)
+  , fCurv(curv)
+  , fDip(dip)
+  , fInv(inv)
+  , fQoverpSeed(0.)
+  , fMcTrackId(-1)
 {
   if (fDetId.size() != fHitId.size())
-    throw GFException("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch", __LINE__, __FILE__).setFatal();
+    throw GFException("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch", __LINE__, __FILE__)
+      .setFatal();
   if (fDetId.size() != fHitId.size())
-    throw GFException("genf::GFTrackCand::GFTrackCand(): rho/det size mismatch", __LINE__, __FILE__).setFatal();
+    throw GFException("genf::GFTrackCand::GFTrackCand(): rho/det size mismatch", __LINE__, __FILE__)
+      .setFatal();
 }
 
-void
-genf::GFTrackCand::addHit(unsigned int detId, unsigned int hitId, double rho, unsigned int planeId)
+void genf::GFTrackCand::addHit(unsigned int detId,
+                               unsigned int hitId,
+                               double rho,
+                               unsigned int planeId)
 {
   fDetId.push_back(detId);
   fHitId.push_back(hitId);
@@ -54,66 +82,66 @@ genf::GFTrackCand::addHit(unsigned int detId, unsigned int hitId, double rho, un
   fRho.push_back(rho);
 }
 
-std::vector<unsigned int>
-genf::GFTrackCand::GetHitIDs(int detId){
-  if(detId<0){ // return hits from all detectors
+std::vector<unsigned int> genf::GFTrackCand::GetHitIDs(int detId)
+{
+  if (detId < 0) { // return hits from all detectors
     return fHitId;
   }
   else {
     std::vector<unsigned int> result;
-    unsigned int n=fHitId.size();
-    for(unsigned int i=0;i<n;++i){
-      if(fDetId[i]==(unsigned int)detId)result.push_back(fHitId[i]);
+    unsigned int n = fHitId.size();
+    for (unsigned int i = 0; i < n; ++i) {
+      if (fDetId[i] == (unsigned int)detId) result.push_back(fHitId[i]);
     }
     return result;
   }
 }
 
-void
-genf::GFTrackCand::reset()
+void genf::GFTrackCand::reset()
 {
-  fDetId.clear();fHitId.clear();
+  fDetId.clear();
+  fHitId.clear();
 }
 
 bool genf::GFTrackCand::HitInTrack(unsigned int detId, unsigned int hitId)
 {
-	for (unsigned int i = 0; i < fDetId.size(); i++){
-		if (detId == fDetId[i])
-			if (hitId == fHitId[i])
-				return true;
-	}
-	return false;
+  for (unsigned int i = 0; i < fDetId.size(); i++) {
+    if (detId == fDetId[i])
+      if (hitId == fHitId[i]) return true;
+  }
+  return false;
 }
 
-bool genf::operator== (const GFTrackCand& lhs, const GFTrackCand& rhs){
-  if(lhs.getNHits()!=rhs.getNHits()) return false;
-  bool result=std::equal(lhs.fDetId.begin(),lhs.fDetId.end(),rhs.fDetId.begin());
-  result &=std::equal(lhs.fHitId.begin(),lhs.fHitId.end(),rhs.fHitId.begin());
+bool genf::operator==(const GFTrackCand& lhs, const GFTrackCand& rhs)
+{
+  if (lhs.getNHits() != rhs.getNHits()) return false;
+  bool result = std::equal(lhs.fDetId.begin(), lhs.fDetId.end(), rhs.fDetId.begin());
+  result &= std::equal(lhs.fHitId.begin(), lhs.fHitId.end(), rhs.fHitId.begin());
   return result;
 }
 
-void genf::GFTrackCand::Print(std::ostream& out /* = std::cout */) const {
+void genf::GFTrackCand::Print(std::ostream& out /* = std::cout */) const
+{
   out << "======== GFTrackCand::print ========";
-  if(fMcTrackId>=0) out << "\nmcTrackId=" << fMcTrackId;
+  if (fMcTrackId >= 0) out << "\nmcTrackId=" << fMcTrackId;
   out << "\nseed values for pos,direction, and q/p: " << std::endl;
   PrintROOTobject(out, fPosSeed);
   PrintROOTobject(out, fDirSeed);
   out << "q/p=" << fQoverpSeed << std::endl;
-  if (fDetId.size() !=fHitId.size())
+  if (fDetId.size() != fHitId.size())
     throw std::runtime_error("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch");
   out << "detId|hitId|rho ";
-  for(unsigned int i=0;i<fDetId.size();++i)
+  for (unsigned int i = 0; i < fDetId.size(); ++i)
     out << fDetId.at(i) << "|" << fHitId.at(i) << "|" << fRho.at(i) << " ";
   out << std::endl;
 }
 
-void genf::GFTrackCand::append(const GFTrackCand& rhs){
-  unsigned int detId,hitId;
+void genf::GFTrackCand::append(const GFTrackCand& rhs)
+{
+  unsigned int detId, hitId;
   double rho;
-  for(unsigned int i=0;i<rhs.getNHits();++i){
-    rhs.getHit(i,detId,hitId,rho);
-    addHit(detId,hitId,rho);
+  for (unsigned int i = 0; i < rhs.getNHits(); ++i) {
+    rhs.getHit(i, detId, hitId, rho);
+    addHit(detId, hitId, rho);
   }
-
-
 }

@@ -106,8 +106,7 @@ pma::Hit3D::Hit3D(const pma::Hit3D& src)
   , fParent(0) // set only when pushed to track
 {}
 
-double
-pma::Hit3D::GetDist2ToProj() const
+double pma::Hit3D::GetDist2ToProj() const
 {
   return pma::Dist2(fPoint2D, fProjection2D);
 }

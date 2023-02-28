@@ -28,18 +28,17 @@
 #ifndef GFRECOHITFACTORY_H
 #define GFRECOHITFACTORY_H
 
-#include<vector>
-#include<map>
+#include <map>
+#include <vector>
 
 class GFAbsRecoHitProducer;
 
 namespace genf {
 
-class GFTrackCand;
-class GFAbsRecoHit;
+  class GFTrackCand;
+  class GFAbsRecoHit;
 
-
-/** @brief Factory object to create RecoHits from digitized and clustered data
+  /** @brief Factory object to create RecoHits from digitized and clustered data
  *
  * The GFRecoHitFactory is used to automatically fill Track objects with
  * hit data. For each detector type that is used, one GFRecoHitProducer
@@ -50,36 +49,35 @@ class GFAbsRecoHit;
  * @sa GFAbsRecoHitProducer
  * @sa GFTrackCand
  */
-class GFRecoHitFactory{
-private:
-  std::map<int,GFAbsRecoHitProducer*> fHitProdMap;
+  class GFRecoHitFactory {
+  private:
+    std::map<int, GFAbsRecoHitProducer*> fHitProdMap;
 
+  public:
+    GFRecoHitFactory();
+    virtual ~GFRecoHitFactory();
 
-public:
-  GFRecoHitFactory();
-  virtual ~GFRecoHitFactory();
-
-  /** @brief Register a producer module to the factory
+    /** @brief Register a producer module to the factory
    *
    * For each type of hit a separate producer is needed. The type of hit
    * is identified by the detector ID (detID). This index corresponds to the
    * detector ID that is stored in the GFTrackCand object
    */
-  void addProducer(int detID, GFAbsRecoHitProducer* hitProd);
+    void addProducer(int detID, GFAbsRecoHitProducer* hitProd);
 
-  /** @brief Clear all hit producers
+    /** @brief Clear all hit producers
    */
-  void clear();
+    void clear();
 
-  /** @brief Create a RecoHit
+    /** @brief Create a RecoHit
    *
    * RecoHits have to implement a Constructor which takes the cluster object
    * from which the RecoHit is build as the only parameter.
    * See GFAbsRecoHitProducer for details
    */
-  GFAbsRecoHit*              createOne (int detID,int index);
+    GFAbsRecoHit* createOne(int detID, int index);
 
-  /** @brief Creat a collection of RecoHits
+    /** @brief Creat a collection of RecoHits
    *
    * This is the standard way to prepare the hit collection for a Track. The
    * resulting collection can contain hits from several detectors. The order
@@ -90,10 +88,8 @@ public:
    * from which the RecoHit is build as the only parameter.
    * See GFAbsRecoHitProducer for details
    */
-  std::vector<GFAbsRecoHit*> createMany(const GFTrackCand& cand);
-
-
-};
+    std::vector<GFAbsRecoHit*> createMany(const GFTrackCand& cand);
+  };
 
 } //namespace genf
 #endif

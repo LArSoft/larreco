@@ -7,9 +7,9 @@
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
+#include "art/Utilities/Globals.h"
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
-#include "art/Utilities/Globals.h"
 #include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"
@@ -185,8 +185,7 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitMorphological::findHitCandidates(
+  void CandHitMorphological::findHitCandidates(
     const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
     const size_t roiStartTick,
     const size_t channel,
@@ -371,16 +370,15 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStartItr,
-                                          Waveform::const_iterator derivStopItr,
-                                          Waveform::const_iterator erosionStartItr,
-                                          Waveform::const_iterator erosionStopItr,
-                                          Waveform::const_iterator dilationStartItr,
-                                          Waveform::const_iterator dilationStopItr,
-                                          const size_t roiStartTick,
-                                          float dilationThreshold,
-                                          HitCandidateVec& hitCandidateVec) const
+  void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStartItr,
+                                               Waveform::const_iterator derivStopItr,
+                                               Waveform::const_iterator erosionStartItr,
+                                               Waveform::const_iterator erosionStopItr,
+                                               Waveform::const_iterator dilationStartItr,
+                                               Waveform::const_iterator dilationStopItr,
+                                               const size_t roiStartTick,
+                                               float dilationThreshold,
+                                               HitCandidateVec& hitCandidateVec) const
   {
     // This function aims to use the erosion/dilation vectors to find candidate hit regions
     // Once armed with a region then the "standard" differential approach is used to return the candidate peaks
@@ -480,13 +478,12 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitMorphological::findHitCandidates(Waveform::const_iterator startItr,
-                                          Waveform::const_iterator stopItr,
-                                          const size_t roiStartTick,
-                                          int dTicksThreshold,
-                                          float dPeakThreshold,
-                                          HitCandidateVec& hitCandidateVec) const
+  void CandHitMorphological::findHitCandidates(Waveform::const_iterator startItr,
+                                               Waveform::const_iterator stopItr,
+                                               const size_t roiStartTick,
+                                               int dTicksThreshold,
+                                               float dPeakThreshold,
+                                               HitCandidateVec& hitCandidateVec) const
   {
     // Search for candidate hits...
     // Strategy is to get the list of all possible max/min pairs of the input derivative vector and then
@@ -633,12 +630,11 @@ namespace reco_tool {
     return;
   }
 
-  bool
-  CandHitMorphological::getListOfHitCandidates(Waveform::const_iterator startItr,
-                                               Waveform::const_iterator stopItr,
-                                               int dTicksThreshold,
-                                               float dPeakThreshold,
-                                               CandHitParamsVec& candHitParamsVec) const
+  bool CandHitMorphological::getListOfHitCandidates(Waveform::const_iterator startItr,
+                                                    Waveform::const_iterator stopItr,
+                                                    int dTicksThreshold,
+                                                    float dPeakThreshold,
+                                                    CandHitParamsVec& candHitParamsVec) const
   {
     // We'll check if any of our candidates meet the requirements so declare the result here
     bool foundCandidate(false);
@@ -693,8 +689,7 @@ namespace reco_tool {
     return foundCandidate || prevTicks || postTicks;
   }
 
-  void
-  CandHitMorphological::MergeHitCandidates(
+  void CandHitMorphological::MergeHitCandidates(
     const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
     const HitCandidateVec& hitCandidateVec,
     MergeHitCandidateVec& mergedHitsVec) const
@@ -735,9 +730,9 @@ namespace reco_tool {
     return;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitMorphological::findNearestMin(Waveform::const_iterator maxItr,
-                                       Waveform::const_iterator stopItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitMorphological::findNearestMin(
+    Waveform::const_iterator maxItr,
+    Waveform::const_iterator stopItr) const
   {
     // reset the min iterator and search forward to find the nearest minimum
     Waveform::const_iterator lastItr = maxItr;
@@ -754,9 +749,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitMorphological::findNearestMax(Waveform::const_iterator minItr,
-                                       Waveform::const_iterator startItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitMorphological::findNearestMax(
+    Waveform::const_iterator minItr,
+    Waveform::const_iterator startItr) const
   {
     // Set the internal loop variable...
     Waveform::const_iterator lastItr = minItr;
@@ -774,9 +769,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitMorphological::findStartTick(Waveform::const_iterator maxItr,
-                                      Waveform::const_iterator startItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitMorphological::findStartTick(
+    Waveform::const_iterator maxItr,
+    Waveform::const_iterator startItr) const
   {
     Waveform::const_iterator lastItr = maxItr;
 
@@ -802,9 +797,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitMorphological::findStopTick(Waveform::const_iterator minItr,
-                                     Waveform::const_iterator stopItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitMorphological::findStopTick(
+    Waveform::const_iterator minItr,
+    Waveform::const_iterator stopItr) const
   {
     Waveform::const_iterator lastItr = minItr;
 

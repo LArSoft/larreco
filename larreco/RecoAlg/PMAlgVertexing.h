@@ -56,11 +56,7 @@ public:
 
   ~PMAlgVertexing(); // delete last produced tracks (if not passed to output)
 
-  void
-  reset()
-  {
-    cleanTracks();
-  }
+  void reset() { cleanTracks(); }
 
   /// Copy input tracks, find 3D vertices, connect tracks, break them or flip if needed,
   /// reoptimize track structures. Result is returned as a collection of new tracks, that
@@ -82,8 +78,7 @@ public:
   std::vector<std::pair<TVector3, size_t>> getKinks(const pma::TrkCandidateColl& tracks) const;
 
 private:
-  bool
-  has(const std::vector<size_t>& v, size_t idx) const
+  bool has(const std::vector<size_t>& v, size_t idx) const
   {
     for (auto c : v)
       if (c == idx) return true;

@@ -35,10 +35,9 @@ namespace lar_cluster3d {
     m_numSeed2DHits = pset.get<size_t>("NumSeed2DHits", 80);
   }
 
-  bool
-  ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
-                                            reco::PrincipalComponents& inputPCA,
-                                            SeedHitPairListPairVec& seedHitPairVec) const
+  bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
+                                                 reco::PrincipalComponents& inputPCA,
+                                                 SeedHitPairListPairVec& seedHitPairVec) const
   {
     // This routine can fail...
     bool foundGoodSeeds(false);

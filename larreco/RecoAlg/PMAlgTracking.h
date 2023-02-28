@@ -59,20 +59,15 @@ namespace pma {
 
 class pma::PMAlgTrackingBase {
 public:
-  const pma::TrkCandidateColl&
-  result()
-  {
-    return fResult;
-  }
+  const pma::TrkCandidateColl& result() { return fResult; }
 
-  std::vector<std::pair<TVector3, std::vector<std::pair<size_t, bool>>>>
-  getVertices(bool onlyBranching = false) const
+  std::vector<std::pair<TVector3, std::vector<std::pair<size_t, bool>>>> getVertices(
+    bool onlyBranching = false) const
   {
     return fPMAlgVertexing.getVertices(fResult, onlyBranching);
   }
 
-  std::vector<std::pair<TVector3, size_t>>
-  getKinks() const
+  std::vector<std::pair<TVector3, size_t>> getKinks() const
   {
     return fPMAlgVertexing.getKinks(fResult);
   }
@@ -132,8 +127,7 @@ private:
   void buildTracks(detinfo::DetectorPropertiesData const& detProp);
   void buildShowers(detinfo::DetectorPropertiesData const& detProp);
 
-  bool
-  has(const std::vector<int>& v, int i) const
+  bool has(const std::vector<int>& v, int i) const
   {
     for (auto c : v) {
       if (c == i) return true;
@@ -262,7 +256,7 @@ public:
             const art::FindManyP<recob::Hit>& hitsFromEmParts);
 
   int build(detinfo::DetectorClocksData const& clockData,
-            detinfo::DetectorPropertiesData const& detProp, 
+            detinfo::DetectorPropertiesData const& detProp,
             art::Timestamp t);
 
 private:
@@ -273,7 +267,7 @@ private:
                       const std::vector<art::Ptr<recob::Hit>>& hits,
                       pma::TrkCandidateColl& tracks,
                       size_t trk_idx,
-                      double dist2, 
+                      double dist2,
                       lariov::DBTimeStamp_t ts);
   bool reassignSingleViewEnds_1(detinfo::DetectorPropertiesData const& detProp,
                                 pma::TrkCandidateColl& tracks,
@@ -301,7 +295,7 @@ private:
 
   double validate(detinfo::DetectorPropertiesData const& detProp,
                   pma::Track3D& trk,
-                  unsigned int testView, 
+                  unsigned int testView,
                   lariov::DBTimeStamp_t ts);
 
   void fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& detProp,
@@ -324,14 +318,13 @@ private:
                                  geo::View_t first_view,
                                  lariov::DBTimeStamp_t ts);
 
-  pma::TrkCandidate
-  matchCluster(detinfo::DetectorPropertiesData const& detProp,
-               int first_clu_idx,
-               size_t minSizeCompl,
-               unsigned int tpc,
-               unsigned int cryo,
-               geo::View_t first_view,
-               lariov::DBTimeStamp_t ts)
+  pma::TrkCandidate matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                                 int first_clu_idx,
+                                 size_t minSizeCompl,
+                                 unsigned int tpc,
+                                 unsigned int cryo,
+                                 geo::View_t first_view,
+                                 lariov::DBTimeStamp_t ts)
   {
     return matchCluster(
       detProp, first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view, ts);
@@ -368,8 +361,7 @@ private:
 
   void listUsedClusters(detinfo::DetectorPropertiesData const& detProp) const;
 
-  bool
-  has(const std::vector<size_t>& v, size_t idx) const
+  bool has(const std::vector<size_t>& v, size_t idx) const
   {
     for (auto c : v)
       if (c == idx) return true;

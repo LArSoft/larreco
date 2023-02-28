@@ -93,8 +93,7 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset)
 
 // -------------------------------------------------
 
-void
-shower::TCShowerAnalysis::beginJob()
+void shower::TCShowerAnalysis::beginJob()
 {
 
   art::ServiceHandle<art::TFileService const> tfs;
@@ -126,8 +125,7 @@ shower::TCShowerAnalysis::beginJob()
 
 // -------------------------------------------------
 
-void
-shower::TCShowerAnalysis::analyze(const art::Event& evt)
+void shower::TCShowerAnalysis::analyze(const art::Event& evt)
 {
 
   run = evt.run();
@@ -209,8 +207,7 @@ shower::TCShowerAnalysis::analyze(const art::Event& evt)
 
 // -------------------------------------------------
 
-void
-shower::TCShowerAnalysis::reset()
+void shower::TCShowerAnalysis::reset()
 {
 
   run = -99999;
@@ -243,13 +240,12 @@ shower::TCShowerAnalysis::reset()
 
 // -------------------------------------------------
 
-void
-shower::TCShowerAnalysis::truthMatcher(detinfo::DetectorClocksData const& clockData,
-                                       std::vector<art::Ptr<recob::Hit>> all_hits,
-                                       std::vector<art::Ptr<recob::Hit>> shower_hits,
-                                       const simb::MCParticle*& MCparticle,
-                                       double& Efrac,
-                                       double& Ecomplet)
+void shower::TCShowerAnalysis::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                            std::vector<art::Ptr<recob::Hit>> all_hits,
+                                            std::vector<art::Ptr<recob::Hit>> shower_hits,
+                                            const simb::MCParticle*& MCparticle,
+                                            double& Efrac,
+                                            double& Ecomplet)
 {
 
   MCparticle = 0;

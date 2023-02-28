@@ -173,8 +173,7 @@ namespace hit {
 
   //-------------------------------------------------
   //-------------------------------------------------
-  std::vector<double>
-  GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input)
+  std::vector<double> GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input)
   {
     if (input.size() == 0)
       throw std::runtime_error(
@@ -196,8 +195,7 @@ namespace hit {
 
   //-------------------------------------------------
   //-------------------------------------------------
-  void
-  GausHitFinder::beginJob(art::ProcessingFrame const&)
+  void GausHitFinder::beginJob(art::ProcessingFrame const&)
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -214,8 +212,7 @@ namespace hit {
   //  and looks for hits as areas between local minima that have signal above
   //  threshold.
   //-------------------------------------------------
-  void
-  GausHitFinder::produce(art::Event& evt, art::ProcessingFrame const&)
+  void GausHitFinder::produce(art::Event& evt, art::ProcessingFrame const&)
   {
     unsigned int count = fEventCount.fetch_add(1);
     //==================================================================================================

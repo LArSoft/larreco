@@ -20,13 +20,11 @@ namespace showerreco {
 
   namespace energy {
 
-  enum RecoType_t {
-    kDEFAULT
-  };
+    enum RecoType_t { kDEFAULT };
 
     // Define constants to be used by ShowerCalo
-  static const double DEFAULT_ECorr = 1.81;//1.75133;
-  static const double DEFAULT_ECorrError = 0.173707;
+    static const double DEFAULT_ECorr = 1.81; //1.75133;
+    static const double DEFAULT_ECorrError = 0.173707;
 
   }
 }
@@ -41,20 +39,17 @@ namespace showerreco {
   class ShowerCalo {
 
   public:
-
     /// Default constructor
     ShowerCalo(){};
 
     /// Default destructor
     virtual ~ShowerCalo(){};
 
-    std::pair<double,double> ShowerEnergy(double energy,
-					  ::showerreco::energy::RecoType_t type=energy::kDEFAULT,
-					  bool mc=true);
-
+    std::pair<double, double> ShowerEnergy(double energy,
+                                           ::showerreco::energy::RecoType_t type = energy::kDEFAULT,
+                                           bool mc = true);
   };
 }
-
 
 #endif
 /** @} */ // end of doxygen group

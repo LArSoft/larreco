@@ -102,64 +102,55 @@ ClusteringValidation::ClusterCounter::ClusterCounter(unsigned int& t, unsigned i
   plane = p;
 }
 
-void
-ClusteringValidation::ClusterCounter::AddHitPreClustering(TrackID trackID)
+void ClusteringValidation::ClusterCounter::AddHitPreClustering(TrackID trackID)
 {
   ++numHitsPreClustering[trackID];
 }
 
-void
-ClusteringValidation::ClusterCounter::AddSignalHitPostClustering(ClusterID clusID)
+void ClusteringValidation::ClusterCounter::AddSignalHitPostClustering(ClusterID clusID)
 {
   ++numSignalHitsPostClustering[clusID];
 }
 
-void
-ClusteringValidation::ClusterCounter::AddNoiseHitPostClustering(ClusterID clusID)
+void ClusteringValidation::ClusterCounter::AddNoiseHitPostClustering(ClusterID clusID)
 {
   ++numNoiseHitsPostClustering[clusID];
 }
 
-void
-ClusteringValidation::ClusterCounter::AssociateClusterAndTrack(ClusterID clusID, TrackID trackID)
+void ClusteringValidation::ClusterCounter::AssociateClusterAndTrack(ClusterID clusID,
+                                                                    TrackID trackID)
 {
   clusterToTrackID[clusID] = trackID;
   trackToClusterIDs[trackID].push_back(clusID);
 }
 
-double
-ClusteringValidation::ClusterCounter::GetCompleteness(ClusterID clusID)
+double ClusteringValidation::ClusterCounter::GetCompleteness(ClusterID clusID)
 {
   return (double)numSignalHitsPostClustering[clusID] /
          (double)numHitsPreClustering[clusterToTrackID[clusID]];
 }
 
-double
-ClusteringValidation::ClusterCounter::GetCleanliness(ClusterID clusID)
+double ClusteringValidation::ClusterCounter::GetCleanliness(ClusterID clusID)
 {
   return (double)numSignalHitsPostClustering[clusID] / (double)(GetNumberHitsInCluster(clusID));
 }
 
-double
-ClusteringValidation::ClusterCounter::GetEfficiency(TrackID trackID)
+double ClusteringValidation::ClusterCounter::GetEfficiency(TrackID trackID)
 {
   return 1 / (double)trackToClusterIDs.at(trackID).size();
 }
 
-int
-ClusteringValidation::ClusterCounter::GetNumberHitsFromTrack(TrackID trackID)
+int ClusteringValidation::ClusterCounter::GetNumberHitsFromTrack(TrackID trackID)
 {
   return numHitsPreClustering[trackID];
 }
 
-int
-ClusteringValidation::ClusterCounter::GetNumberHitsInCluster(ClusterID clusID)
+int ClusteringValidation::ClusterCounter::GetNumberHitsInCluster(ClusterID clusID)
 {
   return numSignalHitsPostClustering[clusID] + numNoiseHitsPostClustering[clusID];
 }
 
-int
-ClusteringValidation::ClusterCounter::GetNumberHitsInPlane()
+int ClusteringValidation::ClusterCounter::GetNumberHitsInPlane()
 {
   int nHits = 0;
   for (auto& trackHits : numHitsPreClustering)
@@ -167,8 +158,7 @@ ClusteringValidation::ClusterCounter::GetNumberHitsInPlane()
   return nHits;
 }
 
-ClusterIDs
-ClusteringValidation::ClusterCounter::GetListOfClusterIDs()
+ClusterIDs ClusteringValidation::ClusterCounter::GetListOfClusterIDs()
 {
   ClusterIDs v;
   for (std::map<ClusterID, TrackID>::iterator i = clusterToTrackID.begin();
@@ -178,8 +168,7 @@ ClusteringValidation::ClusterCounter::GetListOfClusterIDs()
   return v;
 }
 
-TrackIDs
-ClusteringValidation::ClusterCounter::GetListOfTrackIDs()
+TrackIDs ClusteringValidation::ClusterCounter::GetListOfTrackIDs()
 {
   TrackIDs v;
   for (std::map<TrackID, ClusterIDs>::iterator i = trackToClusterIDs.begin();
@@ -189,8 +178,7 @@ ClusteringValidation::ClusterCounter::GetListOfTrackIDs()
   return v;
 }
 
-std::vector<std::pair<TrackID, ClusterIDs>>
-ClusteringValidation::ClusterCounter::GetPhotons()
+std::vector<std::pair<TrackID, ClusterIDs>> ClusteringValidation::ClusterCounter::GetPhotons()
 {
   std::vector<std::pair<TrackID, ClusterIDs>> photonVector;
   for (unsigned int track = 0; track < GetListOfTrackIDs().size(); ++track)
@@ -201,26 +189,22 @@ ClusteringValidation::ClusterCounter::GetPhotons()
   return photonVector;
 }
 
-TrackID
-ClusteringValidation::ClusterCounter::GetTrack(ClusterID id)
+TrackID ClusteringValidation::ClusterCounter::GetTrack(ClusterID id)
 {
   return clusterToTrackID.at(id);
 }
 
-bool
-ClusteringValidation::ClusterCounter::IsNoise(ClusterID clusID)
+bool ClusteringValidation::ClusterCounter::IsNoise(ClusterID clusID)
 {
   return IsNoise(clusterToTrackID.at(clusID));
 }
 
-bool
-ClusteringValidation::ClusterCounter::IsNoise(TrackID trackID)
+bool ClusteringValidation::ClusterCounter::IsNoise(TrackID trackID)
 {
   return (int)trackID == 0 ? true : false;
 }
 
-bool
-ClusteringValidation::ClusterCounter::PassesCut()
+bool ClusteringValidation::ClusterCounter::PassesCut()
 {
   if (GetPhotons().size() > 2 || GetPhotons().size() == 0) return false;
   TrackIDs goodPhotons;
@@ -354,12 +338,11 @@ ClusteringValidation::ClusterAnalyser::ClusterAnalyser(std::string& clusterLabel
     new TH2D("NumHitsEnergy", ";True Energy (GeV);Size of Cluster", 100, 0, 2, 100, 0, 100);
 }
 
-void
-ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData const& clockData,
-                                               std::vector<art::Ptr<recob::Hit>>& hits,
-                                               std::vector<art::Ptr<recob::Cluster>>& clusters,
-                                               const art::FindManyP<recob::Hit>& fmh,
-                                               int minHits)
+void ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData const& clockData,
+                                                    std::vector<art::Ptr<recob::Hit>>& hits,
+                                                    std::vector<art::Ptr<recob::Cluster>>& clusters,
+                                                    const art::FindManyP<recob::Hit>& fmh,
+                                                    int minHits)
 {
 
   // Make a map of cluster counters in TPC/plane space
@@ -422,9 +405,9 @@ ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData const
   this->MakeHistograms();
 }
 
-TrackID
-ClusteringValidation::ClusterAnalyser::FindTrackID(detinfo::DetectorClocksData const& clockData,
-                                                   art::Ptr<recob::Hit>& hit)
+TrackID ClusteringValidation::ClusterAnalyser::FindTrackID(
+  detinfo::DetectorClocksData const& clockData,
+  art::Ptr<recob::Hit>& hit)
 {
   double particleEnergy = 0;
   TrackID likelyTrackID = (TrackID)0;
@@ -438,9 +421,9 @@ ClusteringValidation::ClusterAnalyser::FindTrackID(detinfo::DetectorClocksData c
   return likelyTrackID;
 }
 
-TrackID
-ClusteringValidation::ClusterAnalyser::FindTrueTrack(detinfo::DetectorClocksData const& clockData,
-                                                     std::vector<art::Ptr<recob::Hit>>& clusterHits)
+TrackID ClusteringValidation::ClusterAnalyser::FindTrueTrack(
+  detinfo::DetectorClocksData const& clockData,
+  std::vector<art::Ptr<recob::Hit>>& clusterHits)
 {
   std::map<TrackID, double> trackMap;
   for (std::vector<art::Ptr<recob::Hit>>::iterator clusHitIt = clusterHits.begin();
@@ -462,8 +445,7 @@ ClusteringValidation::ClusterAnalyser::FindTrueTrack(detinfo::DetectorClocksData
   return clusterTrack;
 }
 
-double
-ClusteringValidation::ClusterAnalyser::FindPhotonAngle()
+double ClusteringValidation::ClusterAnalyser::FindPhotonAngle()
 {
   const simb::MCParticle* pi0 = GetPi0();
   if (pi0->NumberDaughters() != 2) return -999;
@@ -474,8 +456,7 @@ ClusteringValidation::ClusterAnalyser::FindPhotonAngle()
   return angle;
 }
 
-const simb::MCParticle*
-ClusteringValidation::ClusterAnalyser::GetPi0()
+const simb::MCParticle* ClusteringValidation::ClusterAnalyser::GetPi0()
 {
   const simb::MCParticle* pi0 = nullptr;
   for (std::map<TrackID, const simb::MCParticle*>::iterator particleIt = trueParticles.begin();
@@ -485,8 +466,7 @@ ClusteringValidation::ClusterAnalyser::GetPi0()
   return pi0;
 }
 
-double
-ClusteringValidation::ClusterAnalyser::GetEndTrackDistance(TrackID id1, TrackID id2)
+double ClusteringValidation::ClusterAnalyser::GetEndTrackDistance(TrackID id1, TrackID id2)
 {
   return TMath::Sqrt(
     TMath::Power(
@@ -497,8 +477,7 @@ ClusteringValidation::ClusterAnalyser::GetEndTrackDistance(TrackID id1, TrackID 
       trueParticles.at(id1)->EndPosition().Z() - trueParticles.at(id2)->EndPosition().Z(), 2));
 }
 
-TObjArray
-ClusteringValidation::ClusterAnalyser::GetHistograms()
+TObjArray ClusteringValidation::ClusterAnalyser::GetHistograms()
 {
 
   // Make efficiency histograms
@@ -540,8 +519,7 @@ ClusteringValidation::ClusterAnalyser::GetHistograms()
   return fHistArray;
 }
 
-void
-ClusteringValidation::ClusterAnalyser::MakeHistograms()
+void ClusteringValidation::ClusterAnalyser::MakeHistograms()
 {
 
   // Loop over the tpcs and planes in the geometry
@@ -626,8 +604,7 @@ ClusteringValidation::ClusterAnalyser::MakeHistograms()
   }
 }
 
-void
-ClusteringValidation::ClusterAnalyser::WriteFile()
+void ClusteringValidation::ClusterAnalyser::WriteFile()
 {
 
   // Average completeness/cleanliness
@@ -676,8 +653,7 @@ ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::Paramete
   gStyle->SetOptStat(0);
 }
 
-void
-ClusteringValidation::ClusteringValidation::analyze(art::Event const& evt)
+void ClusteringValidation::ClusteringValidation::analyze(art::Event const& evt)
 {
   // Get the hits from the event
   art::Handle<std::vector<recob::Hit>> hitHandle;
@@ -702,8 +678,7 @@ ClusteringValidation::ClusteringValidation::analyze(art::Event const& evt)
   }
 }
 
-void
-ClusteringValidation::ClusteringValidation::beginJob()
+void ClusteringValidation::ClusteringValidation::beginJob()
 {
 
   // Construct the cluster analysers here
@@ -712,8 +687,7 @@ ClusteringValidation::ClusteringValidation::beginJob()
     clusterAnalysis[clustering] = (std::unique_ptr<ClusterAnalyser>)new ClusterAnalyser(clustering);
 }
 
-void
-ClusteringValidation::ClusteringValidation::endJob()
+void ClusteringValidation::ClusteringValidation::endJob()
 {
 
   // Make a map of all the histograms for each clustering

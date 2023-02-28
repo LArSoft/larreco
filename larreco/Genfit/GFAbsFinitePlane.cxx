@@ -17,11 +17,8 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include"GFAbsFinitePlane.h"
+#include "GFAbsFinitePlane.h"
 
-
-genf::GFAbsFinitePlane::~GFAbsFinitePlane(){
-
-}
+genf::GFAbsFinitePlane::~GFAbsFinitePlane() {}
 
 //ClassImp(GFAbsFinitePlane)

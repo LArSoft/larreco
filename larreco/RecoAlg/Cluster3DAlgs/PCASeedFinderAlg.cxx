@@ -45,10 +45,9 @@ namespace lar_cluster3d {
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
   }
 
-  bool
-  PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
-                                   reco::PrincipalComponents& inputPCA,
-                                   SeedHitPairListPairVec& seedHitPairVec) const
+  bool PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
+                                        reco::PrincipalComponents& inputPCA,
+                                        SeedHitPairListPairVec& seedHitPairVec) const
   {
     bool foundGoodSeed(false);
 
@@ -149,9 +148,8 @@ namespace lar_cluster3d {
     return foundGoodSeed;
   }
 
-  bool
-  PCASeedFinderAlg::getHitsAtEnd(reco::HitPairListPtr& hit3DList,
-                                 reco::PrincipalComponents& seedPca) const
+  bool PCASeedFinderAlg::getHitsAtEnd(reco::HitPairListPtr& hit3DList,
+                                      reco::PrincipalComponents& seedPca) const
   {
     bool foundGoodSeedHits(false);
 
@@ -210,12 +208,11 @@ namespace lar_cluster3d {
   }
 
   //------------------------------------------------------------------------------
-  void
-  PCASeedFinderAlg::LineFit2DHits(const reco::HitPairListPtr& hit3DList,
-                                  double XOrigin,
-                                  TVector3& Pos,
-                                  TVector3& Dir,
-                                  double& ChiDOF) const
+  void PCASeedFinderAlg::LineFit2DHits(const reco::HitPairListPtr& hit3DList,
+                                       double XOrigin,
+                                       TVector3& Pos,
+                                       TVector3& Dir,
+                                       double& ChiDOF) const
   {
     // The following is lifted from Bruce Baller to try to get better
     // initial parameters for a candidate Seed. It is slightly reworked

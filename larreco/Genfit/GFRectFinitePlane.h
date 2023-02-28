@@ -22,47 +22,46 @@
  *
  */
 
-
 /** @addtogroup genfit
  * @{
  */
 
-
 #ifndef GFRECTFINITEPLANE_H
 #define GFRECTFINITEPLANE_H
 
-#include <stdexcept> // std::logic_error
-#include <iostream>
 #include "larreco/Genfit/GFAbsFinitePlane.h"
+#include <iostream>
+#include <stdexcept> // std::logic_error
 
 /** @brief Concrete implementation of finitie detector plane for rectangles.
  */
 
 namespace genf {
 
-class GFRectFinitePlane : public GFAbsFinitePlane {
-public:
-  //override inActive & Print methods
-  bool inActive(const double& u,const double& v) const;
-  void Print(std::ostream& out = std::cout) const;
+  class GFRectFinitePlane : public GFAbsFinitePlane {
+  public:
+    //override inActive & Print methods
+    bool inActive(const double& u, const double& v) const;
+    void Print(std::ostream& out = std::cout) const;
 
-  //! give dimensions of finite rectangle: u1,u2,v1,v2
-  GFRectFinitePlane(const double&,const double&,const double&,const double&);
-  GFRectFinitePlane();
+    //! give dimensions of finite rectangle: u1,u2,v1,v2
+    GFRectFinitePlane(const double&, const double&, const double&, const double&);
+    GFRectFinitePlane();
 
-  virtual ~GFRectFinitePlane();
+    virtual ~GFRectFinitePlane();
 
-  GFAbsFinitePlane* clone() const {
-      return new GFRectFinitePlane(*this);
-  }
- private:
-  double fUmin,fUmax,fVmin,fVmax;
+    GFAbsFinitePlane* clone() const { return new GFRectFinitePlane(*this); }
 
-  virtual void Print(Option_t*) const
-    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
-  // public:
-  //ClassDef(GFRectFinitePlane,1)
-};
+  private:
+    double fUmin, fUmax, fVmin, fVmax;
+
+    virtual void Print(Option_t*) const
+    {
+      throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available");
+    }
+    // public:
+    //ClassDef(GFRectFinitePlane,1)
+  };
 
 } // namespace genf
 

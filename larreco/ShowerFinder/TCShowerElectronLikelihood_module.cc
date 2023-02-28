@@ -168,8 +168,7 @@ shower::TCShowerElectronLikelihood::TCShowerElectronLikelihood(fhicl::ParameterS
 
 // -------------------------------------------------
 
-void
-shower::TCShowerElectronLikelihood::beginJob()
+void shower::TCShowerElectronLikelihood::beginJob()
 {
 
   art::ServiceHandle<art::TFileService const> tfs;
@@ -196,8 +195,7 @@ shower::TCShowerElectronLikelihood::beginJob()
 
 // -------------------------------------------------
 
-void
-shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
+void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
 {
   resetProfiles();
 
@@ -256,8 +254,7 @@ shower::TCShowerElectronLikelihood::analyze(const art::Event& evt)
 
 // -------------------------------------------------
 
-void
-shower::TCShowerElectronLikelihood::resetProfiles()
+void shower::TCShowerElectronLikelihood::resetProfiles()
 {
 
   longProfile->Reset();
@@ -275,12 +272,12 @@ shower::TCShowerElectronLikelihood::resetProfiles()
 
 // -------------------------------------------------
 
-void
-shower::TCShowerElectronLikelihood::getShowerProfile(detinfo::DetectorClocksData const& clockdata,
-                                                     detinfo::DetectorPropertiesData const& detProp,
-                                                     std::vector<art::Ptr<recob::Hit>> showerhits,
-                                                     TVector3 shwvtx,
-                                                     TVector3 shwdir)
+void shower::TCShowerElectronLikelihood::getShowerProfile(
+  detinfo::DetectorClocksData const& clockdata,
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> showerhits,
+  TVector3 shwvtx,
+  TVector3 shwdir)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -349,8 +346,7 @@ shower::TCShowerElectronLikelihood::getShowerProfile(detinfo::DetectorClocksData
 
 // -------------------------------------------------
 
-void
-shower::TCShowerElectronLikelihood::findEnergyBin()
+void shower::TCShowerElectronLikelihood::findEnergyBin()
 {
 
   if (longProfile->GetNbinsX() != longTemplate->GetNbinsX())
@@ -442,8 +438,7 @@ shower::TCShowerElectronLikelihood::findEnergyBin()
 
 // -------------------------------------------------
 
-double
-shower::TCShowerElectronLikelihood::getLongLikelihood()
+double shower::TCShowerElectronLikelihood::getLongLikelihood()
 {
   if (energyGuess < 0) return -9999.;
   int energyBin = energyGuess;
@@ -471,8 +466,7 @@ shower::TCShowerElectronLikelihood::getLongLikelihood()
 
 // -------------------------------------------------
 
-double
-shower::TCShowerElectronLikelihood::getTranLikelihood()
+double shower::TCShowerElectronLikelihood::getTranLikelihood()
 {
   if (energyGuess < 0) return -9999.;
   int energyBin = energyGuess;

@@ -65,8 +65,7 @@ calo::ShowerCalorimetry::ShowerCalorimetry(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Shower, anab::Calorimetry>>();
 }
 
-void
-calo::ShowerCalorimetry::produce(art::Event& e)
+void calo::ShowerCalorimetry::produce(art::Event& e)
 {
 
   art::ServiceHandle<geo::Geometry> geom;

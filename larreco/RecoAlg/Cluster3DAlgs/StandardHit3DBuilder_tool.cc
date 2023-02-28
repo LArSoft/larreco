@@ -37,8 +37,8 @@
 // std includes
 #include <iostream>
 #include <memory>
-#include <string>
 #include <numeric> // std::accumulate
+#include <string>
 
 // Ack!
 #include "TH1F.h"
@@ -102,8 +102,7 @@ namespace lar_cluster3d {
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float
-    getTimeToExecute(IHit3DBuilder::TimeValues index) const override
+    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
     {
       return m_timeVector[index];
     }
@@ -231,7 +230,8 @@ namespace lar_cluster3d {
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
-    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap, art::Timestamp ts) const;
+    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap,
+                               art::Timestamp ts) const;
 
     /**
      * @brief Perform charge integration between limits
@@ -308,8 +308,7 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void
-  StandardHit3DBuilder::produces(art::ProducesCollector& collector)
+  void StandardHit3DBuilder::produces(art::ProducesCollector& collector)
   {
     collector.produces<std::vector<recob::Hit>>();
     collector.produces<art::Assns<recob::Wire, recob::Hit>>();
@@ -318,8 +317,7 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void
-  StandardHit3DBuilder::configure(fhicl::ParameterSet const& pset)
+  void StandardHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
     m_hitFinderTagVec = pset.get<std::vector<art::InputTag>>(
       "HitFinderTagVec", std::vector<art::InputTag>() = {"gaushit"});
@@ -367,8 +365,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  StandardHit3DBuilder::clear()
+  void StandardHit3DBuilder::clear()
   {
     m_deltaTimeVec.clear();
     m_chiSquare3DVec.clear();
@@ -387,8 +384,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap, art::Timestamp ts) const
+  void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap,
+                                                   art::Timestamp ts) const
   {
     // This is called each event, clear out the previous version and start over
     if (!m_channelStatus.empty()) m_channelStatus.clear();
@@ -406,7 +403,8 @@ namespace lar_cluster3d {
       if (!m_channelFilter->IsGood(ts.value(), channel)) {
         std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
         geo::WireID wireID = wireIDVec[0];
-        lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(ts.value(), channel);
+        lariov::ChannelStatusProvider::Status_t chanStat =
+          m_channelFilter->Status(ts.value(), channel);
 
         m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
         m_numBadChannels++;
@@ -432,17 +430,15 @@ namespace lar_cluster3d {
     return;
   }
 
-  bool
-  SetPeakHitPairIteratorOrder(const reco::HitPairList::iterator& left,
-                              const reco::HitPairList::iterator& right)
+  bool SetPeakHitPairIteratorOrder(const reco::HitPairList::iterator& left,
+                                   const reco::HitPairList::iterator& right)
   {
     return (*left).getAvePeakTime() < (*right).getAvePeakTime();
   }
 
   struct HitPairClusterOrder {
-    bool
-    operator()(const reco::HitPairClusterMap::iterator& left,
-               const reco::HitPairClusterMap::iterator& right)
+    bool operator()(const reco::HitPairClusterMap::iterator& left,
+                    const reco::HitPairClusterMap::iterator& right)
     {
       // Watch out for the case where two clusters can have the same number of hits!
       if (left->second.size() == right->second.size()) return left->first < right->first;
@@ -451,10 +447,9 @@ namespace lar_cluster3d {
     }
   };
 
-  void
-  StandardHit3DBuilder::Hit3DBuilder(art::Event& evt,
-                                     reco::HitPairList& hitPairList,
-                                     RecobHitToPtrMap& clusterHitToArtPtrMap)
+  void StandardHit3DBuilder::Hit3DBuilder(art::Event& evt,
+                                          reco::HitPairList& hitPairList,
+                                          RecobHitToPtrMap& clusterHitToArtPtrMap)
   {
     // Clear the internal data structures
     m_clusterHit2DMasterList.clear();
@@ -508,8 +503,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const
+  void StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const
   {
     /**
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
@@ -545,8 +539,7 @@ namespace lar_cluster3d {
       SetHitEarliestTimeOrder() : m_numRMS(1.) {}
       SetHitEarliestTimeOrder(float numRMS) : m_numRMS(numRMS) {}
 
-      bool
-      operator()(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
+      bool operator()(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
       {
         return left->getTimeTicks() - m_numRMS * left->getHit()->RMS() <
                right->getTimeTicks() - m_numRMS * right->getHit()->RMS();
@@ -563,8 +556,7 @@ namespace lar_cluster3d {
       SetStartTimeOrder() : m_numRMS(1.) {}
       SetStartTimeOrder(float numRMS) : m_numRMS(numRMS) {}
 
-      bool
-      operator()(const HitVectorItrPair& left, const HitVectorItrPair& right) const
+      bool operator()(const HitVectorItrPair& left, const HitVectorItrPair& right) const
       {
         // Protect against possible issue?
         if (left.first != left.second && right.first != right.second) {
@@ -580,8 +572,7 @@ namespace lar_cluster3d {
       float m_numRMS;
     };
 
-    bool
-    SetPairStartTimeOrder(const reco::ClusterHit3D& left, const reco::ClusterHit3D& right)
+    bool SetPairStartTimeOrder(const reco::ClusterHit3D& left, const reco::ClusterHit3D& right)
     {
       // Sort by "modified start time" of pulse
       return left.getAvePeakTime() - left.getSigmaPeakTime() <
@@ -591,9 +582,8 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  size_t
-  StandardHit3DBuilder::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap,
-                                        reco::HitPairList& hitPairList) const
+  size_t StandardHit3DBuilder::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap,
+                                               reco::HitPairList& hitPairList) const
   {
     /**
      *  @brief Given input 2D hits, build out the lists of possible 3D hits
@@ -664,9 +654,8 @@ namespace lar_cluster3d {
     return hitPairList.size();
   }
 
-  size_t
-  StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitItrVec,
-                                             reco::HitPairList& hitPairList) const
+  size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitItrVec,
+                                                    reco::HitPairList& hitPairList) const
   {
     /**
      *  @brief Given input 2D hits, build out the lists of possible 3D hits
@@ -764,11 +753,10 @@ namespace lar_cluster3d {
     return hitPairList.size();
   }
 
-  int
-  StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
-                                         HitVector::iterator& startItr,
-                                         HitVector::iterator& endItr,
-                                         HitMatchPairVecMap& hitMatchMap) const
+  int StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
+                                             HitVector::iterator& startItr,
+                                             HitVector::iterator& endItr,
+                                             HitMatchPairVecMap& hitMatchMap) const
   {
     int numPairs(0);
 
@@ -790,11 +778,10 @@ namespace lar_cluster3d {
     return numPairs;
   }
 
-  void
-  StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map,
-                                         HitMatchPairVecMap& pair13Map,
-                                         reco::HitPairList& hitPairList,
-                                         bool tagged) const
+  void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map,
+                                              HitMatchPairVecMap& pair13Map,
+                                              reco::HitPairList& hitPairList,
+                                              bool tagged) const
   {
     // Build triplets from the two lists of hit pairs
     if (!pair12Map.empty()) {
@@ -909,12 +896,11 @@ namespace lar_cluster3d {
     return;
   }
 
-  bool
-  StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D& hitPair,
-                                    const reco::ClusterHit2D* hit1,
-                                    const reco::ClusterHit2D* hit2,
-                                    float hitWidthSclFctr,
-                                    size_t hitPairCntr) const
+  bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D& hitPair,
+                                         const reco::ClusterHit2D* hit1,
+                                         const reco::ClusterHit2D* hit2,
+                                         float hitWidthSclFctr,
+                                         size_t hitPairCntr) const
   {
     // Assume failure
     bool result(false);
@@ -1038,10 +1024,9 @@ namespace lar_cluster3d {
     return result;
   }
 
-  bool
-  StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D& hitTriplet,
-                                       const reco::ClusterHit3D& pair,
-                                       const reco::ClusterHit2D* hit) const
+  bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D& hitTriplet,
+                                            const reco::ClusterHit3D& pair,
+                                            const reco::ClusterHit2D* hit) const
   {
     // Assume failure
     bool result(false);
@@ -1297,13 +1282,12 @@ namespace lar_cluster3d {
     return result;
   }
 
-  float
-  StandardHit3DBuilder::chargeIntegral(float peakMean,
-                                       float peakAmp,
-                                       float peakSigma,
-                                       float areaNorm,
-                                       int low,
-                                       int hi) const
+  float StandardHit3DBuilder::chargeIntegral(float peakMean,
+                                             float peakAmp,
+                                             float peakSigma,
+                                             float areaNorm,
+                                             int low,
+                                             int hi) const
   {
     float integral(0);
 
@@ -1315,12 +1299,11 @@ namespace lar_cluster3d {
     return integral;
   }
 
-  bool
-  StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D& pairOut,
-                                            const reco::ClusterHit3D& pair,
-                                            size_t maxChanStatus,
-                                            size_t minChanStatus,
-                                            float minOverlap) const
+  bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D& pairOut,
+                                                 const reco::ClusterHit3D& pair,
+                                                 size_t maxChanStatus,
+                                                 size_t minChanStatus,
+                                                 float minOverlap) const
   {
     // Assume failure (most common result)
     bool result(false);
@@ -1394,10 +1377,10 @@ namespace lar_cluster3d {
     return result;
   }
 
-  const reco::ClusterHit2D*
-  StandardHit3DBuilder::FindBestMatchingHit(const Hit2DSet& hit2DSet,
-                                            const reco::ClusterHit3D& pair,
-                                            float pairDeltaTimeLimits) const
+  const reco::ClusterHit2D* StandardHit3DBuilder::FindBestMatchingHit(
+    const Hit2DSet& hit2DSet,
+    const reco::ClusterHit3D& pair,
+    float pairDeltaTimeLimits) const
   {
     static const float minCharge(0.);
 
@@ -1423,10 +1406,9 @@ namespace lar_cluster3d {
     return bestVHit;
   }
 
-  int
-  StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet,
-                                          const reco::ClusterHit3D& pair,
-                                          float range) const
+  int StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet,
+                                              const reco::ClusterHit3D& pair,
+                                              float range) const
   {
     static const float minCharge(0.);
 
@@ -1450,9 +1432,8 @@ namespace lar_cluster3d {
     return numberInRange;
   }
 
-  geo::WireID
-  StandardHit3DBuilder::NearestWireID(const Eigen::Vector3f& position,
-                                      const geo::WireID& wireIDIn) const
+  geo::WireID StandardHit3DBuilder::NearestWireID(const Eigen::Vector3f& position,
+                                                  const geo::WireID& wireIDIn) const
   {
     geo::WireID wireID = wireIDIn;
 
@@ -1478,9 +1459,8 @@ namespace lar_cluster3d {
     return wireID;
   }
 
-  float
-  StandardHit3DBuilder::DistanceFromPointToHitWire(const Eigen::Vector3f& position,
-                                                   const geo::WireID& wireIDIn) const
+  float StandardHit3DBuilder::DistanceFromPointToHitWire(const Eigen::Vector3f& position,
+                                                         const geo::WireID& wireIDIn) const
   {
     float distance;
 
@@ -1520,22 +1500,20 @@ namespace lar_cluster3d {
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
-  bool
-  SetHitTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
+  bool SetHitTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
   {
     // Sort by "modified start time" of pulse
     return left->getHit()->PeakTime() < right->getHit()->PeakTime();
   }
 
-  bool
-  Hit2DSetCompare::operator()(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
+  bool Hit2DSetCompare::operator()(const reco::ClusterHit2D* left,
+                                   const reco::ClusterHit2D* right) const
   {
     return left->getHit()->PeakTime() < right->getHit()->PeakTime();
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
-  void
-  StandardHit3DBuilder::CollectArtHits(const art::Event& evt) const
+  void StandardHit3DBuilder::CollectArtHits(const art::Event& evt) const
   {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
@@ -1670,11 +1648,10 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void
-  StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event& event,
-                                                    reco::HitPairList& hitPairList,
-                                                    std::vector<recob::Hit>& hitPtrVec,
-                                                    RecobHitToPtrMap& recobHitToPtrMap)
+  void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event& event,
+                                                         reco::HitPairList& hitPairList,
+                                                         std::vector<recob::Hit>& hitPtrVec,
+                                                         RecobHitToPtrMap& recobHitToPtrMap)
   {
     // Set up the timing
     cet::cpu_timer theClockBuildNewHits;
@@ -1735,10 +1712,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  StandardHit3DBuilder::makeWireAssns(const art::Event& evt,
-                                      art::Assns<recob::Wire, recob::Hit>& wireAssns,
-                                      RecobHitToPtrMap& recobHitPtrMap) const
+  void StandardHit3DBuilder::makeWireAssns(const art::Event& evt,
+                                           art::Assns<recob::Wire, recob::Hit>& wireAssns,
+                                           RecobHitToPtrMap& recobHitPtrMap) const
   {
     // Let's make sure the input associations container is empty
     wireAssns = art::Assns<recob::Wire, recob::Hit>();
@@ -1782,10 +1758,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  StandardHit3DBuilder::makeRawDigitAssns(const art::Event& evt,
-                                          art::Assns<raw::RawDigit, recob::Hit>& rawDigitAssns,
-                                          RecobHitToPtrMap& recobHitPtrMap) const
+  void StandardHit3DBuilder::makeRawDigitAssns(const art::Event& evt,
+                                               art::Assns<raw::RawDigit, recob::Hit>& rawDigitAssns,
+                                               RecobHitToPtrMap& recobHitPtrMap) const
   {
     // Let's make sure the input associations container is empty
     rawDigitAssns = art::Assns<raw::RawDigit, recob::Hit>();

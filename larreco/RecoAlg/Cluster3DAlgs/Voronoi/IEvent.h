@@ -13,20 +13,18 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
 
 // std includes
-#include <vector>
 #include <algorithm>
+#include <vector>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace voronoi2d
-{
-/**
+namespace voronoi2d {
+  /**
  *  @brief Define a virtual interface to the beachline "events"
  */
-class BSTNode;
+  class BSTNode;
 
-class IEvent
-{
-public:
+  class IEvent {
+  public:
     /**
      *  @brief  Virtual Destructor
      */
@@ -36,23 +34,23 @@ public:
      *  @brief Interface for configuring the particular algorithm tool
      */
 
-    virtual void                  setInvalid()         const = 0;
+    virtual void setInvalid() const = 0;
 
-    virtual bool                  isSite()             const = 0;
-    virtual bool                  isCircle()           const = 0;
-    virtual bool                  isValid()            const = 0;
+    virtual bool isSite() const = 0;
+    virtual bool isCircle() const = 0;
+    virtual bool isValid() const = 0;
 
-    virtual const dcel2d::Point&  getPoint()           const = 0;
-    virtual double                xPos()               const = 0;
-    virtual double                yPos()               const = 0;
-    virtual const dcel2d::Coords& getCoords()          const = 0;
-    virtual const dcel2d::Coords& circleCenter()       const = 0;
+    virtual const dcel2d::Point& getPoint() const = 0;
+    virtual double xPos() const = 0;
+    virtual double yPos() const = 0;
+    virtual const dcel2d::Coords& getCoords() const = 0;
+    virtual const dcel2d::Coords& circleCenter() const = 0;
 
-    virtual BSTNode*              getBSTNode()         const = 0;
-    virtual void                  setBSTNode(BSTNode*)       = 0;
+    virtual BSTNode* getBSTNode() const = 0;
+    virtual void setBSTNode(BSTNode*) = 0;
 
     virtual bool operator<(const IEvent& right) const = 0;
-};
+  };
 
 } // namespace lar_cluster3d
 #endif

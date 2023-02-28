@@ -60,8 +60,7 @@ namespace shwf {
   }
 
   //--------------------------------------------------------------------
-  void
-  ShowerCheater::produce(art::Event& evt)
+  void ShowerCheater::produce(art::Event& evt)
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;

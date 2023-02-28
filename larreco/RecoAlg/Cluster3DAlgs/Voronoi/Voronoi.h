@@ -13,9 +13,9 @@
 #include <queue>
 
 // LArSoft includes
-#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/SweepEvent.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/EventUtilities.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/SweepEvent.h"
 
 #include <boost/polygon/voronoi.hpp>
 
@@ -23,16 +23,14 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace voronoi2d
-{
-/**
+namespace voronoi2d {
+  /**
  *  @brief  VoronoiDiagram class definiton
  */
-class VoronoiDiagram
-{
-public:
-    using PointPair       = std::pair<dcel2d::Point,dcel2d::Point>;
-    using MinMaxPointPair = std::pair<PointPair,PointPair>;
+  class VoronoiDiagram {
+  public:
+    using PointPair = std::pair<dcel2d::Point, dcel2d::Point>;
+    using MinMaxPointPair = std::pair<PointPair, PointPair>;
 
     /**
      *  @brief  Constructor
@@ -58,22 +56,22 @@ public:
     /**
      *  @brief Recover the list of faces
      */
-    const dcel2d::FaceList& getFaceList() const {return fFaceList;}
+    const dcel2d::FaceList& getFaceList() const { return fFaceList; }
 
     /**
      *  @brief Recover the list of vertices
      */
-    const dcel2d::VertexList& getVertexList() const {return fVertexList;}
+    const dcel2d::VertexList& getVertexList() const { return fVertexList; }
 
     /**
      *  @brief recover the area of the convex hull
      */
-    double getVoronoiDiagramArea() const {return fVoronoiDiagramArea;}
+    double getVoronoiDiagramArea() const { return fVoronoiDiagramArea; }
 
     /**
      *  @brief recover the point list representing the convex hull
      */
-    const dcel2d::PointList& getConvexHull() const {return fConvexHullList;}
+    const dcel2d::PointList& getConvexHull() const { return fConvexHullList; }
 
     /**
      *  @brief Given an input Point, find the nearest edge
@@ -90,9 +88,9 @@ public:
      */
     double findNearestDistance(const dcel2d::Point&) const;
 
-private:
-
-    using EventQueue = std::priority_queue<IEvent*, std::vector<IEvent*>, bool(*)(const IEvent*,const IEvent*)>;
+  private:
+    using EventQueue =
+      std::priority_queue<IEvent*, std::vector<IEvent*>, bool (*)(const IEvent*, const IEvent*)>;
 
     /**
      *  @brief There are two types of events in the queue, here we handle site events
@@ -112,11 +110,26 @@ private:
      */
     IEvent* makeCircleEvent(BSTNode*, BSTNode*, BSTNode*, double);
 
-    bool computeCircleCenter(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
+    bool computeCircleCenter(const dcel2d::Coords&,
+                             const dcel2d::Coords&,
+                             const dcel2d::Coords&,
+                             dcel2d::Coords&,
+                             double&,
+                             double&) const;
 
-    bool computeCircleCenter2(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
+    bool computeCircleCenter2(const dcel2d::Coords&,
+                              const dcel2d::Coords&,
+                              const dcel2d::Coords&,
+                              dcel2d::Coords&,
+                              double&,
+                              double&) const;
 
-    bool computeCircleCenter3(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
+    bool computeCircleCenter3(const dcel2d::Coords&,
+                              const dcel2d::Coords&,
+                              const dcel2d::Coords&,
+                              dcel2d::Coords&,
+                              double&,
+                              double&) const;
 
     /**
      *  @brief this function recovers the convex hull
@@ -136,7 +149,10 @@ private:
     /**
      *  @brief is vertex outside the convex hull and if so return some useful information
      */
-    bool isOutsideConvexHull(const dcel2d::Vertex&, dcel2d::PointList::const_iterator, dcel2d::Coords&, double&) const;
+    bool isOutsideConvexHull(const dcel2d::Vertex&,
+                             dcel2d::PointList::const_iterator,
+                             dcel2d::Coords&,
+                             double&) const;
 
     /**
      *  @brief Find the min/max values in x-y to use as a bounding box
@@ -146,9 +162,11 @@ private:
     /**
      * @brief Translate boost to dcel
      */
-    using BoostEdgeToEdgeMap     = std::map<const boost::polygon::voronoi_edge<double>*,   dcel2d::HalfEdge*>;
-    using BoostVertexToVertexMap = std::map<const boost::polygon::voronoi_vertex<double>*, dcel2d::Vertex*>;
-    using BoostCellToFaceMap     = std::map<const boost::polygon::voronoi_cell<double>*,   dcel2d::Face*>;
+    using BoostEdgeToEdgeMap =
+      std::map<const boost::polygon::voronoi_edge<double>*, dcel2d::HalfEdge*>;
+    using BoostVertexToVertexMap =
+      std::map<const boost::polygon::voronoi_vertex<double>*, dcel2d::Vertex*>;
+    using BoostCellToFaceMap = std::map<const boost::polygon::voronoi_cell<double>*, dcel2d::Face*>;
 
     void boostTranslation(const dcel2d::PointList&,
                           const boost::polygon::voronoi_edge<double>*,
@@ -170,7 +188,9 @@ private:
     /**
      *  @brief Gets the cross product of line from p0 to p1 and p0 to p2
      */
-    double crossProduct(const dcel2d::Point& p0, const dcel2d::Point& p1, const dcel2d::Point& p2) const;
+    double crossProduct(const dcel2d::Point& p0,
+                        const dcel2d::Point& p1,
+                        const dcel2d::Point& p2) const;
 
     /**
      *  @brief Computes the area of the enclosed convext hull
@@ -180,30 +200,31 @@ private:
     /**
      *  @brief Determines whether a point is to the left, right or on line specifiec by p0 and p1
      */
-    bool isLeft(const dcel2d::Point& p0, const dcel2d::Point& p1, const dcel2d::Point& pCheck) const;
+    bool isLeft(const dcel2d::Point& p0,
+                const dcel2d::Point& p1,
+                const dcel2d::Point& pCheck) const;
 
     dcel2d::HalfEdgeList& fHalfEdgeList;
-    dcel2d::VertexList&   fVertexList;
-    dcel2d::FaceList&     fFaceList;
+    dcel2d::VertexList& fVertexList;
+    dcel2d::FaceList& fFaceList;
 
-    dcel2d::PointList     fPointList;
-    SiteEventList         fSiteEventList;       //< Container for site events
-    CircleEventList       fCircleEventList;     //< Container for circle events
-    BSTNodeList           fCircleNodeList;      //< Container for the circle "nodes"
+    dcel2d::PointList fPointList;
+    SiteEventList fSiteEventList;     //< Container for site events
+    CircleEventList fCircleEventList; //< Container for circle events
+    BSTNodeList fCircleNodeList;      //< Container for the circle "nodes"
 
-    dcel2d::PointList     fConvexHullList;      //< Points representing the convex hull
-    dcel2d::Coords        fConvexHullCenter;    //< Center of the convex hull
+    dcel2d::PointList fConvexHullList; //< Points representing the convex hull
+    dcel2d::Coords fConvexHullCenter;  //< Center of the convex hull
 
-    double                fXMin;                //< Bounding box min value x
-    double                fXMax;                //< Bounding box max value x
-    double                fYMin;                //< Bounding box min value y
-    double                fYMax;                //< Bounding box max value y
-    mutable int           fNumBadCircles;       //< Number bad circles
-    double                fVoronoiDiagramArea;
+    double fXMin;               //< Bounding box min value x
+    double fXMax;               //< Bounding box max value x
+    double fYMin;               //< Bounding box min value y
+    double fYMax;               //< Bounding box max value y
+    mutable int fNumBadCircles; //< Number bad circles
+    double fVoronoiDiagramArea;
 
-    EventUtilities        fUtilities;           //< Handy functions to operate on arcs
-
-};
+    EventUtilities fUtilities; //< Handy functions to operate on arcs
+  };
 
 } // namespace lar_cluster3d
 #endif

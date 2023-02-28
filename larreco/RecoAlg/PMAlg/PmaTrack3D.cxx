@@ -73,8 +73,7 @@ pma::Track3D::~Track3D()
     if (!fNodes[i]->NextCount() && !fNodes[i]->Prev()) delete fNodes[i];
 }
 
-bool
-pma::Track3D::Initialize(detinfo::DetectorPropertiesData const& detProp, float initEndSegW)
+bool pma::Track3D::Initialize(detinfo::DetectorPropertiesData const& detProp, float initEndSegW)
 {
   if (!HasTwoViews(2)) {
     mf::LogError("pma::Track3D") << "Need min. 2 hits per view, at least two views.";
@@ -109,19 +108,17 @@ pma::Track3D::Initialize(detinfo::DetectorPropertiesData const& detProp, float i
   return true;
 }
 
-void
-pma::Track3D::ClearNodes()
+void pma::Track3D::ClearNodes()
 {
   for (size_t i = 0; i < fNodes.size(); i++)
     delete fNodes[i];
   fNodes.clear();
 }
 
-bool
-pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
-                           int tpc,
-                           int cryo,
-                           float initEndSegW)
+bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
+                                int tpc,
+                                int cryo,
+                                float initEndSegW)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -207,8 +204,9 @@ pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   return true;
 }
 
-bool
-pma::Track3D::InitFromRefPoints(detinfo::DetectorPropertiesData const& detProp, int tpc, int cryo)
+bool pma::Track3D::InitFromRefPoints(detinfo::DetectorPropertiesData const& detProp,
+                                     int tpc,
+                                     int cryo)
 {
   if (fAssignedPoints.size() < 2) return false;
 
@@ -295,8 +293,7 @@ pma::Track3D::InitFromRefPoints(detinfo::DetectorPropertiesData const& detProp, 
   return true;
 }
 
-void
-pma::Track3D::InitFromMiddle(detinfo::DetectorPropertiesData const& detProp, int tpc, int cryo)
+void pma::Track3D::InitFromMiddle(detinfo::DetectorPropertiesData const& detProp, int tpc, int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -323,33 +320,29 @@ pma::Track3D::InitFromMiddle(detinfo::DetectorPropertiesData const& detProp, int
   Optimize(detProp, 0, 0.01F);
 }
 
-int
-pma::Track3D::index_of(const pma::Node3D* n) const
+int pma::Track3D::index_of(const pma::Node3D* n) const
 {
   for (size_t i = 0; i < fNodes.size(); ++i)
     if (fNodes[i] == n) return (int)i;
   return -1;
 }
 
-int
-pma::Track3D::index_of(const pma::Hit3D* hit) const
+int pma::Track3D::index_of(const pma::Hit3D* hit) const
 {
   for (size_t i = 0; i < size(); i++)
     if (fHits[i] == hit) return (int)i;
   return -1;
 }
 
-pma::Hit3D*
-pma::Track3D::release_at(size_t index)
+pma::Hit3D* pma::Track3D::release_at(size_t index)
 {
   pma::Hit3D* h3d = fHits[index];
   fHits.erase(fHits.begin() + index);
   return h3d;
 }
 
-bool
-pma::Track3D::push_back(const detinfo::DetectorPropertiesData& detProp,
-                        const art::Ptr<recob::Hit>& hit)
+bool pma::Track3D::push_back(const detinfo::DetectorPropertiesData& detProp,
+                             const art::Ptr<recob::Hit>& hit)
 {
   for (auto const& trk_hit : fHits) {
     if (trk_hit->fHit == hit) return false;
@@ -360,8 +353,7 @@ pma::Track3D::push_back(const detinfo::DetectorPropertiesData& detProp,
   return true;
 }
 
-bool
-pma::Track3D::erase(const art::Ptr<recob::Hit>& hit)
+bool pma::Track3D::erase(const art::Ptr<recob::Hit>& hit)
 {
   for (size_t i = 0; i < size(); i++) {
     if (hit == fHits[i]->fHit) {
@@ -374,8 +366,7 @@ pma::Track3D::erase(const art::Ptr<recob::Hit>& hit)
   return false;
 }
 
-pma::Vector3D
-pma::Track3D::GetDirection3D(size_t index) const
+pma::Vector3D pma::Track3D::GetDirection3D(size_t index) const
 {
   pma::Hit3D* h = fHits[index];
 
@@ -399,17 +390,15 @@ pma::Track3D::GetDirection3D(size_t index) const
   }
 }
 
-void
-pma::Track3D::AddHits(detinfo::DetectorPropertiesData const& detProp,
-                      const std::vector<art::Ptr<recob::Hit>>& hits)
+void pma::Track3D::AddHits(detinfo::DetectorPropertiesData const& detProp,
+                           const std::vector<art::Ptr<recob::Hit>>& hits)
 {
   fHits.reserve(fHits.size() + hits.size());
   for (auto const& hit : hits)
     push_back(detProp, hit);
 }
 
-void
-pma::Track3D::RemoveHits(const std::vector<art::Ptr<recob::Hit>>& hits)
+void pma::Track3D::RemoveHits(const std::vector<art::Ptr<recob::Hit>>& hits)
 {
   unsigned int n = 0;
   for (auto const& hit : hits) {
@@ -418,8 +407,7 @@ pma::Track3D::RemoveHits(const std::vector<art::Ptr<recob::Hit>>& hits)
   if (n) MakeProjection();
 }
 
-unsigned int
-pma::Track3D::NHits(unsigned int view) const
+unsigned int pma::Track3D::NHits(unsigned int view) const
 {
   unsigned int n = 0;
   for (auto hit : fHits) {
@@ -428,8 +416,7 @@ pma::Track3D::NHits(unsigned int view) const
   return n;
 }
 
-unsigned int
-pma::Track3D::NEnabledHits(unsigned int view) const
+unsigned int pma::Track3D::NEnabledHits(unsigned int view) const
 {
   unsigned int n = 0;
   for (auto hit : fHits) {
@@ -438,8 +425,7 @@ pma::Track3D::NEnabledHits(unsigned int view) const
   return n;
 }
 
-bool
-pma::Track3D::HasTwoViews(size_t const nmin) const
+bool pma::Track3D::HasTwoViews(size_t const nmin) const
 {
   unsigned int nviews = 0;
   if (NHits(geo::kU) >= nmin) nviews++;
@@ -448,8 +434,7 @@ pma::Track3D::HasTwoViews(size_t const nmin) const
   return nviews > 1;
 }
 
-std::vector<unsigned int>
-pma::Track3D::TPCs() const
+std::vector<unsigned int> pma::Track3D::TPCs() const
 {
   std::vector<unsigned int> tpc_idxs;
   for (auto hit : fHits) {
@@ -467,8 +452,7 @@ pma::Track3D::TPCs() const
   return tpc_idxs;
 }
 
-std::vector<unsigned int>
-pma::Track3D::Cryos() const
+std::vector<unsigned int> pma::Track3D::Cryos() const
 {
   std::vector<unsigned int> cryo_idxs;
   for (auto hit : fHits) {
@@ -486,11 +470,11 @@ pma::Track3D::Cryos() const
   return cryo_idxs;
 }
 
-std::pair<TVector2, TVector2>
-pma::Track3D::WireDriftRange(detinfo::DetectorPropertiesData const& detProp,
-                             unsigned int view,
-                             unsigned int tpc,
-                             unsigned int cryo) const
+std::pair<TVector2, TVector2> pma::Track3D::WireDriftRange(
+  detinfo::DetectorPropertiesData const& detProp,
+  unsigned int view,
+  unsigned int tpc,
+  unsigned int cryo) const
 {
   std::pair<TVector2, TVector2> range(TVector2(0., 0.), TVector2(0., 0.));
 
@@ -529,9 +513,8 @@ pma::Track3D::WireDriftRange(detinfo::DetectorPropertiesData const& detProp,
   return range;
 }
 
-bool
-pma::Track3D::Flip(detinfo::DetectorPropertiesData const& detProp,
-                   std::vector<pma::Track3D*>& allTracks)
+bool pma::Track3D::Flip(detinfo::DetectorPropertiesData const& detProp,
+                        std::vector<pma::Track3D*>& allTracks)
 {
   if (fNodes.size() < 2) { return true; }
 
@@ -600,8 +583,7 @@ pma::Track3D::Flip(detinfo::DetectorPropertiesData const& detProp,
   return true;
 }
 
-void
-pma::Track3D::InternalFlip(std::vector<pma::Track3D*>& toSort)
+void pma::Track3D::InternalFlip(std::vector<pma::Track3D*>& toSort)
 {
   for (size_t i = 0; i < fNodes.size() - 1; i++)
     if (fNodes[i]->NextCount() > 1) {
@@ -628,8 +610,7 @@ pma::Track3D::InternalFlip(std::vector<pma::Track3D*>& toSort)
   RebuildSegments();
 }
 
-void
-pma::Track3D::Flip()
+void pma::Track3D::Flip()
 {
   std::vector<pma::Track3D*> toSort;
   InternalFlip(toSort);
@@ -649,8 +630,7 @@ pma::Track3D::Flip()
   }
 }
 
-bool
-pma::Track3D::CanFlip() const
+bool pma::Track3D::CanFlip() const
 {
   if (!fNodes.size()) { return false; }
 
@@ -668,8 +648,7 @@ pma::Track3D::CanFlip() const
   }
 }
 
-void
-pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
+void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
 {
   unsigned int nViews = 3;
   pma::dedx_map dedxInViews[3];
@@ -745,12 +724,11 @@ pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
   }
 }
 
-bool
-pma::Track3D::AutoFlip(detinfo::DetectorPropertiesData const& detProp,
-                       std::vector<pma::Track3D*>& allTracks,
-                       pma::Track3D::EDirection dir,
-                       double thr,
-                       unsigned int n)
+bool pma::Track3D::AutoFlip(detinfo::DetectorPropertiesData const& detProp,
+                            std::vector<pma::Track3D*>& allTracks,
+                            pma::Track3D::EDirection dir,
+                            double thr,
+                            unsigned int n)
 {
   unsigned int nViews = 3;
   pma::dedx_map dedxInViews[3];
@@ -828,10 +806,9 @@ pma::Track3D::AutoFlip(detinfo::DetectorPropertiesData const& detProp,
   return done;
 }
 
-double
-pma::Track3D::TestHitsMse(const detinfo::DetectorPropertiesData& detProp,
-                          const std::vector<art::Ptr<recob::Hit>>& hits,
-                          bool normalized) const
+double pma::Track3D::TestHitsMse(const detinfo::DetectorPropertiesData& detProp,
+                                 const std::vector<art::Ptr<recob::Hit>>& hits,
+                                 bool normalized) const
 {
   if (hits.empty()) {
     mf::LogWarning("pma::Track3D") << "TestHitsMse(): Empty cluster.";
@@ -854,10 +831,9 @@ pma::Track3D::TestHitsMse(const detinfo::DetectorPropertiesData& detProp,
     return mse;
 }
 
-unsigned int
-pma::Track3D::TestHits(detinfo::DetectorPropertiesData const& detProp,
-                       const std::vector<art::Ptr<recob::Hit>>& hits,
-                       double dist) const
+unsigned int pma::Track3D::TestHits(detinfo::DetectorPropertiesData const& detProp,
+                                    const std::vector<art::Ptr<recob::Hit>>& hits,
+                                    double dist) const
 {
   if (hits.empty()) {
     mf::LogWarning("pma::Track3D") << "TestHits(): Empty cluster.";
@@ -873,8 +849,7 @@ pma::Track3D::TestHits(detinfo::DetectorPropertiesData const& detProp,
   return nhits;
 }
 
-double
-pma::Track3D::Length(size_t start, size_t stop, size_t step) const
+double pma::Track3D::Length(size_t start, size_t stop, size_t step) const
 {
   auto const nHits = size();
   if (nHits < 2) return 0.0;
@@ -905,8 +880,7 @@ pma::Track3D::Length(size_t start, size_t stop, size_t step) const
   return result;
 }
 
-int
-pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
+int pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
 {
   pma::Hit3D* hit = nullptr;
   if (index < -1) index = -1;
@@ -923,8 +897,7 @@ pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
   return index;
 }
 
-int
-pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
+int pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
 {
   pma::Hit3D* hit = nullptr;
   if (index > (int)size()) index = (int)size();
@@ -941,11 +914,10 @@ pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
   return index;
 }
 
-double
-pma::Track3D::HitDxByView(size_t index,
-                          unsigned int view,
-                          pma::Track3D::EDirection dir,
-                          bool secondDir) const
+double pma::Track3D::HitDxByView(size_t index,
+                                 unsigned int view,
+                                 pma::Track3D::EDirection dir,
+                                 bool secondDir) const
 {
   pma::Hit3D* nexthit = nullptr;
   pma::Hit3D* hit = fHits[index];
@@ -1007,8 +979,7 @@ pma::Track3D::HitDxByView(size_t index,
   return dx;
 }
 
-double
-pma::Track3D::HitDxByView(size_t index, unsigned int view) const
+double pma::Track3D::HitDxByView(size_t index, unsigned int view) const
 {
   if (index < size()) {
     return 0.5 * (HitDxByView(index, view, pma::Track3D::kForward) +
@@ -1020,8 +991,7 @@ pma::Track3D::HitDxByView(size_t index, unsigned int view) const
   }
 }
 
-pma::Segment3D*
-pma::Track3D::NextSegment(pma::Node3D* vtx) const
+pma::Segment3D* pma::Track3D::NextSegment(pma::Node3D* vtx) const
 {
   pma::Segment3D* seg = nullptr;
   unsigned int nCount = vtx->NextCount();
@@ -1034,8 +1004,7 @@ pma::Track3D::NextSegment(pma::Node3D* vtx) const
   return 0;
 }
 
-pma::Segment3D*
-pma::Track3D::PrevSegment(pma::Node3D* vtx) const
+pma::Segment3D* pma::Track3D::PrevSegment(pma::Node3D* vtx) const
 {
   if (vtx->Prev()) {
     auto seg = static_cast<pma::Segment3D*>(vtx->Prev());
@@ -1044,11 +1013,10 @@ pma::Track3D::PrevSegment(pma::Node3D* vtx) const
   return nullptr;
 }
 
-double
-pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
-                                 unsigned int view,
-                                 unsigned int skip,
-                                 bool inclDisabled) const
+double pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
+                                        unsigned int view,
+                                        unsigned int skip,
+                                        bool inclDisabled) const
 {
   dedx.clear();
 
@@ -1156,10 +1124,10 @@ pma::Track3D::GetRawdEdxSequence(std::map<size_t, std::vector<double>>& dedx,
   return qSkipped;
 }
 
-std::vector<float>
-pma::Track3D::DriftsOfWireIntersection(detinfo::DetectorPropertiesData const& detProp,
-                                       unsigned int wire,
-                                       unsigned int view) const
+std::vector<float> pma::Track3D::DriftsOfWireIntersection(
+  detinfo::DetectorPropertiesData const& detProp,
+  unsigned int wire,
+  unsigned int view) const
 {
   std::vector<float> drifts;
   for (size_t i = 0; i < fNodes.size() - 1; i++) {
@@ -1188,9 +1156,8 @@ pma::Track3D::DriftsOfWireIntersection(detinfo::DetectorPropertiesData const& de
   return drifts;
 }
 
-size_t
-pma::Track3D::CompleteMissingWires(detinfo::DetectorPropertiesData const& detProp,
-                                   unsigned int view)
+size_t pma::Track3D::CompleteMissingWires(detinfo::DetectorPropertiesData const& detProp,
+                                          unsigned int view)
 {
   int dPrev, dw, w, wx, wPrev, i = NextHit(-1, view);
 
@@ -1260,15 +1227,13 @@ pma::Track3D::CompleteMissingWires(detinfo::DetectorPropertiesData const& detPro
   return missHits.size();
 }
 
-void
-pma::Track3D::AddNode(pma::Node3D* node)
+void pma::Track3D::AddNode(pma::Node3D* node)
 {
   fNodes.push_back(node);
   if (fNodes.size() > 1) RebuildSegments();
 }
 
-bool
-pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp)
+bool pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp)
 {
   pma::Segment3D* seg;
   pma::Segment3D* maxSeg = nullptr;
@@ -1421,12 +1386,11 @@ pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp)
     return false;
 }
 
-void
-pma::Track3D::InsertNode(detinfo::DetectorPropertiesData const& detProp,
-                         TVector3 const& p3d,
-                         size_t at_idx,
-                         unsigned int tpc,
-                         unsigned int cryo)
+void pma::Track3D::InsertNode(detinfo::DetectorPropertiesData const& detProp,
+                              TVector3 const& p3d,
+                              size_t at_idx,
+                              unsigned int tpc,
+                              unsigned int cryo)
 {
   pma::Node3D* vtx =
     new pma::Node3D(detProp, p3d, tpc, cryo, false, fNodes[at_idx]->GetDriftShift());
@@ -1435,8 +1399,7 @@ pma::Track3D::InsertNode(detinfo::DetectorPropertiesData const& detProp,
   if (fNodes.size() > 1) RebuildSegments();
 }
 
-bool
-pma::Track3D::RemoveNode(size_t idx)
+bool pma::Track3D::RemoveNode(size_t idx)
 {
   if ((fNodes.size() > 1) && (idx < fNodes.size())) {
     pma::Node3D* vtx = fNodes[idx];
@@ -1451,10 +1414,9 @@ pma::Track3D::RemoveNode(size_t idx)
     return false;
 }
 
-pma::Track3D*
-pma::Track3D::Split(detinfo::DetectorPropertiesData const& detProp,
-                    size_t idx,
-                    bool try_start_at_idx)
+pma::Track3D* pma::Track3D::Split(detinfo::DetectorPropertiesData const& detProp,
+                                  size_t idx,
+                                  bool try_start_at_idx)
 {
   if (!idx || (idx + 1 >= fNodes.size())) return 0;
 
@@ -1540,8 +1502,7 @@ pma::Track3D::Split(detinfo::DetectorPropertiesData const& detProp,
   return t0;
 }
 
-bool
-pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
+bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -1580,8 +1541,7 @@ pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
     return AttachToOtherTPC(vStart);
 }
 
-bool
-pma::Track3D::AttachToOtherTPC(pma::Node3D* vStart)
+bool pma::Track3D::AttachToOtherTPC(pma::Node3D* vStart)
 {
   if (fNodes.front()->Prev()) return false;
 
@@ -1594,8 +1554,7 @@ pma::Track3D::AttachToOtherTPC(pma::Node3D* vStart)
   return true;
 }
 
-bool
-pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
+bool pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -1651,8 +1610,7 @@ pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
   return true;
 }
 
-bool
-pma::Track3D::AttachBackTo(pma::Node3D* vStart)
+bool pma::Track3D::AttachBackTo(pma::Node3D* vStart)
 {
   pma::Node3D* vtx = fNodes.back();
 
@@ -1683,8 +1641,7 @@ pma::Track3D::AttachBackTo(pma::Node3D* vStart)
     return AttachBackToOtherTPC(vStart);
 }
 
-bool
-pma::Track3D::AttachBackToOtherTPC(pma::Node3D* vStart)
+bool pma::Track3D::AttachBackToOtherTPC(pma::Node3D* vStart)
 {
   if (vStart->Prev()) return false;
 
@@ -1698,8 +1655,7 @@ pma::Track3D::AttachBackToOtherTPC(pma::Node3D* vStart)
   return true;
 }
 
-bool
-pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
+bool pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
 {
   pma::Node3D* vtx = fNodes.back();
 
@@ -1741,8 +1697,7 @@ pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
   return true;
 }
 
-void
-pma::Track3D::ExtendWith(pma::Track3D* src)
+void pma::Track3D::ExtendWith(pma::Track3D* src)
 {
   if (src->fNodes.front()->Prev()) {
     throw cet::exception("pma::Track3D")
@@ -1773,8 +1728,7 @@ pma::Track3D::ExtendWith(pma::Track3D* src)
   delete src;
 }
 
-pma::Track3D*
-pma::Track3D::GetRoot()
+pma::Track3D* pma::Track3D::GetRoot()
 {
   pma::Track3D* trk = nullptr;
 
@@ -1789,8 +1743,7 @@ pma::Track3D::GetRoot()
   return trk;
 }
 
-bool
-pma::Track3D::GetBranches(std::vector<pma::Track3D const*>& branches, bool skipFirst) const
+bool pma::Track3D::GetBranches(std::vector<pma::Track3D const*>& branches, bool skipFirst) const
 {
   for (auto trk : branches)
     if (trk == this) { throw cet::exception("pma::Track3D") << "Track tree has loop."; }
@@ -1809,8 +1762,7 @@ pma::Track3D::GetBranches(std::vector<pma::Track3D const*>& branches, bool skipF
   return true;
 }
 
-bool
-pma::Track3D::IsAttachedTo(pma::Track3D const* trk) const
+bool pma::Track3D::IsAttachedTo(pma::Track3D const* trk) const
 {
   if (trk == this) return true;
 
@@ -1825,16 +1777,14 @@ pma::Track3D::IsAttachedTo(pma::Track3D const* trk) const
   return false;
 }
 
-bool
-pma::Track3D::HasRefPoint(TVector3* p) const
+bool pma::Track3D::HasRefPoint(TVector3* p) const
 {
   for (auto point : fAssignedPoints)
     if (point == p) return true;
   return false;
 }
 
-double
-pma::Track3D::GetMse(unsigned int view) const
+double pma::Track3D::GetMse(unsigned int view) const
 {
   double sumMse = 0.0;
   unsigned int nEnabledHits = 0;
@@ -1853,8 +1803,7 @@ pma::Track3D::GetMse(unsigned int view) const
     return 0.0;
 }
 
-double
-pma::Track3D::GetObjFunction(float penaltyFactor) const
+double pma::Track3D::GetObjFunction(float penaltyFactor) const
 {
   double sum = 0.0;
   float p = penaltyFactor * fPenaltyValue;
@@ -1864,14 +1813,13 @@ pma::Track3D::GetObjFunction(float penaltyFactor) const
   return sum / fNodes.size();
 }
 
-double
-pma::Track3D::Optimize(const detinfo::DetectorPropertiesData& detProp,
-                       int nNodes,
-                       double eps,
-                       bool selAllHits,
-                       bool setAllNodes,
-                       size_t selSegHits,
-                       size_t selVtxHits)
+double pma::Track3D::Optimize(const detinfo::DetectorPropertiesData& detProp,
+                              int nNodes,
+                              double eps,
+                              bool selAllHits,
+                              bool setAllNodes,
+                              size_t selSegHits,
+                              size_t selVtxHits)
 {
   if (!fNodes.size()) {
     mf::LogError("pma::Track3D") << "Track not initialized.";
@@ -1998,8 +1946,7 @@ pma::Track3D::Optimize(const detinfo::DetectorPropertiesData& detProp,
   return GetObjFunction();
 }
 
-bool
-pma::Track3D::UpdateParamsInTree(bool skipFirst, size_t& depth)
+bool pma::Track3D::UpdateParamsInTree(bool skipFirst, size_t& depth)
 {
   constexpr size_t maxTreeDepth = 100; // really big tree...
 
@@ -2037,8 +1984,7 @@ pma::Track3D::UpdateParamsInTree(bool skipFirst, size_t& depth)
   return isOK;
 }
 
-double
-pma::Track3D::TuneSinglePass(bool skipFirst)
+double pma::Track3D::TuneSinglePass(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2065,8 +2011,9 @@ pma::Track3D::TuneSinglePass(bool skipFirst)
   return g + GetObjFunction();
 }
 
-pma::Track3D*
-pma::Track3D::GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool skipFirst)
+pma::Track3D* pma::Track3D::GetNearestTrkInTree(const TVector3& p3d_cm,
+                                                double& dist,
+                                                bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2102,13 +2049,12 @@ pma::Track3D::GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool ski
   return result;
 }
 
-pma::Track3D*
-pma::Track3D::GetNearestTrkInTree(const TVector2& p2d_cm,
-                                  unsigned view,
-                                  unsigned int tpc,
-                                  unsigned int cryo,
-                                  double& dist,
-                                  bool skipFirst)
+pma::Track3D* pma::Track3D::GetNearestTrkInTree(const TVector2& p2d_cm,
+                                                unsigned view,
+                                                unsigned int tpc,
+                                                unsigned int cryo,
+                                                double& dist,
+                                                bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2145,8 +2091,7 @@ pma::Track3D::GetNearestTrkInTree(const TVector2& p2d_cm,
   return result;
 }
 
-void
-pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
+void pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
 {
   bool skipFirst;
   if (trkRoot)
@@ -2195,8 +2140,7 @@ pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
   if (!size()) { mf::LogError("pma::Track3D") << "ALL hits moved to other tracks."; }
 }
 
-void
-pma::Track3D::MakeProjectionInTree(bool skipFirst)
+void pma::Track3D::MakeProjectionInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2221,8 +2165,7 @@ pma::Track3D::MakeProjectionInTree(bool skipFirst)
   MakeProjection();
 }
 
-void
-pma::Track3D::SortHitsInTree(bool skipFirst)
+void pma::Track3D::SortHitsInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2247,8 +2190,7 @@ pma::Track3D::SortHitsInTree(bool skipFirst)
   SortHits();
 }
 
-double
-pma::Track3D::GetObjFnInTree(bool skipFirst)
+double pma::Track3D::GetObjFnInTree(bool skipFirst)
 {
   pma::Node3D* vtx = fNodes.front();
 
@@ -2274,8 +2216,7 @@ pma::Track3D::GetObjFnInTree(bool skipFirst)
   return g + GetObjFunction();
 }
 
-double
-pma::Track3D::TuneFullTree(double eps, double gmax)
+double pma::Track3D::TuneFullTree(double eps, double gmax)
 {
   if (size_t depth = 1; !UpdateParamsInTree(false, depth)) {
     mf::LogError("pma::Track3D") << "TuneFullTree failed.";
@@ -2329,11 +2270,10 @@ pma::Track3D::TuneFullTree(double eps, double gmax)
   return g0;
 }
 
-void
-pma::Track3D::ApplyDriftShiftInTree(const detinfo::DetectorClocksData& clockData,
-                                    const detinfo::DetectorPropertiesData& detProp,
-                                    double dx,
-                                    bool skipFirst)
+void pma::Track3D::ApplyDriftShiftInTree(const detinfo::DetectorClocksData& clockData,
+                                         const detinfo::DetectorPropertiesData& detProp,
+                                         double dx,
+                                         bool skipFirst)
 {
   pma::Node3D* node = fNodes.front();
 
@@ -2372,10 +2312,9 @@ pma::Track3D::ApplyDriftShiftInTree(const detinfo::DetectorClocksData& clockData
   SetT0FromDx(clockData, detProp, newdx);
 }
 
-void
-pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
-                          detinfo::DetectorPropertiesData const& detProp,
-                          double dx)
+void pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
+                               detinfo::DetectorPropertiesData const& detProp,
+                               double dx)
 {
   auto const* geom = lar::providerFrom<geo::Geometry>();
   const geo::TPCGeo& tpcGeo = geom->TPC(fNodes.front()->TPC(), fNodes.front()->Cryo());
@@ -2414,16 +2353,14 @@ pma::Track3D::SetT0FromDx(detinfo::DetectorClocksData const& clockData,
   fT0Flag = true;
 }
 
-void
-pma::Track3D::DeleteSegments()
+void pma::Track3D::DeleteSegments()
 {
   for (size_t i = 0; i < fSegments.size(); i++)
     delete fSegments[i];
   fSegments.clear();
 }
 
-void
-pma::Track3D::RebuildSegments()
+void pma::Track3D::RebuildSegments()
 {
   DeleteSegments();
 
@@ -2433,8 +2370,7 @@ pma::Track3D::RebuildSegments()
   }
 }
 
-void
-pma::Track3D::CleanupTails()
+void pma::Track3D::CleanupTails()
 {
   unsigned int nhits = 0;
   while (!nhits && (fNodes.size() > 2) && !fNodes.front()->IsBranching()) {
@@ -2475,8 +2411,7 @@ pma::Track3D::CleanupTails()
   }
 }
 
-bool
-pma::Track3D::ShiftEndsToHits()
+bool pma::Track3D::ShiftEndsToHits()
 {
   pma::Element3D* el;
   pma::Node3D* vtx;
@@ -2571,11 +2506,10 @@ pma::Track3D::ShiftEndsToHits()
   return true;
 }
 
-double
-pma::Track3D::Dist2(const TVector2& p2d,
-                    unsigned int view,
-                    unsigned int tpc,
-                    unsigned int cryo) const
+double pma::Track3D::Dist2(const TVector2& p2d,
+                           unsigned int view,
+                           unsigned int tpc,
+                           unsigned int cryo) const
 {
   double dist, min_dist = 1.0e12;
 
@@ -2599,20 +2533,18 @@ pma::Track3D::Dist2(const TVector2& p2d,
   return min_dist;
 }
 
-double
-pma::Track3D::Dist2(const TVector3& p3d) const
+double pma::Track3D::Dist2(const TVector3& p3d) const
 {
   using namespace ranges;
   auto to_distance2 = [&p3d](auto seg) { return seg->GetDistance2To(p3d); };
   return min(fSegments | views::transform(to_distance2));
 }
 
-pma::Element3D*
-pma::Track3D::GetNearestElement(const TVector2& p2d,
-                                unsigned int view,
-                                int tpc,
-                                bool skipFrontVtx,
-                                bool skipBackVtx) const
+pma::Element3D* pma::Track3D::GetNearestElement(const TVector2& p2d,
+                                                unsigned int view,
+                                                int tpc,
+                                                bool skipFrontVtx,
+                                                bool skipBackVtx) const
 {
   if (fSegments.front()->TPC() < 0) skipFrontVtx = false;
   if (fSegments.back()->TPC() < 0) skipBackVtx = false;
@@ -2648,8 +2580,7 @@ pma::Track3D::GetNearestElement(const TVector2& p2d,
   return pe_min;
 }
 
-pma::Element3D*
-pma::Track3D::GetNearestElement(const TVector3& p3d) const
+pma::Element3D* pma::Track3D::GetNearestElement(const TVector3& p3d) const
 {
   pma::Element3D* pe_min = fNodes.front();
   double dist, min_dist = pe_min->GetDistance2To(p3d);
@@ -2670,11 +2601,10 @@ pma::Track3D::GetNearestElement(const TVector3& p3d) const
   return pe_min;
 }
 
-bool
-pma::Track3D::GetUnconstrainedProj3D(detinfo::DetectorPropertiesData const& detProp,
-                                     art::Ptr<recob::Hit> hit,
-                                     TVector3& p3d,
-                                     double& dist2) const
+bool pma::Track3D::GetUnconstrainedProj3D(detinfo::DetectorPropertiesData const& detProp,
+                                          art::Ptr<recob::Hit> hit,
+                                          TVector3& p3d,
+                                          double& dist2) const
 {
   TVector2 p2d = pma::WireDriftToCm(detProp,
                                     hit->WireID().Wire,
@@ -2707,8 +2637,7 @@ pma::Track3D::GetUnconstrainedProj3D(detinfo::DetectorPropertiesData const& detP
   return false;
 }
 
-void
-pma::Track3D::SortHits()
+void pma::Track3D::SortHits()
 {
   std::vector<pma::Hit3D*> hits_tmp;
   hits_tmp.reserve(size());
@@ -2745,8 +2674,7 @@ pma::Track3D::SortHits()
     mf::LogError("pma::Track3D") << "Hit sorting problem.";
 }
 
-unsigned int
-pma::Track3D::DisableSingleViewEnds()
+unsigned int pma::Track3D::DisableSingleViewEnds()
 {
   SortHits();
 
@@ -2884,8 +2812,7 @@ pma::Track3D::DisableSingleViewEnds()
   return nDisabled;
 }
 
-bool
-pma::Track3D::SelectHits(float fraction)
+bool pma::Track3D::SelectHits(float fraction)
 {
   if (fraction < 0.0F) fraction = 0.0F;
   if (fraction > 1.0F) fraction = 1.0F;
@@ -2926,8 +2853,7 @@ pma::Track3D::SelectHits(float fraction)
   return changed;
 }
 
-bool
-pma::Track3D::SelectRndHits(size_t segmax, size_t vtxmax)
+bool pma::Track3D::SelectRndHits(size_t segmax, size_t vtxmax)
 {
   bool changed = false;
   for (auto n : fNodes)
@@ -2937,8 +2863,7 @@ pma::Track3D::SelectRndHits(size_t segmax, size_t vtxmax)
   return changed;
 }
 
-bool
-pma::Track3D::SelectAllHits()
+bool pma::Track3D::SelectAllHits()
 {
   bool changed = false;
   for (auto h : fHits) {
@@ -2948,8 +2873,7 @@ pma::Track3D::SelectAllHits()
   return changed;
 }
 
-void
-pma::Track3D::MakeProjection()
+void pma::Track3D::MakeProjection()
 {
   for (auto n : fNodes)
     n->ClearAssigned(this);
@@ -2985,8 +2909,7 @@ pma::Track3D::MakeProjection()
     s->UpdateHitParams();
 }
 
-void
-pma::Track3D::MakeFastProjection()
+void pma::Track3D::MakeFastProjection()
 {
   std::vector<std::pair<pma::Hit3D*, pma::Element3D*>> assignments;
   assignments.reserve(fHits.size());
@@ -3146,8 +3069,7 @@ pma::Track3D::MakeFastProjection()
     s->UpdateHitParams();
 }
 
-void
-pma::Track3D::UpdateProjection()
+void pma::Track3D::UpdateProjection()
 {
   for (auto n : fNodes)
     n->UpdateProjection();
@@ -3155,8 +3077,7 @@ pma::Track3D::UpdateProjection()
     s->UpdateProjection();
 }
 
-double
-pma::Track3D::AverageDist2() const
+double pma::Track3D::AverageDist2() const
 {
   double sum = 0.0;
   unsigned int count = 0;
@@ -3178,8 +3099,7 @@ pma::Track3D::AverageDist2() const
   }
 }
 
-bool
-pma::Track3D::UpdateParams()
+bool pma::Track3D::UpdateParams()
 {
   size_t n = size();
   if (n == 0) {
@@ -3205,8 +3125,7 @@ pma::Track3D::UpdateParams()
   }
 }
 
-bool
-pma::Track3D::SwapVertices(size_t v0, size_t v1)
+bool pma::Track3D::SwapVertices(size_t v0, size_t v1)
 {
   if (v0 == v1) return false;
 
@@ -3244,8 +3163,7 @@ pma::Track3D::SwapVertices(size_t v0, size_t v1)
   }
 }
 
-bool
-pma::Track3D::CheckEndSegment(pma::Track3D::ETrackEnd endCode)
+bool pma::Track3D::CheckEndSegment(pma::Track3D::ETrackEnd endCode)
 {
   unsigned int v1, v2;
   switch (endCode) {
@@ -3280,8 +3198,7 @@ pma::Track3D::CheckEndSegment(pma::Track3D::ETrackEnd endCode)
     return true;
 }
 
-void
-pma::Track3D::UpdateHitsRadius()
+void pma::Track3D::UpdateHitsRadius()
 {
   std::vector<pma::Hit3D*> hitsColl, hitsInd1, hitsInd2;
   for (auto hit : fHits) {

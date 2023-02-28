@@ -25,10 +25,9 @@ namespace cmtool {
      User defined class CBAlgoAngleCompat ... these comments are used to generate
      doxygen documentation!
   */
-  class CBAlgoAngleCompat : public CBoolAlgoBase{
+  class CBAlgoAngleCompat : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoAngleCompat();
 
@@ -36,8 +35,8 @@ namespace cmtool {
     virtual ~CBAlgoAngleCompat(){};
 
     /// Overloaded (from CBoolAlgoBase) Bool function
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /// Method to set debug mode
     void SetDebug(bool on) { _debug = on; }
@@ -57,8 +56,7 @@ namespace cmtool {
     //    TH1F* GetAngleDistHisto() const{ return angle_dist_histo; };
 
   protected:
-
-    bool _debug;    /// bool to suppress lots of output if you want
+    bool _debug; /// bool to suppress lots of output if you want
 
     ///bool to allow "backwards" clusters (swapped start/end points)
     ///to still match in angle, even though they are 180 degrees apart
@@ -72,15 +70,13 @@ namespace cmtool {
     /// angle instead of whatever you set with SetAngleCut
     bool _use_opening_angle;
 
-    size_t _minHits;        /// Min Number of hits for cluster to be considered
+    size_t _minHits; /// Min Number of hits for cluster to be considered
 
     /// Histogram used for debugging/cut value settings
-    TH1F *angle_dist_histo;
-
-
+    TH1F* angle_dist_histo;
   };
 
 } // end namespace cmtool
 
 #endif
-  /** @} */ // end of doxygen group
+/** @} */ // end of doxygen group

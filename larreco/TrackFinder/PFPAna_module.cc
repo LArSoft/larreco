@@ -123,8 +123,7 @@ namespace pfpf {
   {}
 
   //------------------------------------------------------------------
-  void
-  PFPAna::beginJob()
+  void PFPAna::beginJob()
   {
     art::ServiceHandle<art::TFileService const> tfs;
 
@@ -174,8 +173,7 @@ namespace pfpf {
     fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot", "NuEP2 proton vs KE", 20, 0, 2000);
   }
 
-  void
-  PFPAna::analyze(const art::Event& evt)
+  void PFPAna::analyze(const art::Event& evt)
   {
     // code stolen from TrackAna_module.cc
     art::ServiceHandle<geo::Geometry const> geom;

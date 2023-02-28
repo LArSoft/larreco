@@ -37,8 +37,8 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <string>
 #include <numeric> // std::accumulate
+#include <string>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
@@ -80,8 +80,7 @@ namespace lar_cluster3d {
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float
-    getTimeToExecute() const override
+    float getTimeToExecute() const override
     {
       return std::accumulate(fTimeVector.begin(), fTimeVector.end(), 0.);
     }
@@ -199,8 +198,7 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void
-  MSTPathFinder::configure(fhicl::ParameterSet const& pset)
+  void MSTPathFinder::configure(fhicl::ParameterSet const& pset)
   {
     fEnableMonitoring = pset.get<bool>("EnableMonitoring", true);
     fMinTinyClusterSize = pset.get<size_t>("MinTinyClusterSize", 40);
@@ -219,8 +217,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::initializeHistograms(art::TFileDirectory& histDir)
+  void MSTPathFinder::initializeHistograms(art::TFileDirectory& histDir)
   {
     // It is assumed that the input TFileDirectory has been set up to group histograms into a common
     // folder at the calling routine's level. Here we create one more level of indirection to keep
@@ -238,8 +235,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
+  void MSTPathFinder::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
   {
     /**
      *  @brief Top level interface tool for performing deghosting and primary path finding
@@ -310,10 +306,9 @@ namespace lar_cluster3d {
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
-  void
-  MSTPathFinder::RunPrimsAlgorithm(const reco::HitPairListPtr& hitPairList,
-                                   kdTree::KdTreeNode& topNode,
-                                   reco::ClusterParametersList& clusterParametersList) const
+  void MSTPathFinder::RunPrimsAlgorithm(const reco::HitPairListPtr& hitPairList,
+                                        kdTree::KdTreeNode& topNode,
+                                        reco::ClusterParametersList& clusterParametersList) const
   {
     // If no hits then no work
     if (hitPairList.empty()) return;
@@ -439,8 +434,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::FindBestPathInCluster(reco::ClusterParameters& curCluster) const
+  void MSTPathFinder::FindBestPathInCluster(reco::ClusterParameters& curCluster) const
   {
     reco::HitPairListPtr longestCluster;
     float bestQuality(0.);
@@ -505,9 +499,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::FindBestPathInCluster(reco::ClusterParameters& clusterParams,
-                                       kdTree::KdTreeNode& topNode) const
+  void MSTPathFinder::FindBestPathInCluster(reco::ClusterParameters& clusterParams,
+                                            kdTree::KdTreeNode& topNode) const
   {
     // Set up for timing the function
     cet::cpu_timer theClockPathFinding;
@@ -610,12 +603,11 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::AStar(const reco::ClusterHit3D* startNode,
-                       const reco::ClusterHit3D* goalNode,
-                       float alpha,
-                       kdTree::KdTreeNode& topNode,
-                       reco::ClusterParameters& clusterParams) const
+  void MSTPathFinder::AStar(const reco::ClusterHit3D* startNode,
+                            const reco::ClusterHit3D* goalNode,
+                            float alpha,
+                            kdTree::KdTreeNode& topNode,
+                            reco::ClusterParameters& clusterParams) const
   {
     // Recover the list of hits and edges
     reco::HitPairListPtr& pathNodeList = clusterParams.getBestHitPairListPtr();
@@ -697,11 +689,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::ReconstructBestPath(const reco::ClusterHit3D* goalNode,
-                                     BestNodeMap& bestNodeMap,
-                                     reco::HitPairListPtr& pathNodeList,
-                                     reco::EdgeList& bestEdgeList) const
+  void MSTPathFinder::ReconstructBestPath(const reco::ClusterHit3D* goalNode,
+                                          BestNodeMap& bestNodeMap,
+                                          reco::HitPairListPtr& pathNodeList,
+                                          reco::EdgeList& bestEdgeList) const
   {
     while (std::get<0>(bestNodeMap.at(goalNode)) != goalNode) {
       const reco::ClusterHit3D* nextNode = std::get<0>(bestNodeMap[goalNode]);
@@ -719,11 +710,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::LeastCostPath(const reco::EdgeTuple& curEdge,
-                               const reco::ClusterHit3D* goalNode,
-                               reco::ClusterParameters& clusterParams,
-                               float& showMeTheMoney) const
+  void MSTPathFinder::LeastCostPath(const reco::EdgeTuple& curEdge,
+                                    const reco::ClusterHit3D* goalNode,
+                                    reco::ClusterParameters& clusterParams,
+                                    float& showMeTheMoney) const
   {
     // Recover the mapping between hits and edges
     reco::Hit3DToEdgeMap& curEdgeMap = clusterParams.getHit3DToEdgeMap();
@@ -768,9 +758,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  float
-  MSTPathFinder::DistanceBetweenNodes(const reco::ClusterHit3D* node1,
-                                      const reco::ClusterHit3D* node2) const
+  float MSTPathFinder::DistanceBetweenNodes(const reco::ClusterHit3D* node1,
+                                            const reco::ClusterHit3D* node2) const
   {
     const Eigen::Vector3f& node1Pos = node1->getPosition();
     const Eigen::Vector3f& node2Pos = node2->getPosition();
@@ -800,10 +789,9 @@ namespace lar_cluster3d {
      */
   }
 
-  reco::HitPairListPtr
-  MSTPathFinder::DepthFirstSearch(const reco::EdgeTuple& curEdge,
-                                  const reco::Hit3DToEdgeMap& hitToEdgeMap,
-                                  float& bestTreeQuality) const
+  reco::HitPairListPtr MSTPathFinder::DepthFirstSearch(const reco::EdgeTuple& curEdge,
+                                                       const reco::Hit3DToEdgeMap& hitToEdgeMap,
+                                                       float& bestTreeQuality) const
   {
     reco::HitPairListPtr hitPairListPtr;
     float bestQuality(0.);
@@ -847,9 +835,8 @@ namespace lar_cluster3d {
     return hitPairListPtr;
   }
 
-  void
-  MSTPathFinder::PruneAmbiguousHits(reco::ClusterParameters& clusterParams,
-                                    reco::Hit2DToClusterMap& hit2DToClusterMap) const
+  void MSTPathFinder::PruneAmbiguousHits(reco::ClusterParameters& clusterParams,
+                                         reco::Hit2DToClusterMap& hit2DToClusterMap) const
   {
 
     // Recover the HitPairListPtr from the input clusterParams (which will be the
@@ -925,10 +912,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  MSTPathFinder::buildConvexHull(reco::ClusterParameters& clusterParameters,
-                                 reco::HitPairListPtr& hitPairListPtr,
-                                 int level) const
+  void MSTPathFinder::buildConvexHull(reco::ClusterParameters& clusterParameters,
+                                      reco::HitPairListPtr& hitPairListPtr,
+                                      int level) const
   {
     // set an indention string
     std::string minuses(level / 2, '-');
@@ -1062,10 +1048,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  float
-  MSTPathFinder::findConvexHullEndPoints(const reco::EdgeList& convexHull,
-                                         const reco::ClusterHit3D* first3D,
-                                         const reco::ClusterHit3D* last3D) const
+  float MSTPathFinder::findConvexHullEndPoints(const reco::EdgeList& convexHull,
+                                               const reco::ClusterHit3D* first3D,
+                                               const reco::ClusterHit3D* last3D) const
   {
     float largestDistance(0.);
 

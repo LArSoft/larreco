@@ -297,8 +297,7 @@ namespace DUNE {
     fFidVolCutZ = p.get<float>("FidVolCutZ");
   }
   //========================================================================
-  void
-  MuonTrackingEff::beginJob()
+  void MuonTrackingEff::beginJob()
   {
     std::cout << "job begin..." << std::endl;
     // Get geometry.
@@ -1088,21 +1087,14 @@ namespace DUNE {
       ->SetOption("colz");
   }
   //========================================================================
-  void
-  MuonTrackingEff::endJob()
-  {
-
-    doEfficiencies();
-  }
+  void MuonTrackingEff::endJob() { doEfficiencies(); }
   //========================================================================
-  void
-  MuonTrackingEff::beginRun(const art::Run& /*run*/)
+  void MuonTrackingEff::beginRun(const art::Run& /*run*/)
   {
     mf::LogInfo("MuonTrackingEff") << "begin run..." << std::endl;
   }
   //========================================================================
-  void
-  MuonTrackingEff::analyze(const art::Event& event)
+  void MuonTrackingEff::analyze(const art::Event& event)
   {
     if (event.isRealData()) return;
 
@@ -1110,8 +1102,7 @@ namespace DUNE {
     processEff(event, isFiducial);
   }
   //========================================================================
-  void
-  MuonTrackingEff::processEff(const art::Event& event, bool& isFiducial)
+  void MuonTrackingEff::processEff(const art::Event& event, bool& isFiducial)
   {
 
     EventCounter++;
@@ -1573,14 +1564,13 @@ namespace DUNE {
     }
   }
   //========================================================================
-  void
-  MuonTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
-                                std::vector<art::Ptr<recob::Hit>> AllHits,
-                                std::vector<art::Ptr<recob::Hit>> track_hits,
-                                const simb::MCParticle*& MCparticle,
-                                double& Purity,
-                                double& Completeness,
-                                double& TotalRecoEnergy)
+  void MuonTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
+                                     std::vector<art::Ptr<recob::Hit>> AllHits,
+                                     std::vector<art::Ptr<recob::Hit>> track_hits,
+                                     const simb::MCParticle*& MCparticle,
+                                     double& Purity,
+                                     double& Completeness,
+                                     double& TotalRecoEnergy)
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -1661,12 +1651,11 @@ namespace DUNE {
     Completeness = PartialEnergyTrackID / TotalRecoEnergy;
   }
 
-  void
-  MuonTrackingEff::FuncDistanceAndAngleBetweenTracks(art::Ptr<recob::Track> Track1,
-                                                     art::Ptr<recob::Track> Track2,
-                                                     double& TempDistanceBetweenTracks,
-                                                     double& TempAngleBetweenTracks,
-                                                     double& TempCriteriaTwoTracks)
+  void MuonTrackingEff::FuncDistanceAndAngleBetweenTracks(art::Ptr<recob::Track> Track1,
+                                                          art::Ptr<recob::Track> Track2,
+                                                          double& TempDistanceBetweenTracks,
+                                                          double& TempAngleBetweenTracks,
+                                                          double& TempCriteriaTwoTracks)
   {
 
     TempDistanceBetweenTracks = sqrt(pow(Track1->End().X() - Track2->Vertex().X(), 2) +
@@ -1710,8 +1699,7 @@ namespace DUNE {
     }
   }
 
-  void
-  MuonTrackingEff::FuncDistanceAndAngleBetweenTruthAndRecoTrack(
+  void MuonTrackingEff::FuncDistanceAndAngleBetweenTruthAndRecoTrack(
     const simb::MCParticle*& MCparticle,
     art::Ptr<recob::Track> Track,
     double& TempDistanceBetweenTruthAndRecoTrack,
@@ -1725,8 +1713,7 @@ namespace DUNE {
   }
 
   //========================================================================
-  double
-  MuonTrackingEff::truthLength(const simb::MCParticle* MCparticle)
+  double MuonTrackingEff::truthLength(const simb::MCParticle* MCparticle)
   {
     //calculate the truth length considering only the part that is inside the TPC
     //Base on a piece of code from dune/TrackingAna/TrackingEfficiency_module.cc
@@ -1759,8 +1746,7 @@ namespace DUNE {
     return TPCLength;
   }
   //========================================================================
-  bool
-  MuonTrackingEff::insideFV(double vertex[4])
+  bool MuonTrackingEff::insideFV(double vertex[4])
   {
 
     double x = vertex[0];
@@ -1774,8 +1760,7 @@ namespace DUNE {
       return false;
   }
   //========================================================================
-  void
-  MuonTrackingEff::doEfficiencies()
+  void MuonTrackingEff::doEfficiencies()
   {
     std::cout << std::endl;
 

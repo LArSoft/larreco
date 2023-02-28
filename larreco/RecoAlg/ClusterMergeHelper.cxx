@@ -20,9 +20,9 @@
 namespace cluster {
 
   //####################################################################################################
-  void
-  ClusterMergeHelper::SetClusters(util::GeometryUtilities const& gser,
-                                  const std::vector<std::vector<art::Ptr<recob::Hit>>>& clusters)
+  void ClusterMergeHelper::SetClusters(
+    util::GeometryUtilities const& gser,
+    const std::vector<std::vector<art::Ptr<recob::Hit>>>& clusters)
   //####################################################################################################
   {
     fInputClusters.clear();
@@ -57,10 +57,9 @@ namespace cluster {
   }
 
   //##################################################################################################
-  void
-  ClusterMergeHelper::SetClusters(util::GeometryUtilities const& gser,
-                                  const art::Event& evt,
-                                  const std::string& cluster_module_label)
+  void ClusterMergeHelper::SetClusters(util::GeometryUtilities const& gser,
+                                       const art::Event& evt,
+                                       const std::string& cluster_module_label)
   //##################################################################################################
   {
 
@@ -86,8 +85,7 @@ namespace cluster {
   }
 
   //################################
-  void
-  ClusterMergeHelper::Process(util::GeometryUtilities const& gser)
+  void ClusterMergeHelper::Process(util::GeometryUtilities const& gser)
   //################################
   {
     if (fMgr.GetClusters().size())
@@ -120,8 +118,8 @@ namespace cluster {
   }
 
   //######################################################################################################
-  const std::vector<std::vector<art::Ptr<recob::Hit>>>&
-  ClusterMergeHelper::GetMergedClusterHits() const
+  const std::vector<std::vector<art::Ptr<recob::Hit>>>& ClusterMergeHelper::GetMergedClusterHits()
+    const
   //######################################################################################################
   {
     if (!fOutputClusters.size())
@@ -134,8 +132,7 @@ namespace cluster {
   }
 
   //#####################################################################################
-  const std::vector<cluster::ClusterParamsAlg>&
-  ClusterMergeHelper::GetMergedCPAN() const
+  const std::vector<cluster::ClusterParamsAlg>& ClusterMergeHelper::GetMergedCPAN() const
   //#####################################################################################
   {
     if (!fOutputClusters.size())
@@ -147,11 +144,10 @@ namespace cluster {
     return fMgr.GetClusters();
   }
 
-  void
-  ClusterMergeHelper::AppendResult(util::GeometryUtilities const& gser,
-                                   art::Event& ev,
-                                   std::vector<recob::Cluster>& out_clusters,
-                                   art::Assns<recob::Cluster, recob::Hit>& assns) const
+  void ClusterMergeHelper::AppendResult(util::GeometryUtilities const& gser,
+                                        art::Event& ev,
+                                        std::vector<recob::Cluster>& out_clusters,
+                                        art::Assns<recob::Cluster, recob::Hit>& assns) const
   {
 
     if (!fOutputClusters.size())

@@ -40,11 +40,7 @@ namespace reco3d {
   struct InductionWireWithXPos {
     InductionWireWithXPos(InductionWireHit* w, double x) : iwire(w), xpos(x) {}
 
-    bool
-    operator<(const InductionWireWithXPos& w) const
-    {
-      return xpos < w.xpos;
-    }
+    bool operator<(const InductionWireWithXPos& w) const { return xpos < w.xpos; }
 
     InductionWireHit* iwire;
     double xpos;
@@ -136,15 +132,13 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::beginJob()
+  void SpacePointSolver::beginJob()
   {
     geom = art::ServiceHandle<geo::Geometry const>()->provider();
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
+  void SpacePointSolver::AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
   {
     static const double kCritDist = 5;
 
@@ -155,14 +149,12 @@ namespace reco3d {
         : fX(sc.fX / kCritDist), fY(sc.fY / kCritDist), fZ(sc.fZ / kCritDist)
       {}
 
-      bool
-      operator<(const IntCoord& i) const
+      bool operator<(const IntCoord& i) const
       {
         return std::make_tuple(fX, fY, fZ) < std::make_tuple(i.fX, i.fY, i.fZ);
       }
 
-      std::vector<IntCoord>
-      Neighbours() const
+      std::vector<IntCoord> Neighbours() const
       {
         std::vector<IntCoord> ret;
         for (int dx = -1; dx <= +1; ++dx) {
@@ -243,13 +235,12 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::BuildSystem(const std::vector<HitTriplet>& triplets,
-                                std::vector<CollectionWireHit*>& cwires,
-                                std::vector<InductionWireHit*>& iwires,
-                                std::vector<SpaceCharge*>& orphanSCs,
-                                bool incNei,
-                                HitMap_t& hitmap) const
+  void SpacePointSolver::BuildSystem(const std::vector<HitTriplet>& triplets,
+                                     std::vector<CollectionWireHit*>& cwires,
+                                     std::vector<InductionWireHit*>& iwires,
+                                     std::vector<SpaceCharge*>& orphanSCs,
+                                     bool incNei,
+                                     HitMap_t& hitmap) const
   {
     std::set<const recob::Hit*> ihits;
     std::set<const recob::Hit*> chits;
@@ -334,10 +325,9 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  bool
-  SpacePointSolver::AddSpacePoint(const SpaceCharge& sc,
-                                  int id,
-                                  recob::ChargedSpacePointCollectionCreator& points) const
+  bool SpacePointSolver::AddSpacePoint(const SpaceCharge& sc,
+                                       int id,
+                                       recob::ChargedSpacePointCollectionCreator& points) const
   {
     static const double err[6] = {
       0,
@@ -353,10 +343,10 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
-                                            const std::vector<SpaceCharge*>& orphanSCs,
-                                            recob::ChargedSpacePointCollectionCreator& points) const
+  void SpacePointSolver::FillSystemToSpacePoints(
+    const std::vector<CollectionWireHit*>& cwires,
+    const std::vector<SpaceCharge*>& orphanSCs,
+    recob::ChargedSpacePointCollectionCreator& points) const
   {
     int iPoint = 0;
     for (const CollectionWireHit* cwire : cwires) {
@@ -370,8 +360,7 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::FillSystemToSpacePointsAndAssns(
+  void SpacePointSolver::FillSystemToSpacePointsAndAssns(
     const std::vector<art::Ptr<recob::Hit>>& hitlist,
     const std::vector<CollectionWireHit*>& cwires,
     const std::vector<SpaceCharge*>& orphanSCs,
@@ -403,11 +392,10 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::Minimize(const std::vector<CollectionWireHit*>& cwires,
-                             const std::vector<SpaceCharge*>& orphanSCs,
-                             double alpha,
-                             int maxiterations)
+  void SpacePointSolver::Minimize(const std::vector<CollectionWireHit*>& cwires,
+                                  const std::vector<SpaceCharge*>& orphanSCs,
+                                  double alpha,
+                                  int maxiterations)
   {
     double prevMetric = Metric(cwires, alpha);
     std::cout << "Begin: " << prevMetric << std::endl;
@@ -425,8 +413,7 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  SpacePointSolver::produce(art::Event& evt)
+  void SpacePointSolver::produce(art::Event& evt)
   {
     art::Handle<std::vector<recob::Hit>> hits;
     std::vector<art::Ptr<recob::Hit>> hitlist;
@@ -456,7 +443,8 @@ namespace reco3d {
     std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
     if (fAllowBadInductionHit || fAllowBadCollectionHit) {
       for (raw::ChannelID_t cid :
-           art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels(evt.time().value())) {
+           art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels(
+             evt.time().value())) {
         if (geom->SignalType(cid) == geo::kCollection) {
           if (fAllowBadCollectionHit && geom->View(cid) == geo::kZ) { xbadchans.push_back(cid); }
         }

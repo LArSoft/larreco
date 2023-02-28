@@ -294,10 +294,9 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  bool
-  TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits,
-                               unsigned int run,
-                               unsigned int event)
+  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits,
+                                    unsigned int run,
+                                    unsigned int event)
   {
     // defines the pointer to the input hit collection, analyzes them,
     // initializes global counters and refreshes service references
@@ -323,8 +322,7 @@ namespace tca {
   } // SetInputHits
 
   ////////////////////////////////////////////////
-  void
-  TrajClusterAlg::SetSourceHits(std::vector<recob::Hit> const& srcHits)
+  void TrajClusterAlg::SetSourceHits(std::vector<recob::Hit> const& srcHits)
   {
     evt.srcHits = &srcHits;
     evt.tpcSrcHitRange.resize(tcc.geom->NTPC());
@@ -340,12 +338,11 @@ namespace tca {
   }   // SetSourceHits
 
   ////////////////////////////////////////////////
-  void
-  TrajClusterAlg::RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
-                                    detinfo::DetectorPropertiesData const& detProp,
-                                    std::vector<unsigned int>& hitsInSlice,
-                                    int sliceID,
-                                    lariov::DBTimeStamp_t ts)
+  void TrajClusterAlg::RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
+                                         detinfo::DetectorPropertiesData const& detProp,
+                                         std::vector<unsigned int>& hitsInSlice,
+                                         int sliceID,
+                                         lariov::DBTimeStamp_t ts)
   {
     // Reconstruct everything using the hits in a slice
 
@@ -425,10 +422,9 @@ namespace tca {
   } // RunTrajClusterAlg
 
   ////////////////////////////////////////////////
-  void
-  TrajClusterAlg::ReconstructAllTraj(detinfo::DetectorPropertiesData const& detProp,
-                                     TCSlice& slc,
-                                     CTP_t inCTP)
+  void TrajClusterAlg::ReconstructAllTraj(detinfo::DetectorPropertiesData const& detProp,
+                                          TCSlice& slc,
+                                          CTP_t inCTP)
   {
     // Reconstruct trajectories in inCTP and put them in allTraj
 
@@ -761,8 +757,7 @@ namespace tca {
   } // ReconstructAllTraj
 
   //////////////////////////////////////////
-  void
-  TrajClusterAlg::FindJunkTraj(TCSlice& slc, CTP_t inCTP)
+  void TrajClusterAlg::FindJunkTraj(TCSlice& slc, CTP_t inCTP)
   {
     // Makes junk trajectories using unassigned hits
 
@@ -791,7 +786,7 @@ namespace tca {
       unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
       unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
       for (unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
-        if(iht >= slc.slHits.size()) break;
+        if (iht >= slc.slHits.size()) break;
         auto& islHit = slc.slHits[iht];
         if (islHit.InTraj != 0) continue;
         std::vector<unsigned int> iHits;
@@ -801,7 +796,7 @@ namespace tca {
         if (prt) mf::LogVerbatim("TC") << "FJT: debug iht multiplet size " << iHits.size();
         if (iHits.empty()) continue;
         for (unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
-          if(jht >= slc.slHits.size()) break;
+          if (jht >= slc.slHits.size()) break;
           auto& jslHit = slc.slHits[jht];
           if (jslHit.InTraj != 0) continue;
           if (prt && HitSep2(slc, iht, jht) < 100)
@@ -837,7 +832,7 @@ namespace tca {
               unsigned int kfirsthit = slc.wireHitRange[plane][kwire].first;
               unsigned int klasthit = slc.wireHitRange[plane][kwire].second;
               for (unsigned int kht = kfirsthit; kht <= klasthit; ++kht) {
-                if(kht >= slc.slHits.size()) continue;
+                if (kht >= slc.slHits.size()) continue;
                 if (slc.slHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if (std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
@@ -884,8 +879,7 @@ namespace tca {
   }       // FindJunkTraj
 
   ////////////////////////////////////////////////
-  void
-  TrajClusterAlg::ChkInTraj(std::string someText, TCSlice& slc)
+  void TrajClusterAlg::ChkInTraj(std::string someText, TCSlice& slc)
   {
     // Check slc.tjs -> InTraj associations
 
@@ -981,10 +975,9 @@ namespace tca {
   } // ChkInTraj
 
   //////////////////////////////////////////
-  void
-  TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits,
-                              std::vector<recob::Hit>& newHitCol,
-                              std::vector<unsigned int>& newHitAssns) const
+  void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits,
+                                   std::vector<recob::Hit>& newHitCol,
+                                   std::vector<unsigned int>& newHitAssns) const
   {
     // merge the hits indexed by tpHits into one or more hits with the requirement that the hits
     // are on different wires
@@ -1037,8 +1030,7 @@ namespace tca {
   } // MergeTPHits
 
   //////////////////////////////////////////
-  recob::Hit
-  TrajClusterAlg::MergeTPHitsOnWire(std::vector<unsigned int>& tpHits) const
+  recob::Hit TrajClusterAlg::MergeTPHitsOnWire(std::vector<unsigned int>& tpHits) const
   {
     // merge the hits indexed by tpHits into one hit
 
@@ -1171,8 +1163,7 @@ namespace tca {
   } // MergeTPHits
 
   /////////////////////////////////////////
-  void
-  TrajClusterAlg::DefineShTree(TTree* t)
+  void TrajClusterAlg::DefineShTree(TTree* t)
   {
     showertree = t;
 
@@ -1213,12 +1204,11 @@ namespace tca {
   } // end DefineShTree
 
   /////////////////////////////////////////
-  bool
-  TrajClusterAlg::CreateSlice(detinfo::DetectorClocksData const& clockData,
-                              detinfo::DetectorPropertiesData const& detProp,
-                              std::vector<unsigned int>& hitsInSlice,
-                              int sliceID,
-                              lariov::DBTimeStamp_t ts)
+  bool TrajClusterAlg::CreateSlice(detinfo::DetectorClocksData const& clockData,
+                                   detinfo::DetectorPropertiesData const& detProp,
+                                   std::vector<unsigned int>& hitsInSlice,
+                                   int sliceID,
+                                   lariov::DBTimeStamp_t ts)
   {
     // Defines a TCSlice struct and pushes the slice onto slices.
     // Sets the isValid flag true if successful.
@@ -1280,8 +1270,7 @@ namespace tca {
   } // CreateSlice
 
   /////////////////////////////////////////
-  void
-  TrajClusterAlg::FinishEvent()
+  void TrajClusterAlg::FinishEvent()
   {
     // final steps that involve correlations between slices
     // Stitch PFParticles between TPCs

@@ -63,8 +63,8 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  PlotSpacePoints::Plot(const std::vector<recob::SpacePoint>& pts, const std::string& suffix) const
+  void PlotSpacePoints::Plot(const std::vector<recob::SpacePoint>& pts,
+                             const std::string& suffix) const
   {
     TGraph gZX;
     TGraph gYX;
@@ -98,9 +98,9 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  std::vector<recob::SpacePoint>
-  PlotSpacePoints::TrueSpacePoints(detinfo::DetectorClocksData const& clockData,
-                                   art::Handle<std::vector<recob::Hit>> hits) const
+  std::vector<recob::SpacePoint> PlotSpacePoints::TrueSpacePoints(
+    detinfo::DetectorClocksData const& clockData,
+    art::Handle<std::vector<recob::Hit>> hits) const
   {
     std::vector<recob::SpacePoint> pts_true;
 
@@ -122,9 +122,8 @@ namespace reco3d {
   }
 
   // ---------------------------------------------------------------------------
-  void
-  PlotSpacePoints::Plot3D(const std::vector<recob::SpacePoint>& pts,
-                          const std::string& suffix) const
+  void PlotSpacePoints::Plot3D(const std::vector<recob::SpacePoint>& pts,
+                               const std::string& suffix) const
   {
     int frame = 0;
     for (int phase = 0; phase < 4; ++phase) {
@@ -169,8 +168,7 @@ namespace reco3d {
     }
   }
 
-  void
-  PlotSpacePoints::analyze(const art::Event& evt)
+  void PlotSpacePoints::analyze(const art::Event& evt)
   {
     if (fPlots) {
       art::Handle<std::vector<recob::SpacePoint>> pts;

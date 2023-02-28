@@ -43,18 +43,10 @@ namespace cmtool {
     virtual void Reset();
 
     /// A simple method to add an algorithm for merging
-    void
-    AddMatchAlgo(CFloatAlgoBase* algo)
-    {
-      _match_algo = algo;
-    }
+    void AddMatchAlgo(CFloatAlgoBase* algo) { _match_algo = algo; }
 
     /// A method to obtain book keeper
-    const CMatchBookKeeper&
-    GetBookKeeper() const
-    {
-      return _book_keeper;
-    }
+    const CMatchBookKeeper& GetBookKeeper() const { return _book_keeper; }
 
   protected:
     //

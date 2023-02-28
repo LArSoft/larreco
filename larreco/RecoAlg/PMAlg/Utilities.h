@@ -45,8 +45,7 @@ namespace pma {
   double Dist2(const Vector2D& v1, const Vector2D& v2);
 
   template <typename T, typename U>
-  double
-  Dist2(const T& v1, const U& v2)
+  double Dist2(const T& v1, const U& v2)
   {
     double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
     return dx * dx + dy * dy + dz * dz;
@@ -110,8 +109,7 @@ class pma::bSegmentProjLess : public std::binary_function<TVector3*, TVector3*, 
 public:
   bSegmentProjLess(const TVector3& s0, const TVector3& s1);
 
-  bool
-  operator()(TVector3* p1, TVector3* p2)
+  bool operator()(TVector3* p1, TVector3* p2)
   {
     if (p1 && p2) {
       double b1 = pma::GetSegmentProjVector(*p1, segStart, segStop);
@@ -130,8 +128,7 @@ class pma::bDistCenterLess2D : public std::binary_function<TVector2, TVector2, b
 public:
   bDistCenterLess2D(const TVector2& c) : center(c) {}
 
-  bool
-  operator()(TVector2 p1, TVector2 p2)
+  bool operator()(TVector2 p1, TVector2 p2)
   {
     double b1 = pma::Dist2(p1, center);
     double b2 = pma::Dist2(p2, center);
@@ -146,8 +143,7 @@ class pma::bDistCenterLess3D : public std::binary_function<TVector3, TVector3, b
 public:
   bDistCenterLess3D(const TVector3& c) : center(c) {}
 
-  bool
-  operator()(TVector3 p1, TVector3 p2)
+  bool operator()(TVector3 p1, TVector3 p2)
   {
     double b1 = pma::Dist2(p1, center);
     double b2 = pma::Dist2(p2, center);

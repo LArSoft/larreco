@@ -36,8 +36,7 @@
 #include "boost/multi_array.hpp"
 
 namespace {
-  inline bool
-  HitTimeComparison(art::Ptr<recob::Hit> const& a, art::Ptr<recob::Hit> const& b)
+  inline bool HitTimeComparison(art::Ptr<recob::Hit> const& a, art::Ptr<recob::Hit> const& b)
   {
     return a->PeakTime() < b->PeakTime();
   }
@@ -68,8 +67,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void
-  SpacePointAlg_TimeSort::setTimeOffsets(detinfo::DetectorPropertiesData const& detProp)
+  void SpacePointAlg_TimeSort::setTimeOffsets(detinfo::DetectorPropertiesData const& detProp)
   {
     TIME_OFFSET_U = -1 * detProp.GetXTicksOffset(geo::View_t::kU, 0, 0);
     TIME_OFFSET_V = -1 * detProp.GetXTicksOffset(geo::View_t::kV, 0, 0);
@@ -80,8 +78,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void
-  SpacePointAlg_TimeSort::fillCoordinatesArrays()
+  void SpacePointAlg_TimeSort::fillCoordinatesArrays()
   {
     art::ServiceHandle<geo::Geometry const> geom;
     unsigned int nwires_u = geom->Nwires(geo::View_t::kU);
@@ -119,8 +116,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void
-  SpacePointAlg_TimeSort::createSpacePoints(
+  void SpacePointAlg_TimeSort::createSpacePoints(
     detinfo::DetectorPropertiesData const& detProp,
     std::vector<art::Ptr<recob::Hit>>& hitVec_U,
     std::vector<art::Ptr<recob::Hit>>& hitVec_V,
@@ -273,8 +269,7 @@ namespace sppt {
   } //end createSpacePoints
 
   //-------------------------------------------------
-  void
-  SpacePointAlg_TimeSort::sortHitsByTime(std::vector<art::Ptr<recob::Hit>>& hitVec) const
+  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector<art::Ptr<recob::Hit>>& hitVec) const
   {
     std::sort(hitVec.begin(), hitVec.end(), HitTimeComparison);
   }

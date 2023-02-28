@@ -26,7 +26,6 @@ namespace cmtool {
   class CBAlgoProhibitBigClusters : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoProhibitBigClusters();
 
@@ -43,8 +42,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /**
        Optional function: called after each Merge() function call by CMergeManager IFF
@@ -54,8 +53,6 @@ namespace cmtool {
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
-
-
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
@@ -82,9 +79,7 @@ namespace cmtool {
     void SetMinHits(size_t nhits) { _min_hits = nhits; }
 
   protected:
-
     size_t _min_hits;
-
   };
 }
 #endif

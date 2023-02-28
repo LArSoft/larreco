@@ -61,8 +61,7 @@ namespace apa {
   }
 
   //-------------------------------------------------
-  void
-  APAHitFinder::produce(art::Event& evt)
+  void APAHitFinder::produce(art::Event& evt)
   {
     // this object contains the hit collection
     // and its associations to wires and raw digits:

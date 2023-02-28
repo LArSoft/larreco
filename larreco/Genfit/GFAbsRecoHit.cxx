@@ -20,19 +20,21 @@
 
 #include <iostream>
 
+genf::GFAbsRecoHit::GFAbsRecoHit(int NparHit)
+  : fHitCoord(NparHit, 1), fHitCov(NparHit, NparHit), fNparHit(NparHit)
+{}
 
-genf::GFAbsRecoHit::GFAbsRecoHit(int NparHit) : fHitCoord(NparHit,1),
-  fHitCov(NparHit,NparHit),
-  fNparHit(NparHit)
+genf::GFAbsRecoHit::GFAbsRecoHit() : fNparHit(-1) {}
+
+genf::GFAbsRecoHit::~GFAbsRecoHit()
 {
+  ;
 }
 
-genf::GFAbsRecoHit::GFAbsRecoHit() : fNparHit(-1) {
-}
-
-genf::GFAbsRecoHit::~GFAbsRecoHit(){;}
-
-const std::string& genf::GFAbsRecoHit::getPolicyName(){
-  std::cerr << "GFAbsRecoHit::getPolicyName() called for a reco hit, which wasnt derived from GFRecoHitIfc -> abort" << std::endl;
+const std::string& genf::GFAbsRecoHit::getPolicyName()
+{
+  std::cerr << "GFAbsRecoHit::getPolicyName() called for a reco hit, which wasnt derived from "
+               "GFRecoHitIfc -> abort"
+            << std::endl;
   throw;
 }

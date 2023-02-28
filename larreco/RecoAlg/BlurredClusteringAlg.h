@@ -61,7 +61,7 @@ public:
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
   std::vector<std::vector<double>> ConvertRecobHitsToVector(
-    lariov::DBTimeStamp_t ts, 
+    lariov::DBTimeStamp_t ts,
     std::vector<art::Ptr<recob::Hit>> const& hits,
     int readoutWindowSize);
 
@@ -77,11 +77,7 @@ public:
     std::vector<std::vector<double>> const& image) const;
 
   /// Minimum size of cluster to save
-  unsigned int
-  GetMinSize() const noexcept
-  {
-    return fMinSize;
-  }
+  unsigned int GetMinSize() const noexcept { return fMinSize; }
 
   /// Converts a 2D vector in a histogram for the debug pdf
   TH2F* MakeHistogram(std::vector<std::vector<double>> const& image, TString name) const;

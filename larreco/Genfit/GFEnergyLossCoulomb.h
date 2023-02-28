@@ -24,8 +24,7 @@
 #ifndef GFENERGYLOSSCOULOMB_H
 #define GFENERGYLOSSCOULOMB_H
 
-#include"GFAbsEnergyLoss.h"
-
+#include "GFAbsEnergyLoss.h"
 
 /** @brief Multiple scattering due to coulomb interaction
  *
@@ -40,10 +39,10 @@
  */
 namespace genf {
 
-class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
- public:
-  //! Optional calculation of multiple scattering
-  /**  Only multiple scattering is calculated, the returned value for the energy loss is always 0.
+  class GFEnergyLossCoulomb : public GFAbsEnergyLoss {
+  public:
+    //! Optional calculation of multiple scattering
+    /**  Only multiple scattering is calculated, the returned value for the energy loss is always 0.
     *  With the calculated multiple scattering angle, two noise matrices are calculated:
     *  - with respect to #directionBefore: #noiseBefore, which is then propagated with the jacobian
     *  - with respect to #directionAfter: #noiseAfter
@@ -239,29 +238,27 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     * \n
     * \n
     */
-  double energyLoss(const double& step,
-                    const double& mom,
-                    const int&    pdg,
-                    const double& matDensity,
-                    const double& matZ,
-                    const double& matA,
-                    const double& radiationLength,
-                    const double& meanExcitationEnergy,
-                    const bool&   doNoise = false,
-                          TMatrixT<Double_t>* noise = NULL,
-                    const TMatrixT<Double_t>* jacobian = NULL,
-                    const TVector3* directionBefore = NULL,
-                    const TVector3* directionAfter = NULL);
-  virtual ~GFEnergyLossCoulomb();
+    double energyLoss(const double& step,
+                      const double& mom,
+                      const int& pdg,
+                      const double& matDensity,
+                      const double& matZ,
+                      const double& matA,
+                      const double& radiationLength,
+                      const double& meanExcitationEnergy,
+                      const bool& doNoise = false,
+                      TMatrixT<Double_t>* noise = NULL,
+                      const TMatrixT<Double_t>* jacobian = NULL,
+                      const TVector3* directionBefore = NULL,
+                      const TVector3* directionAfter = NULL);
+    virtual ~GFEnergyLossCoulomb();
 
-  // public:
-  //ClassDef(GFEnergyLossCoulomb,1);
-
-};
+    // public:
+    //ClassDef(GFEnergyLossCoulomb,1);
+  };
 
 } // namespace genf
 
 #endif
 
 /** @} */
-

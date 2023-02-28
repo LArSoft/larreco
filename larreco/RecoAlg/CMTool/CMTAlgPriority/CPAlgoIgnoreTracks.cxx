@@ -19,12 +19,10 @@ namespace cmtool {
   //-----------------------------
   void CPAlgoIgnoreTracks::Reset()
   //-----------------------------
-  {
-
-  }
+  {}
 
   //------------------------------------------------------------------------------
-  float CPAlgoIgnoreTracks::Priority(const ::cluster::ClusterParamsAlg &cluster)
+  float CPAlgoIgnoreTracks::Priority(const ::cluster::ClusterParamsAlg& cluster)
   //------------------------------------------------------------------------------
   {
     //return -1 for tracks, otherwise return nhits
@@ -34,26 +32,22 @@ namespace cmtool {
     //but if you want to sort by a different way, use a separate
     //CPAlgo in an array with this one, and use the kLastAlgo option
     //to sort by that algo and still remove tracks!
-    return ( IsTrack(cluster) ? -1 : (float)nhit );
+    return (IsTrack(cluster) ? -1 : (float)nhit);
   }
 
   //------------------------------
   void CPAlgoIgnoreTracks::Report()
   //------------------------------
+  {}
+
+  bool CPAlgoIgnoreTracks::IsTrack(const ::cluster::ClusterParamsAlg& cluster)
   {
-
-  }
-
-
-  bool CPAlgoIgnoreTracks::IsTrack(const ::cluster::ClusterParamsAlg &cluster)
-  {
-    double fPrincipal = TMath::Log(1-cluster.GetParams().eigenvalue_principal);
+    double fPrincipal = TMath::Log(1 - cluster.GetParams().eigenvalue_principal);
 
     bool isTrack = false;
-    if(//cluster.GetNHits() > _min_hits &&
-       cluster.GetParams().modified_hit_density < _min_mod_hit_dens ||
-       cluster.GetParams().multi_hit_wires < _min_multihit_wires ||
-       fPrincipal < _min_principal)
+    if ( //cluster.GetNHits() > _min_hits &&
+      cluster.GetParams().modified_hit_density < _min_mod_hit_dens ||
+      cluster.GetParams().multi_hit_wires < _min_multihit_wires || fPrincipal < _min_principal)
       isTrack = true;
 
     return isTrack;

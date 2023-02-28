@@ -20,7 +20,6 @@
  * @{
  */
 
-
 #ifndef GFABSBFIELD_H
 #define GFABSBFIELD_H
 
@@ -34,16 +33,14 @@
  */
 namespace genf {
 
-class GFAbsBField {
-public:
+  class GFAbsBField {
+  public:
+    GFAbsBField() { ; }
+    virtual ~GFAbsBField() { ; }
 
-  GFAbsBField(){;}
-  virtual ~GFAbsBField(){;}
-
-  //! override this is you concrete implementation
-  virtual TVector3 get(const TVector3&) const =0;
-
-};
+    //! override this is you concrete implementation
+    virtual TVector3 get(const TVector3&) const = 0;
+  };
 } // namespace genf
 #endif
 /** @} */

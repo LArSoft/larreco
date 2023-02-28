@@ -115,8 +115,7 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitDerivative::findHitCandidates(
+  void CandHitDerivative::findHitCandidates(
     const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
     const size_t roiStartTick,
     const size_t channel,
@@ -238,13 +237,12 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
-                                       Waveform::const_iterator stopItr,
-                                       const size_t roiStartTick,
-                                       int dTicksThreshold,
-                                       float dPeakThreshold,
-                                       HitCandidateVec& hitCandidateVec) const
+  void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
+                                            Waveform::const_iterator stopItr,
+                                            const size_t roiStartTick,
+                                            int dTicksThreshold,
+                                            float dPeakThreshold,
+                                            HitCandidateVec& hitCandidateVec) const
   {
     // Search for candidate hits...
     // The idea will be to find the largest deviation in the input derivative waveform as the starting point. Depending
@@ -346,8 +344,7 @@ namespace reco_tool {
     return;
   }
 
-  void
-  CandHitDerivative::MergeHitCandidates(
+  void CandHitDerivative::MergeHitCandidates(
     const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
     const HitCandidateVec& hitCandidateVec,
     MergeHitCandidateVec& mergedHitsVec) const
@@ -388,9 +385,9 @@ namespace reco_tool {
     return;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitDerivative::findNearestMin(Waveform::const_iterator maxItr,
-                                    Waveform::const_iterator stopItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitDerivative::findNearestMin(
+    Waveform::const_iterator maxItr,
+    Waveform::const_iterator stopItr) const
   {
     // reset the min iterator and search forward to find the nearest minimum
     Waveform::const_iterator lastItr = maxItr;
@@ -407,9 +404,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitDerivative::findNearestMax(Waveform::const_iterator minItr,
-                                    Waveform::const_iterator startItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitDerivative::findNearestMax(
+    Waveform::const_iterator minItr,
+    Waveform::const_iterator startItr) const
   {
     // Set the internal loop variable...
     Waveform::const_iterator lastItr = minItr;
@@ -427,9 +424,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitDerivative::findStartTick(Waveform::const_iterator maxItr,
-                                   Waveform::const_iterator startItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitDerivative::findStartTick(
+    Waveform::const_iterator maxItr,
+    Waveform::const_iterator startItr) const
   {
     Waveform::const_iterator lastItr = maxItr;
 
@@ -455,9 +452,9 @@ namespace reco_tool {
     return lastItr;
   }
 
-  ICandidateHitFinder::Waveform::const_iterator
-  CandHitDerivative::findStopTick(Waveform::const_iterator minItr,
-                                  Waveform::const_iterator stopItr) const
+  ICandidateHitFinder::Waveform::const_iterator CandHitDerivative::findStopTick(
+    Waveform::const_iterator minItr,
+    Waveform::const_iterator stopItr) const
   {
     Waveform::const_iterator lastItr = minItr;
 

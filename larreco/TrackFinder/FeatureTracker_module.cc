@@ -87,8 +87,7 @@ namespace trkf {
     produces<std::vector<recob::Seed>>();
   }
 
-  void
-  FeatureTracker::produce(art::Event& evt)
+  void FeatureTracker::produce(art::Event& evt)
   {
 
     // Extract hits PtrVector from event
@@ -130,8 +129,8 @@ namespace trkf {
 
   //---------------------------------------------------------------------
 
-  std::map<int, std::vector<double>>
-  FeatureTracker::ExtractEndPointTimes(std::vector<recob::EndPoint2D> EndPoints)
+  std::map<int, std::vector<double>> FeatureTracker::ExtractEndPointTimes(
+    std::vector<recob::EndPoint2D> EndPoints)
   {
     std::map<int, std::vector<double>> EndPointTimesInPlane;
     for (size_t i = 0; i != EndPoints.size(); ++i) {
@@ -148,10 +147,10 @@ namespace trkf {
 
   //---------------------------------------------------------------------
 
-  std::vector<recob::Seed>
-  FeatureTracker::GetValidLines(detinfo::DetectorPropertiesData const& detProp,
-                                std::vector<recob::SpacePoint>& spts,
-                                bool ApplyFilter)
+  std::vector<recob::Seed> FeatureTracker::GetValidLines(
+    detinfo::DetectorPropertiesData const& detProp,
+    std::vector<recob::SpacePoint>& spts,
+    bool ApplyFilter)
   {
     std::vector<recob::Seed> SeedsToReturn;
 
@@ -218,10 +217,9 @@ namespace trkf {
 
   //--------------------------------------------------
 
-  void
-  FeatureTracker::RemoveDuplicatePaths(std::vector<recob::Seed>& Seeds,
-                                       std::vector<int>& ConnectionPoint1,
-                                       std::vector<int>& ConnectionPoint2)
+  void FeatureTracker::RemoveDuplicatePaths(std::vector<recob::Seed>& Seeds,
+                                            std::vector<int>& ConnectionPoint1,
+                                            std::vector<int>& ConnectionPoint2)
   {
 
     std::map<int, bool> MarkedForRemoval;
@@ -285,13 +283,12 @@ namespace trkf {
 
   //---------------------------------------------------------------------
 
-  void
-  FeatureTracker::GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
-                                   TVector3 xyz,
-                                   std::vector<double>& uvw,
-                                   std::vector<double>& t,
-                                   int tpc,
-                                   int cryo)
+  void FeatureTracker::GetProjectedEnds(detinfo::DetectorPropertiesData const& detProp,
+                                        TVector3 xyz,
+                                        std::vector<double>& uvw,
+                                        std::vector<double>& t,
+                                        int tpc,
+                                        int cryo)
   {
     art::ServiceHandle<geo::Geometry const> geo;
 
@@ -308,11 +305,11 @@ namespace trkf {
 
   //----------------------------------------------------------------------
 
-  std::vector<recob::SpacePoint>
-  FeatureTracker::Get3DFeaturePoints(detinfo::DetectorClocksData const& clockData,
-                                     detinfo::DetectorPropertiesData const& detProp,
-                                     std::vector<recob::EndPoint2D> const& EndPoints,
-                                     art::PtrVector<recob::Hit> const& Hits)
+  std::vector<recob::SpacePoint> FeatureTracker::Get3DFeaturePoints(
+    detinfo::DetectorClocksData const& clockData,
+    detinfo::DetectorPropertiesData const& detProp,
+    std::vector<recob::EndPoint2D> const& EndPoints,
+    art::PtrVector<recob::Hit> const& Hits)
   {
 
     art::PtrVector<recob::Hit> HitsForEndPoints;

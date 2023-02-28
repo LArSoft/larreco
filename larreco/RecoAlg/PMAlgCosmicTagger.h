@@ -94,8 +94,7 @@ public:
     , fStopperBuffer(config.StopperBuffer())
   {}
 
-  bool
-  tagAny() const
+  bool tagAny() const
   {
     return (fTagOutOfDriftTracks || fTagFullHeightTracks || fTagFullWidthTracks ||
             fTagFullLengthTracks || fTagNonBeamT0Tracks || fTagApparentStopper || fTagTopFrontBack);

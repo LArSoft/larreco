@@ -151,8 +151,7 @@ ems::EMShower3D::EMShower3D(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Track, recob::Cluster>>();
 }
 
-recob::Cluster
-ems::EMShower3D::ConvertFrom(const std::vector<art::Ptr<recob::Hit>>& src)
+recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector<art::Ptr<recob::Hit>>& src)
 {
   return recob::Cluster(0.0F,
                         0.0F,
@@ -180,10 +179,9 @@ ems::EMShower3D::ConvertFrom(const std::vector<art::Ptr<recob::Hit>>& src)
                         src[0]->WireID().planeID());
 }
 
-recob::Track
-ems::EMShower3D::ConvertFrom(detinfo::DetectorClocksData const& clock_data,
-                             detinfo::DetectorPropertiesData const& detProp,
-                             pma::Track3D& src)
+recob::Track ems::EMShower3D::ConvertFrom(detinfo::DetectorClocksData const& clock_data,
+                                          detinfo::DetectorPropertiesData const& detProp,
+                                          pma::Track3D& src)
 {
   auto const* geom = lar::providerFrom<geo::Geometry>();
   double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
@@ -243,10 +241,9 @@ ems::EMShower3D::ConvertFrom(detinfo::DetectorClocksData const& clock_data,
                       fIniIndex);
 }
 
-recob::Track
-ems::EMShower3D::ConvertFrom2(detinfo::DetectorClocksData const& clockData,
-                              detinfo::DetectorPropertiesData const& detProp,
-                              pma::Track3D& src)
+recob::Track ems::EMShower3D::ConvertFrom2(detinfo::DetectorClocksData const& clockData,
+                                           detinfo::DetectorPropertiesData const& detProp,
+                                           pma::Track3D& src)
 {
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
@@ -307,8 +304,7 @@ ems::EMShower3D::ConvertFrom2(detinfo::DetectorClocksData const& clockData,
                       fIniIndex);
 }
 
-void
-ems::EMShower3D::produce(art::Event& e)
+void ems::EMShower3D::produce(art::Event& e)
 {
   art::ServiceHandle<geo::Geometry const> geom;
   fSeltracks.clear();
@@ -502,8 +498,7 @@ ems::EMShower3D::produce(art::Event& e)
   e.put(std::move(sp2hit));
 }
 
-void
-ems::EMShower3D::Reoptimize(detinfo::DetectorPropertiesData const& detProp)
+void ems::EMShower3D::Reoptimize(detinfo::DetectorPropertiesData const& detProp)
 {
   if (empty(fSeltracks)) return;
   const float min_dist = 3.0F;
@@ -586,9 +581,9 @@ ems::EMShower3D::Reoptimize(detinfo::DetectorPropertiesData const& detProp)
   }
 }
 
-std::vector<ems::DirOfGamma*>
-ems::EMShower3D::CollectShower2D(detinfo::DetectorPropertiesData const& detProp,
-                                 art::Event const& e)
+std::vector<ems::DirOfGamma*> ems::EMShower3D::CollectShower2D(
+  detinfo::DetectorPropertiesData const& detProp,
+  art::Event const& e)
 {
   std::vector<ems::DirOfGamma*> input;
 
@@ -616,10 +611,9 @@ ems::EMShower3D::CollectShower2D(detinfo::DetectorPropertiesData const& detProp,
   return input;
 }
 
-void
-ems::EMShower3D::Link(art::Event const& e,
-                      detinfo::DetectorPropertiesData const& detProp,
-                      std::vector<ems::DirOfGamma*> input)
+void ems::EMShower3D::Link(art::Event const& e,
+                           detinfo::DetectorPropertiesData const& detProp,
+                           std::vector<ems::DirOfGamma*> input)
 {
   std::vector<std::vector<size_t>> saveids;
   std::vector<size_t> saveidsnotusedcls;
@@ -690,11 +684,10 @@ ems::EMShower3D::Link(art::Event const& e,
   }
 }
 
-size_t
-ems::EMShower3D::LinkCandidates(art::Event const& e,
-                                detinfo::DetectorPropertiesData const& detProp,
-                                std::vector<ems::DirOfGamma*> input,
-                                size_t id)
+size_t ems::EMShower3D::LinkCandidates(art::Event const& e,
+                                       detinfo::DetectorPropertiesData const& detProp,
+                                       std::vector<ems::DirOfGamma*> input,
+                                       size_t id)
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -770,10 +763,9 @@ ems::EMShower3D::LinkCandidates(art::Event const& e,
   return index;
 }
 
-void
-ems::EMShower3D::Make3DSeg(art::Event const& e,
-                           detinfo::DetectorPropertiesData const& detProp,
-                           std::vector<ems::DirOfGamma*> pair)
+void ems::EMShower3D::Make3DSeg(art::Event const& e,
+                                detinfo::DetectorPropertiesData const& detProp,
+                                std::vector<ems::DirOfGamma*> pair)
 {
   if (pair.size() < 2) return;
 
@@ -819,14 +811,13 @@ ems::EMShower3D::Make3DSeg(art::Event const& e,
   }
 }
 
-bool
-ems::EMShower3D::Validate(detinfo::DetectorPropertiesData const& detProp,
-                          std::vector<ems::DirOfGamma*> input,
-                          size_t id1,
-                          size_t id2,
-                          size_t c1,
-                          size_t c2,
-                          size_t plane3)
+bool ems::EMShower3D::Validate(detinfo::DetectorPropertiesData const& detProp,
+                               std::vector<ems::DirOfGamma*> input,
+                               size_t id1,
+                               size_t id2,
+                               size_t c1,
+                               size_t c2,
+                               size_t plane3)
 {
   bool result = false;
   if (id1 == id2) return false;
@@ -869,20 +860,18 @@ ems::EMShower3D::Validate(detinfo::DetectorPropertiesData const& detProp,
   return result;
 }
 
-bool
-ems::EMShower3D::Has(const std::vector<size_t>& v, size_t idx)
+bool ems::EMShower3D::Has(const std::vector<size_t>& v, size_t idx)
 {
   for (auto c : v)
     if (c == idx) return true;
   return false;
 }
 
-bool
-ems::EMShower3D::GetCloseHits(detinfo::DetectorPropertiesData const& detProp,
-                              double r2d,
-                              const std::vector<art::Ptr<recob::Hit>>& hits_in,
-                              std::vector<size_t>& used,
-                              std::vector<art::Ptr<recob::Hit>>& hits_out)
+bool ems::EMShower3D::GetCloseHits(detinfo::DetectorPropertiesData const& detProp,
+                                   double r2d,
+                                   const std::vector<art::Ptr<recob::Hit>>& hits_in,
+                                   std::vector<size_t>& used,
+                                   std::vector<art::Ptr<recob::Hit>>& hits_out)
 {
 
   hits_out.clear();
@@ -953,11 +942,10 @@ ems::EMShower3D::GetCloseHits(detinfo::DetectorPropertiesData const& detProp,
     return false;
 }
 
-void
-ems::EMShower3D::FilterOutSmallParts(detinfo::DetectorPropertiesData const& detProp,
-                                     double r2d,
-                                     const std::vector<art::Ptr<recob::Hit>>& hits_in,
-                                     std::vector<art::Ptr<recob::Hit>>& hits_out)
+void ems::EMShower3D::FilterOutSmallParts(detinfo::DetectorPropertiesData const& detProp,
+                                          double r2d,
+                                          const std::vector<art::Ptr<recob::Hit>>& hits_in,
+                                          std::vector<art::Ptr<recob::Hit>>& hits_out)
 {
   size_t min_size = hits_in.size() / 5;
   if (min_size < 3) min_size = 3;

@@ -196,8 +196,7 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(
   }
 }
 
-void
-trkf::KalmanFilterTrajectoryFitter::produce(art::Event& e)
+void trkf::KalmanFilterTrajectoryFitter::produce(art::Event& e)
 {
 
   auto outputTracks = std::make_unique<std::vector<recob::Track>>();
@@ -363,8 +362,7 @@ trkf::KalmanFilterTrajectoryFitter::produce(art::Event& e)
     e.put(std::move(outputTjTAssn));
 }
 
-void
-trkf::KalmanFilterTrajectoryFitter::restoreInputPoints(
+void trkf::KalmanFilterTrajectoryFitter::restoreInputPoints(
   const recob::TrackTrajectory& track,
   const std::vector<art::Ptr<recob::Hit>>& inHits,
   recob::Track& outTrack,
@@ -401,10 +399,9 @@ trkf::KalmanFilterTrajectoryFitter::restoreInputPoints(
     outHits.push_back(h);
 }
 
-double
-trkf::KalmanFilterTrajectoryFitter::setMomValue(const recob::TrackTrajectory* ptraj,
-                                                const double pMC,
-                                                const int pId) const
+double trkf::KalmanFilterTrajectoryFitter::setMomValue(const recob::TrackTrajectory* ptraj,
+                                                       const double pMC,
+                                                       const int pId) const
 {
   double result = p_().options().pval();
   if (p_().options().pFromLength()) { result = tmc.GetTrackMomentum(ptraj->Length(), pId); }
@@ -414,16 +411,14 @@ trkf::KalmanFilterTrajectoryFitter::setMomValue(const recob::TrackTrajectory* pt
   return result;
 }
 
-int
-trkf::KalmanFilterTrajectoryFitter::setPId() const
+int trkf::KalmanFilterTrajectoryFitter::setPId() const
 {
   int result = p_().options().pdgId();
   return result;
 }
 
-bool
-trkf::KalmanFilterTrajectoryFitter::setDirFlip(const recob::TrackTrajectory* ptraj,
-                                               TVector3& mcdir) const
+bool trkf::KalmanFilterTrajectoryFitter::setDirFlip(const recob::TrackTrajectory* ptraj,
+                                                    TVector3& mcdir) const
 {
   bool result = false;
   if (p_().options().alwaysInvertDir()) { return true; }

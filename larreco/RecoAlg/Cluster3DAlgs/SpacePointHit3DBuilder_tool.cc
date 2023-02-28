@@ -37,10 +37,10 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <numeric> // std::accumulate
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <numeric> // std::accumulate
 
 // Ack!
 #include "TTree.h"
@@ -86,8 +86,7 @@ namespace lar_cluster3d {
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float
-    getTimeToExecute(IHit3DBuilder::TimeValues index) const override
+    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
     {
       return fTimeVector.at(index);
     }
@@ -149,8 +148,7 @@ namespace lar_cluster3d {
 
   SpacePointHit3DBuilder::~SpacePointHit3DBuilder() {}
 
-  void
-  SpacePointHit3DBuilder::produces(art::ProducesCollector& collector)
+  void SpacePointHit3DBuilder::produces(art::ProducesCollector& collector)
   {
     collector.produces<std::vector<recob::Hit>>();
 
@@ -160,8 +158,7 @@ namespace lar_cluster3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void
-  SpacePointHit3DBuilder::configure(fhicl::ParameterSet const& pset)
+  void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
     fSpacePointProducerLabel = pset.get<art::InputTag>("SpacePointProducerLabel");
     fHitProducerLabel = pset.get<art::InputTag>("HitProducerLabel");
@@ -197,8 +194,7 @@ namespace lar_cluster3d {
     fGeometry = art::ServiceHandle<geo::Geometry const>().get();
   }
 
-  void
-  SpacePointHit3DBuilder::clear()
+  void SpacePointHit3DBuilder::clear()
   {
     m_deltaTimeVec.clear();
     m_chiSquare3DVec.clear();
@@ -216,10 +212,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  SpacePointHit3DBuilder::Hit3DBuilder(art::Event& evt,
-                                       reco::HitPairList& hitPairList,
-                                       RecobHitToPtrMap& recobHitToArtPtrMap)
+  void SpacePointHit3DBuilder::Hit3DBuilder(art::Event& evt,
+                                            reco::HitPairList& hitPairList,
+                                            RecobHitToPtrMap& recobHitToArtPtrMap)
   {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
@@ -571,13 +566,12 @@ namespace lar_cluster3d {
     return;
   }
 
-  float
-  SpacePointHit3DBuilder::chargeIntegral(float peakMean,
-                                         float peakAmp,
-                                         float peakSigma,
-                                         float areaNorm,
-                                         int low,
-                                         int hi) const
+  float SpacePointHit3DBuilder::chargeIntegral(float peakMean,
+                                               float peakAmp,
+                                               float peakSigma,
+                                               float areaNorm,
+                                               int low,
+                                               int hi) const
   {
     float integral(0);
 

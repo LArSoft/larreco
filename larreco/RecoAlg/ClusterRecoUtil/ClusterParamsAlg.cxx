@@ -47,8 +47,7 @@ namespace cluster {
     SetHits(inhitlist);
   }
 
-  int
-  ClusterParamsAlg::SetHits(const std::vector<util::PxHit>& inhitlist)
+  int ClusterParamsAlg::SetHits(const std::vector<util::PxHit>& inhitlist)
   {
     Initialize();
 
@@ -75,8 +74,7 @@ namespace cluster {
     return fHitVector.size();
   }
 
-  void
-  ClusterParamsAlg::SetPlane(int p)
+  void ClusterParamsAlg::SetPlane(int p)
   {
     fPlane = p;
     for (auto& h : fHitVector)
@@ -85,8 +83,7 @@ namespace cluster {
     fParams.start_point.plane = fParams.end_point.plane = p;
   }
 
-  void
-  ClusterParamsAlg::GetFANNVector(std::vector<float>& data)
+  void ClusterParamsAlg::GetFANNVector(std::vector<float>& data)
   {
     unsigned int length = 13;
     if (data.size() != length) data.resize(length);
@@ -106,8 +103,7 @@ namespace cluster {
     return;
   }
 
-  void
-  ClusterParamsAlg::PrintFANNVector()
+  void ClusterParamsAlg::PrintFANNVector()
   {
     std::vector<float> data;
     GetFANNVector(data);
@@ -129,8 +125,7 @@ namespace cluster {
     }
   }
 
-  void
-  ClusterParamsAlg::Initialize()
+  void ClusterParamsAlg::Initialize()
   {
     fTimeRecord_ProcName.clear();
     fTimeRecord_ProcTime.clear();
@@ -176,21 +171,16 @@ namespace cluster {
     fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
 
-  void
-  ClusterParamsAlg::EnableFANN()
-  {
-    enableFANN = true;
-  }
+  void ClusterParamsAlg::EnableFANN() { enableFANN = true; }
 
-  void
-  ClusterParamsAlg::FillParams(util::GeometryUtilities const& gser,
-                               bool override_DoGetAverages,
-                               bool override_DoGetRoughAxis,
-                               bool override_DoGetProfileInfo,
-                               bool override_DoStartPointsAndDirection,
-                               bool override_DoGetFinalSlope,
-                               bool override_DoTrackShowerSep,
-                               bool override_DoEndCharge)
+  void ClusterParamsAlg::FillParams(util::GeometryUtilities const& gser,
+                                    bool override_DoGetAverages,
+                                    bool override_DoGetRoughAxis,
+                                    bool override_DoGetProfileInfo,
+                                    bool override_DoStartPointsAndDirection,
+                                    bool override_DoGetFinalSlope,
+                                    bool override_DoTrackShowerSep,
+                                    bool override_DoEndCharge)
   {
     GetAverages(override_DoGetAverages);
     GetRoughAxis(override_DoGetRoughAxis);
@@ -201,8 +191,7 @@ namespace cluster {
     TrackShowerSeparation(override_DoTrackShowerSep);
   }
 
-  void
-  ClusterParamsAlg::GetAverages(bool override)
+  void ClusterParamsAlg::GetAverages(bool override)
   {
     if (!override) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
@@ -275,8 +264,7 @@ namespace cluster {
   }
 
   // Also does the high hitlist
-  void
-  ClusterParamsAlg::GetRoughAxis(bool override)
+  void ClusterParamsAlg::GetRoughAxis(bool override)
   {
     if (!override) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
@@ -345,8 +333,7 @@ namespace cluster {
     fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
 
-  void
-  ClusterParamsAlg::GetProfileInfo(util::GeometryUtilities const& gser, bool override)
+  void ClusterParamsAlg::GetProfileInfo(util::GeometryUtilities const& gser, bool override)
   {
     if (!override) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
@@ -695,8 +682,7 @@ namespace cluster {
    * direction
    * @param override [description]
    */
-  void
-  ClusterParamsAlg::RefineStartPoints(util::GeometryUtilities const& gser)
+  void ClusterParamsAlg::RefineStartPoints(util::GeometryUtilities const& gser)
   {
     TStopwatch localWatch;
     localWatch.Start();
@@ -890,8 +876,7 @@ namespace cluster {
   ////
   /////////////////////////////////////////////////////////////
 
-  void
-  ClusterParamsAlg::GetFinalSlope(util::GeometryUtilities const& gser, bool override)
+  void ClusterParamsAlg::GetFinalSlope(util::GeometryUtilities const& gser, bool override)
   {
     if (!override) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
@@ -1048,8 +1033,7 @@ namespace cluster {
    * the cluster.  Then the start point is refined later.
    * @param override [description]
    */
-  void
-  ClusterParamsAlg::RefineDirection(bool override)
+  void ClusterParamsAlg::RefineDirection(bool override)
   {
     //
     // We don't use "override"? Should we remove? 05/01/14
@@ -1266,8 +1250,7 @@ namespace cluster {
     fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   } //end RefineDirection
 
-  void
-  ClusterParamsAlg::FillPolygon(util::GeometryUtilities const& gser)
+  void ClusterParamsAlg::FillPolygon(util::GeometryUtilities const& gser)
   {
     TStopwatch localWatch;
     localWatch.Start();
@@ -1292,8 +1275,8 @@ namespace cluster {
 
   ///////////////////////////////////////////////////////////////////////////////////
 
-  void
-  ClusterParamsAlg::RefineStartPointAndDirection(util::GeometryUtilities const& gser, bool override)
+  void ClusterParamsAlg::RefineStartPointAndDirection(util::GeometryUtilities const& gser,
+                                                      bool override)
   {
     // This function is meant to pick the direction.
     // It refines both the start and end point, and then asks
@@ -1360,8 +1343,7 @@ namespace cluster {
     fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
 
-  void
-  ClusterParamsAlg::TrackShowerSeparation(bool override)
+  void ClusterParamsAlg::TrackShowerSeparation(bool override)
   {
     if (!override) return;
     if (verbose) std::cout << " ---- Trying T/S sep. ------ \n";
@@ -1376,8 +1358,8 @@ namespace cluster {
   }
 
   //----------------------------------------------------------------------------
-  void
-  ClusterParamsAlg::GetEndCharges(util::GeometryUtilities const& gser, bool override_ /* = false */)
+  void ClusterParamsAlg::GetEndCharges(util::GeometryUtilities const& gser,
+                                       bool override_ /* = false */)
   {
     if (!override_) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
@@ -1397,19 +1379,17 @@ namespace cluster {
   } // ClusterParamsAlg::GetEndCharges()
 
   //----------------------------------------------------------------------------
-  double
-  ClusterParamsAlg::LinearIntegral(double m, double q, double x1, double x2)
+  double ClusterParamsAlg::LinearIntegral(double m, double q, double x1, double x2)
   {
     return m / 2. * (cet::square(x2) - cet::square(x1)) + q * (x2 - x1);
   }
 
   //----------------------------------------------------------------------------
-  double
-  ClusterParamsAlg::IntegrateFitCharge(util::GeometryUtilities const& gser,
-                                       double from_length,
-                                       double to_length,
-                                       unsigned int fit_first_bin,
-                                       unsigned int fit_end_bin)
+  double ClusterParamsAlg::IntegrateFitCharge(util::GeometryUtilities const& gser,
+                                              double from_length,
+                                              double to_length,
+                                              unsigned int fit_first_bin,
+                                              unsigned int fit_end_bin)
   {
     // first compute the information on the charge profile
     GetProfileInfo(gser);
@@ -1464,10 +1444,9 @@ namespace cluster {
   } // ClusterParamsAlg::IntegrateFitCharge()
 
   //----------------------------------------------------------------------------
-  double
-  ClusterParamsAlg::StartCharge(util::GeometryUtilities const& gser,
-                                float length /* = 1. */,
-                                unsigned int nbins /* = 10 */)
+  double ClusterParamsAlg::StartCharge(util::GeometryUtilities const& gser,
+                                       float length /* = 1. */,
+                                       unsigned int nbins /* = 10 */)
   {
     switch (fHitVector.size()) {
     case 0: return 0.;
@@ -1483,10 +1462,9 @@ namespace cluster {
   } // ClusterParamsAlg::StartCharge()
 
   //----------------------------------------------------------------------------
-  double
-  ClusterParamsAlg::EndCharge(util::GeometryUtilities const& gser,
-                              float length /* = 1. */,
-                              unsigned int nbins /* = 10 */)
+  double ClusterParamsAlg::EndCharge(util::GeometryUtilities const& gser,
+                                     float length /* = 1. */,
+                                     unsigned int nbins /* = 10 */)
   {
     switch (fHitVector.size()) {
     case 0: return 0.;
@@ -1512,8 +1490,7 @@ namespace cluster {
   } // ClusterParamsAlg::EndCharge()
 
   //------------------------------------------------------------------------------
-  float
-  ClusterParamsAlg::MultipleHitWires()
+  float ClusterParamsAlg::MultipleHitWires()
   {
     if (fHitVector.size() < 2) return 0.0F;
 
@@ -1525,8 +1502,7 @@ namespace cluster {
   } // ClusterParamsAlg::MultipleHitWires()
 
   //------------------------------------------------------------------------------
-  float
-  ClusterParamsAlg::MultipleHitDensity(util::GeometryUtilities const& gser)
+  float ClusterParamsAlg::MultipleHitDensity(util::GeometryUtilities const& gser)
   {
     if (fHitVector.size() < 2) return 0.0F;
 

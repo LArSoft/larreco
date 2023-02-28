@@ -56,8 +56,7 @@ shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset, int const debu
   }
 }
 
-void
-shower::EMShowerAlg::AssociateClustersAndTracks(
+void shower::EMShowerAlg::AssociateClustersAndTracks(
   std::vector<art::Ptr<recob::Cluster>> const& clusters,
   art::FindManyP<recob::Hit> const& fmh,
   art::FindManyP<recob::Track> const& fmt,
@@ -69,8 +68,7 @@ shower::EMShowerAlg::AssociateClustersAndTracks(
     clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
 }
 
-void
-shower::EMShowerAlg::AssociateClustersAndTracks(
+void shower::EMShowerAlg::AssociateClustersAndTracks(
   std::vector<art::Ptr<recob::Cluster>> const& clusters,
   art::FindManyP<recob::Hit> const& fmh,
   art::FindManyP<recob::Track> const& fmt,
@@ -115,8 +113,7 @@ shower::EMShowerAlg::AssociateClustersAndTracks(
   }
 }
 
-void
-shower::EMShowerAlg::CheckIsolatedHits_(
+void shower::EMShowerAlg::CheckIsolatedHits_(
   std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap) const
 {
   std::map<int, std::vector<int>> firstTPC;
@@ -197,8 +194,7 @@ shower::EMShowerAlg::CheckIsolatedHits_(
   }
 }
 
-bool
-shower::EMShowerAlg::CheckShowerHits_(
+bool shower::EMShowerAlg::CheckShowerHits_(
   detinfo::DetectorPropertiesData const& detProp,
   std::map<int, std::vector<art::Ptr<recob::Hit>>> const& showerHitsMap) const
 {
@@ -290,10 +286,10 @@ shower::EMShowerAlg::CheckShowerHits_(
   return consistencyCheck;
 }
 
-std::vector<int>
-shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int>> const& initialShowers,
-                                       std::vector<art::Ptr<recob::Cluster>> const& clusters,
-                                       art::FindManyP<recob::Hit> const& fmh) const
+std::vector<int> shower::EMShowerAlg::CheckShowerPlanes(
+  std::vector<std::vector<int>> const& initialShowers,
+  std::vector<art::Ptr<recob::Cluster>> const& clusters,
+  art::FindManyP<recob::Hit> const& fmh) const
 {
   std::vector<int> clustersToIgnore;
 
@@ -390,10 +386,9 @@ shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int>> const& init
   return clustersToIgnore;
 }
 
-TVector3
-shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
-                                       art::Ptr<recob::Hit> const& hit1,
-                                       art::Ptr<recob::Hit> const& hit2) const
+TVector3 shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
+                                                art::Ptr<recob::Hit> const& hit1,
+                                                art::Ptr<recob::Hit> const& hit2) const
 {
 
   // x is average of the two x's
@@ -408,11 +403,11 @@ shower::EMShowerAlg::Construct3DPoint_(detinfo::DetectorPropertiesData const& de
   return TVector3(x, intersection.y, intersection.z);
 }
 
-std::unique_ptr<recob::Track>
-shower::EMShowerAlg::ConstructTrack(detinfo::DetectorPropertiesData const& detProp,
-                                    std::vector<art::Ptr<recob::Hit>> const& hits1,
-                                    std::vector<art::Ptr<recob::Hit>> const& hits2,
-                                    std::map<int, TVector2> const& showerCentreMap) const
+std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> const& hits1,
+  std::vector<art::Ptr<recob::Hit>> const& hits2,
+  std::map<int, TVector2> const& showerCentreMap) const
 {
 
   std::unique_ptr<recob::Track> track;
@@ -557,20 +552,19 @@ shower::EMShowerAlg::ConstructTrack(detinfo::DetectorPropertiesData const& detPr
   return track;
 }
 
-std::unique_ptr<recob::Track>
-shower::EMShowerAlg::ConstructTrack(detinfo::DetectorPropertiesData const& detProp,
-                                    std::vector<art::Ptr<recob::Hit>> const& track1,
-                                    std::vector<art::Ptr<recob::Hit>> const& track2) const
+std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> const& track1,
+  std::vector<art::Ptr<recob::Hit>> const& track2) const
 {
   std::map<int, TVector2> showerCentreMap;
   return ConstructTrack(detProp, track1, track2, showerCentreMap);
 }
 
-double
-shower::EMShowerAlg::FinddEdx_(detinfo::DetectorClocksData const& clockData,
-                               detinfo::DetectorPropertiesData const& detProp,
-                               std::vector<art::Ptr<recob::Hit>> const& trackHits,
-                               std::unique_ptr<recob::Track> const& track) const
+double shower::EMShowerAlg::FinddEdx_(detinfo::DetectorClocksData const& clockData,
+                                      detinfo::DetectorPropertiesData const& detProp,
+                                      std::vector<art::Ptr<recob::Hit>> const& trackHits,
+                                      std::unique_ptr<recob::Track> const& track) const
 {
   assert(not empty(trackHits));
   if (!track) return -999;
@@ -608,8 +602,7 @@ shower::EMShowerAlg::FinddEdx_(detinfo::DetectorClocksData const& clockData,
   return fCalorimetryAlg.dEdx_AREA(clockData, detProp, dQdx, avHitTime, firstHit.WireID().Plane);
 }
 
-void
-shower::EMShowerAlg::FindInitialTrack(
+void shower::EMShowerAlg::FindInitialTrack(
   detinfo::DetectorPropertiesData const& detProp,
   const std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap,
   std::unique_ptr<recob::Track>& initialTrack,
@@ -655,10 +648,10 @@ shower::EMShowerAlg::FindInitialTrack(
                  "-------------------- \n";
 }
 
-std::vector<art::Ptr<recob::Hit>>
-shower::EMShowerAlg::FindOrderOfHits_(detinfo::DetectorPropertiesData const& detProp,
-                                      std::vector<art::Ptr<recob::Hit>> const& hits,
-                                      bool perpendicular) const
+std::vector<art::Ptr<recob::Hit>> shower::EMShowerAlg::FindOrderOfHits_(
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> const& hits,
+  bool perpendicular) const
 {
   // Find the charge-weighted centre (in [cm]) of this shower
   TVector2 centre = ShowerCenter_(detProp, hits);
@@ -713,8 +706,8 @@ shower::EMShowerAlg::FindOrderOfHits_(detinfo::DetectorPropertiesData const& det
   return showerHits;
 }
 
-std::vector<std::vector<int>>
-shower::EMShowerAlg::FindShowers(std::map<int, std::vector<int>> const& trackToClusters) const
+std::vector<std::vector<int>> shower::EMShowerAlg::FindShowers(
+  std::map<int, std::vector<int>> const& trackToClusters) const
 {
   // Showers are vectors of clusters
   std::vector<std::vector<int>> showers;
@@ -753,8 +746,7 @@ shower::EMShowerAlg::FindShowers(std::map<int, std::vector<int>> const& trackToC
   return showers;
 }
 
-std::map<int, std::vector<art::Ptr<recob::Hit>>>
-shower::EMShowerAlg::FindShowerStart_(
+std::map<int, std::vector<art::Ptr<recob::Hit>>> shower::EMShowerAlg::FindShowerStart_(
   std::map<int, std::vector<art::Ptr<recob::Hit>>> const& orderedShowerMap) const
 {
 
@@ -869,8 +861,7 @@ shower::EMShowerAlg::FindShowerStart_(
   return initialHitsMap;
 }
 
-std::map<int, std::map<int, bool>>
-shower::EMShowerAlg::GetPlanePermutations_(
+std::map<int, std::map<int, bool>> shower::EMShowerAlg::GetPlanePermutations_(
   const detinfo::DetectorPropertiesData& detProp,
   const std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap) const
 {
@@ -956,8 +947,7 @@ shower::EMShowerAlg::GetPlanePermutations_(
   return permutations;
 }
 
-std::unique_ptr<recob::Track>
-shower::EMShowerAlg::MakeInitialTrack_(
+std::unique_ptr<recob::Track> shower::EMShowerAlg::MakeInitialTrack_(
   detinfo::DetectorPropertiesData const& detProp,
   std::map<int, std::vector<art::Ptr<recob::Hit>>> const& initialHitsMap,
   std::map<int, std::vector<art::Ptr<recob::Hit>>> const& showerHitsMap) const
@@ -1006,8 +996,7 @@ shower::EMShowerAlg::MakeInitialTrack_(
   return ConstructTrack(detProp, initialHitsMap.at(planes.at(0)), initialHitsMap.at(planes.at(1)));
 }
 
-recob::Shower
-shower::EMShowerAlg::MakeShower(
+recob::Shower shower::EMShowerAlg::MakeShower(
   detinfo::DetectorClocksData const& clockData,
   detinfo::DetectorPropertiesData const& detProp,
   art::PtrVector<recob::Hit> const& hits,
@@ -1073,12 +1062,11 @@ shower::EMShowerAlg::MakeShower(
                        bestPlane);
 }
 
-recob::Shower
-shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const& clockData,
-                                detinfo::DetectorPropertiesData const& detProp,
-                                art::PtrVector<recob::Hit> const& hits,
-                                art::Ptr<recob::Vertex> const& vertex,
-                                int& iok) const
+recob::Shower shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const& clockData,
+                                              detinfo::DetectorPropertiesData const& detProp,
+                                              art::PtrVector<recob::Hit> const& hits,
+                                              art::Ptr<recob::Vertex> const& vertex,
+                                              int& iok) const
 {
   iok = 1;
 
@@ -1226,8 +1214,7 @@ shower::EMShowerAlg::MakeShower(detinfo::DetectorClocksData const& clockData,
   return recob::Shower();
 }
 
-std::vector<recob::SpacePoint>
-shower::EMShowerAlg::MakeSpacePoints(
+std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(
   detinfo::DetectorPropertiesData const& detProp,
   std::map<int, std::vector<art::Ptr<recob::Hit>>> const& showerHits,
   std::vector<std::vector<art::Ptr<recob::Hit>>>& hitAssns) const
@@ -1368,10 +1355,10 @@ shower::EMShowerAlg::MakeSpacePoints(
   return spacePoints;
 }
 
-std::map<int, std::vector<art::Ptr<recob::Hit>>>
-shower::EMShowerAlg::OrderShowerHits(detinfo::DetectorPropertiesData const& detProp,
-                                     art::PtrVector<recob::Hit> const& shower,
-                                     int desired_plane) const
+std::map<int, std::vector<art::Ptr<recob::Hit>>> shower::EMShowerAlg::OrderShowerHits(
+  detinfo::DetectorPropertiesData const& detProp,
+  art::PtrVector<recob::Hit> const& shower,
+  int desired_plane) const
 {
   /// Ordering the shower hits requires three stages:
   ///  -- putting all the hits in a given plane in some kind of order
@@ -1583,11 +1570,10 @@ shower::EMShowerAlg::OrderShowerHits(detinfo::DetectorPropertiesData const& detP
   return showerHitsMap;
 }
 
-void
-shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const& detProp,
-                                      std::vector<art::Ptr<recob::Hit>> const& shower,
-                                      std::vector<art::Ptr<recob::Hit>>& showerHits,
-                                      art::Ptr<recob::Vertex> const& vertex) const
+void shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const& detProp,
+                                           std::vector<art::Ptr<recob::Hit>> const& shower,
+                                           std::vector<art::Ptr<recob::Hit>>& showerHits,
+                                           art::Ptr<recob::Vertex> const& vertex) const
 {
 
   showerHits = FindOrderOfHits_(detProp, shower);
@@ -1616,10 +1602,9 @@ shower::EMShowerAlg::OrderShowerHits_(detinfo::DetectorPropertiesData const& det
   }
 }
 
-void
-shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit>> const& showerHits,
-                                          art::Ptr<recob::Vertex> const& vertex,
-                                          std::vector<art::Ptr<recob::Hit>>& trackHits) const
+void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit>> const& showerHits,
+                                               art::Ptr<recob::Vertex> const& vertex,
+                                               std::vector<art::Ptr<recob::Hit>>& trackHits) const
 {
 
   // Find TPC for the vertex
@@ -1679,30 +1664,26 @@ shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit>> cons
   }
 }
 
-TVector2
-shower::EMShowerAlg::HitCoordinates_(recob::Hit const& hit) const
+TVector2 shower::EMShowerAlg::HitCoordinates_(recob::Hit const& hit) const
 {
   return TVector2(GlobalWire_(hit.WireID()), hit.PeakTime());
 }
 
-TVector2
-shower::EMShowerAlg::HitPosition_(detinfo::DetectorPropertiesData const& detProp,
-                                  recob::Hit const& hit) const
+TVector2 shower::EMShowerAlg::HitPosition_(detinfo::DetectorPropertiesData const& detProp,
+                                           recob::Hit const& hit) const
 {
   geo::PlaneID planeID = hit.WireID().planeID();
   return HitPosition_(detProp, HitCoordinates_(hit), planeID);
 }
 
-TVector2
-shower::EMShowerAlg::HitPosition_(detinfo::DetectorPropertiesData const& detProp,
-                                  TVector2 const& pos,
-                                  geo::PlaneID planeID) const
+TVector2 shower::EMShowerAlg::HitPosition_(detinfo::DetectorPropertiesData const& detProp,
+                                           TVector2 const& pos,
+                                           geo::PlaneID planeID) const
 {
   return TVector2(pos.X() * fGeom->WirePitch(planeID), detProp.ConvertTicksToX(pos.Y(), planeID));
 }
 
-double
-shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
+double shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
 {
   double globalWire = -999;
 
@@ -1756,8 +1737,7 @@ shower::EMShowerAlg::GlobalWire_(const geo::WireID& wireID) const
   return globalWire;
 }
 
-std::map<double, int>
-shower::EMShowerAlg::RelativeWireWidth_(
+std::map<double, int> shower::EMShowerAlg::RelativeWireWidth_(
   const std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap) const
 {
 
@@ -1796,9 +1776,9 @@ shower::EMShowerAlg::RelativeWireWidth_(
   return wireWidthMap;
 }
 
-TVector2
-shower::EMShowerAlg::ShowerDirection_(detinfo::DetectorPropertiesData const& detProp,
-                                      const std::vector<art::Ptr<recob::Hit>>& showerHits) const
+TVector2 shower::EMShowerAlg::ShowerDirection_(
+  detinfo::DetectorPropertiesData const& detProp,
+  const std::vector<art::Ptr<recob::Hit>>& showerHits) const
 {
 
   TVector2 pos;
@@ -1822,9 +1802,9 @@ shower::EMShowerAlg::ShowerDirection_(detinfo::DetectorPropertiesData const& det
   return direction;
 }
 
-TVector2
-shower::EMShowerAlg::ShowerCenter_(detinfo::DetectorPropertiesData const& detProp,
-                                   std::vector<art::Ptr<recob::Hit>> const& showerHits) const
+TVector2 shower::EMShowerAlg::ShowerCenter_(
+  detinfo::DetectorPropertiesData const& detProp,
+  std::vector<art::Ptr<recob::Hit>> const& showerHits) const
 {
 
   TVector2 pos, chargePoint = TVector2(0, 0);
@@ -1841,9 +1821,8 @@ shower::EMShowerAlg::ShowerCenter_(detinfo::DetectorPropertiesData const& detPro
   return centre;
 }
 
-double
-shower::EMShowerAlg::ShowerHitRMS_(detinfo::DetectorPropertiesData const& detProp,
-                                   const std::vector<art::Ptr<recob::Hit>>& showerHits) const
+double shower::EMShowerAlg::ShowerHitRMS_(detinfo::DetectorPropertiesData const& detProp,
+                                          const std::vector<art::Ptr<recob::Hit>>& showerHits) const
 {
 
   TVector2 direction = ShowerDirection_(detProp, showerHits);
@@ -1861,8 +1840,7 @@ shower::EMShowerAlg::ShowerHitRMS_(detinfo::DetectorPropertiesData const& detPro
   return RMS;
 }
 
-double
-shower::EMShowerAlg::ShowerHitRMSGradient_(
+double shower::EMShowerAlg::ShowerHitRMSGradient_(
   detinfo::DetectorPropertiesData const& detProp,
   const std::vector<art::Ptr<recob::Hit>>& showerHits) const
 {
@@ -1943,11 +1921,11 @@ shower::EMShowerAlg::ShowerHitRMSGradient_(
   return RMSgradient;
 }
 
-TVector2
-shower::EMShowerAlg::Project3DPointOntoPlane_(detinfo::DetectorPropertiesData const& detProp,
-                                              TVector3 const& point,
-                                              int plane,
-                                              int cryostat) const
+TVector2 shower::EMShowerAlg::Project3DPointOntoPlane_(
+  detinfo::DetectorPropertiesData const& detProp,
+  TVector3 const& point,
+  int plane,
+  int cryostat) const
 {
 
   TVector2 wireTickPos = TVector2(-999., -999.);
@@ -1976,8 +1954,7 @@ shower::EMShowerAlg::Project3DPointOntoPlane_(detinfo::DetectorPropertiesData co
   return HitPosition_(detProp, wireTickPos, planeID);
 }
 
-int
-shower::EMShowerAlg::WorstPlane_(
+int shower::EMShowerAlg::WorstPlane_(
   const std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap) const
 {
   // Get the width of the shower in wire coordinate
@@ -2014,12 +1991,11 @@ shower::EMShowerAlg::WorstPlane_(
   return wireWidthMap.begin()->second;
 }
 
-Int_t
-shower::EMShowerAlg::WeightedFit(const Int_t n,
-                                 const Double_t* x,
-                                 const Double_t* y,
-                                 const Double_t* w,
-                                 Double_t* parm) const
+Int_t shower::EMShowerAlg::WeightedFit(const Int_t n,
+                                       const Double_t* x,
+                                       const Double_t* y,
+                                       const Double_t* w,
+                                       Double_t* parm) const
 {
 
   Double_t sumx = 0.;
@@ -2061,8 +2037,7 @@ shower::EMShowerAlg::WeightedFit(const Int_t n,
   return 0;
 }
 
-bool
-shower::EMShowerAlg::isCleanShower(std::vector<art::Ptr<recob::Hit>> const& hits) const
+bool shower::EMShowerAlg::isCleanShower(std::vector<art::Ptr<recob::Hit>> const& hits) const
 {
   if (hits.empty()) return false;
   if (hits.size() > 2000) return true;

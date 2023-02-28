@@ -20,7 +20,6 @@
  * @{
  */
 
-
 #ifndef GFDAF_H
 #define GFDAF_H
 
@@ -28,8 +27,6 @@
 #include <vector>
 
 #include "TMatrixT.h"
-
-
 
 /** @brief Determinstic Annealing Filter (DAF) implementation
  *
@@ -44,69 +41,69 @@
 
 namespace genf {
 
-class GFTrack;
+  class GFTrack;
 
-
-class GFDaf {
-public:
-
-
-  /** @brief Standard CTOR. Sets default values for annealing scheme and probablity cut.
+  class GFDaf {
+  public:
+    /** @brief Standard CTOR. Sets default values for annealing scheme and probablity cut.
    */
-  GFDaf();
+    GFDaf();
 
+    ~GFDaf();
 
-  ~GFDaf();
-
-
-
-  /** @brief Performs DAF fit on all track representations in a GFTrack.
+    /** @brief Performs DAF fit on all track representations in a GFTrack.
    *
    */
-  void processTrack(GFTrack*);
+    void processTrack(GFTrack*);
 
-
-  /** @brief Set the blowup factor (see blowUpCovs() )
+    /** @brief Set the blowup factor (see blowUpCovs() )
    */
-  void setBlowUpFactor(double f){fBlowUpFactor=f;}
+    void setBlowUpFactor(double f) { fBlowUpFactor = f; }
 
-  /** @brief Set the probabilty cut for the weight calculation for the hits. Currently
+    /** @brief Set the probabilty cut for the weight calculation for the hits. Currently
    * supported are the values 0.01 0.005, and 0.001. The corresponding chi2 cuts for
    * different hits dimensionalities are hardcoded in the implementation because I did
    * not yet figure out how to calculate them. Please feel very welcome to change the
    * implementtion if you know how to do it.
    */
-  void setProbCut(double val);
+    void setProbCut(double val);
 
-  /** @brief Configure the annealing scheme.
+    /** @brief Configure the annealing scheme.
    * In the current implementation you need to provide at least two temperatures. The maximum would ten
    * tempertatures.
    */
-  void setBetas(double b1,double b2,double b3=-1.,double b4=-1.,double b5=-1.,double b6=-1.,double b7=-1.,double b8=-1.,double b9=-1.,double b10=-1.);
-  // Private Methods -----------------
-private:
-
-  /** @brief Calculate Kalman Gain
+    void setBetas(double b1,
+                  double b2,
+                  double b3 = -1.,
+                  double b4 = -1.,
+                  double b5 = -1.,
+                  double b6 = -1.,
+                  double b7 = -1.,
+                  double b8 = -1.,
+                  double b9 = -1.,
+                  double b10 = -1.);
+    // Private Methods -----------------
+  private:
+    /** @brief Calculate Kalman Gain
    */
-  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
-                            const TMatrixT<Double_t>& HitCov,
-                            const TMatrixT<Double_t>& H,
-                            const double& p);
+    TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
+                                const TMatrixT<Double_t>& HitCov,
+                                const TMatrixT<Double_t>& H,
+                                const double& p);
 
-
-  /** @brief This is needed to blow up the covariance matrix before a fitting pass.
+    /** @brief This is needed to blow up the covariance matrix before a fitting pass.
    * The method drops off-diagonal elements and blows up diagonal by blowUpFactor.
    */
-  void blowUpCovs(GFTrack* trk);
+    void blowUpCovs(GFTrack* trk);
 
-  /** @brief invert a matrix. First argument is matrix to be inverted, second is return by ref.
+    /** @brief invert a matrix. First argument is matrix to be inverted, second is return by ref.
    */
-  void invertMatrix(const TMatrixT<Double_t>&,TMatrixT<Double_t>&);
+    void invertMatrix(const TMatrixT<Double_t>&, TMatrixT<Double_t>&);
 
-  double fBlowUpFactor;
-  std::vector<double>	fBeta;
-  std::map<int,double>  chi2Cuts;
-};
+    double fBlowUpFactor;
+    std::vector<double> fBeta;
+    std::map<int, double> chi2Cuts;
+  };
 
 } // namespace genf
 #endif

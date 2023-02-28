@@ -50,18 +50,15 @@ namespace tca {
   constexpr unsigned int Tpad = 10;    // alignment for CTP sub-items - TPC
   constexpr unsigned int Cpad = 10000; // alignment for CTP sub-items - Cryostat
 
-  inline CTP_t
-  EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane)
+  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane)
   {
     return cryo * Cpad + tpc * Tpad + plane;
   }
-  inline CTP_t
-  EncodeCTP(const geo::PlaneID& planeID)
+  inline CTP_t EncodeCTP(const geo::PlaneID& planeID)
   {
     return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane);
   }
-  inline CTP_t
-  EncodeCTP(const geo::WireID& wireID)
+  inline CTP_t EncodeCTP(const geo::WireID& wireID)
   {
     return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane);
   }
@@ -262,13 +259,13 @@ namespace tca {
     CTP_t CTP;
     unsigned short TPIndex{USHRT_MAX}; ///< and the TP index
     unsigned short SFIndex{USHRT_MAX}; ///< and the section fit index
-    std::bitset<8> Flags;     //< see TP3DFlags_t
+    std::bitset<8> Flags;              //< see TP3DFlags_t
   };
 
   typedef enum {
-    kTP3DGood,    // Is good for fitting and calorimetry
-    kTP3DBad,      // Should be removed from the trajectory
-    kTP3DHiDEdx  // Has high dE/dx
+    kTP3DGood,  // Is good for fitting and calorimetry
+    kTP3DBad,   // Should be removed from the trajectory
+    kTP3DHiDEdx // Has high dE/dx
   } TP3DFlags_t;
 
   // Struct for 3D trajectory matching
@@ -304,11 +301,7 @@ namespace tca {
     std::bitset<pAlgModSize> AlgMod; //< Allocate the first set of bits in AlgBit_t for 3D algs
   };
 
-  typedef enum {
-    kCanSection,
-    kNeedsUpdate,
-    kSmallAngle
-  } PFPFlags_t;
+  typedef enum { kCanSection, kNeedsUpdate, kSmallAngle } PFPFlags_t;
 
   struct ShowerPoint {
     Point2_t Pos; // Hit Position in the normal coordinate system

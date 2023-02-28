@@ -10,15 +10,13 @@ namespace cmtool {
   }
 
   //-----------------------------
-  void
-  CFAlgoQRatio::Reset()
+  void CFAlgoQRatio::Reset()
   //-----------------------------
   {}
 
   //-----------------------------------------------------------------------------------------
-  float
-  CFAlgoQRatio::Float(util::GeometryUtilities const&,
-                      const std::vector<const cluster::ClusterParamsAlg*>& clusters)
+  float CFAlgoQRatio::Float(util::GeometryUtilities const&,
+                            const std::vector<const cluster::ClusterParamsAlg*>& clusters)
   //-----------------------------------------------------------------------------------------
   {
 
@@ -68,8 +66,7 @@ namespace cmtool {
   }
 
   //------------------------------
-  void
-  CFAlgoQRatio::Report()
+  void CFAlgoQRatio::Report()
   //------------------------------
   {}
 

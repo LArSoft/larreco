@@ -26,7 +26,6 @@ namespace cmtool {
   class CBAlgoArray : public CBoolAlgoBase {
 
   public:
-
     /// Default constructor
     CBAlgoArray();
 
@@ -34,10 +33,9 @@ namespace cmtool {
     virtual ~CBAlgoArray(){};
 
     /// A simple method to add a one merging step
-    void AddAlgo(CBoolAlgoBase* algo,
-		 bool ask_and = true)
+    void AddAlgo(CBoolAlgoBase* algo, bool ask_and = true)
     {
-      if(ask_and) _last_and_algo_index = _algo_array.size();
+      if (ask_and) _last_and_algo_index = _algo_array.size();
       _algo_array.push_back(algo);
       _ask_and.push_back(ask_and);
     }
@@ -45,7 +43,7 @@ namespace cmtool {
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
      */
-    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
+    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg>& clusters);
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
@@ -55,7 +53,7 @@ namespace cmtool {
     /**
        Optional function: Called at the beginning of each iteration over possible pairs of clusters
      */
-    virtual void IterationBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
+    virtual void IterationBegin(const std::vector<cluster::ClusterParamsAlg>& clusters);
 
     /**
        Optional function: Called at the end of each iteration over possible pairs of clusters
@@ -66,8 +64,8 @@ namespace cmtool {
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2);
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2);
 
     /**
        Optional function: called after each Merge() function call by CMergeManager IFF
@@ -76,14 +74,16 @@ namespace cmtool {
     virtual void Report();
 
     /// Function to set verbosity
-    virtual void SetVerbose(bool doit=true)
-    { for(auto &algo : _algo_array) algo->SetVerbose(doit); }
+    virtual void SetVerbose(bool doit = true)
+    {
+      for (auto& algo : _algo_array)
+        algo->SetVerbose(doit);
+    }
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
 
   protected:
-
     /**
        A list of algorithms to be run over. Algorithms are executed in consecutive order
        in this vector, which is the order of calling AddMergeAlgo function. For each
@@ -101,7 +101,6 @@ namespace cmtool {
 
     /// Index of last AND condition algorithm to speed execution
     size_t _last_and_algo_index;
-
   };
 }
 #endif

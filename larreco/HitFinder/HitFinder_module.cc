@@ -7,16 +7,15 @@
  * from cetpkgsupport v1_02_00.
  */
 
-
 // C/C++ standard libraries
 #include <utility> // std::unique_ptr<>
 
 // Framework libraries
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes
@@ -24,21 +23,20 @@
 
 // ... more includes in the implementation section
 
-
 namespace hit {
 
-  class HitFinder: public art::EDProducer {
+  class HitFinder : public art::EDProducer {
 
-    public:
-      explicit HitFinder(fhicl::ParameterSet const & pset);
+  public:
+    explicit HitFinder(fhicl::ParameterSet const& pset);
 
-    private:
-      void produce(art::Event & evt) override;
+  private:
+    void produce(art::Event& evt) override;
 
-      void endJob() override;
+    void endJob() override;
 
-      art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
-      CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
+    art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
+    CCHitFinderAlg fCCHFAlg;           // define CCHitFinderAlg object
 
   }; // hit::HitFinder()
 
@@ -55,18 +53,15 @@ namespace hit {
 #include "art/Framework/Principal/Handle.h"
 
 //LArSoft includes
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
-
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 
 namespace hit {
 
-
   //----------------------------------------------------------------------------
   HitFinder::HitFinder(fhicl::ParameterSet const& pset)
-    : EDProducer{pset}
-    , fCCHFAlg{pset.get<fhicl::ParameterSet>("CCHitFinderAlg")}
+    : EDProducer{pset}, fCCHFAlg{pset.get<fhicl::ParameterSet>("CCHitFinderAlg")}
   {
     fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
 
@@ -78,22 +73,21 @@ namespace hit {
 
   } // HitFinder::HitFinder()
 
-
   //----------------------------------------------------------------------------
-  void HitFinder::produce(art::Event & evt)
+  void HitFinder::produce(art::Event& evt)
   {
     // fetch the wires needed by HitFinder
 
     // make this accessible to ClusterCrawler_module
-    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-      = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
+    art::ValidHandle<std::vector<recob::Wire>> wireVecHandle =
+      evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
     fCCHFAlg.RunCCHitFinder(*wireVecHandle, evt.time());
 
     // extract the result of the algorithm (it's moved)
-    std::unique_ptr<std::vector<recob::Hit>> Hits
-      (new std::vector<recob::Hit>(std::move(fCCHFAlg.YieldHits())));
+    std::unique_ptr<std::vector<recob::Hit>> Hits(
+      new std::vector<recob::Hit>(std::move(fCCHFAlg.YieldHits())));
 
     mf::LogInfo("HitFinder") << Hits->size() << " hits produced.";
 
@@ -109,14 +103,13 @@ namespace hit {
 
   } // produce()
 
-
   //----------------------------------------------------------------------------
-  void HitFinder::endJob() {
+  void HitFinder::endJob()
+  {
     // print the statistics about fits
     mf::LogInfo log("HitFinder"); // messages are printed on "log" destruction
     fCCHFAlg.PrintStats(log);
   } // HitFinder::endJob()
-
 
   DEFINE_ART_MODULE(HitFinder)
 

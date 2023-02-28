@@ -99,8 +99,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  GausHitFinderAna::beginJob()
+  void GausHitFinderAna::beginJob()
   {
     art::ServiceHandle<art::TFileService const> tfs;
     fHitResidualAll = tfs->make<TH1F>("fHitResidualAll", "Hit Residual All", 1600, -400, 400);
@@ -135,8 +134,7 @@ namespace hit {
   }
 
   //-------------------------------------------------
-  void
-  GausHitFinderAna::analyze(const art::Event& evt)
+  void GausHitFinderAna::analyze(const art::Event& evt)
   {
     // ### TTree Run/Event ###
     fEvt = evt.id().event();

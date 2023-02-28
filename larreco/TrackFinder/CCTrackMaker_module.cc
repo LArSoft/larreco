@@ -45,13 +45,11 @@ struct CluLen {
   int length;
 };
 
-bool
-greaterThan(CluLen c1, CluLen c2)
+bool greaterThan(CluLen c1, CluLen c2)
 {
   return (c1.length > c2.length);
 }
-bool
-lessThan(CluLen c1, CluLen c2)
+bool lessThan(CluLen c1, CluLen c2)
 {
   return (c1.length < c2.length);
 }
@@ -374,8 +372,7 @@ namespace trkf {
   }
 
   //------------------------------------------------------------------------------------//
-  void
-  CCTrackMaker::produce(art::Event& evt)
+  void CCTrackMaker::produce(art::Event& evt)
   {
     fWirePitch = geom->WirePitch();
 
@@ -805,8 +802,7 @@ namespace trkf {
   } // produce
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FitVertices(detinfo::DetectorPropertiesData const& detProp)
+  void CCTrackMaker::FitVertices(detinfo::DetectorPropertiesData const& detProp)
   {
     std::vector<std::vector<geo::WireID>> hitWID;
     std::vector<std::vector<double>> hitX;
@@ -893,8 +889,7 @@ namespace trkf {
   }       // FitVertices
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FillChgNear(detinfo::DetectorPropertiesData const& detProp)
+  void CCTrackMaker::FillChgNear(detinfo::DetectorPropertiesData const& detProp)
   {
     // fills the CHgNear array
 
@@ -948,8 +943,7 @@ namespace trkf {
   } // FillChgNear
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::MakeFamily()
+  void CCTrackMaker::MakeFamily()
   {
     // define the track/vertex and mother/daughter relationships
 
@@ -1161,8 +1155,7 @@ namespace trkf {
   } // MakeFamily
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::TagCosmics()
+  void CCTrackMaker::TagCosmics()
   {
     // Make cosmic ray PFParticles
     unsigned short ipf, itj;
@@ -1226,9 +1219,8 @@ namespace trkf {
   } // TagCosmics
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::VtxMatch(detinfo::DetectorPropertiesData const& detProp,
-                         art::FindManyP<recob::Hit> const& fmCluHits)
+  void CCTrackMaker::VtxMatch(detinfo::DetectorPropertiesData const& detProp,
+                              art::FindManyP<recob::Hit> const& fmCluHits)
   {
     // Use vertex assignments to match clusters
     unsigned short ivx, ii, ipl, icl, jj, jpl, jcl, kk, kpl, kcl;
@@ -1410,8 +1402,7 @@ namespace trkf {
   } // VtxMatch
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FindMaybeVertices()
+  void CCTrackMaker::FindMaybeVertices()
   {
     // Project clusters to vertices and fill mVtxIndex. No requirement is
     // made that charge exists on the line between the Begin (End) of the
@@ -1469,9 +1460,8 @@ namespace trkf {
   } // FindMaybeVertices
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::MakeClusterChains(detinfo::DetectorPropertiesData const& detProp,
-                                  art::FindManyP<recob::Hit> const& fmCluHits)
+  void CCTrackMaker::MakeClusterChains(detinfo::DetectorPropertiesData const& detProp,
+                                       art::FindManyP<recob::Hit> const& fmCluHits)
   {
     unsigned short ipl, icl, icl1, icl2;
     float dw, dx, dWCut, dw1Max, dw2Max;
@@ -1872,12 +1862,11 @@ namespace trkf {
   } // MakeClusterChains
 
   ///////////////////////////////////////////////////////////////////////
-  float
-  CCTrackMaker::dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits,
-                         unsigned short ipl,
-                         unsigned short icl1,
-                         unsigned short end1,
-                         unsigned short icl2)
+  float CCTrackMaker::dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits,
+                               unsigned short ipl,
+                               unsigned short icl1,
+                               unsigned short end1,
+                               unsigned short icl2)
   {
     // project cluster icl1 at end1 to find the best intersection with icl2
     float dw, dx, best = 999;
@@ -1893,11 +1882,10 @@ namespace trkf {
   } // dXClTraj
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::StoreTrack(detinfo::DetectorPropertiesData const& detProp,
-                           art::FindManyP<recob::Hit> const& fmCluHits,
-                           unsigned short imat,
-                           unsigned short procCode)
+  void CCTrackMaker::StoreTrack(detinfo::DetectorPropertiesData const& detProp,
+                                art::FindManyP<recob::Hit> const& fmCluHits,
+                                unsigned short imat,
+                                unsigned short procCode)
   {
     // store the current "under construction" track in the trk vector
 
@@ -2101,9 +2089,8 @@ namespace trkf {
   } // StoreTrack
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::PlnMatch(detinfo::DetectorPropertiesData const& detProp,
-                         art::FindManyP<recob::Hit> const& fmCluHits)
+  void CCTrackMaker::PlnMatch(detinfo::DetectorPropertiesData const& detProp,
+                              art::FindManyP<recob::Hit> const& fmCluHits)
   {
     // Match clusters in all planes
     //    unsigned short ipl, icl, jpl, jcl, kpl, kcl;
@@ -2292,8 +2279,7 @@ namespace trkf {
   } // PlnMatch
 
   ///////////////////////////////////////////////////////////////////////
-  bool
-  CCTrackMaker::DupMatch(MatchPars& match)
+  bool CCTrackMaker::DupMatch(MatchPars& match)
   {
 
     unsigned short nMatCl, nMiss;
@@ -2341,10 +2327,9 @@ namespace trkf {
   } // DupMatch
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::SortMatches(detinfo::DetectorPropertiesData const& detProp,
-                            art::FindManyP<recob::Hit> const& fmCluHits,
-                            unsigned short procCode)
+  void CCTrackMaker::SortMatches(detinfo::DetectorPropertiesData const& detProp,
+                                 art::FindManyP<recob::Hit> const& fmCluHits,
+                                 unsigned short procCode)
   {
     // sort cluster matches by increasing total match error. Find the minimum total error of all
     // cluster match combinations and make tracks from them
@@ -2522,8 +2507,7 @@ namespace trkf {
   } // SortMatches
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FillEndMatch2(detinfo::DetectorPropertiesData const& detProp, MatchPars& match)
+  void CCTrackMaker::FillEndMatch2(detinfo::DetectorPropertiesData const& detProp, MatchPars& match)
   {
     // 2D version of FillEndMatch
 
@@ -2611,8 +2595,7 @@ namespace trkf {
   } // FillEndMatch2
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FillEndMatch(detinfo::DetectorPropertiesData const& detProp, MatchPars& match)
+  void CCTrackMaker::FillEndMatch(detinfo::DetectorPropertiesData const& detProp, MatchPars& match)
   {
     // fill the matching parameters for this cluster match. The calling routine
     // should set the match end vertex ID (if applicable) as well as the
@@ -3014,14 +2997,13 @@ namespace trkf {
   } // FillEndMatch
 
   ///////////////////////////////////////////////////////////////////////
-  bool
-  CCTrackMaker::FindMissingCluster(unsigned short kpl,
-                                   short& kcl,
-                                   unsigned short& kend,
-                                   float kWir,
-                                   float kX,
-                                   float okWir,
-                                   float okX)
+  bool CCTrackMaker::FindMissingCluster(unsigned short kpl,
+                                        short& kcl,
+                                        unsigned short& kend,
+                                        float kWir,
+                                        float kX,
+                                        float okWir,
+                                        float okX)
   {
     // try to attach a missing cluster to the cluster chain kcl. kend is the "match end"
 
@@ -3066,8 +3048,7 @@ namespace trkf {
   } // FindMissingCluster
 
   ///////////////////////////////////////////////////////////////////////
-  float
-  CCTrackMaker::ChargeAsym(std::array<float, 3>& mChg)
+  float CCTrackMaker::ChargeAsym(std::array<float, 3>& mChg)
   {
     // find charge asymmetry between the cluster with the highest (lowest)
     // charge
@@ -3081,8 +3062,7 @@ namespace trkf {
   } // CalculateChargeAsym
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short imat)
+  void CCTrackMaker::FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short imat)
   {
     // Fills the trkHits vector using cluster hits associated with the match combo imat
 
@@ -3176,8 +3156,7 @@ namespace trkf {
   } // FillTrkHits
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::PrintTracks() const
+  void CCTrackMaker::PrintTracks() const
   {
     mf::LogVerbatim myprt("CCTM");
     myprt << "********* PrintTracks \n";
@@ -3226,8 +3205,7 @@ namespace trkf {
   } // PrintTracks
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::PrintClusters(detinfo::DetectorPropertiesData const& detProp) const
+  void CCTrackMaker::PrintClusters(detinfo::DetectorPropertiesData const& detProp) const
   {
 
     unsigned short iTime;
@@ -3326,8 +3304,7 @@ namespace trkf {
   }       // PrintClusters
 
   ///////////////////////////////////////////////////////////////////////
-  float
-  CCTrackMaker::AngleFactor(float slope)
+  float CCTrackMaker::AngleFactor(float slope)
   {
     float slp = fabs(slope);
     if (slp > 10.) slp = 30.;
@@ -3336,12 +3313,11 @@ namespace trkf {
   } // AngleFactor
 
   ///////////////////////////////////////////////////////////////////////
-  float
-  CCTrackMaker::ChargeNear(unsigned short ipl,
-                           unsigned short wire1,
-                           float time1,
-                           unsigned short wire2,
-                           float time2)
+  float CCTrackMaker::ChargeNear(unsigned short ipl,
+                                 unsigned short wire1,
+                                 float time1,
+                                 unsigned short wire2,
+                                 float time2)
   {
     // returns the hit charge along a line between (wire1, time1) and
     // (wire2, time2)
@@ -3383,8 +3359,7 @@ namespace trkf {
   } // ChargeNear
 
   ///////////////////////////////////////////////////////////////////////
-  void
-  CCTrackMaker::FillWireHitRange()
+  void CCTrackMaker::FillWireHitRange()
   {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg
 

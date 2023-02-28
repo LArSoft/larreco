@@ -36,8 +36,7 @@
 
 namespace {
 
-  void
-  hit_position(const trkf::KHitBase& hit, double& z, double& x)
+  void hit_position(const trkf::KHitBase& hit, double& z, double& x)
   {
 
     // Map hit -> (z,x) for plotting.
@@ -104,13 +103,12 @@ namespace {
     }
   }
 
-  void
-  update_momentum(const trkf::KVector<2>::type& defl,
-                  const trkf::KSymMatrix<2>::type& errc,
-                  const trkf::KSymMatrix<2>::type& errn,
-                  double mass,
-                  double& invp,
-                  double& var_invp)
+  void update_momentum(const trkf::KVector<2>::type& defl,
+                       const trkf::KSymMatrix<2>::type& errc,
+                       const trkf::KSymMatrix<2>::type& errn,
+                       double mass,
+                       double& invp,
+                       double& var_invp)
   // Momentum updater.
   //
   // Arguments: defl - Deflection (2D slope residual between two
@@ -304,13 +302,12 @@ trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset)
 /// the start of the method, and may be resorted during the progress
 /// of the fit.
 ///
-bool
-trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
-                                  KGTrack& trg,
-                                  const Propagator& prop,
-                                  const Propagator::PropDirection dir,
-                                  KHitContainer& hits,
-                                  bool linear) const
+bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
+                                       KGTrack& trg,
+                                       const Propagator& prop,
+                                       const Propagator::PropDirection dir,
+                                       KHitContainer& hits,
+                                       bool linear) const
 {
   // Direction must be forward or backward (unknown is not allowed).
 
@@ -844,8 +841,7 @@ trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 /// failure.  In that case, false is returned and the track is left in
 /// an undefined state.
 ///
-bool
-trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator& prop) const
+bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator& prop) const
 {
   if (not trg.isValid()) {
     // It is an error if the KGTrack is not valid.
@@ -1152,8 +1148,9 @@ trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg, KGTrack* trg1, const Propagator
 /// backward, and the new endpoint is optimal.  In any case, the final
 /// result is unidirectionally fit KGTrack.
 ///
-bool
-trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator& prop, KHitContainer& hits) const
+bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
+                                        const Propagator& prop,
+                                        KHitContainer& hits) const
 {
   // Default result failure.
 
@@ -1605,8 +1602,7 @@ trkf::KalmanFilterAlg::extendTrack(KGTrack& trg, const Propagator& prop, KHitCon
 /// the last track from a global track, and setting its momentum to
 /// some small value.
 ///
-bool
-trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg, KETrack& tremom) const
+bool trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg, KETrack& tremom) const
 {
   if (!trg.isValid()) return false;
 
@@ -1659,10 +1655,9 @@ trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg, KETrack& tremom) con
 /// four with any other track parameter, this method returns without
 /// doing anything (return false).
 ///
-bool
-trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
-                                     const Propagator& prop,
-                                     KETrack& tremom) const
+bool trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
+                                          const Propagator& prop,
+                                          KETrack& tremom) const
 {
   // Get iterators pointing to the first and last tracks.
 
@@ -1854,10 +1849,9 @@ trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
 ///
 /// Returns: True if success.
 ///
-bool
-trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
-                                   const Propagator& prop,
-                                   KETrack& tremom) const
+bool trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
+                                        const Propagator& prop,
+                                        KETrack& tremom) const
 {
   mf::LogInfo log("KalmanFilterAlg");
   double invp_range = 0.;
@@ -1936,10 +1930,9 @@ trkf::KalmanFilterAlg::fitMomentum(const KGTrack& trg,
 /// propagated to the initial track fit, or if the final global track
 /// has no valid track fits.
 ///
-bool
-trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
-                                      const Propagator& prop,
-                                      KGTrack& trg) const
+bool trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
+                                           const Propagator& prop,
+                                           KGTrack& trg) const
 {
   // Get modifiable track map.
 
@@ -2072,8 +2065,7 @@ trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
 ///
 /// The initial track should have been unidirectionally fit.
 ///
-bool
-trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth, KGTrack& trg, const Propagator& prop) const
+bool trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth, KGTrack& trg, const Propagator& prop) const
 {
   bool ok = true;
 
@@ -2101,8 +2093,7 @@ trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth, KGTrack& trg, const Propagat
 ///
 /// trg - Track.
 ///
-void
-trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
+void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 {
   // Get hold of a modifiable track map from trg.
 

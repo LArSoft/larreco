@@ -91,8 +91,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  SpacePointFinder::produce(art::Event& evt)
+  void SpacePointFinder::produce(art::Event& evt)
   //
   // Purpose: Produce method.
   //
@@ -316,8 +315,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  SpacePointFinder::endJob()
+  void SpacePointFinder::endJob()
   //
   // Purpose: Print summary.
   //

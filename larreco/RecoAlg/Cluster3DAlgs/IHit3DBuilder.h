@@ -11,27 +11,24 @@
 #define IHit3DBuilder_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Event.h"
+#include "fhiclcpp/ParameterSet.h"
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace art
-{
-    class ProducesCollector;
+namespace art {
+  class ProducesCollector;
 }
 
-namespace lar_cluster3d
-{
-/**
+namespace lar_cluster3d {
+  /**
  *  @brief  IHit3DBuilder interface class definiton
  */
-class IHit3DBuilder
-{
-public:
+  class IHit3DBuilder {
+  public:
     /**
      *  @brief  Virtual Destructor
      */
@@ -66,18 +63,13 @@ public:
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
      */
-    enum TimeValues {COLLECTARTHITS   = 0,
-                     BUILDTHREEDHITS  = 1,
-                     BUILDNEWHITS     = 2,
-                     NUMTIMEVALUES
-    };
+    enum TimeValues { COLLECTARTHITS = 0, BUILDTHREEDHITS = 1, BUILDNEWHITS = 2, NUMTIMEVALUES };
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
     virtual float getTimeToExecute(TimeValues index) const = 0;
-
-};
+  };
 
 } // namespace lar_cluster3d
 #endif

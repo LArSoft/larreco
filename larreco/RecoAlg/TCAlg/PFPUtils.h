@@ -114,18 +114,25 @@ namespace tca {
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void Recover(detinfo::DetectorClocksData const& clockData,
                detinfo::DetectorPropertiesData const& detProp,
-               TCSlice& slc, PFPStruct& pfp, bool prt);
-  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc,
-                 PFPStruct& pfp, bool prt);
+               TCSlice& slc,
+               PFPStruct& pfp,
+               bool prt);
+  bool MakeTP3Ds(detinfo::DetectorPropertiesData const& detProp,
+                 TCSlice& slc,
+                 PFPStruct& pfp,
+                 bool prt);
   bool MakeSmallAnglePFP(detinfo::DetectorPropertiesData const& detProp,
-                         TCSlice& slc, PFPStruct& pfp, bool prt);
+                         TCSlice& slc,
+                         PFPStruct& pfp,
+                         bool prt);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
-  TP3D MakeTP3D(detinfo::DetectorPropertiesData const& detProp, 
-                TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp);
+  TP3D MakeTP3D(detinfo::DetectorPropertiesData const& detProp,
+                TCSlice& slc,
+                const TrajPoint& itp,
+                const TrajPoint& jtp);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
-  inline double
-  DotProd(const Vector3_t& v1, const Vector3_t& v2)
+  inline double DotProd(const Vector3_t& v1, const Vector3_t& v2)
   {
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
   }

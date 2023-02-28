@@ -99,8 +99,7 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
   fManager.Algo(fShowerAlgo);
 }
 
-void
-ShowerReco3D::produce(art::Event& e)
+void ShowerReco3D::produce(art::Event& e)
 {
   auto const& geom = *lar::providerFrom<geo::Geometry>();
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);

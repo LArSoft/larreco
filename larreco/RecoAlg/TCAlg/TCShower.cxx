@@ -29,8 +29,7 @@
 namespace tca {
 
   ////////////////////////////////////////////////
-  void
-  ConfigureMVA(TCConfig& tcc, std::string fMVAShowerParentWeights)
+  void ConfigureMVA(TCConfig& tcc, std::string fMVAShowerParentWeights)
   {
     // Define the reference to the MVA reader used to determine the best
     // shower parent PFParticle
@@ -56,11 +55,10 @@ namespace tca {
   } // ConfigureTMVA
 
   ////////////////////////////////////////////////
-  bool
-  FindShowerStart(detinfo::DetectorPropertiesData const& detProp,
-                  TCSlice& slc,
-                  ShowerStruct3D& ss3,
-                  bool prt)
+  bool FindShowerStart(detinfo::DetectorPropertiesData const& detProp,
+                       TCSlice& slc,
+                       ShowerStruct3D& ss3,
+                       bool prt)
   {
     // The shower ChgPos and Dir were found by the calling function but Dir
     // may be inconsistent with the 2D shower directions
@@ -150,8 +148,7 @@ namespace tca {
   } // FindShowerStart
 
   ////////////////////////////////////////////////
-  void
-  Finish3DShowers(TCSlice& slc)
+  void Finish3DShowers(TCSlice& slc)
   {
     // Finish defining the showers, create a companion PFParticle for each one.
     // Note to the reader: This code doesn't use MakeVertexObsolete to kill vertices using the assumption
@@ -283,8 +280,7 @@ namespace tca {
   } // Finish3DShowers
 
   ////////////////////////////////////////////////
-  bool
-  FindShowers3D(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
+  bool FindShowers3D(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Find 2D showers using 3D-matched trajectories. This returns true if showers were found
     // which requires re-doing the 3D trajectory match
@@ -423,8 +419,7 @@ namespace tca {
   } // FindShowers3D
 
   ////////////////////////////////////////////////
-  bool
-  Reconcile3D(std::string inFcnLabel, TCSlice& slc, bool parentSearchDone, bool prt)
+  bool Reconcile3D(std::string inFcnLabel, TCSlice& slc, bool parentSearchDone, bool prt)
   {
     // Reconcile pfp and shower assns
 
@@ -571,8 +566,7 @@ namespace tca {
   } // Reconcile3D
 
   ////////////////////////////////////////////////
-  bool
-  Reconcile3D(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  bool Reconcile3D(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
   {
     // checks consistency between pfparticles, showers and tjs associated with ss3
     if (ss3.ID == 0) return false;
@@ -705,8 +699,7 @@ namespace tca {
   } // Reconcile3D
 
   ////////////////////////////////////////////////
-  void
-  KillVerticesInShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  void KillVerticesInShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // make the vertices inside the shower envelope obsolete and update dontCluster
     if (ss.ID == 0) return;
@@ -750,8 +743,7 @@ namespace tca {
   } // KillVerticesInShower
 
   ////////////////////////////////////////////////
-  bool
-  CompleteIncompleteShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  bool CompleteIncompleteShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
   {
     // Find low-energy two-plane showers and try to complete it by making a 2D shower in the third
     // plane using 3D matched tjs
@@ -907,8 +899,7 @@ namespace tca {
   } // CompleteIncompleteShower
 
   ////////////////////////////////////////////////
-  bool
-  UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // This is intended to be a single function replacement for FCC, FA, USWP, etc. The calling
     // function should have set NeedsUpdate true. A complete re-build is done if the ShPts vector
@@ -1112,8 +1103,7 @@ namespace tca {
   } // UpdateShower
 
   ////////////////////////////////////////////////
-  bool
-  UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
   {
     // Updates the 3D shower presumably because the 2D showers were changed or need to be updated.
     // This function returns false if there was a failure.
@@ -1205,12 +1195,11 @@ namespace tca {
   } // UpdateShower
 
   ////////////////////////////////////////////////
-  float
-  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
-             std::string inFcnLabel,
-             TCSlice& slc,
-             ShowerStruct3D& ss3,
-             bool prt)
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
+                   TCSlice& slc,
+                   ShowerStruct3D& ss3,
+                   bool prt)
   {
     float fom = 0;
     float cnt = 0;
@@ -1227,14 +1216,13 @@ namespace tca {
   } // Match3DFOM
 
   ////////////////////////////////////////////////
-  float
-  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
-             std::string inFcnLabel,
-             TCSlice& slc,
-             int icid,
-             int jcid,
-             int kcid,
-             bool prt)
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
+                   TCSlice& slc,
+                   int icid,
+                   int jcid,
+                   int kcid,
+                   bool prt)
   {
     if (icid == 0 || icid > (int)slc.cots.size()) return 100;
     if (jcid == 0 || jcid > (int)slc.cots.size()) return 100;
@@ -1248,13 +1236,12 @@ namespace tca {
   } // Match3DFOM
 
   ////////////////////////////////////////////////
-  float
-  Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
-             std::string inFcnLabel,
-             TCSlice& slc,
-             int icid,
-             int jcid,
-             bool prt)
+  float Match3DFOM(detinfo::DetectorPropertiesData const& detProp,
+                   std::string inFcnLabel,
+                   TCSlice& slc,
+                   int icid,
+                   int jcid,
+                   bool prt)
   {
     // returns a Figure of Merit for a 3D match of two showers
     if (icid == 0 || icid > (int)slc.cots.size()) return 100;
@@ -1297,8 +1284,7 @@ namespace tca {
   } // Madtch3DFOM
 
   ////////////////////////////////////////////////
-  void
-  MergeTjList(std::vector<std::vector<int>>& tjList)
+  void MergeTjList(std::vector<std::vector<int>>& tjList)
   {
     // Merge the lists of Tjs in the lists if they share a common Tj ID
 
@@ -1351,13 +1337,12 @@ namespace tca {
   } // MergeTjList
 
   ////////////////////////////////////////////////
-  bool
-  RemovePFP(std::string inFcnLabel,
-            TCSlice& slc,
-            PFPStruct& pfp,
-            ShowerStruct3D& ss3,
-            bool doUpdate,
-            bool prt)
+  bool RemovePFP(std::string inFcnLabel,
+                 TCSlice& slc,
+                 PFPStruct& pfp,
+                 ShowerStruct3D& ss3,
+                 bool doUpdate,
+                 bool prt)
   {
     // removes the tjs in the pfp from the ss3 2D showers and optionally update. This function only returns
     // false if there was a failure. The absence of any pfp Tjs in ss3 is not considered a failure
@@ -1380,13 +1365,12 @@ namespace tca {
   } // Remove PFP
 
   ////////////////////////////////////////////////
-  bool
-  AddPFP(std::string inFcnLabel,
-         TCSlice& slc,
-         int pID,
-         ShowerStruct3D& ss3,
-         bool doUpdate,
-         bool prt)
+  bool AddPFP(std::string inFcnLabel,
+              TCSlice& slc,
+              int pID,
+              ShowerStruct3D& ss3,
+              bool doUpdate,
+              bool prt)
   {
     // Add the tjs in the pfp with id = pID to the 2D showers in ss3 and optionally update everything. This
     // function returns true if the addition was successful or if the Tjs in the pfp are already in ss3.
@@ -1442,8 +1426,12 @@ namespace tca {
   } // AddPFP
 
   ////////////////////////////////////////////////
-  bool
-  AddTj(std::string inFcnLabel, TCSlice& slc, int tjID, ShowerStruct& ss, bool doUpdate, bool prt)
+  bool AddTj(std::string inFcnLabel,
+             TCSlice& slc,
+             int tjID,
+             ShowerStruct& ss,
+             bool doUpdate,
+             bool prt)
   {
     // Adds the Tj to the shower and optionally updates the shower variables
 
@@ -1515,13 +1503,12 @@ namespace tca {
   } // AddTj
 
   ////////////////////////////////////////////////
-  bool
-  RemoveTj(std::string inFcnLabel,
-           TCSlice& slc,
-           int TjID,
-           ShowerStruct& ss,
-           bool doUpdate,
-           bool prt)
+  bool RemoveTj(std::string inFcnLabel,
+                TCSlice& slc,
+                int TjID,
+                ShowerStruct& ss,
+                bool doUpdate,
+                bool prt)
   {
     // Removes the Tj from a shower
 
@@ -1571,12 +1558,11 @@ namespace tca {
   } // RemoveTj
 
   ////////////////////////////////////////////////
-  bool
-  FindParent(detinfo::DetectorPropertiesData const& detProp,
-             std::string inFcnLabel,
-             TCSlice& slc,
-             ShowerStruct3D& ss3,
-             bool prt)
+  bool FindParent(detinfo::DetectorPropertiesData const& detProp,
+                  std::string inFcnLabel,
+                  TCSlice& slc,
+                  ShowerStruct3D& ss3,
+                  bool prt)
   {
     // look for a parent pfp for the shower.The 2D showers associated with it
     // The parent should be at the start of the shower (shend = 0) if it is well-defined
@@ -1826,13 +1812,12 @@ namespace tca {
   } // FindParent
 
   ////////////////////////////////////////////////
-  bool
-  SetParent(detinfo::DetectorPropertiesData const& detProp,
-            std::string inFcnLabel,
-            TCSlice& slc,
-            PFPStruct& pfp,
-            ShowerStruct3D& ss3,
-            bool prt)
+  bool SetParent(detinfo::DetectorPropertiesData const& detProp,
+                 std::string inFcnLabel,
+                 TCSlice& slc,
+                 PFPStruct& pfp,
+                 ShowerStruct3D& ss3,
+                 bool prt)
   {
     // set the pfp as the parent of ss3. The calling function should do the error recovery
     if (pfp.ID == 0 || ss3.ID == 0) return false;
@@ -1903,8 +1888,7 @@ namespace tca {
   } // SetParent
 
   ////////////////////////////////////////////////
-  bool
-  IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
+  bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
   {
     // Vote for the list of Tjs (assumed associated with a PFParticle) being shower-like
     if (TjIDs.empty()) return false;
@@ -1917,8 +1901,7 @@ namespace tca {
   } // IsInShower
 
   ////////////////////////////////////////////////
-  void
-  ShowerParams(double showerEnergy, double& shMaxAlong, double& along95)
+  void ShowerParams(double showerEnergy, double& shMaxAlong, double& along95)
   {
     // Returns summary properties of photon showers parameterized in the energy range 50 MeV < E_gamma < 1 GeV:
     // shMaxAlong = the longitudinal distance (cm) between the start of the shower and the center of charge
@@ -1937,8 +1920,7 @@ namespace tca {
   } // ShowerParams
 
   ////////////////////////////////////////////////
-  double
-  ShowerParamTransRMS(double showerEnergy, double along)
+  double ShowerParamTransRMS(double showerEnergy, double along)
   {
     // returns the pareameterized width rms of a shower at along relative to the shower max
     double shMaxAlong, shE95Along;
@@ -1952,8 +1934,7 @@ namespace tca {
   } // ShowerParamTransRMS
 
   ////////////////////////////////////////////////
-  double
-  InShowerProbLong(double showerEnergy, double along)
+  double InShowerProbLong(double showerEnergy, double along)
   {
     // Returns the likelihood that the point at position along (cm) is inside an EM shower
     // having showerEnergy (MeV). The variable along is relative to shower max.
@@ -1988,8 +1969,7 @@ namespace tca {
   } // InShowrProbLong
 
   ////////////////////////////////////////////////
-  double
-  InShowerProbTrans(double showerEnergy, double along, double trans)
+  double InShowerProbTrans(double showerEnergy, double along, double trans)
   {
     // Returns the likelihood that the point, (along, trans) (cm), is inside an EM shower having energy showerEnergy (MeV)
     // where along is relative to the shower start position and trans is the radial distance.
@@ -2003,15 +1983,13 @@ namespace tca {
   } // InShowerProbTrans
 
   ////////////////////////////////////////////////
-  double
-  InShowerProbParam(double showerEnergy, double along, double trans)
+  double InShowerProbParam(double showerEnergy, double along, double trans)
   {
     return InShowerProbLong(showerEnergy, along) * InShowerProbTrans(showerEnergy, along, trans);
   } // InShowerProbParam
 
   ////////////////////////////////////////////////
-  float
-  InShowerProb(TCSlice& slc, const ShowerStruct3D& ss3, const PFPStruct& pfp)
+  float InShowerProb(TCSlice& slc, const ShowerStruct3D& ss3, const PFPStruct& pfp)
   {
     // returns a likelihood (0 - 1) that the pfp particle belongs in shower ss3
 
@@ -2034,8 +2012,7 @@ namespace tca {
   } // InShowerProb
 
   ////////////////////////////////////////////////
-  float
-  InShowerProb(TCSlice& slc, const ShowerStruct& ss, const Trajectory& tj)
+  float InShowerProb(TCSlice& slc, const ShowerStruct& ss, const Trajectory& tj)
   {
     // returns a likelihood (0 - 1) that the tj particle belongs in shower ss
     // Keep it simple: construct a FOM, take the inverse and limit it to the range 0 - 1
@@ -2071,13 +2048,12 @@ namespace tca {
   } // InShowerProb
 
   ////////////////////////////////////////////////
-  float
-  ParentFOM(std::string inFcnLabel,
-            TCSlice& slc,
-            PFPStruct& pfp,
-            unsigned short pend,
-            ShowerStruct3D& ss3,
-            bool prt)
+  float ParentFOM(std::string inFcnLabel,
+                  TCSlice& slc,
+                  PFPStruct& pfp,
+                  unsigned short pend,
+                  ShowerStruct3D& ss3,
+                  bool prt)
   {
     // Returns an average weighted parent FOM for all trajectories in the pfp being a parent of the 2D showers in ss3
     if (ss3.ID == 0) return 1000;
@@ -2123,15 +2099,14 @@ namespace tca {
   } // ParentFOM
 
   ////////////////////////////////////////////////
-  float
-  ParentFOM(std::string inFcnLabel,
-            TCSlice& slc,
-            Trajectory& tj,
-            unsigned short& tjEnd,
-            ShowerStruct& ss,
-            float& tp1Sep,
-            float& vx2Score,
-            bool prt)
+  float ParentFOM(std::string inFcnLabel,
+                  TCSlice& slc,
+                  Trajectory& tj,
+                  unsigned short& tjEnd,
+                  ShowerStruct& ss,
+                  float& tp1Sep,
+                  float& vx2Score,
+                  bool prt)
   {
     // returns a FOM for the trajectory at the end point being the parent of ss and the end which
     // was matched.
@@ -2262,13 +2237,12 @@ namespace tca {
   } // ParentFOM
 
   ////////////////////////////////////////////////
-  bool
-  WrongSplitTj(std::string inFcnLabel,
-               TCSlice& slc,
-               Trajectory& tj,
-               unsigned short tjEnd,
-               ShowerStruct& ss,
-               bool prt)
+  bool WrongSplitTj(std::string inFcnLabel,
+                    TCSlice& slc,
+                    Trajectory& tj,
+                    unsigned short tjEnd,
+                    ShowerStruct& ss,
+                    bool prt)
   {
     // Returns true if the trajectory was split by a 3D vertex match and the end of this trajectory is further
     // away from the shower than the partner trajectory
@@ -2304,8 +2278,7 @@ namespace tca {
   } // WrongSplitTj
 
   ////////////////////////////////////////////////
-  void
-  MergeNearby2DShowers(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
+  void MergeNearby2DShowers(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
   {
     if (!tcc.useAlg[kMergeNrShowers]) return;
     if (slc.cots.empty()) return;
@@ -2397,8 +2370,7 @@ namespace tca {
   } //MergeNearby2DShowers
 
   ////////////////////////////////////////////////
-  void
-  MergeOverlap(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
+  void MergeOverlap(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
   {
     // Merge showers whose envelopes overlap each other
 
@@ -2518,8 +2490,7 @@ namespace tca {
   } // MergeOverlap
 
   ////////////////////////////////////////////////
-  void
-  MergeShowerChain(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
+  void MergeShowerChain(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
   {
     // Merge chains of 3 or more showers that lie on a line
 
@@ -2649,8 +2620,7 @@ namespace tca {
   } // MergeShowerChain
 
   ////////////////////////////////////////////////
-  void
-  MergeSubShowersTj(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
+  void MergeSubShowersTj(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
   {
     // merge small showers that are downstream of shower-like tjs. This algorithm is written
     // for low-energy showers with are likely to be sparse and poorly defined.
@@ -2761,8 +2731,7 @@ namespace tca {
   } // MergeSubShowersTj
 
   ////////////////////////////////////////////////
-  void
-  MergeSubShowers(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
+  void MergeSubShowers(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, bool prt)
   {
     // Merge small showers that are downstream of larger showers
 
@@ -2878,8 +2847,7 @@ namespace tca {
   } // MergeSubShowers
 
   ////////////////////////////////////////////////
-  int
-  MergeShowers(std::string inFcnLabel, TCSlice& slc, std::vector<int> ssIDs, bool prt)
+  int MergeShowers(std::string inFcnLabel, TCSlice& slc, std::vector<int> ssIDs, bool prt)
   {
     // merge a list of showers and return the ID of the merged shower.
     // Returns 0 if there was a failure.
@@ -2940,8 +2908,7 @@ namespace tca {
   } // MergeShowers
 
   ////////////////////////////////////////////////
-  bool
-  MergeShowersAndStore(std::string inFcnLabel, TCSlice& slc, int icotID, int jcotID, bool prt)
+  bool MergeShowersAndStore(std::string inFcnLabel, TCSlice& slc, int icotID, int jcotID, bool prt)
   {
     // Merge showers using shower indices. The icotID shower is modified in-place.
     // The jcotID shower is declared obsolete. This function also re-defines the shower and
@@ -3011,8 +2978,7 @@ namespace tca {
   } // MergeShowersAndStore
 
   ////////////////////////////////////////////////
-  bool
-  MergeShowerTjsAndStore(TCSlice& slc, unsigned short istj, unsigned short jstj, bool prt)
+  bool MergeShowerTjsAndStore(TCSlice& slc, unsigned short istj, unsigned short jstj, bool prt)
   {
     // Merge showers using showerTj indices
     // This function is called from MergeAndStore whose function is to merge two line-like
@@ -3056,8 +3022,7 @@ namespace tca {
   } // MergeShowerTjsAndStore
 
   ////////////////////////////////////////////////
-  bool
-  AnalyzeRotPos(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  bool AnalyzeRotPos(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // The RotPos vector was filled and sorted by increasing distance along the shower axis.
     // This function divides the RotPos points into 3 sections and puts the transverse rms width in the
@@ -3147,8 +3112,7 @@ namespace tca {
   } // AnalyzeRotPos
 
   ////////////////////////////////////////////////
-  void
-  ReverseShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  void ReverseShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // Reverses the shower and the shower tj
 
@@ -3176,8 +3140,7 @@ namespace tca {
   } // ReverseShower
 
   ////////////////////////////////////////////////
-  void
-  ReverseShower(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt)
+  void ReverseShower(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt)
   {
     // Reverses the shower and the shower tj
 
@@ -3188,8 +3151,7 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  void
-  MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
+  void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt)
   {
     // set the ss3 ID = 0 and remove 2D shower -> 3D shower associations. The 2D showers are not
     // declared obsolete
@@ -3207,8 +3169,7 @@ namespace tca {
   } // MakeShowerObsolete
 
   ////////////////////////////////////////////////
-  void
-  MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // Gracefully kills the shower and the associated shower Tj
 
@@ -3252,8 +3213,7 @@ namespace tca {
   } // MakeShowerObsolete
 
   ////////////////////////////////////////////////
-  bool
-  DontCluster(TCSlice& slc, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2)
+  bool DontCluster(TCSlice& slc, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2)
   {
     // returns true if a pair of tjs in the two lists are in the dontCluster vector
     if (tjlist1.empty() || tjlist2.empty()) return false;
@@ -3270,8 +3230,7 @@ namespace tca {
   } // DontCluster
 
   ////////////////////////////////////////////////
-  void
-  TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP)
+  void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP)
   {
     // Tag Tjs as InShower if they have MCSMom < ShowerTag[1] and there are more than
     // ShowerTag[6] other Tjs with a separation < ShowerTag[2].
@@ -3374,8 +3333,7 @@ namespace tca {
   }   // TagShowerLike
 
   ////////////////////////////////////////////////
-  void
-  FindNearbyTjs(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  void FindNearbyTjs(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // Find Tjs that are near the shower but are not included in it
     ss.NearTjIDs.clear();
@@ -3453,8 +3411,7 @@ namespace tca {
   } // FindNearbyTjs
 
   ////////////////////////////////////////////////
-  void
-  AddCloseTjsToList(TCSlice& slc, unsigned short itj, std::vector<int> list)
+  void AddCloseTjsToList(TCSlice& slc, unsigned short itj, std::vector<int> list)
   {
     // Searches the trajectory points for hits that are used in a different trajectory and add
     // them to the list if any are found, and the MCSMomentum is not too large
@@ -3483,8 +3440,7 @@ namespace tca {
   }     // AddCloseTjsToList
 
   ////////////////////////////////////////////////
-  void
-  DefineEnvelope(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  void DefineEnvelope(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
 
     if (ss.ID == 0) return;
@@ -3545,8 +3501,7 @@ namespace tca {
   } // DefineEnvelope
 
   ////////////////////////////////////////////////
-  bool
-  AddTjsInsideEnvelope(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
+  bool AddTjsInsideEnvelope(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
     // This function adds Tjs to the shower. It updates the shower parameters.
 
@@ -3621,8 +3576,7 @@ namespace tca {
   } // AddTjsInsideEnvelope
 
   ////////////////////////////////////////////////
-  bool
-  AddLooseHits(TCSlice& slc, int cotID, bool prt)
+  bool AddLooseHits(TCSlice& slc, int cotID, bool prt)
   {
     // Add hits that are inside the envelope to the shower if they are loose, i.e. not
     // used by any trajectory. This function returns true if the set of hits is different than
@@ -3698,8 +3652,7 @@ namespace tca {
   } // AddLooseHits
 
   ////////////////////////////////////////////////
-  void
-  FindStartChg(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt)
+  void FindStartChg(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt)
   {
     // Finds the charge at the start of a shower and puts it in AveChg of the first
     // point of the shower Tj. This is only done when there is no parent.
@@ -3819,8 +3772,7 @@ namespace tca {
   } // FindStartChg
 
   ////////////////////////////////////////////////
-  std::vector<float>
-  StartChgVec(TCSlice& slc, int cotID, bool prt)
+  std::vector<float> StartChgVec(TCSlice& slc, int cotID, bool prt)
   {
     // Returns a histogram vector of the charge in bins of 1 WSE unit at the start of the shower
 
@@ -3869,8 +3821,7 @@ namespace tca {
   } // StartChgVec
 
   ////////////////////////////////////////////////
-  void
-  DumpShowerPts(TCSlice& slc, int cotID)
+  void DumpShowerPts(TCSlice& slc, int cotID)
   {
     // Print the shower points to the screen. The user should probably pipe the output to a text file
     // then grep this file for the character string PTS which is piped to a text file which can then be
@@ -3892,8 +3843,7 @@ namespace tca {
   } // DumpShowerPts
 
   ////////////////////////////////////////////////
-  bool
-  TransferTjHits(TCSlice& slc, bool prt)
+  bool TransferTjHits(TCSlice& slc, bool prt)
   {
     // Transfer InShower hits in all TPCs and planes to the shower Tjs
 
@@ -3937,8 +3887,7 @@ namespace tca {
   } // TransferTjHits
 
   ////////////////////////////////////////////////
-  int
-  GetCotID(TCSlice& slc, int ShowerTjID)
+  int GetCotID(TCSlice& slc, int ShowerTjID)
   {
     for (unsigned short ii = 0; ii < slc.cots.size(); ++ii) {
       if (ShowerTjID == slc.cots[ii].ShowerTjID) return ii + 1;
@@ -3948,8 +3897,7 @@ namespace tca {
   } // GetCotID
 
   ////////////////////////////////////////////////
-  double
-  ShowerEnergy(const ShowerStruct3D& ss3)
+  double ShowerEnergy(const ShowerStruct3D& ss3)
   {
     if (ss3.ID == 0) return 0;
     if (ss3.Energy.empty()) return 0;
@@ -3962,8 +3910,7 @@ namespace tca {
   } // ShowerEnergy
 
   ////////////////////////////////////////////////
-  float
-  ShowerEnergy(TCSlice& slc, const std::vector<int> tjIDs)
+  float ShowerEnergy(TCSlice& slc, const std::vector<int> tjIDs)
   {
     // Calculate energy using the total charge of all hits in each tj in the shower
     if (tjIDs.empty()) return 0;
@@ -3976,8 +3923,7 @@ namespace tca {
   } // ShowerEnergy
 
   ////////////////////////////////////////////////
-  float
-  ChgToMeV(float chg)
+  float ChgToMeV(float chg)
   {
     // Conversion from shower charge to energy in MeV. The calibration factor
     // was found by processing 500 pizero events with StudyPiZeros using StudyMode
@@ -3985,8 +3931,7 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  bool
-  StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3)
+  bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3)
   {
     // Store a 3D shower. This function sets the 3S -> 2S assns using CotIDs and ensures
     // that the 2S -> 3S assns are OK.
@@ -4036,8 +3981,7 @@ namespace tca {
   } // StoreShower
 
   ////////////////////////////////////////////////
-  bool
-  StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss)
+  bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss)
   {
     // Store a ShowerStruct
     std::string fcnLabel = inFcnLabel + ".S2S";
@@ -4084,8 +4028,7 @@ namespace tca {
   } // StoreShower
 
   ////////////////////////////////////////////////
-  ShowerStruct3D
-  CreateSS3(TCSlice& slc)
+  ShowerStruct3D CreateSS3(TCSlice& slc)
   {
     // create a 3D shower and size the vectors that are indexed by plane
 
@@ -4104,8 +4047,7 @@ namespace tca {
   } // CreateSS3
 
   ////////////////////////////////////////////////
-  ShowerStruct
-  CreateSS(TCSlice& slc, const std::vector<int>& tjl)
+  ShowerStruct CreateSS(TCSlice& slc, const std::vector<int>& tjl)
   {
     // Create a shower and shower Tj using Tjs in the list. If tjl is empty a
     // MC cheat shower is created inCTP. Note that inCTP is only used if tjl is empty.
@@ -4151,8 +4093,7 @@ namespace tca {
   } // CreateSS
 
   ////////////////////////////////////////////////
-  bool
-  ChkAssns(std::string inFcnLabel, TCSlice& slc)
+  bool ChkAssns(std::string inFcnLabel, TCSlice& slc)
   {
     // check tj - ss assns
 
@@ -4207,8 +4148,9 @@ namespace tca {
   } // ChkAssns
 
   ////////////////////////////////////////////////
-  void
-  PrintShowers(detinfo::DetectorPropertiesData const& detProp, std::string fcnLabel, TCSlice& slc)
+  void PrintShowers(detinfo::DetectorPropertiesData const& detProp,
+                    std::string fcnLabel,
+                    TCSlice& slc)
   {
     if (slc.showers.empty()) return;
     mf::LogVerbatim myprt("TC");
@@ -4248,8 +4190,7 @@ namespace tca {
   }   // PrintShowers
 
   ////////////////////////////////////////////////
-  void
-  Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers)
+  void Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers)
   {
     // Prints a one-line summary of 2D showers
     if (slc.cots.empty()) return;
@@ -4337,12 +4278,11 @@ namespace tca {
   }     // Print2DShowers
 
   ////////////////////////////////////////////////
-  void
-  PrintShower(std::string someText,
-              TCSlice& slc,
-              const ShowerStruct& ss,
-              bool printHeader,
-              bool printExtras)
+  void PrintShower(std::string someText,
+                   TCSlice& slc,
+                   const ShowerStruct& ss,
+                   bool printHeader,
+                   bool printExtras)
   {
     // print a single shower and a header (optional) and the extra variables like TjIDs, envelope, etc
     mf::LogVerbatim myprt("TC");

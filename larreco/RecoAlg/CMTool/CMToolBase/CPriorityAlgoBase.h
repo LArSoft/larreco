@@ -27,23 +27,21 @@ namespace cmtool {
   class CPriorityAlgoBase : public CMAlgoBase {
 
   public:
-
     /// Default constructor
-    CPriorityAlgoBase(){}
+    CPriorityAlgoBase() {}
 
     /// Default destructor
-    virtual ~CPriorityAlgoBase(){}
+    virtual ~CPriorityAlgoBase() {}
 
     /**
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual float Priority(const cluster::ClusterParamsAlg &cluster)
+    virtual float Priority(const cluster::ClusterParamsAlg& cluster)
     {
-      if(cluster.GetNHits()) return 1.;
+      if (cluster.GetNHits()) return 1.;
       return 0.1;
     }
-
   };
 
 }

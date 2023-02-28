@@ -64,8 +64,7 @@ namespace trkf {
   }
 
   //--------------------------------------------------------------------
-  void
-  TrackCheater::produce(art::Event& evt)
+  void TrackCheater::produce(art::Event& evt)
   {
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;

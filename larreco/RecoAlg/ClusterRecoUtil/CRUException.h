@@ -14,26 +14,22 @@
 #ifndef CRUEXCEPTION_H
 #define CRUEXCEPTION_H
 
-#include <string>
 #include <exception>
+#include <string>
 
 namespace cluster {
   /**
      \class CRUException
      Generic (base) exception class
   */
-  class CRUException : public std::exception{
+  class CRUException : public std::exception {
 
   public:
+    CRUException(std::string msg = "") : _msg(msg) {}
 
-    CRUException(std::string msg="") : _msg(msg)
-    {}
-
-    const char* what() const noexcept override
-    {return _msg.c_str(); }
+    const char* what() const noexcept override { return _msg.c_str(); }
 
   private:
-
     std::string _msg;
   };
 

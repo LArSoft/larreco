@@ -89,8 +89,7 @@ trkf::VertexFitter::VertexFitter(Parameters const& p)
   produces<art::Assns<recob::Vertex, recob::Track, recob::VertexAssnMeta>>();
 }
 
-void
-trkf::VertexFitter::produce(art::Event& e)
+void trkf::VertexFitter::produce(art::Event& e)
 {
   using namespace std;
 

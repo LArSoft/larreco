@@ -6,47 +6,47 @@
 // Gray Putnam
 // grayputnam@uchicago.edu
 
-#include <string>
-#include <optional>
 #include <cmath>
-#include <limits> // std::numeric_limits<>
+#include <limits>  // std::numeric_limits<>
 #include <numeric> // std::accumulate
+#include <optional>
+#include <string>
 
-#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireGeo.h"
+#include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/AnalysisBase/T0.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
-#include "lardataobj/AnalysisBase/T0.h"
-#include "lardata/Utilities/AssociationUtil.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 
 #include "larevt/SpaceCharge/SpaceCharge.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 // ROOT includes
-#include <TMath.h>
-#include <TGraph.h>
 #include <TF1.h>
+#include <TGraph.h>
+#include <TMath.h>
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "canvas/Persistency/Common/Ptr.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "cetlib/pow.h" // cet::sum_of_squares()
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace {
   constexpr unsigned int int_max_as_unsigned_int{std::numeric_limits<int>::max()};
@@ -54,120 +54,123 @@ namespace {
 
 namespace calo {
 
-class GnocchiCalorimetry: public art::EDProducer {
+  class GnocchiCalorimetry : public art::EDProducer {
   public:
     struct Config {
       using Comment = fhicl::Comment;
       using Name = fhicl::Name;
 
-      enum ChargeMethod: unsigned {
-        cmAmplitude=0,
-        cmIntegral=1,
-        cmSummedADC=2,
+      enum ChargeMethod : unsigned {
+        cmAmplitude = 0,
+        cmIntegral = 1,
+        cmSummedADC = 2,
       };
 
+      fhicl::Atom<std::string> TrackModuleLabel{Name("TrackModuleLabel"),
+                                                Comment("Module label for track producer.")};
 
-      fhicl::Atom<std::string> TrackModuleLabel {
-        Name("TrackModuleLabel"),
-        Comment("Module label for track producer.")
-      };
+      fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
+                                             Comment("Module label for T0 time producer."),
+                                             ""};
 
-      fhicl::Atom<std::string> T0ModuleLabel {
-        Name("T0ModuleLabel"),
-        Comment("Module label for T0 time producer."),
-        ""
-      };
-
-      fhicl::Atom<std::string> AssocHitModuleLabel {
+      fhicl::Atom<std::string> AssocHitModuleLabel{
         Name("AssocHitModuleLabel"),
-        Comment("Module label for association between tracks and hits. If not set, defaults to TrackModuleLabel."),
-        ""
-      };
+        Comment("Module label for association between tracks and hits. If not set, defaults to "
+                "TrackModuleLabel."),
+        ""};
 
-      fhicl::Atom<unsigned> ChargeMethod {
+      fhicl::Atom<unsigned> ChargeMethod{
         Name("ChargeMethod"),
-        Comment("Method used to extract charge from a hit. Options: 0==Amplitude(), 1==Integral(), 2==SummedADC(). See the ChargeMethod enum.")
-      };
+        Comment("Method used to extract charge from a hit. Options: 0==Amplitude(), 1==Integral(), "
+                "2==SummedADC(). See the ChargeMethod enum.")};
 
-      fhicl::Atom<bool> FieldDistortion {
+      fhicl::Atom<bool> FieldDistortion{
         Name("FieldDistortion"),
-        Comment("True if field distortion (i.e. from space charge) is included in the input.")
-      };
+        Comment("True if field distortion (i.e. from space charge) is included in the input.")};
 
-      fhicl::Atom<bool> FieldDistortionEfield {
+      fhicl::Atom<bool> FieldDistortionEfield{
         Name("FieldDistortionEfield"),
-        Comment("True if field distortion (i.e. from space charge) is included in the input.")
-      };
+        Comment("True if field distortion (i.e. from space charge) is included in the input.")};
 
-      fhicl::Atom<bool> TrackIsFieldDistortionCorrected {
+      fhicl::Atom<bool> TrackIsFieldDistortionCorrected{
         Name("TrackIsFieldDistortionCorrected"),
-        Comment("Whether the space-points on the input tracks have their points corrected for the field distortions. "
-                 "I.e. whether the track trajectory points represent charge as seen by wires or the 3D particle trajectory.")
-      };
+        Comment("Whether the space-points on the input tracks have their points corrected for the "
+                "field distortions. "
+                "I.e. whether the track trajectory points represent charge as seen by wires or the "
+                "3D particle trajectory.")};
 
-      fhicl::Atom<unsigned> Cryostat {
-        Name("Cryostat"),
-        Comment("Which cryostat number the input tracks occupy.")
-      };
+      fhicl::Atom<unsigned> Cryostat{Name("Cryostat"),
+                                     Comment("Which cryostat number the input tracks occupy.")};
 
-      fhicl::Atom<float> FieldDistortionCorrectionXSign {
+      fhicl::Atom<float> FieldDistortionCorrectionXSign{
         Name("FieldDistortionCorrectionXSign"),
-        Comment("Sign of the field distortion correction to be applied in the X direction. Positive by default."),
-        1.
-      };
+        Comment("Sign of the field distortion correction to be applied in the X direction. "
+                "Positive by default."),
+        1.};
 
-      fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig {
+      fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig{
         Name("CaloAlg"),
-        Comment("Configuration for the calo::CalorimetryAlg")
-      };
-
+        Comment("Configuration for the calo::CalorimetryAlg")};
     };
 
     using Parameters = art::EDProducer::Table<Config>;
 
     explicit GnocchiCalorimetry(Parameters const& config);
-    
-    void produce(art::Event& evt) override;
 
+    void produce(art::Event& evt) override;
 
   private:
     Config fConfig;
     CalorimetryAlg fCaloAlg;
 
     // helper functions
-    std::vector<std::vector<unsigned>> OrganizeHits(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                const std::vector<const recob::TrackHitMeta *> &thms,
-                                                const recob::Track &track, unsigned nplanes);
-    std::vector<std::vector<unsigned>> OrganizeHitsIndividual(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                          const std::vector<const recob::TrackHitMeta *> &thms,
-                                                          const recob::Track &track, unsigned nplanes);
-    std::vector<std::vector<unsigned>> OrganizeHitsSnippets(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                          const std::vector<const recob::TrackHitMeta *> &thms, 
-                                                          const recob::Track &track, unsigned nplanes);
-    bool HitIsValid(const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *thm, const recob::Track &track);
-    geo::Point_t GetLocation(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
-    geo::Point_t GetLocationAtWires(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
-    geo::Point_t WireToTrajectoryPosition(const geo::Point_t &loc, const geo::TPCID &tpc);
-    geo::Point_t TrajectoryToWirePosition(const geo::Point_t &loc, const geo::TPCID &tpc);
-    double GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
+    std::vector<std::vector<unsigned>> OrganizeHits(
+      const std::vector<art::Ptr<recob::Hit>>& hits,
+      const std::vector<const recob::TrackHitMeta*>& thms,
+      const recob::Track& track,
+      unsigned nplanes);
+    std::vector<std::vector<unsigned>> OrganizeHitsIndividual(
+      const std::vector<art::Ptr<recob::Hit>>& hits,
+      const std::vector<const recob::TrackHitMeta*>& thms,
+      const recob::Track& track,
+      unsigned nplanes);
+    std::vector<std::vector<unsigned>> OrganizeHitsSnippets(
+      const std::vector<art::Ptr<recob::Hit>>& hits,
+      const std::vector<const recob::TrackHitMeta*>& thms,
+      const recob::Track& track,
+      unsigned nplanes);
+    bool HitIsValid(const art::Ptr<recob::Hit> hit,
+                    const recob::TrackHitMeta* thm,
+                    const recob::Track& track);
+    geo::Point_t GetLocation(const recob::Track& track,
+                             const art::Ptr<recob::Hit> hit,
+                             const recob::TrackHitMeta* meta);
+    geo::Point_t GetLocationAtWires(const recob::Track& track,
+                                    const art::Ptr<recob::Hit> hit,
+                                    const recob::TrackHitMeta* meta);
+    geo::Point_t WireToTrajectoryPosition(const geo::Point_t& loc, const geo::TPCID& tpc);
+    geo::Point_t TrajectoryToWirePosition(const geo::Point_t& loc, const geo::TPCID& tpc);
+    double GetPitch(const recob::Track& track,
+                    const art::Ptr<recob::Hit> hit,
+                    const recob::TrackHitMeta* meta);
     double GetCharge(const art::Ptr<recob::Hit> hit);
-    double GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta);
-}; 
+    double GetEfield(const detinfo::DetectorPropertiesData& dprop,
+                     const recob::Track& track,
+                     const art::Ptr<recob::Hit> hit,
+                     const recob::TrackHitMeta* meta);
+  };
 
 } // end namespace calo
 
-
-calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param):
-  EDProducer{param},
-  fConfig(param()),
-  fCaloAlg(fConfig.CalorimetryAlgConfig()) 
+calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param)
+  : EDProducer{param}, fConfig(param()), fCaloAlg(fConfig.CalorimetryAlgConfig())
 {
-  produces< std::vector<anab::Calorimetry>              >();
-  produces< art::Assns<recob::Track, anab::Calorimetry> >();
-  
+  produces<std::vector<anab::Calorimetry>>();
+  produces<art::Assns<recob::Track, anab::Calorimetry>>();
 }
 
-void calo::GnocchiCalorimetry::produce(art::Event &evt) {
+void calo::GnocchiCalorimetry::produce(art::Event& evt)
+{
   // Get services
   art::ServiceHandle<geo::Geometry const> geom;
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
@@ -177,39 +180,42 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
   size_t nplanes = geom->Nplanes();
 
   // Define output collections
-  std::unique_ptr< std::vector<anab::Calorimetry> > outputCalo(new std::vector<anab::Calorimetry>);
-  std::unique_ptr< art::Assns<recob::Track, anab::Calorimetry> > outputCaloAssn(new art::Assns<recob::Track, anab::Calorimetry>);
+  std::unique_ptr<std::vector<anab::Calorimetry>> outputCalo(new std::vector<anab::Calorimetry>);
+  std::unique_ptr<art::Assns<recob::Track, anab::Calorimetry>> outputCaloAssn(
+    new art::Assns<recob::Track, anab::Calorimetry>);
 
   // collect input
-  art::Handle< std::vector<recob::Track> > trackListHandle;
-  std::vector<art::Ptr<recob::Track> > tracklist;
+  art::Handle<std::vector<recob::Track>> trackListHandle;
+  std::vector<art::Ptr<recob::Track>> tracklist;
   if (evt.getByLabel(fConfig.TrackModuleLabel(), trackListHandle)) {
     art::fill_ptr_vector(tracklist, trackListHandle);
   }
 
   // get the label to collect this hits
-  const std::string &hitLabel = (fConfig.AssocHitModuleLabel() == "") ? fConfig.TrackModuleLabel() : fConfig.AssocHitModuleLabel();
-  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmHits(trackListHandle, evt, hitLabel); 
+  const std::string& hitLabel = (fConfig.AssocHitModuleLabel() == "") ?
+                                  fConfig.TrackModuleLabel() :
+                                  fConfig.AssocHitModuleLabel();
+  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmHits(trackListHandle, evt, hitLabel);
 
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
 
   // iterate over all the tracks
   for (unsigned trk_i = 0; trk_i < tracklist.size(); trk_i++) {
-    const recob::Track &track = *tracklist[trk_i];
+    const recob::Track& track = *tracklist[trk_i];
 
     // collect input for this track
-    const std::vector<art::Ptr<recob::Hit>> &hits = fmHits.at(trk_i);
-    const std::vector<const recob::TrackHitMeta *> &thms = fmHits.data(trk_i);
+    const std::vector<art::Ptr<recob::Hit>>& hits = fmHits.at(trk_i);
+    const std::vector<const recob::TrackHitMeta*>& thms = fmHits.data(trk_i);
 
     double T0 = 0;
     if (fConfig.T0ModuleLabel().size()) {
-      const std::vector<art::Ptr<anab::T0>> &this_t0s = fmT0s.at(trk_i);
+      const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
       if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
     }
 
     // organize the hits by plane
-    std::vector<std::vector<unsigned>> hit_indices = OrganizeHits(hits, thms, track, nplanes); 
+    std::vector<std::vector<unsigned>> hit_indices = OrganizeHits(hits, thms, track, nplanes);
 
     for (unsigned plane_i = 0; plane_i < nplanes; plane_i++) {
 
@@ -222,7 +228,7 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
       std::vector<float> pitches;
       std::vector<geo::Point_t> xyzs;
       std::vector<size_t> tp_indices;
-      geo::PlaneID plane; 
+      geo::PlaneID plane;
 
       // setup the plane ID
       plane.Plane = plane_i;
@@ -249,14 +255,24 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
         double dQdx = charge / pitch;
 
         // turn into dEdx
-        double dEdx = (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) ? \
-          fCaloAlg.dEdx_AMP(clock_data, det_prop, dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField) : \
-         fCaloAlg.dEdx_AREA(clock_data, det_prop, dQdx, hits[hit_index]->PeakTime(), hits[hit_index]->WireID().Plane, T0, EField);
+        double dEdx = (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) ?
+                        fCaloAlg.dEdx_AMP(clock_data,
+                                          det_prop,
+                                          dQdx,
+                                          hits[hit_index]->PeakTime(),
+                                          hits[hit_index]->WireID().Plane,
+                                          T0,
+                                          EField) :
+                        fCaloAlg.dEdx_AREA(clock_data,
+                                           det_prop,
+                                           dQdx,
+                                           hits[hit_index]->PeakTime(),
+                                           hits[hit_index]->WireID().Plane,
+                                           T0,
+                                           EField);
 
         // save the length between each pair of hits
-        if (xyzs.size() == 0) {
-          lengths.push_back(0.);
-        }
+        if (xyzs.size() == 0) { lengths.push_back(0.); }
         else {
           lengths.push_back((location - xyzs.back()).r());
         }
@@ -269,39 +285,38 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
         kinetic_energy += dEdx * pitch;
 
         // TODO: FIXME
-        // It seems weird that the "trajectory-point-index" actually is the 
-        // index of the hit... is this a bug in the documentation 
+        // It seems weird that the "trajectory-point-index" actually is the
+        // index of the hit... is this a bug in the documentation
         // of anab::Calorimetry?
         //
         // i.e. -- I think this piece of code should actually be:
         // tp_indices.push_back(thms[hit_index]->Index());
         tp_indices.push_back(hits[hit_index].key());
-     
 
       } // end iterate over hits
-
 
       // turn the lengths vector into a residual-range vector and total length
       if (lengths.size() > 1) {
         range = std::accumulate(lengths.begin(), lengths.end(), 0.);
 
         // check the direction that the hits are going in the track:
-        // upstream (end-start) or downstream (start-end) 
-        bool is_downstream = \
-            (track.Trajectory().Start() - xyzs[0]).r() + (track.Trajectory().End()   - xyzs.back()).r() <
-            (track.Trajectory().End()   - xyzs[0]).r() + (track.Trajectory().Start() - xyzs.back()).r();
+        // upstream (end-start) or downstream (start-end)
+        bool is_downstream =
+          (track.Trajectory().Start() - xyzs[0]).r() +
+            (track.Trajectory().End() - xyzs.back()).r() <
+          (track.Trajectory().End() - xyzs[0]).r() + (track.Trajectory().Start() - xyzs.back()).r();
 
         resranges.resize(lengths.size());
         if (is_downstream) {
           resranges[lengths.size() - 1] = lengths.back() / 2.;
-          for (int i_len = lengths.size() - 2; i_len >= 0; i_len --) {
-            resranges[i_len] = resranges[i_len+1] + lengths[i_len+1];
+          for (int i_len = lengths.size() - 2; i_len >= 0; i_len--) {
+            resranges[i_len] = resranges[i_len + 1] + lengths[i_len + 1];
           }
         }
         else {
           resranges[0] = lengths[1] / 2.;
-          for (unsigned i_len = 1; i_len < lengths.size(); i_len ++) {
-            resranges[i_len] = resranges[i_len-1] + lengths[i_len];
+          for (unsigned i_len = 1; i_len < lengths.size(); i_len++) {
+            resranges[i_len] = resranges[i_len - 1] + lengths[i_len];
           }
         }
       }
@@ -322,16 +337,8 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
                                                 plane));
       }
       else {
-        outputCalo->push_back(anab::Calorimetry(util::kBogusD,
-                                                {}, 
-                                                {},
-                                                {},
-                                                {}, 
-                                                util::kBogusD,
-                                                {},
-                                                {},
-                                                {},
-                                                plane)); 
+        outputCalo->push_back(
+          anab::Calorimetry(util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane));
       }
 
       util::CreateAssn(*this, evt, *outputCalo, tracklist[trk_i], *outputCaloAssn);
@@ -344,42 +351,49 @@ void calo::GnocchiCalorimetry::produce(art::Event &evt) {
   evt.put(std::move(outputCaloAssn));
 
   return;
-
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHits(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                const std::vector<const recob::TrackHitMeta *> &thms,
-                                                const recob::Track &track, unsigned nplanes) {
+std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHits(
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  const std::vector<const recob::TrackHitMeta*>& thms,
+  const recob::Track& track,
+  unsigned nplanes)
+{
   // charge is computed per hit -- we organize hits indivudally
-  if (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmIntegral || fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) {
+  if (fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmIntegral ||
+      fConfig.ChargeMethod() == calo::GnocchiCalorimetry::Config::cmAmplitude) {
     return OrganizeHitsIndividual(hits, thms, track, nplanes);
-  } 
+  }
   // charge is computed per snippet -- we organize hits by snippet
   else {
     return OrganizeHitsSnippets(hits, thms, track, nplanes);
   }
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsIndividual(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                          const std::vector<const recob::TrackHitMeta *> &thms,
-                                                          const recob::Track &track, unsigned nplanes) {
+std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsIndividual(
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  const std::vector<const recob::TrackHitMeta*>& thms,
+  const recob::Track& track,
+  unsigned nplanes)
+{
   std::vector<std::vector<unsigned>> ret(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
-    if (HitIsValid(hits[i], thms[i], track)) {
-      ret[hits[i]->WireID().Plane].push_back(i);
-    } 
-  } 
+    if (HitIsValid(hits[i], thms[i], track)) { ret[hits[i]->WireID().Plane].push_back(i); }
+  }
 
   return ret;
 }
 
-std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippets(const std::vector<art::Ptr<recob::Hit>> &hits, 
-                                                          const std::vector<const recob::TrackHitMeta *> &thms, 
-                                                          const recob::Track &track, unsigned nplanes) {
+std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippets(
+  const std::vector<art::Ptr<recob::Hit>>& hits,
+  const std::vector<const recob::TrackHitMeta*>& thms,
+  const recob::Track& track,
+  unsigned nplanes)
+{
   // In this case, we need to only accept one hit in each snippet
   // Snippets are counted by the Start, End, and Wire. If all these are the same for a hit, then they are on the same snippet.
   //
-  // If there are multiple valid hits on the same snippet, we need a way to pick the best one. 
+  // If there are multiple valid hits on the same snippet, we need a way to pick the best one.
   // (TODO: find a good way). The current method is to take the one with the highest charge integral.
   struct HitIdentifier {
     int startTick;
@@ -388,29 +402,28 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippet
     float integral;
 
     // construct
-    explicit HitIdentifier(const recob::Hit &hit):
-      startTick(hit.StartTick()),
-      endTick(hit.EndTick()),
-      wire(hit.WireID().Wire),
-      integral(hit.Integral())
+    explicit HitIdentifier(const recob::Hit& hit)
+      : startTick(hit.StartTick())
+      , endTick(hit.EndTick())
+      , wire(hit.WireID().Wire)
+      , integral(hit.Integral())
     {}
 
     // Defines whether two hits are on the same snippet
-    inline bool operator==(const HitIdentifier& rhs) const {
+    inline bool operator==(const HitIdentifier& rhs) const
+    {
       return startTick == rhs.startTick && endTick == rhs.endTick && wire == rhs.wire;
     }
 
     // Defines which hit to pick between two both on the same snippet
-    inline bool operator>(const HitIdentifier& rhs) const {
-      return integral > rhs.integral;
-    }
+    inline bool operator>(const HitIdentifier& rhs) const { return integral > rhs.integral; }
   };
-  
+
   std::vector<std::vector<unsigned>> ret(nplanes);
   std::vector<std::vector<HitIdentifier>> hit_idents(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
     if (HitIsValid(hits[i], thms[i], track)) {
-      HitIdentifier this_ident(*hits[i]); 
+      HitIdentifier this_ident(*hits[i]);
 
       // check if we have found a hit on this snippet before
       bool found_snippet = false;
@@ -428,23 +441,32 @@ std::vector<std::vector<unsigned>> calo::GnocchiCalorimetry::OrganizeHitsSnippet
         ret[hits[i]->WireID().Plane].push_back(i);
         hit_idents[hits[i]->WireID().Plane].push_back(this_ident);
       }
-    } 
-  } 
+    }
+  }
   return ret;
 }
 
-bool calo::GnocchiCalorimetry::HitIsValid(const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *thm, const recob::Track &track) {
+bool calo::GnocchiCalorimetry::HitIsValid(const art::Ptr<recob::Hit> hit,
+                                          const recob::TrackHitMeta* thm,
+                                          const recob::Track& track)
+{
   if (thm->Index() == int_max_as_unsigned_int) return false;
   if (!track.HasValidPoint(thm->Index())) return false;
   return true;
 }
 
-geo::Point_t calo::GnocchiCalorimetry::GetLocation(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
+geo::Point_t calo::GnocchiCalorimetry::GetLocation(const recob::Track& track,
+                                                   const art::Ptr<recob::Hit> hit,
+                                                   const recob::TrackHitMeta* meta)
+{
   geo::Point_t loc = track.LocationAtPoint(meta->Index());
-  return !fConfig.TrackIsFieldDistortionCorrected() ? WireToTrajectoryPosition(loc, hit->WireID()) : loc;
+  return !fConfig.TrackIsFieldDistortionCorrected() ? WireToTrajectoryPosition(loc, hit->WireID()) :
+                                                      loc;
 }
 
-geo::Point_t calo::GnocchiCalorimetry::WireToTrajectoryPosition(const geo::Point_t &loc, const geo::TPCID &tpc) {
+geo::Point_t calo::GnocchiCalorimetry::WireToTrajectoryPosition(const geo::Point_t& loc,
+                                                                const geo::TPCID& tpc)
+{
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   geo::Point_t ret = loc;
@@ -458,15 +480,20 @@ geo::Point_t calo::GnocchiCalorimetry::WireToTrajectoryPosition(const geo::Point
   }
 
   return ret;
-  
 }
 
-geo::Point_t calo::GnocchiCalorimetry::GetLocationAtWires(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
+geo::Point_t calo::GnocchiCalorimetry::GetLocationAtWires(const recob::Track& track,
+                                                          const art::Ptr<recob::Hit> hit,
+                                                          const recob::TrackHitMeta* meta)
+{
   geo::Point_t loc = track.LocationAtPoint(meta->Index());
-  return fConfig.TrackIsFieldDistortionCorrected() ? TrajectoryToWirePosition(loc, hit->WireID()) : loc;
+  return fConfig.TrackIsFieldDistortionCorrected() ? TrajectoryToWirePosition(loc, hit->WireID()) :
+                                                     loc;
 }
 
-geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point_t &loc, const geo::TPCID &tpc) {
+geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point_t& loc,
+                                                                const geo::TPCID& tpc)
+{
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -486,18 +513,24 @@ geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point
   return ret;
 }
 
-double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
+double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
+                                          const art::Ptr<recob::Hit> hit,
+                                          const recob::TrackHitMeta* meta)
+{
   art::ServiceHandle<geo::Geometry const> geom;
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
-  double angleToVert = geom->WireAngleToVertical(hit->View(), hit->WireID().TPC, hit->WireID().Cryostat) - 0.5*::util::pi<>();
+  double angleToVert =
+    geom->WireAngleToVertical(hit->View(), hit->WireID().TPC, hit->WireID().Cryostat) -
+    0.5 * ::util::pi<>();
 
   geo::Vector_t dir;
 
   // "dir" should be the direction that the wires see. If the track already has the field
   // distortion corrections applied, then we need to de-apply them to get the direction as
   // seen by the wire planes
-  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() && fConfig.TrackIsFieldDistortionCorrected()) {
+  if (sce->EnableCalSpatialSCE() && fConfig.FieldDistortion() &&
+      fConfig.TrackIsFieldDistortionCorrected()) {
     geo::Point_t loc = track.LocationAtPoint(meta->Index());
 
     // compute the dir of the track trajectory
@@ -509,7 +542,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
     loc_pdx = TrajectoryToWirePosition(loc_pdx, hit->WireID());
 
     // Direction at wires
-    dir = (loc_pdx - loc_mdx) /  (loc_mdx - loc_pdx).r(); 
+    dir = (loc_pdx - loc_mdx) / (loc_mdx - loc_pdx).r();
   }
   // If there is no space charge or the track is not yet corrected, then the dir
   // is the track is what we want
@@ -517,11 +550,9 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
     dir = track.DirectionAtPoint(meta->Index());
   }
 
-  double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
+  double cosgamma = std::abs(std::sin(angleToVert) * dir.Y() + std::cos(angleToVert) * dir.Z());
   double pitch;
-  if (cosgamma) {
-    pitch = geom->WirePitch(hit->View())/cosgamma;
-  }
+  if (cosgamma) { pitch = geom->WirePitch(hit->View()) / cosgamma; }
   else {
     pitch = 0.;
   }
@@ -529,7 +560,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
   // now take the pitch computed on the wires and correct it back to the particle trajectory
   geo::Point_t loc_w = GetLocationAtWires(track, hit, meta);
 
-  geo::Point_t locw_pdx_traj = WireToTrajectoryPosition(loc_w + pitch*dir, hit->WireID());
+  geo::Point_t locw_pdx_traj = WireToTrajectoryPosition(loc_w + pitch * dir, hit->WireID());
   geo::Point_t loc = WireToTrajectoryPosition(loc_w, hit->WireID());
 
   pitch = (locw_pdx_traj - loc).R();
@@ -537,36 +568,36 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track &track, const art::
   return pitch;
 }
 
-double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit) {
+double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit)
+{
   switch (fConfig.ChargeMethod()) {
-    case calo::GnocchiCalorimetry::Config::cmIntegral:
-      return hit->Integral();
-    case calo::GnocchiCalorimetry::Config::cmAmplitude:
-      return hit->PeakAmplitude();
-    case calo::GnocchiCalorimetry::Config::cmSummedADC:
-      return hit->SummedADC();
-    default:
-      return 0.;
+  case calo::GnocchiCalorimetry::Config::cmIntegral: return hit->Integral();
+  case calo::GnocchiCalorimetry::Config::cmAmplitude: return hit->PeakAmplitude();
+  case calo::GnocchiCalorimetry::Config::cmSummedADC: return hit->SummedADC();
+  default: return 0.;
   }
   return 0.;
 }
 
-double calo::GnocchiCalorimetry::GetEfield(const detinfo::DetectorPropertiesData &dprop, const recob::Track &track, const art::Ptr<recob::Hit> hit, const recob::TrackHitMeta *meta) {
+double calo::GnocchiCalorimetry::GetEfield(const detinfo::DetectorPropertiesData& dprop,
+                                           const recob::Track& track,
+                                           const art::Ptr<recob::Hit> hit,
+                                           const recob::TrackHitMeta* meta)
+{
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
   double EField = dprop.Efield();
   if (sce->EnableSimEfieldSCE() && fConfig.FieldDistortionEfield()) {
-      // Gets relative E field Distortions
-      geo::Vector_t EFieldOffsets = sce->GetEfieldOffsets(GetLocation(track, hit, meta));
-      // Add 1 in X direction as this is the direction of the drift field
-      EFieldOffsets = EFieldOffsets + geo::Vector_t{1, 0, 0};
-      // Convert to Absolute E Field from relative
-      EFieldOffsets = EField * EFieldOffsets;
-      // We only care about the magnitude for recombination
-      EField = EFieldOffsets.r();
+    // Gets relative E field Distortions
+    geo::Vector_t EFieldOffsets = sce->GetEfieldOffsets(GetLocation(track, hit, meta));
+    // Add 1 in X direction as this is the direction of the drift field
+    EFieldOffsets = EFieldOffsets + geo::Vector_t{1, 0, 0};
+    // Convert to Absolute E Field from relative
+    EFieldOffsets = EField * EFieldOffsets;
+    // We only care about the magnitude for recombination
+    EField = EFieldOffsets.r();
   }
   return EField;
-
 }
 
 DEFINE_ART_MODULE(calo::GnocchiCalorimetry)

@@ -23,8 +23,8 @@
 #ifndef GFKALMAN_H
 #define GFKALMAN_H
 
-#include <iostream>
 #include "larreco/Genfit/GFDetPlane.h"
+#include <iostream>
 
 #include "RtypesCore.h"
 #include "TMatrixT.h"
@@ -46,81 +46,83 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
-class GFTrack;
+  class GFAbsRecoHit;
+  class GFAbsTrackRep;
+  class GFTrack;
 
-class GFKalman {
-public:
+  class GFKalman {
+  public:
+    //friend class KalmanTester; // gives the Tester access to private methods
 
-  //friend class KalmanTester; // gives the Tester access to private methods
+    // Constructors/Destructors ---------
+    GFKalman();
+    ~GFKalman();
 
-  // Constructors/Destructors ---------
-  GFKalman();
-  ~GFKalman();
-
-  // Operators
-  /** @brief Operator for use with STL.
+    // Operators
+    /** @brief Operator for use with STL.
    *
    * This operator allows to use the std::foreach algorithm with an
    * STL container o GFTrack* objects.
    */
-  inline void operator()(GFTrack* track){processTrack(track);}
+    inline void operator()(GFTrack* track) { processTrack(track); }
 
-  /** @brief Operator for use with STL.
+    /** @brief Operator for use with STL.
    *
    * This operator allows to use the std::foreach algorithm with an
    * STL container o GFTrack* objects.
    */
-  inline void operator()(std::pair<int,GFTrack*> tr){processTrack(tr.second);}
+    inline void operator()(std::pair<int, GFTrack*> tr) { processTrack(tr.second); }
 
-  // Operations ----------------------
+    // Operations ----------------------
 
-  /** @brief Switch lazy error handling.
+    /** @brief Switch lazy error handling.
    *
    * This is a historically left-over method and shall be deleted some time
    */
-  void setLazy(Int_t /* flag */){std::cerr<<"Using outdates setLazy method of class GFKalman:"<<std::endl;}
+    void setLazy(Int_t /* flag */)
+    {
+      std::cerr << "Using outdates setLazy method of class GFKalman:" << std::endl;
+    }
 
-  /** @brief Set number of iterations for Kalman Filter
+    /** @brief Set number of iterations for Kalman Filter
    *
    * One iteration is one forward pass plus one backward pass
    */
-  void setNumIterations(Int_t i){fNumIt=i;}
+    void setNumIterations(Int_t i) { fNumIt = i; }
 
-  /** @brief Performs fit on a GFTrack.
+    /** @brief Performs fit on a GFTrack.
    *
    * The hits are processed in the order in which they are stored in the GFTrack
    * object. Sorting of hits in space has to be done before!
    */
-  void processTrack(GFTrack*);
+    void processTrack(GFTrack*);
 
-  /** @brief Performs fit on a GFTrack beginning with the current hit.
+    /** @brief Performs fit on a GFTrack beginning with the current hit.
    */
-  void fittingPass(GFTrack*,int dir); // continues track from lastHitInFit
+    void fittingPass(GFTrack*, int dir); // continues track from lastHitInFit
 
-  /** @brief Calculates chi2 of a given hit with respect to a
+    /** @brief Calculates chi2 of a given hit with respect to a
    * given track representation.
    */
-  double getChi2Hit(GFAbsRecoHit*, GFAbsTrackRep*);
+    double getChi2Hit(GFAbsRecoHit*, GFAbsTrackRep*);
 
-  /** @brief Sets the inital direction of the track fit (1 for inner to outer,
+    /** @brief Sets the inital direction of the track fit (1 for inner to outer,
    * or -1 for outer to inner). The standard is 1 and is set in the ctor
    */
-  void setInitialDirection(int d){fInitialDirection=d;}
+    void setInitialDirection(int d) { fInitialDirection = d; }
 
-  /** @brief Set the blowup factor (see blowUpCovs() )
+    /** @brief Set the blowup factor (see blowUpCovs() )
    */
-  void setBlowUpFactor(double f){fBlowUpFactor=f;}
-  void setMomLow(Double_t f){fMomLow=f;}
-  void setMomHigh(Double_t f){fMomHigh=f;}
-  void setMaxUpdate(Double_t f){fMaxUpdate=f;}
-  void setErrorScaleSTh(Double_t f){fErrScaleSTh=f;}
-  void setErrorScaleMTh(Double_t f){fErrScaleMTh=f;}
+    void setBlowUpFactor(double f) { fBlowUpFactor = f; }
+    void setMomLow(Double_t f) { fMomLow = f; }
+    void setMomHigh(Double_t f) { fMomHigh = f; }
+    void setMaxUpdate(Double_t f) { fMaxUpdate = f; }
+    void setErrorScaleSTh(Double_t f) { fErrScaleSTh = f; }
+    void setErrorScaleMTh(Double_t f) { fErrScaleMTh = f; }
 
-  // Private Methods -----------------
-private:
-  /** @brief One Kalman step.
+    // Private Methods -----------------
+  private:
+    /** @brief One Kalman step.
    *
    * Performs
    * - Extrapolation to detector plane of the hit
@@ -128,44 +130,45 @@ private:
    * - Update of track representation state and chi2
    *
    */
-  void processHit(GFTrack*, int, int, int);
+    void processHit(GFTrack*, int, int, int);
 
-  /** @brief Used to switch between forward and backward filtering
+    /** @brief Used to switch between forward and backward filtering
    */
-  void switchDirection(GFTrack* trk); // switches the direction of propagation for all reps
+    void switchDirection(GFTrack* trk); // switches the direction of propagation for all reps
 
-  /** @brief Calculate Kalman Gain
+    /** @brief Calculate Kalman Gain
    */
-  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
-						const TMatrixT<Double_t>& HitCov,
-						const TMatrixT<Double_t>& H);
-  TMatrixT<Double_t> calcCov7x7(const TMatrixT<Double_t>& cov, const genf::GFDetPlane& plane) ;
+    TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
+                                const TMatrixT<Double_t>& HitCov,
+                                const TMatrixT<Double_t>& H);
+    TMatrixT<Double_t> calcCov7x7(const TMatrixT<Double_t>& cov, const genf::GFDetPlane& plane);
 
-  /** @brief this returns the reduced chi2 increment for a hit
+    /** @brief this returns the reduced chi2 increment for a hit
    */
-  double chi2Increment(const TMatrixT<Double_t>& r,const TMatrixT<Double_t>& H,
-		       const TMatrixT<Double_t>& cov,const TMatrixT<Double_t>& V);
+    double chi2Increment(const TMatrixT<Double_t>& r,
+                         const TMatrixT<Double_t>& H,
+                         const TMatrixT<Double_t>& cov,
+                         const TMatrixT<Double_t>& V);
 
-  /** @brief this is needed to blow up the covariance matrix before a fitting pass
+    /** @brief this is needed to blow up the covariance matrix before a fitting pass
    * drops off-diagonal elements and blows up diagonal by blowUpFactor
    */
-  void blowUpCovs(GFTrack* trk);
-  void blowUpCovsDiag(GFTrack* trk);
+    void blowUpCovs(GFTrack* trk);
+    void blowUpCovsDiag(GFTrack* trk);
 
-  int fInitialDirection;
-  Int_t fNumIt;
-  double fBlowUpFactor;
+    int fInitialDirection;
+    Int_t fNumIt;
+    double fBlowUpFactor;
 
-  Double_t fMomLow;
-  Double_t fMomHigh;
-  Double_t fMaxUpdate;
-  Double_t fErrScaleSTh; // simulated theta error scale
-  Double_t fErrScaleMTh; // measured theta error scale
-  bool fGENfPRINT;
-  //TH1D* fUpdate;
-  //TH1D* fIhitvUpdate;
-
-};
+    Double_t fMomLow;
+    Double_t fMomHigh;
+    Double_t fMaxUpdate;
+    Double_t fErrScaleSTh; // simulated theta error scale
+    Double_t fErrScaleMTh; // measured theta error scale
+    bool fGENfPRINT;
+    //TH1D* fUpdate;
+    //TH1D* fIhitvUpdate;
+  };
 
 } // namespace genf
 #endif

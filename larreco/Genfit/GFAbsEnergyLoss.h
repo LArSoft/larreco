@@ -24,8 +24,8 @@
 #ifndef GFABSENERGYLOSS_H
 #define GFABSENERGYLOSS_H
 
-#include"TObject.h"
-#include"TMatrixT.h"
+#include "TMatrixT.h"
+#include "TObject.h"
 
 class TVector3;
 
@@ -42,38 +42,35 @@ class TVector3;
  */
 namespace genf {
 
-class GFAbsEnergyLoss : public TObject{
- public:
-  //! Calculates energy loss in a given step, optional calculation of noise matrix
-  /**
+  class GFAbsEnergyLoss : public TObject {
+  public:
+    //! Calculates energy loss in a given step, optional calculation of noise matrix
+    /**
   */
-  virtual double energyLoss(const double& step,
-                            const double& mom,
-                            const int&    pdg,
-                            const double& matDensity,
-                            const double& matZ,
-                            const double& matA,
-                            const double& radiationLength,
-                            const double& meanExcitationEnergy,
-                            const bool&   doNoise = false,
-                                  TMatrixT<Double_t>* noise = NULL,
-                            const TMatrixT<Double_t>* jacobian = NULL,
-                            const TVector3* directionBefore = NULL,
-                            const TVector3* directionAfter = NULL) = 0;
-  virtual ~GFAbsEnergyLoss();
+    virtual double energyLoss(const double& step,
+                              const double& mom,
+                              const int& pdg,
+                              const double& matDensity,
+                              const double& matZ,
+                              const double& matA,
+                              const double& radiationLength,
+                              const double& meanExcitationEnergy,
+                              const bool& doNoise = false,
+                              TMatrixT<Double_t>* noise = NULL,
+                              const TMatrixT<Double_t>* jacobian = NULL,
+                              const TVector3* directionBefore = NULL,
+                              const TVector3* directionAfter = NULL) = 0;
+    virtual ~GFAbsEnergyLoss();
 
- protected:
-  //! Gets particle charge and mass (in GeV)
-  void getParticleParameters(const int&    pdg,
-                             double& charge,
-                             double& mass);
-  //! Returns particle mass (in GeV)
-  double getParticleMass(const int& pdg);
+  protected:
+    //! Gets particle charge and mass (in GeV)
+    void getParticleParameters(const int& pdg, double& charge, double& mass);
+    //! Returns particle mass (in GeV)
+    double getParticleMass(const int& pdg);
 
-  // public:
-  //ClassDef(GFAbsEnergyLoss,1);
-
-};
+    // public:
+    //ClassDef(GFAbsEnergyLoss,1);
+  };
 
 } // namespace genf
 #endif

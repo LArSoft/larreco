@@ -83,8 +83,7 @@ cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const& pset)
   produces<art::Assns<recob::Cluster, recob::Hit>>();
 }
 
-void
-cluster::BlurredClustering::produce(art::Event& evt)
+void cluster::BlurredClustering::produce(art::Event& evt)
 {
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF) fBlurredClusteringAlg.CreateDebugPDF(evt.run(), evt.subRun(), evt.event());
@@ -168,7 +167,8 @@ cluster::BlurredClustering::produce(art::Event& evt)
     if (hits.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      auto const image = fBlurredClusteringAlg.ConvertRecobHitsToVector(ts, hits, readoutWindowSize);
+      auto const image =
+        fBlurredClusteringAlg.ConvertRecobHitsToVector(ts, hits, readoutWindowSize);
       auto const blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
       // Find clusters in histogram

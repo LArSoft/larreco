@@ -19,8 +19,6 @@
 /** @addtogroup genfit
  * @{ */
 
-
-
 #ifndef GFWIREPOINTHITPOLICY_H
 #define GFWIREPOINTHITPOLICY_H
 
@@ -49,50 +47,48 @@
 
 namespace genf {
 
-class GFAbsRecoHit;
-class GFAbsTrackRep;
+  class GFAbsRecoHit;
+  class GFAbsTrackRep;
 
-class GFWirepointHitPolicy : public TObject {
-public:
+  class GFWirepointHitPolicy : public TObject {
+  public:
+    GFWirepointHitPolicy();
 
-
-  GFWirepointHitPolicy();
-
-  // Operations ----------------------
-   /** @brief Get detector plane
+    // Operations ----------------------
+    /** @brief Get detector plane
     */
-  const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
+    const GFDetPlane& detPlane(GFAbsRecoHit*, GFAbsTrackRep*);
 
-  /** @brief Hit coordinates in detector plane.
+    /** @brief Hit coordinates in detector plane.
    */
-  TMatrixT<Double_t> hitCoord(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCoord(GFAbsRecoHit*, const GFDetPlane&);
 
-  /** @brief Hit covariances in detector plane.
+    /** @brief Hit covariances in detector plane.
    */
-  TMatrixT<Double_t> hitCov(GFAbsRecoHit*,const GFDetPlane&);
+    TMatrixT<Double_t> hitCov(GFAbsRecoHit*, const GFDetPlane&);
 
-  /** @brief Check if the detector plane is valid
+    /** @brief Check if the detector plane is valid
    */
-  void checkPlane(GFAbsRecoHit*,const GFDetPlane&);
+    void checkPlane(GFAbsRecoHit*, const GFDetPlane&);
 
-  virtual ~GFWirepointHitPolicy(){;}
+    virtual ~GFWirepointHitPolicy() { ; }
 
-  double getMaxDistance(){return fMaxdistance;}
-  void setMaxDistance(double d){fMaxdistance=d;}
+    double getMaxDistance() { return fMaxdistance; }
+    void setMaxDistance(double d) { fMaxdistance = d; }
 
-  const std::string& getName(){return fPolicyName;}
- private:
-  static const std::string fPolicyName;
+    const std::string& getName() { return fPolicyName; }
 
-  // Private Data Members ------------
-  GFDetPlane fDetPlane;
-  double fMaxdistance;
-  // Private Methods -----------------
+  private:
+    static const std::string fPolicyName;
 
-  // public:
-  //  ClassDef(GFWirepointHitPolicy,1);
+    // Private Data Members ------------
+    GFDetPlane fDetPlane;
+    double fMaxdistance;
+    // Private Methods -----------------
 
-};
+    // public:
+    //  ClassDef(GFWirepointHitPolicy,1);
+  };
 
 } // namespace genf
 #endif

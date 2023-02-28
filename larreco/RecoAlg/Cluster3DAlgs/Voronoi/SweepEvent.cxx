@@ -11,6 +11,4 @@
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
 
-namespace voronoi2d {
-
-} // namespace lar_cluster3d
+namespace voronoi2d {} // namespace lar_cluster3d

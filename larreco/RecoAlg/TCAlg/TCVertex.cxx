@@ -29,20 +29,11 @@ namespace tca {
     float val;
   };
 
-  bool
-  valDecreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val > c2.val);
-  }
-  bool
-  valIncreasing(SortEntry c1, SortEntry c2)
-  {
-    return (c1.val < c2.val);
-  }
+  bool valDecreasing(SortEntry c1, SortEntry c2) { return (c1.val > c2.val); }
+  bool valIncreasing(SortEntry c1, SortEntry c2) { return (c1.val < c2.val); }
 
   //////////////////////////////////////////
-  void
-  MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP)
+  void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP)
   {
     // Vertices between poorly reconstructed tjs (especially junk slc) and normal
     // tjs can fail because the junk tj trajectory parameters are inaccurate. This function
@@ -142,11 +133,10 @@ namespace tca {
   } // MakeJunkVertices
 
   //////////////////////////////////////////
-  void
-  Find2DVertices(detinfo::DetectorPropertiesData const& detProp,
-                 TCSlice& slc,
-                 const CTP_t& inCTP,
-                 unsigned short pass)
+  void Find2DVertices(detinfo::DetectorPropertiesData const& detProp,
+                      TCSlice& slc,
+                      const CTP_t& inCTP,
+                      unsigned short pass)
   {
     // Find 2D vertices between pairs of tjs that have a same-end topology. Using an example
     // where StepDir = 1 (end 0 is at small wire number) vertices will be found with Topo = 0
@@ -445,8 +435,7 @@ namespace tca {
   } // Find2DVertices
 
   //////////////////////////////////////////
-  bool
-  MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID)
+  bool MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID)
   {
     // Attempts to merge the trajectories attached to vx with an existing 2D vertex
     // referenced by existingVxID. This function doesn't use the existing end0/end1 vertex association.
@@ -614,8 +603,7 @@ namespace tca {
   } // MergeWithVertex
 
   //////////////////////////////////////////
-  void
-  FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP)
+  void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP)
   {
     // Variant of FindHammerVertices with slightly different requirements:
     // 1) tj1 is a straight trajectory with most of the points fit
@@ -807,8 +795,7 @@ namespace tca {
   }     // FindHammerVertices2
 
   //////////////////////////////////////////
-  void
-  FindHammerVertices(TCSlice& slc, const CTP_t& inCTP)
+  void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP)
   {
     // Look for a trajectory that intersects another. Split
     // the trajectory and make a vertex. The convention used
@@ -933,8 +920,7 @@ namespace tca {
   } // FindHammerVertices
 
   //////////////////////////////////////////
-  void
-  SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP)
+  void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP)
   {
     // This is kind of self-explanatory...
 
@@ -1077,8 +1063,7 @@ namespace tca {
   } // SplitTrajCrossingVertices
 
   //////////////////////////////////////
-  void
-  Reconcile2Vs(TCSlice& slc)
+  void Reconcile2Vs(TCSlice& slc)
   {
     // This function is called before Find3DVertices to identify (and possibly reconcile)
     // Tj and 2V inconsistencies using 2D and 3D(?) information
@@ -1173,8 +1158,7 @@ namespace tca {
   } // Reconcile2Vs
 
   //////////////////////////////////////
-  bool
-  Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt)
+  bool Reconcile2VTs(TCSlice& slc, std::vector<int>& vx2cls, bool prt)
   {
     // The 2D vertices IDs in vx2cls were clustered by the calling function. This function
     // checks the T -> 2V assns and possibly changes it. It returns true if an assn is changed
@@ -1278,8 +1262,7 @@ namespace tca {
   } // Reconcile2VTs
 
   //////////////////////////////////////
-  void
-  Find3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
+  void Find3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Create 3D vertices from 2D vertices. 3D vertices that are matched
     // in all three planes have Vtx2ID > 0 for all planes. This function re-scores all
@@ -1578,8 +1561,7 @@ namespace tca {
   } // Find3DVertices
 
   //////////////////////////////////////////
-  unsigned short
-  TPNearVertex(const TCSlice& slc, const TrajPoint& tp)
+  unsigned short TPNearVertex(const TCSlice& slc, const TrajPoint& tp)
   {
     // Returns the index of a vertex if tp is nearby
     for (unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
@@ -1593,8 +1575,7 @@ namespace tca {
   } // TPNearVertex
 
   //////////////////////////////////////////
-  bool
-  AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt)
+  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt)
   {
     // Attaches to any 3D vertex but doesn't require consistency with
     // PFP -> Tj -> 2V -> 3V assns
@@ -1651,8 +1632,7 @@ namespace tca {
   } // AttachToAnyVertex
 
   //////////////////////////////////////////
-  bool
-  AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt)
+  bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt)
   {
     // Try to attach a tj that is stored in slc.tjs with any vertex
     if (tjID <= 0 || tjID > (int)slc.tjs.size()) return false;
@@ -1693,8 +1673,7 @@ namespace tca {
   } // AttachAnyVertexToTraj
 
   //////////////////////////////////////////
-  bool
-  AttachAnyTrajToVertex(TCSlice& slc, unsigned short ivx, bool prt)
+  bool AttachAnyTrajToVertex(TCSlice& slc, unsigned short ivx, bool prt)
   {
 
     if (ivx > slc.vtxs.size() - 1) return false;
@@ -1738,8 +1717,7 @@ namespace tca {
   } // AttachAnyTrajToVertex
 
   //////////////////////////////////////////
-  bool
-  AttachTrajToVertex(TCSlice& slc, Trajectory& tj, VtxStore& vx, bool prt)
+  bool AttachTrajToVertex(TCSlice& slc, Trajectory& tj, VtxStore& vx, bool prt)
   {
     // Note that this function does not require a signal between the end of the Tj and the vertex
 
@@ -1861,8 +1839,7 @@ namespace tca {
   } // AttachTrajToVertex
 
   /////////////////////////////////////////
-  float
-  TrajPointVertexPull(const TCSlice& slc, const TrajPoint& tp, const VtxStore& vx)
+  float TrajPointVertexPull(const TCSlice& slc, const TrajPoint& tp, const VtxStore& vx)
   {
     // Calculates the position pull between a trajectory point and a vertex
 
@@ -1897,8 +1874,7 @@ namespace tca {
   } // TrajPointVertexPull
 
   /////////////////////////////////////////
-  float
-  VertexVertexPull(const TCSlice& slc, const Vtx3Store& vx1, const Vtx3Store& vx2)
+  float VertexVertexPull(const TCSlice& slc, const Vtx3Store& vx1, const Vtx3Store& vx2)
   {
     // Calculates the position pull between two vertices
     double dx = vx1.X - vx2.X;
@@ -1914,8 +1890,7 @@ namespace tca {
   }
 
   /////////////////////////////////////////
-  float
-  VertexVertexPull(const TCSlice& slc, const VtxStore& vx1, const VtxStore& vx2)
+  float VertexVertexPull(const TCSlice& slc, const VtxStore& vx1, const VtxStore& vx2)
   {
     // Calculates the position pull between two vertices
     double dw = vx1.Pos[0] - vx2.Pos[0];
@@ -1928,8 +1903,7 @@ namespace tca {
   }
 
   ////////////////////////////////////////////////
-  bool
-  StoreVertex(TCSlice& slc, VtxStore& vx)
+  bool StoreVertex(TCSlice& slc, VtxStore& vx)
   {
     // jacket around the push to ensure that the Tj and vtx CTP is consistent.
     // The calling function should score the vertex after the trajectories are attached
@@ -1964,8 +1938,7 @@ namespace tca {
   } // StoreVertex
 
   /////////////////////////////////////////
-  bool
-  FitVertex(TCSlice& slc, VtxStore& vx, bool prt)
+  bool FitVertex(TCSlice& slc, VtxStore& vx, bool prt)
   {
     // Fit the vertex using T -> 2V assns
 
@@ -2014,8 +1987,7 @@ namespace tca {
   } // FitVertex
 
   /////////////////////////////////////////
-  bool
-  FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint>& vxTPs, bool prt)
+  bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint>& vxTPs, bool prt)
   {
     // Version with LSQ fit. Each TP position (P0,P1) and slope S are fit to a vertex
     // at position (V0, V1), using the equation P1 = V1 + (P0 - V0) * S. This is put
@@ -2081,8 +2053,7 @@ namespace tca {
   } // FitVertex
 
   //////////////////////////////////////////
-  bool
-  ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP)
+  bool ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP)
   {
     // Check the associations
 
@@ -2156,8 +2127,7 @@ namespace tca {
   } // ChkVtxAssociations
 
   //////////////////////////////////////////
-  void
-  ScoreVertices(TCSlice& slc)
+  void ScoreVertices(TCSlice& slc)
   {
     // reset all 3D vertex, 2D vertex and Tj high-score vertex bits in tpcid
 
@@ -2184,8 +2154,7 @@ namespace tca {
   }   // ScoreVertices
 
   //////////////////////////////////////////
-  void
-  KillPoorVertices(TCSlice& slc)
+  void KillPoorVertices(TCSlice& slc)
   {
     // kill 2D vertices that have low score and are not attached to a high-score 3D vertex
     if (slc.vtxs.empty()) return;
@@ -2203,8 +2172,7 @@ namespace tca {
   } // KillPoorVertices
 
   //////////////////////////////////////////
-  void
-  SetHighScoreBits(TCSlice& slc, Vtx3Store& vx3)
+  void SetHighScoreBits(TCSlice& slc, Vtx3Store& vx3)
   {
     // Sets the tj and 2D vertex score bits to true
 
@@ -2252,8 +2220,7 @@ namespace tca {
   } // SetHighScoreBits
 
   //////////////////////////////////////////
-  void
-  SetVx3Score(TCSlice& slc, Vtx3Store& vx3)
+  void SetVx3Score(TCSlice& slc, Vtx3Store& vx3)
   {
     // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined
     // by vtx2DCuts
@@ -2274,8 +2241,7 @@ namespace tca {
   } // SetVx3Score
 
   //////////////////////////////////////////
-  void
-  SetVx2Score(TCSlice& slc)
+  void SetVx2Score(TCSlice& slc)
   {
     // A version that sets the score of the last added vertex
     if (slc.vtxs.empty()) return;
@@ -2284,8 +2250,7 @@ namespace tca {
   } // SetVx2Score
 
   //////////////////////////////////////////
-  void
-  SetVx2Score(TCSlice& slc, VtxStore& vx2)
+  void SetVx2Score(TCSlice& slc, VtxStore& vx2)
   {
     // Calculate the 2D vertex score
     if (vx2.ID == 0) return;
@@ -2406,8 +2371,8 @@ namespace tca {
   } // SetVx2Score
 
   //////////////////////////////////////////
-  void
-  CompleteIncomplete3DVerticesInGaps(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
+  void CompleteIncomplete3DVerticesInGaps(detinfo::DetectorPropertiesData const& detProp,
+                                          TCSlice& slc)
   {
 
     if (!tcc.useAlg[kComp3DVxIG]) return;
@@ -2500,8 +2465,7 @@ namespace tca {
   } // CompleteIncomplete3DVerticesInGaps
 
   //////////////////////////////////////////
-  void
-  CompleteIncomplete3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
+  void CompleteIncomplete3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc)
   {
     // Look for trajectories in a plane that lack a 2D vertex as listed in
     // 2DVtxID that are near the projected wire. This may trigger splitting trajectories,
@@ -2700,12 +2664,11 @@ namespace tca {
   } // CompleteIncomplete3DVertices
 
   ////////////////////////////////////////////////
-  bool
-  RefineVtxPosition(TCSlice& slc,
-                    const Trajectory& tj,
-                    unsigned short& nearPt,
-                    short nPtsToChk,
-                    bool prt)
+  bool RefineVtxPosition(TCSlice& slc,
+                         const Trajectory& tj,
+                         unsigned short& nearPt,
+                         short nPtsToChk,
+                         bool prt)
   {
     // The tj has been slated to be split somewhere near point nearPt. This function will move
     // the near point a bit to the most likely point of a vertex
@@ -2736,8 +2699,7 @@ namespace tca {
   } //RefineVtxPosition
 
   ////////////////////////////////////////////////
-  bool
-  MakeVertexObsolete(std::string fcnLabel, TCSlice& slc, VtxStore& vx2, bool forceKill)
+  bool MakeVertexObsolete(std::string fcnLabel, TCSlice& slc, VtxStore& vx2, bool forceKill)
   {
     // Makes a 2D vertex obsolete
 
@@ -2828,8 +2790,7 @@ namespace tca {
   } // MakeVertexObsolete
 
   ////////////////////////////////////////////////
-  bool
-  MakeVertexObsolete(TCSlice& slc, Vtx3Store& vx3)
+  bool MakeVertexObsolete(TCSlice& slc, Vtx3Store& vx3)
   {
     // Deletes a 3D vertex and 2D vertices in all planes
     // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
@@ -2847,8 +2808,7 @@ namespace tca {
   } // MakeVertexObsolete
 
   //////////////////////////////////////////
-  std::vector<int>
-  GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2)
+  std::vector<int> GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2)
   {
     // returns a list of trajectory IDs that are attached to vx2
     std::vector<int> tmp;
@@ -2864,8 +2824,7 @@ namespace tca {
   } // GetVtxTjIDs
 
   //////////////////////////////////////////
-  std::vector<int>
-  GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score)
+  std::vector<int> GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score)
   {
     // returns a list of Tjs in all planes that are attached to vx3
     std::vector<int> tmp;
@@ -2889,12 +2848,11 @@ namespace tca {
   } // GetVtxTjIDs
 
   //////////////////////////////////////////
-  void
-  PosInPlane(detinfo::DetectorPropertiesData const& detProp,
-             const TCSlice& slc,
-             const Vtx3Store& vx3,
-             unsigned short plane,
-             Point2_t& pos)
+  void PosInPlane(detinfo::DetectorPropertiesData const& detProp,
+                  const TCSlice& slc,
+                  const Vtx3Store& vx3,
+                  unsigned short plane,
+                  Point2_t& pos)
   {
     // returns the 2D position of the vertex in the plane
     pos[0] = tcc.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
@@ -2904,8 +2862,7 @@ namespace tca {
   } // PosInPlane
 
   /////////////////////////////////////////
-  unsigned short
-  IsCloseToVertex(const TCSlice& slc, const VtxStore& inVx2)
+  unsigned short IsCloseToVertex(const TCSlice& slc, const VtxStore& inVx2)
   {
     // Returns the ID of a 2D vertex having the minimum pull < user-specified cut
 
@@ -2924,8 +2881,7 @@ namespace tca {
   } // IsCloseToVertex
 
   /////////////////////////////////////////
-  unsigned short
-  IsCloseToVertex(const TCSlice& slc, const Vtx3Store& vx3)
+  unsigned short IsCloseToVertex(const TCSlice& slc, const Vtx3Store& vx3)
   {
     // Returns the ID of a 3D vertex having the minimum pull < user-specified cut
 

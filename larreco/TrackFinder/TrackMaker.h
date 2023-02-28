@@ -36,25 +36,18 @@ namespace trkmkr {
   struct OptionalPointElement {
   public:
     /// set the recob::TrackFitHitInfo unique_ptr
-    void
-    setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo)
+    void setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo)
     {
       trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(std::move(aTrackFitHitInfo));
     }
-    void
-    setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo)
+    void setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo)
     {
       trackFitHitInfo = std::make_unique<recob::TrackFitHitInfo>(aTrackFitHitInfo);
     }
     /// check if the recob::TrackFitHitInfo unique_ptr is set
-    bool
-    isTrackFitInfoSet()
-    {
-      return bool(trackFitHitInfo);
-    }
+    bool isTrackFitInfoSet() { return bool(trackFitHitInfo); }
     /// get the recob::TrackFitHitInfo object, and reset the unique_ptr
-    recob::TrackFitHitInfo
-    getTrackFitHitInfo()
+    recob::TrackFitHitInfo getTrackFitHitInfo()
     {
       auto tmp = *trackFitHitInfo;
       trackFitHitInfo.reset();
@@ -62,25 +55,18 @@ namespace trkmkr {
     }
     //
     /// set the recob::SpacePoint unique_ptr
-    void
-    setSpacePoint(recob::SpacePoint&& aSpacePoint)
+    void setSpacePoint(recob::SpacePoint&& aSpacePoint)
     {
       spacePoint = std::make_unique<recob::SpacePoint>(aSpacePoint);
     }
-    void
-    setSpacePoint(const recob::SpacePoint& aSpacePoint)
+    void setSpacePoint(const recob::SpacePoint& aSpacePoint)
     {
       spacePoint = std::make_unique<recob::SpacePoint>(aSpacePoint);
     }
     /// check if the recob::SpacePoint unique_ptr is set
-    bool
-    isSpacePointSet()
-    {
-      return bool(spacePoint);
-    }
+    bool isSpacePointSet() { return bool(spacePoint); }
     /// get the recob::SpacePoint object, and release the unique_ptr
-    recob::SpacePoint
-    getSpacePoint()
+    recob::SpacePoint getSpacePoint()
     {
       auto tmp = *spacePoint;
       spacePoint.reset();
@@ -116,16 +102,14 @@ namespace trkmkr {
     typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit>> SpHitPair;
 
     /// add one OptionalPointElement
-    void
-    addPoint(OptionalPointElement& ope)
+    void addPoint(OptionalPointElement& ope)
     {
       if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
         outTrackFitHitInfos->push_back(ope.getTrackFitHitInfo());
       }
     }
     /// add one OptionalPointElement and the corresponding hit
-    void
-    addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr)
+    void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr)
     {
       if (isSpacePointsInit() && ope.isSpacePointSet()) {
         outSpacePointHitPairs->emplace_back(ope.getSpacePoint(), hptr);
@@ -133,8 +117,7 @@ namespace trkmkr {
       addPoint(ope);
     }
     /// reset the stored vectors
-    void
-    reset()
+    void reset()
     {
       if (isTrackFitInfosInit()) {
         outTrackFitHitInfos.reset();
@@ -146,32 +129,18 @@ namespace trkmkr {
       }
     }
     /// initialize the output vector of TrackFitHitInfos
-    void
-    initTrackFitInfos()
+    void initTrackFitInfos()
     {
       outTrackFitHitInfos = std::make_unique<std::vector<recob::TrackFitHitInfo>>();
     }
     /// initialize the output vector of SpHitPair
-    void
-    initSpacePoints()
-    {
-      outSpacePointHitPairs = std::make_unique<std::vector<SpHitPair>>();
-    }
+    void initSpacePoints() { outSpacePointHitPairs = std::make_unique<std::vector<SpHitPair>>(); }
     /// check initialization of the output vector of TrackFitHitInfos
-    bool
-    isTrackFitInfosInit()
-    {
-      return bool(outTrackFitHitInfos);
-    }
+    bool isTrackFitInfosInit() { return bool(outTrackFitHitInfos); }
     /// check initialization of the output vector of SpHitPair
-    bool
-    isSpacePointsInit()
-    {
-      return bool(outSpacePointHitPairs);
-    }
+    bool isSpacePointsInit() { return bool(outSpacePointHitPairs); }
     /// get the output vector of TrackFitHitInfos by releasing and moving
-    std::vector<recob::TrackFitHitInfo>
-    trackFitHitInfos()
+    std::vector<recob::TrackFitHitInfo> trackFitHitInfos()
     {
       if (!isTrackFitInfosInit())
         throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
@@ -180,8 +149,7 @@ namespace trkmkr {
       return tmp;
     }
     /// get the output vector of SpHitPair by releasing and moving
-    std::vector<SpHitPair>
-    spacePointHitPairs()
+    std::vector<SpHitPair> spacePointHitPairs()
     {
       if (!isSpacePointsInit())
         throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
@@ -225,21 +193,18 @@ namespace trkmkr {
     virtual ~TrackMaker() noexcept = default;
 
     /// per-event initialization; concrete classes may override this function to retrieve other products or associations from the event.
-    virtual void
-    initEvent(const art::Event& e)
-    {}
+    virtual void initEvent(const art::Event& e) {}
 
     //@{
     /// makeTrack functions with recob::Trajectory as argument; calls the version with recob::TrackTrajectory using a dummy flags vector.
-    virtual bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const recob::Trajectory& traj,
-              const std::vector<recob::TrajectoryPointFlags>& flags,
-              const int tkID,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const recob::Trajectory& traj,
+                           const std::vector<recob::TrajectoryPointFlags>& flags,
+                           const int tkID,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const
     {
       return makeTrack(
         detProp,
@@ -250,14 +215,13 @@ namespace trkmkr {
         outHits,
         optionals);
     }
-    virtual bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const art::Ptr<recob::Trajectory> traj,
-              const std::vector<recob::TrajectoryPointFlags>& flags,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const art::Ptr<recob::Trajectory> traj,
+                           const std::vector<recob::TrajectoryPointFlags>& flags,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const
     {
       return makeTrack(
         detProp,
@@ -271,13 +235,12 @@ namespace trkmkr {
     //@}
 
     /// makeTrack functions with art::Ptr<recob::TrackTrajectory>; calls the purely virtual version with const recob::TrackTrajectory reference as argument.
-    virtual bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const art::Ptr<recob::TrackTrajectory> ttraj,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const art::Ptr<recob::TrackTrajectory> ttraj,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const
     {
       return makeTrack(detProp, *ttraj, ttraj.key(), inHits, outTrack, outHits, optionals);
     }
@@ -295,25 +258,23 @@ namespace trkmkr {
     //@{
     /// makeTrack functions with recob::Track as argument; calls the version
     /// with recob::TrackTrajectory.
-    virtual bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const art::Ptr<recob::Track> track,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const art::Ptr<recob::Track> track,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const
     {
       return makeTrack(
         detProp, track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
     }
 
-    virtual bool
-    makeTrack(const detinfo::DetectorPropertiesData& detProp,
-              const recob::Track& track,
-              const std::vector<art::Ptr<recob::Hit>>& inHits,
-              recob::Track& outTrack,
-              std::vector<art::Ptr<recob::Hit>>& outHits,
-              OptionalOutputs& optionals) const
+    virtual bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
+                           const recob::Track& track,
+                           const std::vector<art::Ptr<recob::Hit>>& inHits,
+                           recob::Track& outTrack,
+                           std::vector<art::Ptr<recob::Hit>>& outHits,
+                           OptionalOutputs& optionals) const
     {
       return makeTrack(
         detProp, track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals);

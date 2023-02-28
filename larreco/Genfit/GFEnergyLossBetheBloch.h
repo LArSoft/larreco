@@ -24,11 +24,10 @@
 #ifndef GFENERGYLOSSBETHEBLOCH_H
 #define GFENERGYLOSSBETHEBLOCH_H
 
-#include"GFAbsEnergyLoss.h"
+#include "GFAbsEnergyLoss.h"
 
 #include "RtypesCore.h"
 class TVector3;
-
 
 /** @brief Energy loss for charged particles (Bethe Bloch), energy loss straggeling
  *
@@ -43,10 +42,10 @@ class TVector3;
  */
 namespace genf {
 
-class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
- public:
-  //! Returns energy loss, optional calculation of energy loss straggeling
-  /**  Uses Bethe Bloch formula to calculate energy loss.
+  class GFEnergyLossBetheBloch : public GFAbsEnergyLoss {
+  public:
+    //! Returns energy loss, optional calculation of energy loss straggeling
+    /**  Uses Bethe Bloch formula to calculate energy loss.
     *  For the energy loss straggeling, different formulas are used for different regions:
     *  - Vavilov-Gaussian regime
     *  - Urban/Landau approximation
@@ -54,25 +53,24 @@ class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
     *  - Urban model
     *
   */
-  double energyLoss(const double& step,
-                    const double& mom,
-                    const int&    pdg,
-                    const double& matDensity,
-                    const double& matZ,
-                    const double& matA,
-                    const double& radiationLength,
-                    const double& meanExcitationEnergy,
-                    const bool&   doNoise = false,
-                          TMatrixT<Double_t>* noise = NULL,
-                    const TMatrixT<Double_t>* jacobian = NULL,
-                    const TVector3* directionBefore = NULL,
-                    const TVector3* directionAfter = NULL);
-  virtual ~GFEnergyLossBetheBloch();
+    double energyLoss(const double& step,
+                      const double& mom,
+                      const int& pdg,
+                      const double& matDensity,
+                      const double& matZ,
+                      const double& matA,
+                      const double& radiationLength,
+                      const double& meanExcitationEnergy,
+                      const bool& doNoise = false,
+                      TMatrixT<Double_t>* noise = NULL,
+                      const TMatrixT<Double_t>* jacobian = NULL,
+                      const TVector3* directionBefore = NULL,
+                      const TVector3* directionAfter = NULL);
+    virtual ~GFEnergyLossBetheBloch();
 
-  // public:
-  //ClassDef(GFEnergyLossBetheBloch,1);
-
-};
+    // public:
+    //ClassDef(GFEnergyLossBetheBloch,1);
+  };
 
 } // namespace genf
 

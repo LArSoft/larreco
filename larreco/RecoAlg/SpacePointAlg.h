@@ -82,46 +82,14 @@ namespace trkf {
 
     // Configuration Accessors.
 
-    bool
-    filter() const noexcept
-    {
-      return fFilter;
-    }
-    bool
-    merge() const noexcept
-    {
-      return fMerge;
-    }
-    double
-    maxDT() const noexcept
-    {
-      return fMaxDT;
-    }
-    double
-    maxS() const noexcept
-    {
-      return fMaxS;
-    }
-    int
-    minViews() const noexcept
-    {
-      return fMinViews;
-    }
-    bool
-    enableU() const noexcept
-    {
-      return fEnableU;
-    }
-    bool
-    enableV() const noexcept
-    {
-      return fEnableV;
-    }
-    bool
-    enableW() const noexcept
-    {
-      return fEnableW;
-    }
+    bool filter() const noexcept { return fFilter; }
+    bool merge() const noexcept { return fMerge; }
+    double maxDT() const noexcept { return fMaxDT; }
+    double maxS() const noexcept { return fMaxS; }
+    int minViews() const noexcept { return fMinViews; }
+    bool enableU() const noexcept { return fEnableU; }
+    bool enableV() const noexcept { return fEnableV; }
+    bool enableW() const noexcept { return fEnableW; }
 
     // Print constants obtained from geometry and properties services.
     void update(detinfo::DetectorPropertiesData const& detProp) const;
@@ -177,18 +145,10 @@ namespace trkf {
     const art::PtrVector<recob::Hit>& getAssociatedHits(const recob::SpacePoint& spt) const;
 
     // Clear space point to Hit associations.
-    void
-    clearHitMap() const
-    {
-      fSptHitMap.clear();
-    }
+    void clearHitMap() const { fSptHitMap.clear(); }
 
     // Return number of space point to Hit associations.
-    int
-    numHitMap() const
-    {
-      return fSptHitMap.size();
-    }
+    int numHitMap() const { return fSptHitMap.size(); }
 
   private:
     // This is the real method for calculating space points (each of

@@ -11,23 +11,26 @@
 
 #include <vector>
 
-namespace fhicl { class ParameterSet; }
-namespace recob { class Hit; }
+namespace fhicl {
+  class ParameterSet;
+}
+namespace recob {
+  class Hit;
+}
 
-namespace hit{
+namespace hit {
 
   class HitFilterAlg {
-    public:
-      explicit HitFilterAlg(fhicl::ParameterSet const & p);
-      virtual ~HitFilterAlg() {}
+  public:
+    explicit HitFilterAlg(fhicl::ParameterSet const& p);
+    virtual ~HitFilterAlg() {}
 
-      bool IsGoodHit(const recob::Hit& hit) const;
+    bool IsGoodHit(const recob::Hit& hit) const;
 
-    private:
-
-      const std::vector<float> fMinPulseHeight;
-      const std::vector<float> fMinPulseSigma;
+  private:
+    const std::vector<float> fMinPulseHeight;
+    const std::vector<float> fMinPulseSigma;
   };
 
-}//end namespace hit
+} //end namespace hit
 #endif

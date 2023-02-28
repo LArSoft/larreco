@@ -83,16 +83,8 @@ namespace lar_cluster3d {
       : m_position(position), m_hit3DIterator(itr)
     {}
 
-    const Eigen::Vector3f&
-    getPosition() const
-    {
-      return m_position;
-    }
-    reco::HitPairListPtr::const_iterator
-    getHitIterator() const
-    {
-      return m_hit3DIterator;
-    }
+    const Eigen::Vector3f& getPosition() const { return m_position; }
+    reco::HitPairListPtr::const_iterator getHitIterator() const { return m_hit3DIterator; }
 
   private:
     Eigen::Vector3f
@@ -117,49 +109,17 @@ namespace lar_cluster3d {
       m_accumulatorValuesVec.push_back(values);
     }
 
-    void
-    setVisited()
-    {
-      m_visited = true;
-    }
-    void
-    setNoise()
-    {
-      m_noise = true;
-    }
-    void
-    setInCluster()
-    {
-      m_inCluster = true;
-    }
+    void setVisited() { m_visited = true; }
+    void setNoise() { m_noise = true; }
+    void setInCluster() { m_inCluster = true; }
 
-    void
-    addAccumulatorValue(AccumulatorValues& value)
-    {
-      m_accumulatorValuesVec.push_back(value);
-    }
+    void addAccumulatorValue(AccumulatorValues& value) { m_accumulatorValuesVec.push_back(value); }
 
-    bool
-    isVisited() const
-    {
-      return m_visited;
-    }
-    bool
-    isNoise() const
-    {
-      return m_noise;
-    }
-    bool
-    isInCluster() const
-    {
-      return m_inCluster;
-    }
+    bool isVisited() const { return m_visited; }
+    bool isNoise() const { return m_noise; }
+    bool isInCluster() const { return m_inCluster; }
 
-    const AccumulatorValuesVec&
-    getAccumulatorValues() const
-    {
-      return m_accumulatorValuesVec;
-    }
+    const AccumulatorValuesVec& getAccumulatorValues() const { return m_accumulatorValuesVec; }
 
   private:
     bool m_visited;
@@ -176,9 +136,8 @@ namespace lar_cluster3d {
     SortHoughClusterList(HoughSeedFinderAlg::RhoThetaAccumulatorBinMap& accMap) : m_accMap(accMap)
     {}
 
-    bool
-    operator()(const HoughSeedFinderAlg::HoughCluster& left,
-               const HoughSeedFinderAlg::HoughCluster& right)
+    bool operator()(const HoughSeedFinderAlg::HoughCluster& left,
+                    const HoughSeedFinderAlg::HoughCluster& right)
     {
       size_t peakCountLeft(0);
       size_t peakCountRight(0);
@@ -199,9 +158,8 @@ namespace lar_cluster3d {
     /**
      *  @brief This is used to sort bins in Hough Space
      */
-    bool
-    operator()(const HoughSeedFinderAlg::RhoThetaAccumulatorBinMap::iterator& left,
-               const HoughSeedFinderAlg::RhoThetaAccumulatorBinMap::iterator& right)
+    bool operator()(const HoughSeedFinderAlg::RhoThetaAccumulatorBinMap::iterator& left,
+                    const HoughSeedFinderAlg::RhoThetaAccumulatorBinMap::iterator& right)
     {
       size_t leftSize = left->second.getAccumulatorValues().size();
       size_t rightSize = right->second.getAccumulatorValues().size();
@@ -210,11 +168,10 @@ namespace lar_cluster3d {
     }
   };
 
-  void
-  HoughSeedFinderAlg::HoughRegionQuery(BinIndex& curBin,
-                                       RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
-                                       HoughCluster& neighborPts,
-                                       size_t threshold) const
+  void HoughSeedFinderAlg::HoughRegionQuery(BinIndex& curBin,
+                                            RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
+                                            HoughCluster& neighborPts,
+                                            size_t threshold) const
   {
     /**
      *   @brief Does a query of nearest neighbors to look for matching bins
@@ -247,12 +204,11 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  HoughSeedFinderAlg::expandHoughCluster(BinIndex& curBin,
-                                         HoughCluster& neighborPts,
-                                         HoughCluster& houghCluster,
-                                         RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
-                                         size_t threshold) const
+  void HoughSeedFinderAlg::expandHoughCluster(BinIndex& curBin,
+                                              HoughCluster& neighborPts,
+                                              HoughCluster& houghCluster,
+                                              RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
+                                              size_t threshold) const
   {
     /**
      *  @brief The workhorse routine for a DBScan like clustering routine to identify peak bins in Hough Space
@@ -287,15 +243,13 @@ namespace lar_cluster3d {
     return;
   }
 
-  bool
-  Hit3DCompare(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+  bool Hit3DCompare(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
   {
     return *left < *right;
   }
 
   struct Hit3DSetCompare {
-    bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
       return Hit3DCompare(left, right);
     }
@@ -305,8 +259,7 @@ namespace lar_cluster3d {
   public:
     OrderHitsAlongWire(int plane = 0) : m_plane(plane) {}
 
-    bool
-    operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
     {
       int planeToCheck = (m_plane + 1) % 3;
 
@@ -319,16 +272,14 @@ namespace lar_cluster3d {
   };
 
   struct OrderBestPlanes {
-    bool
-    operator()(const std::pair<size_t, size_t>& left, const std::pair<size_t, size_t>& right)
+    bool operator()(const std::pair<size_t, size_t>& left, const std::pair<size_t, size_t>& right)
     {
       return left.second < right.second;
     }
   };
 
-  void
-  HoughSeedFinderAlg::findHitGaps(reco::HitPairListPtr& inputHitList,
-                                  reco::HitPairListPtr& outputList) const
+  void HoughSeedFinderAlg::findHitGaps(reco::HitPairListPtr& inputHitList,
+                                       reco::HitPairListPtr& outputList) const
   {
     // Intention is to try to find the largest "contiguous" block of hits in the input list
     // In a nutshell, the idea is to order input hits according to the pca, then
@@ -392,12 +343,11 @@ namespace lar_cluster3d {
     return;
   }
 
-  void
-  HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairListPtr,
-                                        reco::PrincipalComponents& pca,
-                                        int& nLoops,
-                                        RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
-                                        HoughClusterList& houghClusters) const
+  void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairListPtr,
+                                             reco::PrincipalComponents& pca,
+                                             int& nLoops,
+                                             RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
+                                             HoughClusterList& houghClusters) const
   {
     // The goal of this function is to do a basic Hough Transform on the input list of 3D hits.
     // In order to transform this to a 2D problem, the 3D hits are projected to the plane of the two
@@ -577,9 +527,8 @@ namespace lar_cluster3d {
     return;
   }
 
-  bool
-  HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits,
-                                SeedHitPairListPair& seedHitPair) const
+  bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits,
+                                     SeedHitPairListPair& seedHitPair) const
   {
     if (seed3DHits.size() < m_minimum3DHits) return false;
 
@@ -706,10 +655,9 @@ namespace lar_cluster3d {
     return true;
   }
 
-  bool
-  HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
-                                     reco::PrincipalComponents& inputPCA,
-                                     SeedHitPairListPairVec& seedHitPairVec) const
+  bool HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,
+                                          reco::PrincipalComponents& inputPCA,
+                                          SeedHitPairListPairVec& seedHitPairVec) const
   {
     // This will be a busy routine... the basic tasks are:
     // 1) loop through hits and project to the plane defined by the two largest eigen values, accumulate in Hough space
@@ -901,10 +849,9 @@ namespace lar_cluster3d {
     return true;
   }
 
-  bool
-  HoughSeedFinderAlg::findTrackHits(reco::HitPairListPtr& inputHitPairListPtr,
-                                    reco::PrincipalComponents& inputPCA,
-                                    reco::HitPairListPtrList& hitPairListPtrList) const
+  bool HoughSeedFinderAlg::findTrackHits(reco::HitPairListPtr& inputHitPairListPtr,
+                                         reco::PrincipalComponents& inputPCA,
+                                         reco::HitPairListPtrList& hitPairListPtrList) const
   {
     // The goal of this routine is run the Hough Transform on the input set of hits
     // and then to return a list of lists of hits which are associated to a given line
@@ -1016,12 +963,11 @@ namespace lar_cluster3d {
   }
 
   //------------------------------------------------------------------------------
-  void
-  HoughSeedFinderAlg::LineFit2DHits(std::set<const reco::ClusterHit2D*>& hit2DSet,
-                                    double XOrigin,
-                                    TVector3& Pos,
-                                    TVector3& Dir,
-                                    double& ChiDOF) const
+  void HoughSeedFinderAlg::LineFit2DHits(std::set<const reco::ClusterHit2D*>& hit2DSet,
+                                         double XOrigin,
+                                         TVector3& Pos,
+                                         TVector3& Dir,
+                                         double& ChiDOF) const
   {
     // The following is lifted from Bruce Baller to try to get better
     // initial parameters for a candidate Seed. It is slightly reworked

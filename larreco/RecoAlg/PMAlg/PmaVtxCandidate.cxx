@@ -22,24 +22,21 @@
 
 #include "TMath.h"
 
-bool
-pma::VtxCandidate::Has(pma::Track3D* trk) const
+bool pma::VtxCandidate::Has(pma::Track3D* trk) const
 {
   for (const auto& t : fAssigned)
     if (trk == t.first.Track()) return true;
   return false;
 }
 
-bool
-pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
+bool pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
 {
   for (const auto& t : other.fAssigned)
     if (!Has(t.first.Track())) return false;
   return true;
 }
 
-bool
-pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
+bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 {
   pma::Track3D const* rootTrk = trk->GetRoot();
   if (!rootTrk) throw cet::exception("pma::VtxCandidate") << "Broken track.";
@@ -53,16 +50,14 @@ pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
   return false;
 }
 
-bool
-pma::VtxCandidate::IsAttached(const pma::VtxCandidate& other) const
+bool pma::VtxCandidate::IsAttached(const pma::VtxCandidate& other) const
 {
   for (const auto& t : other.fAssigned)
     if (IsAttached(t.first.Track())) return true;
   return false;
 }
 
-bool
-pma::VtxCandidate::HasLoops() const
+bool pma::VtxCandidate::HasLoops() const
 {
   for (size_t t = 0; t < fAssigned.size(); t++) {
     pma::Track3D const* trk_t = fAssigned[t].first.Track()->GetRoot();
@@ -79,8 +74,7 @@ pma::VtxCandidate::HasLoops() const
   return false;
 }
 
-size_t
-pma::VtxCandidate::Size(double minLength) const
+size_t pma::VtxCandidate::Size(double minLength) const
 {
   size_t n = 0;
   for (auto const& c : fAssigned)
@@ -88,8 +82,7 @@ pma::VtxCandidate::Size(double minLength) const
   return n;
 }
 
-bool
-pma::VtxCandidate::Add(const pma::TrkCandidate& trk)
+bool pma::VtxCandidate::Add(const pma::TrkCandidate& trk)
 {
   if (IsAttached(trk.Track())) return false;
 
@@ -199,8 +192,7 @@ pma::VtxCandidate::Add(const pma::TrkCandidate& trk)
   }
 }
 
-double
-pma::VtxCandidate::ComputeMse2D()
+double pma::VtxCandidate::ComputeMse2D()
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
@@ -236,8 +228,7 @@ pma::VtxCandidate::ComputeMse2D()
   return mse / fAssigned.size();
 }
 
-double
-pma::VtxCandidate::Test(const VtxCandidate& other) const
+double pma::VtxCandidate::Test(const VtxCandidate& other) const
 {
   double dx = fCenter[0] - other.fCenter[0];
   double dy = fCenter[1] - other.fCenter[1];
@@ -247,8 +238,7 @@ pma::VtxCandidate::Test(const VtxCandidate& other) const
   return sqrt(dw);
 }
 
-double
-pma::VtxCandidate::MaxAngle(double minLength) const
+double pma::VtxCandidate::MaxAngle(double minLength) const
 {
   TVector3 dir_i;
   size_t max_l_idx = 0;
@@ -281,8 +271,7 @@ pma::VtxCandidate::MaxAngle(double minLength) const
   return 180.0 * acos(min) / TMath::Pi();
 }
 
-bool
-pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
+bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 {
   double d = sqrt(pma::Dist2(fCenter, other.fCenter));
   if (d > 10.0) {
@@ -336,8 +325,7 @@ pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
   }
 }
 
-double
-pma::VtxCandidate::Compute()
+double pma::VtxCandidate::Compute()
 {
   std::vector<pma::Segment3D*> segments;
   std::vector<std::pair<TVector3, TVector3>> lines;
@@ -408,10 +396,9 @@ pma::VtxCandidate::Compute()
   return resultMse;
 }
 
-bool
-pma::VtxCandidate::JoinTracks(detinfo::DetectorPropertiesData const& detProp,
-                              pma::TrkCandidateColl& tracks,
-                              pma::TrkCandidateColl& src)
+bool pma::VtxCandidate::JoinTracks(detinfo::DetectorPropertiesData const& detProp,
+                                   pma::TrkCandidateColl& tracks,
+                                   pma::TrkCandidateColl& src)
 {
   if (tracksJoined) {
     mf::LogError("pma::VtxCandidate") << "Tracks already attached to the vertex.";

@@ -53,8 +53,7 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  void
-  TCTrack::produce(art::Event& evt)
+  void TCTrack::produce(art::Event& evt)
   {
     // all data products are assumed to be produced by the same module that produced the PFParticles -> TrajCluster_module
     auto pfpHandle = evt.getValidHandle<std::vector<recob::PFParticle>>(fPFPtag);

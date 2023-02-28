@@ -29,11 +29,7 @@ namespace {
     float length;
   };
 
-  bool
-  greaterThan1(PlnLen p1, PlnLen p2)
-  {
-    return p1.length > p2.length;
-  }
+  bool greaterThan1(PlnLen p1, PlnLen p2) { return p1.length > p2.length; }
 }
 
 namespace trkf {
@@ -47,10 +43,9 @@ namespace trkf {
   }
 
   //---------------------------------------------------------------------
-  void
-  CosmicTrackerAlg::SPTReco(detinfo::DetectorClocksData const& clockData,
-                            detinfo::DetectorPropertiesData const& detProp,
-                            std::vector<art::Ptr<recob::Hit>>& fHits)
+  void CosmicTrackerAlg::SPTReco(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 std::vector<art::Ptr<recob::Hit>>& fHits)
   {
     trajPos.clear();
     trajDir.clear();
@@ -77,9 +72,8 @@ namespace trkf {
   }
 
   //---------------------------------------------------------------------
-  void
-  CosmicTrackerAlg::TrackTrajectory(detinfo::DetectorPropertiesData const& detProp,
-                                    std::vector<art::Ptr<recob::Hit>>& fHits)
+  void CosmicTrackerAlg::TrackTrajectory(detinfo::DetectorPropertiesData const& detProp,
+                                         std::vector<art::Ptr<recob::Hit>>& fHits)
   {
     // Track hit vectors for fitting the trajectory
     std::array<std::vector<geo::WireID>, 3> trkWID;
@@ -191,10 +185,9 @@ namespace trkf {
   }
 
   //---------------------------------------------------------------------
-  void
-  CosmicTrackerAlg::Track3D(detinfo::DetectorClocksData const& clockData,
-                            detinfo::DetectorPropertiesData const& detProp,
-                            std::vector<art::Ptr<recob::Hit>>& fHits)
+  void CosmicTrackerAlg::Track3D(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 std::vector<art::Ptr<recob::Hit>>& fHits)
   {
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
 
@@ -430,10 +423,9 @@ namespace trkf {
   }
 
   //---------------------------------------------------------------------
-  void
-  CosmicTrackerAlg::MakeSPT(detinfo::DetectorClocksData const& clockData,
-                            detinfo::DetectorPropertiesData const& detProp,
-                            std::vector<art::Ptr<recob::Hit>>& fHits)
+  void CosmicTrackerAlg::MakeSPT(detinfo::DetectorClocksData const& clockData,
+                                 detinfo::DetectorPropertiesData const& detProp,
+                                 std::vector<art::Ptr<recob::Hit>>& fHits)
   {
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
 

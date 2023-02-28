@@ -27,27 +27,27 @@ namespace cmtool {
   class CBoolAlgoBase : public CMAlgoBase {
 
   public:
-
     /// Default constructor
-    CBoolAlgoBase(){}
+    CBoolAlgoBase() {}
 
     /// Default destructor
-    virtual ~CBoolAlgoBase(){}
+    virtual ~CBoolAlgoBase() {}
 
     /**
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
     */
-    virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
-		      const ::cluster::ClusterParamsAlg &cluster2)
-    { if(cluster1.Plane() != cluster2.Plane()) return false;
-      else return true;
+    virtual bool Bool(const ::cluster::ClusterParamsAlg& cluster1,
+                      const ::cluster::ClusterParamsAlg& cluster2)
+    {
+      if (cluster1.Plane() != cluster2.Plane())
+        return false;
+      else
+        return true;
     }
-
   };
 
 }
 
 #endif
 /** @} */ // end of doxygen group
-

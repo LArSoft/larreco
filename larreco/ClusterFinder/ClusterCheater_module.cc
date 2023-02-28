@@ -56,8 +56,7 @@ namespace cluster {
   struct eveLoc {
     eveLoc(int id, geo::PlaneID plnID) : eveID(id), planeID(plnID) {}
 
-    friend bool
-    operator<(eveLoc const& a, eveLoc const& b)
+    friend bool operator<(eveLoc const& a, eveLoc const& b)
     {
       if (a.eveID != b.eveID) return a.eveID < b.eveID;
 
@@ -68,8 +67,7 @@ namespace cluster {
     geo::PlaneID planeID;
   };
 
-  bool
-  sortHitsByWire(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b)
+  bool sortHitsByWire(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b)
   {
     return a->WireID().Wire < b->WireID().Wire;
   }
@@ -87,8 +85,7 @@ namespace cluster {
   }
 
   //--------------------------------------------------------------------
-  void
-  ClusterCheater::produce(art::Event& evt)
+  void ClusterCheater::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geo;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;

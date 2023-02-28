@@ -29,15 +29,14 @@ namespace cmtool {
      CMergeBookKeeper keeps track of which clusters are asked to merge together, and it can be
      asked to return a vector of merged cluster indexes.
   */
-  class CMergeBookKeeper : public std::vector<unsigned short>{
+  class CMergeBookKeeper : public std::vector<unsigned short> {
 
   public:
-
     /// Default constructor
-    CMergeBookKeeper(unsigned short nclusters=0);
+    CMergeBookKeeper(unsigned short nclusters = 0);
 
     /// Reset method
-    void Reset(unsigned short nclusters=0);
+    void Reset(unsigned short nclusters = 0);
 
     /// Method to set a pair of clusters to prohibit from merging
     void ProhibitMerge(unsigned short index1, unsigned short index2);
@@ -67,12 +66,11 @@ namespace cmtool {
        A method to get the full result. The return is a vector
        of merged cluster indexes (which is a vector of original cluster indexes).
     */
-    void PassResult(std::vector<std::vector<unsigned short> > &result) const;
+    void PassResult(std::vector<std::vector<unsigned short>>& result) const;
 
-
-    std::vector<std::vector<unsigned short> > GetResult() const
+    std::vector<std::vector<unsigned short>> GetResult() const
     {
-      std::vector<std::vector<unsigned short> > result;
+      std::vector<std::vector<unsigned short>> result;
       PassResult(result);
       return result;
     }
@@ -81,20 +79,18 @@ namespace cmtool {
        Method to combine with another CMergeBookKeeper instance.
      */
 
-    void Combine(const CMergeBookKeeper &another);
+    void Combine(const CMergeBookKeeper& another);
 
     void Report() const;
 
   protected:
-
     /**
        A 2D-map vector that stores pair of clusters for which merging is prohibited
      */
-    std::vector<std::vector<bool> > _prohibit_merge;
+    std::vector<std::vector<bool>> _prohibit_merge;
 
     /// Number of output clusters
     size_t _out_cluster_count;
-
   };
 
 }

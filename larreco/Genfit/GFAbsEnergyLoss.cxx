@@ -17,23 +17,22 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include"GFAbsEnergyLoss.h"
+#include "GFAbsEnergyLoss.h"
 
-#include"TDatabasePDG.h"
+#include "TDatabasePDG.h"
 
-genf::GFAbsEnergyLoss::~GFAbsEnergyLoss(){
-}
+genf::GFAbsEnergyLoss::~GFAbsEnergyLoss() {}
 
-void genf::GFAbsEnergyLoss::getParticleParameters(const int&    pdg,
-                                            double& charge,
-                                            double& mass){
-  TParticlePDG * part = TDatabasePDG::Instance()->GetParticle(pdg);
-  charge = part->Charge()/(3.);
+void genf::GFAbsEnergyLoss::getParticleParameters(const int& pdg, double& charge, double& mass)
+{
+  TParticlePDG* part = TDatabasePDG::Instance()->GetParticle(pdg);
+  charge = part->Charge() / (3.);
   mass = part->Mass();
 }
 
-double genf::GFAbsEnergyLoss::getParticleMass (const int& pdg){
-  TParticlePDG * part = TDatabasePDG::Instance()->GetParticle(pdg);
+double genf::GFAbsEnergyLoss::getParticleMass(const int& pdg)
+{
+  TParticlePDG* part = TDatabasePDG::Instance()->GetParticle(pdg);
   return part->Mass();
 }
 

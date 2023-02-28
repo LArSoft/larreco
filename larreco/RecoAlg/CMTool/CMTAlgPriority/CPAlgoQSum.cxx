@@ -10,13 +10,12 @@ namespace cmtool {
   }
 
   //------------------------------------------------------------------------------
-  float CPAlgoQSum::Priority(const ::cluster::ClusterParamsAlg &cluster)
+  float CPAlgoQSum::Priority(const ::cluster::ClusterParamsAlg& cluster)
   //------------------------------------------------------------------------------
   {
-    if(cluster.GetParams().sum_charge < _qsum_cut) return -1;
+    if (cluster.GetParams().sum_charge < _qsum_cut) return -1;
 
     return cluster.GetParams().sum_charge;
   }
-
 
 }

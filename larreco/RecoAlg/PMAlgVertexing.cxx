@@ -28,8 +28,7 @@ pma::PMAlgVertexing::~PMAlgVertexing()
 }
 // ------------------------------------------------------
 
-void
-pma::PMAlgVertexing::cleanTracks()
+void pma::PMAlgVertexing::cleanTracks()
 {
   for (auto& t : fOutTracks.tracks())
     t.DeleteTrack();
@@ -49,8 +48,7 @@ pma::PMAlgVertexing::cleanTracks()
 }
 // ------------------------------------------------------
 
-void
-pma::PMAlgVertexing::collectTracks(pma::TrkCandidateColl& result)
+void pma::PMAlgVertexing::collectTracks(pma::TrkCandidateColl& result)
 {
   mf::LogVerbatim("pma::PMAlgVertexing") << "clean input: " << result.size() << std::endl;
   for (auto& t : result.tracks())
@@ -82,8 +80,7 @@ pma::PMAlgVertexing::collectTracks(pma::TrkCandidateColl& result)
 }
 // ------------------------------------------------------
 
-void
-pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl& trk_input)
+void pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl& trk_input)
 {
   cleanTracks();
 
@@ -123,8 +120,7 @@ pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl& trk_input)
 }
 // ------------------------------------------------------
 
-std::vector<pma::VtxCandidate>
-pma::PMAlgVertexing::firstPassCandidates() const
+std::vector<pma::VtxCandidate> pma::PMAlgVertexing::firstPassCandidates() const
 {
   std::vector<pma::VtxCandidate> candidates;
   for (size_t t = 0; t < fOutTracks.size() - 1; t++) {
@@ -143,8 +139,7 @@ pma::PMAlgVertexing::firstPassCandidates() const
   return candidates;
 }
 
-std::vector<pma::VtxCandidate>
-pma::PMAlgVertexing::secondPassCandidates() const
+std::vector<pma::VtxCandidate> pma::PMAlgVertexing::secondPassCandidates() const
 {
   std::vector<pma::VtxCandidate> candidates;
   for (size_t t = 0; t < fOutTracks.size(); t++)
@@ -163,9 +158,8 @@ pma::PMAlgVertexing::secondPassCandidates() const
   return candidates;
 }
 
-size_t
-pma::PMAlgVertexing::makeVertices(detinfo::DetectorPropertiesData const& detProp,
-                                  std::vector<pma::VtxCandidate>& candidates)
+size_t pma::PMAlgVertexing::makeVertices(detinfo::DetectorPropertiesData const& detProp,
+                                         std::vector<pma::VtxCandidate>& candidates)
 {
   bool merged = true;
   while (merged && (candidates.size() > 1)) {
@@ -272,9 +266,8 @@ pma::PMAlgVertexing::makeVertices(detinfo::DetectorPropertiesData const& detProp
 }
 // ------------------------------------------------------
 
-size_t
-pma::PMAlgVertexing::run(const detinfo::DetectorPropertiesData& detProp,
-                         pma::TrkCandidateColl& trk_input)
+size_t pma::PMAlgVertexing::run(const detinfo::DetectorPropertiesData& detProp,
+                                pma::TrkCandidateColl& trk_input)
 {
   if (fFindKinks) findKinksOnTracks(detProp, trk_input);
 
@@ -332,8 +325,8 @@ pma::PMAlgVertexing::run(const detinfo::DetectorPropertiesData& detProp,
 }
 // ------------------------------------------------------
 
-size_t
-pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input, const std::vector<TVector3>& vtx_input)
+size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input,
+                                const std::vector<TVector3>& vtx_input)
 {
   sortTracks(trk_input); // copy input and split by tag/size
 
@@ -345,8 +338,7 @@ pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input, const std::vector<TVe
 }
 // ------------------------------------------------------
 
-std::vector<std::pair<double, double>>
-pma::PMAlgVertexing::getdQdx(const pma::Track3D& trk) const
+std::vector<std::pair<double, double>> pma::PMAlgVertexing::getdQdx(const pma::Track3D& trk) const
 {
   std::vector<std::pair<double, double>> result;
 
@@ -386,8 +378,10 @@ pma::PMAlgVertexing::getdQdx(const pma::Track3D& trk) const
 }
 // ------------------------------------------------------
 
-double
-pma::PMAlgVertexing::convolute(size_t idx, size_t len, double* adc, double const* shape) const
+double pma::PMAlgVertexing::convolute(size_t idx,
+                                      size_t len,
+                                      double* adc,
+                                      double const* shape) const
 {
   size_t half = len >> 1;
   double v, mean = 0.0, stdev = 0.0;
@@ -407,8 +401,7 @@ pma::PMAlgVertexing::convolute(size_t idx, size_t len, double* adc, double const
   return sum / sqrt(stdev);
 }
 
-bool
-pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const
+bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const
 {
   const double minCos = 0.996194698; // 5 deg (is it ok?)
   double segCos =
@@ -474,8 +467,7 @@ pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) co
   }
 }
 
-void
-pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl& trk_input) const
+void pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl& trk_input) const
 {
   if (trk_input.size() < 2) return;
 
@@ -524,8 +516,7 @@ pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl& trk_input) const
 }
 // ------------------------------------------------------
 
-void
-pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl& trk_input) const
+void pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl& trk_input) const
 {
   if (trk_input.size() < 1) return;
 
@@ -538,9 +529,8 @@ pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl& trk_input) const
 }
 // ------------------------------------------------------
 
-void
-pma::PMAlgVertexing::findKinksOnTracks(const detinfo::DetectorPropertiesData& detProp,
-                                       pma::TrkCandidateColl& trk_input) const
+void pma::PMAlgVertexing::findKinksOnTracks(const detinfo::DetectorPropertiesData& detProp,
+                                            pma::TrkCandidateColl& trk_input) const
 {
   if (trk_input.size() < 1) return;
 
@@ -648,8 +638,8 @@ pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl& tracks, bool onlyB
 }
 // ------------------------------------------------------
 
-std::vector<std::pair<TVector3, size_t>>
-pma::PMAlgVertexing::getKinks(const pma::TrkCandidateColl& tracks) const
+std::vector<std::pair<TVector3, size_t>> pma::PMAlgVertexing::getKinks(
+  const pma::TrkCandidateColl& tracks) const
 {
   std::vector<std::pair<TVector3, size_t>> ksel;
   for (size_t t = 0; t < tracks.size(); ++t) {

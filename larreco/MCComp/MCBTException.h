@@ -23,19 +23,15 @@ namespace btutil {
      \class MCBTException
      Generic (base) exception class
   */
-  class MCBTException : public std::exception{
+  class MCBTException : public std::exception {
 
   public:
-
-    MCBTException(std::string msg="") : std::exception(), _msg(msg)
-    {}
+    MCBTException(std::string msg = "") : std::exception(), _msg(msg) {}
 
     virtual ~MCBTException() throw(){};
-    virtual const char* what() const throw()
-    {return _msg.c_str(); }
+    virtual const char* what() const throw() { return _msg.c_str(); }
 
   private:
-
     std::string _msg;
   };
 

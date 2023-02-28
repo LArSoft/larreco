@@ -59,35 +59,19 @@ namespace cmtool {
     virtual ~CMManagerBase() = default;
 
     /// Method to enable debug mode (lots of couts)
-    void
-    DebugMode(CMMSGLevel_t level)
-    {
-      _debug_mode = level;
-    }
+    void DebugMode(CMMSGLevel_t level) { _debug_mode = level; }
 
     /// Method to enable timing profile cout
-    void
-    ReportTimings(bool time_report = true)
-    {
-      _time_report = time_report;
-    }
+    void ReportTimings(bool time_report = true) { _time_report = time_report; }
 
     /// Method to reset itself
     void Reset();
 
     /// Setter to add an algorithm for priority determination
-    void
-    AddPriorityAlgo(CPriorityAlgoBase* algo)
-    {
-      _priority_algo = algo;
-    }
+    void AddPriorityAlgo(CPriorityAlgoBase* algo) { _priority_algo = algo; }
 
     /// Switch to continue merging till converges
-    void
-    MergeTillConverge(bool doit = true)
-    {
-      _merge_till_converge = doit;
-    }
+    void MergeTillConverge(bool doit = true) { _merge_till_converge = doit; }
 
     /// A simple method to add a cluster
     void SetClusters(util::GeometryUtilities const& gser,
@@ -97,55 +81,35 @@ namespace cmtool {
     void SetClusters(const std::vector<cluster::ClusterParamsAlg>& clusters);
 
     /// A getter for input clusters
-    const std::vector<cluster::ClusterParamsAlg>&
-    GetInputClusters() const
-    {
-      return _in_clusters;
-    }
+    const std::vector<cluster::ClusterParamsAlg>& GetInputClusters() const { return _in_clusters; }
 
     /// A setter for minimum # of hits ... passed onto ClusterParamsAlg
-    void
-    SetMinNHits(unsigned int n)
-    {
-      _min_nhits = n;
-    }
+    void SetMinNHits(unsigned int n) { _min_nhits = n; }
 
     /// A method to execute the main action, to be called per event
     void Process(util::GeometryUtilities const& gser);
 
     /// A setter for an analysis output file
-    void
-    SetAnaFile(TFile* fout)
-    {
-      _fout = fout;
-    }
+    void SetAnaFile(TFile* fout) { _fout = fout; }
 
   protected:
     /// Function to compute priority
     void ComputePriority(const std::vector<cluster::ClusterParamsAlg>& clusters);
 
     /// FMWK function called @ beginning of Process()
-    virtual void
-    EventBegin()
-    {}
+    virtual void EventBegin() {}
 
     /// FMWK function called @ beginning of iterative loop inside Process()
-    virtual void
-    IterationBegin()
-    {}
+    virtual void IterationBegin() {}
 
     /// FMWK function called @ iterative loop inside Process()
     virtual bool IterationProcess(util::GeometryUtilities const& gser) = 0;
 
     /// FMWK function called @ end of iterative loop inside Process()
-    virtual void
-    IterationEnd()
-    {}
+    virtual void IterationEnd() {}
 
     /// FMWK function called @ end of Process()
-    virtual void
-    EventEnd()
-    {}
+    virtual void EventEnd() {}
 
   protected:
     /// Timing verbosity flag
