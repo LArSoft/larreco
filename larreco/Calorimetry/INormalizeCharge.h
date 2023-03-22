@@ -27,6 +27,7 @@ public:
   virtual ~INormalizeCharge() noexcept = default;
 
   virtual void configure(const fhicl::ParameterSet&) = 0;
+  virtual void setup(const art::Event&) {}
   virtual double Normalize(double dQdx,
                            const art::Event& e,
                            const recob::Hit& h,

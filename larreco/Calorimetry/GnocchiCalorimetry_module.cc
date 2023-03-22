@@ -223,6 +223,9 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
 
+  for (auto const& nt : fNormTools)
+    nt->setup(evt);
+
   // iterate over all the tracks
   for (unsigned trk_i = 0; trk_i < tracklist.size(); trk_i++) {
     const recob::Track& track = *tracklist[trk_i];
