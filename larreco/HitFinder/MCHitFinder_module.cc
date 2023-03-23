@@ -12,6 +12,7 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include <memory>
@@ -135,13 +136,13 @@ namespace hit {
 
             if (last_tdc + 1 != tdc) {
               /*
-	      std::cerr
-		<< "Found discontinuous TDC! "
-		<< " Last (ADC @ TDC): " << (*(edep_iter.first->second.rbegin())) << " @ " << last_tdc
-		<< " while current (ADC @ TDC): " << (ide.numElectrons * detp->ElectronsToADC()) << " @ " << tdc
-		<< " ... skipping to store!"
-		<< std::endl;
-	      */
+              std::cerr
+                << "Found discontinuous TDC! "
+                << " Last (ADC @ TDC): " << (*(edep_iter.first->second.rbegin())) << " @ " << last_tdc
+                << " while current (ADC @ TDC): " << (ide.numElectrons * detp->ElectronsToADC()) << " @ " << tdc
+                << " ... skipping to store!"
+                << std::endl;
+              */
               continue;
             }
           }
@@ -187,7 +188,7 @@ namespace hit {
       } // End looping over all MCEnDep-MCWire pairs
     }   // End looping over all SimChannels
 
-    e.removeCachedProduct(simchArray);
+    simchArray.removeProduct();
 
     std::sort((*hits_v).begin(), (*hits_v).end());
     e.put(std::move(hits_v));

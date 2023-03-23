@@ -62,20 +62,6 @@ private:
   /// Set minimum energy for MCShowers to be considered
   void SetMinEnergyCut(const double energy) { _mc_energy_min = energy; }
 
-  template <class T>
-  art::Handle<T> GetDataOrDie(art::Event const& e, std::string producer)
-  {
-    art::Handle<T> h;
-    e.getByLabel(producer, h);
-    if (!h.isValid()) {
-      std::string msg;
-      msg += "Could not find a data product by: " + producer;
-      std::cout << msg.c_str() << std::endl;
-      throw showerreco::ShowerRecoException(msg);
-    }
-    return h;
-  }
-
   /// Shower back tracking algorithm
   ::btutil::MCMatchAlg fBTAlg;
 
@@ -328,22 +314,19 @@ void ShowerQuality::beginJob()
 void ShowerQuality::analyze(art::Event const& e)
 {
   // Retrieve mcshower data product
-  auto mcsHandle = GetDataOrDie<std::vector<sim::MCShower>>(e, fMCShowerProducer);
-  auto resHandle = GetDataOrDie<std::vector<recob::Shower>>(e, fShowerProducer);
-  auto schHandle = GetDataOrDie<std::vector<sim::SimChannel>>(e, fSimChannelProducer);
+  auto mcsHandle = e.getValidHandle<std::vector<sim::MCShower>>(fMCShowerProducer);
+  auto resHandle = e.getValidHandle<std::vector<recob::Shower>>(fShowerProducer);
+  auto schHandle = e.getValidHandle<std::vector<sim::SimChannel>>(fSimChannelProducer);
   const std::vector<sim::MCShower>& ev_mcs(*mcsHandle);
   const std::vector<recob::Shower>& ev_shower(*resHandle);
   const std::vector<sim::SimChannel>& ev_simch(*schHandle);
 
-  if (!(ev_shower.size())) return;
+  if (ev_shower.empty()) return;
 
   // Get the whole clusters + associated clusters
   art::Handle<std::vector<recob::Cluster>> clsHandle;
   art::FindManyP<recob::Cluster> cluster_m(resHandle, e, fShowerProducer);
-  e.get(cluster_m.at(0).front().id(), clsHandle);
-  if (!clsHandle.isValid())
-    throw ::showerreco::ShowerRecoException("Failed to retrieve cluster handle!");
-  const std::vector<recob::Cluster>& ev_cluster(*clsHandle);
+  const std::vector<recob::Cluster>& ev_cluster = cluster_m.at(0).front().parentAs<std::vector>();
 
   // Make clusters in terms of hit vector to feed into BT algorithm
   art::FindManyP<recob::Hit> hit_m(clsHandle, e, clsHandle.provenance()->moduleLabel());
@@ -512,12 +495,12 @@ void ShowerQuality::analyze(art::Event const& e)
 
       for(size_t i=0; i < ass_cluster_v[best_shower_index].size(); ++i) {
 
-	size_t cluster_index = ass_cluster_v[best_shower_index][i];
-	//std::cout<<best_plane_index<<" : "<<ev_cluster->at(cluster_index).View()<<std::endl;
-	if( ev_cluster->at(cluster_index).View() == reco_shower.best_plane() ) {
-	  best_plane_index = i;
-	  break;
-	}
+        size_t cluster_index = ass_cluster_v[best_shower_index][i];
+        //std::cout<<best_plane_index<<" : "<<ev_cluster->at(cluster_index).View()<<std::endl;
+        if( ev_cluster->at(cluster_index).View() == reco_shower.best_plane() ) {
+          best_plane_index = i;
+          break;
+        }
       }
 
       if(best_plane_index < 0) {
