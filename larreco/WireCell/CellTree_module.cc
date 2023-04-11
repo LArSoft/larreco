@@ -981,7 +981,8 @@ namespace wc {
       if(geomName == "sbnd"){
 	if(x<0) {x = x + t*1e-3*drift_speed*0.1; cluster_id = 1;} 
 	else if(x>0) {x = x - t*1e-3*drift_speed*0.1; cluster_id = 2;}
-	else {cluster_id = 0;}
+	else {cluster_id = 3;}
+	if(t*1e-3>0 && t*1e-3<5) cluster_id=0;
       }
       else if(geomName == "uboone"){	
 	x = x + t*1e-3*drift_speed*0.1; 
