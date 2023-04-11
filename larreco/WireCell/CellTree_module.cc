@@ -71,6 +71,7 @@ namespace wc {
     void processOpFlash(const art::Event& evt);
     void processSpacePoint(const art::Event& event, TString option, ostream& out = cout);
     void processSpacePointTruthDepo(const art::Event& event, TString option, ostream& out = cout);
+    void processSpacePointTruthDepoT(const art::Event& event, TString option, ostream& out = cout);
     void processSimChannel(const art::Event& evt);
     void processMC(const art::Event& evt);
     void processMCTracks();
@@ -99,6 +100,7 @@ namespace wc {
     std::string mcOption;
     int nRawSamples;
     float opMultPEThresh;
+    float drift_speed;
     bool fSaveMCTrackPoints;
     bool fSaveSimChannel;
     bool fSaveRaw;
@@ -108,6 +110,7 @@ namespace wc {
     bool fSaveMC;
     bool fSaveTrigger;
     bool fSaveJSON;
+    bool fSaveJSON_T;
     art::ServiceHandle<geo::Geometry const> fGeometry; // pointer to Geometry service
 
     // art::ServiceHandle<geo::Geometry const> fGeom;
@@ -228,7 +231,9 @@ namespace wc {
     fSaveSimChannel = p.get<bool>("saveSimChannel");
     fSaveTrigger = p.get<bool>("saveTrigger");
     fSaveJSON = p.get<bool>("saveJSON");
+    fSaveJSON_T = p.get<bool>("saveJSON_T");
     opMultPEThresh = p.get<float>("opMultPEThresh");
+    drift_speed = p.get<float>("drift_speed"); // mm/us
     nRawSamples = p.get<int>("nRawSamples");
 
     InitProcessMap();
@@ -406,7 +411,8 @@ namespace wc {
         jsonfile.Form("bee/data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == "truthDepo") {
-          processSpacePointTruthDepo(event, fSpacePointLabels[i], out);
+          if(fSaveJSON_T) processSpacePointTruthDepoT(event, fSpacePointLabels[i], out);
+          else processSpacePointTruthDepo(event, fSpacePointLabels[i], out);
         }
         else {
           processSpacePoint(event, fSpacePointLabels[i], out);
@@ -834,6 +840,9 @@ namespace wc {
     else if (geomName.Contains("icarus")) {
       geomName = "icarus";
     }
+    else if (geomName.Contains("sbnd")) {
+      geomName = "sbnd";
+    }
     else {
       geomName = "uboone";
     } // use uboone as default
@@ -903,6 +912,9 @@ namespace wc {
     else if (geomName.Contains("icarus")) {
       geomName = "icarus";
     }
+    else if (geomName.Contains("sbnd")) {
+      geomName = "sbnd";
+    }
     else {
       geomName = "uboone";
     } // use uboone as default
@@ -915,6 +927,93 @@ namespace wc {
     out << fixed << setprecision(0);
     print_vector(out, vq, "q");
     print_vector(out, vnq, "nq");
+
+    out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+    out << "}" << endl;
+  }
+
+  //---- The X-axis position along drift changes to wire plane readout view without t0 correction ----
+  void CellTree::processSpacePointTruthDepoT(const art::Event& event, TString option, ostream& out)
+  {
+
+    art::Handle<std::vector<sim::SimEnergyDeposit>> sed_handle;
+    if (!event.getByLabel(fSimEnergyDepositLabel, sed_handle)) {
+      cout << "WARNING: no label " << fSimEnergyDepositLabel << " for SimEnergyDeposit" << endl;
+      return;
+    }
+    std::vector<art::Ptr<sim::SimEnergyDeposit>> sed;
+    art::fill_ptr_vector(sed, sed_handle);
+    int size = sed.size();
+    double t = 0, x = 0, y = 0, z = 0, q = 0, nq = 1, cluster_id = 1;
+    vector<double> vx, vy, vz, vq, vnq, vcluster;
+
+    TString geomName(fGeometry->DetectorName().c_str());
+    if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodunevd")) {
+      geomName = "protodunevd";
+    }
+    else if (geomName.Contains("protodune")) {
+      geomName = "protodune";
+    }
+    else if (geomName.Contains("workspace")) {
+      geomName = "dune10kt_workspace";
+    }
+    else if (geomName.Contains("icarus")) {
+      geomName = "icarus";
+    }
+    else if (geomName.Contains("sbnd")) {
+      geomName = "sbnd";
+    }
+    else {
+      geomName = "uboone";
+    } // use uboone as default
+
+    for (int i = 0; i < size; i++) {
+      // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+      x = sed[i]->MidPointX(); // unit: cm
+      t = sed[i]->Time(); // unit: ns
+      y = sed[i]->MidPointY();
+      z = sed[i]->MidPointZ();
+      q = sed[i]->NumElectrons();
+      if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
+      // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+      if (q < 1000) continue; // skip small dots to reduce size
+      if(geomName == "sbnd"){
+	if(x<0) {x = x + t*1e-3*drift_speed*0.1; cluster_id = 1;} 
+	else if(x>0) {x = x - t*1e-3*drift_speed*0.1; cluster_id = 2;}
+	else {cluster_id = 0;}
+      }
+      else if(geomName == "uboone"){	
+	x = x + t*1e-3*drift_speed*0.1; 
+      }
+      else{
+	cout << "t0 correction yet to be added for "<<geomName<<endl;
+      }
+      vx.push_back(x);
+      vy.push_back(y);
+      vz.push_back(z);
+      vq.push_back(q);
+      vnq.push_back(nq);
+      vcluster.push_back(cluster_id);
+    }
+
+    out << fixed << setprecision(1);
+    out << "{" << endl;
+
+    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+
+    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+
+    print_vector(out, vx, "x");
+    print_vector(out, vy, "y");
+    print_vector(out, vz, "z");
+
+    out << fixed << setprecision(0);
+    print_vector(out, vq, "q");
+    print_vector(out, vnq, "nq");
+    print_vector(out, vcluster, "cluster_id");
 
     out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
     out << "}" << endl;

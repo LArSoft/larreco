@@ -12,6 +12,7 @@ standard_celltree:
   saveTrigger     : false
   saveMC          : false
   saveJSON        : false
+  saveJSON_T      : false
   nRawSamples     : 9600
   RawDigitLabel   : "daq"
   CalibLabel      : "caldata"
@@ -23,6 +24,7 @@ standard_celltree:
   SimEnergyDepositLabel  : "largeant:TPCActive"
   mcOption        : "all"
   opMultPEThresh  : 5
+  drift_speed     : 1.59 # mm/us
   saveMCTrackPoints : true
   outFile           : "celltree.root"
 }
