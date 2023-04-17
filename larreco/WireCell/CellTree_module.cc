@@ -411,8 +411,10 @@ namespace wc {
         jsonfile.Form("bee/data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == "truthDepo") {
-          if(fSaveJSON_T) processSpacePointTruthDepoT(event, fSpacePointLabels[i], out);
-          else processSpacePointTruthDepo(event, fSpacePointLabels[i], out);
+          if (fSaveJSON_T)
+            processSpacePointTruthDepoT(event, fSpacePointLabels[i], out);
+          else
+            processSpacePointTruthDepo(event, fSpacePointLabels[i], out);
         }
         else {
           processSpacePoint(event, fSpacePointLabels[i], out);
@@ -971,24 +973,32 @@ namespace wc {
     for (int i = 0; i < size; i++) {
       // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
       x = sed[i]->MidPointX(); // unit: cm
-      t = sed[i]->Time(); // unit: ns
+      t = sed[i]->Time();      // unit: ns
       y = sed[i]->MidPointY();
       z = sed[i]->MidPointZ();
       q = sed[i]->NumElectrons();
       if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
       // cout << q << ", " << sed[i]->Energy()*25000 << endl;
       if (q < 1000) continue; // skip small dots to reduce size
-      if(geomName == "sbnd"){
-	if(x<0) {x = x + t*1e-3*drift_speed*0.1; cluster_id = 1;} 
-	else if(x>0) {x = x - t*1e-3*drift_speed*0.1; cluster_id = 2;}
-	else {cluster_id = 3;}
-	if(t*1e-3>0 && t*1e-3<5) cluster_id=0;
+      if (geomName == "sbnd") {
+        if (x < 0) {
+          x = x + t * 1e-3 * drift_speed * 0.1;
+          cluster_id = 1;
+        }
+        else if (x > 0) {
+          x = x - t * 1e-3 * drift_speed * 0.1;
+          cluster_id = 2;
+        }
+        else {
+          cluster_id = 3;
+        }
+        if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
       }
-      else if(geomName == "uboone"){	
-	x = x + t*1e-3*drift_speed*0.1; 
+      else if (geomName == "uboone") {
+        x = x + t * 1e-3 * drift_speed * 0.1;
       }
-      else{
-	cout << "t0 correction yet to be added for "<<geomName<<endl;
+      else {
+        cout << "t0 correction yet to be added for " << geomName << endl;
       }
       vx.push_back(x);
       vy.push_back(y);
