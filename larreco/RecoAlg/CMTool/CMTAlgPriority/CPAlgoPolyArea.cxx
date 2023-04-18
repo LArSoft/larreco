@@ -1,4 +1,4 @@
-#include "CPAlgoPolyArea.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoPolyArea.h"
 
 namespace cmtool {
 

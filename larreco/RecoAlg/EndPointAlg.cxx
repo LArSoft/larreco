@@ -181,7 +181,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>& clus
     if (hit.size() == 0) continue;
 
     geo::WireID wid = hit[0]->WireID();
-    numberwires = geom->Cryostat(wid.Cryostat).TPC(wid.TPC).Plane(wid.Plane).Nwires();
+    numberwires = geom->Plane(wid.asPlaneID()).Nwires();
     mf::LogInfo("EndPointAlg") << " --- endpoints check " << numberwires << " " << numbertimesamples
                                << " " << fTimeBins;
 

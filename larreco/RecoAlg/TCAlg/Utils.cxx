@@ -35,16 +35,18 @@
 #include <utility>
 #include <vector>
 
-bool valsDecreasing(const SortEntry& c1, const SortEntry& c2)
+bool tca::detail::valsDecreasing(const SortEntry& c1, const SortEntry& c2)
 {
   return c1.val > c2.val;
 }
-bool valsIncreasing(const SortEntry& c1, const SortEntry& c2)
+bool tca::detail::valsIncreasing(const SortEntry& c1, const SortEntry& c2)
 {
   return c1.val < c2.val;
 }
 
 namespace tca {
+
+  using namespace detail;
 
   // dressed muons
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt)
@@ -2042,12 +2044,11 @@ namespace tca {
     unsigned int pln = plnID.Plane;
     if (pln == 2) return false;
 
-    unsigned int cstat = plnID.Cryostat;
     unsigned int tpc = plnID.TPC;
     // get a valid range of hits to search
     if (evt.tpcSrcHitRange[tpc].first >= (*evt.srcHits).size()) return false;
     if (evt.tpcSrcHitRange[tpc].second >= (*evt.srcHits).size()) return false;
-    raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
+    raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel(geo::WireID(plnID, wire));
     float atTick = 0.5 * (loTick + hiTick);
     for (unsigned int iht = evt.tpcSrcHitRange[tpc].first; iht <= evt.tpcSrcHitRange[tpc].second;
          ++iht) {
@@ -3950,7 +3951,7 @@ namespace tca {
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
-    tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.Pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos[1], pos[2]}, planeID);
     tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
     return tp;
   } // MakeBareTP
@@ -3973,7 +3974,7 @@ namespace tca {
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
 
-    tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.Pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos[1], pos[2]}, planeID);
     tp.Pos[1] = detProp.ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
 
     // now find the direction if dir is defined
@@ -3987,8 +3988,8 @@ namespace tca {
     std::array<double, 2> pos2;
     std::array<double, 2> dir2;
     // the wire coordinates
-    ori2[0] = tcc.geom->WireCoordinate(ori3[1], ori3[2], planeID);
-    pos2[0] = tcc.geom->WireCoordinate(pos3[1], pos3[2], planeID);
+    ori2[0] = tcc.geom->WireCoordinate(geo::Point_t{0, ori3[1], ori3[2]}, planeID);
+    pos2[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos3[1], pos3[2]}, planeID);
     // the time coordinates
     ori2[1] = detProp.ConvertXToTicks(ori3[0], planeID) * tcc.unitsPerTick;
     pos2[1] = detProp.ConvertXToTicks(pos3[0], planeID) * tcc.unitsPerTick;
@@ -4003,11 +4004,11 @@ namespace tca {
     tp.Delta = norm / 100;
 
     // The Orth vectors are not unit normalized so we need to correct for this
-    double w0 = tcc.geom->WireCoordinate(0, 0, planeID);
+    double w0 = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 0}, planeID);
     // cosine-like component
-    double cs = tcc.geom->WireCoordinate(1, 0, planeID) - w0;
+    double cs = tcc.geom->WireCoordinate(geo::Point_t{0, 1, 0}, planeID) - w0;
     // sine-like component
-    double sn = tcc.geom->WireCoordinate(0, 1, planeID) - w0;
+    double sn = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 1}, planeID) - w0;
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
 
@@ -4299,10 +4300,9 @@ namespace tca {
     // no sense re-calculating it if it's been done
     if (evt.aveHitRMSValid) return true;
 
-    unsigned short cstat = (*evt.allHits)[0].WireID().Cryostat;
-    unsigned short tpc = (*evt.allHits)[0].WireID().TPC;
+    auto const& wireid = (*evt.allHits)[0].WireID();
 
-    unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
+    unsigned short nplanes = tcc.geom->Nplanes(wireid.asPlaneID());
     evt.aveHitRMS.resize(nplanes);
     std::vector<float> cnt(nplanes, 0);
     for (unsigned short iht = 0; iht < (*evt.allHits).size(); ++iht) {
@@ -4367,29 +4367,26 @@ namespace tca {
 
     evt.TPCID = inTPCID;
     unsigned short nplanes = tcc.geom->Nplanes(inTPCID);
-    unsigned int cstat = inTPCID.Cryostat;
-    unsigned int tpc = inTPCID.TPC;
     if (tcc.useChannelStatus) {
       lariov::ChannelStatusProvider const& channelStatus =
         art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
       evt.goodWire.resize(nplanes);
-      for (unsigned short pln = 0; pln < nplanes; ++pln) {
-        unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
+      for (auto const& id : tcc.geom->Iterate<geo::PlaneID>(inTPCID)) {
+        unsigned int nwires = tcc.geom->Nwires(id);
         // set all wires dead
-        evt.goodWire[pln].resize(nwires, false);
+        evt.goodWire[id.Plane].resize(nwires, false);
         for (unsigned int wire = 0; wire < nwires; ++wire) {
-          raw::ChannelID_t chan =
-            tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
-          evt.goodWire[pln][wire] = channelStatus.IsGood(ts, chan);
+          raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel(geo::WireID(id, wire));
+          evt.goodWire[id.Plane][wire] = channelStatus.IsGood(ts, chan);
         } // wire
       }   // pln
     }
     else {
       // resize and set every channel good
       evt.goodWire.resize(nplanes);
-      for (unsigned short pln = 0; pln < nplanes; ++pln) {
-        unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
-        evt.goodWire[pln].resize(nwires, true);
+      for (auto const& id : tcc.geom->Iterate<geo::PlaneID>(inTPCID)) {
+        unsigned int nwires = tcc.geom->Nwires(id);
+        evt.goodWire[id.Plane].resize(nwires, true);
       } // pln
     }   // don't use channelStatus
 
@@ -4399,20 +4396,20 @@ namespace tca {
 
     // define the size of evt.wireHitRange
     evt.wireHitRange.resize(nplanes);
-    for (unsigned short pln = 0; pln < nplanes; ++pln) {
-      unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
-      evt.wireHitRange[pln].resize(nwires);
+    for (auto const& id : tcc.geom->Iterate<geo::PlaneID>(inTPCID)) {
+      unsigned int nwires = tcc.geom->Nwires(id);
+      evt.wireHitRange[id.Plane].resize(nwires);
       for (unsigned int wire = 0; wire < nwires; ++wire)
-        evt.wireHitRange[pln][wire] = {UINT_MAX, UINT_MAX};
+        evt.wireHitRange[id.Plane][wire] = {UINT_MAX, UINT_MAX};
     } // pln
 
     // next define the wireHitRange values. Make one loop through the allHits collection
     unsigned int nBadWireFix = 0;
     for (unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
       auto& hit = (*evt.allHits)[iht];
-      auto wid = hit.WireID();
-      if (wid.Cryostat != cstat) continue;
-      if (wid.TPC != tpc) continue;
+      auto const& wid = hit.WireID();
+
+      if (static_cast<geo::TPCID const&>(wid) != inTPCID) continue;
       unsigned short pln = wid.Plane;
       unsigned int wire = wid.Wire;
       // Check the goodWire status and correct it if it's wrong
@@ -4440,22 +4437,21 @@ namespace tca {
     // determine the number of planes
     unsigned int cstat = slc.TPCID.Cryostat;
     unsigned int tpc = slc.TPCID.TPC;
-    unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
+    auto const& tpcgeom = tcc.geom->TPC(slc.TPCID);
+    unsigned short nplanes = tpcgeom.Nplanes();
     slc.nPlanes = nplanes;
     if (nplanes > 3) return false;
 
     // Y,Z limits of the detector
-    double local[3] = {0., 0., 0.};
-    double world[3] = {0., 0., 0.};
-    const geo::TPCGeo& thetpc = tcc.geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local, world);
+    auto const world = tpcgeom.GetCenter();
+
     // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
-    slc.xLo = world[0] - tcc.geom->DetHalfWidth(tpc, cstat) + 1;
-    slc.xHi = world[0] + tcc.geom->DetHalfWidth(tpc, cstat) - 1;
-    slc.yLo = world[1] - tcc.geom->DetHalfHeight(tpc, cstat) + 1;
-    slc.yHi = world[1] + tcc.geom->DetHalfHeight(tpc, cstat) - 1;
-    slc.zLo = world[2] - tcc.geom->DetLength(tpc, cstat) / 2 + 1;
-    slc.zHi = world[2] + tcc.geom->DetLength(tpc, cstat) / 2 - 1;
+    slc.xLo = world.X() - tpcgeom.HalfWidth() + 1;
+    slc.xHi = world.X() + tpcgeom.HalfWidth() - 1;
+    slc.yLo = world.Y() - tpcgeom.HalfHeight() + 1;
+    slc.yHi = world.Y() + tpcgeom.HalfHeight() - 1;
+    slc.zLo = world.Z() - tpcgeom.Length() / 2 + 1;
+    slc.zHi = world.Z() + tpcgeom.Length() / 2 - 1;
 
     // initialize everything
     slc.wireHitRange.resize(nplanes);
@@ -4466,9 +4462,7 @@ namespace tca {
     tcc.maxPos1.resize(nplanes);
     evt.aveHitRMS.resize(nplanes, nplanes);
 
-    std::pair<unsigned int, unsigned int> flag;
-    flag.first = UINT_MAX;
-    flag.second = UINT_MAX;
+    std::pair<unsigned int, unsigned int> flag{UINT_MAX, UINT_MAX};
 
     // Calculate tcc.unitsPerTick, the scale factor to convert a tick into
     // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1.
@@ -4476,7 +4470,8 @@ namespace tca {
     // case where the wire spacing is different in each plane. Deal with this later if
     // the approximation used here fails.
 
-    raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel(0, 0, (int)tpc, (int)cstat);
+    geo::PlaneID const plane_0{tpcgeom.ID(), 0};
+    raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel(geo::WireID{plane_0, 0});
     tcc.wirePitch = tcc.geom->WirePitch(tcc.geom->View(channel));
     float tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
@@ -4484,7 +4479,7 @@ namespace tca {
     for (unsigned short plane = 0; plane < nplanes; ++plane) {
       slc.firstWire[plane] = UINT_MAX;
       slc.lastWire[plane] = 0;
-      slc.nWires[plane] = tcc.geom->Nwires(plane, tpc, cstat);
+      slc.nWires[plane] = tcc.geom->Nwires(geo::PlaneID{tpcgeom.ID(), plane});
       slc.wireHitRange[plane].resize(slc.nWires[plane], flag);
       tcc.maxPos0[plane] = (float)slc.nWires[plane] - 0.5;
       tcc.maxPos1[plane] = (float)detProp.NumberTimeSamples() * tcc.unitsPerTick;

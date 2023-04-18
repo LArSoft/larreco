@@ -115,7 +115,7 @@ namespace vertex {
     double YC = (geom->DetHalfHeight()) * 2.;
 
     // wire angle with respect to the vertical direction
-    double Angle = geom->Plane(1).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
+    double Angle = geom->Plane(geo::PlaneID{0, 0, 1}).Wire(0).ThetaZ(false) - TMath::Pi() / 2.;
 
     // Parameters temporary defined here, but possibly to be retrieved somewhere
     // in the code
@@ -410,10 +410,11 @@ namespace vertex {
 
       double yy, zz;
       if (vtx_w[0] >= 0 && vtx_w[0] <= 239 && vtx_w[1] >= 0 && vtx_w[1] <= 239) {
-        if (geom->ChannelsIntersect(geom->PlaneWireToChannel(0, (int)((Iw0 / wire_pitch) - 3.95)),
-                                    geom->PlaneWireToChannel(1, (int)((Cw0 / wire_pitch) - 1.84)),
-                                    yy,
-                                    zz)) {
+        if (geom->ChannelsIntersect(
+              geom->PlaneWireToChannel(geo::WireID(0, 0, 0, (int)((Iw0 / wire_pitch) - 3.95))),
+              geom->PlaneWireToChannel(geo::WireID(0, 0, 1, (int)((Cw0 / wire_pitch) - 1.84))),
+              yy,
+              zz)) {
           //channelsintersect provides a slightly more accurate set of y and z coordinates.
           // use channelsintersect in case the wires in question do cross.
           vtxcoord[1] = yy;

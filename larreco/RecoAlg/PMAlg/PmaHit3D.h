@@ -18,7 +18,7 @@ namespace detinfo {
   class DetectorPropertiesData;
 }
 
-#include <math.h>
+#include <cmath>
 
 #include "TVector2.h"
 #include "TVector3.h"

@@ -1,6 +1,6 @@
-#include "CBAlgoPolyShortestDist.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoPolyShortestDist.h"
 
-#include <math.h>
+#include <cmath>
 
 namespace cmtool {
 

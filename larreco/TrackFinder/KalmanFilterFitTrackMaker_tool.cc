@@ -3,6 +3,7 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
 
+#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
@@ -195,8 +196,8 @@ namespace trkmkr {
                        const recob::TrackTrajectory& traj,
                        const int tkID,
                        const std::vector<art::Ptr<recob::Hit>>& inHits,
-                       const SMatrixSym55& covVtx,
-                       const SMatrixSym55& covEnd,
+                       const recob::tracking::SMatrixSym55& covVtx,
+                       const recob::tracking::SMatrixSym55& covEnd,
                        recob::Track& outTrack,
                        std::vector<art::Ptr<recob::Hit>>& outHits,
                        OptionalOutputs& optionals) const;
@@ -289,8 +290,8 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(
   const recob::TrackTrajectory& traj,
   const int tkID,
   const std::vector<art::Ptr<recob::Hit>>& inHits,
-  const SMatrixSym55& covVtx,
-  const SMatrixSym55& covEnd,
+  const recob::tracking::SMatrixSym55& covVtx,
+  const recob::tracking::SMatrixSym55& covEnd,
   recob::Track& outTrack,
   std::vector<art::Ptr<recob::Hit>>& outHits,
   OptionalOutputs& optionals) const
@@ -352,7 +353,9 @@ double trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajecto
 int trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& traj,
                                                      const int tkID) const
 {
-  if (pidFromColl_) { return pid->at(tkID).Pdg(); }
+  if (pidFromColl_) {
+    return -1; //pid->at(tkID).Pdg();
+  }
   if (mom_len_cut_ > 0.) { return (traj.Length() < mom_len_cut_ ? 2212 : 13); }
   return pid_def_;
 }

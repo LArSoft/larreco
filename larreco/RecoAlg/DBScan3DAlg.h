@@ -42,18 +42,15 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Provenance/Timestamp.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include <map>
+#include <vector>
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for WireID
 
-namespace recob {
-  class SpacePoint;
-  class Hit;
-}
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 
 typedef struct point_s point_t;
 struct point_s {

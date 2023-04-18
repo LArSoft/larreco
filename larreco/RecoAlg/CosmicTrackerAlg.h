@@ -14,7 +14,10 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"

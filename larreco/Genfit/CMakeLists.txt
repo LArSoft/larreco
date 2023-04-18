@@ -1,18 +1,49 @@
-art_make(LIB_LIBRARIES
-           art::Framework_Services_Registry
-           art_root_io::TFileService_service
-           art::Utilities
-           canvas::canvas
-           messagefacility::MF_MessageLogger
-           cetlib_except::cetlib_except
-           ROOT::Geom
-           ROOT::Graf3d
-           ROOT::Core
-           ROOT::MathCore
-           ROOT::Matrix
-           ROOT::Physics
-           ROOT::EG
-         )
+cet_make_library(SOURCE
+  GFAbsEnergyLoss.cxx
+  GFAbsFinitePlane.cxx
+  GFAbsGeoMatManager.cxx
+  GFAbsRecoHit.cxx
+  GFAbsTrackRep.cxx
+  GFBookkeeping.cxx
+  GFConstField.cxx
+  GFDaf.cxx
+  GFDetPlane.cxx
+  GFEnergyLossBetheBloch.cxx
+  GFEnergyLossBrems.cxx
+  GFEnergyLossCoulomb.cxx
+  GFException.cxx
+  GFFieldManager.cxx
+  GFGeoMatManager.cxx
+  GFKalman.cxx
+  GFMaterialEffects.cxx
+  GFPlanarHitPolicy.cxx
+  GFRecoHitFactory.cxx
+  GFRecoHitProducer.cxx
+  GFRectFinitePlane.cxx
+  GFSpacepointHitPolicy.cxx
+  GFTrack.cxx
+  GFTrackCand.cxx
+  GFWireHitPolicy.cxx
+  GFWirepointHitPolicy.cxx
+  PointHit.cxx
+  RKTrackRep.cxx
+  SlTrackRep.cxx
+  LIBRARIES
+  PUBLIC
+  ROOT::Core
+  ROOT::Graf3d
+  ROOT::Hist
+  ROOT::Matrix
+  ROOT::Physics
+  PRIVATE
+  art_root_io::TFileService_service
+  art::Framework_Services_Registry
+  messagefacility::MF_MessageLogger
+  cetlib_except::cetlib_except
+  ROOT::EG
+  ROOT::Geom
+  ROOT::MathCore
+)
 
 install_headers()
 install_fhicl()

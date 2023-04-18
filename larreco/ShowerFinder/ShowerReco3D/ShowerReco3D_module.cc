@@ -11,9 +11,11 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -31,8 +33,8 @@
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoNHits.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMatchManager.h"
 
-#include "ShowerRecoAlg.h"
-#include "ShowerRecoManager.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoAlg.h"
+#include "larreco/ShowerFinder/ShowerReco3D/ShowerRecoManager.h"
 
 #include <memory>
 #include <string>

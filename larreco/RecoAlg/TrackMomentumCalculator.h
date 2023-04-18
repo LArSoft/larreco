@@ -5,7 +5,6 @@
 #define TrackMomentumCalculator_H
 
 #include "canvas/Persistency/Common/Ptr.h"
-#include "larcorealg/CoreUtils/quiet_Math_Functor.h"
 #include "lardataobj/RecoBase/Track.h"
 
 #include "TGraph.h"
@@ -24,7 +23,8 @@ namespace trkf {
     TrackMomentumCalculator(double minLength = 100.0, double maxLength = 1350.0);
 
     double GetTrackMomentum(double trkrange, int pdg) const;
-    double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk);
+    double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk,
+                                       const bool checkValidPoints = false);
     double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk);
     double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);

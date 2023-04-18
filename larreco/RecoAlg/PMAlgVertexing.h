@@ -13,6 +13,8 @@
 #define PMAlgVertexing_h
 
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Table.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
@@ -20,6 +22,8 @@
 
 // ROOT & C++
 #include <memory>
+#include <utility>
+#include <vector>
 
 namespace detinfo {
   class DetectorPropertiesData;

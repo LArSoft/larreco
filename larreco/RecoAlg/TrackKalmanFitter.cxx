@@ -325,9 +325,10 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
       hitsInPlanes[hitstatev[ihit].wireId().Plane].push_back(ihit);
     }
     if (sortHitsByWire_) {
-      for (unsigned int iplane = 0; iplane < nplanes; ++iplane) {
-        if (geom->Plane(iplane).GetIncreasingWireDirection<Vector_t>().Dot(trackState.momentum()) >
-            0) {
+      constexpr geo::TPCID tpcid{0, 0};
+      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+        auto const iplane = plane.ID().Plane;
+        if (plane.GetIncreasingWireDirection().Dot(trackState.momentum()) > 0) {
           std::sort(hitsInPlanes[iplane].begin(),
                     hitsInPlanes[iplane].end(),
                     [hitstatev](const unsigned int& a, const unsigned int& b) -> bool {
@@ -347,7 +348,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
     //dump hits sorted in each plane
     if (dumpLevel_ > 1) {
       int ch = 0;
-      for (auto p : hitsInPlanes) {
+      for (auto const& p : hitsInPlanes) {
         for (auto h : p) {
           std::cout << "hit #/Plane/Wire/x/mask: " << ch++ << " " << hitstatev[h].wireId().Plane
                     << " " << hitstatev[h].wireId().Wire << " " << hitstatev[h].hitMeas() << " "

@@ -32,9 +32,10 @@
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
 
 namespace tca {
+
+  using namespace detail; // SortEntry, valsDecreasing(), valsIncreasing();
 
   /////////////////////////////////////////
   void StitchPFPs()
@@ -629,14 +630,22 @@ namespace tca {
         // find two wires that have a valid intersection
         for (unsigned int wire = firstWire; wire < maxWire; ++wire) {
           double y00, z00;
-          if (!tcc.geom->IntersectionPoint(wire, wire, pln1, pln2, cstat, tpc, y00, z00)) continue;
+          if (!tcc.geom->IntersectionPoint(
+                geo::WireID{cstat, tpc, pln1, wire}, geo::WireID{cstat, tpc, pln2, wire}, y00, z00))
+            continue;
           // increment by one wire in pln1 and find another valid intersection
           double y10, z10;
-          if (!tcc.geom->IntersectionPoint(wire + 10, wire, pln1, pln2, cstat, tpc, y10, z10))
+          if (!tcc.geom->IntersectionPoint(geo::WireID{cstat, tpc, pln1, wire + 10},
+                                           geo::WireID{cstat, tpc, pln2, wire},
+                                           y10,
+                                           z10))
             continue;
           // increment by one wire in pln2 and find another valid intersection
           double y01, z01;
-          if (!tcc.geom->IntersectionPoint(wire, wire + 10, pln1, pln2, cstat, tpc, y01, z01))
+          if (!tcc.geom->IntersectionPoint(geo::WireID{cstat, tpc, pln1, wire},
+                                           geo::WireID{cstat, tpc, pln2, wire + 10},
+                                           y01,
+                                           z01))
             continue;
           TCWireIntersection tcwi;
           tcwi.tpc = tpc;
@@ -977,8 +986,10 @@ namespace tca {
         unsigned int jWire = jtp.Pos[0];
         Point3_t ijPos;
         ijPos[0] = itp.Pos[0];
-        if (!tcc.geom->IntersectionPoint(
-              iWire, jWire, iPlane, jPlane, cstat, tpc, ijPos[1], ijPos[2]))
+        if (!tcc.geom->IntersectionPoint(geo::WireID(cstat, tpc, iPlane, iWire),
+                                         geo::WireID(cstat, tpc, jPlane, jWire),
+                                         ijPos[1],
+                                         ijPos[2]))
           continue;
         tIDs[0] = iTjPt.id;
         tIDs[1] = jTjPt.id;
@@ -1443,13 +1454,13 @@ namespace tca {
     // put the offset, cosine-like and sine-like components in a vector
     std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      auto planeID = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
+      auto planeID = geo::PlaneID{slc.TPCID, plane};
       // plane offset
-      ocs[plane][0] = tcc.geom->WireCoordinate(0, 0, planeID);
+      ocs[plane][0] = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 0}, planeID);
       // get the "cosine-like" component
-      ocs[plane][1] = tcc.geom->WireCoordinate(1, 0, planeID) - ocs[plane][0];
+      ocs[plane][1] = tcc.geom->WireCoordinate(geo::Point_t{0, 1, 0}, planeID) - ocs[plane][0];
       // the "sine-like" component
-      ocs[plane][2] = tcc.geom->WireCoordinate(0, 1, planeID) - ocs[plane][0];
+      ocs[plane][2] = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 1}, planeID) - ocs[plane][0];
     } // plane
 
     const unsigned int nvars = 4;
@@ -2471,14 +2482,14 @@ namespace tca {
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
     // wire offset
-    double iw0 = tcc.geom->WireCoordinate(0, 0, iPlnID);
+    double iw0 = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 0}, iPlnID);
     // cosine-like component
-    double ics = tcc.geom->WireCoordinate(1, 0, iPlnID) - iw0;
+    double ics = tcc.geom->WireCoordinate(geo::Point_t{0, 1, 0}, iPlnID) - iw0;
     // sine-like component
-    double isn = tcc.geom->WireCoordinate(0, 1, iPlnID) - iw0;
-    double jw0 = tcc.geom->WireCoordinate(0, 0, jPlnID);
-    double jcs = tcc.geom->WireCoordinate(1, 0, jPlnID) - jw0;
-    double jsn = tcc.geom->WireCoordinate(0, 1, jPlnID) - jw0;
+    double isn = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 1}, iPlnID) - iw0;
+    double jw0 = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 0}, jPlnID);
+    double jcs = tcc.geom->WireCoordinate(geo::Point_t{0, 1, 0}, jPlnID) - jw0;
+    double jsn = tcc.geom->WireCoordinate(geo::Point_t{0, 0, 1}, jPlnID) - jw0;
     double den = isn * jcs - ics * jsn;
     if (den == 0) return tp3d;
     double iPos0 = itp.Pos[0];
@@ -2776,7 +2787,7 @@ namespace tca {
       float best = 1E6;
       for (std::size_t sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
         auto& sf = pfp.SectionFits[sfi];
-        float sfWire = tcc.geom->WireCoordinate(sf.Pos[1], sf.Pos[2], plnID);
+        float sfWire = tcc.geom->WireCoordinate(geo::Point_t{0, sf.Pos[1], sf.Pos[2]}, plnID);
         float sep = std::abs(sfWire - tp3d.Wire);
         if (sep < best) {
           best = sep;
@@ -3055,19 +3066,16 @@ namespace tca {
     // determine which TPC this point is in. This function returns false
     // if the point is not inside any TPC
     float abit = 5;
-    for (const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
-      const geo::TPCGeo& TPC = tcc.geom->TPC(tpcid);
-      double local[3] = {0., 0., 0.};
-      double world[3] = {0., 0., 0.};
-      TPC.LocalToWorld(local, world);
+    for (const geo::TPCGeo& TPC : tcc.geom->Iterate<geo::TPCGeo>()) {
+      auto const world = TPC.GetCenter();
       // reduce the active area of the TPC by a bit to be consistent with FillWireHitRange
-      if (pos[0] < world[0] - tcc.geom->DetHalfWidth(tpcid) + abit) continue;
-      if (pos[0] > world[0] + tcc.geom->DetHalfWidth(tpcid) - abit) continue;
-      if (pos[1] < world[1] - tcc.geom->DetHalfHeight(tpcid) + abit) continue;
-      if (pos[1] > world[1] + tcc.geom->DetHalfHeight(tpcid) - abit) continue;
-      if (pos[2] < world[2] - tcc.geom->DetLength(tpcid) / 2 + abit) continue;
-      if (pos[2] > world[2] + tcc.geom->DetLength(tpcid) / 2 - abit) continue;
-      inTPCID = tpcid;
+      if (pos[0] < world.X() - TPC.HalfWidth() + abit) continue;
+      if (pos[0] > world.X() + TPC.HalfWidth() - abit) continue;
+      if (pos[1] < world.Y() - TPC.HalfHeight() + abit) continue;
+      if (pos[1] > world.Y() + TPC.HalfHeight() - abit) continue;
+      if (pos[2] < world.Z() - TPC.Length() / 2 + abit) continue;
+      if (pos[2] > world.Z() + TPC.Length() / 2 - abit) continue;
+      inTPCID = TPC.ID();
       return true;
     } // tpcid
     return false;
@@ -3192,8 +3200,8 @@ namespace tca {
         pos1[xyz] += tcc.wirePitch * dir[xyz];
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         tp.CTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
-        tp.Pos[0] =
-          tcc.geom->WireCoordinate(pos1[1], pos1[2], plane, slc.TPCID.TPC, slc.TPCID.Cryostat);
+        geo::PlaneID const planeID{slc.TPCID, plane};
+        tp.Pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos1[1], pos1[2]}, planeID);
         tp.Pos[1] = detProp.ConvertXToTicks(pos1[0], plane, slc.TPCID.TPC, slc.TPCID.Cryostat) *
                     tcc.unitsPerTick;
         ++cnt;
@@ -3232,8 +3240,8 @@ namespace tca {
         if (tj.CTP != inCTP) continue;
         tjids[0] = tjid;
         Point2_t pos2;
-        geo::PlaneID planeID = geo::PlaneID(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
-        pos2[0] = tcc.geom->WireCoordinate(pos3[1], pos3[2], planeID);
+        geo::PlaneID planeID = geo::PlaneID{pfp.TPCID, plane};
+        pos2[0] = tcc.geom->WireCoordinate(geo::Point_t{0, pos3[1], pos3[2]}, planeID);
         if (pos2[0] < -0.4) continue;
         // check for dead wires
         unsigned int wire = std::nearbyint(pos2[0]);

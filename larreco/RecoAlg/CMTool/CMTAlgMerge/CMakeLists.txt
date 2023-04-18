@@ -1,4 +1,30 @@
-art_make(LIB_LIBRARIES larreco_RecoAlg_CMTool_CMToolBase)
+cet_make_library(SOURCE
+  CBAlgoAngleAlign.cxx
+  CBAlgoAngleCompat.cxx
+  CBAlgoAngleIncompat.cxx
+  CBAlgoAngleSeparate.cxx
+  CBAlgoArray.cxx
+  CBAlgoCenterOfMass.cxx
+  CBAlgoCenterOfMassSmall.cxx
+  CBAlgoFake.cxx
+  CBAlgoMergeAll.cxx
+  CBAlgoMergeTinyWithBig.cxx
+  CBAlgoOutOfConeSeparate.cxx
+  CBAlgoPolyContain.cxx
+  CBAlgoPolyHitOverlap.cxx
+  CBAlgoPolyOverlap.cxx
+  CBAlgoPolyShortestDist.cxx
+  CBAlgoProhibitAllTracks.cxx
+  CBAlgoProhibitBigClusters.cxx
+  CBAlgoStartNearEnd.cxx
+  CBAlgoStartTrack.cxx
+  LIBRARIES
+  PUBLIC
+  larreco::RecoAlg_CMTool_CMToolBase
+  larreco::RecoAlg_ClusterRecoUtil
+  PRIVATE
+  ROOT::Core
+)
 
 install_headers()
 install_fhicl()

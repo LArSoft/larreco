@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "RFFHitFinderAlg.h"
+#include "larreco/HitFinder/RFFHitFinderAlg.h"
 
 namespace hit {
   class RFFHitFinder;

@@ -1,8 +1,8 @@
 #ifndef UTIL_CLUSTERPARAMS_H
 #define UTIL_CLUSTERPARAMS_H
 
-#include "Polygon2D.h"
 #include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 namespace cluster {
 

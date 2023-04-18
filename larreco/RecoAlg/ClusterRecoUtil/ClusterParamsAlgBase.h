@@ -17,6 +17,8 @@
 // C/C++ standard libraries
 #include <algorithm> // std::transform()
 #include <stdexcept> // std::logic_error
+#include <string>
+#include <utility> // std::pair
 #include <vector>
 
 // LArSoft libraries

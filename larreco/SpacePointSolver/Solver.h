@@ -5,7 +5,7 @@
 
 #include <vector>
 
-#include "QuadExpr.h"
+#include "larreco/SpacePointSolver/QuadExpr.h"
 
 /// Allow InductionWireHit and CollectionWireHit to be put in the same maps
 /// where necessary.

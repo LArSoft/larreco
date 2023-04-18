@@ -6,6 +6,7 @@
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 
 #include "art/Utilities/ToolMacros.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 
 #include <algorithm>

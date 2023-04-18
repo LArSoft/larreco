@@ -364,7 +364,7 @@ void pma::PMAlgStitching::GetTPCXOffsets()
   auto const* geom = lar::providerFrom<geo::Geometry>();
 
   // Loop over each TPC and store the require information
-  for (geo::TPCID const& tID : geom->IterateTPCIDs()) {
+  for (geo::TPCID const& tID : geom->Iterate<geo::TPCID>()) {
 
     geo::TPCGeo const& aTPC = geom->TPC(tID);
 
@@ -379,17 +379,15 @@ void pma::PMAlgStitching::GetTPCXOffsets()
     if (!hasPlane) { continue; }
 
     // Get the x position of the readout plane
-    double xAnode = aTPC.PlaneLocation(plane)[0];
+    double xAnode = aTPC.Plane(0).GetCenter().X();
     fTPCXOffsetsAPA.insert(std::make_pair(tID, xAnode));
 
     // For the cathode, we have to try a little harder. Firstly, find the
     // min and max x values for the TPC.
-    double origin[3] = {0.};
-    double center[3] = {0.};
-    aTPC.LocalToWorld(origin, center);
+    auto const center = aTPC.GetCenter();
     double tpcDim[3] = {aTPC.HalfWidth(), aTPC.HalfHeight(), 0.5 * aTPC.Length()};
-    double xmin = center[0] - tpcDim[0];
-    double xmax = center[0] + tpcDim[0];
+    double xmin = center.X() - tpcDim[0];
+    double xmax = center.X() + tpcDim[0];
     double xCathode = 0.;
     // Now check which is further from the APA and use that as the cathode value.
     if (fabs(xmin - xAnode) > fabs(xmax - xAnode)) { xCathode = xmin; }

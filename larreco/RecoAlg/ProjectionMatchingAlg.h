@@ -22,14 +22,18 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
-#include "fhiclcpp/fwd.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
+#include "fhiclcpp/types/Table.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -40,12 +44,17 @@ namespace geo {
   class GeometryCore;
   class TPCGeo;
 }
+namespace img {
+  class DataProviderAlg;
+}
 namespace lariov {
   class ChannelStatusProvider;
 }
 
 // ROOT & C++
+#include <map>
 #include <memory>
+#include <vector>
 class TH1F;
 
 namespace pma {
@@ -203,7 +212,7 @@ public:
   pma::Track3D* buildSegment(const detinfo::DetectorPropertiesData& clockData,
                              const std::vector<art::Ptr<recob::Hit>>& hits_1,
                              const std::vector<art::Ptr<recob::Hit>>& hits_2,
-                             const TVector3& point) const;
+                             const geo::Point_t& point) const;
 
   /// Build a straight segment from set of hits (they should origin from two
   /// wire planes at least), starting from a given point.

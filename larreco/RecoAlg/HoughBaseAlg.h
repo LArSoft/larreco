@@ -127,15 +127,18 @@
 
 #include <array>
 #include <map>
+#include <memory> // std::allocator<>
+#include <string>
 #include <utility> // std::pair<>
 #include <vector>
 
-#include "art/Framework/Principal/fwd.h"
+namespace art {
+  class Event;
+}
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "canvas/Persistency/Provenance/Timestamp.h"
 #include "fhiclcpp/fwd.h"
-
 #include "lardata/Utilities/CountersMap.h"
 
 namespace CLHEP {
@@ -145,10 +148,8 @@ namespace detinfo {
   class DetectorClocksData;
   class DetectorPropertiesData;
 }
-namespace recob {
-  class Hit;
-  class Cluster;
-}
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 struct houghCorner {
   double strength = 0;
@@ -509,6 +510,8 @@ namespace cluster {
                      double& slope,
                      double& intercept);
 
+    // FIXME: Is this necessary? Document or remove!
+    //        2022-04-18 CHG
     friend class HoughTransformClus;
 
   private:

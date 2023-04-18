@@ -34,10 +34,12 @@ namespace recob {
   class Hit;
 }
 
-bool valsDecreasing(const SortEntry& c1, const SortEntry& c2);
-bool valsIncreasing(const SortEntry& c1, const SortEntry& c2);
-
 namespace tca {
+
+  namespace detail {
+    bool valsDecreasing(const SortEntry& c1, const SortEntry& c2);
+    bool valsIncreasing(const SortEntry& c1, const SortEntry& c2);
+  }
 
   typedef enum {
     kAllHits,

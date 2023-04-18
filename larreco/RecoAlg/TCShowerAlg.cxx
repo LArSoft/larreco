@@ -105,8 +105,7 @@ namespace shower {
         allpfps.push_back(thispfp);
 
         double tick = detProp.ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0, 0, 2));
-        int wire = geom->WireCoordinate(
-          thispfp.vtx->position().Y(), thispfp.vtx->position().Z(), geo::PlaneID(0, 0, 2));
+        int wire = geom->WireCoordinate(thispfp.vtx->position(), geo::PlaneID(0, 0, 2));
 
         std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":"
                   << clustersize[1] << ":" << clustersize[2] << " vertex " << thispfp.vtx->ID()
@@ -144,12 +143,12 @@ namespace shower {
       vtx[2] = pfpvtx->position().Z();
 
       if (pfptrk->Vertex().Z() < pfptrk->End().Z()) {
-        shwvtx = pfptrk->Vertex<TVector3>();
-        shwDir = pfptrk->VertexDirection<TVector3>();
+        shwvtx = pfptrk->Vertex();
+        shwDir = pfptrk->VertexDirection();
       }
       else {
-        shwvtx = pfptrk->End<TVector3>();
-        shwDir = -pfptrk->EndDirection<TVector3>();
+        shwvtx = pfptrk->End();
+        shwDir = -pfptrk->EndDirection();
       }
 
       int tolerance = 60;         // how many shower like cluster you need to define a shower
@@ -181,8 +180,8 @@ namespace shower {
       int nShowerHits = 0;
       double showerHitPull = 0;
 
-      TVector3 pfpStart = shwvtx;
-      TVector3 pfpPt2 = shwvtx + shwDir; // a second point along the track
+      geo::Point_t pfpStart = shwvtx;
+      geo::Point_t pfpPt2 = shwvtx + shwDir; // a second point along the track
 
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
@@ -192,11 +191,11 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
-      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane) {
-        trk_tick1[*iPlane] = detProp.ConvertXToTicks(pfpStart[0], *iPlane);
-        trk_wire1[*iPlane] = geom->WireCoordinate(pfpStart[1], pfpStart[2], *iPlane);
-        trk_tick2[*iPlane] = detProp.ConvertXToTicks(pfpPt2[0], *iPlane);
-        trk_wire2[*iPlane] = geom->WireCoordinate(pfpPt2[1], pfpPt2[2], *iPlane);
+      for (auto const& planeid : geom->Iterate<geo::PlaneID>()) {
+        trk_tick1[planeid] = detProp.ConvertXToTicks(pfpStart.X(), planeid);
+        trk_wire1[planeid] = geom->WireCoordinate(pfpStart, planeid);
+        trk_tick2[planeid] = detProp.ConvertXToTicks(pfpPt2.X(), planeid);
+        trk_wire2[planeid] = geom->WireCoordinate(pfpPt2, planeid);
       }
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {

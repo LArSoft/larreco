@@ -45,15 +45,15 @@
 #include <memory>
 #include <vector>
 
-#include "lardata/RecoObjects/KETrack.h"
-#include "lardata/RecoObjects/KGTrack.h"
-#include "lardata/RecoObjects/KTrack.h"
 #include "lardata/RecoObjects/Propagator.h"
 
 namespace fhicl {
   class ParameterSet;
 }
 namespace trkf {
+  class KETrack;
+  class KGTrack;
+  class KTrack;
   class KHitContainer;
 }
 

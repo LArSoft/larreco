@@ -16,6 +16,8 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Sequence.h"
 
 // LArSoft includes
@@ -45,6 +47,10 @@ namespace geo {
 // ROOT & C++
 class TH1F;
 class TVector3;
+
+#include <map>
+#include <utility>
+#include <vector>
 
 namespace pma {
   typedef std::map<size_t, pma::TrkCandidateColl> tpc_track_map;

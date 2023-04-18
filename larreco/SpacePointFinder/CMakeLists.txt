@@ -1,9 +1,14 @@
-include_directories ( $ENV{G4INCLUDE} )
+cet_build_plugin(TTSpacePointFinder art::EDProducer
+  LIBRARIES PRIVATE
+  larreco::RecoAlg
+  lardata::DetectorClocksService
+  lardata::DetectorPropertiesService
+  lardata::AssociationUtil
+  lardataobj::RecoBase
+  art::Framework_Principal
+  art::Framework_Services_Registry
+)
 
-art_make(MODULE_LIBRARIES
-           larreco_RecoAlg
-           messagefacility::MF_MessageLogger
-         )
 install_headers()
 install_fhicl()
 install_source()

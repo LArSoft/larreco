@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "TCanvas.h"
 #include "TH1.h"
@@ -15,12 +16,9 @@
 #include "TMath.h"
 #include "TPrincipal.h"
 #include "TStopwatch.h"
-#include "TVectorDfwd.h"
-#include "TVectorT.h"
 
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/CRUException.h"
-#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 #include "cetlib/pow.h"
@@ -917,7 +915,8 @@ namespace cluster {
         curr_max_bin = nbin;
       }
     }
-
+    // FIXME: using two different definitions of PI in the same calculation?
+    //        2022-04-18 CHG
     fParams.angle_2d = (curr_max_bin / 720 * (2 * TMath::Pi())) - TMath::Pi();
     fParams.angle_2d *= 180 / PI;
     if (verbose) std::cout << " Final 2D angle: " << fParams.angle_2d << " degrees " << std::endl;

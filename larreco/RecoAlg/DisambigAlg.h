@@ -6,12 +6,16 @@
 #define DisambigAlg_H
 
 #include <map>
+#include <utility> // std::pair<>
 #include <vector>
 
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+
+namespace fhicl {
+  class ParamterSet;
+}
 
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t

@@ -11,10 +11,17 @@
 #define CLUSTERMERGEHELPER_H
 
 // ART includes
-#include "art/Framework/Principal/fwd.h"
+
+namespace art {
+  class Event;
+}
+
 #include "canvas/Persistency/Common/Assns.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft
 #include "lardata/Utilities/GeometryUtilities.h"
@@ -25,10 +32,6 @@
 
 // STL
 #include <vector>
-
-namespace util {
-  class GeometryUtilities;
-}
 
 namespace cluster {
 

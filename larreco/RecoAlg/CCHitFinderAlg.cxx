@@ -140,19 +140,6 @@ namespace hit {
       theChannel = theWire.Channel();
       // ignore bad channels
       if (channelStatus.IsBad(t.value(), theChannel)) continue;
-      /*
-      geo::SigType_t SigType = geom->SignalType(theChannel);
-      minSig = 0.;
-      minRMS = 0.;
-      if(SigType == geo::kInduction){
-        minSig = fMinSigInd;
-        minRMS = fMinRMSInd;
-      }//<-- End if Induction Plane
-      else if(SigType == geo::kCollection){
-        minSig = fMinSigCol;
-        minRMS  = fMinRMSCol;
-      }//<-- End if Collection Plane
-*/
 
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;

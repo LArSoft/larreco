@@ -1,10 +1,9 @@
-#include "lardata/Utilities/MarqFitAlg.h" //marqfit functions
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
-#include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
+#include "larreco/RecoAlg/GausFitCache.h"      // hit::GausFitCache
+#include "larvecutils/MarqFitAlg/MarqFitAlg.h" //marqfit functions
 
 #include "art/Utilities/ToolMacros.h"
-#include "art/Utilities/make_tool.h"
-#include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"

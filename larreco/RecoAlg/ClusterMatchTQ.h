@@ -16,7 +16,10 @@
 
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+
+namespace fhicl {
+  class ParameterSet;
+}
 
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"

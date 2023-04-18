@@ -1,32 +1,33 @@
-art_make(LIB_LIBRARIES
-           larsim_MCCheater_BackTrackerService_service
-           larsim_MCCheater_ParticleInventoryService_service
-           nug4_ParticleNavigation
-           nusimdata_SimulationBase
-           lardata_RecoObjects
-           lardataalg_DetectorInfo
-           larcorealg_Geometry
-           larreco_Calorimetry
-           art::Framework_Principal
-           art::Framework_Services_Registry
-           ${ART_PERSISTENCY_PROVENANCE}
-           art_root_io::TFileService_service
-           art_root_io::tfile_support
-           ${ART_UTILITIES}
-           ${CANVAS}
-           ${CETLIB_EXCEPT}
-           cetlib::cetlib
-           ROOT::Core
-           ROOT::GenVector
-           ROOT::Gpad
-           ROOT::Graf
-           ROOT::Graf3d
-           ROOT::Hist
-           ROOT::MathCore
-           ROOT::Matrix
-           ROOT::RIO
-           ROOT::Tree
-           ROOT::TMVA)
+cet_make_library(SOURCE
+  DataStructs.cxx
+  DebugStruct.cxx
+  PFPUtils.cxx
+  StepUtils.cxx
+  TCCR.cxx
+  TCHist.cxx
+  TCShTree.cxx
+  TCShower.cxx
+  TCVertex.cxx
+  Utils.cxx
+  LIBRARIES
+  PUBLIC
+  art_root_io::TFileService_service
+  art::Framework_Services_Registry
+  messagefacility::MF_MessageLogger
+  lardataobj::RecoBase
+  larcoreobj::SimpleTypesAndConstants
+  PRIVATE
+  larreco::Calorimetry
+  larsim::MCCheater_BackTrackerService_service
+  larsim::MCCheater_ParticleInventoryService_service
+  larevt::ChannelStatusProvider
+  lardataalg::DetectorInfo
+  larcorealg::Geometry
+  messagefacility::MF_MessageLogger
+  cetlib::cetlib
+  ROOT::Hist
+  ROOT::TMVA
+)
 
 add_subdirectory(TCDebugTools)
 

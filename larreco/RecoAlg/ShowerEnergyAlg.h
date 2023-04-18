@@ -13,14 +13,16 @@
 
 // Framework
 #include "canvas/Persistency/Common/Ptr.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // larsoft
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 namespace detinfo {
-  class DetectorClocks;
-  class DetectorProperties;
+  class DetectorClocksData;
+  class DetectorPropertiesData;
 }
 
 namespace shower {

@@ -10,7 +10,9 @@
 #define IClusterAlg_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"

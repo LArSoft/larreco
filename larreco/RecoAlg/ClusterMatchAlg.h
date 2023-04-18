@@ -11,17 +11,25 @@
 #define CLUSTERMATCHALG_H
 
 // ART includes
-#include "art/Framework/Principal/fwd.h"
+namespace art {
+  class Event;
+}
+
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "fhiclcpp/fwd.h"
+
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft
-#include "lardataobj/RecoBase/Cluster.h"
+namespace recob {
+  class Cluster;
+}
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "nusimdata/SimulationBase/MCParticle.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
+
 namespace detinfo {
   class DetectorClocksData;
   class DetectorPropertiesData;
@@ -31,6 +39,7 @@ namespace trkf {
 }
 
 // STL
+#include <string>
 #include <vector>
 
 class TTree;

@@ -6,9 +6,6 @@
 #ifndef STITCHALG_H
 #define STITCHALG_H
 
-// C/C++ standard libraries
-#include <vector>
-
 // art libraries
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/PtrVector.h"
@@ -22,6 +19,11 @@ namespace fhicl {
 namespace art {
   class Event;
 }
+
+// C/C++ standard libraries
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace trkf {
 

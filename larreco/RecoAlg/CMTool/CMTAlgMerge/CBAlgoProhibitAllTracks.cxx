@@ -1,4 +1,4 @@
-#include "CBAlgoProhibitAllTracks.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoProhibitAllTracks.h"
 
 namespace cmtool {
 

@@ -11,10 +11,17 @@
 #define IHit3DBuilder_h
 
 // Framework Includes
-#include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
+namespace art {
+  class Event;
+  class ProducesCollector;
+}
+#include "canvas/Persistency/Common/Ptr.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // Algorithm includes
+#include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------

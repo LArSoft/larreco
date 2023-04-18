@@ -24,13 +24,7 @@
 
 namespace tca {
 
-  struct SortEntry {
-    unsigned int index;
-    float val;
-  };
-
-  bool valDecreasing(SortEntry c1, SortEntry c2) { return (c1.val > c2.val); }
-  bool valIncreasing(SortEntry c1, SortEntry c2) { return (c1.val < c2.val); }
+  using namespace detail; // SortEntry, valsDecreasing(), valsIncreasing();
 
   //////////////////////////////////////////
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP)
@@ -487,7 +481,7 @@ namespace tca {
       auto& tj = slc.tjs[tjlist[indx] - 1];
       sortVec[indx].val = tj.Pts.size();
     } // indx
-    std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+    std::sort(sortVec.begin(), sortVec.end(), valsDecreasing);
     // re-order the list of Tjs
     auto ttl = tjlist;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii)
@@ -1345,13 +1339,14 @@ namespace tca {
                 << (int)jvx2.Pos[1] << " dX " << dX;
             }
             double y = -1000, z = -1000;
-            tcc.geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            tcc.geom->IntersectionPoint(
+              geo::WireID{cstat, tpc, ipl, iWire}, geo::WireID{cstat, tpc, jpl, jWire}, y, z);
             if (y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             int kWire = -1;
             if (slc.nPlanes > 2) {
-              kWire = tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat);
+              kWire = tcc.geom->WireCoordinate(geo::Point_t{0, y, z}, geo::PlaneID{slc.TPCID, kpl});
               std::array<int, 2> wireWindow;
               std::array<float, 2> timeWindow;
               wireWindow[0] = kWire - maxSep;
@@ -1420,7 +1415,8 @@ namespace tca {
               if (dW > tcc.vtx3DCuts[1]) continue;
               // put the Y,Z difference in YErr and ZErr
               double y = -1000, z = -1000;
-              tcc.geom->IntersectionPoint(iWire, kWire, ipl, kpl, cstat, tpc, y, z);
+              tcc.geom->IntersectionPoint(
+                geo::WireID(cstat, tpc, ipl, iWire), geo::WireID(cstat, tpc, kpl, kWire), y, z);
               v3d.YErr = y - v3d.Y;
               v3d.ZErr = z - v3d.Z;
               v3d.Vx2ID[kpl] = slc.vtxs[kvx].ID;
@@ -1475,7 +1471,7 @@ namespace tca {
       sEntry.val = v3temp[ivx].Score;
       sortVec[ivx] = sEntry;
     } // ivx
-    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+    if (sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valsIncreasing);
     // create a new vector of selected 3D vertices
     std::vector<Vtx3Store> v3sel;
     for (unsigned short ii = 0; ii < sortVec.size(); ++ii) {
@@ -2855,9 +2851,9 @@ namespace tca {
                   Point2_t& pos)
   {
     // returns the 2D position of the vertex in the plane
-    pos[0] = tcc.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
-    pos[1] =
-      detProp.ConvertXToTicks(vx3.X, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tcc.unitsPerTick;
+    geo::PlaneID const planeID{vx3.TPCID, plane};
+    pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z}, planeID);
+    pos[1] = detProp.ConvertXToTicks(vx3.X, planeID) * tcc.unitsPerTick;
 
   } // PosInPlane
 

@@ -15,7 +15,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -26,7 +26,7 @@ bool pma::Node3D::fGradFixed[3] = {false, false, false};
 double pma::Node3D::fMargin = 3.0;
 
 pma::Node3D::Node3D()
-  : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(0, 0))
+  : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC())
   , fMinX(0)
   , fMaxX(0)
   , fMinY(0)
@@ -51,7 +51,7 @@ pma::Node3D::Node3D(detinfo::DetectorPropertiesData const& detProp,
                     unsigned int cryo,
                     bool vtx,
                     double xshift)
-  : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(tpc, cryo))
+  : fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(geo::TPCID(cryo, tpc)))
   , fDriftOffset(xshift)
   , fIsVertex(vtx)
 {
@@ -154,7 +154,8 @@ bool pma::Node3D::LimitPoint3D()
 void pma::Node3D::UpdateProj2D()
 {
   for (size_t i = 0; i < fTpcGeo.Nplanes(); ++i) {
-    fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(fPoint3D), fPoint3D.X() - fDriftOffset);
+    fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(geo::vect::toPoint(fPoint3D)),
+                   fPoint3D.X() - fDriftOffset);
   }
 }
 

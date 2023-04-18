@@ -16,15 +16,18 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMatrixT.h"
+#include "TVector2.h"
+#include "TVector3.h"
 #include "TVectorT.h"
-#include <math.h>
 
-#include "larcore/CoreUtils/ServiceUtil.h"
+#include <cmath>
+#include <utility>
+#include <vector>
+
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardataalg/DetectorInfo/DetectorProperties.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
@@ -264,7 +267,8 @@ TVector2 pma::GetProjectionToPlane(const TVector3& p,
 {
   art::ServiceHandle<geo::Geometry const> geom;
 
-  return TVector2(geom->TPC(tpc, cryo).Plane(plane).PlaneCoordinate(p), p.X());
+  return TVector2(
+    geom->Plane(geo::PlaneID(cryo, tpc, plane)).PlaneCoordinate(geo::vect::toPoint(p)), p.X());
 }
 
 TVector2 pma::GetVectorProjectionToPlane(const TVector3& v,
@@ -287,8 +291,8 @@ TVector2 pma::WireDriftToCm(detinfo::DetectorPropertiesData const& detProp,
                             unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
-  return TVector2(geom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
-                  detProp.ConvertTicksToX(drift, plane, tpc, cryo));
+  geo::PlaneID const id{cryo, tpc, plane};
+  return TVector2(geom->Plane(id).WirePitch() * wire, detProp.ConvertTicksToX(drift, id));
 }
 
 TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
@@ -299,24 +303,20 @@ TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
                             unsigned int cryo)
 {
   art::ServiceHandle<geo::Geometry const> geom;
-  return TVector2(xw / geom->TPC(tpc, cryo).Plane(plane).WirePitch(),
-                  detProp.ConvertXToTicks(yd, plane, tpc, cryo));
+  geo::PlaneID const id{cryo, tpc, plane};
+  return TVector2(xw / geom->Plane(id).WirePitch(), detProp.ConvertXToTicks(yd, id));
 }
 
 bool pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
 {
-  if (h1 && h2)
-    return h1->fSegFraction < h2->fSegFraction;
-  else
-    return false;
+  if (h1 && h2) return h1->fSegFraction < h2->fSegFraction;
+  return false;
 }
 
 bool pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
 {
-  if (h1 && h2)
-    return h1->GetDist2ToProj() < h2->GetDist2ToProj();
-  else
-    return false;
+  if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
+  return false;
 }
 
 bool pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2)
@@ -328,8 +328,7 @@ bool pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::Trk
     double l2 = pma::Dist2(trk2->front()->Point3D(), trk2->back()->Point3D());
     return l1 > l2;
   }
-  else
-    return false;
+  return false;
 }
 
 pma::bSegmentProjLess::bSegmentProjLess(const TVector3& s0, const TVector3& s1)

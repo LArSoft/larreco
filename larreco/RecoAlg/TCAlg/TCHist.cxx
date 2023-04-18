@@ -1,10 +1,10 @@
 #include "larreco/RecoAlg/TCAlg/TCHist.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
 
 #include "TH1F.h"
-#include "TH2.h"
 #include "TProfile.h"
-#include <math.h>
+#include <cmath>
 
 namespace tca {
 

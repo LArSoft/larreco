@@ -58,29 +58,23 @@ namespace trkf {
     TVectorD w(npts);
     unsigned short ninpl[3] = {0};
     unsigned short nok = 0;
-    unsigned short iht;
-    unsigned int ipl, tpc, cstat;
-    double x, cw, sw, off, wght;
-    for (iht = 0; iht < hitX.size(); ++iht) {
-      cstat = hitWID[iht].Cryostat;
-      tpc = hitWID[iht].TPC;
-      ipl = hitWID[iht].Plane;
+    for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
+      auto const& wid = hitWID[iht];
       // get the wire plane offset
-      off = geom->WireCoordinate(0, 0, ipl, tpc, cstat);
+      double const off = geom->WireCoordinate(geo::Point_t{0, 0, 0}, wid);
       // get the "cosine-like" component
-      cw = geom->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
+      double const cw = geom->WireCoordinate(geo::Point_t{0, 1, 0}, wid) - off;
       // the "sine-like" component
-      sw = geom->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-      x = hitX[iht] - XOrigin;
+      double const sw = geom->WireCoordinate(geo::Point_t{0, 0, 1}, wid) - off;
+      double const x = hitX[iht] - XOrigin;
+      double wght{1.};
       if (hitXErr[iht] > 0) { wght = 1 / hitXErr[iht]; }
-      else {
-        wght = 1;
-      }
       A[iht][0] = wght * cw;
       A[iht][1] = wght * sw;
       A[iht][2] = wght * cw * x;
       A[iht][3] = wght * sw * x;
       w[iht] = wght * (hitWID[iht].Wire - off);
+      unsigned int ipl = wid.Plane;
       ++ninpl[ipl];
       // need at least two points in a plane
       if (ninpl[ipl] == 2) ++nok;
@@ -98,27 +92,29 @@ namespace trkf {
     // not enough points to calculate Chisq
     if (hitX.size() == 4) return;
 
-    double ypr, zpr, diff;
-    for (iht = 0; iht < hitX.size(); ++iht) {
-      cstat = hitWID[iht].Cryostat;
-      tpc = hitWID[iht].TPC;
-      ipl = hitWID[iht].Plane;
-      off = geom->WireCoordinate(0, 0, ipl, tpc, cstat);
-      cw = geom->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
-      sw = geom->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-      x = hitX[iht] - XOrigin;
-      ypr = tVec[0] + tVec[2] * x;
-      zpr = tVec[1] + tVec[3] * x;
+    // FIXME: The 'tpc' and 'cstat' variables are suspect as they are
+    //        updated for each iteration below, but only the last
+    //        value is used in the geom->WirePitch(...) calculation
+    //        below.
+    unsigned int tpc{-1u}, cstat{-1u};
+    for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
+      auto const& wid = hitWID[iht];
+      tpc = wid.TPC;
+      cstat = wid.Cryostat;
+      double const off = geom->WireCoordinate(geo::Point_t{0, 0, 0}, wid);
+      double const cw = geom->WireCoordinate(geo::Point_t{0, 1, 0}, wid) - off;
+      double const sw = geom->WireCoordinate(geo::Point_t{0, 0, 1}, wid) - off;
+      double const x = hitX[iht] - XOrigin;
+      double const ypr = tVec[0] + tVec[2] * x;
+      double const zpr = tVec[1] + tVec[3] * x;
+      double wght{1.};
       if (hitXErr[iht] > 0) { wght = 1 / hitXErr[iht]; }
-      else {
-        wght = 1;
-      }
-      if (wght <= 0) wght = 1;
-      diff = (ypr * cw + zpr * sw - (hitWID[iht].Wire - off)) / wght;
+      assert(wght > 0.);
+      double const diff = (ypr * cw + zpr * sw - (hitWID[iht].Wire - off)) / wght;
       ChiDOF += diff * diff;
     }
 
-    double werr2 = geom->WirePitch(0, tpc, cstat);
+    double werr2 = geom->WirePitch(geo::PlaneID{cstat, tpc, 0});
     werr2 *= werr2;
     ChiDOF /= werr2;
     ChiDOF /= (double)(npts - 4);
@@ -131,17 +127,6 @@ namespace trkf {
     Pos[0] = XOrigin;
     Pos[1] = tVec[0];
     Pos[2] = tVec[1];
-    /*
-    // covariance matrix
-    TMatrixD fV = svd.GetV();
-    PosCov(1, 1) = fV(0, 0);
-    PosCov(2, 1) = fV(1, 0);
-    PosCov(1, 2) = fV(0, 1);
-    PosCov(2, 2) = fV(1, 1);
-    // A conservative fake for Pos[0]
-    PosCov(0, 0) = PosCov(1,1);
-*/
-
   } // TrkLineFit()
 
 } // namespace trkf

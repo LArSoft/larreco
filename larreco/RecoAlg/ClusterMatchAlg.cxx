@@ -356,9 +356,14 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry const> geo_h;
     double y, z_min, z_max;
     y = z_min = z_max = -1;
-    geo_h->IntersectionPoint(ci1.wire_min, ci2.wire_min, v1, v2, 0, 0, y, z_min);
-    geo_h->IntersectionPoint(ci1.wire_max, ci2.wire_max, v1, v2, 0, 0, y, z_max);
-    return (z_max > z_min);
+    constexpr geo::TPCID tpcid{0, 0};
+    geo::PlaneID const plane_1{tpcid, v1};
+    geo::PlaneID const plane_2{tpcid, v2};
+    geo_h->IntersectionPoint(
+      geo::WireID{plane_1, ci1.wire_min}, geo::WireID{plane_2, ci2.wire_min}, y, z_min);
+    geo_h->IntersectionPoint(
+      geo::WireID{plane_1, ci1.wire_max}, geo::WireID{plane_2, ci2.wire_max}, y, z_max);
+    return z_max > z_min;
   }
 
   bool ClusterMatchAlg::Match_RoughTime(const cluster_match_info& ci1,

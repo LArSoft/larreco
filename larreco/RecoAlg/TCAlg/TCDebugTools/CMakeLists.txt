@@ -1,6 +1,10 @@
-
-cet_make_exec( rsf_evd
-               SOURCE showertree.C
-               LIBRARIES
-               ${ROOT_BASIC_LIB_LIST}
-               )
+cet_make_exec(NAME rsf_evd
+  SOURCE showertree.C
+  LIBRARIES PRIVATE
+  ROOT::Core
+  ROOT::EG
+  ROOT::Graf
+  ROOT::Hist
+  ROOT::RIO
+  ROOT::Tree
+)

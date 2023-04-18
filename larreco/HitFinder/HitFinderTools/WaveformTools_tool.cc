@@ -8,6 +8,7 @@
 #include <cmath>
 #include <numeric> // std::inner_product
 
+#include "TProfile.h"
 #include "TVirtualFFT.h"
 
 namespace reco_tool {

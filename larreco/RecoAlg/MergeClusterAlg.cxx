@@ -170,36 +170,19 @@ double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1,
 
 double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) const
 {
-
   /// Find the global wire position
 
-  double wireCentre[3];
-  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+  auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
+  geo::PlaneID const planeID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane};
 
-  double globalWire;
   if (fGeom->SignalType(wireID) == geo::kInduction) {
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-    else
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+    return fGeom->WireCoordinate(wireCenter, planeID);
   }
-  else {
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
-    else
-      globalWire =
-        wireID.Wire + ((int)(wireID.TPC / 2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
-  }
-
-  return globalWire;
+  return wireID.Wire + ((wireID.TPC / 2) * fGeom->Nwires(planeID));
 }
 
 TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) const
 {
-
   /// Return the coordinates of this hit in global wire/tick space
 
   return TVector2(GlobalWire(hit->WireID()), hit->PeakTime());
@@ -209,124 +192,7 @@ int cluster::MergeClusterAlg::MergeClusters(
   std::vector<art::PtrVector<recob::Hit>> const& planeClusters,
   std::vector<art::PtrVector<recob::Hit>>& clusters) const
 {
-
   /// Merges clusters which lie along a straight line
-
-  // // ////// MAKE SOME MESSY CODE! CHECK FEATURES OF THESE CLUSTERS
-
-  // // Truth matching
-  // for (unsigned int cluster = 0; cluster < planeClusters.size(); ++cluster) {
-  //   std::map<int,double> trackMap;
-  //   art::PtrVector<recob::Hit> hits = planeClusters.at(cluster);
-  //   for (auto &hit : hits) {
-  //     std::vector<sim::TrackIDE> ides = backtracker->HitToTrackID(hit);
-  //     for (auto &ide : ides)
-  // 	trackMap[ide.trackID] += ide.energy;
-  //   }
-  //   // Find the true particle associated with this track
-  //   double highEnergy = 0;
-  //   int bestTrack = 0;
-  //   for (auto &track : trackMap) {
-  //     if (track.second > highEnergy) {
-  // 	highEnergy = track.second;
-  // 	bestTrack = track.first;
-  //     }
-  //   }
-  //   trueClusterMap[cluster] = bestTrack;
-  // }
-
-  // for (unsigned int cluster1It = 0; cluster1It < planeClusters.size(); ++cluster1It) {
-  //   for (unsigned int cluster2It = cluster1It+1; cluster2It < planeClusters.size(); ++cluster2It) {
-
-  //     const art::PtrVector<recob::Hit> cluster1 = planeClusters.at(cluster1It);
-  //     const art::PtrVector<recob::Hit> cluster2 = planeClusters.at(cluster2It);
-
-  //     // true merge
-  //     if (trueClusterMap[cluster1It] == trueClusterMap[cluster2It])
-  // 	fTrueMerge = true;
-  //     else fTrueMerge = false;
-
-  //     // geometry
-  //     fCluster1Size = cluster1.size();
-  //     fCluster2Size = cluster2.size();
-  //     fSeparation = this->FindMinSeparation(cluster1, cluster2);
-
-  //     // PCA
-  //     TPrincipal *pca = new TPrincipal(2,"");
-  //     TPrincipal *pca1 = new TPrincipal(2,"");
-  //     TPrincipal *pca2 = new TPrincipal(2,"");
-  //     double hits[2];
-  //     TVector2 pos;
-
-  //     // Cluster centre
-  //     TVector2 chargePoint1 = TVector2(0,0), chargePoint2 = TVector2(0,0);
-  //     double totalCharge1 = 0, totalCharge2 = 0;
-
-  //     for (auto &hit1 : cluster1) {
-  //    pos = HitCoordinates(hit1);
-  // 	hits[0] = pos.X();
-  // 	hits[1] = pos.Y();
-  // 	pca->AddRow(hits);
-  // 	pca1->AddRow(hits);
-  // 	chargePoint1 += hit1->Integral() * pos;
-  // 	totalCharge1 += hit1->Integral();
-  //     }
-  //     for (auto &hit2 : cluster2) {
-  // 	pos = HitCoordinates(hit2);
-  // 	hits[0] = pos.X();
-  // 	hits[1] = pos.Y();
-  // 	pca->AddRow(hits);
-  // 	pca2->AddRow(hits);
-  // 	chargePoint2 += hit2->Integral() * pos;
-  // 	totalCharge2 += hit2->Integral();
-  //     }
-
-  //     pca->MakePrincipals();
-  //     pca1->MakePrincipals();
-  //     pca2->MakePrincipals();
-
-  //     // Properties of these clusters
-  //     TVector2 direction1 = TVector2( (*pca1->GetEigenVectors())[0][0], (*pca1->GetEigenVectors())[1][0] ).Unit();
-  //     TVector2 direction2 = TVector2( (*pca2->GetEigenVectors())[0][0], (*pca2->GetEigenVectors())[1][0] ).Unit();
-  //     TVector2 directionAv = ((direction1+direction2)/2).Unit();
-  //     TVector2 centre1 = chargePoint1 / totalCharge1;
-  //     TVector2 centre2 = chargePoint2 / totalCharge2;
-  //     TVector2 centre = (centre1+centre2)/2;
-  //     TVector2 start1, end1;
-  //     TVector2 start2, end2;
-  //     FindClusterEndPoints(cluster1, centre1, direction1, start1, end1);
-  //     FindClusterEndPoints(cluster2, centre2, direction2, start2, end2);
-  //     fLength1 = (end1-start1).Mod();
-  //     fLength2 = (end2-start2).Mod();
-
-  //     // Properties of the pair of clusters
-  //     fCrossingDistance = FindCrossingDistance(direction1, centre1, direction2, centre2);
-  //     fProjectedWidth = FindProjectedWidth(centre1, start1, end1, centre2, start2, end2);
-  //     fAngle = direction1.DeltaPhi(direction2);
-  //     if (fAngle > 1.57) fAngle = 3.14159 - fAngle;
-  //     fOverlap = FindClusterOverlap(directionAv, centre, start1, end1, start2, end2);
-  //     fSeparation = FindMinSeparation(cluster1, cluster2);
-  //     fEigenvalue = (*pca->GetEigenValues())[0];
-
-  //     fTree->Fill();
-
-  //     // std::cout << std::endl << "Plane " << fPlane << ": Clusters " << cluster1It << " and " << cluster2It << " have overlap " << fOverlap << " and start and end ... " << std::endl;
-  //     // start1.Print();
-  //     // end1.Print();
-  //     // start2.Print();
-  //     // end2.Print();
-
-  //     // // Find if this is merged!
-  //     // if (fCrossingDistance < 6 + (5 / (fAngle - 0.05)))
-  //     // 	fMerge = true;
-  //     // else fMerge = false;
-
-  //     // if (fCluster1Size >= 10 && fCluster2Size >= 10) std::cout << "Merge " << fMerge << " and true merge " << fTrueMerge << std::endl;
-
-  //   }
-  // }
-
-  // ----------------------------- END OF MESSY CODE! --------------------------------------------------------------------------------------------------------------
 
   std::vector<unsigned int> mergedClusters;
 

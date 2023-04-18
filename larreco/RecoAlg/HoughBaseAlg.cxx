@@ -285,20 +285,20 @@ size_t cluster::HoughBaseAlg::Transform(
 
   unsigned int wire = 0;
   unsigned int wireMax = 0;
-  unsigned int cs = hits[0]->WireID().Cryostat;
-  unsigned int t = hits[0]->WireID().TPC;
   geo::WireID const& wireid = hits[0]->WireID();
 
   geo::SigType_t sigt = geom->SignalType(wireid);
   std::vector<int> skip;
 
-  std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
-  for (size_t p = 0; p < wire_pitch.size(); ++p) {
-    wire_pitch[p] = geom->WirePitch(p);
+  auto const num_planes = geom->Nplanes(wireid.asPlaneID().asTPCID());
+  std::vector<double> wire_pitch(num_planes, 0.);
+  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+    auto const p = plane.ID().Plane;
+    wire_pitch[p] = plane.WirePitch();
   }
 
   //factor to make x and y scale the same units
-  std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
+  std::vector<double> xyScale(num_planes, 0.);
 
   /// \todo provide comment about where the 0.001 comes from
   double driftVelFactor = 0.001 * detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
@@ -310,11 +310,8 @@ size_t cluster::HoughBaseAlg::Transform(
 
   int x, y;
   // there must be a better way to find which plane a cluster comes from
-  const int dx = geom->Cryostat(hits[0]->WireID().Cryostat)
-                   .TPC(hits[0]->WireID().TPC)
-                   .Plane(hits[0]->WireID().Plane)
-                   .Nwires();                 // number of wires
-  const int dy = detProp.NumberTimeSamples(); // number of time samples.
+  const int dx = geom->Plane(wireid.asPlaneID()).Nwires(); // number of wires
+  const int dy = detProp.NumberTimeSamples();              // number of time samples.
   skip.clear();
   skip.resize(hits.size());
   std::vector<int> listofxmax;
@@ -1040,10 +1037,8 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
     return -1;
   }
 
-  unsigned int cs = hit.at(0)->WireID().Cryostat;
-  unsigned int t = hit.at(0)->WireID().TPC;
-  unsigned int p = hit.at(0)->WireID().Plane;
   geo::WireID const& wireid = hit.at(0)->WireID();
+  auto const& tpcid = wireid.asPlaneID().asTPCID();
 
   geo::SigType_t sigt = geom->SignalType(wireid);
 
@@ -1052,13 +1047,15 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
     return -1; // continue;
   }
 
-  std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
-  for (size_t p = 0; p < wire_pitch.size(); ++p) {
-    wire_pitch[p] = geom->WirePitch(p);
+  auto const num_planes = geom->Nplanes(tpcid);
+  std::vector<double> wire_pitch(num_planes, 0.);
+  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+    auto const p = plane.ID().Plane;
+    wire_pitch[p] = plane.WirePitch();
   }
 
   //factor to make x and y scale the same units
-  std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
+  std::vector<double> xyScale(num_planes, 0.);
 
   /// \todo explain where the 0.001 comes from
   double driftVelFactor = 0.001 * detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
@@ -1067,8 +1064,8 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
     xyScale[p] = driftVelFactor * sampling_rate(clockData) / wire_pitch[p];
 
   int x = 0, y = 0;
-  int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires(); // number of wires
-  const int dy = detProp.ReadOutWindowSize();           // number of time samples.
+  int dx = geom->Plane(wireid.asPlaneID()).Nwires(); // number of wires
+  const int dy = detProp.ReadOutWindowSize();        // number of time samples.
   skip.clear();
   skip.resize(hit.size());
   std::vector<int> listofxmax;
@@ -1365,8 +1362,8 @@ size_t cluster::HoughBaseAlg::Transform(detinfo::DetectorPropertiesData const& d
 
   art::ServiceHandle<geo::Geometry const> geom;
 
-  int dx = geom->Nwires(0);                   // number of wires
-  const int dy = detProp.ReadOutWindowSize(); // number of time samples.
+  int dx = geom->Nwires(geo::PlaneID{0, 0, 0}); // number of wires
+  const int dy = detProp.ReadOutWindowSize();   // number of time samples.
 
   c.Init(dx, dy, fRhoResolutionFactor, fNumAngleCells);
 

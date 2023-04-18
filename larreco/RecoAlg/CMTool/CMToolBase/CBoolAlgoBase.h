@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CBOOLALGOBASE_H
 #define RECOTOOL_CBOOLALGOBASE_H
 
-#include "CMAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMAlgoBase.h"
 
 namespace cmtool {
 

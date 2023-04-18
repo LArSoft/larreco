@@ -13,8 +13,14 @@
 #ifndef IWaveformTool_H
 #define IWaveformTool_H
 
-#include "TProfile.h"
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl {
+  class ParameterSet;
+}
+class TProfile;
+
+#include <map>
+#include <tuple>
+#include <vector>
 
 namespace reco_tool {
   template <class T>

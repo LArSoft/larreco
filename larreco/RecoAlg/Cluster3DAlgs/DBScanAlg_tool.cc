@@ -117,11 +117,10 @@ namespace lar_cluster3d {
     art::ServiceHandle<geo::Geometry const> geometry;
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
-    std::vector<float> wirePitchVec(3, 0.);
-
-    wirePitchVec[0] = geometry->WirePitch(0);
-    wirePitchVec[1] = geometry->WirePitch(1);
-    wirePitchVec[2] = geometry->WirePitch(2);
+    constexpr geo::TPCID tpcid{0, 0};
+    std::vector<double> const wirePitchVec{geometry->WirePitch(geo::PlaneID{tpcid, 0}),
+                                           geometry->WirePitch(geo::PlaneID{tpcid, 1}),
+                                           geometry->WirePitch(geo::PlaneID{tpcid, 2})};
 
     float maxBestDist = 1.99 * *std::max_element(wirePitchVec.begin(), wirePitchVec.end());
 

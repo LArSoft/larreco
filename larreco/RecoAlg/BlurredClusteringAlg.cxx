@@ -175,11 +175,10 @@ std::vector<std::vector<double>> cluster::BlurredClusteringAlg::ConvertRecobHits
 
   // Keep a note of dead wires
   fDeadWires = std::vector<bool>(fUpperWire - fLowerWire, false);
-  geo::PlaneID const planeID = hits.front()->WireID().planeID();
+  geo::PlaneID const& planeID = hits.front()->WireID();
 
   for (int wire = fLowerWire; wire < fUpperWire; ++wire) {
-    raw::ChannelID_t const channel =
-      fGeom->PlaneWireToChannel(planeID.Plane, wire, planeID.TPC, planeID.Cryostat);
+    raw::ChannelID_t const channel = fGeom->PlaneWireToChannel(geo::WireID(planeID, wire));
     fDeadWires[wire - fLowerWire] = !fChanStatus.IsGood(ts, channel);
   }
 
@@ -377,22 +376,18 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
 
   // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
-    double wireCentre[3];
-    fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-    if (wireID.TPC % 2 == 0)
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-    else
-      globalWire =
-        fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+    auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
+    globalWire = fGeom->WireCoordinate(wireCenter,
+                                       geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
   }
 
   // Collection
   else {
     // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
     // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
+    geo::PlaneID const planeid{wireID.Cryostat, 0, wireID.Plane};
     if (fDetector == "dune35t") {
-      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      unsigned int nwires = fGeom->Nwires(planeid);
       if (wireID.TPC == 0 or wireID.TPC == 1)
         globalWire = wireID.Wire;
       else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5)
@@ -405,20 +400,15 @@ int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) const
           << " (geometry " << fDetector << ")";
     }
     else if (fDetector == "dune10kt") {
-      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      unsigned int nwires = fGeom->Nwires(planeid);
       // Detector geometry has four TPCs, two on top of each other, repeated along z...
       int block = wireID.TPC / 4;
       globalWire = (nwires * block) + wireID.Wire;
     }
     else {
-      double wireCentre[3];
-      fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-      if (wireID.TPC % 2 == 0)
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
-      else
-        globalWire =
-          fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+      auto const wireCenter = fGeom->WireIDToWireGeo(wireID).GetCenter();
+      globalWire = fGeom->WireCoordinate(
+        wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
     }
   }
 

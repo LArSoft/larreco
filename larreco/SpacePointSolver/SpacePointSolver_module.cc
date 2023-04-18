@@ -30,8 +30,8 @@
 
 #include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
 
-#include "Solver.h"
-#include "TripletFinder.h"
+#include "larreco/SpacePointSolver/Solver.h"
+#include "larreco/SpacePointSolver/TripletFinder.h"
 
 namespace reco3d {
 

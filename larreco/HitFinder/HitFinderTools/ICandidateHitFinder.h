@@ -12,8 +12,9 @@
 #ifndef ICandidateHitFinder_H
 #define ICandidateHitFinder_H
 
-#include "fhiclcpp/ParameterSet.h"
 #include "lardataobj/RecoBase/Wire.h"
+
+#include <vector>
 
 namespace reco_tool {
   class ICandidateHitFinder {

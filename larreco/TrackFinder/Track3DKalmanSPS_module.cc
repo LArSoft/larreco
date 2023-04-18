@@ -299,7 +299,7 @@ namespace trkf {
     TVector3 uprime(u);
     TVector3 vprime(w.Cross(xhat));  // vprime now lies in yz plane
     Double_t angle(v.Angle(vprime)); /* This is the angle through which v
-				       must rotate. */
+                                       must rotate. */
     uprime.Rotate(angle, w);         // u now is rotated the same amount
     if (uprime * xhat < 0) {
       uprime.Rotate(TMath::Pi(), w);
@@ -358,31 +358,25 @@ namespace trkf {
 
     double wirePitch = 0.;
     double angleToVert = 0;
-    //      unsigned int tpc1;
-    unsigned int plane1;
     double charge = 0.;
 
+    // FIXME: Currently the last iteration sets the charge, wirePitch, and angleToVert variables.
+    //        Is this expected?
     for (std::vector<art::Ptr<recob::Hit>>::const_iterator ihit = hitlist.begin();
          ihit != hitlist.end();
          ++ihit) {
       const recob::Hit& hit1 = **ihit;
-      //	  if (hit1.View() != view) continue;
       if (hit1.SignalType() != sig) continue;
-      geo::WireID hit1WireID = hit1.WireID();
-      //	  tpc1 = hit1WireID.TPC;
-      plane1 = hit1WireID.Plane;
+      geo::PlaneID const& hit1PlaneID = hit1.WireID().asPlaneID();
       charge = hit1.Integral();
-      wirePitch = geom->WirePitch(plane1);
-      angleToVert = geom->Plane(plane1).Wire(0).ThetaZ(false) - 0.5 * TMath::Pi();
+      wirePitch = geom->WirePitch(hit1PlaneID);
+      angleToVert = geom->Plane(hit1PlaneID).Wire(0).ThetaZ(false) - 0.5 * TMath::Pi();
     }
 
     double cosgamma =
       TMath::Abs(TMath::Sin(angleToVert) * dir.Y() + TMath::Cos(angleToVert) * dir.Z());
-    // if(cosgamma < 1.e-5)
-    //	throw cet::exception("Track") << "cosgamma is basically 0, that can't be right\n";
 
     v.push_back(charge / wirePitch / cosgamma);
-    //      std::cout << " Track3DKalmanSPS::dQdxCalc() : For loc.XYZ() hit is ... " << ind << " and v is " << v.back() << std::endl;
 
     return v;
   }
@@ -574,9 +568,6 @@ namespace trkf {
     /// \todo Remove this test as soon as possible please
     if (!evt.isRealData()) {
 
-      //      std::cout << "Track3DKalmanSPS: This is MC." << std::endl;
-      // std::cout<<"Run "<<evt.run()<<" Event "<<evt.id().event()<<std::endl;
-
       art::Handle<std::vector<simb::MCTruth>> mctruthListHandle;
       evt.getByLabel(fGenieGenModuleLabel, mctruthListHandle);
 
@@ -585,11 +576,6 @@ namespace trkf {
         mclist.push_back(mctparticle);
       }
     }
-
-    // std::cout<<"Run "<<evt.run()<<" Event "<<evt.id().event()<<std::endl;
-
-    // Put this back when Wes's reign of terror ends ...
-    //  MF_LOG_DEBUG("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
 
     std::vector<art::PtrVector<recob::SpacePoint>> spptIn(spptListHandle->begin(),
                                                           spptListHandle->end());
@@ -616,7 +602,6 @@ namespace trkf {
       // particles I just take the first primary, e.g., muon and only keep its
       // info in the branches of the Ttree. I could generalize later, ...
       for (unsigned int ii = 0; ii < mclist.size(); ++ii) {
-        //art::Ptr<const simb::MCTruth> mc(mctruthListHandle,i);
         art::Ptr<simb::MCTruth> mc(mclist[ii]);
         for (int jj = 0; jj < mc->NParticles(); ++jj) {
           simb::MCParticle part(mc->GetParticle(jj));
@@ -669,9 +654,6 @@ namespace trkf {
         << "\n\t found " << spacepoints.size()
         << " 3D spacepoint(s) for this element of std::vector<art:PtrVector> spacepoints. \n";
 
-      //const double resolution = posErr.Mag();
-      //
-
       // Let's find track's principle components.
       // We will sort along that direction, rather than z.
       // Further, we will skip outliers away from main axis.
@@ -689,31 +671,17 @@ namespace trkf {
       if (!fSortDim.compare("x")) std::sort(spacepointss.begin(), spacepointss.end(), sp_sort_3dx);
 
       for (unsigned int point = 0; point < spacepointss.size(); ++point) {
-        //	      std::cout << "Spacepoint " << point << " added:" << spacepointss[point]->XYZ()[0]<< ", " << spacepointss[point]->XYZ()[1]<< ", " << spacepointss[point]->XYZ()[2]<< ". " << std::endl;
         if (point < (spacepointss.size() - nTailPoints)) {
           principal->AddRow(spacepointss[point]->XYZ());
         }
       }
       principal->MakePrincipals();
-      /*
-	    principal->Test();
-	    principal->MakeHistograms();
-	    principal->Print("MSEV");
-	  */
+
       const TVectorD* evals = principal->GetEigenValues();
       const TMatrixD* evecs = principal->GetEigenVectors();
       const TVectorD* means = principal->GetMeanValues();
       const TVectorD* sigmas = principal->GetSigmas();
-      /*
-	  std::vector<TVector3*> pcs;
-	  Double_t* pc = new Double_t[3];
-	  for (unsigned int point=0;point<spacepointss.size();++point)
-	    {
-	      principal->X2P((Double_t *)(spacepointss[point]->XYZ()),pc);
-	      pcs.push_back((TVector3 *)pc); // !!!
-	    }
-	  delete [] pc;
-	*/
+
       Double_t tmp[3], tmp2[3];
       principal->X2P((Double_t*)(means->GetMatrixArray()), tmp);
       principal->X2P((Double_t*)(sigmas->GetMatrixArray()), tmp2);
@@ -748,10 +716,6 @@ namespace trkf {
       mom.SetMag(std::sqrt(pmag2));
       // Over-estimate by just enough for contained particles (5%).
       mom.SetMag(1.0 * mom.Mag());
-      // My true 0.5 GeV/c muons need a yet bigger over-estimate.
-      //if (mom.Mag()<0.7) mom.SetMag(1.2*mom.Mag());
-      //	  if (mom.Mag()>2.0) mom.SetMag(10.0*mom.Mag());
-      //	  mom.SetMag(3*mom.Mag()); // EC, 15-Feb-2012. TEMPORARY!!!
       // If 1st/last point is close to edge of TPC, this track is
       // uncontained.Give higher momentum starting value in
       // that case.
@@ -761,20 +725,17 @@ namespace trkf {
       double epsX(250.0);   // cm.
       double epsZ(0.001);   // cm.
 
-      if (spacepointss[spacepointss.size() - 1]->XYZ()[0] >
-            (2. * geom->DetHalfWidth(0, 0) - close) ||
+      if (spacepointss[spacepointss.size() - 1]->XYZ()[0] > (2. * geom->DetHalfWidth() - close) ||
           spacepointss[spacepointss.size() - 1]->XYZ()[0] < close ||
-          spacepointss[0]->XYZ()[0] > (2. * geom->DetHalfWidth(0, 0) - close) ||
+          spacepointss[0]->XYZ()[0] > (2. * geom->DetHalfWidth() - close) ||
           spacepointss[0]->XYZ()[0] < close ||
-          spacepointss[spacepointss.size() - 1]->XYZ()[1] >
-            (1. * geom->DetHalfHeight(0, 0) - close) ||
-          (spacepointss[spacepointss.size() - 1]->XYZ()[1] <
-           -1. * geom->DetHalfHeight(0, 0) + close) ||
-          spacepointss[0]->XYZ()[1] > (1. * geom->DetHalfHeight(0, 0) - close) ||
-          spacepointss[0]->XYZ()[1] < (-1. * geom->DetHalfHeight(0, 0) + close) ||
-          spacepointss[spacepointss.size() - 1]->XYZ()[2] > (geom->DetLength(0, 0) - close) ||
+          spacepointss[spacepointss.size() - 1]->XYZ()[1] > (1. * geom->DetHalfHeight() - close) ||
+          (spacepointss[spacepointss.size() - 1]->XYZ()[1] < -1. * geom->DetHalfHeight() + close) ||
+          spacepointss[0]->XYZ()[1] > (1. * geom->DetHalfHeight() - close) ||
+          spacepointss[0]->XYZ()[1] < (-1. * geom->DetHalfHeight() + close) ||
+          spacepointss[spacepointss.size() - 1]->XYZ()[2] > (geom->DetLength() - close) ||
           spacepointss[spacepointss.size() - 1]->XYZ()[2] < close ||
-          spacepointss[0]->XYZ()[2] > (geom->DetLength(0, 0) - close) ||
+          spacepointss[0]->XYZ()[2] > (geom->DetLength() - close) ||
           spacepointss[0]->XYZ()[2] < close)
         uncontained = true;
       fErrScaleSHere = fErrScaleS;
@@ -813,15 +774,12 @@ namespace trkf {
         genf::GFFieldManager::getInstance()->init(new genf::GFConstField(0.0, 0.0, 0.0));
         genf::GFDetPlane planeG((TVector3)(spacepointss[0]->XYZ()), momM);
 
-        //      std::cout<<"Track3DKalmanSPS about to do GAbsTrackRep."<<std::endl;
         // Initialize with 1st spacepoint location and ...
-        rep = new genf::RKTrackRep( //posM-.5/momM.Mag()*momM,
-          (TVector3)(spacepointss[0]->XYZ()),
-          momM,
-          posErr,
-          momErrFit,
-          fPdg); // mu+ hypothesis
-        //      std::cout<<"Track3DKalmanSPS: about to do GFTrack. repDim is " << rep->getDim() <<std::endl;
+        rep = new genf::RKTrackRep((TVector3)(spacepointss[0]->XYZ()),
+                                   momM,
+                                   posErr,
+                                   momErrFit,
+                                   fPdg); // mu+ hypothesis
 
         genf::GFTrack fitTrack(rep); //initialized with smeared rep
         fitTrack.setPDG(fPdg);
@@ -843,7 +801,6 @@ namespace trkf {
           sep = std::sqrt(tmp[1] * tmp[1] / fPCevals[1] + tmp[2] * tmp[2] / fPCevals[2]);
           if ((std::abs(sep) > fPerpLim) && (point < (spacepointss.size() - nTailPoints)) &&
               rePass <= 1) {
-            //		      std::cout << "Spacepoint " << point << " DROPPED, cuz it's sufficiently far from the PCA major axis!!!:" << spacepointss[point]->XYZ()[0]<< ", " << spacepointss[point]->XYZ()[1]<< ", " << spacepointss[point]->XYZ()[2]<< ". " << std::endl;
             spptSkippedIndex.push_back(point);
             continue;
           }
@@ -859,21 +816,14 @@ namespace trkf {
             // are perfect, which we can ostensibly do now with
             // clean set of sppts. This creates larger gains, bigger
             // updates: bigger sensitivity to multiple scattering.
-
-            //		      std::cout << "Spacepoint " << point << " ?DROPPED? magnitude and TV3 diff to ppoint is :" << (((TVector3)(spacepointss[point]->XYZ()-spacepointss[ppoint]->XYZ())).Mag()) << " and " << one[0] << ", " << one[1] << ", " << one[2] << two[0] << ", " << two[1] << ", " << two[2] << ". " << std::endl;
           }
           else if (rePass == 2 && !uncontained) {
-
-            //		      fNumIt = 2;
-            //		      std::cout << "Spacepoint " << point << " ?DROPPED? magnitude and TV3 diff to ppoint is :" << (((TVector3)(spacepointss[point]->XYZ()-spacepointss[ppoint]->XYZ())).Mag()) << " and " << one[0] << ", " << one[1] << ", " << one[2] << two[0] << ", " << two[1] << ", " << two[2] << ". " << std::endl;
           }
           if (point > 0 &&
               ((one - two).Mag() < epsMag ||               // too close
                ((one - two).Mag() > 8.0 && rePass == 1) || // too far
                std::abs(spacepointss[point]->XYZ()[2] - spacepointss[ppoint]->XYZ()[2]) < epsZ ||
                std::abs(spacepointss[point]->XYZ()[0] - spacepointss[ppoint]->XYZ()[0]) > epsX)) {
-            //		      std::cout << "Spacepoint " << point << " DROPPED, cuz it's too far in x or too close in magnitude or z to previous used spacepoint!!!:" << spacepointss[point]->XYZ()[0]<< ", " << spacepointss[point]->XYZ()[1]<< ", " << spacepointss[point]->XYZ()[2]<< ". " << std::endl;
-            //		      std::cout << "Prev used Spacepoint " << spacepointss[ppoint]->XYZ()[0]<< ", " << spacepointss[ppoint]->XYZ()[1]<< ", " << spacepointss[ppoint]->XYZ()[2]<< ". " << std::endl;
             spptSkippedIndex.push_back(point);
             continue;
           }
@@ -883,10 +833,7 @@ namespace trkf {
             rePass <=
               1) // Jump out of loop except on every fDecimate^th pt. fDecimate==1 never sees continue.
           {
-            /* Replace continue with a counter that will be used
-			 to index into vector of GFKalman fits.
-		      */
-            // spptSkippedIndex.push_back(point);
+            /* Replace continue with a counter that will be used to index into vector of GFKalman fits. */
             continue;
           }
 
@@ -943,7 +890,7 @@ namespace trkf {
           continue;
         }
         MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
-        //      std::cout<<"Track3DKalmanSPS about to do GFKalman."<<std::endl;
+
         genf::GFKalman k;
         k.setBlowUpFactor(5);   // 500 out of box. EC, 6-Jan-2011.
         k.setMomHigh(fMomHigh); // Don't fit above this many GeV.
@@ -956,7 +903,6 @@ namespace trkf {
         k.setErrorScaleMTh(fErrScaleMHere);
 
         bool skipFill = false;
-        //      std::cout<<"Track3DKalmanSPS back from setNumIterations."<<std::endl;
         std::vector<TMatrixT<double>> hitMeasCov;
         std::vector<TMatrixT<double>> hitUpdate;
         std::vector<TMatrixT<double>> hitCov;
@@ -969,17 +915,13 @@ namespace trkf {
         std::vector<TVector3> hitPlaneV;
 
         try {
-          //	std::cout<<"Track3DKalmanSPS about to processTrack."<<std::endl;
           if (fDoFit) k.processTrack(&fitTrack);
-          //std::cout<<"Track3DKalmanSPS back from processTrack."<<std::endl;
         }
-        //catch(GFException& e){
         catch (cet::exception& e) {
           MF_LOG_ERROR("Track3DKalmanSPS")
             << "just caught a cet::exception: " << e.what()
             << "\nExceptions won't be further handled; skip filling big chunks of the TTree.";
           skipFill = true;
-          //	exit(1);
         }
 
         if (rep->getStatusFlag() == 0) // 0 is successful completion
@@ -1014,7 +956,6 @@ namespace trkf {
             hitPlaneV = fitTrack.getHitPlaneV();
             unsigned int totHits = hitState.size();
 
-            //		  for (unsigned int ihit=0; ihit<fptsNo; ihit++)
             // Pick up info from last fwd Kalman pass.
             unsigned int jhit = 0;
             for (unsigned int ihit = totHits - 2 * totHits / (2 * fNumIt);
@@ -1134,8 +1075,6 @@ namespace trkf {
             util::CreateAssn(*this, evt, *tcol, spacepointss, *tspassn);
             art::PtrVector<recob::Hit> hits; // = hitAssns;
             for (unsigned int ii = 0; ii < spacepointss.size(); ++ii) {
-              //			  for (unsigned int jj=0; jj < hitAssns.at(ii).size(); ++jj)
-              //			    hits.push_back(hitAssns.at(ii).at(jj));
               hits.insert(hits.end(), hitAssns.at(ii).begin(), hitAssns.at(ii).end());
             }
             util::CreateAssn(*this, evt, *tcol, hits, *thassn, tcol->size() - 1);
@@ -1196,7 +1135,6 @@ namespace trkf {
             // this second pass. -- EC 7-Mar-2013
             if (uncontained) kick = 0.5;
             for (int ii = 0; ii < 3; ++ii) {
-              //mom[ii] = fpREC[ii]*fpREC[3]*kick;
               mom[ii] = momM[ii] * kick;
             }
           }

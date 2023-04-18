@@ -1,4 +1,4 @@
-#include "Solver.h"
+#include "larreco/SpacePointSolver/Solver.h"
 
 #include <algorithm>
 #include <cstdlib>

@@ -15,19 +15,27 @@
 #define DataProviderAlg_h
 
 // Framework includes
+#include "cetlib_except/exception.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 
 // LArSoft includes
-#include "larcorealg/Geometry/GeometryCore.h"
+namespace geo {
+  class GeometryCore;
+}
 #include "lardataobj/RecoBase/Wire.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "CLHEP/Random/JamesRandom.h" // for testing on noise, not used by any reco
 
 // ROOT & C++
+#include <iostream>
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace detinfo {
   class DetectorClocksData;

@@ -79,7 +79,8 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
   WireData_trimmed_histos.clear();
 
   // set the sizes of the WireData_histos and WireData_IDs
-  unsigned int nPlanes = my_geometry.Nplanes();
+  constexpr geo::TPCID tpcid{0, 0};
+  unsigned int nPlanes = my_geometry.Nplanes(tpcid);
   WireData_histos.resize(nPlanes);
   WireData_histos_ProjectionX.resize(nPlanes);
   WireData_histos_ProjectionY.resize(nPlanes);
@@ -87,8 +88,8 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
   WireData_IDs.resize(nPlanes);
-  for (unsigned int i_plane = 0; i_plane < nPlanes; ++i_plane)
-    WireData_IDs.at(i_plane).resize(my_geometry.Nwires(i_plane));
+  for (auto const& planeid : my_geometry.Iterate<geo::PlaneID>(tpcid))
+    WireData_IDs[planeid.Plane].resize(my_geometry.Nwires(planeid));
 
   WireData_trimmed_histos.resize(0);
 }
@@ -97,34 +98,36 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
 void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
                                         geo::Geometry const& my_geometry)
 {
-
   InitializeGeometry(my_geometry);
 
   const unsigned int nTimeTicks = wireVec.at(0).NSignal();
 
   // Initialize the histograms.
   // All of this should eventually be changed to not need to use histograms...
-  for (unsigned int i_plane = 0; i_plane < my_geometry.Nplanes(); i_plane++) {
+  constexpr geo::TPCID tpcid{0, 0};
+  for (auto const& planeid : my_geometry.Iterate<geo::PlaneID>(tpcid)) {
+    auto const i_plane = planeid.Plane;
 
     std::stringstream ss_tmp_name, ss_tmp_title;
     ss_tmp_name << "h_WireData_" << i_plane;
     ss_tmp_title << fCalDataModuleLabel << " wire data for plane " << i_plane
                  << ";Wire Number;Time Tick";
 
-    if ((unsigned int)(WireData_histos.at(i_plane).GetNbinsX()) == (my_geometry.Nwires(i_plane))) {
-      WireData_histos.at(i_plane).Reset();
-      WireData_histos.at(i_plane).SetName(ss_tmp_name.str().c_str());
-      WireData_histos.at(i_plane).SetTitle(ss_tmp_title.str().c_str());
+    auto const num_wires = my_geometry.Nwires(planeid);
+    if (static_cast<unsigned int>(WireData_histos[i_plane].GetNbinsX()) == num_wires) {
+      WireData_histos[i_plane].Reset();
+      WireData_histos[i_plane].SetName(ss_tmp_name.str().c_str());
+      WireData_histos[i_plane].SetTitle(ss_tmp_title.str().c_str());
     }
     else
-      WireData_histos.at(i_plane) = TH2F(ss_tmp_name.str().c_str(),
-                                         ss_tmp_title.str().c_str(),
-                                         my_geometry.Nwires(i_plane),
-                                         0,
-                                         my_geometry.Nwires(i_plane),
-                                         nTimeTicks,
-                                         0,
-                                         nTimeTicks);
+      WireData_histos[i_plane] = TH2F(ss_tmp_name.str().c_str(),
+                                      ss_tmp_title.str().c_str(),
+                                      num_wires,
+                                      0,
+                                      num_wires,
+                                      nTimeTicks,
+                                      0,
+                                      nTimeTicks);
   }
 
   /* Now do the loop over the wires. */
@@ -162,7 +165,7 @@ void corner::CornerFinderAlg::GrabWires(std::vector<recob::Wire> const& wireVec,
 void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D>& corner_vector,
                                                  geo::Geometry const& my_geometry)
 {
-  for (auto const& pid : my_geometry.IteratePlaneIDs()) {
+  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
     attach_feature_points(WireData_histos.at(pid.Plane),
                           WireData_IDs.at(pid.Plane),
                           my_geometry.View(pid),
@@ -177,8 +180,8 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 {
   create_smaller_histos(my_geometry);
 
-  for (unsigned int cstat = 0; cstat < my_geometry.Ncryostats(); ++cstat) {
-    for (unsigned int tpc = 0; tpc < my_geometry.Cryostat(cstat).NTPC(); ++tpc) {
+  for (auto const& cryostat : my_geometry.Iterate<geo::CryostatGeo>()) {
+    for (unsigned int tpc = 0; tpc < cryostat.NTPC(); ++tpc) {
       for (size_t histos = 0; histos != WireData_trimmed_histos.size(); histos++) {
 
         int plane = std::get<0>(WireData_trimmed_histos.at(histos));
@@ -190,7 +193,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 
         attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
                               WireData_IDs.at(plane),
-                              my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),
+                              cryostat.TPC(tpc).Plane(plane).View(),
                               corner_vector,
                               startx,
                               starty);
@@ -208,7 +211,7 @@ void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(
   std::vector<recob::EndPoint2D>& corner_vector,
   geo::Geometry const& my_geometry)
 {
-  for (auto const& pid : my_geometry.IteratePlaneIDs()) {
+  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
     attach_feature_points_LineIntegralScore(WireData_histos.at(pid.Plane),
                                             WireData_IDs.at(pid.Plane),
                                             my_geometry.View(pid),
@@ -257,7 +260,7 @@ struct compare_to_range {
 void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geometry)
 {
 
-  for (auto const& pid : my_geometry.IteratePlaneIDs()) {
+  for (auto const& pid : my_geometry.Iterate<geo::PlaneID>()) {
 
     MF_LOG_DEBUG("CornerFinderAlg") << "Working plane " << pid.Plane << ".";
 

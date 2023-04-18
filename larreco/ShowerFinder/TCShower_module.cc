@@ -17,6 +17,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
 
@@ -111,9 +112,11 @@ void shower::TCShower::produce(art::Event& evt)
     foundShower = getShowersWithoutSlices(evt, clockData, detProp);
 
     if (foundShower) {
-      showers->emplace_back(fTCAlg.shwDir,
+      auto const& shwDir = fTCAlg.shwDir;
+      auto const& shwvtx = fTCAlg.shwvtx;
+      showers->emplace_back(TVector3{shwDir.X(), shwDir.Y(), shwDir.Z()},
                             fTCAlg.dcosVtxErr,
-                            fTCAlg.shwvtx,
+                            TVector3{shwvtx.X(), shwvtx.Y(), shwvtx.Z()},
                             fTCAlg.xyzErr,
                             fTCAlg.totalEnergy,
                             fTCAlg.totalEnergyErr,
@@ -136,9 +139,11 @@ void shower::TCShower::produce(art::Event& evt)
         std::cout << "FOUND SHOWER " << foundShower << std::endl;
         std::cout << "shower hits " << fTCAlg.showerHits.size() << std::endl;
 
-        showers->emplace_back(fTCAlg.shwDir,
+        auto const& shwDir = fTCAlg.shwDir;
+        auto const& shwvtx = fTCAlg.shwvtx;
+        showers->emplace_back(TVector3{shwDir.X(), shwDir.Y(), shwDir.Z()},
                               fTCAlg.dcosVtxErr,
-                              fTCAlg.shwvtx,
+                              TVector3{shwvtx.X(), shwvtx.Y(), shwvtx.Z()},
                               fTCAlg.xyzErr,
                               fTCAlg.totalEnergy,
                               fTCAlg.totalEnergyErr,

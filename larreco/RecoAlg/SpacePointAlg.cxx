@@ -90,74 +90,59 @@ namespace trkf {
 
     if (report) mf::LogInfo("SpacePointAlg") << "Updating geometry constants.\n";
 
-    for (unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
+    for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
 
-      // Loop over TPCs.
+      // Fill view-dependent quantities.
 
-      unsigned int const ntpc = geom->Cryostat(cstat).NTPC();
+      geo::View_t view = plane.View();
+      std::string viewname = "?";
+      if (view == geo::kU) { viewname = "U"; }
+      else if (view == geo::kV) {
+        viewname = "V";
+      }
+      else if (view == geo::kZ) {
+        viewname = "Z";
+      }
+      else
+        throw cet::exception("SpacePointAlg") << "Bad view = " << view << "\n";
 
-      for (unsigned int tpc = 0; tpc < ntpc; ++tpc) {
-        const geo::TPCGeo& tpcgeom = geom->Cryostat(cstat).TPC(tpc);
+      std::string sigtypename = "?";
+      geo::SigType_t sigtype = geom->SignalType(plane.ID());
+      if (sigtype == geo::kInduction)
+        sigtypename = "Induction";
+      else if (sigtype == geo::kCollection)
+        sigtypename = "Collection";
+      else
+        throw cet::exception("SpacePointAlg") << "Bad signal type = " << sigtype << "\n";
 
-        // Loop over planes.
+      std::string orientname = "?";
+      geo::Orient_t orient = plane.Orientation();
+      if (orient == geo::kVertical)
+        orientname = "Vertical";
+      else if (orient == geo::kHorizontal)
+        orientname = "Horizontal";
+      else
+        throw cet::exception("SpacePointAlg") << "Bad orientation = " << orient << "\n";
 
-        unsigned int const nplane = tpcgeom.Nplanes();
+      if (report) {
+        auto const xyz = plane.GetCenter();
+        auto const& tpcgeom = geom->TPC(plane.ID());
+        mf::LogInfo("SpacePointAlg")
+          << '\n'
+          << plane.ID() << '\n'
+          << "  View: " << viewname << "\n"
+          << "  SignalType: " << sigtypename << "\n"
+          << "  Orientation: " << orientname << "\n"
+          << "  Plane location: " << xyz.X() << "\n"
+          << "  Plane pitch: " << tpcgeom.Plane0Pitch(plane.ID().Plane) << "\n"
+          << "  Wire angle: " << plane.Wire(0).ThetaZ() << "\n"
+          << "  Wire pitch: " << tpcgeom.WirePitch() << "\n"
+          << "  Time offset: " << detProp.GetXTicksOffset(plane.ID()) << "\n";
+      }
 
-        for (unsigned int plane = 0; plane < nplane; ++plane) {
-          geo::PlaneID planeid(cstat, tpc, plane);
-          const geo::PlaneGeo& pgeom = tpcgeom.Plane(planeid);
-
-          // Fill view-dependent quantities.
-
-          geo::View_t view = pgeom.View();
-          std::string viewname = "?";
-          if (view == geo::kU) { viewname = "U"; }
-          else if (view == geo::kV) {
-            viewname = "V";
-          }
-          else if (view == geo::kZ) {
-            viewname = "Z";
-          }
-          else
-            throw cet::exception("SpacePointAlg") << "Bad view = " << view << "\n";
-
-          std::string sigtypename = "?";
-          geo::SigType_t sigtype = geom->SignalType(planeid);
-          if (sigtype == geo::kInduction)
-            sigtypename = "Induction";
-          else if (sigtype == geo::kCollection)
-            sigtypename = "Collection";
-          else
-            throw cet::exception("SpacePointAlg") << "Bad signal type = " << sigtype << "\n";
-
-          std::string orientname = "?";
-          geo::Orient_t orient = pgeom.Orientation();
-          if (orient == geo::kVertical)
-            orientname = "Vertical";
-          else if (orient == geo::kHorizontal)
-            orientname = "Horizontal";
-          else
-            throw cet::exception("SpacePointAlg") << "Bad orientation = " << orient << "\n";
-
-          if (report) {
-            const double* xyz = tpcgeom.PlaneLocation(plane);
-            mf::LogInfo("SpacePointAlg")
-              << "\nCryostat, TPC, Plane: " << cstat << "," << tpc << ", " << plane << "\n"
-              << "  View: " << viewname << "\n"
-              << "  SignalType: " << sigtypename << "\n"
-              << "  Orientation: " << orientname << "\n"
-              << "  Plane location: " << xyz[0] << "\n"
-              << "  Plane pitch: " << tpcgeom.Plane0Pitch(plane) << "\n"
-              << "  Wire angle: " << tpcgeom.Plane(plane).Wire(0).ThetaZ() << "\n"
-              << "  Wire pitch: " << tpcgeom.WirePitch() << "\n"
-              << "  Time offset: " << detProp.GetXTicksOffset(plane, tpc, cstat) << "\n";
-          }
-
-          if (orient != geo::kVertical)
-            throw cet::exception("SpacePointAlg") << "Horizontal wire geometry not implemented.\n";
-        } // end loop over planes
-      }   // end loop over tpcs
-    }     // end loop over cryostats
+      if (orient != geo::kVertical)
+        throw cet::exception("SpacePointAlg") << "Horizontal wire geometry not implemented.\n";
+    } // end loop over planes
   }
 
   //----------------------------------------------------------------------
@@ -171,8 +156,7 @@ namespace trkf {
 
     // Correct time for trigger offset and plane-dependent time offsets.
 
-    double t = hit.PeakTime() -
-               detProp.GetXTicksOffset(hit.WireID().Plane, hit.WireID().TPC, hit.WireID().Cryostat);
+    double t = hit.PeakTime() - detProp.GetXTicksOffset(hit.WireID());
     if (hit.View() == geo::kU)
       t -= fTickOffsetU;
     else if (hit.View() == geo::kV)
@@ -248,16 +232,14 @@ namespace trkf {
 
       // Get angles and distance of wire.
 
-      double hl = wgeom.HalfL();
-      double xyz[3];
-      double xyz1[3];
-      wgeom.GetCenter(xyz);
-      wgeom.GetCenter(xyz1, hl);
-      double s = (xyz1[1] - xyz[1]) / hl;
-      double c = (xyz1[2] - xyz[2]) / hl;
+      double const hl = wgeom.HalfL();
+      auto const xyz = wgeom.GetCenter();
+      auto const xyz1 = wgeom.GetEnd();
+      double s = (xyz1.Y() - xyz.Y()) / hl;
+      double c = (xyz1.Z() - xyz.Z()) / hl;
       sinth[hit.WireID().Plane] = s;
       costh[hit.WireID().Plane] = c;
-      dist[hit.WireID().Plane] = xyz[2] * s - xyz[1] * c;
+      dist[hit.WireID().Plane] = xyz.Z() * s - xyz.Y() * c;
     }
 
     double S = ((sinth[1] * costh[2] - costh[1] * sinth[2]) * dist[0] +
@@ -389,16 +371,14 @@ namespace trkf {
 
           // Get angles and distance of wire.
 
-          double hl = wgeom.HalfL();
-          double xyz[3];
-          double xyz1[3];
-          wgeom.GetCenter(xyz);
-          wgeom.GetCenter(xyz1, hl);
-          double s = (xyz1[1] - xyz[1]) / hl;
-          double c = (xyz1[2] - xyz[2]) / hl;
+          double const hl = wgeom.HalfL();
+          auto const xyz = wgeom.GetCenter();
+          auto const xyz1 = wgeom.GetEnd();
+          double s = (xyz1.Y() - xyz.Y()) / hl;
+          double c = (xyz1.Z() - xyz.Z()) / hl;
           sinth[hit.WireID().Plane] = s;
           costh[hit.WireID().Plane] = c;
-          dist[hit.WireID().Plane] = xyz[2] * s - xyz[1] * c;
+          dist[hit.WireID().Plane] = xyz.Z() * s - xyz.Y() * c;
         }
 
         // Do space cut.
@@ -506,15 +486,13 @@ namespace trkf {
 
         // Calculate angle and wire coordinate in this view.
 
-        double hl = wgeom.HalfL();
-        double cen[3];
-        double cen1[3];
-        wgeom.GetCenter(cen);
-        wgeom.GetCenter(cen1, hl);
-        double s = (cen1[1] - cen[1]) / hl;
-        double c = (cen1[2] - cen[2]) / hl;
-        double u = cen[2] * s - cen[1] * c;
-        double eu = geom->WirePitch(hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
+        double const hl = wgeom.HalfL();
+        auto const cen = wgeom.GetCenter();
+        auto const cen1 = wgeom.GetEnd();
+        double s = (cen1.Y() - cen.Y()) / hl;
+        double c = (cen1.Z() - cen.Z()) / hl;
+        double u = cen.Z() * s - cen.Y() * c;
+        double eu = geom->WirePitch(hitWireID.asPlaneID()) / std::sqrt(12.);
         double w = 1. / (eu * eu);
 
         // Summations
@@ -654,7 +632,7 @@ namespace trkf {
     // Do a preliminary scan of hits.
     // Determine weight given to hits in each view.
 
-    unsigned int nplanes = geom->Cryostat(cstat0).TPC(tpc0).Nplanes();
+    unsigned int nplanes = geom->TPC(geo::TPCID(cstat0, tpc0)).Nplanes();
     std::vector<int> numhits(nplanes, 0);
     std::vector<double> weight(nplanes, 0.);
 
@@ -743,15 +721,13 @@ namespace trkf {
 
         // Calculate angle and wire coordinate in this view.
 
-        double hl = wgeom.HalfL();
-        double cen[3];
-        double cen1[3];
-        wgeom.GetCenter(cen);
-        wgeom.GetCenter(cen1, hl);
-        double s = (cen1[1] - cen[1]) / hl;
-        double c = (cen1[2] - cen[2]) / hl;
-        double u = cen[2] * s - cen[1] * c;
-        double eu = geom->WirePitch(hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
+        double const hl = wgeom.HalfL();
+        auto const cen = wgeom.GetCenter();
+        auto const cen1 = wgeom.GetEnd();
+        double s = (cen1.Y() - cen.Y()) / hl;
+        double c = (cen1.Z() - cen.Z()) / hl;
+        double u = cen.Z() * s - cen.Y() * c;
+        double eu = geom->WirePitch(hitWireID.asPlaneID()) / std::sqrt(12.);
         double w = weight[hitWireID.Plane] / (eu * eu);
 
         // Summations
@@ -844,11 +820,12 @@ namespace trkf {
 
     unsigned int ncstat = geom->Ncryostats();
     hitmap.resize(ncstat);
-    for (unsigned int cstat = 0; cstat < ncstat; ++cstat) {
-      unsigned int ntpc = geom->Cryostat(cstat).NTPC();
+    for (auto const& cryoid : geom->Iterate<geo::CryostatID>()) {
+      unsigned int cstat = cryoid.Cryostat;
+      unsigned int ntpc = geom->Cryostat(cryoid).NTPC();
       hitmap[cstat].resize(ntpc);
       for (unsigned int tpc = 0; tpc < ntpc; ++tpc) {
-        int nplane = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+        int nplane = geom->Cryostat(cryoid).TPC(tpc).Nplanes();
         hitmap[cstat][tpc].resize(nplane);
       }
     }
@@ -873,108 +850,100 @@ namespace trkf {
       art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       // First loop over hits and fill track ids and mc position.
-      for (unsigned int cstat = 0; cstat < ncstat; ++cstat) {
-        for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-          int nplane = geom->Cryostat(cstat).TPC(tpc).Nplanes();
-          for (int plane = 0; plane < nplane; ++plane) {
-            for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
-                   hitmap[cstat][tpc][plane].begin();
-                 ihit != hitmap[cstat][tpc][plane].end();
-                 ++ihit) {
-              const art::Ptr<recob::Hit>& phit = ihit->second;
-              const recob::Hit& hit = *phit;
-              HitMCInfo& mcinfo = fHitMCMap[&hit]; // Default HitMCInfo.
+      for (auto const& id : geom->Iterate<geo::PlaneID>()) {
+        auto const [cstat, tpc, plane] = std::make_tuple(id.Cryostat, id.TPC, id.Plane);
+        int nplane = geom->TPC(id).Nplanes();
+        for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
+               hitmap[cstat][tpc][plane].begin();
+             ihit != hitmap[cstat][tpc][plane].end();
+             ++ihit) {
+          const art::Ptr<recob::Hit>& phit = ihit->second;
+          const recob::Hit& hit = *phit;
+          HitMCInfo& mcinfo = fHitMCMap[&hit]; // Default HitMCInfo.
 
-              // Fill default nearest neighbor information (i.e. none).
+          // Fill default nearest neighbor information (i.e. none).
 
-              mcinfo.pchit.resize(nplane, 0);
-              mcinfo.dist2.resize(nplane, 1.e20);
+          mcinfo.pchit.resize(nplane, 0);
+          mcinfo.dist2.resize(nplane, 1.e20);
 
-              // Get sim::IDEs for this hit.
+          // Get sim::IDEs for this hit.
 
-              std::vector<sim::IDE> ides = bt_serv->HitToAvgSimIDEs(clockData, phit);
+          std::vector<sim::IDE> ides = bt_serv->HitToAvgSimIDEs(clockData, phit);
 
-              // Get sorted track ids. for this hit.
+          // Get sorted track ids. for this hit.
 
-              mcinfo.trackIDs.reserve(ides.size());
-              for (std::vector<sim::IDE>::const_iterator i = ides.begin(); i != ides.end(); ++i)
-                mcinfo.trackIDs.push_back(i->trackID);
-              sort(mcinfo.trackIDs.begin(), mcinfo.trackIDs.end());
+          mcinfo.trackIDs.reserve(ides.size());
+          for (std::vector<sim::IDE>::const_iterator i = ides.begin(); i != ides.end(); ++i)
+            mcinfo.trackIDs.push_back(i->trackID);
+          sort(mcinfo.trackIDs.begin(), mcinfo.trackIDs.end());
 
-              // Get position of ionization for this hit.
+          // Get position of ionization for this hit.
 
-              try {
-                mcinfo.xyz = bt_serv->SimIDEsToXYZ(ides);
-              }
-              catch (cet::exception& x) {
-                mcinfo.xyz.clear();
-              }
-            } // end loop over ihit
-          }   // end loop oer planes
-        }     // end loop over TPCs
-      }       // end loop over cryostats
+          try {
+            mcinfo.xyz = bt_serv->SimIDEsToXYZ(ides);
+          }
+          catch (cet::exception& x) {
+            mcinfo.xyz.clear();
+          }
+        } // end loop over ihit
+      }   // end loop oer planes
 
       // Loop over hits again and fill nearest neighbor information for real.
-      for (unsigned int cstat = 0; cstat < ncstat; ++cstat) {
-        for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-          int nplane = geom->Cryostat(cstat).TPC(tpc).Nplanes();
-          for (int plane = 0; plane < nplane; ++plane) {
-            for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
-                   hitmap[cstat][tpc][plane].begin();
-                 ihit != hitmap[cstat][tpc][plane].end();
-                 ++ihit) {
-              const art::Ptr<recob::Hit>& phit = ihit->second;
-              const recob::Hit& hit = *phit;
-              HitMCInfo& mcinfo = fHitMCMap[&hit];
-              if (mcinfo.xyz.size() != 0) {
-                assert(mcinfo.xyz.size() == 3);
+      for (auto const& id : geom->Iterate<geo::PlaneID>()) {
+        auto const [cstat, tpc, plane] = std::make_tuple(id.Cryostat, id.TPC, id.Plane);
+        int nplane = geom->TPC(id).Nplanes();
+        for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
+               hitmap[cstat][tpc][plane].begin();
+             ihit != hitmap[cstat][tpc][plane].end();
+             ++ihit) {
+          const art::Ptr<recob::Hit>& phit = ihit->second;
+          const recob::Hit& hit = *phit;
+          HitMCInfo& mcinfo = fHitMCMap[&hit];
+          if (mcinfo.xyz.size() != 0) {
+            assert(mcinfo.xyz.size() == 3);
 
-                // Fill nearest neighbor information for this hit.
+            // Fill nearest neighbor information for this hit.
 
-                for (int plane2 = 0; plane2 < nplane; ++plane2) {
-                  for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator jhit =
-                         hitmap[cstat][tpc][plane2].begin();
-                       jhit != hitmap[cstat][tpc][plane2].end();
-                       ++jhit) {
-                    const art::Ptr<recob::Hit>& phit2 = jhit->second;
-                    const recob::Hit& hit2 = *phit2;
-                    const HitMCInfo& mcinfo2 = fHitMCMap[&hit2];
+            for (int plane2 = 0; plane2 < nplane; ++plane2) {
+              for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator jhit =
+                     hitmap[cstat][tpc][plane2].begin();
+                   jhit != hitmap[cstat][tpc][plane2].end();
+                   ++jhit) {
+                const art::Ptr<recob::Hit>& phit2 = jhit->second;
+                const recob::Hit& hit2 = *phit2;
+                const HitMCInfo& mcinfo2 = fHitMCMap[&hit2];
 
-                    if (mcinfo2.xyz.size() != 0) {
-                      assert(mcinfo2.xyz.size() == 3);
-                      double dx = mcinfo.xyz[0] - mcinfo2.xyz[0];
-                      double dy = mcinfo.xyz[1] - mcinfo2.xyz[1];
-                      double dz = mcinfo.xyz[2] - mcinfo2.xyz[2];
-                      double dist2 = dx * dx + dy * dy + dz * dz;
-                      if (dist2 < mcinfo.dist2[plane2]) {
-                        mcinfo.dist2[plane2] = dist2;
-                        mcinfo.pchit[plane2] = &hit2;
-                      }
-                    } // end if mcinfo2.xyz valid
-                  }   // end loop over jhit
-                }     // end loop over plane2
-              }       // end if mcinfo.xyz valid.
-            }         // end loop over ihit
-          }           // end loop over plane
-        }             // end loop over tpc
-      }               // end loop over cryostats
-    }                 // end if MC
+                if (mcinfo2.xyz.size() != 0) {
+                  assert(mcinfo2.xyz.size() == 3);
+                  double dx = mcinfo.xyz[0] - mcinfo2.xyz[0];
+                  double dy = mcinfo.xyz[1] - mcinfo2.xyz[1];
+                  double dz = mcinfo.xyz[2] - mcinfo2.xyz[2];
+                  double dist2 = dx * dx + dy * dy + dz * dz;
+                  if (dist2 < mcinfo.dist2[plane2]) {
+                    mcinfo.dist2[plane2] = dist2;
+                    mcinfo.pchit[plane2] = &hit2;
+                  }
+                } // end if mcinfo2.xyz valid
+              }   // end loop over jhit
+            }     // end loop over plane2
+          }       // end if mcinfo.xyz valid.
+        }         // end loop over ihit
+      }           // end loop over planes
+    }             // end if MC
 
     // use mf::LogDebug instead of MF_LOG_DEBUG because we reuse it in many lines
     // insertions are protected by mf::isDebugEnabled()
     mf::LogDebug debug("SpacePointAlg");
     if (mf::isDebugEnabled()) {
       debug << "Total hits = " << hits.size() << "\n\n";
-
-      for (unsigned int cstat = 0; cstat < ncstat; ++cstat) {
-        for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-          int nplane = hitmap[cstat][tpc].size();
-          for (int plane = 0; plane < nplane; ++plane) {
-            debug << "TPC, Plane: " << tpc << ", " << plane
-                  << ", hits = " << hitmap[cstat][tpc][plane].size() << "\n";
-          }
+      for (auto const& id : geom->Iterate<geo::TPCID>()) {
+        auto const [cstat, tpc] = std::make_tuple(id.Cryostat, id.TPC);
+        int nplane = hitmap[cstat][tpc].size();
+        for (int plane = 0; plane < nplane; ++plane) {
+          debug << "TPC, Plane: " << tpc << ", " << plane
+                << ", hits = " << hitmap[cstat][tpc][plane].size() << "\n";
         }
-      } // end loop over cryostats
+      } // end loop over TPCs
     }   // if debug
 
     // Make empty multimap from hit pointer on preferred
@@ -987,353 +956,339 @@ namespace trkf {
     std::set<sptkey_type> sptkeys; // Keys of multimap.
 
     // Loop over TPCs.
-    for (unsigned int cstat = 0; cstat < ncstat; ++cstat) {
-      for (unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
 
-        geo::TPCID tpcid(cstat, tpc);
+      auto const [cstat, tpc] = std::make_tuple(tpcid.Cryostat, tpcid.TPC);
+      // Sort maps in increasing order of number of hits.
+      // This is so that we can do the outer loops over hits
+      // over the views with fewer hits.
+      //
+      // If config parameter PreferColl is true, treat the colleciton
+      // plane as if it had the most hits, regardless of how many
+      // hits it actually has.  This will force space points to be
+      // filtered and merged with respect to the collection plane
+      // wires.  It will also force space points to be sorted by
+      // collection plane wire.
 
-        // Sort maps in increasing order of number of hits.
-        // This is so that we can do the outer loops over hits
-        // over the views with fewer hits.
-        //
-        // If config parameter PreferColl is true, treat the colleciton
-        // plane as if it had the most hits, regardless of how many
-        // hits it actually has.  This will force space points to be
-        // filtered and merged with respect to the collection plane
-        // wires.  It will also force space points to be sorted by
-        // collection plane wire.
+      int nplane = hitmap[cstat][tpc].size();
+      std::vector<int> index(nplane);
 
-        int nplane = hitmap[cstat][tpc].size();
-        std::vector<int> index(nplane);
+      for (int i = 0; i < nplane; ++i)
+        index[i] = i;
 
-        for (int i = 0; i < nplane; ++i)
-          index[i] = i;
+      for (int i = 0; i < nplane - 1; ++i) {
 
+        for (int j = i + 1; j < nplane; ++j) {
+          bool icoll =
+            fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[i])) == geo::kCollection;
+          bool jcoll =
+            fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[j])) == geo::kCollection;
+          if ((hitmap[cstat][tpc][index[i]].size() > hitmap[cstat][tpc][index[j]].size() &&
+               !jcoll) ||
+              icoll) {
+            int temp = index[i];
+            index[i] = index[j];
+            index[j] = temp;
+          }
+        }
+      } // end loop over i
+
+      // how many views with hits?
+      // This will allow for the special case where we might have only 2 planes of information and
+      // still want space points even if a three plane TPC
+      std::vector<std::multimap<unsigned int, art::Ptr<recob::Hit>>>& hitsByPlaneVec =
+        hitmap[cstat][tpc];
+      int nViewsWithHits(0);
+
+      for (int i = 0; i < nplane; i++) {
+        if (hitsByPlaneVec[index[i]].size() > 0) nViewsWithHits++;
+      }
+
+      // If two-view space points are allowed, make a double loop
+      // over hits and produce space points for compatible hit-pairs.
+
+      if ((nViewsWithHits == 2 || nplane == 2) && fMinViews <= 2) {
+
+        // Loop over pairs of views.
         for (int i = 0; i < nplane - 1; ++i) {
+          unsigned int plane1 = index[i];
+
+          if (hitmap[cstat][tpc][plane1].empty()) continue;
 
           for (int j = i + 1; j < nplane; ++j) {
-            bool icoll =
-              fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[i])) == geo::kCollection;
-            bool jcoll =
-              fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[j])) == geo::kCollection;
-            if ((hitmap[cstat][tpc][index[i]].size() > hitmap[cstat][tpc][index[j]].size() &&
-                 !jcoll) ||
-                icoll) {
-              int temp = index[i];
-              index[i] = index[j];
-              index[j] = temp;
-            }
-          }
-        } // end loop over i
+            unsigned int plane2 = index[j];
 
-        // how many views with hits?
-        // This will allow for the special case where we might have only 2 planes of information and
-        // still want space points even if a three plane TPC
-        std::vector<std::multimap<unsigned int, art::Ptr<recob::Hit>>>& hitsByPlaneVec =
-          hitmap[cstat][tpc];
-        int nViewsWithHits(0);
+            if (hitmap[cstat][tpc][plane2].empty()) continue;
 
-        for (int i = 0; i < nplane; i++) {
-          if (hitsByPlaneVec[index[i]].size() > 0) nViewsWithHits++;
-        }
+            // Get angle, pitch, and offset of plane2 wires.
+            geo::PlaneID const plane2_id{tpcid, plane2};
+            const geo::WireGeo& wgeo2 = geom->Plane(plane2_id).Wire(0);
+            double const hl2 = wgeo2.HalfL();
+            auto const xyz21 = wgeo2.GetStart();
+            auto const xyz22 = wgeo2.GetEnd();
+            double s2 = (xyz22.Y() - xyz21.Y()) / (2. * hl2);
+            double c2 = (xyz22.Z() - xyz21.Z()) / (2. * hl2);
+            double dist2 = -xyz21.Y() * c2 + xyz21.Z() * s2;
+            double pitch2 = geom->WirePitch(plane2_id);
 
-        // If two-view space points are allowed, make a double loop
-        // over hits and produce space points for compatible hit-pairs.
+            if (!fPreferColl &&
+                hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
+              throw cet::exception("SpacePointAlg")
+                << "makeSpacePoints(): hitmaps with incompatible size\n";
 
-        if ((nViewsWithHits == 2 || nplane == 2) && fMinViews <= 2) {
+            // Loop over pairs of hits.
 
-          // Loop over pairs of views.
-          for (int i = 0; i < nplane - 1; ++i) {
-            unsigned int plane1 = index[i];
+            art::PtrVector<recob::Hit> hitvec;
+            hitvec.reserve(2);
 
-            if (hitmap[cstat][tpc][plane1].empty()) continue;
+            for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit1 =
+                   hitmap[cstat][tpc][plane1].begin();
+                 ihit1 != hitmap[cstat][tpc][plane1].end();
+                 ++ihit1) {
 
-            for (int j = i + 1; j < nplane; ++j) {
-              unsigned int plane2 = index[j];
+              const art::Ptr<recob::Hit>& phit1 = ihit1->second;
+              geo::WireID phit1WireID = phit1->WireID();
+              const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
 
-              if (hitmap[cstat][tpc][plane2].empty()) continue;
+              // Get endpoint coordinates of this wire.
+              // (kept as assertions for performance reasons)
+              assert(phit1WireID.Cryostat == cstat);
+              assert(phit1WireID.TPC == tpc);
+              assert(phit1WireID.Plane == plane1);
+              auto const xyz1 = wgeo.GetStart();
+              auto const xyz2 = wgeo.GetEnd();
 
-              // Get angle, pitch, and offset of plane2 wires.
-              const geo::WireGeo& wgeo2 = geom->Cryostat(cstat).TPC(tpc).Plane(plane2).Wire(0);
-              double hl2 = wgeo2.HalfL();
-              double xyz21[3];
-              double xyz22[3];
-              wgeo2.GetCenter(xyz21, -hl2);
-              wgeo2.GetCenter(xyz22, hl2);
-              double s2 = (xyz22[1] - xyz21[1]) / (2. * hl2);
-              double c2 = (xyz22[2] - xyz21[2]) / (2. * hl2);
-              double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
-              double pitch2 = geom->WirePitch(plane2, tpc, cstat);
+              // Find the plane2 wire numbers corresponding to the endpoints.
 
-              if (!fPreferColl &&
-                  hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
-                throw cet::exception("SpacePointAlg")
-                  << "makeSpacePoints(): hitmaps with incompatible size\n";
+              double wire21 = (-xyz1.Y() * c2 + xyz1.Z() * s2 - dist2) / pitch2;
+              double wire22 = (-xyz2.Y() * c2 + xyz2.Z() * s2 - dist2) / pitch2;
 
-              // Loop over pairs of hits.
+              int wmin = std::max(0., std::min(wire21, wire22));
+              int wmax = std::max(0., std::max(wire21, wire22) + 1.);
 
-              art::PtrVector<recob::Hit> hitvec;
-              hitvec.reserve(2);
+              std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
+                ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
+                ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax);
 
-              for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit1 =
-                     hitmap[cstat][tpc][plane1].begin();
-                   ihit1 != hitmap[cstat][tpc][plane1].end();
-                   ++ihit1) {
+              for (; ihit2 != ihit2end; ++ihit2) {
 
-                const art::Ptr<recob::Hit>& phit1 = ihit1->second;
-                geo::WireID phit1WireID = phit1->WireID();
-                const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
+                const art::Ptr<recob::Hit>& phit2 = ihit2->second;
 
-                // Get endpoint coordinates of this wire.
-                // (kept as assertions for performance reasons)
-                assert(phit1WireID.Cryostat == cstat);
-                assert(phit1WireID.TPC == tpc);
-                assert(phit1WireID.Plane == plane1);
-                double hl1 = wgeo.HalfL();
-                double xyz1[3];
-                double xyz2[3];
-                wgeo.GetCenter(xyz1, -hl1);
-                wgeo.GetCenter(xyz2, hl1);
-
-                // Find the plane2 wire numbers corresponding to the endpoints.
-
-                double wire21 = (-xyz1[1] * c2 + xyz1[2] * s2 - dist2) / pitch2;
-                double wire22 = (-xyz2[1] * c2 + xyz2[2] * s2 - dist2) / pitch2;
-
-                int wmin = std::max(0., std::min(wire21, wire22));
-                int wmax = std::max(0., std::max(wire21, wire22) + 1.);
-
-                std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
-                  ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
-                  ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax);
-
-                for (; ihit2 != ihit2end; ++ihit2) {
-
-                  const art::Ptr<recob::Hit>& phit2 = ihit2->second;
-
-                  // Check current pair of hits for compatibility.
-                  // By construction, hits should always have compatible views
-                  // and times, but may not have compatible mc information.
-
-                  hitvec.clear();
-                  hitvec.push_back(phit1);
-                  hitvec.push_back(phit2);
-                  bool ok = compatible(detProp, hitvec, useMC);
-                  if (ok) {
-
-                    // Add a space point.
-
-                    ++n2;
-
-                    // make a dummy vector of recob::SpacePoints
-                    // as we are filtering or merging and don't want to
-                    // add the created SpacePoint to the final collection just yet
-                    // This dummy vector will hold just one recob::SpacePoint,
-                    // which will go into the multimap and then the vector
-                    // will go out of scope.
-
-                    std::vector<recob::SpacePoint> sptv;
-                    fillSpacePoint(detProp, hitvec, sptv, sptmap.size());
-                    sptkey_type key = &*phit2;
-                    sptmap.insert(std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
-                    sptkeys.insert(key);
-                  }
-                }
-              }
-            }
-          }
-        } // end if fMinViews <= 2
-
-        // If three-view space points are allowed, make a triple loop
-        // over hits and produce space points for compatible triplets.
-
-        if (nplane >= 3 && fMinViews <= 3) {
-
-          // Loop over triplets of hits.
-
-          art::PtrVector<recob::Hit> hitvec;
-          hitvec.reserve(3);
-
-          unsigned int plane1 = index[0];
-          unsigned int plane2 = index[1];
-          unsigned int plane3 = index[2];
-
-          // Get angle, pitch, and offset of plane1 wires.
-
-          const geo::WireGeo& wgeo1 = geom->Cryostat(cstat).TPC(tpc).Plane(plane1).Wire(0);
-          double hl1 = wgeo1.HalfL();
-          double xyz11[3];
-          double xyz12[3];
-          wgeo1.GetCenter(xyz11, -hl1);
-          wgeo1.GetCenter(xyz12, hl1);
-          double s1 = (xyz12[1] - xyz11[1]) / (2. * hl1);
-          double c1 = (xyz12[2] - xyz11[2]) / (2. * hl1);
-          double dist1 = -xyz11[1] * c1 + xyz11[2] * s1;
-          double pitch1 = geom->WirePitch(plane1, tpc, cstat);
-          const double TicksOffset1 = detProp.GetXTicksOffset(plane1, tpc, cstat);
-
-          // Get angle, pitch, and offset of plane2 wires.
-
-          const geo::WireGeo& wgeo2 = geom->Cryostat(cstat).TPC(tpc).Plane(plane2).Wire(0);
-          double hl2 = wgeo2.HalfL();
-          double xyz21[3];
-          double xyz22[3];
-          wgeo2.GetCenter(xyz21, -hl2);
-          wgeo2.GetCenter(xyz22, hl2);
-          double s2 = (xyz22[1] - xyz21[1]) / (2. * hl2);
-          double c2 = (xyz22[2] - xyz21[2]) / (2. * hl2);
-          double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
-          double pitch2 = geom->WirePitch(plane2, tpc, cstat);
-          const double TicksOffset2 = detProp.GetXTicksOffset(plane2, tpc, cstat);
-
-          // Get angle, pitch, and offset of plane3 wires.
-
-          const geo::WireGeo& wgeo3 = geom->Cryostat(cstat).TPC(tpc).Plane(plane3).Wire(0);
-          double hl3 = wgeo3.HalfL();
-          double xyz31[3];
-          double xyz32[3];
-          wgeo3.GetCenter(xyz31, -hl3);
-          wgeo3.GetCenter(xyz32, hl3);
-          double s3 = (xyz32[1] - xyz31[1]) / (2. * hl3);
-          double c3 = (xyz32[2] - xyz31[2]) / (2. * hl3);
-          double dist3 = -xyz31[1] * c3 + xyz31[2] * s3;
-          double pitch3 = geom->WirePitch(plane3, tpc, cstat);
-          const double TicksOffset3 = detProp.GetXTicksOffset(plane3, tpc, cstat);
-
-          // Get sine of angle differences.
-
-          double s12 = s1 * c2 - s2 * c1; // sin(theta1 - theta2).
-          double s23 = s2 * c3 - s3 * c2; // sin(theta2 - theta3).
-          double s31 = s3 * c1 - s1 * c3; // sin(theta3 - theta1).
-
-          // Loop over hits in plane1.
-
-          std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
-            ihit1 = hitmap[cstat][tpc][plane1].begin(),
-            ihit1end = hitmap[cstat][tpc][plane1].end();
-          for (; ihit1 != ihit1end; ++ihit1) {
-
-            unsigned int wire1 = ihit1->first;
-            const art::Ptr<recob::Hit>& phit1 = ihit1->second;
-            geo::WireID phit1WireID = phit1->WireID();
-            const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
-
-            // Get endpoint coordinates of this wire from plane1.
-            // (kept as assertions for performance reasons)
-            assert(phit1WireID.Cryostat == cstat);
-            assert(phit1WireID.TPC == tpc);
-            assert(phit1WireID.Plane == plane1);
-            assert(phit1WireID.Wire == wire1);
-            double hl1 = wgeo.HalfL();
-            double xyz1[3];
-            double xyz2[3];
-            wgeo.GetCenter(xyz1, -hl1);
-            wgeo.GetCenter(xyz2, hl1);
-
-            // Get corrected time and oblique coordinate of first hit.
-
-            double t1 = phit1->PeakTime() - TicksOffset1;
-            double u1 = wire1 * pitch1 + dist1;
-
-            // Find the plane2 wire numbers corresponding to the endpoints.
-
-            double wire21 = (-xyz1[1] * c2 + xyz1[2] * s2 - dist2) / pitch2;
-            double wire22 = (-xyz2[1] * c2 + xyz2[2] * s2 - dist2) / pitch2;
-
-            int wmin = std::max(0., std::min(wire21, wire22));
-            int wmax = std::max(0., std::max(wire21, wire22) + 1.);
-
-            std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
-              ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
-              ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax);
-
-            for (; ihit2 != ihit2end; ++ihit2) {
-
-              int wire2 = ihit2->first;
-              const art::Ptr<recob::Hit>& phit2 = ihit2->second;
-
-              // Get corrected time of second hit.
-
-              double t2 = phit2->PeakTime() - TicksOffset2;
-
-              // Check maximum time difference with first hit.
-
-              bool dt12ok = std::abs(t1 - t2) <= fMaxDT;
-              if (dt12ok) {
-
-                // Test first two hits for compatibility before looping
-                // over third hit.
+                // Check current pair of hits for compatibility.
+                // By construction, hits should always have compatible views
+                // and times, but may not have compatible mc information.
 
                 hitvec.clear();
                 hitvec.push_back(phit1);
                 hitvec.push_back(phit2);
-                bool h12ok = compatible(detProp, hitvec, useMC);
-                if (h12ok) {
+                bool ok = compatible(detProp, hitvec, useMC);
+                if (ok) {
 
-                  // Get oblique coordinate of second hit.
+                  // Add a space point.
 
-                  double u2 = wire2 * pitch2 + dist2;
+                  ++n2;
 
-                  // Predict plane3 oblique coordinate and wire number.
+                  // make a dummy vector of recob::SpacePoints
+                  // as we are filtering or merging and don't want to
+                  // add the created SpacePoint to the final collection just yet
+                  // This dummy vector will hold just one recob::SpacePoint,
+                  // which will go into the multimap and then the vector
+                  // will go out of scope.
 
-                  double u3pred = (-u1 * s23 - u2 * s31) / s12;
-                  double w3pred = (u3pred - dist3) / pitch3;
-                  double w3delta = std::abs(fMaxS / (s12 * pitch3));
-                  int w3min = std::max(0., std::ceil(w3pred - w3delta));
-                  int w3max = std::max(0., std::floor(w3pred + w3delta));
+                  std::vector<recob::SpacePoint> sptv;
+                  fillSpacePoint(detProp, hitvec, sptv, sptmap.size());
+                  sptkey_type key = &*phit2;
+                  sptmap.insert(std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
+                  sptkeys.insert(key);
+                }
+              }
+            }
+          }
+        }
+      } // end if fMinViews <= 2
 
-                  std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
-                    ihit3 = hitmap[cstat][tpc][plane3].lower_bound(w3min),
-                    ihit3end = hitmap[cstat][tpc][plane3].upper_bound(w3max);
+      // If three-view space points are allowed, make a triple loop
+      // over hits and produce space points for compatible triplets.
 
-                  for (; ihit3 != ihit3end; ++ihit3) {
+      if (nplane >= 3 && fMinViews <= 3) {
 
-                    int wire3 = ihit3->first;
-                    const art::Ptr<recob::Hit>& phit3 = ihit3->second;
+        // Loop over triplets of hits.
 
-                    // Get corrected time of third hit.
+        art::PtrVector<recob::Hit> hitvec;
+        hitvec.reserve(3);
 
-                    double t3 = phit3->PeakTime() - TicksOffset3;
+        unsigned int plane1 = index[0];
+        unsigned int plane2 = index[1];
+        unsigned int plane3 = index[2];
 
-                    // Check time difference of third hit compared to first two hits.
+        // Get angle, pitch, and offset of plane1 wires.
 
-                    bool dt123ok = std::abs(t1 - t3) <= fMaxDT && std::abs(t2 - t3) <= fMaxDT;
-                    if (dt123ok) {
+        geo::PlaneID const plane1_id{tpcid, plane1};
+        const geo::WireGeo& wgeo1 = geom->Plane(plane1_id).Wire(0);
+        double const hl1 = wgeo1.HalfL();
+        auto const xyz11 = wgeo1.GetStart();
+        auto const xyz12 = wgeo1.GetEnd();
+        double s1 = (xyz12.Y() - xyz11.Y()) / (2. * hl1);
+        double c1 = (xyz12.Z() - xyz11.Z()) / (2. * hl1);
+        double dist1 = -xyz11.Y() * c1 + xyz11.Z() * s1;
+        double pitch1 = geom->WirePitch(plane1_id);
+        const double TicksOffset1 = detProp.GetXTicksOffset(plane1_id);
 
-                      // Get oblique coordinate of third hit and check spatial separation.
+        // Get angle, pitch, and offset of plane2 wires.
 
-                      double u3 = wire3 * pitch3 + dist3;
-                      double S = s23 * u1 + s31 * u2 + s12 * u3;
-                      bool sok = std::abs(S) <= fMaxS;
-                      if (sok) {
+        geo::PlaneID const plane2_id{tpcid, plane2};
+        const geo::WireGeo& wgeo2 = geom->Plane(plane2_id).Wire(0);
+        double const hl2 = wgeo2.HalfL();
+        auto const xyz21 = wgeo2.GetStart();
+        auto const xyz22 = wgeo2.GetEnd();
+        double s2 = (xyz22.Y() - xyz21.Y()) / (2. * hl2);
+        double c2 = (xyz22.Z() - xyz21.Z()) / (2. * hl2);
+        double dist2 = -xyz21.Y() * c2 + xyz21.Z() * s2;
+        double pitch2 = geom->WirePitch(plane2_id);
+        const double TicksOffset2 = detProp.GetXTicksOffset(plane2_id);
 
-                        // Test triplet for compatibility.
+        // Get angle, pitch, and offset of plane3 wires.
 
-                        hitvec.clear();
-                        hitvec.push_back(phit1);
-                        hitvec.push_back(phit2);
-                        hitvec.push_back(phit3);
-                        bool h123ok = compatible(detProp, hitvec, useMC);
-                        if (h123ok) {
+        geo::PlaneID const plane3_id{tpcid, plane3};
+        const geo::WireGeo& wgeo3 = geom->Plane(plane3_id).Wire(0);
+        double const hl3 = wgeo3.HalfL();
+        auto const xyz31 = wgeo3.GetStart();
+        auto const xyz32 = wgeo3.GetEnd();
+        double s3 = (xyz32.Y() - xyz31.Y()) / (2. * hl3);
+        double c3 = (xyz32.Z() - xyz31.Z()) / (2. * hl3);
+        double dist3 = -xyz31.Y() * c3 + xyz31.Z() * s3;
+        double pitch3 = geom->WirePitch(plane3_id);
+        const double TicksOffset3 = detProp.GetXTicksOffset(plane3_id);
 
-                          // Add a space point.
+        // Get sine of angle differences.
 
-                          ++n3;
+        double s12 = s1 * c2 - s2 * c1; // sin(theta1 - theta2).
+        double s23 = s2 * c3 - s3 * c2; // sin(theta2 - theta3).
+        double s31 = s3 * c1 - s1 * c3; // sin(theta3 - theta1).
 
-                          // make a dummy vector of recob::SpacePoints
-                          // as we are filtering or merging and don't want to
-                          // add the created SpacePoint to the final collection just yet
-                          // This dummy vector will hold just one recob::SpacePoint,
-                          // which will go into the multimap and then the vector
-                          // will go out of scope.
+        // Loop over hits in plane1.
 
-                          std::vector<recob::SpacePoint> sptv;
-                          fillSpacePoint(detProp, hitvec, sptv, sptmap.size() - 1);
-                          sptkey_type key = &*phit3;
-                          sptmap.insert(
-                            std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
-                          sptkeys.insert(key);
-                        }
+        std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
+          ihit1 = hitmap[cstat][tpc][plane1].begin(),
+          ihit1end = hitmap[cstat][tpc][plane1].end();
+        for (; ihit1 != ihit1end; ++ihit1) {
+
+          unsigned int wire1 = ihit1->first;
+          const art::Ptr<recob::Hit>& phit1 = ihit1->second;
+          geo::WireID phit1WireID = phit1->WireID();
+          const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
+
+          // Get endpoint coordinates of this wire from plane1.
+          // (kept as assertions for performance reasons)
+          assert(phit1WireID.Cryostat == cstat);
+          assert(phit1WireID.TPC == tpc);
+          assert(phit1WireID.Plane == plane1);
+          assert(phit1WireID.Wire == wire1);
+          auto const xyz1 = wgeo.GetStart();
+          auto const xyz2 = wgeo.GetEnd();
+
+          // Get corrected time and oblique coordinate of first hit.
+
+          double t1 = phit1->PeakTime() - TicksOffset1;
+          double u1 = wire1 * pitch1 + dist1;
+
+          // Find the plane2 wire numbers corresponding to the endpoints.
+
+          double wire21 = (-xyz1.Y() * c2 + xyz1.Z() * s2 - dist2) / pitch2;
+          double wire22 = (-xyz2.Y() * c2 + xyz2.Z() * s2 - dist2) / pitch2;
+
+          int wmin = std::max(0., std::min(wire21, wire22));
+          int wmax = std::max(0., std::max(wire21, wire22) + 1.);
+
+          std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
+            ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
+            ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax);
+
+          for (; ihit2 != ihit2end; ++ihit2) {
+
+            int wire2 = ihit2->first;
+            const art::Ptr<recob::Hit>& phit2 = ihit2->second;
+
+            // Get corrected time of second hit.
+
+            double t2 = phit2->PeakTime() - TicksOffset2;
+
+            // Check maximum time difference with first hit.
+
+            bool dt12ok = std::abs(t1 - t2) <= fMaxDT;
+            if (dt12ok) {
+
+              // Test first two hits for compatibility before looping
+              // over third hit.
+
+              hitvec.clear();
+              hitvec.push_back(phit1);
+              hitvec.push_back(phit2);
+              bool h12ok = compatible(detProp, hitvec, useMC);
+              if (h12ok) {
+
+                // Get oblique coordinate of second hit.
+
+                double u2 = wire2 * pitch2 + dist2;
+
+                // Predict plane3 oblique coordinate and wire number.
+
+                double u3pred = (-u1 * s23 - u2 * s31) / s12;
+                double w3pred = (u3pred - dist3) / pitch3;
+                double w3delta = std::abs(fMaxS / (s12 * pitch3));
+                int w3min = std::max(0., std::ceil(w3pred - w3delta));
+                int w3max = std::max(0., std::floor(w3pred + w3delta));
+
+                std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator
+                  ihit3 = hitmap[cstat][tpc][plane3].lower_bound(w3min),
+                  ihit3end = hitmap[cstat][tpc][plane3].upper_bound(w3max);
+
+                for (; ihit3 != ihit3end; ++ihit3) {
+
+                  int wire3 = ihit3->first;
+                  const art::Ptr<recob::Hit>& phit3 = ihit3->second;
+
+                  // Get corrected time of third hit.
+
+                  double t3 = phit3->PeakTime() - TicksOffset3;
+
+                  // Check time difference of third hit compared to first two hits.
+
+                  bool dt123ok = std::abs(t1 - t3) <= fMaxDT && std::abs(t2 - t3) <= fMaxDT;
+                  if (dt123ok) {
+
+                    // Get oblique coordinate of third hit and check spatial separation.
+
+                    double u3 = wire3 * pitch3 + dist3;
+                    double S = s23 * u1 + s31 * u2 + s12 * u3;
+                    bool sok = std::abs(S) <= fMaxS;
+                    if (sok) {
+
+                      // Test triplet for compatibility.
+
+                      hitvec.clear();
+                      hitvec.push_back(phit1);
+                      hitvec.push_back(phit2);
+                      hitvec.push_back(phit3);
+                      bool h123ok = compatible(detProp, hitvec, useMC);
+                      if (h123ok) {
+
+                        // Add a space point.
+
+                        ++n3;
+
+                        // make a dummy vector of recob::SpacePoints
+                        // as we are filtering or merging and don't want to
+                        // add the created SpacePoint to the final collection just yet
+                        // This dummy vector will hold just one recob::SpacePoint,
+                        // which will go into the multimap and then the vector
+                        // will go out of scope.
+
+                        std::vector<recob::SpacePoint> sptv;
+                        fillSpacePoint(detProp, hitvec, sptv, sptmap.size() - 1);
+                        sptkey_type key = &*phit3;
+                        sptmap.insert(std::pair<sptkey_type, recob::SpacePoint>(key, sptv.back()));
+                        sptkeys.insert(key);
                       }
                     }
                   }
@@ -1341,134 +1296,134 @@ namespace trkf {
               }
             }
           }
-        } // end if fMinViews <= 3
+        }
+      } // end if fMinViews <= 3
 
-        // Do Filtering.
+      // Do Filtering.
 
-        if (fFilter) {
+      if (fFilter) {
 
-          // Transfer (some) space points from sptmap to spts.
+        // Transfer (some) space points from sptmap to spts.
 
-          spts.reserve(spts.size() + sptkeys.size());
+        spts.reserve(spts.size() + sptkeys.size());
 
-          // Loop over keys of space point map.
-          // Space points that have the same key are candidates for filtering.
+        // Loop over keys of space point map.
+        // Space points that have the same key are candidates for filtering.
 
-          for (std::set<sptkey_type>::const_iterator i = sptkeys.begin(); i != sptkeys.end(); ++i) {
-            sptkey_type key = *i;
+        for (std::set<sptkey_type>::const_iterator i = sptkeys.begin(); i != sptkeys.end(); ++i) {
+          sptkey_type key = *i;
 
-            // Loop over space points corresponding to the current key.
-            // Choose the single best space point from among this group.
+          // Loop over space points corresponding to the current key.
+          // Choose the single best space point from among this group.
 
-            double best_chisq = 0.;
-            const recob::SpacePoint* best_spt = 0;
+          double best_chisq = 0.;
+          const recob::SpacePoint* best_spt = 0;
 
-            for (std::multimap<sptkey_type, recob::SpacePoint>::const_iterator j =
-                   sptmap.lower_bound(key);
-                 j != sptmap.upper_bound(key);
-                 ++j) {
-              const recob::SpacePoint& spt = j->second;
-              if (best_spt == 0 || spt.Chisq() < best_chisq) {
-                best_spt = &spt;
-                best_chisq = spt.Chisq();
-              }
-            }
-
-            // Transfer best filtered space point to result vector.
-
-            if (!best_spt)
-              throw cet::exception("SpacePointAlg") << "makeSpacePoints(): no best point\n";
-            spts.push_back(*best_spt);
-            if (fMinViews <= 2)
-              ++n2filt;
-            else
-              ++n3filt;
-          }
-        } // end if filtering
-
-        // Do merging.
-
-        else if (fMerge) {
-
-          // Transfer merged space points from sptmap to spts.
-
-          spts.reserve(spts.size() + sptkeys.size());
-
-          // Loop over keys of space point map.
-          // Space points that have the same key are candidates for merging.
-
-          for (std::set<sptkey_type>::const_iterator i = sptkeys.begin(); i != sptkeys.end(); ++i) {
-            sptkey_type key = *i;
-
-            // Loop over space points corresponding to the current key.
-            // Make a collection of hits that is the union of the hits
-            // from each candidate space point.
-
-            std::multimap<sptkey_type, recob::SpacePoint>::const_iterator jSPT =
-                                                                            sptmap.lower_bound(key),
-                                                                          jSPTend =
-                                                                            sptmap.upper_bound(key);
-
-            art::PtrVector<recob::Hit> merged_hits;
-            for (; jSPT != jSPTend; ++jSPT) {
-              const recob::SpacePoint& spt = jSPT->second;
-
-              // Loop over hits from this space points.
-              // Add each hit to the collection of all hits.
-
-              const art::PtrVector<recob::Hit>& spt_hits = getAssociatedHits(spt);
-              merged_hits.reserve(merged_hits.size() +
-                                  spt_hits.size()); // better than nothing, but not ideal
-              for (art::PtrVector<recob::Hit>::const_iterator k = spt_hits.begin();
-                   k != spt_hits.end();
-                   ++k) {
-                const art::Ptr<recob::Hit>& hit = *k;
-                merged_hits.push_back(hit);
-              }
-            }
-
-            // Remove duplicates.
-
-            std::sort(merged_hits.begin(), merged_hits.end());
-            art::PtrVector<recob::Hit>::iterator it =
-              std::unique(merged_hits.begin(), merged_hits.end());
-            merged_hits.erase(it, merged_hits.end());
-
-            // Construct a complex space points using merged hits.
-
-            fillComplexSpacePoint(detProp, merged_hits, spts, sptmap.size() + spts.size() - 1);
-
-            if (fMinViews <= 2)
-              ++n2filt;
-            else
-              ++n3filt;
-          }
-        } // end if merging
-
-        // No filter, no merge.
-
-        else {
-
-          // Transfer all space points from sptmap to spts.
-
-          spts.reserve(spts.size() + sptkeys.size());
-
-          // Loop over space points.
-
-          for (std::multimap<sptkey_type, recob::SpacePoint>::const_iterator j = sptmap.begin();
-               j != sptmap.end();
+          for (std::multimap<sptkey_type, recob::SpacePoint>::const_iterator j =
+                 sptmap.lower_bound(key);
+               j != sptmap.upper_bound(key);
                ++j) {
             const recob::SpacePoint& spt = j->second;
-            spts.push_back(spt);
+            if (best_spt == 0 || spt.Chisq() < best_chisq) {
+              best_spt = &spt;
+              best_chisq = spt.Chisq();
+            }
           }
 
-          // Update statistics.
+          // Transfer best filtered space point to result vector.
 
-          n2filt = n2;
-          n3filt = n3;
+          if (!best_spt)
+            throw cet::exception("SpacePointAlg") << "makeSpacePoints(): no best point\n";
+          spts.push_back(*best_spt);
+          if (fMinViews <= 2)
+            ++n2filt;
+          else
+            ++n3filt;
         }
-      } // end loop over tpcs
-    }   // end loop over cryostats
+      } // end if filtering
+
+      // Do merging.
+
+      else if (fMerge) {
+
+        // Transfer merged space points from sptmap to spts.
+
+        spts.reserve(spts.size() + sptkeys.size());
+
+        // Loop over keys of space point map.
+        // Space points that have the same key are candidates for merging.
+
+        for (std::set<sptkey_type>::const_iterator i = sptkeys.begin(); i != sptkeys.end(); ++i) {
+          sptkey_type key = *i;
+
+          // Loop over space points corresponding to the current key.
+          // Make a collection of hits that is the union of the hits
+          // from each candidate space point.
+
+          std::multimap<sptkey_type, recob::SpacePoint>::const_iterator jSPT =
+                                                                          sptmap.lower_bound(key),
+                                                                        jSPTend =
+                                                                          sptmap.upper_bound(key);
+
+          art::PtrVector<recob::Hit> merged_hits;
+          for (; jSPT != jSPTend; ++jSPT) {
+            const recob::SpacePoint& spt = jSPT->second;
+
+            // Loop over hits from this space points.
+            // Add each hit to the collection of all hits.
+
+            const art::PtrVector<recob::Hit>& spt_hits = getAssociatedHits(spt);
+            merged_hits.reserve(merged_hits.size() +
+                                spt_hits.size()); // better than nothing, but not ideal
+            for (art::PtrVector<recob::Hit>::const_iterator k = spt_hits.begin();
+                 k != spt_hits.end();
+                 ++k) {
+              const art::Ptr<recob::Hit>& hit = *k;
+              merged_hits.push_back(hit);
+            }
+          }
+
+          // Remove duplicates.
+
+          std::sort(merged_hits.begin(), merged_hits.end());
+          art::PtrVector<recob::Hit>::iterator it =
+            std::unique(merged_hits.begin(), merged_hits.end());
+          merged_hits.erase(it, merged_hits.end());
+
+          // Construct a complex space points using merged hits.
+
+          fillComplexSpacePoint(detProp, merged_hits, spts, sptmap.size() + spts.size() - 1);
+
+          if (fMinViews <= 2)
+            ++n2filt;
+          else
+            ++n3filt;
+        }
+      } // end if merging
+
+      // No filter, no merge.
+
+      else {
+
+        // Transfer all space points from sptmap to spts.
+
+        spts.reserve(spts.size() + sptkeys.size());
+
+        // Loop over space points.
+
+        for (std::multimap<sptkey_type, recob::SpacePoint>::const_iterator j = sptmap.begin();
+             j != sptmap.end();
+             ++j) {
+          const recob::SpacePoint& spt = j->second;
+          spts.push_back(spt);
+        }
+
+        // Update statistics.
+
+        n2filt = n2;
+        n3filt = n3;
+      }
+    } // end loop over tpcs
 
     if (mf::isDebugEnabled()) {
       debug << "\n2-hit space points = " << n2 << "\n"

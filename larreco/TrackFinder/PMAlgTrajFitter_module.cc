@@ -243,9 +243,10 @@ namespace trkf {
 
         trk->SelectHits(); // just in case, set all to enabled
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(detProp, geo::kU);
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(detProp, geo::kV);
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(detProp, geo::kZ);
+        auto const& tpc = fGeom->TPC(geo::TPCID(icryo, itpc));
+        if (tpc.HasPlane(geo::kU)) trk->CompleteMissingWires(detProp, geo::kU);
+        if (tpc.HasPlane(geo::kV)) trk->CompleteMissingWires(detProp, geo::kV);
+        if (tpc.HasPlane(geo::kZ)) trk->CompleteMissingWires(detProp, geo::kZ);
 
         // gc: make sure no tracks are created with less than 2 points
         if (trk->size() < 2) continue;

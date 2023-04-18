@@ -36,6 +36,7 @@
 #include "TTree.h"
 
 // ### LArSoft includes ###
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
@@ -51,6 +52,8 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "range/v3/view.hpp"
+
+#include <cmath>
 
 namespace shwf {
 
@@ -352,7 +355,8 @@ namespace shwf {
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
     util::GeometryUtilities const gser{*geom, clockData, detProp};
-    fNPlanes = geom->Nplanes();
+    constexpr geo::TPCID tpcid{0, 0};
+    fNPlanes = geom->Nplanes(tpcid);
     auto Shower3DVector = std::make_unique<std::vector<recob::Shower>>();
     auto cassn = std::make_unique<art::Assns<recob::Shower, recob::Cluster>>();
     auto hassn = std::make_unique<art::Assns<recob::Shower, recob::Hit>>();
@@ -454,26 +458,21 @@ namespace shwf {
       gser.Get3DaxisN(bp1, bp2, angle[bp1], angle[bp2], xphi, xtheta);
 
       ///////////////////////////////////////////////////////////
-      const double origin[3] = {0.};
-      std::vector<std::vector<double>> position;
-      double fTimeTick = sampling_rate(clockData) / 1000.;
-      double fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
-      // get starting positions for all planes
-      for (unsigned int xx = 0; xx < fNPlanes; xx++) {
-        double pos1[3];
-        geom->Plane(xx).LocalToWorld(origin, pos1);
-        std::vector<double> pos2;
-        pos2.push_back(pos1[0]);
-        pos2.push_back(pos1[1]);
-        pos2.push_back(pos1[2]);
-        position.push_back(pos2);
+      std::vector<geo::Point_t> position;
+      position.reserve(fNPlanes);
+      // get starting positions for all planes -- FIXME: only position[0] is used.
+      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+        position.push_back(plane.GetBoxCenter());
       }
+
       // Assuming there is no problem ( and we found the best pair that comes
       // close in time ) we try to get the Y and Z coordinates for the start of
       // the shower.
+      double fTimeTick = sampling_rate(clockData) / 1000.;
+      double fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
       try {
-        int chan1 = geom->PlaneWireToChannel(bp1, fWire_vertex[bp1], 0);
-        int chan2 = geom->PlaneWireToChannel(bp2, fWire_vertex[bp2], 0);
+        int chan1 = geom->PlaneWireToChannel({0, 0, bp1, fWire_vertex[bp1]});
+        int chan2 = geom->PlaneWireToChannel({0, 0, bp2, fWire_vertex[bp2]});
 
         double y, z;
         geom->ChannelsIntersect(chan1, chan2, y, z);
@@ -482,7 +481,7 @@ namespace shwf {
         xyz_vertex_fit[2] = z;
         xyz_vertex_fit[0] =
           (fTime_vertex[bp1] - trigger_offset(clockData)) * fDriftVelocity * fTimeTick +
-          position[0][0];
+          position[0].X();
       }
       catch (cet::exception const& e) {
         mf::LogWarning("ShowerReco") << "caught exception \n" << e;
@@ -493,14 +492,11 @@ namespace shwf {
 
       // if collection is not best plane, project starting point from that
       if (bp1 != fNPlanes - 1 && bp2 != fNPlanes - 1) {
-        double pos[3];
-        unsigned int wirevertex;
-
-        geom->Plane(fNPlanes - 1).LocalToWorld(origin, pos);
-
-        pos[1] = xyz_vertex_fit[1];
-        pos[2] = xyz_vertex_fit[2];
-        wirevertex = geom->NearestWire(pos, fNPlanes - 1);
+        geo::PlaneID const lastPlaneID{0, 0, fNPlanes - 1};
+        auto pos = geom->Plane(lastPlaneID).GetBoxCenter();
+        pos.SetY(xyz_vertex_fit[1]);
+        pos.SetZ(xyz_vertex_fit[2]);
+        auto const wirevertex = geom->NearestWireID(pos, lastPlaneID).Wire;
 
         double drifttick =
           (xyz_vertex_fit[0] / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
@@ -508,7 +504,7 @@ namespace shwf {
         fWire_vertex[fNPlanes - 1] = wirevertex; // wire coordinate of vertex for each plane
         fTime_vertex[fNPlanes - 1] =
           drifttick -
-          (pos[0] / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
+          (pos.X() / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
             (1. / fTimeTick) +
           trigger_offset(clockData);
       }
@@ -561,10 +557,9 @@ namespace shwf {
       double fPhi = xphi;
       double fTheta = xtheta;
 
-      TVector3 dcosVtx(
-        TMath::Cos(fPhi * TMath::Pi() / 180) * TMath::Sin(fTheta * TMath::Pi() / 180),
-        TMath::Cos(fTheta * TMath::Pi() / 180),
-        TMath::Sin(fPhi * TMath::Pi() / 180) * TMath::Sin(fTheta * TMath::Pi() / 180));
+      TVector3 dcosVtx(std::cos(fPhi * TMath::Pi() / 180) * std::sin(fTheta * TMath::Pi() / 180),
+                       std::cos(fTheta * TMath::Pi() / 180),
+                       std::sin(fPhi * TMath::Pi() / 180) * std::sin(fTheta * TMath::Pi() / 180));
       /// \todo really need to determine the values of the arguments of the
       /// recob::Shower ctor
       // fill with bogus values for now

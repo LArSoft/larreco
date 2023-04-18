@@ -9,9 +9,11 @@
 #ifndef Segmentation2D_h
 #define Segmentation2D_h
 
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
-#include "SimpleClustering.h"
+#include "larreco/ClusterFinder/TrackShowerSplitter/Segmentation2D/SimpleClustering.h"
 
 namespace tss {
   class Segmentation2D;

@@ -186,15 +186,12 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
 
       const float edep = ideitr.numElectrons;
 
-      std::array<double, 3> pos;
-      pos[0] = ideitr.x;
-      pos[1] = ideitr.y;
-      pos[2] = ideitr.z;
+      geo::Point_t const pos{ideitr.x, ideitr.y, ideitr.z};
 
-      geo::TPCID tpcID = geo->FindTPCAtPosition(pos.data());
+      geo::TPCID tpcID = geo->FindTPCAtPosition(pos);
       if (!tpcID.isValid) {
         mf::LogWarning("HitCheater")
-          << "TPC for position ( " << pos[0] << " ; " << pos[1] << " ; " << pos[2] << " )"
+          << "TPC for position ( " << pos.X() << " ; " << pos.Y() << " ; " << pos.Z() << " )"
           << " in no TPC; move on to the next sim::IDE";
         continue;
       }
@@ -206,8 +203,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
           // in the right TPC, now figure out which wire we want
           // this works because there is only one plane option for
           // each WireID in each TPC
-          if (wid.Wire == geo->NearestWire(pos.data(), wid.Plane, wid.TPC, wid.Cryostat))
-            wireIDSignals[wid][tdc] += edep;
+          if (wid.Wire == geo->NearestWireID(pos, wid).Wire) wireIDSignals[wid][tdc] += edep;
         } // end if in the correct TPC and Cryostat
       }   // end loop over wireids for this channel
     }     // end loop over ides for this channel

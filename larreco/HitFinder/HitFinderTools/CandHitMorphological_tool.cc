@@ -4,9 +4,11 @@
 // MT note: This implementation is not thread-safe.
 ////////////////////////////////////////////////////////////////////////
 
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/Globals.h"
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"

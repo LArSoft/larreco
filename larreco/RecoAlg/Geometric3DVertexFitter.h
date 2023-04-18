@@ -5,16 +5,24 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Table.h"
 
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
 #include "lardataobj/RecoBase/VertexAssnMeta.h"
 #include "larreco/RecoAlg/VertexWrapper.h"
 
 namespace detinfo {
   class DetectorPropertiesData;
 }
+
+#include <functional> // std::reference_wrapper<>
+#include <memory>
+#include <utility> // std::pair<>
+#include <vector>
 
 namespace trkf {
 

@@ -822,6 +822,9 @@ namespace wc {
 
     TString geomName(fGeometry->DetectorName().c_str());
     if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodunevd")) {
+      geomName = "protodunevd";
+    }
     else if (geomName.Contains("protodune")) {
       geomName = "protodune";
     }
@@ -888,6 +891,9 @@ namespace wc {
 
     TString geomName(fGeometry->DetectorName().c_str());
     if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodunevd")) {
+      geomName = "protodunevd";
+    }
     else if (geomName.Contains("protodune")) {
       geomName = "protodune";
     }

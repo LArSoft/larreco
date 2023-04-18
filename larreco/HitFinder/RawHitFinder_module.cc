@@ -162,9 +162,7 @@ namespace hit {
       //GET THE LIST OF BAD CHANNELS.
       lariov::ChannelStatusProvider const& channelStatus =
         art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-
       lariov::ChannelSet_t const BadChannels = channelStatus.BadChannels(ts);
-
       for (unsigned int bin = 0; bin < fDataSize; ++bin) {
         holder[bin] = (rawadc[bin] - digitVec->GetPedestal());
       }

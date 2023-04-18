@@ -224,12 +224,15 @@ namespace cluster {
       mergeAvailable[iht] = false;
     }
 
-    for (geo::TPCID const& tpcid : geom->IterateTPCIDs()) {
-      geo::TPCGeo const& TPC = geom->TPC(tpcid);
-      for (plane = 0; plane < TPC.Nplanes(); ++plane) {
+    // FIXME (KJK): The 'cstat', 'tpc', and 'plane' class variables should be removed.
+    for (geo::TPCID const& tpcid : geom->Iterate<geo::TPCID>()) {
+      cstat = tpcid.Cryostat;
+      tpc = tpcid.TPC;
+      for (geo::PlaneID const& planeid : geom->Iterate<geo::PlaneID>(tpcid)) {
+        plane = planeid.Plane;
         WireHitRange.clear();
         // define a code to ensure clusters are compared within the same plane
-        clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, planeid.Plane);
         cstat = tpcid.Cryostat;
         tpc = tpcid.TPC;
         // fill the WireHitRange vector with first/last hit on each wire
@@ -249,7 +252,7 @@ namespace cluster {
         if (fLAClusAngleCut > 0)
           fLAClusSlopeCut = std::tan(3.142 * fLAClusAngleCut / 180.) / fScaleF;
         fMaxTime = det_prop.NumberTimeSamples();
-        fNumWires = geom->Nwires(plane, tpc, cstat);
+        fNumWires = geom->Nwires(planeid);
         // look for clusters
         if (fNumPass > 0) ClusterLoop();
       } // plane
@@ -4681,7 +4684,7 @@ namespace cluster {
     // add a tolerance to the StartTick - EndTick overlap
     raw::TDCtick_t tol = 30;
     // expand the tolerance for induction planes
-    if (plane < geom->Cryostat(cstat).TPC(tpc).Nplanes() - 1) tol = 40;
+    if (plane < geom->TPC(geo::TPCID(cstat, tpc)).Nplanes() - 1) tol = 40;
 
     bool posSlope =
       (fHits[fcl2hits[0]].PeakTime() > fHits[fcl2hits[fcl2hits.size() - 1]].PeakTime());
@@ -4700,8 +4703,8 @@ namespace cluster {
     for (ii = 0; ii < nHitToChk - 1; ++ii) {
       indx = fcl2hits.size() - 1 - ii;
       // ignore if not on adjacent wires
-      if (util::absDiff(fHits[fcl2hits[indx]].WireID().Wire,
-                        fHits[fcl2hits[indx - 1]].WireID().Wire) > 1)
+      if (lar::util::absDiff(fHits[fcl2hits[indx]].WireID().Wire,
+                             fHits[fcl2hits[indx - 1]].WireID().Wire) > 1)
         continue;
       hiStartTick =
         std::max(fHits[fcl2hits[indx]].StartTick(), fHits[fcl2hits[indx - 1]].StartTick());
@@ -4906,7 +4909,7 @@ namespace cluster {
       float bigchgcut = 1.5 * fChgCut[pass];
       bool lasthitbig = false;
       bool lasthitlow = false;
-      if (lastClHit != UINT_MAX && util::absDiff(wire0, kwire) == 1) {
+      if (lastClHit != UINT_MAX && lar::util::absDiff(wire0, kwire) == 1) {
         float lastchgrat = (fHits[lastClHit].Integral() - fAveChg) / fAveChg;
         lasthitbig = (lastchgrat > bigchgcut);
         lasthitlow = (lastchgrat < -fChgCut[pass]);
@@ -5159,7 +5162,7 @@ namespace cluster {
     if (vTime < 0 || vTime > fMaxTime) return;
     // a crazy wire from the fit?
     geo::PlaneID iplID = DecodeCTP(vtx[iv].CTP);
-    if (vWire < 0 || vWire > geom->Nwires(iplID.Plane, iplID.TPC, iplID.Cryostat)) return;
+    if (vWire < 0 || vWire > geom->Nwires(iplID)) return;
     vtx[iv].ChiDOF = chiDOF;
     vtx[iv].Wire = vWire;
     vtx[iv].Time = vTime;
@@ -5216,8 +5219,8 @@ namespace cluster {
       for (unsigned short icl = 0; icl < tcl.size(); ++icl) {
         if (tcl[icl].ID < 0) continue;
         if (tcl[icl].CTP != clCTP) continue;
-        dwb = util::absDiff(theWire, tcl[icl].BeginWir);
-        dwe = util::absDiff(theWire, tcl[icl].EndWir);
+        dwb = lar::util::absDiff(theWire, tcl[icl].BeginWir);
+        dwe = lar::util::absDiff(theWire, tcl[icl].EndWir);
         // rough cut to start
         if (dwb > 10 && dwe > 10) continue;
         if (dwb < dwe && dwb < 10 && tcl[icl].BeginVtx < 0) {
@@ -5492,7 +5495,7 @@ namespace cluster {
     // This routine looks for this signature, and if found, splits the short clusters and creates a new 3D vertex.
     // This routine only considers the case where the long cluster intersects the short cluster at the US (End) end.
 
-    unsigned int nPln = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+    unsigned int nPln = geom->TPC(geo::TPCID(cstat, tpc)).Nplanes();
     if (nPln != 3) return;
 
     float ew1, ew2, bw2, fvw;
@@ -5571,15 +5574,14 @@ namespace cluster {
     if (noham > 1) return;
 
     // Y,Z limits of the detector
-    double local[3] = {0., 0., 0.};
-    double world[3] = {0., 0., 0.};
 
-    const geo::TPCGeo& thetpc = geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local, world);
-    float YLo = world[1] - geom->DetHalfHeight(tpc, cstat) + 1;
-    float YHi = world[1] + geom->DetHalfHeight(tpc, cstat) - 1;
-    float ZLo = world[2] - geom->DetLength(tpc, cstat) / 2 + 1;
-    float ZHi = world[2] + geom->DetLength(tpc, cstat) / 2 - 1;
+    geo::TPCID const tpcid(cstat, tpc);
+    const geo::TPCGeo& thetpc = geom->TPC(tpcid);
+    auto const world = thetpc.GetCenter();
+    float YLo = world.Y() - thetpc.HalfHeight() + 1;
+    float YHi = world.Y() + thetpc.HalfHeight() - 1;
+    float ZLo = world.Z() - thetpc.Length() / 2 + 1;
+    float ZHi = world.Z() + thetpc.Length() / 2 - 1;
 
     // Match in 3D
     float dX;
@@ -5595,8 +5597,12 @@ namespace cluster {
           if (hamrVec[jpl][jj].Used) continue;
           dX = hamrVec[ipl][ii].X - hamrVec[jpl][jj].X;
           if (fabs(dX) > fVertex3DCut) continue;
-          geom->IntersectionPoint(
-            hamrVec[ipl][ii].Wire, hamrVec[jpl][jj].Wire, ipl, jpl, cstat, tpc, y, z);
+          geo::PlaneID const plane_i{tpcid, ipl};
+          geo::PlaneID const plane_j{tpcid, jpl};
+          geom->IntersectionPoint(geo::WireID{plane_i, hamrVec[ipl][ii].Wire},
+                                  geo::WireID{plane_j, hamrVec[jpl][jj].Wire},
+                                  y,
+                                  z);
           if (y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
           // mark them used
           hamrVec[ipl][ii].Used = true;
@@ -5657,9 +5663,9 @@ namespace cluster {
           // set the kpl 2D vertex index < 0. Let follow-on code find the 3rd
           // plane vertex
           newVtx3.Ptr2D[kpl] = -1;
-          double WPos[3] = {0, y, z};
+          geo::Point_t const WPos{0, y, z};
           try {
-            newVtx3.Wire = geom->NearestWire(WPos, kpl, tpc, cstat);
+            newVtx3.Wire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
           }
           catch (geo::InvalidWireError const& e) {
             newVtx3.Wire = e.suggestedWireID().Wire; // pick the closest valid wire
@@ -5681,20 +5687,14 @@ namespace cluster {
 
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
 
-    const unsigned int cstat = tpcid.Cryostat;
-    const unsigned int tpc = tpcid.TPC;
-
     // Y,Z limits of the detector
-    double local[3] = {0., 0., 0.};
-    double world[3] = {0., 0., 0.};
+    auto const world = TPC.GetCenter();
 
-    const geo::TPCGeo& thetpc = geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local, world);
     // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
-    float YLo = world[1] - geom->DetHalfHeight(tpc, cstat) + 1;
-    float YHi = world[1] + geom->DetHalfHeight(tpc, cstat) - 1;
-    float ZLo = world[2] - geom->DetLength(tpc, cstat) / 2 + 1;
-    float ZHi = world[2] + geom->DetLength(tpc, cstat) / 2 - 1;
+    float YLo = world.Y() - TPC.HalfHeight() + 1;
+    float YHi = world.Y() + TPC.HalfHeight() - 1;
+    float ZLo = world.Z() - TPC.Length() / 2 + 1;
+    float ZHi = world.Z() + TPC.Length() / 2 - 1;
 
     vtxprt = (fDebugPlane >= 0) && (fDebugHit == 6666);
 
@@ -5704,7 +5704,7 @@ namespace cluster {
     }
 
     // wire spacing in cm
-    float wirePitch = geom->WirePitch(0, tpcid.TPC, tpcid.Cryostat);
+    float wirePitch = geom->WirePitch(geo::PlaneID{tpcid, 0});
 
     // fill temp vectors of 2D vertex X and X errors
     std::vector<float> vX(vtx.size());
@@ -5745,7 +5745,7 @@ namespace cluster {
     std::vector<Vtx3Store> v3temp;
 
     double y = 0, z = 0;
-    TVector3 WPos = {0, 0, 0};
+    geo::Point_t WPos{0, 0, 0};
     // i, j, k indicates 3 different wire planes
     unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
     unsigned int iWire, jWire;
@@ -5755,6 +5755,7 @@ namespace cluster {
     // compare vertices in each view
     bool gotit = false;
     for (ipl = 0; ipl < 2; ++ipl) {
+      geo::PlaneID const plane_i{tpcid, ipl};
       for (ii = 0; ii < vIndex[ipl].size(); ++ii) {
         ivx = vIndex[ipl][ii];
         if (ivx > vtx.size() - 1) {
@@ -5771,6 +5772,7 @@ namespace cluster {
         std::array<short, 3> t2dIndex = {{-1, -1, -1}};
         std::array<short, 3> tmpIndex = {{-1, -1, -1}};
         for (jpl = ipl + 1; jpl < 3; ++jpl) {
+          geo::PlaneID const plane_j{tpcid, jpl};
           for (jj = 0; jj < vIndex[jpl].size(); ++jj) {
             jvx = vIndex[jpl][jj];
             if (jvx > vtx.size() - 1) {
@@ -5792,16 +5794,16 @@ namespace cluster {
                 << (int)vtx[jvx].Time << " dXChi " << dXChi << " fVertex3DCut " << fVertex3DCut;
 
             if (dXChi > fVertex3DCut) continue;
-            geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            geom->IntersectionPoint(geo::WireID{plane_i, iWire}, geo::WireID{plane_j, jWire}, y, z);
             if (y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
-            WPos[1] = y;
-            WPos[2] = z;
+            WPos.SetY(y);
+            WPos.SetZ(z);
             kpl = 3 - ipl - jpl;
             kX = 0.5 * (vX[ivx] + vX[jvx]);
             kWire = -1;
             if (TPC.Nplanes() > 2) {
               try {
-                kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+                kWire = geom->NearestWireID(WPos, geo::PlaneID{cstat, tpc, kpl}).Wire;
               }
               catch (geo::InvalidWireError const& e) {
                 kWire = e.suggestedWireID().Wire; // pick the closest valid wire
@@ -5941,7 +5943,7 @@ namespace cluster {
     // Hits must have been sorted by increasing wire number
     fFirstHit = 0;
     geo::PlaneID planeID = DecodeCTP(CTP);
-    unsigned int nwires = geom->Nwires(planeID.Plane, planeID.TPC, planeID.Cryostat);
+    unsigned int nwires = geom->Nwires(planeID);
     WireHitRange.resize(nwires + 1);
 
     // These will be re-defined later
@@ -5964,9 +5966,7 @@ namespace cluster {
     firsthit.resize(nwires + 1, true);
     bool firstwire = true;
     for (iht = 0; iht < fHits.size(); ++iht) {
-      if (fHits[iht].WireID().TPC != planeID.TPC) continue;
-      if (fHits[iht].WireID().Cryostat != planeID.Cryostat) continue;
-      if (fHits[iht].WireID().Plane != planeID.Plane) continue;
+      if (fHits[iht].WireID().asPlaneID() != planeID) continue;
       wire = fHits[iht].WireID().Wire;
       // define the first hit start index in this TPC, Plane
       if (firsthit[wire]) {
@@ -5989,8 +5989,7 @@ namespace cluster {
     flag.second = -1;
     unsigned int nbad = 0;
     for (wire = 0; wire < nwires; ++wire) {
-      raw::ChannelID_t chan = geom->PlaneWireToChannel(
-        (int)planeID.Plane, (int)wire, (int)planeID.TPC, (int)planeID.Cryostat);
+      raw::ChannelID_t chan = geom->PlaneWireToChannel(geo::WireID(planeID, wire));
       if (!channelStatus.IsGood(ts.value(), chan)) {
         WireHitRange[wire] = flag;
         ++nbad;

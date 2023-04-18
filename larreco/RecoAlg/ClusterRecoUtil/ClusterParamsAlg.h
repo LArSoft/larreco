@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "ClusterParams.h"
 #include "lardata/Utilities/PxUtils.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 
 namespace util {
   class GeometryUtilities;

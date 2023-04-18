@@ -16,7 +16,9 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // larsoft
 #include "larcore/Geometry/Geometry.h"
@@ -36,14 +38,14 @@
 
 // C++
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 // ROOT
 #include "RtypesCore.h"
 #include "TVector2.h"
 #include "TVector3.h"
-
-class TH1I;
-class TProfile;
 
 namespace detinfo {
   class DetectorClocksData;
@@ -163,9 +165,9 @@ private:
     std::map<int, std::vector<art::Ptr<recob::Hit>>> const& showerHitsMap) const;
 
   /// Constructs a 3D point (in [cm]) to represent the hits given in two views
-  TVector3 Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
-                             art::Ptr<recob::Hit> const& hit1,
-                             art::Ptr<recob::Hit> const& hit2) const;
+  geo::Point_t Construct3DPoint_(detinfo::DetectorPropertiesData const& detProp,
+                                 art::Ptr<recob::Hit> const& hit1,
+                                 art::Ptr<recob::Hit> const& hit2) const;
 
   /// Finds dE/dx for the track given a set of hits
   double FinddEdx_(detinfo::DetectorClocksData const& clockData,
@@ -228,7 +230,7 @@ private:
   /// Projects a 3D point (units [cm]) onto a 2D plane
   /// Returns 2D point (units [cm])
   TVector2 Project3DPointOntoPlane_(detinfo::DetectorPropertiesData const& detProp,
-                                    TVector3 const& point,
+                                    geo::Point_t const& point,
                                     int plane,
                                     int cryostat = 0) const;
 

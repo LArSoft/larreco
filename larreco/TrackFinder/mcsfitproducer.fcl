@@ -12,9 +12,14 @@ mcsfitproducer: {
 	nElossSteps: 10
 	eLossMode: 0
 	pMin: 0.01
-	pMax: 7.50
-	pStep: 0.01
-	angResol: 3.0
+	pMax: 15.0
+	pStepCoarse: 0.1
+	pStep: 0.001
+	fineScanWindow: 1.0
+	angResol: [0., 0., 5.5, -3.5, 0.]
+	hlParams: [0.,0.,11.5,0.,0.]
+        segLenTolerance: 0.1
+        applySCEcorr: true
   }
 }
 END_PROLOG

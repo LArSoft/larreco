@@ -1,6 +1,31 @@
 cet_enable_asserts()
 
-art_make(LIB_LIBRARIES larreco_RecoAlg_Cluster3DAlgs_ConvexHull)
+cet_make_library(LIBRARY_NAME Voronoi_IEvent INTERFACE
+  SOURCE IEvent.h
+  LIBRARIES INTERFACE
+  larreco::Voronoi_DCEL
+)
+
+cet_make_library(LIBRARY_NAME Voronoi_SweepEvent INTERFACE
+  SOURCE SweepEvent.h
+  LIBRARIES INTERFACE
+  larreco::Voronoi_IEvent
+  larreco::Voronoi_DCEL
+)
+
+cet_make_library(SOURCE
+  BeachLine.cxx
+  EventUtilities.cxx
+  Voronoi.cxx
+  LIBRARIES
+  PUBLIC
+  larreco::Voronoi_IEvent
+  larreco::Voronoi_DCEL
+  Boost::headers
+  Eigen3::Eigen
+  PRIVATE
+  larreco::RecoAlg_Cluster3DAlgs_ConvexHull
+)
 
 install_headers()
 install_fhicl()

@@ -21,7 +21,7 @@ namespace geo {
   struct WireID;
 }
 
-class TVector3;
+#include "TVector3.h"
 
 namespace trkf {
 

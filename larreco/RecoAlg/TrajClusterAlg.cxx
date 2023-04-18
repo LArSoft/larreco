@@ -10,15 +10,23 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace tca {
 

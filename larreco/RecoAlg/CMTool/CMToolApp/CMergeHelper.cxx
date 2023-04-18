@@ -1,4 +1,4 @@
-#include "CMergeHelper.h"
+#include "larreco/RecoAlg/CMTool/CMToolApp/CMergeHelper.h"
 
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
 

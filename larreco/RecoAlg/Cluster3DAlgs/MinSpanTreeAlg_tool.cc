@@ -188,33 +188,19 @@ namespace lar_cluster3d {
     std::vector<geo::WireID> uWireID = m_geometry->ChannelToWire(uChannel);
     const geo::WireGeo* uWireGeo = m_geometry->WirePtr(uWireID[0]);
 
-    TVector3 uWireDir = uWireGeo->Direction();
-
-    m_wireDir[0].resize(3);
-    m_wireDir[0][0] = uWireDir[0];
-    m_wireDir[0][1] = -uWireDir[2];
-    m_wireDir[0][2] = uWireDir[1];
+    auto const uWireDir = uWireGeo->Direction();
+    m_wireDir[0] = {(float)uWireDir.X(), (float)-uWireDir.Z(), (float)uWireDir.Y()};
 
     raw::ChannelID_t vChannel(2400);
     std::vector<geo::WireID> vWireID = m_geometry->ChannelToWire(vChannel);
     const geo::WireGeo* vWireGeo = m_geometry->WirePtr(vWireID[0]);
 
-    TVector3 vWireDir = vWireGeo->Direction();
-
-    m_wireDir[1].resize(3);
-    m_wireDir[1][0] = vWireDir[0];
-    m_wireDir[1][1] = -vWireDir[2];
-    m_wireDir[1][2] = vWireDir[1];
-
-    m_wireDir[2].resize(3);
-    m_wireDir[2][0] = 0.;
-    m_wireDir[2][1] = 0.;
-    m_wireDir[2][2] = 1.;
+    auto const vWireDir = vWireGeo->Direction();
+    m_wireDir[1] = {(float)vWireDir.X(), (float)-vWireDir.Z(), (float)vWireDir.Y()};
+    m_wireDir[2] = {0., 0., 1.};
 
     m_clusterBuilder = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(
       pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
-
-    return;
   }
 
   void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList& hitPairList,

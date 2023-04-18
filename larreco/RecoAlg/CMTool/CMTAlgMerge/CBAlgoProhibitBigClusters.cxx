@@ -1,4 +1,4 @@
-#include "CBAlgoProhibitBigClusters.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoProhibitBigClusters.h"
 
 namespace cmtool {
 

@@ -58,8 +58,11 @@
 #include <map>
 #include <vector>
 
+#include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "fhiclcpp/fwd.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 namespace detinfo {
   class DetectorClocksData;
@@ -69,10 +72,8 @@ namespace detinfo {
 namespace trkf {
   class KHitTrack;
 }
-namespace recob {
-  class Hit;
-  class SpacePoint;
-}
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 
 namespace trkf {
 

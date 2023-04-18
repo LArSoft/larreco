@@ -1,4 +1,4 @@
-#include "CBAlgoPolyHitOverlap.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoPolyHitOverlap.h"
 
 namespace cmtool {
 

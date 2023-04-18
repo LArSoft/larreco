@@ -81,9 +81,14 @@ namespace sppt {
   void SpacePointAlg_TimeSort::fillCoordinatesArrays()
   {
     art::ServiceHandle<geo::Geometry const> geom;
-    unsigned int nwires_u = geom->Nwires(geo::View_t::kU);
-    unsigned int nwires_v = geom->Nwires(geo::View_t::kV);
-    unsigned int nwires_y = geom->Nwires(geo::View_t::kZ);
+    constexpr geo::TPCID tpcid{0, 0};
+    geo::PlaneID const uplane_id{tpcid, geo::View_t::kU};
+    geo::PlaneID const vplane_id{tpcid, geo::View_t::kV};
+    geo::PlaneID const zplane_id{tpcid, geo::View_t::kZ};
+
+    unsigned int nwires_u = geom->Nwires(uplane_id);
+    unsigned int nwires_v = geom->Nwires(vplane_id);
+    unsigned int nwires_y = geom->Nwires(zplane_id);
 
     coordinates_UV_y.resize(boost::extents[nwires_v][nwires_u]);
     coordinates_UV_z.resize(boost::extents[nwires_v][nwires_u]);
@@ -91,22 +96,14 @@ namespace sppt {
     coordinates_UY_z.resize(boost::extents[nwires_y][nwires_u]);
     for (unsigned int iu = 0; iu < nwires_u; iu++) {
       for (unsigned int iv = 0; iv < nwires_v; iv++) {
-        geom->IntersectionPoint(iu,
-                                iv,
-                                geo::View_t::kU,
-                                geo::View_t::kV,
-                                0,
-                                0,
+        geom->IntersectionPoint(geo::WireID{uplane_id, iu},
+                                geo::WireID{vplane_id, iv},
                                 coordinates_UV_y[iv][iu],  //y
                                 coordinates_UV_z[iv][iu]); //z
       }
       for (unsigned int iy = 0; iy < nwires_y; iy++) {
-        geom->IntersectionPoint(iu,
-                                iy,
-                                geo::View_t::kU,
-                                geo::View_t::kZ,
-                                0,
-                                0,
+        geom->IntersectionPoint(geo::WireID{uplane_id, iu},
+                                geo::WireID{zplane_id, iy},
                                 coordinates_UY_y[iy][iu],
                                 coordinates_UY_z[iy][iu]);
       }

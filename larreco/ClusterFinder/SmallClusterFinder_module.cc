@@ -43,6 +43,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //All the larsoft goodies:
 #include "larcorealg/Geometry/PlaneGeo.h"
@@ -180,7 +181,7 @@ namespace cluster {
                                 0.,               // end_tick
                                 0.,               // sigma_end_tick
                                 iplane * 100,     // ID
-                                geom->Plane(iplane, planeID.TPC, planeID.Cryostat).View(),
+                                geom->Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
                                 planeID,               // plane
                                 recob::Cluster::Sentry // sentry
         );
@@ -210,7 +211,7 @@ namespace cluster {
                              0.,                   // end_tick
                              0.,                   // sigma_end_tick
                              iplane * 100 + i + 1, // ID
-                             geom->Plane(iplane, planeID.TPC, planeID.Cryostat).View(),
+                             geom->Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
                              planeID,               // plane
                              recob::Cluster::Sentry // sentry
         );

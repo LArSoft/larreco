@@ -8,7 +8,9 @@
 #define SkeletonAlg_h
 
 // Framework Includes
-#include "fhiclcpp/ParameterSet.h"
+namespace fhicl {
+  class ParameterSet;
+}
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"

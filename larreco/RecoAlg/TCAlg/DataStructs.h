@@ -16,6 +16,8 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 
 namespace TMVA {
   class Reader;
@@ -26,19 +28,15 @@ namespace calo {
 namespace geo {
   class GeometryCore;
 }
-namespace recob {
-  class Hit;
-  class SpacePoint;
-}
-namespace simb {
-  class MCParticle;
-}
-struct SortEntry {
-  unsigned int index;
-  float val;
-};
 
 namespace tca {
+
+  namespace detail {
+    struct SortEntry {
+      unsigned int index;
+      float val;
+    };
+  }
 
   using Point3_t = std::array<double, 3>;
   using Vector3_t = std::array<double, 3>;

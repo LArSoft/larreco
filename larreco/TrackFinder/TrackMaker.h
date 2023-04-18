@@ -1,15 +1,26 @@
 #ifndef TRACKMAKER_H
 #define TRACKMAKER_H
 
-#include "art/Framework/Principal/Event.h"
-#include "canvas/Persistency/Common/Assns.h"
+namespace art {
+  class Event;
+}
+
 #include "canvas/Persistency/Common/Ptr.h"
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardataobj/RecoBase/TrackTrajectory.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
+#include "lardataobj/RecoBase/Trajectory.h"
+#include "lardataobj/RecoBase/TrajectoryPointFlags.h"
+
+#include <memory>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
 namespace detinfo {
   class DetectorPropertiesData;
 }

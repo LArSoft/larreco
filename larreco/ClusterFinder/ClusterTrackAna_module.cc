@@ -22,12 +22,14 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "canvas/Persistency/Common/FindManyP.h"
 
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -337,7 +339,7 @@ void cluster::ClusterTrackAna::analyze(art::Event const& evt)
     } // itk
   }   // get hits from tracks
 
-  for (const auto& tpcid : geom->IterateTPCIDs()) {
+  for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
     unsigned int tpc = tpcid.TPC;
     if (hitRange[tpc].first == UINT_MAX) continue;
     // iterate over planes

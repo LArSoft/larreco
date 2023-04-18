@@ -18,7 +18,7 @@
 
 // ROOT libraries
 #include "RtypesCore.h" // Double_t
-#include "TF1.h"        // Double_t
+#include "TF1.h"
 
 namespace hit {
 

@@ -10,6 +10,7 @@
 #include "art/Utilities/make_tool.h"
 #include "art_root_io/TFileDirectory.h"
 #include "cetlib/cpu_timer.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"

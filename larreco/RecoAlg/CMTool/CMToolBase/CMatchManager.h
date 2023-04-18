@@ -16,8 +16,8 @@
 
 #include <stddef.h>
 
-#include "CMManagerBase.h"
-#include "CMatchBookKeeper.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMManagerBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchBookKeeper.h"
 
 namespace cmtool {
 

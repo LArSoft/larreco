@@ -12,11 +12,11 @@
 #define TRACK3DKALMANHIT_H
 
 #include <deque>
+#include <utility>
 #include <vector>
 
-#include "art/Framework/Core/ModuleMacros.h"
-#include "art_root_io/TFileService.h"
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 #include "lardata/RecoObjects/KGTrack.h"
 #include "lardataobj/RecoBase/Hit.h"

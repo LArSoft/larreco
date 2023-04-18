@@ -9,9 +9,9 @@
 #include <stdint.h>
 #include <vector>
 
+#include "RStarTree/RStarTree.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // for WireID
-#include "larreco/ClusterFinder/RStarTree/RStarTree.h"
 namespace detinfo {
   class DetectorClocksData;
   class DetectorPropertiesData;

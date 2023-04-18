@@ -161,19 +161,20 @@ namespace trkf {
     vw.resize(geom->Ncryostats());
     vt.resize(geom->Ncryostats());
     vtraj.resize(geom->Ncryostats());
-    for (size_t cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
-      vw[cstat].resize(geom->Cryostat(cstat).NTPC());
-      vt[cstat].resize(geom->Cryostat(cstat).NTPC());
-      vtraj[cstat].resize(geom->Cryostat(cstat).NTPC());
-      for (size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-        const geo::TPCGeo& tpcgeom = geom->Cryostat(cstat).TPC(tpc);
+    for (auto const& cryostat : geom->Iterate<geo::CryostatGeo>()) {
+      auto const cstat = cryostat.ID().Cryostat;
+      vw[cstat].resize(cryostat.NTPC());
+      vt[cstat].resize(cryostat.NTPC());
+      vtraj[cstat].resize(cryostat.NTPC());
+      for (size_t tpc = 0; tpc < cryostat.NTPC(); ++tpc) {
+        const geo::TPCGeo& tpcgeom = cryostat.TPC(tpc);
         vw[cstat][tpc].resize(tpcgeom.Nplanes());
         vt[cstat][tpc].resize(tpcgeom.Nplanes());
         vtraj[cstat][tpc].resize(tpcgeom.Nplanes());
-        for (size_t plane = 0; plane < tpcgeom.Nplanes(); ++plane) {
+        for (unsigned int plane = 0; plane < tpcgeom.Nplanes(); ++plane) {
           for (size_t i = 0; i < trajPos.size(); ++i) {
-            double wirecord =
-              geom->WireCoordinate(trajPos[i].Y(), trajPos[i].Z(), plane, tpc, cstat);
+            double wirecord = geom->WireCoordinate(geo::Point_t{0, trajPos[i].Y(), trajPos[i].Z()},
+                                                   geo::PlaneID{tpcgeom.ID(), plane});
             double tick = detProp.ConvertXToTicks(trajPos[i].X(), plane, tpc, cstat);
             vw[cstat][tpc][plane].push_back(wirecord);
             vt[cstat][tpc][plane].push_back(tick);
@@ -316,9 +317,7 @@ namespace trkf {
       double timepitch = driftvelocity * timetick;
 
       double wire_pitch =
-        geom->WirePitch(vhitmap[0].begin()->second->WireID().Plane,
-                        vhitmap[0].begin()->second->WireID().TPC,
-                        vhitmap[0].begin()->second->WireID().Cryostat); //wire pitch in cm
+        geom->WirePitch(vhitmap[0].begin()->second->WireID().asPlaneID()); //wire pitch in cm
 
       //find out 2d track length for all clusters associated with track candidate
       std::vector<double> vtracklength;
@@ -451,7 +450,7 @@ namespace trkf {
       unsigned int plane = wireid.Plane;
       unsigned int tpc = wireid.TPC;
       unsigned int cstat = wireid.Cryostat;
-      double wire_pitch = geom->WirePitch(plane, tpc, cstat); //wire pitch in cm
+      double wire_pitch = geom->WirePitch(wireid.asPlaneID()); //wire pitch in cm
       //find the two trajectory points that enclose the hit
       //find the nearest trajectory point first
       for (size_t j = 0; j < vw[cstat][tpc][plane].size(); ++j) {

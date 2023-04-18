@@ -26,6 +26,8 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 
 // ROOT includes
@@ -66,12 +68,12 @@ public:
 
 private:
   bool insideFidVol(const TLorentzVector& pvtx) const;
-  double fMinx;
-  double fMaxx;
-  double fMiny;
-  double fMaxy;
-  double fMinz;
-  double fMaxz;
+  double fMinx{std::numeric_limits<double>::max()};
+  double fMaxx{std::numeric_limits<double>::min()};
+  double fMiny{std::numeric_limits<double>::max()};
+  double fMaxy{std::numeric_limits<double>::min()};
+  double fMinz{std::numeric_limits<double>::max()};
+  double fMaxz{std::numeric_limits<double>::min()};
 
   double fFidVolCut;
 
@@ -104,21 +106,13 @@ ems::MCinfo::MCinfo(const art::Event& evt) : fFidVolCut(2.0)
 void ems::MCinfo::Findtpcborders(const art::Event& evt)
 {
   art::ServiceHandle<geo::Geometry const> geom;
-
-  fMinx = geom->IterateTPCs().begin()->MinX();
-  fMiny = geom->IterateTPCs().begin()->MinY();
-  fMinz = geom->IterateTPCs().begin()->MinZ();
-  fMaxx = geom->IterateTPCs().begin()->MaxX();
-  fMaxy = geom->IterateTPCs().begin()->MaxY();
-  fMaxz = geom->IterateTPCs().begin()->MaxZ();
-
-  for (const geo::TPCGeo& tpcg : geom->IterateTPCs()) {
-    if (tpcg.MinX() < fMinx) fMinx = tpcg.MinX();
-    if (tpcg.MaxX() > fMaxx) fMaxx = tpcg.MaxX();
-    if (tpcg.MinY() < fMiny) fMiny = tpcg.MinY();
-    if (tpcg.MaxY() > fMaxy) fMaxy = tpcg.MaxY();
-    if (tpcg.MinZ() < fMinz) fMinz = tpcg.MinZ();
-    if (tpcg.MaxZ() > fMaxz) fMaxz = tpcg.MaxZ();
+  for (const geo::TPCGeo& tpcg : geom->Iterate<geo::TPCGeo>()) {
+    fMinx = std::min(fMinx, tpcg.MinX());
+    fMaxx = std::max(fMaxx, tpcg.MaxX());
+    fMiny = std::min(fMiny, tpcg.MinY());
+    fMaxy = std::max(fMaxy, tpcg.MaxY());
+    fMinz = std::min(fMinz, tpcg.MinZ());
+    fMaxz = std::max(fMaxz, tpcg.MaxZ());
   }
 }
 
@@ -597,15 +591,13 @@ void ems::MultiEMShowers::analyze(art::Event const& e)
 bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 {
   ems::MCinfo mc(evt);
-  TVector3 convp[2];
-  convp[0] = mc.GetPosgamma1();
-  convp[1] = mc.GetPosgamma2();
+  TVector3 const convp[2]{mc.GetPosgamma1(), mc.GetPosgamma2()};
 
-  double vtx[3] = {convp[0].X(), convp[0].Y(), convp[0].Z()};
+  geo::Point_t const vtx{convp[0].X(), convp[0].Y(), convp[0].Z()};
 
   art::ServiceHandle<geo::Geometry const> geom;
   geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
-  size_t cryoid = geom->FindCryostatAtPosition(vtx);
+  size_t cryoid = geom->PositionToCryostatID(vtx).Cryostat;
 
   art::Handle<std::vector<recob::Hit>> hitListHandle;
   art::Handle<std::vector<recob::Cluster>> cluListHandle;
@@ -618,7 +610,7 @@ bool ems::MultiEMShowers::convCluster(art::Event const& evt)
   auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
   double maxdist = 1.0; // 1 cm
   if (geom->HasTPC(idtpc)) {
-    const geo::CryostatGeo& cryostat = geom->Cryostat(cryoid);
+    const geo::CryostatGeo& cryostat = geom->Cryostat(geo::CryostatID(cryoid));
     if (evt.getByLabel(fHitsModuleLabel, hitListHandle) &&
         evt.getByLabel(fCluModuleLabel, cluListHandle)) {
       size_t conv = 0;

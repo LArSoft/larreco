@@ -1,47 +1,107 @@
 cet_enable_asserts()
 
-set( hitfinder_tool_lib_list
-                        larreco_RecoAlg
-                        larcorealg_Geometry
-                        lardataobj_RecoBase
-                        larcore_Geometry_Geometry_service
-                        lardata_Utilities
-                        nurandom_RandomUtils_NuRandomService_service
-                        art::Framework_Core
-                        art::Framework_Principal
-                        art::Framework_Services_Registry
-                        art::Persistency_Common
-                        art::Persistency_Provenance
-                        ${ART_FRAMEWORK_SERVICES_BASIC}
-                        art_root_io::tfile_support ROOT::Core
-            ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-                        art_root_io::TFileService_service
-                        ${ART_FRAMEWORK_SERVICES_SYSTEM_FILECATALOGMETADATA_SERVICE}
-                        art::Utilities
-                        canvas::canvas
-                        messagefacility::MF_MessageLogger
+cet_make_library(LIBRARY_NAME CandidateHitFinderTool INTERFACE
+  SOURCE ICandidateHitFinder.h
+  LIBRARIES INTERFACE
+  lardataobj::RecoBase
+)
 
-                        fhiclcpp::fhiclcpp
-                        cetlib::cetlib
-                        Boost::filesystem
-                        ${ROOT_BASIC_LIB_LIST}
-    )
+cet_write_plugin_builder(lar::CandidateHitFinderTool art::tool Modules
+  INSTALL_BUILDER
+  LIBRARIES CONDITIONAL
+  larreco::CandidateHitFinderTool
+)
 
-include(FindOpenMP)
-if(OPENMP_FOUND)
-  # even if OpenMP is found on a SLF6 machine, it cannot be used.
-  # see the discussion in https://cdcvs.fnal.gov/redmine/issues/23001
-  if( ${CMAKE_HOST_SYSTEM_VERSION} MATCHES "^2.6.32.*" )
-    message(STATUS "OpenMP is not supported on SLF6")
-  else()
-    add_definitions(-DWITH_OPENMP)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-  endif()
-endif(OPENMP_FOUND)
+cet_make_library(LIBRARY_NAME PeakFitterTool INTERFACE
+  SOURCE IPeakFitter.h
+  LIBRARIES INTERFACE
+  larreco::CandidateHitFinderTool
+)
 
-art_make(TOOL_LIBRARIES ${hitfinder_tool_lib_list} )
+cet_write_plugin_builder(lar::PeakFitterTool art::tool Modules
+  INSTALL_BUILDER
+  LIBRARIES CONDITIONAL larreco::PeakFitterTool)
+
+cet_make_library(LIBRARY_NAME WaveformTool INTERFACE
+  SOURCE IWaveformTool.h
+)
+
+cet_write_plugin_builder(lar::WaveformTool art::tool Modules
+  INSTALL_BUILDER
+)
+
+cet_collect_plugin_builders(Modules lar::HitFinderToolBuilders
+  LIST
+  lar::CandidateHitFinderTool
+  lar::PeakFitterTool
+  lar::WaveformTool
+)
+
+include(lar::HitFinderToolBuilders)
+
+cet_build_plugin(CandHitDerivative lar::CandidateHitFinderTool
+  LIBRARIES PRIVATE
+  larreco::WaveformTool
+  larcore::ServiceUtil
+  larcore::Geometry_Geometry_service
+  art_root_io::TFileService_service
+  art::Framework_Services_Registry
+  art_plugin_support::toolMaker
+  cetlib_except::cetlib_except
+  ROOT::Hist
+)
+
+cet_build_plugin(CandHitMorphological lar::CandidateHitFinderTool
+  LIBRARIES PRIVATE
+  larreco::WaveformTool
+  larcore::ServiceUtil
+  larcore::Geometry_Geometry_service
+  art_root_io::TFileService_service
+  art::Framework_Services_Registry
+  art::Utilities
+  art_plugin_support::toolMaker
+  cetlib_except::cetlib_except
+  ROOT::Hist
+)
+
+cet_build_plugin(CandHitStandard lar::CandidateHitFinderTool
+  LIBRARIES PRIVATE
+  larcore::ServiceUtil
+  larcore::Geometry_Geometry_service
+  art_plugin_support::toolMaker
+)
+
+cet_build_plugin(PeakFitterGaussElimination lar::PeakFitterTool
+  LIBRARIES PRIVATE
+  larreco::HitFinder
+)
+
+cet_build_plugin(PeakFitterGaussian lar::PeakFitterTool
+  LIBRARIES PRIVATE
+  larreco::RecoAlg
+  larcore::ServiceUtil
+  larcore::Geometry_Geometry_service
+  art_root_io::TFileService_service
+  art::Framework_Services_Registry
+  messagefacility::MF_MessageLogger
+  ROOT::Hist
+)
+
+cet_build_plugin(PeakFitterMrqdt lar::PeakFitterTool
+  LIBRARIES PRIVATE
+  larreco::CandidateHitFinderTool  
+  larreco::RecoAlg
+  larcore::ServiceUtil
+  larcore::Geometry_Geometry_service
+  larvecutils::MarqFitAlg
+  cetlib_except::cetlib_except
+  messagefacility::MF_MessageLogger
+)
+
+cet_build_plugin(WaveformTools lar::WaveformTool
+  LIBRARIES PRIVATE
+  ROOT::Core
+)
 
 install_headers()
 install_source()

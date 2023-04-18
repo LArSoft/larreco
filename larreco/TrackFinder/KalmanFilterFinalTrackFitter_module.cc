@@ -644,6 +644,7 @@ int trkf::KalmanFilterFinalTrackFitter::setPId(
   const std::unique_ptr<art::FindManyP<anab::ParticleID>>& trackId,
   const int pfPid) const
 {
+  /*
   int result = p_().options().pdgId();
   if (p_().options().trackFromPF() && p_().options().idFromPF()) { result = pfPid; }
   else if (p_().options().idFromCollection()) {
@@ -656,7 +657,8 @@ int trkf::KalmanFilterFinalTrackFitter::setPId(
       }
     }
   }
-  return result;
+  */
+  return -1;
 }
 
 bool trkf::KalmanFilterFinalTrackFitter::setDirFlip(

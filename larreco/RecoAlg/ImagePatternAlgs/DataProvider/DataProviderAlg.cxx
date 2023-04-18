@@ -7,21 +7,24 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Provenance/Timestamp.h"
-#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "cetlib_except/exception.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-
-#include "messagefacility/MessageLogger/MessageLogger.h"
-namespace detinfo {
-  class DetectorProperties;
-}
-namespace geo {
-  class GeometryCore;
-}
-
+#include "lardataobj/RecoBase/Wire.h"
 #include "CLHEP/Random/RandGauss.h"
+
+#include <algorithm>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace detinfo {
+  class DetectorClocksData;
+}
 
 img::DataProviderAlg::DataProviderAlg(const Config& config)
   : fAlgView{}
@@ -267,24 +270,16 @@ std::vector<float> img::DataProviderAlg::downscaleMean(std::size_t dst_size,
 std::optional<std::vector<float>> img::DataProviderAlg::setWireData(std::vector<float> const& adc,
                                                                     size_t wireIdx) const
 {
-  if (wireIdx >= fAlgView.fWireDriftData.size()) return std::nullopt;
+  if (wireIdx >= fAlgView.fWireDriftData.size()) { return std::nullopt; }
   auto& wData = fAlgView.fWireDriftData[wireIdx];
 
   if (fDownscaleFullView) {
     if (!adc.empty()) { return downscale(wData.size(), adc, 0); }
-    else {
-      return std::nullopt;
-    }
+    return std::nullopt;
   }
-  else {
-    if (adc.empty()) { return std::nullopt; }
-    else if (adc.size() <= wData.size())
-      return adc;
-    else {
-      return std::vector<float>(adc.begin(), adc.begin() + wData.size());
-    }
-  }
-  return std::make_optional(wData);
+  if (adc.empty()) { return std::nullopt; }
+  if (adc.size() <= wData.size()) { return adc; }
+  return std::vector<float>(adc.begin(), adc.begin() + wData.size());
 }
 // ------------------------------------------------------
 
@@ -306,7 +301,7 @@ bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& c
   fAdcSumOverThr = 0;
   fAdcAreaOverThr = 0;
 
-  size_t nwires = fGeometry->Nwires(plane, tpc, cryo);
+  size_t nwires = fGeometry->Nwires({cryo, tpc, plane});
   size_t ndrifts = det_prop.NumberTimeSamples();
 
   fAlgView = resizeView(clock_data, det_prop, nwires, ndrifts);

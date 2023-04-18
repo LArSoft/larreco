@@ -7,9 +7,13 @@
 #ifndef PMAlgCosmicTagger_h
 #define PMAlgCosmicTagger_h
 
-#include "fhiclcpp/types/Atom.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_vectors.h"
 
-#include "TVector3.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/Name.h"
+
+class TVector3;
 
 namespace detinfo {
   class DetectorClocksData;
@@ -19,6 +23,8 @@ namespace pma {
   class PMAlgCosmicTagger;
   class TrkCandidateColl;
 }
+
+#include <vector>
 
 class pma::PMAlgCosmicTagger {
 
@@ -119,7 +125,7 @@ private:
   bool isFrontBackVertex(const TVector3& pos, double tolerance, short int dirIndx) const;
 
   void GetDimensions(); // Use the geometry to get the extent of the detector in x, y and z.
-  short int ConvertDirToInt(const TVector3& dir) const; // Is the direction along x, y or z?
+  short int ConvertDirToInt(const geo::Vector_t& dir) const; // Is the direction along x, y or z?
   // Tagging parameters
   bool fTagOutOfDriftTracks; // Tag tracks sticking out of 1 drift window.
   double fOutOfDriftMargin;  // Min distance [cm] beyond 1 drift window required

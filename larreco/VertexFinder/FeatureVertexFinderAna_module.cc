@@ -263,8 +263,7 @@ namespace vertex {
     evt.getByLabel(fLArG4ModuleLabel, mcParticleHandle);
 
     // Getting MC Truth Info from simb
-    art::Handle<std::vector<simb::MCTruth>> mctruthListHandle;
-    evt.getByLabel(fGenieModuleLabel, mctruthListHandle);
+    auto const& mctruthList = *evt.getValidHandle<std::vector<simb::MCTruth>>(fGenieModuleLabel);
 
     // Getting information from BackTrackerService
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
@@ -302,15 +301,8 @@ namespace vertex {
 
     // Looping over MC information
 
-    // Getting MC Truth simb Info
-    art::PtrVector<simb::MCTruth> mclist;
-    for (unsigned int ii = 0; ii < mctruthListHandle->size(); ++ii) {
-      art::Ptr<simb::MCTruth> mctparticle(mctruthListHandle, ii);
-      mclist.push_back(mctparticle);
-    }
-
     // Variables for truth vertex information
-    float truth_vertex[5] = {0.}; //<---Truth x,y,z information
+    geo::Point_t truth_vertex{}; //<---Truth x,y,z information
 
     uint32_t VtxWireNum[3] = {0}; //<---Wire number in each plane ( WireNum[plane#] )
     double VtxTimeTick[3] = {0.}; //<---Time tick in each plane   ( TimeTick[plane#] )
@@ -319,35 +311,35 @@ namespace vertex {
     double VtxTimeTick_InCM[3] = {0.}; //<---Time tick in each plane in CM   ( TimeTick[plane#] )
 
     // Finding the MC truth vertex
-    for (unsigned int i = 0; i < mclist.size(); ++i) {
-      art::Ptr<simb::MCTruth> mc(mclist[i]);
-      simb::MCParticle neut(mc->GetParticle(i));
 
-      // Filling the vertex x,y,z information
-      truth_vertex[0] = neut.Vx();
-      truth_vertex[1] = neut.Vy();
-      truth_vertex[2] = neut.Vz();
-
+    // FIXME: Can this be right?  We're looping over all of the
+    //        MCTruth particles just so that we can use the last one
+    //        (i.e. truth_vertex is set each time but only the last
+    //        iteration is relevant)?
+    for (std::size_t i = 0; i != mctruthList.size(); ++i) {
+      auto const& neut = mctruthList[i].GetParticle(i);
+      truth_vertex.SetX(neut.Vx());
+      truth_vertex.SetY(neut.Vy());
+      truth_vertex.SetZ(neut.Vz());
     } // end i loop
 
     // Filling Histograms
-    fTruthVtxXPos->Fill(truth_vertex[0]);
-    fTruthVtxYPos->Fill(truth_vertex[1]);
-    fTruthVtxZPos->Fill(truth_vertex[2]);
+    fTruthVtxXPos->Fill(truth_vertex.X());
+    fTruthVtxYPos->Fill(truth_vertex.Y());
+    fTruthVtxZPos->Fill(truth_vertex.Z());
 
     // Looping over geo::PlaneIDs
-    for (auto const& pid : geom->IteratePlaneIDs()) {
+    for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
       // Calculating the nearest wire the vertex corresponds to in each plane
       try {
-        VtxWireNum[pid.Plane] = geom->NearestWire(truth_vertex, pid.Plane, pid.TPC, pid.Cryostat);
+        VtxWireNum[pid.Plane] = geom->NearestWireID(truth_vertex, pid).Wire;
       }
       catch (...) {
         mf::LogWarning("FeatureVertexFinderAna") << "Can't find nearest wire";
         continue;
       }
       VtxTimeTick[pid.Plane] =
-        det_prop.ConvertXToTicks(truth_vertex[0], pid.Plane, pid.TPC, pid.Cryostat) +
-        det_prop.GetXTicksOffset(pid.Plane, pid.TPC, pid.Cryostat);
+        det_prop.ConvertXToTicks(truth_vertex.X(), pid) + det_prop.GetXTicksOffset(pid);
 
       // Translating each of these in cm
       VtxWireNum_InCM[pid.Plane] = VtxWireNum[pid.Plane] * WirePitch_CurrentPlane[pid.Plane];
@@ -398,7 +390,7 @@ namespace vertex {
     if (vert2d.size() > 0) {
 
       // Looping over geo::PlaneIDs
-      for (auto const& pid : geom->IteratePlaneIDs()) {
+      for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
         for (size_t ww = 0; ww < vert2d.size(); ++ww) {
           // Only look at this 2d vertex if it is in the current plane
           if (vert2d[ww]->WireID().planeID() != pid) { continue; }
@@ -505,13 +497,13 @@ namespace vertex {
         // Checking how well we did in reconstructing the vertex (Reco - True)
 
         // Finding the Delta X, Y, Z between Reco vtx and truth
-        double DeltaX = xyz[0] - truth_vertex[0];
-        double DeltaY = xyz[1] - truth_vertex[1];
-        double DeltaZ = xyz[2] - truth_vertex[2];
+        double DeltaX = xyz[0] - truth_vertex.X();
+        double DeltaY = xyz[1] - truth_vertex.Y();
+        double DeltaZ = xyz[2] - truth_vertex.Z();
 
-        double DeltaXoverTrueX = DeltaX / truth_vertex[0];
-        double DeltaYoverTrueY = DeltaY / truth_vertex[0];
-        double DeltaZoverTrueZ = DeltaZ / truth_vertex[0];
+        double DeltaXoverTrueX = DeltaX / truth_vertex.X();
+        double DeltaYoverTrueY = DeltaY / truth_vertex.X();
+        double DeltaZoverTrueZ = DeltaZ / truth_vertex.X();
 
         fRecoVtxXPos->Fill(xyz[0]);
         fRecoVtxYPos->Fill(xyz[1]);

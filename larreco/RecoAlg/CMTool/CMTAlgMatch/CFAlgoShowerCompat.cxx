@@ -1,5 +1,7 @@
-#include "CFAlgoShowerCompat.h"
+#include "TFile.h"
 #include "TTree.h"
+
+#include "larreco/RecoAlg/CMTool/CMTAlgMatch/CFAlgoShowerCompat.h"
 
 namespace cmtool {
 

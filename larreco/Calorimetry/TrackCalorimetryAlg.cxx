@@ -49,7 +49,8 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
       hit_indices_per_plane[hitVector[i_hit].WireID().Plane].push_back(i_hit);
 
     //loop over the planes
-    for (size_t i_plane = 0; i_plane < geom.Nplanes(); i_plane++) {
+    for (unsigned int i_plane = 0; i_plane < geom.Nplanes(); ++i_plane) {
+      geo::PlaneID const planeID{0, 0, i_plane};
 
       ClearInternalVectors();
       ReserveInternalVectors(hit_indices_per_plane[i_plane].size());
@@ -61,7 +62,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
         double x_pos = track.LocationAtPoint(i_trjpt).X();
         float tick = det_prop.ConvertXToTicks(x_pos, (int)i_plane, 0, 0);
         traj_points_in_plane[i_trjpt] =
-          std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), i_plane), tick);
+          std::make_pair(geom.NearestWireID(track.LocationAtPoint(i_trjpt), planeID), tick);
       }
 
       HitPropertiesMultiset_t HitPropertiesMultiset;
@@ -77,7 +78,6 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
                    geom);
 
       //PrintHitPropertiesMultiset(HitPropertiesMultiset);
-      geo::PlaneID planeID(0, 0, i_plane);
       MakeCalorimetryObject(
         HitPropertiesMultiset, track, i_track, caloVector, assnTrackCaloVector, planeID);
 
@@ -90,10 +90,12 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
 class dist_projected {
 public:
   dist_projected(recob::Hit const& h, geo::GeometryCore const& g) : hit(h), geom(g) {}
-  bool operator()(std::pair<geo::WireID, float> i, std::pair<geo::WireID, float> j)
+  bool operator()(std::pair<geo::WireID, float> const& i, std::pair<geo::WireID, float> const& j)
   {
-    float dw_i = ((int)(i.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(i.first.Plane);
-    float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(j.first.Plane);
+    float dw_i =
+      ((int)(i.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(i.first.asPlaneID());
+    float dw_j =
+      ((int)(j.first.Wire) - (int)(hit.WireID().Wire)) * geom.WirePitch(j.first.asPlaneID());
     float dt_i = i.second - hit.PeakTime();
     float dt_j = j.second - hit.PeakTime();
     return std::hypot(dw_i, dt_i) < std::hypot(dw_j, dt_j);

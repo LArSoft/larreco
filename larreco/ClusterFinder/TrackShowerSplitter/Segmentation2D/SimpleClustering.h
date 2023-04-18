@@ -10,7 +10,7 @@
 #ifndef SimpleClustering_h
 #define SimpleClustering_h
 
-#include "TssHit2D.h"
+#include "larreco/ClusterFinder/TrackShowerSplitter/Segmentation2D/TssHit2D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 namespace tss {

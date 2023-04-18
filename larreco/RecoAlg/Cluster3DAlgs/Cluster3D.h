@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
 namespace recob {
   class Hit;

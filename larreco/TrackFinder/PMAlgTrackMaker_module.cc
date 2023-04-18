@@ -450,23 +450,24 @@ namespace trkf {
         trk->SelectHits(); // just in case, set all to enabled
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
         pma::dedx_map dedx_tmp;
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) {
+        auto const& tpc = fGeom->TPC(geo::TPCID(icryo, itpc));
+        if (tpc.HasPlane(geo::kU)) {
           trk->CompleteMissingWires(detProp, geo::kU);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kU, 1);
         }
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) {
+        if (tpc.HasPlane(geo::kV)) {
           trk->CompleteMissingWires(detProp, geo::kV);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kV, 1);
         }
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kX)) {
+        if (tpc.HasPlane(geo::kX)) {
           trk->CompleteMissingWires(detProp, geo::kX);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kX, 1);
         }
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kY)) {
+        if (tpc.HasPlane(geo::kY)) {
           trk->CompleteMissingWires(detProp, geo::kY);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kY, 1);
         }
-        if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) {
+        if (tpc.HasPlane(geo::kZ)) {
           trk->CompleteMissingWires(detProp, geo::kZ);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kZ, 1);
         }
@@ -502,8 +503,7 @@ namespace trkf {
           std::vector<float> trkEnd1;
           // Get the drift direction, but don't care about the sign
           // Also need to subtract 1 due to the definition.
-          int driftDir =
-            abs(fGeom->TPC(trk->FrontTPC(), trk->FrontCryo()).DetectDriftDirection()) - 1;
+          int driftDir = abs(tpc.DetectDriftDirection()) - 1;
 
           for (int i = 0; i < 3; ++i) {
             // Get the drift direction and apply the opposite of the drift shift in order to

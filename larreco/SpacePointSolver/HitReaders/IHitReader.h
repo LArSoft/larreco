@@ -9,12 +9,11 @@
 #ifndef IHitReader_h
 #define IHitReader_h
 
-// Framework Includes
-#include "fhiclcpp/ParameterSet.h"
-
 // Algorithm includes
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
+
+#include <vector>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 namespace reco3d {

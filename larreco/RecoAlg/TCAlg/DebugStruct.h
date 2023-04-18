@@ -9,7 +9,7 @@
 #ifndef TRAJCLUSTERALGDEBUGSTRUCT_H
 #define TRAJCLUSTERALGDEBUGSTRUCT_H
 
-#include <limits.h>
+#include <climits>
 
 // LArSoft libraries
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"

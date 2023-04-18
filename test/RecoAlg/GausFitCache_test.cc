@@ -14,12 +14,11 @@
 #include <cassert>
 #include <cmath>
 #include <limits> // std::numeric_limits<>
-// #include <iostream>
 
 // boost test libraries
 #define BOOST_TEST_MODULE (HitAnaAlg_test)
-#include "cetlib/quiet_unit_test.hpp"
-#include <cetlib/quiet_unit_test.hpp> // BOOST_CHECK_CLOSE
+#include "boost/test/unit_test.hpp"
+#include "cetlib/pow.h"
 
 // ROOT libraries
 #include "TFitResult.h"
@@ -32,17 +31,17 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/GausFitCache.h"
 
-template <typename T>
-inline T sqr(T v)
-{
-  return v * v;
-}
+using boost::test_tools::tolerance;
+using cet::square;
+using tolerance_t = decltype(0.001 % tolerance());
 
-double gaus(double x, double mean, double sigma, double amplitude)
-{
-  double const z = (x - mean) / sigma;
-  return amplitude * std::exp(-0.5 * sqr(z));
-} // gaus()
+namespace {
+  double gaus(double x, double mean, double sigma, double amplitude)
+  {
+    double const z = (x - mean) / sigma;
+    return amplitude * std::exp(-0.5 * square(z));
+  } // gaus()
+}
 
 //******************************************************************************
 BOOST_AUTO_TEST_SUITE(GausFitCacheSuite)
@@ -54,35 +53,32 @@ BOOST_AUTO_TEST_CASE(TestGaussianTest)
   // static function to be tested:
   const auto gaus_func = ::gaus;
 
-  const double exp1sigma = std::exp(-0.5 * sqr(1.));
-  const double exp2sigma = std::exp(-0.5 * sqr(2.));
+  const double exp1sigma = std::exp(-0.5 * square(1.));
+  const double exp2sigma = std::exp(-0.5 * square(2.));
 
   // here there should be some more believable test...
   const double amplitude = 16.;
   for (double sigma = 0.5; sigma < 2.25; ++sigma) {
     for (double mean = -5; mean < 5.5; ++mean) {
 
-      //  std::cout << "Testing local gaus(), mean=" << mean << " sigma=" << sigma
-      //    << " amplitude=" << amplitude << std::endl;
+      BOOST_TEST(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
 
-      BOOST_CHECK(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      auto const tol = 0.001 % tolerance();
+      BOOST_TEST(gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
+      BOOST_TEST(gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude) == amplitude, tol);
+      BOOST_TEST(gaus_func(1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
 
-      // we use tolerance of 10^-5 (0.001%)
-      BOOST_CHECK_CLOSE(
-        gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude), amplitude, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-
-      BOOST_CHECK(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
 
     } // for mean
   }   // for sigma
@@ -113,34 +109,31 @@ BOOST_AUTO_TEST_CASE(GaussianTest)
   // static function to be tested:
   const auto gaus_func = RootGausFuncWrapper(hit::details::CompiledGausFitCacheBaseStruct::gaus);
 
-  const double exp1sigma = std::exp(-0.5 * sqr(1.));
-  const double exp2sigma = std::exp(-0.5 * sqr(2.));
+  const double exp1sigma = std::exp(-0.5 * square(1.));
+  const double exp2sigma = std::exp(-0.5 * square(2.));
 
   const double amplitude = 16.;
   for (double sigma = 0.5; sigma < 2.25; ++sigma) {
     for (double mean = -5; mean < 5.5; ++mean) {
 
-      //  std::cout << "Testing gaus, mean=" << mean << " sigma=" << sigma
-      //    << " amplitude=" << amplitude << std::endl;
+      BOOST_TEST(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
 
-      BOOST_CHECK(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      auto const tol = 0.001 % tolerance();
+      BOOST_TEST(gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
+      BOOST_TEST(gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude) == amplitude, tol);
+      BOOST_TEST(gaus_func(+1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(+2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
 
-      // we use tolerance of 10^-5 (0.001%)
-      BOOST_CHECK_CLOSE(
-        gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude), amplitude, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(+1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(+2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-
-      BOOST_CHECK(gaus_func(+4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(+5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK(gaus_func(+6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(+4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(+5.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(+6.5 * sigma + mean, mean, sigma, amplitude) > 0.);
 
     } // for mean
   }   // for sigma
@@ -153,34 +146,31 @@ BOOST_AUTO_TEST_CASE(GaussianTrunc5Test)
   const auto gaus_func =
     RootGausFuncWrapper(hit::details::CompiledGausFitCacheBaseStruct::gaus_trunc<5>);
 
-  const double exp1sigma = std::exp(-0.5 * sqr(1.));
-  const double exp2sigma = std::exp(-0.5 * sqr(2.));
+  const double exp1sigma = std::exp(-0.5 * square(1.));
+  const double exp2sigma = std::exp(-0.5 * square(2.));
 
   const double amplitude = 16.;
   for (double sigma = 0.5; sigma < 2.25; ++sigma) {
     for (double mean = -5; mean < 5.5; ++mean) {
 
-      //  std::cout << "Testing gaus_trunc<5>, mean=" << mean << " sigma=" << sigma
-      //    << " amplitude=" << amplitude << std::endl;
+      BOOST_TEST(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
 
-      BOOST_CHECK_EQUAL(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      auto const tol = 0.001 % tolerance();
+      BOOST_TEST(gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
+      BOOST_TEST(gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude) == amplitude, tol);
+      BOOST_TEST(gaus_func(1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
 
-      // we use tolerance of 10^-5 (0.001%)
-      BOOST_CHECK_CLOSE(
-        gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude), amplitude, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-
-      BOOST_CHECK(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
-      BOOST_CHECK_EQUAL(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude), 0.);
+      BOOST_TEST(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude) > 0.);
+      BOOST_TEST(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude) == 0.);
 
     } // for mean
   }   // for sigma
@@ -193,34 +183,31 @@ BOOST_AUTO_TEST_CASE(GaussianTrunc4Test)
   const auto gaus_func =
     RootGausFuncWrapper(hit::details::CompiledGausFitCacheBaseStruct::gaus_trunc<4>);
 
-  const double exp1sigma = std::exp(-0.5 * sqr(1.));
-  const double exp2sigma = std::exp(-0.5 * sqr(2.));
+  const double exp1sigma = std::exp(-0.5 * square(1.));
+  const double exp2sigma = std::exp(-0.5 * square(2.));
 
   const double amplitude = 16.;
   for (double sigma = 0.5; sigma < 2.25; ++sigma) {
     for (double mean = -5; mean < 5.5; ++mean) {
 
-      //  std::cout << "Testing gaus_trunc<4>, mean=" << mean << " sigma=" << sigma
-      //    << " amplitude=" << amplitude << std::endl;
+      BOOST_TEST(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude) == 0.);
 
-      BOOST_CHECK_EQUAL(gaus_func(-6.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(-5.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(-4.5 * sigma + mean, mean, sigma, amplitude), 0.);
+      auto const tol = 0.001 % tolerance();
+      BOOST_TEST(gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
+      BOOST_TEST(gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude) == amplitude, tol);
+      BOOST_TEST(gaus_func(1.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp1sigma,
+                 tol);
+      BOOST_TEST(gaus_func(2.0 * sigma + mean, mean, sigma, amplitude) == amplitude * exp2sigma,
+                 tol);
 
-      // we use tolerance of 10^-5 (0.001%)
-      BOOST_CHECK_CLOSE(
-        gaus_func(-2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(-1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(gaus_func(0.0 * sigma + mean, mean, sigma, amplitude), amplitude, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(1.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
-      BOOST_CHECK_CLOSE(
-        gaus_func(2.0 * sigma + mean, mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-
-      BOOST_CHECK_EQUAL(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude), 0.);
-      BOOST_CHECK_EQUAL(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude), 0.);
+      BOOST_TEST(gaus_func(4.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(5.5 * sigma + mean, mean, sigma, amplitude) == 0.);
+      BOOST_TEST(gaus_func(6.5 * sigma + mean, mean, sigma, amplitude) == 0.);
 
     } // for mean
   }   // for sigma
@@ -256,9 +243,9 @@ std::vector<Double_t> SortGaussianResults(TF1 const* pFunc, Double_t const* Para
     for (size_t iFitGaus = 0; iFitGaus < nGaus; ++iFitGaus) {
       // so far, we compare all the parameters with the same weight
       const double match_quality =
-        sqr(Params[iGaus * 3 + 0] - pFunc->GetParameter(iFitGaus * 3 + 0)) +
-        sqr(Params[iGaus * 3 + 1] - pFunc->GetParameter(iFitGaus * 3 + 1)) +
-        sqr(Params[iGaus * 3 + 2] - pFunc->GetParameter(iFitGaus * 3 + 2));
+        square(Params[iGaus * 3 + 0] - pFunc->GetParameter(iFitGaus * 3 + 0)) +
+        square(Params[iGaus * 3 + 1] - pFunc->GetParameter(iFitGaus * 3 + 1)) +
+        square(Params[iGaus * 3 + 2] - pFunc->GetParameter(iFitGaus * 3 + 2));
       if (match_quality < best_match_quality) {
         best_match_quality = match_quality;
         BestMatch[iGaus] = iFitGaus;
@@ -284,7 +271,7 @@ std::vector<Double_t> SortGaussianResults(TF1 const* pFunc, Double_t const* Para
 } // SortGaussianResults()
 
 // Test a fit with a three-Gaussian function from the compiled cache
-void ThreeGaussianFitTest(hit::GausFitCache& GausCache, float tol = 0.001)
+void ThreeGaussianFitTest(hit::GausFitCache& GausCache, tolerance_t tol)
 {
   std::string name = GausCache.GetName();
 
@@ -336,7 +323,7 @@ void ThreeGaussianFitTest(hit::GausFitCache& GausCache, float tol = 0.001)
 
   // - fit
   TFitResultPtr fit_res = Hist.Fit(pFunc, "WQ0NS");
-  BOOST_CHECK(int(fit_res) == 0);
+  BOOST_TEST(int(fit_res) == 0);
 
 #ifdef GAUSFITCACHE_TEST_DEBUG
   pFCopy = pFunc->DrawCopy("L SAME");
@@ -353,13 +340,12 @@ void ThreeGaussianFitTest(hit::GausFitCache& GausCache, float tol = 0.001)
   for (size_t iGaus = 0; iGaus < nGaus; ++iGaus) {
     const size_t iParam = iGaus * 3;
 
-    // we use tolerance of 10^-3 (0.1%)
     // - check amplitude
-    BOOST_CHECK_CLOSE(results[iParam + 0], Params[iParam + 0], tol * 100.);
+    BOOST_TEST(results[iParam + 0] == Params[iParam + 0], tol);
     // - check mean
-    BOOST_CHECK_CLOSE(results[iParam + 1], Params[iParam + 1], tol * 100.);
+    BOOST_TEST(results[iParam + 1] == Params[iParam + 1], tol);
     // - check sigma
-    BOOST_CHECK_CLOSE(results[iParam + 2], Params[iParam + 2], tol * 100.);
+    BOOST_TEST(results[iParam + 2] == Params[iParam + 2], tol);
 
   } // for iGaus
 
@@ -390,8 +376,7 @@ BOOST_AUTO_TEST_CASE(ThreeGaussianTest)
 
     const Double_t tested = hit::details::CompiledGausFitCacheBaseStruct::ngaus<3>(&x, Params);
 
-    // we use tolerance of 10^-5 (0.001%)
-    BOOST_CHECK_CLOSE(tested, expected, 0.001);
+    BOOST_TEST(tested == expected, 0.001 % tolerance());
   } // for x
 
 } // BOOST_AUTO_TEST_CASE(ThreeGaussianTest)
@@ -401,7 +386,7 @@ BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 {
   // max 20 Gaussians
   hit::GausFitCache GausCache("RunTimeGaussians");
-  ThreeGaussianFitTest(GausCache, 2e-4); // 0.02% tolerance
+  ThreeGaussianFitTest(GausCache, 0.02 % tolerance());
 } // BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function from the compiled cache
@@ -409,7 +394,7 @@ BOOST_AUTO_TEST_CASE(CompiledThreeGaussianFitTest)
 {
   // max 20 Gaussians
   hit::CompiledGausFitCache<20> GausCache("CompiledGaussians");
-  ThreeGaussianFitTest(GausCache, 2e-4); // 0.02% tolerance
+  ThreeGaussianFitTest(GausCache, 0.02 % tolerance());
 } // BOOST_AUTO_TEST_CASE(CompiledThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function (each truncated at 5 sigma)
@@ -418,7 +403,7 @@ BOOST_AUTO_TEST_CASE(CompiledTruncated5ThreeGaussianFitTest)
 {
   // max 20 Gaussians; truncate at 5 sigma
   hit::CompiledTruncatedGausFitCache<20, 5> GausCache("CompiledTruncated5Gaussians");
-  ThreeGaussianFitTest(GausCache, 1e-3); // 0.1% tolerance
+  ThreeGaussianFitTest(GausCache, 0.1 % tolerance()); // 0.1% tolerance
 } // BOOST_AUTO_TEST_CASE(CompiledTruncated5ThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function (each truncated at 4 sigma)
@@ -427,7 +412,7 @@ BOOST_AUTO_TEST_CASE(CompiledTruncated4ThreeGaussianFitTest)
 {
   // max 20 Gaussians; truncate at 4 sigma
   hit::CompiledTruncatedGausFitCache<20, 4> GausCache("CompiledTruncated4Gaussians");
-  ThreeGaussianFitTest(GausCache, 1e-3); // 0.1% tolerance
+  ThreeGaussianFitTest(GausCache, 0.1 % tolerance());
 } // BOOST_AUTO_TEST_CASE(CompiledTruncated4ThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function (each truncated at 3 sigma)
@@ -436,7 +421,7 @@ BOOST_AUTO_TEST_CASE(CompiledTruncated3ThreeGaussianFitTest)
 {
   // max 20 Gaussians; truncate at 3 sigma
   hit::CompiledTruncatedGausFitCache<20, 3> GausCache("CompiledTruncated3Gaussians");
-  ThreeGaussianFitTest(GausCache, 1e-1); // 10% tolerance (seriously, it's that bad)
+  ThreeGaussianFitTest(GausCache, 10. % tolerance()); // (seriously, it's that bad)
 } // BOOST_AUTO_TEST_CASE(CompiledTruncated3ThreeGaussianFitTest)
 
 BOOST_AUTO_TEST_SUITE_END()

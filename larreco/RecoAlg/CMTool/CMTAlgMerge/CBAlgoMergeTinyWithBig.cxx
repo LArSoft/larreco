@@ -1,6 +1,6 @@
-#include "CBAlgoMergeTinyWithBig.h"
+#include "larreco/RecoAlg/CMTool/CMTAlgMerge/CBAlgoMergeTinyWithBig.h"
 
-#include <math.h>
+#include <cmath>
 
 namespace cmtool {
 

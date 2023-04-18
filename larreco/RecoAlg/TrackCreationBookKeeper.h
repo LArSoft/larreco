@@ -1,8 +1,10 @@
 #ifndef TRACKCREATIONBOOKKEEPER_H
 #define TRACKCREATIONBOOKKEEPER_H
 
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
 #include "larreco/RecoAlg/TrackTrajectoryCreationBookKeeper.h"
 #include "larreco/TrackFinder/TrackMaker.h"
 
@@ -23,15 +25,14 @@ namespace trkmkr {
    * @version 1.0
    */
 
-  using namespace recob;
-  using Point_t = tracking::Point_t;
-  using Vector_t = tracking::Vector_t;
-  using PointFlags_t = TrackTrajectory::PointFlags_t;
+  using Point_t = recob::tracking::Point_t;
+  using Vector_t = recob::tracking::Vector_t;
+  using PointFlags_t = recob::TrackTrajectory::PointFlags_t;
 
   class TrackCreationBookKeeper {
   public:
     /// Constructor: needs reference to output hit vector, optional outputs struct, and other parameters needed when creating the track object
-    TrackCreationBookKeeper(std::vector<art::Ptr<Hit>>& outhits,
+    TrackCreationBookKeeper(std::vector<art::Ptr<recob::Hit>>& outhits,
                             OptionalOutputs& optionals,
                             int tkID,
                             int pdgHyp,
@@ -59,7 +60,7 @@ namespace trkmkr {
     /// Add a single point; different version of the functions are provided using const references or rvalue references, with and without an OptionalPointElement argument.
     void addPoint(const Point_t& point,
                   const Vector_t& vect,
-                  art::Ptr<Hit> hit,
+                  art::Ptr<recob::Hit> hit,
                   const PointFlags_t& flag,
                   double chi2)
     {
@@ -71,7 +72,7 @@ namespace trkmkr {
     }
     void addPoint(const Point_t& point,
                   const Vector_t& vect,
-                  art::Ptr<Hit> hit,
+                  art::Ptr<recob::Hit> hit,
                   const PointFlags_t& flag,
                   double chi2,
                   OptionalPointElement& ope)
@@ -81,7 +82,7 @@ namespace trkmkr {
     }
     void addPoint(Point_t&& point,
                   Vector_t&& vect,
-                  art::Ptr<Hit> hit,
+                  art::Ptr<recob::Hit> hit,
                   PointFlags_t&& flag,
                   double chi2)
     {
@@ -93,7 +94,7 @@ namespace trkmkr {
     }
     void addPoint(Point_t&& point,
                   Vector_t&& vect,
-                  art::Ptr<Hit> hit,
+                  art::Ptr<recob::Hit> hit,
                   PointFlags_t&& flag,
                   double chi2,
                   OptionalPointElement& ope)
@@ -108,26 +109,27 @@ namespace trkmkr {
     //
     //@{
     /// Get the finalized recob::Track; needs the start and end covariance matrices.
-    Track finalizeTrack(const tracking::SMatrixSym55& covStart,
-                        const tracking::SMatrixSym55& covEnd)
+    recob::Track finalizeTrack(const recob::tracking::SMatrixSym55& covStart,
+                               const recob::tracking::SMatrixSym55& covEnd)
     {
-      return Track(ttcbk_.finalizeTrackTrajectory(),
-                   pdgHyp_,
-                   totChi2_,
-                   int(chi2v.size()) - nfittedpars,
-                   tracking::SMatrixSym55(covStart),
-                   tracking::SMatrixSym55(covEnd),
-                   tkID_);
+      return recob::Track(ttcbk_.finalizeTrackTrajectory(),
+                          pdgHyp_,
+                          totChi2_,
+                          int(chi2v.size()) - nfittedpars,
+                          recob::tracking::SMatrixSym55(covStart),
+                          recob::tracking::SMatrixSym55(covEnd),
+                          tkID_);
     }
-    Track finalizeTrack(tracking::SMatrixSym55&& covStart, tracking::SMatrixSym55&& covEnd)
+    recob::Track finalizeTrack(recob::tracking::SMatrixSym55&& covStart,
+                               recob::tracking::SMatrixSym55&& covEnd)
     {
-      return Track(ttcbk_.finalizeTrackTrajectory(),
-                   pdgHyp_,
-                   totChi2_,
-                   int(chi2v.size()) - nfittedpars,
-                   std::move(covStart),
-                   std::move(covEnd),
-                   tkID_);
+      return recob::Track(ttcbk_.finalizeTrackTrajectory(),
+                          pdgHyp_,
+                          totChi2_,
+                          int(chi2v.size()) - nfittedpars,
+                          std::move(covStart),
+                          std::move(covEnd),
+                          tkID_);
     }
     //@}
   private:

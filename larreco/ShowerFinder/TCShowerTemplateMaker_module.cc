@@ -10,6 +10,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "fhiclcpp/ParameterSet.h"
@@ -637,11 +638,11 @@ void shower::TCShowerTemplateMaker::showerProfile(detinfo::DetectorClocksData co
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
   double shwVtxTime = detProp.ConvertXToTicks(shwvtx[0], collectionPlane);
-  double shwVtxWire = geom->WireCoordinate(shwvtx[1], shwvtx[2], collectionPlane);
+  using geo::vect::toPoint;
+  double shwVtxWire = geom->WireCoordinate(toPoint(shwvtx), collectionPlane);
 
   double shwTwoTime = detProp.ConvertXToTicks(shwvtx[0] + shwdir[0], collectionPlane);
-  double shwTwoWire =
-    geom->WireCoordinate(shwvtx[1] + shwdir[1], shwvtx[2] + shwdir[2], collectionPlane);
+  double shwTwoWire = geom->WireCoordinate(toPoint(shwvtx + shwdir), collectionPlane);
 
   TH1F* ltemp = new TH1F("ltemp", "ltemp", LBINS, LMIN, LMAX);
   TH1F* ttemp = new TH1F("ttemp", "ttemp", TBINS, TMIN, TMAX);
@@ -801,10 +802,11 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(
         ztwo = zvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Pz();
 
         shwvtxT = detProp.ConvertXToTicks(xvtx, collectionPlane);
-        shwvtxW = geom->WireCoordinate(yvtx, zvtx, collectionPlane);
+        geo::Point_t const vtx{xvtx, yvtx, zvtx};
+        shwvtxW = geom->WireCoordinate(vtx, collectionPlane);
 
         shwtwoT = detProp.ConvertXToTicks(xtwo, collectionPlane);
-        shwtwoW = geom->WireCoordinate(ytwo, ztwo, collectionPlane);
+        shwtwoW = geom->WireCoordinate(vtx, collectionPlane);
 
         wirePitch = geom->WirePitch(hit->WireID());
         tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());

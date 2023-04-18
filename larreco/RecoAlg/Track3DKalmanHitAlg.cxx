@@ -552,15 +552,14 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData 
 
     geo::WireID wire_id = hit.WireID();
     const geo::WireGeo& wgeom = geom->Wire(wire_id);
-    double xyz[3];
-    wgeom.GetCenter(xyz);
+    auto const xyz = wgeom.GetCenter();
 
     // Phi convention is the one documented in SurfYZPlane.h.
 
     double phi = TMath::PiOver2() - wgeom.ThetaZ();
     double sphi = std::sin(phi);
     double cphi = std::cos(phi);
-    double w = -xyz[1] * sphi + xyz[2] * cphi;
+    double w = -xyz.Y() * sphi + xyz.Z() * cphi;
 
     double time = hit.PeakTime();
     double x = detProp.ConvertTicksToX(time, wire_id);

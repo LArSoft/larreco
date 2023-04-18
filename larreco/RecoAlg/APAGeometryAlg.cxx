@@ -12,6 +12,7 @@
 //Framework includes:
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcorealg/CoreUtils/NumericUtils.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -92,7 +93,7 @@ namespace apa {
       throw cet::exception("APAGeometryAlg") << "Channel boundaries are inconsistent.\n";
 
     // some other things that will be needed
-    fAPAsPerCryo = fGeom->NTPC(0) / 2;
+    fAPAsPerCryo = fGeom->NTPC() / 2;
     fChannelRange[0] = (fLastU - fFirstU + 1) * fGeom->WirePitch(geo::kU);
     fChannelRange[1] = (fLastV - fFirstV + 1) * fGeom->WirePitch(geo::kV);
   }
@@ -245,7 +246,10 @@ namespace apa {
     // special case for vertical wires
     if (fGeom->View(chan) == geo::kZ) return fGeom->ChannelToWire(chan)[0];
 
-    unsigned int xyzWire = fGeom->NearestWireID(WorldLoc, plane, tpc, cstat).Wire;
+    unsigned int xyzWire = fGeom
+                             ->NearestWireID(geo::Point_t{WorldLoc[0], WorldLoc[1], WorldLoc[2]},
+                                             geo::PlaneID{cstat, tpc, plane})
+                             .Wire;
 
     // The desired wire ID will be the only channel
     // segment within half the channel range.
@@ -265,30 +269,28 @@ namespace apa {
                                             std::vector<geo::WireID>& widsCrossed,
                                             bool ExtendLine = true) const
   {
-
     // This assumes a smooth wire numbering, and that the line seg is contained in a tpc.
     // Meant for use with the approximate line calculated
     // by matching cluster endpoints in disambiguation.
 
     // Find tpc, use midpoint in case start/end is on a boundary
-    unsigned int tpc, cryo;
-    double xyzMid[3];
-    xyzMid[0] = (xyzStart[0] + xyzEnd[0]) / 2;
-    xyzMid[1] = (xyzStart[1] + xyzEnd[1]) / 2;
-    xyzMid[2] = (xyzStart[2] + xyzEnd[2]) / 2;
-    fGeom->PositionToTPC(xyzMid, tpc, cryo);
+    geo::Point_t const xyzMid{
+      (xyzStart[0] + xyzEnd[0]) / 2, (xyzStart[1] + xyzEnd[1]) / 2, (xyzStart[2] + xyzEnd[2]) / 2};
+    auto const& tpcid = fGeom->PositionToTPCID(xyzMid);
 
     // Find the nearest wire number to the line segment endpoints
     std::vector<geo::WireID> wids = fGeom->ChannelToWire(chan);
-    unsigned int startW = fGeom->NearestWire(xyzStart, wids[0].Plane, tpc, cryo);
-    unsigned int endW = fGeom->NearestWire(xyzEnd, wids[0].Plane, tpc, cryo);
+    geo::PlaneID const planeID{tpcid, wids[0].Plane};
+    using geo::vect::toPoint;
+    unsigned int startW = fGeom->NearestWireID(toPoint(xyzStart), planeID).Wire;
+    unsigned int endW = fGeom->NearestWireID(toPoint(xyzEnd), planeID).Wire;
 
     if (startW > endW) std::swap(startW, endW);
 
     // Loop through wireIDs and check for intersection, if in the right TPC
     for (size_t w = 0; w < wids.size(); w++) {
-      if (wids[w].TPC != tpc) continue;
-      if (wids[w].Cryostat != cryo)
+      if (wids[w].TPC != tpcid.TPC) continue;
+      if (wids[w].Cryostat != tpcid.Cryostat)
         throw cet::exception("LineSegChanIntersect")
           << "Channel and line not in the same crostat.\n";
 
@@ -301,14 +303,11 @@ namespace apa {
       unsigned int ext = 0;
       if (ExtendLine) ext = 10;
 
-      if (fGeom->ValueInRange(wids[w].Wire * 1., (startW - ext) * 1., (endW + ext) * 1.))
+      if (lar::util::ValueInRange(wids[w].Wire * 1., (startW - ext) * 1., (endW + ext) * 1.))
         widsCrossed.push_back(wids[w]);
     }
 
-    if (widsCrossed.size() > 0)
-      return true;
-    else
-      return false;
+    return widsCrossed.size() > 0;
   }
 
   //----------------------------------------------------------
@@ -333,10 +332,9 @@ namespace apa {
       if (Uwids[i].TPC == tpc) UwidsInTPC.push_back(Uwids[i]);
     for (size_t i = 0; i < Vwids.size(); i++)
       if (Vwids[i].TPC == tpc) VwidsInTPC.push_back(Vwids[i]);
-    double Zcent[3] = {0.};
-    fGeom->WireIDToWireGeo(Zwid).GetCenter(Zcent);
+    auto const Zcent = fGeom->WireIDToWireGeo(Zwid).GetCenter();
 
-    std::cout << "Zcent = " << Zcent[2] << ", UVintersects zpos = ";
+    std::cout << "Zcent = " << Zcent.Z() << ", UVintersects zpos = ";
     for (size_t uv = 0; uv < UVIntersects.size(); uv++) {
       std::cout << UVIntersects[uv].z << ", ";
     }
@@ -384,13 +382,13 @@ namespace apa {
     // Note: this will not happen for APAs with UV angle at about 36, but will for 45
     std::cout << "UVzToZ = ";
     for (size_t widI = 0; widI < UVIntersects.size(); widI++) {
-      UVzToZ[widI] = std::abs(UVIntersects[widI].z - Zcent[2]);
+      UVzToZ[widI] = std::abs(UVIntersects[widI].z - Zcent.Z());
       std::cout << UVzToZ[widI] << ", ";
     }
     std::cout << "\n";
 
     unsigned int bestWidI = 0;
-    double minZdiff = fGeom->Cryostat(cryo).TPC(tpc).Length(); // start it out at maximum z
+    double minZdiff = fGeom->TPC(Zwid).Length(); // start it out at maximum z
     for (unsigned int widI = 0; widI < UVIntersects.size(); widI++) {
 
       //std::cout << "widI = " << widI << std::endl;
@@ -477,12 +475,12 @@ namespace apa {
             wids1[i1].Cryostat != wids2[i2].Cryostat)
           continue;
 
-        // 	std::cout << "Checking: \n WireID 1 = ("
-        // 		  << wids1[i1].Cryostat << "," << wids1[i1].TPC << ","
-        // 		  << wids1[i1].Plane    << "," << wids1[i1].Wire
-        // 		  << ") \n WireID 2 = ("
-        // 		  << wids2[i2].Cryostat << "," << wids2[i2].TPC << ","
-        // 		  << wids2[i2].Plane    << "," << wids2[i2].Wire << ")" << std::endl;
+        //      std::cout << "Checking: \n WireID 1 = ("
+        //                << wids1[i1].Cryostat << "," << wids1[i1].TPC << ","
+        //                << wids1[i1].Plane    << "," << wids1[i1].Wire
+        //                << ") \n WireID 2 = ("
+        //                << wids2[i2].Cryostat << "," << wids2[i2].TPC << ","
+        //                << wids2[i2].Plane    << "," << wids2[i2].Wire << ")" << std::endl;
 
         // Check if they even intersect; if they do, push back
         if (fGeom->WireIDsIntersect(wids1[i1], wids2[i2], widIntersect)) {

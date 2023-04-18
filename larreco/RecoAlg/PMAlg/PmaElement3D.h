@@ -12,12 +12,13 @@
 #ifndef PmaElement3D_h
 #define PmaElement3D_h
 
-#include <math.h>
+#include <cmath>
+#include <vector>
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "TVector2.h"
+class TVector2;
 #include "TVector3.h"
 
 namespace pma {

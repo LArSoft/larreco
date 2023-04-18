@@ -12,14 +12,14 @@
 #ifndef IPeakFitter_H
 #define IPeakFitter_H
 
-#include "fhiclcpp/ParameterSet.h"
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
+
+#include <vector>
 
 namespace reco_tool {
   class IPeakFitter {
   public:
     // Define standard art tool interface
-    // virtual void configure(const fhicl::ParameterSet& pset) = 0;
 
     // Define a structure to contain hits
     struct PeakFitParams_t {

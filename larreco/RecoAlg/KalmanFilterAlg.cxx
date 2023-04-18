@@ -14,6 +14,8 @@
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoObjects/KFitTrack.h"
+#include "lardata/RecoObjects/KGTrack.h"
 #include "lardata/RecoObjects/KHit.h"
 #include "lardata/RecoObjects/KHitContainer.h"
 #include "lardata/RecoObjects/SurfYZLine.h"
