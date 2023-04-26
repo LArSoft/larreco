@@ -1,0 +1,55 @@
+#include "services_sbnd.fcl"
+
+#include "CellTree.fcl"
+
+process_name: celltree
+
+services:
+{
+  #TFileService: { fileName: "test.root" }
+  #TimeTracker:   {}
+  RandomNumberGenerator: {}
+  #message:      @local::standard_info
+  @table::sbnd_basic_services
+}
+
+
+source:
+{
+  module_type: RootInput
+  fileNames:  [ "gen.root" ]
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+  analyzers:
+  {
+    wirecell: @local::standard_celltree
+  }
+  analysis: [ wirecell ]
+  end_paths: [ analysis ]
+}
+
+
+physics.analyzers.wirecell.nRawSamples : 3400
+physics.analyzers.wirecell.saveRaw: true 
+physics.analyzers.wirecell.RawDigitLabel: "simtpc2d:daq"
+#physics.analyzers.wirecell.RawDigitLabel: "daq"
+physics.analyzers.wirecell.saveSimChannel: true 
+physics.analyzers.wirecell.SimChannelLabel: "simtpc2d:simpleSC"
+#physics.analyzers.wirecell.SimChannelLabel: "simdrift"
+
+physics.analyzers.wirecell.saveCalib: true 
+physics.analyzers.wirecell.CalibLabel: "wctsp:gauss"
+
+physics.analyzers.wirecell.saveJSON : false 
+physics.analyzers.wirecell.SpacePointLabels : ["truthDepo"]
+physics.analyzers.wirecell.SimEnergyDepositLabel : "ionandscint:"
+physics.analyzers.wirecell.saveMC : false 
+
