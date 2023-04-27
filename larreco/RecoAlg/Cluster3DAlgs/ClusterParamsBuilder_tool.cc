@@ -18,6 +18,7 @@
 // std includes
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 
 namespace lar_cluster3d {
 

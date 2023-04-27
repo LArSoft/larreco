@@ -53,7 +53,7 @@ cet_make_library(LIBRARY_NAME ClusterModAlg INTERFACE
 
 cet_write_plugin_builder(lar::ClusterModAlg art::tool Modules
   INSTALL_BUILDER
-  LIBRARIES CONDITIONAL larreco::ClusterModAlg)
+  LIBRARIES CONDITIONAL larreco::ClusterModAlg art::Utilities)
 
 cet_make_library(LIBRARY_NAME ClusterParamsBuilder INTERFACE
   SOURCE IClusterParamsBuilder.h

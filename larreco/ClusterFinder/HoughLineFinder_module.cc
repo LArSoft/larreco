@@ -13,6 +13,7 @@
 //
 //  This algorithm is designed to find lines (Houghclusters) from clusters found by DBSCAN
 //  after deconvolution and hit finding.
+//
 //  The algorithm is based on:
 //  Queisser, A. "Computing the Hough Transform", C/C++ Users Journal 21, 12 (Dec. 2003).
 //  Niblack, W. and Petkovic, D. On Improving the Accuracy of the Hough Transform", Machine
@@ -61,11 +62,12 @@ namespace cluster {
     , fDBScanModuleLabel{pset.get<std::string>("DBScanModuleLabel")}
     , fHoughSeed{pset.get<unsigned int>("HoughSeed", 0)}
     , fHLAlg(pset.get<fhicl::ParameterSet>("HoughBaseAlg"))
-    // Create random number engine needed for PPHT;
-    // obtain the random seed from NuRandomService,
-    // unless overridden in configuration with key "Seed"
-    // remember that HoughSeed will override this on each event if specified
-    , fEngine(art::ServiceHandle<rndm::NuRandomService> {}->createEngine(*this, pset, "Seed"))
+    // Create random number engine needed for PPHT; obtain the random seed from
+    // NuRandomService, unless overridden in configuration with key "Seed" remember that
+    // HoughSeed will override this on each event if specified
+    , fEngine(art::ServiceHandle<rndm::NuRandomService>()->registerAndSeedEngine(createEngine(0),
+                                                                                 pset,
+                                                                                 "Seed"))
   {
     produces<std::vector<recob::Cluster>>();
     produces<art::Assns<recob::Cluster, recob::Hit>>();
