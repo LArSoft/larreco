@@ -249,7 +249,7 @@ fwdir	product_dir	config_data
 ####################################
 product		version		qual	flags		<table_format=2>
 eigen		v3_4_0		-
-larsim		v09_34_01	-
+larsim		v09_35_00	-
 rstartree	v2016_07	-
 cetmodules	v3_20_00	-	only_for_build
 end_product_list
