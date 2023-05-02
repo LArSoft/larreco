@@ -61,7 +61,7 @@ namespace DUNE {
     void processEff(const art::Event& evt, bool& isFiducial);
 
     void truthMatcher(detinfo::DetectorClocksData const& clockData,
-                      std::vector<art::Ptr<recob::Hit>> AllHits,
+                      std::vector<recob::Hit> const& AllHits,
                       std::vector<art::Ptr<recob::Hit>> track_hits,
                       const simb::MCParticle*& MCparticle,
                       double& Purity,
@@ -1219,10 +1219,8 @@ namespace DUNE {
 
     const simb::MCParticle* RecoMuonParticle = NULL;
 
-    std::vector<art::Ptr<recob::Hit>> tmp_TrackHits = track_hits.at(0);
-    std::vector<art::Ptr<recob::Hit>> AllHits;
-    art::Handle<std::vector<recob::Hit>> HitHandle;
-    if (event.get(tmp_TrackHits[0].id(), HitHandle)) art::fill_ptr_vector(AllHits, HitHandle);
+    std::vector<art::Ptr<recob::Hit>> const& tmp_TrackHits = track_hits.at(0);
+    std::vector<recob::Hit> const& AllHits = tmp_TrackHits[0].parentAs<std::vector>();
 
     auto const clockData =
       art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(event);
@@ -1565,7 +1563,7 @@ namespace DUNE {
   }
   //========================================================================
   void MuonTrackingEff::truthMatcher(detinfo::DetectorClocksData const& clockData,
-                                     std::vector<art::Ptr<recob::Hit>> AllHits,
+                                     std::vector<recob::Hit> const& AllHits,
                                      std::vector<art::Ptr<recob::Hit>> track_hits,
                                      const simb::MCParticle*& MCparticle,
                                      double& Purity,
@@ -1637,10 +1635,7 @@ namespace DUNE {
 
     // completeness
     TotalRecoEnergy = 0;
-    for (size_t k = 0; k < AllHits.size();
-         ++k) { // loop over all hits (all hits in all tracks of the event, not
-                // only the hits in the track we were looking at before)
-      art::Ptr<recob::Hit> hit = AllHits[k];
+    for (recob::Hit const& hit : AllHits) {
       std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
       for (size_t l = 0; l < TrackIDs.size(); ++l) { // and over all track IDs of the hits
         if (TrackIDs[l].trackID == TrackID)

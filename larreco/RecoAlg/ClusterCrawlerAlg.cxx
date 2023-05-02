@@ -16,6 +16,7 @@
 #include <iostream>
 
 // framework libraries
+#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "canvas/Utilities/Exception.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"

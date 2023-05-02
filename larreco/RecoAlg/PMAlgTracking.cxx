@@ -13,6 +13,7 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
+#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMath.h"

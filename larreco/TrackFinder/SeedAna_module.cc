@@ -23,6 +23,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art_root_io/TFileService.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -39,7 +40,7 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  double bdist(const TVector3& pos)
   {
     // Get geometry.
 
