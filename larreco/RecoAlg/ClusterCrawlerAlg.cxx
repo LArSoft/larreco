@@ -412,10 +412,8 @@ namespace cluster {
             clBeginChg = 0;
             // Calculate the average width
             fAveHitWidth = 0;
-            float chg = 0;
             for (unsigned short kk = 0; kk < fcl2hits.size(); ++kk) {
               fAveHitWidth += fHits[fcl2hits[kk]].EndTick() - fHits[fcl2hits[kk]].StartTick();
-              chg += fHits[fcl2hits[kk]].Integral();
             }
             fAveHitWidth /= (float)fcl2hits.size();
             // decide whether to crawl a large angle cluster. Requirements are:
@@ -5274,7 +5272,7 @@ namespace cluster {
     vtxprt = (fDebugPlane >= 0) && (fDebugHit == 6666);
 
     unsigned int lastplane = 5, kcl, kclID;
-    float dth, theTime;
+    float theTime;
     unsigned int thePlane, theWire, plane;
     unsigned int loWire, hiWire;
 
@@ -5388,8 +5386,7 @@ namespace cluster {
             FitClusterMid(icl, iht, nhitfit);
             float doca = DoCA(-1, 1, theWire, theTime);
             if (vtxprt)
-              mf::LogVerbatim("CC")
-                << " cls " << icl << " dth " << dth << " DoCA " << doca << " tErr " << tErr;
+              mf::LogVerbatim("CC") << " cls " << icl << " DoCA " << doca << " tErr " << tErr;
             if ((doca / tErr) > 2) clIDs[ii] = -1;
             didit = true;
             break;

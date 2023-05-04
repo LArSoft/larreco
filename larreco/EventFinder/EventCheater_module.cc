@@ -117,12 +117,12 @@ namespace event {
       eventcol->push_back(recob::Event(eventcol->size() - 1));
 
       // associate the event with its vertices
-      util::CreateAssn(*this, evt, *eventcol, verts, *evassn);
+      util::CreateAssn(evt, *eventcol, verts, *evassn);
 
       // get the hits associated with each vertex and associate those with the event
       for (size_t p = 0; p < ptrvs.size(); ++p) {
         std::vector<art::Ptr<recob::Hit>> hits = fm.at(p);
-        util::CreateAssn(*this, evt, *eventcol, hits, *ehassn);
+        util::CreateAssn(evt, *eventcol, hits, *ehassn);
       }
 
       mf::LogInfo("EventCheater") << "adding event: \n" << eventcol->back() << "\nto collection";

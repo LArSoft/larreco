@@ -237,34 +237,17 @@ namespace shwf {
 
         if (protoShowers.empty()) continue;
 
-        // loop over hits in the protoShowers to determine the total charge of the shower
-        double totalCharge = 0.;
-
-        for (size_t p = 0; p < protoShowers.size(); ++p) {
-          const size_t psIndex = protoShowers[p];
-          for (art::Ptr<recob::Hit> const& hit : fmh.at(psIndex))
-            if (hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
-        }
-
-        /// \todo really need to determine the values of the arguments of the recob::Shower ctor
-        // fill with bogus values for now
-        //double dcosVtx[3]    = { util::kBogusD };
-        //double dcosVtxErr[3] = { util::kBogusD };
-        //double maxTransWidth[2] = { util::kBogusD };
-        //double distMaxWidth = util::kBogusD;
-
-        //showercol->push_back( recob::Shower(dcosVtx, dcosVtxErr, maxTransWidth, totalCharge, distMaxWidth) );
         showercol->push_back(recob::Shower());
 
         // associate the shower with its clusters
         util::CreateAssn(
-          *this, evt, *cassn, showercol->size() - 1, protoShowers.begin(), protoShowers.end());
+          evt, *cassn, showercol->size() - 1, protoShowers.begin(), protoShowers.end());
 
         // get the hits associated with each cluster and associate those with the shower
         for (size_t p = 0; p < protoShowers.size(); ++p) {
           const size_t psIndex = protoShowers[p];
           std::vector<art::Ptr<recob::Hit>> hits = fmh.at(psIndex);
-          util::CreateAssn(*this, evt, *showercol, hits, *hassn);
+          util::CreateAssn(evt, *showercol, hits, *hassn);
         }
 
       } //end scan loop

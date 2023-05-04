@@ -468,7 +468,6 @@ namespace trkf {
 
       // Calculate y and z by chisquare minimization of wire coordinates.
 
-      double sw = 0.;  // sum w_i
       double sus = 0.; // sum w_i u_i sin_th_i
       double suc = 0.; // sum w_i u_i cos_th_i
       double sc2 = 0.; // sum w_i cos2_th_i
@@ -497,7 +496,6 @@ namespace trkf {
 
         // Summations
 
-        sw += w;
         sus += w * u * s;
         suc += w * u * c;
         sc2 += w * c * c;
@@ -703,7 +701,6 @@ namespace trkf {
 
       // Calculate y and z by chisquare minimization of wire coordinates.
 
-      double sw = 0.;  // sum w_i
       double sus = 0.; // sum w_i u_i sin_th_i
       double suc = 0.; // sum w_i u_i cos_th_i
       double sc2 = 0.; // sum w_i cos2_th_i
@@ -732,7 +729,6 @@ namespace trkf {
 
         // Summations
 
-        sw += w;
         sus += w * u * s;
         suc += w * u * c;
         sc2 += w * c * c;

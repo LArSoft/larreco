@@ -1072,11 +1072,7 @@ namespace trkf {
           TVector3 const rot_here{Rx.Dot(here_vec), Ry.Dot(here_vec), Rz.Dot(here_vec)};
 
           double const scx = rot_here.X();
-          double const scy = rot_here.Y();
           double const scz = rot_here.Z();
-
-          double azy = find_angle(scz, scy);
-          azy *= 1.0;
 
           double const azx = find_angle(scz, scx);
 

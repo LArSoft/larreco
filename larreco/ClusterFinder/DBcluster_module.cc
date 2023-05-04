@@ -145,13 +145,9 @@ namespace cluster {
 
       for (size_t i = 0; i < fDBScan.fclusters.size(); ++i) {
         art::PtrVector<recob::Hit> clusterHits;
-        double totalQ = 0.;
 
         for (size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j) {
-          if (fDBScan.fpointId_to_clusterId[j] == i) {
-            clusterHits.push_back(allhits[j]);
-            totalQ += clusterHits.back()->Integral();
-          }
+          if (fDBScan.fpointId_to_clusterId[j] == i) { clusterHits.push_back(allhits[j]); }
         }
 
         if (clusterHits.empty()) continue;

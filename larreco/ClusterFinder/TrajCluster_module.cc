@@ -529,7 +529,7 @@ namespace cluster {
             sumChg += hit.Integral();
             sumADC += hit.SummedADC();
             if (!slices.empty() &&
-                !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn, indx)) {
+                !util::CreateAssn(evt, hitCol, slices[slcIndex], *slc_hit_assn, indx)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate hits with Slice";
             }
@@ -569,13 +569,13 @@ namespace cluster {
                               recob::Cluster::Sentry  // sentry
           );
           if (!util::CreateAssn(
-                *this, evt, clsCol, hitCol, *cls_hit_assn, hitColBeginIndex, hitCol.size())) {
+                evt, clsCol, hitCol, *cls_hit_assn, hitColBeginIndex, hitCol.size())) {
             throw art::Exception(art::errors::ProductRegistrationFailure)
               << "Failed to associate hits with cluster ID " << tj.UID;
           } // exception
           // make Slice -> cluster assn
           if (!slices.empty()) {
-            if (!util::CreateAssn(*this, evt, clsCol, slices[slcIndex], *slc_cls_assn)) {
+            if (!util::CreateAssn(evt, clsCol, slices[slcIndex], *slc_cls_assn)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate slice with PFParticle";
             } // exception
@@ -587,7 +587,7 @@ namespace cluster {
               if (vx2str.slIndx != isl) continue;
               if (vx2str.ID != tj.VtxID[end]) continue;
               if (!util::CreateAssnD(
-                    *this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
+                    evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
                 throw art::Exception(art::errors::ProductRegistrationFailure)
                   << "Failed to associate cluster " << tj.UID << " with EndPoint2D";
               } // exception
@@ -597,7 +597,7 @@ namespace cluster {
                   if (vx3str.slIndx != isl) continue;
                   if (vx3str.ID != vx2.Vx3ID) continue;
                   if (!util::CreateAssnD(
-                        *this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end)) {
+                        evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end)) {
                     throw art::Exception(art::errors::ProductRegistrationFailure)
                       << "Failed to associate cluster " << tj.UID << " with Vertex";
                   } // exception
@@ -637,7 +637,7 @@ namespace cluster {
           for (unsigned int iht = 0; iht < ss3.Hits.size(); ++iht)
             shwHits[iht] = newIndex[ss3.Hits[iht]];
           if (!util::CreateAssn(
-                *this, evt, *shwr_hit_assn, shwCol.size() - 1, shwHits.begin(), shwHits.end())) {
+                evt, *shwr_hit_assn, shwCol.size() - 1, shwHits.begin(), shwHits.end())) {
             throw art::Exception(art::errors::ProductRegistrationFailure)
               << "Failed to associate hits with Shower";
           } // exception
@@ -700,7 +700,7 @@ namespace cluster {
               if (vx3str.ID != pfp.Vx3ID[0]) continue;
               std::vector<unsigned short> indx(1, vx3str.vxColIndx);
               if (!util::CreateAssn(
-                    *this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end())) {
+                    evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end())) {
                 throw art::Exception(art::errors::ProductRegistrationFailure)
                   << "Failed to associate PFParticle " << pfp.UID << " with Vertex";
               } // exception
@@ -723,7 +723,7 @@ namespace cluster {
           }   // seeds exist
           // PFParticle -> Slice
           if (!slices.empty()) {
-            if (!util::CreateAssn(*this, evt, pfpCol, slices[slcIndex], *slc_pfp_assn)) {
+            if (!util::CreateAssn(evt, pfpCol, slices[slcIndex], *slc_pfp_assn)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate slice with PFParticle";
             } // exception
@@ -759,7 +759,7 @@ namespace cluster {
             tempPt2.push_back(-999);
             ctCol.emplace_back(tempPt1, tempPt2, pfp.CosmicScore, anab::CosmicTagID_t::kNotTagged);
             if (!util::CreateAssn(
-                  *this, evt, pfpCol, ctCol, *pfp_cos_assn, ctCol.size() - 1, ctCol.size())) {
+                  evt, pfpCol, ctCol, *pfp_cos_assn, ctCol.size() - 1, ctCol.size())) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate CosmicTag with PFParticle";
             }
@@ -784,7 +784,7 @@ namespace cluster {
               if (hit.key() != allHitsIndex) continue;
               gotit = true;
               // Slice -> Hit assn
-              if (!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn)) {
+              if (!util::CreateAssn(evt, hitCol, slices[isl], *slc_hit_assn)) {
                 throw art::Exception(art::errors::ProductRegistrationFailure)
                   << "Failed to associate old Hit with Slice";
               } // exception
@@ -816,7 +816,7 @@ namespace cluster {
           auto& sp_from_hit = spFromHit.at(allHitsIndex);
           for (auto& sp : sp_from_hit) {
             // SpacePoint -> Hit assn
-            if (!util::CreateAssn(*this, evt, hitCol, sp, *sp_hit_assn, newIndex[allHitsIndex])) {
+            if (!util::CreateAssn(evt, hitCol, sp, *sp_hit_assn, newIndex[allHitsIndex])) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate new Hit with SpacePoint";
             } // exception

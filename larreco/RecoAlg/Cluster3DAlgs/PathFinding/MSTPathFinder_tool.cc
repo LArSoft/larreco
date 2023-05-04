@@ -988,12 +988,9 @@ namespace lar_cluster3d {
 
     // If we found the convex hull then build edges around the region
     if (!convexHullVec.empty()) {
-      size_t nRejectedTotal(0);
       reco::HitPairListPtr locHitPairListPtr = hitPairListPtr;
 
       for (const auto& rejectedList : rejectedListVec) {
-        nRejectedTotal += rejectedList.size();
-
         for (const auto& rejectedPoint : rejectedList) {
           if (convexHullVec.back().findNearestDistance(rejectedPoint) > 0.5)
             locHitPairListPtr.remove(std::get<2>(rejectedPoint));

@@ -99,7 +99,7 @@ namespace cluster {
       new art::Assns<recob::EndPoint2D, recob::Hit>);
 
     for (size_t v = 0; v < vtxcol->size(); ++v)
-      util::CreateAssn(*this, evt, *(vtxcol.get()), vtxHitsOut[v], *(assn.get()), v);
+      util::CreateAssn(evt, *(vtxcol.get()), vtxHitsOut[v], *(assn.get()), v);
 
     evt.put(std::move(vtxcol));
     evt.put(std::move(assn));

@@ -380,7 +380,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
           anab::Calorimetry(util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane));
       }
 
-      util::CreateAssn(*this, evt, *outputCalo, tracklist[trk_i], *outputCaloAssn);
+      util::CreateAssn(evt, *outputCalo, tracklist[trk_i], *outputCaloAssn);
 
     } // end iterate over planes
 

@@ -284,7 +284,7 @@ namespace trkf {
               (std::fabs(sp_pos[1] - hy) > 1.0e-5) || (std::fabs(sp_pos[2] - hz) > 1.0e-5)) {
             if (sp_hits.size()) // hits assigned to the previous sp
             {
-              util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+              util::CreateAssn(evt, *allsp, sp_hits, *sp2hit);
               sp_hits.clear();
             }
             sp_pos[0] = hx;
@@ -297,11 +297,11 @@ namespace trkf {
 
         if (sp_hits.size()) // hits assigned to the last sp
         {
-          util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+          util::CreateAssn(evt, *allsp, sp_hits, *sp2hit);
         }
         spEnd = allsp->size();
 
-        if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+        if (spEnd > spStart) util::CreateAssn(evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 
         // if there is a PFParticle collection then recover PFParticle and add info to map
         if (result[trkIndex].Key() > -1) {
@@ -394,7 +394,7 @@ namespace trkf {
           << ", #tracks: " << pfParticleItr.second.size();
 
         if (!pfParticle.isNull())
-          util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfp2trk);
+          util::CreateAssn(evt, pfParticle, pfParticleItr.second, *pfp2trk);
         else
           mf::LogError("PMAlgTrajFitter")
             << "Error in PFParticle lookup, pfparticle index: " << pfParticleItr.first

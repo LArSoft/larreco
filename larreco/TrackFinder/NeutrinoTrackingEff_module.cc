@@ -886,7 +886,6 @@ namespace DUNE {
         trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;
       }
     }
-    double E_em = 0.0;
     double max_E = -999.0;
     double total_E = 0.0;
     int TrackID = -999;
@@ -906,7 +905,6 @@ namespace DUNE {
         partial_E = ii->second;
         max_E = ii->second;
         TrackID = ii->first;
-        if (TrackID < 0) E_em += ii->second;
       }
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);

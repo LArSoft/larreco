@@ -1072,12 +1072,12 @@ namespace trkf {
             if (rePass == 1) tcnt1++; // won't get here if Trackfit failed.
             if (rePass != 1 && tcnt1) tcol->pop_back();
             tcol->push_back(the3DTrack);
-            util::CreateAssn(*this, evt, *tcol, spacepointss, *tspassn);
+            util::CreateAssn(evt, *tcol, spacepointss, *tspassn);
             art::PtrVector<recob::Hit> hits; // = hitAssns;
             for (unsigned int ii = 0; ii < spacepointss.size(); ++ii) {
               hits.insert(hits.end(), hitAssns.at(ii).begin(), hitAssns.at(ii).end());
             }
-            util::CreateAssn(*this, evt, *tcol, hits, *thassn, tcol->size() - 1);
+            util::CreateAssn(evt, *tcol, hits, *thassn, tcol->size() - 1);
           } // end !skipFill
         }   // getStatusFlag
 

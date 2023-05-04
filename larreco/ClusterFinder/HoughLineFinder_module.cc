@@ -112,7 +112,7 @@ namespace cluster {
       mf::LogVerbatim("Summary") << ccol->at(i);
 
       // associate the hits to this cluster
-      util::CreateAssn(*this, evt, *ccol, clusHitsOut[i], *assn, i);
+      util::CreateAssn(evt, *ccol, clusHitsOut[i], *assn, i);
     }
 
     evt.put(move(ccol));

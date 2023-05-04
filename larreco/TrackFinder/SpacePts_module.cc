@@ -566,7 +566,7 @@ namespace trkf {
             }
             spacepoints.push_back(mysp);
             spcol->push_back(mysp);
-            util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
+            util::CreateAssn(evt, *spcol, sp_hits, *shassn);
 
           } //loop over min-hits
 
@@ -597,15 +597,15 @@ namespace trkf {
                            tcol->size()));
 
             // make associations between the track and space points
-            util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+            util::CreateAssn(evt, *tcol, *spcol, *tspassn, spStart, spEnd);
 
             // now the track and clusters
-            util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+            util::CreateAssn(evt, *tcol, clustersPerTrack, *tcassn);
 
             // and the hits and track
             art::FindManyP<recob::Hit> fmh(clustersPerTrack, evt, fClusterModuleLabel);
             for (size_t cpt = 0; cpt < clustersPerTrack.size(); ++cpt)
-              util::CreateAssn(*this, evt, *tcol, fmh.at(cpt), *thassn);
+              util::CreateAssn(evt, *tcol, fmh.at(cpt), *thassn);
           }
         } //close match 2D tracks
 

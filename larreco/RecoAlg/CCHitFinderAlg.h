@@ -176,7 +176,7 @@ namespace hit {
 
     std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
 
-    typedef struct {
+    struct FitStats_t {
       unsigned int FastFits;                   ///< count of single-Gaussian fast fits
       std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
 
@@ -185,8 +185,7 @@ namespace hit {
       void AddMultiGaus(unsigned int nGaus);
 
       void AddFast() { ++FastFits; }
-
-    } FitStats_t;
+    };
 
     FitStats_t FinalFitStats; ///< counts of the good fits
     FitStats_t TriedFitStats; ///< counts of the tried fits

@@ -117,8 +117,6 @@ namespace shwf {
 
       size_t startSPIndx = spcol->size();
 
-      double totalCharge = 0.;
-
       std::vector<art::Ptr<recob::Cluster>> ptrvs;
       std::vector<size_t> idxs;
 
@@ -136,7 +134,6 @@ namespace shwf {
         for (size_t h = 0; h < hits.size(); ++h) {
           art::Ptr<recob::Hit> hit = hits[h];
           // add up the charge from the hits on the collection plane
-          if (hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
           std::vector<double> xyz = bt_serv->HitToXYZ(clockData, hit);
           double sperr[6] = {0.01, 0.01, 0.1, 0.001, 0.001, 0.001};
 
@@ -146,7 +143,7 @@ namespace shwf {
           spcol->push_back(sp);
 
           // associate the space point to the hit
-          util::CreateAssn(*this, evt, *spcol, hit, *sphassn);
+          util::CreateAssn(evt, *spcol, hit, *sphassn);
 
         } // end loop over hits
       }   // end loop over pairs of index values and cluster Ptrs
@@ -180,22 +177,18 @@ namespace shwf {
         s.set_id(showercol->size());
         s.set_direction(dcos);
         s.set_direction_err(dcosErr);
-        /*
-	showercol->push_back(recob::Shower(dcos, dcosErr, maxTransWidth,
-					   distanceMaxWidth, totalCharge, clusterMapItr.first));
-	*/
         showercol->push_back(s);
         // associate the shower with its clusters
-        util::CreateAssn(*this, evt, *showercol, ptrvs, *scassn);
+        util::CreateAssn(evt, *showercol, ptrvs, *scassn);
 
         // get the hits associated with each cluster and associate those with the shower
         for (size_t i = 0; i < idxs.size(); ++i) {
           std::vector<art::Ptr<recob::Hit>> hits = fmh.at(i);
-          util::CreateAssn(*this, evt, *showercol, hits, *shassn);
+          util::CreateAssn(evt, *showercol, hits, *shassn);
         }
 
         // associate the shower with the space points
-        util::CreateAssn(*this, evt, *showercol, *spcol, *sspassn, startSPIndx, endSPIndx);
+        util::CreateAssn(evt, *showercol, *spcol, *sspassn, startSPIndx, endSPIndx);
 
         mf::LogInfo("ShowerCheater") << "adding shower: \n"
                                      << showercol->back() << "\nto collection.";

@@ -209,21 +209,21 @@ namespace vertex {
       // associate the vertex with its showers and tracks
 
       if (ptrvtrk.size() > 0) {
-        util::CreateAssn(*this, evt, *vertexcol, ptrvtrk, *vtassn);
+        util::CreateAssn(evt, *vertexcol, ptrvtrk, *vtassn);
 
         // get the hits associated with each track and associate those with the vertex
         for (auto const& i : idxTrk) {
           std::vector<art::Ptr<recob::Hit>> hits = fmht.at(i);
-          util::CreateAssn(*this, evt, *vertexcol, hits, *vhassn);
+          util::CreateAssn(evt, *vertexcol, hits, *vhassn);
         }
       }
 
       if (ptrvshw.size() > 0) {
-        util::CreateAssn(*this, evt, *vertexcol, ptrvshw, *vsassn);
+        util::CreateAssn(evt, *vertexcol, ptrvshw, *vsassn);
         // get the hits associated with each shower and associate those with the vertex
         for (auto const& i : idxShw) {
           std::vector<art::Ptr<recob::Hit>> hits = fmhs.at(i);
-          util::CreateAssn(*this, evt, *vertexcol, hits, *vhassn);
+          util::CreateAssn(evt, *vertexcol, hits, *vhassn);
         }
       }
 

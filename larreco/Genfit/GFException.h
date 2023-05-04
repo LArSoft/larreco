@@ -88,7 +88,7 @@ public:
   void info();
 
   //! standard error message handling for exceptions. use like "std::cerr << e.what();"
-  virtual const char* what() const throw();
+  const char* what() const noexcept override;
 
   std::string getExcString() { return fExcString; }
 

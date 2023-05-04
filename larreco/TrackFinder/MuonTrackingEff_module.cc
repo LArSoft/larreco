@@ -1211,7 +1211,6 @@ namespace DUNE {
     double PuritySecondMuon = 0.;
     art::Ptr<recob::Track> TrackSecondMuon;
 
-    double TrackLengthMuonSum = 0.;
     double tmpTotalRecoEnergy = 0.;
 
     double MaxLengthNoRecoMuon = 0;
@@ -1251,7 +1250,6 @@ namespace DUNE {
           tmpCompleteness > 0 && tmpPurity > 0) {
 
         NMuonTracks++;
-        TrackLengthMuonSum += track->Length();
 
         if (NMuonTracks == 1) {
           CompletenessLeadingMuon = tmpCompleteness;
@@ -1592,7 +1590,6 @@ namespace DUNE {
       }
     }
 
-    double E_em = 0.0;
     double max_E = -999.0;
     double TotalEnergyTrack = 0.0;
     int TrackID = -999;
@@ -1616,10 +1613,9 @@ namespace DUNE {
                                       // track.  this is PartialEnergyTrackID and max_E then
         PartialEnergyTrackID = ii->second;
         max_E = ii->second;
-        TrackID = ii->first;                 // saving trackID of the ID with the highest energy
-                                             // contribution in the track to assign it to
-                                             // MCparticle later
-        if (TrackID < 0) E_em += ii->second; // IDs of em shower particles are negative
+        TrackID = ii->first; // saving trackID of the ID with the highest energy
+                             // contribution in the track to assign it to
+                             // MCparticle later
       }
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
@@ -1630,7 +1626,6 @@ namespace DUNE {
     // particle we don't want to track gammas or any other EM activity
     if (TrackID < 0) { return; }
 
-    // Purity = (PartialEnergyTrackID+E_em)/TotalEnergyTrack;
     Purity = PartialEnergyTrackID / TotalEnergyTrack;
 
     // completeness

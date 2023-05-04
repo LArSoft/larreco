@@ -354,10 +354,10 @@ namespace vertex {
       if (!vTrackIndices.empty()) {
         // associate the tracks and their hits with the vertex
         util::CreateAssn(
-          *this, evt, *vtassn, vcol->size() - 1, vTrackIndices.begin(), vTrackIndices.end());
+          evt, *vtassn, vcol->size() - 1, vTrackIndices.begin(), vTrackIndices.end());
         for (size_t tIndex : vTrackIndices) {
           std::vector<art::Ptr<recob::Hit>> const& hits = TrackHits.at(tIndex);
-          util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
+          util::CreateAssn(evt, *vcol, hits, *vhassn);
         }
         vTrackIndices.clear();
       } // if tracks
@@ -365,10 +365,10 @@ namespace vertex {
       if (!vShowerIndices.empty()) {
         // associate the showers and their hits with the vertex
         util::CreateAssn(
-          *this, evt, *vsassn, vcol->size() - 1, vShowerIndices.begin(), vShowerIndices.end());
+          evt, *vsassn, vcol->size() - 1, vShowerIndices.begin(), vShowerIndices.end());
         for (size_t sIndex : vShowerIndices) {
           std::vector<art::Ptr<recob::Hit>> const& hits = ShowerHits.at(sIndex);
-          util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
+          util::CreateAssn(evt, *vcol, hits, *vhassn);
         }
         vShowerIndices.clear();
       } // if showers
