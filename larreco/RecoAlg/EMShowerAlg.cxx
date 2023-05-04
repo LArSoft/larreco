@@ -1882,7 +1882,7 @@ double shower::EMShowerAlg::ShowerHitRMSGradient_(
 
   // Get the gradient of the RMS-bin plot
   double sumx = 0., sumy = 0., sumx2 = 0., sumxy = 0., sumweight = 0.;
-  for (auto const [bin, RMSBin] : binVsRMS) {
+  for (auto const& [bin, RMSBin] : binVsRMS) {
     double weight = segmentCharge.at(bin);
     sumweight += weight;
     sumx += weight * bin;

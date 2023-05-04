@@ -14,6 +14,7 @@
 #ifndef RECOTOOL_CMERGEBOOKKEEPER_H
 #define RECOTOOL_CMERGEBOOKKEEPER_H
 
+#include <cstddef>
 #include <vector>
 
 namespace cmtool {
