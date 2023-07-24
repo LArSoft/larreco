@@ -30,7 +30,7 @@ standard_spacepointsolver:
 
   # Experiment specific tool for reading hits
   HitReaderTool: @local::standard_Hits
-  
+
   # Minimum number of hits required in an event to run the spacepoint solver
   MinNHits: 20
 }
