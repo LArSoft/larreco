@@ -188,11 +188,11 @@ private:
   bool fIsCandidateIDset;
 };
 
-class ems::bDistCentMore2D : public std::binary_function<Hit2D*, Hit2D*, bool> {
+class ems::bDistCentMore2D {
 public:
   bDistCentMore2D(const TVector2& c) : center(c) {}
 
-  bool operator()(Hit2D* p1, Hit2D* p2)
+  bool operator()(Hit2D* p1, Hit2D* p2) const
   {
     double dx = p1->GetPointCm().X() - center.X();
     double dy = p1->GetPointCm().Y() - center.Y();
@@ -208,11 +208,11 @@ private:
   TVector2 center;
 };
 
-class ems::bDistCentLess2D : public std::binary_function<Hit2D*, Hit2D*, bool> {
+class ems::bDistCentLess2D {
 public:
   bDistCentLess2D(const TVector2& c) : center(c) {}
 
-  bool operator()(Hit2D* p1, Hit2D* p2)
+  bool operator()(Hit2D* p1, Hit2D* p2) const
   {
     double dx = p1->GetPointCm().X() - center.X();
     double dy = p1->GetPointCm().Y() - center.Y();

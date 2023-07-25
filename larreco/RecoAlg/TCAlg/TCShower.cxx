@@ -1003,7 +1003,6 @@ namespace tca {
       double sumy = 0.;
       double sumxy = 0.;
       double sumx2 = 0.;
-      double sumy2 = 0.;
       for (auto& shpt : ss.ShPts) {
         sum += shpt.Chg;
         double xx = shpt.Pos[0] - stp1.Pos[0];
@@ -1012,7 +1011,6 @@ namespace tca {
         sumy += shpt.Chg * yy;
         sumxy += shpt.Chg * xx * yy;
         sumx2 += shpt.Chg * xx * xx;
-        sumy2 += shpt.Chg * yy * yy;
       } // shpt
       double delta = sum * sumx2 - sumx * sumx;
       if (delta == 0) return false;

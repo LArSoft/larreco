@@ -514,7 +514,6 @@ namespace tca {
         << " stp ___Pos____  nTPH  Chg ChgPull  Delta  DRMS  chgWid nTkLk nShLk";
     }
     unsigned short plane = DecodeCTP(ltp.CTP).Plane;
-    float totHits = 0;
     fctj.TotChg = 0;
     float maxChg = 0;
     unsigned short maxChgPt = 0;
@@ -547,7 +546,6 @@ namespace tca {
           ltp.Delta = PointTrajDOCA(slc, ltp.HitPos[0], ltp.HitPos[1], ltp);
           ltp.DeltaRMS = ltp.Delta / window;
           ltp.Environment.reset();
-          totHits += ltp.Hits.size();
           if (ltp.Chg > maxChg) {
             maxChg = ltp.Chg;
             maxChgPt = fctj.Pts.size();

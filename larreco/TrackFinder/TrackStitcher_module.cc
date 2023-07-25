@@ -161,11 +161,11 @@ namespace trkf {
     for (size_t ii = 0; ii < tvcol->size(); ii++) {
       const art::PtrVector<recob::Hit>& hits(GetHitsFromComponentTracks(tvcol->at(ii), evt));
       // Now make the Assns of relevant Hits to stitched Track
-      util::CreateAssn(*this, evt, *tcol, hits, *thassn, ii);
+      util::CreateAssn(evt, *tcol, hits, *thassn, ii);
       const art::PtrVector<recob::SpacePoint>& sppts(
         GetSpacePointsFromComponentTracks(tvcol->at(ii), evt));
       // Now make the Assns of relevant Sppts to stitched Track
-      util::CreateAssn(*this, evt, *tcol, sppts, *tsptassn, ii);
+      util::CreateAssn(evt, *tcol, sppts, *tsptassn, ii);
 
       // Now Assns of sppts to hits. For this Sppt
       // I call the function to bring back the vec of associated Hits and the vector of
@@ -210,7 +210,7 @@ namespace trkf {
         if (ll < scol->size()) {
           std::vector<art::Ptr<recob::Hit>> hitsThisSppt;
           hitsThisSppt.insert(hitsThisSppt.begin(), pits.at(jj).first, pits.at(jj).second);
-          util::CreateAssn(*this, evt, scol->at(ll), hitsThisSppt, *spthassn);
+          util::CreateAssn(evt, scol->at(ll), hitsThisSppt, *spthassn);
         }
       }
     }

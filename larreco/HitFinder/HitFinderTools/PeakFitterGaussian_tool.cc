@@ -457,7 +457,7 @@ namespace reco_tool {
   {
     float minDiff(std::numeric_limits<float>::max());
     ICandidateHitFinder::HitCandidate const* minHit;
-    PeakFitParams_t const* minPeak;
+    PeakFitParams_t const* minPeak{nullptr};
 
     for (auto const& hitCand : hitCandidateVec) {
       for (auto const& fittedPeak : fittedPeakVec) {
@@ -469,6 +469,8 @@ namespace reco_tool {
         }
       }
     }
+
+    assert(minPeak);
     return std::pair<ICandidateHitFinder::HitCandidate, PeakFitParams_t>(*minHit, *minPeak);
   }
 

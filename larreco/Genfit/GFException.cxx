@@ -27,7 +27,13 @@ bool GFException::fQuiet = false;
 
 GFException::GFException(std::string _excString, int _line, std::string _file)
   : fExcString(_excString), fLine(_line), fFile(_file), fFatal(false)
-{}
+{
+  std::ostringstream returnStream;
+  returnStream << "GFException thrown with excString:\n"
+               << fExcString << "\nin line: " << fLine << " in file: " << fFile
+               << "\nwith fatal flag " << fFatal << '\n';
+  fExcString = returnStream.str();
+}
 
 GFException::~GFException() throw() {}
 
@@ -46,15 +52,10 @@ GFException& GFException::setMatrices(std::string _matricesLabel,
   return *this;
 }
 
-const char* GFException::what() const throw()
+const char* GFException::what() const noexcept
 {
   if (fQuiet) return "";
-  std::ostringstream returnStream;
-  returnStream << "GFException thrown with excString:" << std::endl
-               << fExcString << std::endl
-               << "in line: " << fLine << " in file: " << fFile << std::endl
-               << "with fatal flag " << fFatal << std::endl;
-  return returnStream.str().c_str();
+  return fExcString.c_str();
 }
 
 void GFException::info()

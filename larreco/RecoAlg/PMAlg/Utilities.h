@@ -95,24 +95,23 @@ namespace pma {
                          unsigned int cryo);
 }
 
-struct pma::bTrajectory3DOrderLess : public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool> {
-  bool operator()(pma::Hit3D* h1, pma::Hit3D* h2);
+struct pma::bTrajectory3DOrderLess {
+  bool operator()(pma::Hit3D* h1, pma::Hit3D* h2) const;
 };
 
-struct pma::bTrajectory3DDistLess : public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool> {
-  bool operator()(pma::Hit3D* h1, pma::Hit3D* h2);
+struct pma::bTrajectory3DDistLess {
+  bool operator()(pma::Hit3D* h1, pma::Hit3D* h2) const;
 };
 
-struct pma::bTrack3DLonger
-  : public std::binary_function<const pma::TrkCandidate&, const pma::TrkCandidate&, bool> {
-  bool operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2);
+struct pma::bTrack3DLonger {
+  bool operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2) const;
 };
 
-class pma::bSegmentProjLess : public std::binary_function<TVector3*, TVector3*, bool> {
+class pma::bSegmentProjLess {
 public:
   bSegmentProjLess(const TVector3& s0, const TVector3& s1);
 
-  bool operator()(TVector3* p1, TVector3* p2)
+  bool operator()(TVector3* p1, TVector3* p2) const
   {
     if (p1 && p2) {
       double b1 = pma::GetSegmentProjVector(*p1, segStart, segStop);
@@ -127,11 +126,11 @@ private:
   TVector3 segStart, segStop;
 };
 
-class pma::bDistCenterLess2D : public std::binary_function<TVector2, TVector2, bool> {
+class pma::bDistCenterLess2D {
 public:
   bDistCenterLess2D(const TVector2& c) : center(c) {}
 
-  bool operator()(TVector2 p1, TVector2 p2)
+  bool operator()(TVector2 p1, TVector2 p2) const
   {
     double b1 = pma::Dist2(p1, center);
     double b2 = pma::Dist2(p2, center);
@@ -142,11 +141,11 @@ private:
   TVector2 center;
 };
 
-class pma::bDistCenterLess3D : public std::binary_function<TVector3, TVector3, bool> {
+class pma::bDistCenterLess3D {
 public:
   bDistCenterLess3D(const TVector3& c) : center(c) {}
 
-  bool operator()(TVector3 p1, TVector3 p2)
+  bool operator()(TVector3 p1, TVector3 p2) const
   {
     double b1 = pma::Dist2(p1, center);
     double b2 = pma::Dist2(p2, center);

@@ -362,7 +362,7 @@ void ems::EMShower3D::produce(art::Event& e)
 
     fTrkIndex = 0;
 
-    for (auto const trk : fSeltracks) {
+    for (auto const& trk : fSeltracks) {
       tracks->push_back(ConvertFrom(clockData, detProp, *(trk.track)));
 
       vtx_pos[0] = trk.track->front()->Point3D().X();
@@ -388,7 +388,7 @@ void ems::EMShower3D::produce(art::Event& e)
             (sp_pos[2] != h3d->Point3D().Z())) {
           if (sp_hits.size()) // hits assigned to the previous sp
           {
-            util::CreateAssn(*this, e, *allsp, sp_hits, *sp2hit);
+            util::CreateAssn(e, *allsp, sp_hits, *sp2hit);
             sp_hits.clear();
           }
           sp_pos[0] = h3d->Point3D().X();
@@ -400,25 +400,25 @@ void ems::EMShower3D::produce(art::Event& e)
       }
       if (sp_hits.size()) // hits assigned to the last sp
       {
-        util::CreateAssn(*this, e, *allsp, sp_hits, *sp2hit);
+        util::CreateAssn(e, *allsp, sp_hits, *sp2hit);
       }
       spEnd = allsp->size();
 
       if (vertices->size()) {
         size_t vtx_idx = (size_t)(vertices->size() - 1);
-        util::CreateAssn(*this, e, *tracks, *vertices, *trk2vtx, vtx_idx, vtx_idx + 1);
+        util::CreateAssn(e, *tracks, *vertices, *trk2vtx, vtx_idx, vtx_idx + 1);
       }
 
-      if (cl2d.size()) { util::CreateAssn(*this, e, *tracks, cl2d, *trk2cl); }
+      if (cl2d.size()) { util::CreateAssn(e, *tracks, cl2d, *trk2cl); }
 
       if (hits2d.size()) {
-        util::CreateAssn(*this, e, *tracks, *allsp, *trk2sp, spStart, spEnd);
-        util::CreateAssn(*this, e, *tracks, hits2d, *trk2hit);
+        util::CreateAssn(e, *tracks, *allsp, *trk2sp, spStart, spEnd);
+        util::CreateAssn(e, *tracks, hits2d, *trk2hit);
       }
     }
 
     fIniIndex = fTrkIndex + 1;
-    for (auto const trk : fPMA3D) {
+    for (auto const& trk : fPMA3D) {
       tracks->push_back(ConvertFrom2(clockData, detProp, *(trk.track)));
 
       fIniIndex++;
@@ -439,7 +439,7 @@ void ems::EMShower3D::produce(art::Event& e)
             (sp_pos[2] != h3d->Point3D().Z())) {
           if (sp_hits.size()) // hits assigned to the previous sp
           {
-            util::CreateAssn(*this, e, *allsp, sp_hits, *sp2hit);
+            util::CreateAssn(e, *allsp, sp_hits, *sp2hit);
             sp_hits.clear();
           }
           sp_pos[0] = h3d->Point3D().X();
@@ -451,15 +451,15 @@ void ems::EMShower3D::produce(art::Event& e)
       }
       if (sp_hits.size()) // hits assigned to the last sp
       {
-        util::CreateAssn(*this, e, *allsp, sp_hits, *sp2hit);
+        util::CreateAssn(e, *allsp, sp_hits, *sp2hit);
       }
       spEnd = allsp->size();
 
-      if (cl2d.size()) { util::CreateAssn(*this, e, *tracks, cl2d, *trk2cl); }
+      if (cl2d.size()) { util::CreateAssn(e, *tracks, cl2d, *trk2cl); }
 
       if (hits2d.size()) {
-        util::CreateAssn(*this, e, *tracks, *allsp, *trk2sp, spStart, spEnd);
-        util::CreateAssn(*this, e, *tracks, hits2d, *trk2hit);
+        util::CreateAssn(e, *tracks, *allsp, *trk2sp, spStart, spEnd);
+        util::CreateAssn(e, *tracks, hits2d, *trk2hit);
       }
     }
 
@@ -470,7 +470,7 @@ void ems::EMShower3D::produce(art::Event& e)
         clusters->push_back(ConvertFrom(cl));
         fClIndex++;
 
-        util::CreateAssn(*this, e, *clusters, cl, *cl2hit);
+        util::CreateAssn(e, *clusters, cl, *cl2hit);
       }
 
     for (unsigned int i = 0; i < showernviews.size(); i++)

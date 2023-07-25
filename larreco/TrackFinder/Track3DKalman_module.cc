@@ -481,11 +481,11 @@ namespace trkf {
                          tcol->size() - 1));
 
           // associate the track with its clusters and tracks
-          util::CreateAssn(*this, evt, *tcol, clusters, *tcassn);
-          util::CreateAssn(*this, evt, *tcol, hits, *thassn);
+          util::CreateAssn(evt, *tcol, clusters, *tcassn);
+          util::CreateAssn(evt, *tcol, hits, *thassn);
 
           // associate the track to the space points
-          util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+          util::CreateAssn(evt, *tcol, *spcol, *tspassn, spStart, spEnd);
 
         } // getStatusFlag
       }   // spacepoints.size()>0

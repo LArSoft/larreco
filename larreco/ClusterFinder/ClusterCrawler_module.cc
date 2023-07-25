@@ -207,7 +207,7 @@ namespace cluster {
       );
       // make the cluster - hit association
       if (!util::CreateAssn(
-            *this, evt, *hc_assn, sccol.size() - 1, clstr.tclhits.begin(), clstr.tclhits.end())) {
+            evt, *hc_assn, sccol.size() - 1, clstr.tclhits.begin(), clstr.tclhits.end())) {
         throw art::Exception(art::errors::ProductRegistrationFailure)
           << "Failed to associate hit " << iht << " with cluster " << icl;
       } // exception
@@ -222,7 +222,7 @@ namespace cluster {
           if (vtx3.Ptr2D[1] < 0) continue;
           if (vtx3.Ptr2D[2] < 0) continue;
           if (vtx3.Ptr2D[plane] == clstr.BeginVtx) {
-            if (!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end)) {
+            if (!util::CreateAssnD(evt, *cv_assn, clsID - 1, vtxIndex, end)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate cluster " << icl << " with vertex";
             } // exception
@@ -241,7 +241,7 @@ namespace cluster {
           if (vtx3.Ptr2D[1] < 0) continue;
           if (vtx3.Ptr2D[2] < 0) continue;
           if (vtx3.Ptr2D[plane] == clstr.EndVtx) {
-            if (!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end)) {
+            if (!util::CreateAssnD(evt, *cv_assn, clsID - 1, vtxIndex, end)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
                 << "Failed to associate cluster " << icl << " with endpoint";
             } // exception

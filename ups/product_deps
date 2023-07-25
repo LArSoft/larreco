@@ -249,7 +249,7 @@ fwdir	product_dir	config_data
 ####################################
 product		version		qual	flags		<table_format=2>
 eigen		v3_4_0		-
-larsim		v09_35_00	-
+larsim		v09_37_00	-
 rstartree	v2016_07	-
 cetmodules	v3_20_00	-	only_for_build
 end_product_list
@@ -307,10 +307,12 @@ end_product_list
 #
 ####################################
 qualifier	larsim		eigen	rstartree
+c14:debug	c14:debug	-nq-	-nq-
+c14:prof	c14:prof	-nq-	-nq-
 c7:debug	c7:debug	-nq-	-nq-
 c7:prof		c7:prof		-nq-	-nq-
-e19:debug	e19:debug	-nq-	-nq-
-e19:prof	e19:prof	-nq-	-nq-
+e26:debug	e26:debug	-nq-	-nq-
+e26:prof	e26:prof	-nq-	-nq-
 e20:debug	e20:debug	-nq-	-nq-
 e20:prof	e20:prof	-nq-	-nq-
 end_qualifier_list

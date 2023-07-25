@@ -714,7 +714,6 @@ namespace lar_cluster3d {
         for (auto& houghCluster : houghClusters) {
           BinIndex peakBin = houghCluster.front();
           size_t peakCount = 0;
-          size_t totalHits = 0;
 
           // Make a local (to this cluster) set of of hits
           std::set<const reco::ClusterHit3D*> localHitPtrList;
@@ -730,9 +729,6 @@ namespace lar_cluster3d {
 
               tempHitPtrList.insert(*hit3DItr);
             }
-
-            // count hits before we remove any
-            totalHits += tempHitPtrList.size();
 
             // Trim out any hits already used by a bigger/better cluster
             std::set<const reco::ClusterHit3D*> tempHit3DSet;
@@ -894,7 +890,6 @@ namespace lar_cluster3d {
       for (auto& houghCluster : houghClusters) {
         BinIndex peakBin = houghCluster.front();
         size_t peakCount = 0;
-        size_t totalHits = 0;
 
         // Make a local (to this cluster) set of of hits
         std::set<const reco::ClusterHit3D*> localHitPtrList;
@@ -910,9 +905,6 @@ namespace lar_cluster3d {
 
             tempHitPtrList.insert(*hit3DItr);
           }
-
-          // count hits before we remove any
-          totalHits += tempHitPtrList.size();
 
           // Trim out any hits already used by a bigger/better cluster
           std::set<const reco::ClusterHit3D*> tempHit3DSet;

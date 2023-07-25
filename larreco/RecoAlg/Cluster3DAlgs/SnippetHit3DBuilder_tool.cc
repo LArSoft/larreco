@@ -649,9 +649,6 @@ namespace lar_cluster3d {
         return lastItr;
       };
 
-    size_t nTriplets(0);
-    size_t nDeadChanHits(0);
-
     //*********************************************************************************
     // Basically, we try to loop until done...
     while (1) {
@@ -683,7 +680,6 @@ namespace lar_cluster3d {
         snippetHitMapItr2Start, snippetHitMapItrVec[2].second, firstSnippetItr->first.second);
 
       // Since we'll use these many times in the internal loops, pre make the pairs for the second set of hits
-      size_t curHitListSize(hitPairList.size());
       HitMatchTripletVecMap pair12Map;
       HitMatchTripletVecMap pair13Map;
 
@@ -692,15 +688,10 @@ namespace lar_cluster3d {
       size_t n13Pairs =
         findGoodHitPairs(firstSnippetItr, snippetHitMapItr2Start, snippetHitMapItr2End, pair13Map);
 
-      nDeadChanHits += hitPairList.size() - curHitListSize;
-      curHitListSize = hitPairList.size();
-
       if (n12Pairs > n13Pairs)
         findGoodTriplets(pair12Map, pair13Map, hitPairList);
       else
         findGoodTriplets(pair13Map, pair12Map, hitPairList);
-
-      nTriplets += hitPairList.size() - curHitListSize;
 
       snippetHitMapItrVec.front().first++;
     }

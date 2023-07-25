@@ -743,13 +743,8 @@ namespace cluster {
     // $$This needs to be corrected//this is the good hits that are between strip
     std::vector<const util::PxHit*> ghits;
     ghits.reserve(subhit.size());
-    int n = 0;
     double fardistcurrent = 0;
     util::PxHit startpoint;
-    double gwiretime = 0;
-    double gwire = 0;
-    double gtime = 0;
-    double gwirewire = 0;
     //KAZU!!! I NEED this too//this will need to come from somewhere...
     //This is some hit that is from the way far side of the entire shower cluster...
     util::PxPoint farhit = fRoughEndPoint;
@@ -829,11 +824,6 @@ namespace cluster {
     for (unsigned int g = 0; g < ghits.size(); g++) {
       // should call the helper funtion to do the fit
       //but for now since there is no helper function I will just write it here......again
-      n += 1;
-      gwiretime += ghits.at(g)->w * ghits.at(g)->t;
-      gwire += ghits.at(g)->w;
-      gtime += ghits.at(g)->t;
-      gwirewire += ghits.at(g)->w * ghits.at(g)->w;
       // now work on calculating the distance in wire time space from the far point
       //farhit needs to be a hit that is given to me
       double fardist = std::hypot(ghits.at(g)->w - farhit.w, ghits.at(g)->t - farhit.t);
@@ -1075,11 +1065,6 @@ namespace cluster {
     }
     double endStartDiff_x = (this_endPoint.w - this_startPoint.w);
     double endStartDiff_y = (this_endPoint.t - this_startPoint.t);
-    double rms_forward = 0;
-    double rms_backward = 0;
-    double mean_forward = 0;
-    double mean_backward = 0;
-    //double weight_total  = 0;
     double hit_counter_forward = 0;
     double hit_counter_backward = 0;
 
@@ -1127,8 +1112,6 @@ namespace cluster {
       if (cosangle_start > 0) {
         // Only take into account for hits that are in "front"
         //no weighted average, works better as flat average w/ min charge cut
-        mean_forward += cosangle_start;
-        rms_forward += pow(cosangle_start, 2);
         hit_counter_forward++;
       }
 
@@ -1143,8 +1126,6 @@ namespace cluster {
 
       if (cosangle_end > 0) {
         //no weighted average, works better as flat average w/ min charge cut
-        mean_backward += cosangle_end;
-        rms_backward += pow(cosangle_end, 2);
         hit_counter_backward++;
       }
 

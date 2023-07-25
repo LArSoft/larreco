@@ -384,7 +384,6 @@ namespace cluster {
     std::vector<double> diff_vec;
 
     double hit_energy = 0;
-    double total_Q_cluster_hits = 0;
 
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     if (clusters.size() != 0 && hits.size() != 0) {
@@ -400,7 +399,6 @@ namespace cluster {
             for (size_t p = 0; p < _hits.size(); ++p) {
               _hits_ptr = _hits[p];
               hits_vec.push_back(_hits_ptr);
-              total_Q_cluster_hits += _hits[p]->Integral();
             }
 
             std::vector<art::Ptr<recob::Hit>>::iterator itr = hits_vec.begin();

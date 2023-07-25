@@ -307,19 +307,19 @@ TVector2 pma::CmToWireDrift(detinfo::DetectorPropertiesData const& detProp,
   return TVector2(xw / geom->Plane(id).WirePitch(), detProp.ConvertXToTicks(yd, id));
 }
 
-bool pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
+bool pma::bTrajectory3DOrderLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2) const
 {
   if (h1 && h2) return h1->fSegFraction < h2->fSegFraction;
   return false;
 }
 
-bool pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2)
+bool pma::bTrajectory3DDistLess::operator()(pma::Hit3D* h1, pma::Hit3D* h2) const
 {
   if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
   return false;
 }
 
-bool pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2)
+bool pma::bTrack3DLonger::operator()(const pma::TrkCandidate& t1, const pma::TrkCandidate& t2) const
 {
   pma::Track3D* trk1 = t1.Track();
   pma::Track3D* trk2 = t2.Track();

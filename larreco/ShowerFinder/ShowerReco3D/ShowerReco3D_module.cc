@@ -230,9 +230,9 @@ void ShowerReco3D::produce(art::Event& e)
         ass_hits.push_back(ptr);
     }
     // Shower=>Cluster
-    util::CreateAssn(*this, e, *(out_shower_v.get()), ass_clusters, *(sc_assn.get()));
+    util::CreateAssn(e, *(out_shower_v.get()), ass_clusters, *(sc_assn.get()));
     // Shower=>Hits
-    util::CreateAssn(*this, e, *(out_shower_v.get()), ass_hits, *(sh_assn.get()));
+    util::CreateAssn(e, *(out_shower_v.get()), ass_hits, *(sh_assn.get()));
 
     if (fUsePFParticle) {
 
@@ -241,7 +241,7 @@ void ShowerReco3D::produce(art::Event& e)
 
       art::Ptr<recob::PFParticle> pf_ptr(pfHandle, shower_pfpart_index[i]);
 
-      util::CreateAssn(*this, e, *(out_shower_v.get()), pf_ptr, *(sp_assn.get()));
+      util::CreateAssn(e, *(out_shower_v.get()), pf_ptr, *(sp_assn.get()));
     }
   }
 

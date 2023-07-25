@@ -202,10 +202,10 @@ namespace trkf {
           /* For any issue please contact: larsoft-team@fnal.gov       */
           /*************************************************************/
           /*
-	    dQdx[0].push_back(charge/dx);
-	    dQdx[1].push_back(charge/dx);
-	    dQdx[2].push_back(charge/dx);
-	  */
+            dQdx[0].push_back(charge/dx);
+            dQdx[1].push_back(charge/dx);
+            dQdx[2].push_back(charge/dx);
+          */
           /*************************************************************/
 
           // make the space point and set its ID and XYZ
@@ -232,17 +232,17 @@ namespace trkf {
                        clusterMapItr.first));
 
         // associate the track with its clusters
-        util::CreateAssn(*this, evt, *trackcol, ptrvs, *tcassn);
+        util::CreateAssn(evt, *trackcol, ptrvs, *tcassn);
 
         // assume the input tracks were previously associated with hits
         hits.clear();
         for (size_t p = 0; p < ptrvs.size(); ++p) {
           hits = fmh.at(idxs[p]);
-          util::CreateAssn(*this, evt, *trackcol, hits, *thassn);
+          util::CreateAssn(evt, *trackcol, hits, *thassn);
         }
 
         // associate the track to the space points
-        util::CreateAssn(*this, evt, *trackcol, *spcol, *tspassn, spStart, spEnd);
+        util::CreateAssn(evt, *trackcol, *spcol, *tspassn, spStart, spEnd);
 
         mf::LogInfo("TrackCheater") << "adding track: \n" << trackcol->back() << "\nto collection.";
 

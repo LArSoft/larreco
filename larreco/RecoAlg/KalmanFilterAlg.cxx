@@ -171,8 +171,7 @@ namespace {
     // an actual problem exists.
 
     trkf::KVector<2>::type vtemp1 = prod(inverr, defl);
-    trkf::KVector<2>::type vtemp2;
-    prod(temp1, vtemp1, vtemp2);
+    trkf::KVector<2>::type vtemp2 = prod(temp1, vtemp1);
     trkf::KVector<2>::type vtemp3 = prod(temp1, vtemp2);
     double derivk1 = -0.5 * trkf::trace(temp1) + 0.5 * inner_prod(defl, vtemp2);
     double derivk2 = 0.5 * trkf::trace(temp2) - inner_prod(defl, vtemp3);

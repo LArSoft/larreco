@@ -1882,7 +1882,7 @@ double shower::EMShowerAlg::ShowerHitRMSGradient_(
 
   // Get the gradient of the RMS-bin plot
   double sumx = 0., sumy = 0., sumx2 = 0., sumxy = 0., sumweight = 0.;
-  for (auto const [bin, RMSBin] : binVsRMS) {
+  for (auto const& [bin, RMSBin] : binVsRMS) {
     double weight = segmentCharge.at(bin);
     sumweight += weight;
     sumx += weight * bin;
@@ -1991,7 +1991,6 @@ Int_t shower::EMShowerAlg::WeightedFit(const Int_t n,
   Double_t sumx = 0.;
   Double_t sumx2 = 0.;
   Double_t sumy = 0.;
-  Double_t sumy2 = 0.;
   Double_t sumxy = 0.;
   Double_t sumw = 0.;
   Double_t eparm[2];
@@ -2005,7 +2004,6 @@ Int_t shower::EMShowerAlg::WeightedFit(const Int_t n,
     sumx += x[i] * w[i];
     sumx2 += x[i] * x[i] * w[i];
     sumy += y[i] * w[i];
-    sumy2 += y[i] * y[i] * w[i];
     sumxy += x[i] * y[i] * w[i];
     sumw += w[i];
   }

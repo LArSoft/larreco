@@ -618,7 +618,6 @@ namespace shwf {
     unsigned int wire = 0, plane = fNPlanes - 1;
 
     double mevav2cm = 0.;
-    double sum = 0.;
     double npoints_calo = 0;
 
     int direction = -1;
@@ -678,7 +677,6 @@ namespace shwf {
         fTrkPitchC = fNPitch[set][plane];
         Kin_En += dEdx_new * newpitch;
         npoints_calo++;
-        sum += dEdx_new;
 
         if (wdist < fdEdxlength &&
             ((direction == 1 && wire > fWire_vertex[plane]) // take no hits before vertex

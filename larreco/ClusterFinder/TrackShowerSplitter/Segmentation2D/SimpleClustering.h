@@ -19,11 +19,10 @@ namespace tss {
   class SimpleClustering;
 }
 
-struct tss::bDistToPointLess
-  : public std::binary_function<const tss::Hit2D*, const tss::Hit2D*, bool> {
+struct tss::bDistToPointLess {
   bDistToPointLess(const TVector2& point) : p0(point) {}
 
-  bool operator()(const tss::Hit2D* h1, const tss::Hit2D* h2)
+  bool operator()(const tss::Hit2D* h1, const tss::Hit2D* h2) const
   {
     if (h1 && h2)
       return pma::Dist2(h1->Point2D(), p0) < pma::Dist2(h2->Point2D(), p0);

@@ -184,7 +184,7 @@ namespace tss {
             for (auto h2d : c.hits())
               hits2d.push_back(h2d->Hit2DPtr());
 
-            if (hits2d.size()) util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
+            if (hits2d.size()) util::CreateAssn(evt, *clusters, hits2d, *clu2hit);
 
             ++cidx;
           }
