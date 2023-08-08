@@ -285,7 +285,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
         // Angle to the drift electric field (in x direction), in units of degrees
         geo::Vector_t direction = track.DirectionAtPoint(thms[hit_index]->Index());
-        double phi = acos(abs(direction.x()))*180/M_PI;
+        double phi = acos(abs(direction.x())) * 180 / M_PI;
 
         double dQdx = charge / pitch;
 
