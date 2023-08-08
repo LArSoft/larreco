@@ -52,7 +52,6 @@ namespace calo {
     for (unsigned i = 0; i < birksk_param.size(); i++) {
       fBirksKF.SetParameter(i, birksk_param[i]);
     }
-
   }
 
   //------------------------------------------------------------------------------------//
@@ -164,8 +163,14 @@ namespace calo {
                                    double const EField,
                                    double const phi) const
   {
-    return dEdx_AREA(
-      clock_data, det_prop, hit.Integral() / pitch, hit.PeakTime(), hit.WireID().Plane, T0, EField, phi);
+    return dEdx_AREA(clock_data,
+                     det_prop,
+                     hit.Integral() / pitch,
+                     hit.PeakTime(),
+                     hit.WireID().Plane,
+                     T0,
+                     EField,
+                     phi);
   }
 
   // ----------------------------------------------------------------------------------//
@@ -237,9 +242,12 @@ namespace calo {
 
   // Reombination corrections
 
-  // Modified box: allow for a general behavior of beta from phi, the angle between the track 
+  // Modified box: allow for a general behavior of beta from phi, the angle between the track
   // and the electric field
-  double calo::CalorimetryAlg::ModBoxCorrection(double dQdx, double phi, double rho, double E_field) const
+  double calo::CalorimetryAlg::ModBoxCorrection(double dQdx,
+                                                double phi,
+                                                double rho,
+                                                double E_field) const
   {
     // Modified Box model correction has better behavior than the Birks
     // correction at high values of dQ/dx.
@@ -251,7 +259,10 @@ namespace calo {
     return dEdx;
   }
 
-  double calo::CalorimetryAlg::BirksCorrection(double dQdx, double phi, double rho, double E_field) const
+  double calo::CalorimetryAlg::BirksCorrection(double dQdx,
+                                               double phi,
+                                               double rho,
+                                               double E_field) const
   {
     // from: S.Amoruso et al., NIM A 523 (2004) 275
 
@@ -260,12 +271,8 @@ namespace calo {
     constexpr double Wion = 1000. / util::kGeVToElectrons;      // 23.6 eV = 1e, Wion in MeV/e
     K /= rho;                                                   // KV/MeV
     double const dEdx = dQdx / (A / Wion - K / E_field * dQdx); // MeV/cm
-    
+
     return dEdx;
   }
-
-
-
-
 
 } // namespace
