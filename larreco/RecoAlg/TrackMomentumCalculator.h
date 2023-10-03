@@ -38,7 +38,7 @@ namespace trkf {
     * @brief  Calculate muon momentum (MeV) using multiple coulomb scattering. Chi2 minimization of the Highland formula
     *
     * @param  trk the muon track
-    * @param  checkValidPoints rather take into account valid points or not
+    * @param  checkValidPoints rather take into account only valid points or not
     * @param  maxMomentum_MeV maximum momentum in MeV for the minimization
     *
     * TODO: Add better description of the steps done.
@@ -52,6 +52,7 @@ namespace trkf {
     * @brief  Calculate muon momentum (MeV) using multiple coulomb scattering by log likelihood
     *
     * @param  trk the muon track
+    * @param  checkValidPoints rather take into account only valid points or not
     * @param  maxMomentum_MeV maximum momentum in MeV for the minimization
     * @param  MomentumStep_MeV energy steps for minimization
     * @param  max_resolution maximum angular resolution for fit. Setting to zero will cause the fit only over momentum and fixed resolution of 2 mrad
@@ -61,6 +62,7 @@ namespace trkf {
     * @return momentum in MeV
     */
     double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk,
+                                       const bool checkValidPoints = false,
                                        const int maxMomentum_MeV = 7500,
                                        const int MomentumStep_MeV = 10,
                                        const int max_resolution = 0);
