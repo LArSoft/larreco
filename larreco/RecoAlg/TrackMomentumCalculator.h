@@ -35,7 +35,7 @@ namespace trkf {
 
     double GetTrackMomentum(double trkrange, int pdg) const;
     /**
-    * @brief  Calculate muon momentum (MeV) using multiple coulomb scattering. Chi2 minimization of the Highland formula
+    * @brief  Calculate muon momentum (GeV) using multiple coulomb scattering. Chi2 minimization of the Highland formula
     *
     * @param  trk the muon track
     * @param  checkValidPoints rather take into account only valid points or not
@@ -43,13 +43,13 @@ namespace trkf {
     *
     * TODO: Add better description of the steps done.
     *
-    * @return momentum in MeV
+    * @return momentum in GeV
     */
     double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk,
                                        const bool checkValidPoints = false,
                                        const int maxMomentum_MeV = 7500);
     /**
-    * @brief  Calculate muon momentum (MeV) using multiple coulomb scattering by log likelihood
+    * @brief  Calculate muon momentum (GeV) using multiple coulomb scattering by log likelihood
     *
     * @param  trk the muon track
     * @param  checkValidPoints rather take into account only valid points or not
@@ -59,7 +59,7 @@ namespace trkf {
     *
     * TODO: Add better description of the steps done
     *
-    * @return momentum in MeV
+    * @return momentum in GeV
     */
     double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk,
                                        const bool checkValidPoints = false,
@@ -160,7 +160,7 @@ namespace trkf {
     * @param Q
     * @param s
     *
-    * @return Momentum in MeV
+    * @return Momentum in GeV
     */
     double my_g(double xx, double Q, double s) const;
 
@@ -176,7 +176,7 @@ namespace trkf {
     *
     * TODO: Add better description of steps
     *
-    * @return momentum in MeV
+    * @return momentum in GeV
     */
     double my_mcs_llhd(std::vector<float> const& dEi,
                        std::vector<float> const& dEj,
