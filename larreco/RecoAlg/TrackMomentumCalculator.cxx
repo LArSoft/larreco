@@ -126,8 +126,10 @@ namespace {
 
 namespace trkf {
 
-  TrackMomentumCalculator::TrackMomentumCalculator(double const min, double const max)
-    : minLength{min}, maxLength{max}
+  TrackMomentumCalculator::TrackMomentumCalculator(double const min,
+                                                   double const max,
+                                                   double const stepsize)
+    : minLength{min}, maxLength{max}, steps_size{stepsize}
   {
     for (int i = 1; i <= n_steps; i++) {
       steps.push_back(steps_size * i);
@@ -241,7 +243,10 @@ namespace trkf {
 
   // email: kalousis@vt.edu
 
-  double TrackMomentumCalculator::GetMomentumMultiScatterLLHD(const art::Ptr<recob::Track>& trk)
+  double TrackMomentumCalculator::GetMomentumMultiScatterLLHD(const art::Ptr<recob::Track>& trk,
+                                                              const int maxMomentum_MeV,
+                                                              const int MomentumStep_MeV,
+                                                              const int max_resolution)
   {
     std::vector<float> recoX;
     std::vector<float> recoY;
@@ -260,7 +265,7 @@ namespace trkf {
 
     if (!plotRecoTracks_(recoX, recoY, recoZ)) return -1.0;
 
-    constexpr double seg_size{10.};
+    double const seg_size{steps_size};
 
     auto const segments = getSegTracks_(recoX, recoY, recoZ, seg_size);
     if (!segments.has_value()) return -1.0;
@@ -281,15 +286,15 @@ namespace trkf {
     double bf = -666.0; // double errs = -666.0;
 
     int const start1{};
-    int const end1{750};
+    int const end1{static_cast<int>(maxMomentum_MeV / MomentumStep_MeV)};
     int const start2{};
-    int const end2{}; // 800.0;
+    int const end2{max_resolution}; // 800.0;
 
     for (int k = start1; k <= end1; ++k) {
       double const p_test = 0.001 + k * 0.01;
 
       for (int l = start2; l <= end2; ++l) {
-        double const res_test = 2.0; // 0.001+l*1.0;
+        double const res_test = (start2 == end2) ? 2.0 : 0.001 + l * 1.0; // 0.001+l*1.0;
         double const fv = my_mcs_llhd(dEi, dEj, dthij, ind, p_test, res_test);
 
         if (fv < logL) {
@@ -465,7 +470,8 @@ namespace trkf {
   }
 
   double TrackMomentumCalculator::GetMomentumMultiScatterChi2(const art::Ptr<recob::Track>& trk,
-                                                              const bool checkValidPoints)
+                                                              const bool checkValidPoints,
+                                                              const int maxMomentum_MeV)
   {
     std::vector<float> recoX;
     std::vector<float> recoY;
@@ -553,7 +559,7 @@ namespace trkf {
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
     mP.SetFunction(FCA);
-    mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, 7.5);
+    mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, maxMomentum_MeV / 1.e3);
     mP.SetLimitedVariable(1, "#delta#theta", 0.0, 1.0, 0.0, 45.0);
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
@@ -1114,7 +1120,7 @@ namespace trkf {
     double result = 0.0;
     double nnn1 = dEi.size(); // number of segments of energy
 
-    double red_length = (10.0) / 14.0;
+    double red_length = (steps_size) / rad_length;
     double addth = 0;
 
     for (int i = 0; i < nnn1; i++) {
