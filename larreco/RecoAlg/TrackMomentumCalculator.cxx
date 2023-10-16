@@ -872,6 +872,8 @@ namespace trkf {
         vz.push_back(z0);
       }
       else if (dr1 > seg_size) {
+
+        i = (i - 1); // In this case, we keep at the same point until seg_size is reached
         double const dx = x1 - x0;
         double const dy = y1 - y0;
         double const dz = z1 - z0;
