@@ -34,6 +34,7 @@ namespace fhicl {
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -109,11 +110,10 @@ public:
   /// (above thr value) in the ADC image of the testView (a view that was not
   /// used to build the track).
   double validate_on_adc(const detinfo::DetectorPropertiesData& detProp,
-                         const lariov::ChannelStatusProvider& channelStatus,
+                         const lariov::ChannelStatusData& channelStatus,
                          const pma::Track3D& trk,
                          const img::DataProviderAlg& adcImage,
-                         float thr,
-                         lariov::DBTimeStamp_t ts) const;
+                         float thr) const;
 
   /// Calculate the fraction of the track that is closer than
   /// fTrkValidationDist2D to any hit from hits in the testView (a view that was
@@ -121,37 +121,34 @@ public:
   /// for the passing and rejected points on the track, so the threshold value
   /// for the ADC-based calibration can be estimated.
   double validate_on_adc_test(const detinfo::DetectorPropertiesData& detProp,
-                              const lariov::ChannelStatusProvider& channelStatus,
+                              const lariov::ChannelStatusData& channelStatus,
                               const pma::Track3D& trk,
                               const img::DataProviderAlg& adcImage,
                               const std::vector<art::Ptr<recob::Hit>>& hits,
                               TH1F* histoPassing,
-                              TH1F* histoRejected,
-                              lariov::DBTimeStamp_t ts) const;
+                              TH1F* histoRejected) const;
 
   /// Calculate the fraction of the track that is closer than
   /// fTrkValidationDist2D to any hit from hits in their plane (a plane that was
   /// not used to build the track). Hits should be preselected, so all belong to
   /// the same plane.
   double validate(const detinfo::DetectorPropertiesData& detProp,
-                  const lariov::ChannelStatusProvider& channelStatus,
+                  const lariov::ChannelStatusData& channelStatus,
                   const pma::Track3D& trk,
-                  const std::vector<art::Ptr<recob::Hit>>& hits,
-                  lariov::DBTimeStamp_t ts) const;
+                  const std::vector<art::Ptr<recob::Hit>>& hits) const;
 
   /// Calculate the fraction of the 3D segment that is closer than
   /// fTrkValidationDist2D to any hit from hits in the testPlane of TPC/Cryo.
   /// Hits from the testPlane are preselected by this function among all
   /// provided (so a bit slower than fn above).
   double validate(const detinfo::DetectorPropertiesData& detProp,
-                  const lariov::ChannelStatusProvider& channelStatus,
+                  const lariov::ChannelStatusData& channelStatus,
                   const TVector3& p0,
                   const TVector3& p1,
                   const std::vector<art::Ptr<recob::Hit>>& hits,
                   unsigned int testView,
                   unsigned int tpc,
-                  unsigned int cryo,
-                  lariov::DBTimeStamp_t ts) const;
+                  unsigned int cryo) const;
 
   /// Calculate the fraction of trajectory seen by two 2D projections at least; even a
   /// prfect track starts/stops with the hit from one 2D view, then hits from other views

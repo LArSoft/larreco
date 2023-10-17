@@ -27,6 +27,7 @@ namespace geo {
   class GeometryCore;
 }
 #include "lardataobj/RecoBase/Wire.h"
+#include "larevt/CalibrationDBI/IOVData/ChannelStatusData.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "CLHEP/Random/JamesRandom.h" // for testing on noise, not used by any reco
@@ -108,12 +109,12 @@ public:
 
   bool setWireDriftData(const detinfo::DetectorClocksData& clock_data,
                         const detinfo::DetectorPropertiesData& det_prop,
+                        lariov::ChannelStatusData const& channelStatus,
                         const std::vector<recob::Wire>&
                           wires, // once per plane: setup ADC buffer, collect & downscale ADC's
                         unsigned int plane,
                         unsigned int tpc,
-                        unsigned int cryo,
-                        art::Timestamp t);
+                        unsigned int cryo);
 
   std::vector<float> const& wireData(size_t widx) const { return fAlgView.fWireDriftData[widx]; }
 

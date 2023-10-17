@@ -27,6 +27,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/PFPUtils.h"
@@ -292,6 +293,8 @@ namespace cluster {
         art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
+      auto const channelStatus =
+        art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
       auto const* geom = lar::providerFrom<geo::Geometry>();
       for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
         // ignore protoDUNE dummy TPCs
@@ -353,7 +356,7 @@ namespace cluster {
               } // Look for debug hit
             }   // iht
           }     // tca::tcc.dbgStp
-          fTCAlg.RunTrajClusterAlg(clockData, detProp, tpcHits, slcIDs[isl], evt.time().value());
+          fTCAlg.RunTrajClusterAlg(clockData, detProp, *channelStatus, tpcHits, slcIDs[isl]);
         } // isl
       }   // TPC
       // stitch PFParticles between TPCs, create PFP start vertices, etc

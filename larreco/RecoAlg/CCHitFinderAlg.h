@@ -15,17 +15,16 @@
 #include <vector>
 
 // framework libraries
+#include "art/Framework/Principal/fwd.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
-#include "canvas/Persistency/Provenance/Timestamp.h"
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/GausFitCache.h"
 
 namespace hit {
@@ -87,7 +86,7 @@ namespace hit {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Timestamp t);
+    void RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Event const& evt);
 
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(allhits); }
@@ -119,10 +118,8 @@ namespace hit {
 
     bool fUseChannelFilter;
 
-    //    bool prt;
-
-    art::ServiceHandle<geo::Geometry const> geom;
-
+    art::ServiceHandle<geo::Geometry const> fGeom;
+    art::ServiceHandle<lariov::ChannelStatusService const> fChannelStatus;
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float* ticks, float* signl);
     // parameters, errors, lower limit, upper limits for FitNG
@@ -135,13 +132,10 @@ namespace hit {
     std::vector<unsigned short> bumps;
 
     /// exchange data about the originating wire
-    class HitChannelInfo_t {
-    public:
+    struct HitChannelInfo_t {
       recob::Wire const* wire;
       geo::WireID wireID;
       geo::SigType_t sigType;
-
-      HitChannelInfo_t(recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
     }; // HitChannelInfo_t
 
     // make a cruddy hit if fitting fails

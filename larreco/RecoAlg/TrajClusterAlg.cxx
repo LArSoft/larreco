@@ -348,9 +348,9 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
                                          detinfo::DetectorPropertiesData const& detProp,
+                                         lariov::ChannelStatusData const& channelStatus,
                                          std::vector<unsigned int>& hitsInSlice,
-                                         int sliceID,
-                                         lariov::DBTimeStamp_t ts)
+                                         int sliceID)
   {
     // Reconstruct everything using the hits in a slice
 
@@ -358,7 +358,7 @@ namespace tca {
     if (hitsInSlice.size() < 2) return;
     if (tcc.recoSlice > 0 && sliceID != tcc.recoSlice) return;
 
-    if (!CreateSlice(clockData, detProp, hitsInSlice, sliceID, ts)) return;
+    if (!CreateSlice(clockData, detProp, channelStatus, hitsInSlice, sliceID)) return;
 
     seeds.resize(0);
     // get a reference to the stored slice
@@ -1214,9 +1214,9 @@ namespace tca {
   /////////////////////////////////////////
   bool TrajClusterAlg::CreateSlice(detinfo::DetectorClocksData const& clockData,
                                    detinfo::DetectorPropertiesData const& detProp,
+                                   lariov::ChannelStatusData const& channelStatus,
                                    std::vector<unsigned int>& hitsInSlice,
-                                   int sliceID,
-                                   lariov::DBTimeStamp_t ts)
+                                   int sliceID)
   {
     // Defines a TCSlice struct and pushes the slice onto slices.
     // Sets the isValid flag true if successful.
@@ -1250,7 +1250,7 @@ namespace tca {
     for (auto hip : nHitsInPln)
       if (hip < 2) return false;
     // Define the TCEvent wire hit range vector for this new TPC for ALL hits
-    FillWireHitRange(ts, slc.TPCID);
+    FillWireHitRange(channelStatus, slc.TPCID);
     // next define the Slice wire hit range vectors, UnitsPerTick, etc for this
     // slice
     if (!FillWireHitRange(clockData, detProp, slc)) return false;

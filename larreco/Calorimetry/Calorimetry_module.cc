@@ -12,6 +12,7 @@
 #include <math.h>
 #include <string>
 
+#include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -157,7 +158,6 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
 //------------------------------------------------------------------------------------//
 void calo::Calorimetry::produce(art::Event& evt)
 {
-  auto ts = evt.time().value();
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const det_prop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
@@ -172,8 +172,7 @@ void calo::Calorimetry::produce(art::Event& evt)
   art::ServiceHandle<geo::Geometry const> geom;
 
   // channel quality
-  lariov::ChannelStatusProvider const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+  auto const channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
 
   size_t nplanes = geom->Nplanes();
 
@@ -616,7 +615,7 @@ void calo::Calorimetry::produce(art::Event& evt)
         tpc = allHits[hits[ipl][0]]->WireID().TPC;
         cstat = allHits[hits[ipl][0]]->WireID().Cryostat;
         channel = geom->PlaneWireToChannel(geo::WireID{cstat, tpc, plane, iw});
-        if (channelStatus.IsBad(ts, channel)) {
+        if (channelStatus->IsBad(channel)) {
           MF_LOG_DEBUG("Calorimetry") << "Found dead wire at Plane = " << plane << " Wire =" << iw;
           unsigned int closestwire = 0;
           unsigned int endwire = 0;
@@ -625,7 +624,7 @@ void calo::Calorimetry::produce(art::Event& evt)
           double goodresrange = 0;
           for (size_t ihit = 0; ihit < hits[ipl].size(); ++ihit) {
             channel = allHits[hits[ipl][ihit]]->Channel();
-            if (channelStatus.IsBad(ts, channel)) continue;
+            if (channelStatus->IsBad(channel)) continue;
             // grab the space points associated with this hit
             std::vector<art::Ptr<recob::SpacePoint>> sppv = fmspts.at(hits[ipl][ihit]);
             if (sppv.size() < 1) continue;

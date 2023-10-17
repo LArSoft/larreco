@@ -111,7 +111,7 @@ namespace cluster {
       art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const det_prop =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
-    fCCAlg.RunCrawler(clock_data, det_prop, *hitVecHandle, evt.time());
+    fCCAlg.RunCrawler(clock_data, det_prop, *hitVecHandle, evt);
 
     auto FinalHits = std::make_unique<std::vector<recob::Hit>>(std::move(fCCAlg.YieldHits()));
 

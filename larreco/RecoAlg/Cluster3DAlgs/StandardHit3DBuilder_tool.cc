@@ -118,7 +118,8 @@ namespace lar_cluster3d {
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
-    void BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const;
+    void BuildHit3D(reco::HitPairList& hitPairList,
+                    lariov::ChannelStatusData const& channelStatus) const;
 
     /**
      *  @brief Create a new 2D hit collection from hits associated to 3D space points
@@ -231,7 +232,7 @@ namespace lar_cluster3d {
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
     void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap,
-                               art::Timestamp ts) const;
+                               lariov::ChannelStatusData const& channelStatus) const;
 
     /**
      * @brief Perform charge integration between limits
@@ -296,12 +297,11 @@ namespace lar_cluster3d {
     mutable bool m_weHaveAllBeenHereBefore = false;
 
     const geo::Geometry* m_geometry;
-    const lariov::ChannelStatusProvider* m_channelFilter;
+    art::ServiceHandle<lariov::ChannelStatusService const> m_channelFilter;
   };
 
   StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const& pset)
     : m_geometry(art::ServiceHandle<geo::Geometry const>{}.get())
-    , m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
   {
     this->configure(pset);
   }
@@ -385,8 +385,9 @@ namespace lar_cluster3d {
     return;
   }
 
-  void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap,
-                                                   art::Timestamp ts) const
+  void StandardHit3DBuilder::BuildChannelStatusVec(
+    PlaneToWireToHitSetMap& planeToWireToHitSetMap,
+    lariov::ChannelStatusData const& channelStatus) const
   {
     // This is called each event, clear out the previous version and start over
     if (!m_channelStatus.empty()) m_channelStatus.clear();
@@ -402,13 +403,11 @@ namespace lar_cluster3d {
 
     // Loop through the channels and mark those that are "bad"
     for (size_t channel = 0; channel < m_geometry->Nchannels(); channel++) {
-      if (m_channelFilter->IsGood(ts.value(), channel)) continue;
+      if (channelStatus.IsGood(channel)) continue;
 
       std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
       geo::WireID wireID = wireIDVec[0];
-      lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(ts.value(),channel);
-
-      m_channelStatus[wireID.Plane][wireID.Wire] = chanStat;
+      m_channelStatus[wireID.Plane][wireID.Wire] = channelStatus.Status(channel);
       ++m_numBadChannels;
     }
   }
@@ -451,7 +450,8 @@ namespace lar_cluster3d {
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
     if (!m_planeToWireToHitSetMap.empty()) {
       // Call the algorithm that builds 3D hits
-      this->BuildHit3D(hitPairList, evt.time());
+      auto const& channelStatus = m_channelFilter->DataFor(evt);
+      this->BuildHit3D(hitPairList, *channelStatus);
 
       // If we built 3D points then attempt to output a new hit list as well
       if (!hitPairList.empty())
@@ -484,7 +484,8 @@ namespace lar_cluster3d {
     }
   }
 
-  void StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList, art::Timestamp ts) const
+  void StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList,
+                                        lariov::ChannelStatusData const& channelStatus) const
   {
     /**
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
@@ -496,7 +497,7 @@ namespace lar_cluster3d {
 
     // The first task is to take the lists of input 2D hits (a map of view to sorted lists of 2D hits)
     // and then to build a list of 3D hits to be used in downstream processing
-    BuildChannelStatusVec(m_planeToWireToHitSetMap, ts);
+    BuildChannelStatusVec(m_planeToWireToHitSetMap, channelStatus);
 
     size_t numHitPairs = BuildHitPairMap(m_planeToHitVectorMap, hitPairList);
 

@@ -158,7 +158,6 @@ void cluster::BlurredClustering::produce(art::Event& evt)
     auto const tpc = fGlobalTPCRecon ? wireID.TPC % 2 : wireID.TPC;
     planeToHits[std::make_pair(planeNo, tpc)].push_back(hitToCluster);
   }
-  auto ts = evt.time().value();
   // Loop over views
   for (auto const& [plane, hits] : planeToHits) {
     std::vector<art::PtrVector<recob::Hit>> finalClusters;
@@ -168,7 +167,7 @@ void cluster::BlurredClustering::produce(art::Event& evt)
 
       // Convert hit map to TH2 histogram and blur it
       auto const image =
-        fBlurredClusteringAlg.ConvertRecobHitsToVector(ts, hits, readoutWindowSize);
+        fBlurredClusteringAlg.ConvertRecobHitsToVector(evt, hits, readoutWindowSize);
       auto const blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
       // Find clusters in histogram

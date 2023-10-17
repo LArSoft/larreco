@@ -20,7 +20,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft
-#include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
+#include "larevt/CalibrationDBI/IOVData/ChannelStatusData.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace detinfo {
@@ -321,7 +321,7 @@ namespace tca {
   void SetPDGCode(TCSlice& slc, unsigned short itj);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
-  void FillWireHitRange(lariov::DBTimeStamp_t ts, geo::TPCID inTPCID);
+  void FillWireHitRange(lariov::ChannelStatusData const& channelStatus, geo::TPCID inTPCID);
   bool FillWireHitRange(detinfo::DetectorClocksData const& clockData,
                         detinfo::DetectorPropertiesData const& detProp,
                         TCSlice& slc);

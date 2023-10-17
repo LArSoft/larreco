@@ -409,7 +409,9 @@ namespace trkf {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    int retCode = pmalgTracker.build(clockData, detProp, evt.time());
+    auto const& channelStatus =
+      art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
+    int retCode = pmalgTracker.build(clockData, detProp, *channelStatus);
     // ----------------------------------------------------------------
     switch (retCode) {
     case -2: mf::LogError("Summary") << "problem"; break;

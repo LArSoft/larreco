@@ -10,12 +10,12 @@
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "CLHEP/Random/RandGauss.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "lardataobj/RecoBase/Wire.h"
-#include "CLHEP/Random/RandGauss.h"
 
 #include <algorithm>
 #include <optional>
@@ -285,11 +285,11 @@ std::optional<std::vector<float>> img::DataProviderAlg::setWireData(std::vector<
 
 bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& clock_data,
                                             detinfo::DetectorPropertiesData const& det_prop,
+                                            lariov::ChannelStatusData const& channelStatus,
                                             const std::vector<recob::Wire>& wires,
                                             unsigned int plane,
                                             unsigned int tpc,
-                                            unsigned int cryo,
-                                            art::Timestamp t)
+                                            unsigned int cryo)
 {
   mf::LogInfo("DataProviderAlg") << "Create image for cryo:" << cryo << " tpc:" << tpc
                                  << " plane:" << plane;
@@ -306,13 +306,10 @@ bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& c
 
   fAlgView = resizeView(clock_data, det_prop, nwires, ndrifts);
 
-  auto const& channelStatus =
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-
   bool allWrong = true;
   for (auto const& wire : wires) {
     auto wireChannelNumber = wire.Channel();
-    if (!channelStatus.IsGood(t.value(), wireChannelNumber)) { continue; }
+    if (!channelStatus.IsGood(wireChannelNumber)) { continue; }
 
     size_t w_idx = 0;
     for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber)) {

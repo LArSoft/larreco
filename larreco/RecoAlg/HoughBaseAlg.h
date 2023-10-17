@@ -132,12 +132,9 @@
 #include <utility> // std::pair<>
 #include <vector>
 
-namespace art {
-  class Event;
-}
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "fhiclcpp/fwd.h"
 #include "lardata/Utilities/CountersMap.h"
 
@@ -482,7 +479,7 @@ namespace cluster {
                      unsigned int clusterId, // The id of the cluster we are examining
                      unsigned int* nClusters,
                      std::vector<protoTrack>* protoTracks,
-                     art::Timestamp t);
+                     art::Event const& evt);
 
     // interface to look for lines only on a set of hits,without slope and
     // totalQ arrays
@@ -491,7 +488,7 @@ namespace cluster {
                          std::vector<art::Ptr<recob::Hit>> const& clusIn,
                          std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                          CLHEP::HepRandomEngine& engine,
-                         art::Timestamp t);
+                         art::Event const& evt);
 
     // interface to look for lines only on a set of hits
     size_t FastTransform(detinfo::DetectorClocksData const& clockData,
@@ -501,7 +498,7 @@ namespace cluster {
                          CLHEP::HepRandomEngine& engine,
                          std::vector<double>& slope,
                          std::vector<ChargeInfo_t>& totalQ,
-                         art::Timestamp t);
+                         art::Event const& evt);
 
     size_t Transform(std::vector<art::Ptr<recob::Hit>> const& hits);
 
@@ -509,10 +506,6 @@ namespace cluster {
                      std::vector<art::Ptr<recob::Hit>> const& hits,
                      double& slope,
                      double& intercept);
-
-    // FIXME: Is this necessary? Document or remove!
-    //        2022-04-18 CHG
-    friend class HoughTransformClus;
 
   private:
     void HLSSaveBMPFile(char const*, unsigned char*, int, int);

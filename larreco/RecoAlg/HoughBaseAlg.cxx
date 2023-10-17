@@ -59,21 +59,10 @@
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
-#define a0 0 /*-4.172325e-7f*/ /*(-(float)0x7)/((float)0x1000000); */
-#define a1 1.000025f           /*((float)0x1922253)/((float)0x1000000)*2/Pi; */
-#define a2 -2.652905e-4f       /*(-(float)0x2ae6)/((float)0x1000000)*4/(Pi*Pi); */
-#define a3 -0.165624f          /*(-(float)0xa45511)/((float)0x1000000)*8/(Pi*Pi*Pi); */
-#define a4 -1.964532e-3f       /*(-(float)0x30fd3)/((float)0x1000000)*16/(Pi*Pi*Pi*Pi); */
-#define a5 1.02575e-2f         /*((float)0x191cac)/((float)0x1000000)*32/(Pi*Pi*Pi*Pi*Pi); */
-#define a6 -9.580378e-4f       /*(-(float)0x3af27)/((float)0x1000000)*64/(Pi*Pi*Pi*Pi*Pi*Pi); */
-
-#define _sin(x) ((((((a6 * (x) + a5) * (x) + a4) * (x) + a3) * (x) + a2) * (x) + a1) * (x) + a0)
-#define _cos(x) _sin(TMath::Pi() * 0.5 - (x))
-
 namespace cluster {
   class HoughTransform {
   public:
-    void Init(unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
+    HoughTransform(unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
     std::array<int, 3> AddPointReturnMax(int x, int y);
     bool SubtractPoint(int x, int y);
     int GetCell(int row, int col) const;
@@ -87,8 +76,6 @@ namespace cluster {
     void GetEquation(float row, float col, float& rho, float& theta) const;
     int GetMax(int& xmax, int& ymax) const;
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-
   private:
     /// rho -> # hits (for convenience)
     typedef HoughTransformCounters<int, signed char, 64> BaseMap_t;
@@ -99,14 +86,14 @@ namespace cluster {
 
     unsigned int m_dx;
     unsigned int m_dy;
-    unsigned int m_rowLength;
     unsigned int m_numAngleCells;
     float m_rhoResolutionFactor;
+    unsigned int m_rowLength;
+    int m_numAccumulated = 0;
     // Note, m_accum is a vector of associative containers,
     // the vector elements are called by rho, theta is the container key,
     // the number of hits is the value corresponding to the key
     HoughImage_t m_accum; ///< column (map key)=rho, row (vector index)=theta
-    int m_numAccumulated;
     std::vector<double> m_cosTable;
     std::vector<double> m_sinTable;
 
@@ -275,13 +262,13 @@ size_t cluster::HoughBaseAlg::Transform(
   unsigned int clusterId, // The id of the cluster we are examining
   unsigned int* nClusters,
   std::vector<protoTrack>* linesFound,
-  art::Timestamp ts)
+  art::Event const& evt)
 {
   int nClustersTemp = *nClusters;
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  lariov::ChannelStatusProvider const* channelStatus =
-    lar::providerFrom<lariov::ChannelStatusService>();
+  auto const& channelStatus =
+    art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
 
   unsigned int wire = 0;
   unsigned int wireMax = 0;
@@ -372,11 +359,7 @@ size_t cluster::HoughBaseAlg::Transform(
 
   mf::LogInfo("HoughBaseAlg") << "dealing with " << hits.size() << " hits";
 
-  HoughTransform c;
-
-  ///Init specifies the size of the two-dimensional accumulator
-  ///(based on the arguments, number of wires and number of time samples).
-  c.Init(dx, dy, fRhoResolutionFactor, fNumAngleCells);
+  HoughTransform c(dx, dy, fRhoResolutionFactor, fNumAngleCells);
   /// Adds all of the hits to the accumulator
 
   c.GetAccumSize(accDy, accDx);
@@ -521,7 +504,7 @@ size_t cluster::HoughBaseAlg::Transform(
            sequenceHolderItr + 1 != sequenceHolder.end();
            ++sequenceHolderItr) {
         j = 1;
-        while (channelStatus->IsBad(ts.value(), sequenceHolderItr - sequenceHolder.begin() + j))
+        while (channelStatus->IsBad(sequenceHolderItr - sequenceHolder.begin() + j))
           j++;
         if (sequenceHolder[sequenceHolderItr - sequenceHolder.begin() + 1] -
               sequenceHolder[sequenceHolderItr - sequenceHolder.begin()] <=
@@ -662,46 +645,21 @@ inline bool cluster::HoughTransform::SubtractPoint(int x, int y)
 }
 
 //------------------------------------------------------------------------------
-void cluster::HoughTransform::Init(unsigned int dx,
-                                   unsigned int dy,
-                                   float rhores,
-                                   unsigned int numACells)
+cluster::HoughTransform::HoughTransform(unsigned int dx,
+                                        unsigned int dy,
+                                        float rhores,
+                                        unsigned int numACells)
+  : m_dx(dx)
+  , m_dy(dy)
+  , m_numAngleCells(numACells)
+  , m_rhoResolutionFactor(rhores)
+  , m_rowLength(m_rhoResolutionFactor * 2 * std::sqrt(dx * dx + dy * dy))
+  , m_accum(m_numAngleCells)
+  , m_cosTable(m_numAngleCells)
+  , m_sinTable(m_numAngleCells)
 {
-  m_numAngleCells = numACells;
-  m_rhoResolutionFactor = rhores;
-
-  m_accum.clear();
-  //--- BEGIN issue #19494 -----------------------------------------------------
-  // BulkAllocator.h is currently broken; see issue #19494 and comment in header.
-#if 0
-  // set the custom allocator for nodes to allocate large chunks of nodes;
-  // one node is 40 bytes plus the size of the counters block.
-  // The math over there sets a bit less than 10 MiB per chunk.
-  // to find out the right type name to put here, comment out this line
-  // (it will suppress some noise), set bDebug to true in
-  // lardata/Utilities/BulkAllocator.h and run this module;
-  // all BulkAllocator instances will advertise that they are being created,
-  // mentioning their referring type. You can also simplyfy it by using the
-  // available typedefs, like here:
-  lar::BulkAllocator<
-    std::_Rb_tree_node
-      <std::pair<const DistancesMap_t::Key_t, DistancesMap_t::CounterBlock_t>>
-    >::SetChunkSize(
-    10 * ((1048576 / (40 + sizeof(DistancesMap_t::CounterBlock_t))) & ~0x1FFU)
-    );
-#endif // 0
-  //--- END issue #19494 -------------------------------------------------------
-
-  m_numAccumulated = 0;
-  m_dx = dx;
-  m_dy = dy;
-  m_rowLength = (unsigned int)(m_rhoResolutionFactor * 2 * std::sqrt(dx * dx + dy * dy));
-  m_accum.resize(m_numAngleCells);
-
   // this math must be coherent with the one in GetEquation()
   double angleStep = PI / m_numAngleCells;
-  m_cosTable.resize(m_numAngleCells);
-  m_sinTable.resize(m_numAngleCells);
   for (size_t iAngleStep = 0; iAngleStep < m_numAngleCells; ++iAngleStep) {
     double a = iAngleStep * angleStep;
     m_cosTable[iAngleStep] = cos(a);
@@ -755,7 +713,7 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax(int x,
 
   // loop through all angles a from 0 to 180 degrees
   // (the value of the angle is established in definition of m_cosTable and
-  // m_sinTable in HoughTransform::Init()
+  // m_sinTable in HoughTransform constructor
   for (size_t iAngleStep = 1; iAngleStep < m_numAngleCells; ++iAngleStep) {
 
     // Calculate the basic line equation dist = cos(a)*x + sin(a)*y.
@@ -876,7 +834,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  HoughTransform c;
 
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp =
@@ -931,7 +888,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       std::vector<ChargeInfo_t> totalQvec;
       std::vector<art::PtrVector<recob::Hit>> planeClusHitsOut;
       this->FastTransform(
-        clockData, detProp, hit, planeClusHitsOut, engine, slopevec, totalQvec, evt.time());
+        clockData, detProp, hit, planeClusHitsOut, engine, slopevec, totalQvec, evt);
 
       MF_LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
@@ -999,11 +956,11 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
                                             std::vector<art::Ptr<recob::Hit>> const& clusIn,
                                             std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
                                             CLHEP::HepRandomEngine& engine,
-                                            art::Timestamp t)
+                                            art::Event const& evt)
 {
   std::vector<double> slopevec;
   std::vector<ChargeInfo_t> totalQvec;
-  return FastTransform(clockData, detProp, clusIn, clusHitsOut, engine, slopevec, totalQvec, t);
+  return FastTransform(clockData, detProp, clusIn, clusHitsOut, engine, slopevec, totalQvec, evt);
 }
 
 //------------------------------------------------------------------------------
@@ -1014,13 +971,13 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
                                             CLHEP::HepRandomEngine& engine,
                                             std::vector<double>& slopevec,
                                             std::vector<ChargeInfo_t>& totalQvec,
-                                            art::Timestamp ts)
+                                            art::Event const& evt)
 {
   std::vector<int> skip;
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  lariov::ChannelStatusProvider const* channelStatus =
-    lar::providerFrom<lariov::ChannelStatusService>();
+  auto const& channelStatus =
+    art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
 
   CLHEP::RandFlat flat(engine);
 
@@ -1089,11 +1046,7 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
   float theta;
   int accDx(0), accDy(0);
 
-  HoughTransform c;
-  //Init specifies the size of the two-dimensional accumulator
-  //(based on the arguments, number of wires and number of time samples).
-  //adds all of the hits (that have not yet been associated with a line) to the accumulator
-  c.Init(dx, dy, fRhoResolutionFactor, fNumAngleCells);
+  HoughTransform c(dx, dy, fRhoResolutionFactor, fNumAngleCells);
 
   // count is how many points are left to randomly insert
   unsigned int count = hit.size();
@@ -1214,7 +1167,7 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
       currentHits.push_back(0);
       for (size_t i = 0; i + 1 < sequenceHolder.size(); ++i) {
         j = 1;
-        while ((channelStatus->IsBad(ts.value(), sequenceHolder.at(i) + j)) == true)
+        while ((channelStatus->IsBad(sequenceHolder.at(i) + j)) == true)
           j++;
         if (sequenceHolder.at(i + 1) - sequenceHolder.at(i) <= j + fMissedHits)
           currentHits.push_back(i + 1);
@@ -1358,14 +1311,13 @@ size_t cluster::HoughBaseAlg::Transform(detinfo::DetectorPropertiesData const& d
                                         double& slope,
                                         double& intercept)
 {
-  HoughTransform c;
 
   art::ServiceHandle<geo::Geometry const> geom;
 
   int dx = geom->Nwires(geo::PlaneID{0, 0, 0}); // number of wires
   const int dy = detProp.ReadOutWindowSize();   // number of time samples.
 
-  c.Init(dx, dy, fRhoResolutionFactor, fNumAngleCells);
+  HoughTransform c(dx, dy, fRhoResolutionFactor, fNumAngleCells);
 
   for (unsigned int i = 0; i < hits.size(); ++i) {
     c.AddPointReturnMax(hits[i]->WireID().Wire, (int)(hits[i]->PeakTime()));

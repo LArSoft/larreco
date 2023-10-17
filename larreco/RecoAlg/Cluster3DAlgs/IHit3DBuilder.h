@@ -26,10 +26,6 @@ namespace fhicl {
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace art {
-  class ProducesCollector;
-}
-
 namespace lar_cluster3d {
   /**
  *  @brief  IHit3DBuilder interface class definiton

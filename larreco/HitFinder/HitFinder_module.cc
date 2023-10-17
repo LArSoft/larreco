@@ -83,7 +83,7 @@ namespace hit {
       evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
-    fCCHFAlg.RunCCHitFinder(*wireVecHandle, evt.time());
+    fCCHFAlg.RunCCHitFinder(*wireVecHandle, evt);
 
     // extract the result of the algorithm (it's moved)
     std::unique_ptr<std::vector<recob::Hit>> Hits(

@@ -28,8 +28,6 @@
 // LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/SimpleFits.h" // lar::util::GaussianFit<>
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 
 // ROOT Includes
 #include "TF1.h"
@@ -105,15 +103,7 @@ namespace hit {
     } // fStudyHits
   }
 
-  //------------------------------------------------------------------------------
-  CCHitFinderAlg::HitChannelInfo_t::HitChannelInfo_t(recob::Wire const* w,
-                                                     geo::WireID wid,
-                                                     geo::Geometry const& geom)
-    : wire(w), wireID(wid), sigType(geom.SignalType(w->Channel()))
-  {}
-
-  //------------------------------------------------------------------------------
-  void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Timestamp t)
+  void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires, art::Event const& evt)
   {
 
     allhits.clear();
@@ -130,25 +120,23 @@ namespace hit {
     if (fStudyHits) StudyHits(0);
     bool first;
 
-    //    prt = false;
-    lariov::ChannelStatusProvider const& channelStatus =
-      art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+    auto const& channelstatus = fChannelStatus->DataFor(evt);
 
     for (size_t wireIter = 0; wireIter < Wires.size(); wireIter++) {
 
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if (channelStatus.IsBad(t.value(), theChannel)) continue;
+      if (channelstatus->IsBad(theChannel)) continue;
 
-      std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
+      std::vector<geo::WireID> wids = fGeom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
       if (thePlane > fMinPeak.size() - 1) {
         mf::LogError("CCHF") << "MinPeak vector too small for plane " << thePlane;
         return;
       }
       theWireNum = wids[0].Wire;
-      HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
+      HitChannelInfo_t WireInfo{&theWire, wids[0], fGeom->SignalType(theWire.Channel())};
 
       // minimum number of time samples
       unsigned short minSamples = 2 * fMinRMS[thePlane];
@@ -157,7 +145,6 @@ namespace hit {
       chinorm = fChiNorms[thePlane];
 
       // edit this line to debug hit fitting on a particular plane/wire
-      //      prt = (thePlane == 1 && theWireNum == 839);
       std::vector<float> signal(theWire.Signal());
 
       unsigned short nabove = 0;

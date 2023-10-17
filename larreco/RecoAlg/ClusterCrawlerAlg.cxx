@@ -33,8 +33,6 @@
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
 
 namespace {
@@ -119,8 +117,7 @@ namespace cluster {
     if (badinput)
       throw art::Exception(art::errors::Configuration)
         << "ClusterCrawlerAlg: Bad input from fcl file";
-
-  } // reconfigure
+  }
 
   // used for sorting hits on wires
   bool SortByLowHit(unsigned int i, unsigned int j) { return i > j; }
@@ -196,7 +193,7 @@ namespace cluster {
   void ClusterCrawlerAlg::RunCrawler(detinfo::DetectorClocksData const& clock_data,
                                      detinfo::DetectorPropertiesData const& det_prop,
                                      std::vector<recob::Hit> const& srchits,
-                                     art::Timestamp ts)
+                                     art::Event const& evt)
   {
     // Run the ClusterCrawler algorithm - creating seed clusters and crawling upstream.
 
@@ -238,7 +235,7 @@ namespace cluster {
         tpc = tpcid.TPC;
         // fill the WireHitRange vector with first/last hit on each wire
         // dead wires and wires with no hits are flagged < 0
-        GetHitRange(clCTP, ts);
+        GetHitRange(clCTP, evt);
 
         // sanity check
         if (WireHitRange.empty() || (fFirstWire == fLastWire)) continue;
@@ -263,7 +260,7 @@ namespace cluster {
         Vtx3ClusterMatch(clock_data, det_prop, tpcid);
         if (fFindHammerClusters) FindHammerClusters(clock_data, det_prop);
         // split clusters using 3D vertices
-        Vtx3ClusterSplit(clock_data, det_prop, tpcid, ts);
+        Vtx3ClusterSplit(clock_data, det_prop, tpcid, evt);
       }
       if (fDebugPlane >= 0) {
         mf::LogVerbatim("CC") << "Clustering done in TPC ";
@@ -5263,7 +5260,7 @@ namespace cluster {
   void ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
                                            detinfo::DetectorPropertiesData const& det_prop,
                                            geo::TPCID const& tpcid,
-                                           art::Timestamp ts)
+                                           art::Event const& evt)
   {
     // Try to split clusters in a view in which there is no 2D vertex
     // assigned to a 3D vertex
@@ -5301,7 +5298,7 @@ namespace cluster {
       // get the hit range if necessary
       if (thePlane != lastplane) {
         clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, thePlane);
-        GetHitRange(clCTP, ts);
+        GetHitRange(clCTP, evt);
         lastplane = thePlane;
       }
       // make a list of clusters that have hits near this point on nearby wires
@@ -5935,7 +5932,7 @@ namespace cluster {
   } // VtxMatch
 
   //////////////////////////////////
-  void ClusterCrawlerAlg::GetHitRange(CTP_t CTP, art::Timestamp ts)
+  void ClusterCrawlerAlg::GetHitRange(CTP_t CTP, art::Event const& evt)
   {
     // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
     // Hits must have been sorted by increasing wire number
@@ -5980,15 +5977,14 @@ namespace cluster {
       ++nHitInPlane;
     }
     // overwrite with the "dead wires" condition
-    lariov::ChannelStatusProvider const& channelStatus =
-      art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+    auto const& channelStatus = fChannelStatus->DataFor(evt);
 
     flag.first = -1;
     flag.second = -1;
     unsigned int nbad = 0;
     for (wire = 0; wire < nwires; ++wire) {
       raw::ChannelID_t chan = geom->PlaneWireToChannel(geo::WireID(planeID, wire));
-      if (!channelStatus.IsGood(ts.value(), chan)) {
+      if (!channelStatus->IsGood(chan)) {
         WireHitRange[wire] = flag;
         ++nbad;
       }

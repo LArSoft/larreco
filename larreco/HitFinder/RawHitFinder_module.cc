@@ -138,7 +138,6 @@ namespace hit {
     std::stringstream numConv;
 
     hcol.reserve(digitVecHandle->size());
-    auto ts = evt.time().value();
     for (size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter) {
       holder.clear();
 
@@ -160,9 +159,9 @@ namespace hit {
       }
 
       //GET THE LIST OF BAD CHANNELS.
-      lariov::ChannelStatusProvider const& channelStatus =
-        art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
-      lariov::ChannelSet_t const BadChannels = channelStatus.BadChannels(ts);
+      auto const& channelStatus =
+        art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
+      lariov::ChannelSet_t const BadChannels = channelStatus->BadChannels();
       for (unsigned int bin = 0; bin < fDataSize; ++bin) {
         holder[bin] = (rawadc[bin] - digitVec->GetPedestal());
       }

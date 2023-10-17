@@ -131,7 +131,7 @@ void cluster::BlurredClusteringAlg::ConvertBinsToClusters(
 }
 
 std::vector<std::vector<double>> cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(
-  lariov::DBTimeStamp_t ts,
+  art::Event const& evt,
   std::vector<art::Ptr<recob::Hit>> const& hits,
   int const readoutWindowSize)
 {
@@ -176,10 +176,10 @@ std::vector<std::vector<double>> cluster::BlurredClusteringAlg::ConvertRecobHits
   // Keep a note of dead wires
   fDeadWires = std::vector<bool>(fUpperWire - fLowerWire, false);
   geo::PlaneID const& planeID = hits.front()->WireID();
-
+  auto const channelstatus = fChanStatus->DataFor(evt);
   for (int wire = fLowerWire; wire < fUpperWire; ++wire) {
     raw::ChannelID_t const channel = fGeom->PlaneWireToChannel(geo::WireID(planeID, wire));
-    fDeadWires[wire - fLowerWire] = !fChanStatus.IsGood(ts, channel);
+    fDeadWires[wire - fLowerWire] = !channelstatus->IsGood(channel);
   }
 
   return image;

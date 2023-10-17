@@ -106,10 +106,10 @@ namespace cluster {
     std::vector<art::Ptr<recob::Hit>> allhits;
 
     // get channel quality service:
-    lariov::ChannelStatusProvider const& channelStatus =
-      art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+    auto const& channelStatus =
+      art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
 
-    auto const BadChannels = channelStatus.BadChannels(evt.time().value());
+    auto const BadChannels = channelStatus->BadChannels();
 
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>
     std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit>>> planeIDToHits;

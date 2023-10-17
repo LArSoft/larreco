@@ -22,6 +22,7 @@ namespace fhicl {
 // LArSoft libraries
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+#include "larevt/CalibrationDBI/IOVData/ChannelStatusData.h"
 #include "larevt/CalibrationDBI/Interface/CalibrationDBIFwd.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
@@ -50,14 +51,14 @@ namespace tca {
     void ExpectSlicedHits() { evt.expectSlicedHits = true; }
     void RunTrajClusterAlg(detinfo::DetectorClocksData const& clockData,
                            detinfo::DetectorPropertiesData const& detProp,
+                           lariov::ChannelStatusData const& channelStatus,
                            std::vector<unsigned int>& hitsInSlice,
-                           int sliceID,
-                           lariov::DBTimeStamp_t ts);
+                           int sliceID);
     bool CreateSlice(detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
+                     lariov::ChannelStatusData const& channelStatus,
                      std::vector<unsigned int>& hitsInSlice,
-                     int sliceID,
-                     lariov::DBTimeStamp_t ts);
+                     int sliceID);
     void FinishEvent();
 
     void DefineShTree(TTree* t);

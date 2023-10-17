@@ -39,9 +39,9 @@
 #define SUCCESS 0
 #define FAILURE -3
 
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Provenance/Timestamp.h"
 #include "fhiclcpp/fwd.h"
 
 #include <map>
@@ -82,7 +82,7 @@ namespace cluster {
 
     void init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
               art::FindManyP<recob::Hit>& hitFromSp,
-              art::Timestamp ts);
+              art::Event const& evt);
     void dbscan();
 
   private:

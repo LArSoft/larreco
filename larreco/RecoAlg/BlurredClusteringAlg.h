@@ -63,7 +63,7 @@ public:
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
   std::vector<std::vector<double>> ConvertRecobHitsToVector(
-    lariov::DBTimeStamp_t ts,
+    art::Event const& evt,
     std::vector<art::Ptr<recob::Hit>> const& hits,
     int readoutWindowSize);
 
@@ -172,8 +172,7 @@ private:
 
   // art service handles
   art::ServiceHandle<geo::Geometry const> fGeom;
-  lariov::ChannelStatusProvider const& fChanStatus{
-    art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
+  art::ServiceHandle<lariov::ChannelStatusService const> fChanStatus;
 };
 
 #endif

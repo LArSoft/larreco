@@ -13,6 +13,7 @@
 #define PMAlgTracking_h
 
 // Framework includes
+#include "art/Framework/Principal/fwd.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/types/Atom.h"
@@ -263,22 +264,21 @@ public:
 
   int build(detinfo::DetectorClocksData const& clockData,
             detinfo::DetectorPropertiesData const& detProp,
-            art::Timestamp t);
+            lariov::ChannelStatusData const& channelStatus);
 
 private:
   double collectSingleViewEnd(pma::Track3D& trk, std::vector<art::Ptr<recob::Hit>>& hits) const;
   double collectSingleViewFront(pma::Track3D& trk, std::vector<art::Ptr<recob::Hit>>& hits) const;
 
   bool reassignHits_1(detinfo::DetectorPropertiesData const& detProp,
+                      lariov::ChannelStatusData const& channelStatus,
                       const std::vector<art::Ptr<recob::Hit>>& hits,
                       pma::TrkCandidateColl& tracks,
                       size_t trk_idx,
-                      double dist2,
-                      lariov::DBTimeStamp_t ts);
+                      double dist2);
   bool reassignSingleViewEnds_1(detinfo::DetectorPropertiesData const& detProp,
-                                pma::TrkCandidateColl& tracks,
-                                lariov::DBTimeStamp_t ts); // use clusters
-
+                                lariov::ChannelStatusData const& channelStatus,
+                                pma::TrkCandidateColl& tracks);
   bool areCoLinear(pma::Track3D* trk1,
                    pma::Track3D* trk2,
                    double& dist,
@@ -300,40 +300,46 @@ private:
                      pma::tpc_track_map& tracks) const;
 
   double validate(detinfo::DetectorPropertiesData const& detProp,
+                  lariov::ChannelStatusData const& channelStatus,
                   pma::Track3D& trk,
-                  unsigned int testView,
-                  lariov::DBTimeStamp_t ts);
+                  unsigned int testView);
 
   void fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& detProp,
+                          lariov::ChannelStatusData const& channelStatus,
                           pma::TrkCandidateColl& result,
                           size_t minBuildSize,
                           unsigned int tpc,
-                          unsigned int cryo,
-                          lariov::DBTimeStamp_t ts);
+                          unsigned int cryo);
 
   size_t matchTrack(detinfo::DetectorPropertiesData const& detProp,
                     const pma::TrkCandidateColl& tracks,
                     const std::vector<art::Ptr<recob::Hit>>& hits) const;
 
   pma::TrkCandidate matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                                 lariov::ChannelStatusData const& channelStatus,
                                  int first_clu_idx,
                                  const std::vector<art::Ptr<recob::Hit>>& first_hits,
                                  size_t minSizeCompl,
                                  unsigned int tpc,
                                  unsigned int cryo,
-                                 geo::View_t first_view,
-                                 lariov::DBTimeStamp_t ts);
+                                 geo::View_t first_view);
 
   pma::TrkCandidate matchCluster(detinfo::DetectorPropertiesData const& detProp,
+                                 lariov::ChannelStatusData const& channelStatus,
                                  int first_clu_idx,
                                  size_t minSizeCompl,
                                  unsigned int tpc,
                                  unsigned int cryo,
-                                 geo::View_t first_view,
-                                 lariov::DBTimeStamp_t ts)
+                                 geo::View_t first_view)
   {
-    return matchCluster(
-      detProp, first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view, ts);
+    return matchCluster(detProp,
+                        channelStatus,
+                        first_clu_idx,
+                        fCluHits[first_clu_idx],
+                        minSizeCompl,
+                        tpc,
+                        cryo,
+                        first_view);
   }
 
   int matchCluster(detinfo::DetectorPropertiesData const& detProp,
@@ -343,15 +349,14 @@ private:
                    unsigned int preferedView,
                    unsigned int testView,
                    unsigned int tpc,
-                   unsigned int cryo,
-                   lariov::DBTimeStamp_t ts) const;
+                   unsigned int cryo) const;
 
   bool extendTrack(detinfo::DetectorPropertiesData const& detProp,
+                   lariov::ChannelStatusData const& channelStatus,
                    pma::TrkCandidate& candidate,
                    const std::vector<art::Ptr<recob::Hit>>& hits,
                    unsigned int testView,
-                   bool add_nodes,
-                   lariov::DBTimeStamp_t ts);
+                   bool add_nodes);
 
   int maxCluster(detinfo::DetectorPropertiesData const& detProp,
                  int first_idx_tag,

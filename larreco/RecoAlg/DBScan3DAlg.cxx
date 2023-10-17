@@ -28,12 +28,12 @@ cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
 //----------------------------------------------------------
 void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
                                 art::FindManyP<recob::Hit>& hitFromSp,
-                                const art::Timestamp ts)
+                                art::Event const& evt)
 {
 
   if (badchannelmap.empty()) {
-    lariov::ChannelStatusProvider const& channelStatus =
-      art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+    auto const& channelStatus =
+      art::ServiceHandle<lariov::ChannelStatusService const>()->DataFor(evt);
     geo::GeometryCore const* geom = &*(art::ServiceHandle<geo::Geometry const>());
     // build a map to count bad channels around each wire ID
     for (auto& pid : geom->Iterate<geo::PlaneID>()) {
@@ -42,7 +42,7 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
         for (auto& wid2 : geom->Iterate<geo::WireID>(pid)) {
           if (wid1 == wid2) continue;
           if (lar::util::absDiff(wid1.Wire, wid2.Wire) < neighbors &&
-              !channelStatus.IsGood(ts.value(), geom->PlaneWireToChannel(wid2)))
+              !channelStatus->IsGood(geom->PlaneWireToChannel(wid2)))
             ++nbadchs;
         }
         badchannelmap[wid1] = nbadchs;

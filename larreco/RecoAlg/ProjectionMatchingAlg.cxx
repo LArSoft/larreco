@@ -10,7 +10,6 @@
 #include "lardata/ArtDataHelper/ToElement.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
@@ -44,13 +43,11 @@ pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingA
 }
 // ------------------------------------------------------
 
-double pma::ProjectionMatchingAlg::validate_on_adc(
-  const detinfo::DetectorPropertiesData& detProp,
-  const lariov::ChannelStatusProvider& channelStatus,
-  const pma::Track3D& trk,
-  const img::DataProviderAlg& adcImage,
-  float const thr,
-  lariov::DBTimeStamp_t ts) const
+double pma::ProjectionMatchingAlg::validate_on_adc(const detinfo::DetectorPropertiesData& detProp,
+                                                   const lariov::ChannelStatusData& channelStatus,
+                                                   const pma::Track3D& trk,
+                                                   const img::DataProviderAlg& adcImage,
+                                                   float const thr) const
 {
   unsigned int nAll = 0, nPassed = 0;
   unsigned int testPlane = adcImage.Plane();
@@ -89,7 +86,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-        if (channelStatus.IsGood(ts, ch)) {
+        if (channelStatus.IsGood(ch)) {
           float max_adc = adcImage.poolMax(widx, didx, 2); // +/- 2 wires, can be parameterized
           if (max_adc > thr) nPassed++;
 
@@ -125,13 +122,12 @@ namespace {
 
 double pma::ProjectionMatchingAlg::validate_on_adc_test(
   const detinfo::DetectorPropertiesData& detProp,
-  const lariov::ChannelStatusProvider& channelStatus,
+  const lariov::ChannelStatusData& channelStatus,
   const pma::Track3D& trk,
   const img::DataProviderAlg& adcImage,
   const std::vector<art::Ptr<recob::Hit>>& hits,
   TH1F* histoPassing,
-  TH1F* histoRejected,
-  lariov::DBTimeStamp_t ts) const
+  TH1F* histoRejected) const
 {
   double max_d = fTrkValidationDist2D;
   double const max_d2 = max_d * max_d;
@@ -206,7 +202,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
 
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-        if (channelStatus.IsGood(ts, ch)) {
+        if (channelStatus.IsGood(ch)) {
           bool is_close = false;
           float max_adc = adcImage.poolMax(widx, didx, 2);
 
@@ -252,10 +248,9 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(
 // ------------------------------------------------------
 
 double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesData& detProp,
-                                            const lariov::ChannelStatusProvider& channelStatus,
+                                            const lariov::ChannelStatusData& channelStatus,
                                             const pma::Track3D& trk,
-                                            const std::vector<art::Ptr<recob::Hit>>& hits,
-                                            lariov::DBTimeStamp_t ts) const
+                                            const std::vector<art::Ptr<recob::Hit>>& hits) const
 {
   if (hits.empty()) { return 0; }
 
@@ -328,7 +323,7 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
       geo::WireID const wireID{planeID, static_cast<unsigned int>(p2d.X())};
       if (fGeom->HasWire(wireID)) {
         raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-        if (channelStatus.IsGood(ts, ch)) {
+        if (channelStatus.IsGood(ch)) {
           if (points.size()) {
             p2d.SetX(wirepitch * p2d.X());
             for (const auto& h : points) {
@@ -361,14 +356,13 @@ double pma::ProjectionMatchingAlg::validate(const detinfo::DetectorPropertiesDat
 // ------------------------------------------------------
 
 double pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData const& detProp,
-                                            const lariov::ChannelStatusProvider& channelStatus,
+                                            const lariov::ChannelStatusData& channelStatus,
                                             const TVector3& p0,
                                             const TVector3& p1,
                                             const std::vector<art::Ptr<recob::Hit>>& hits,
                                             unsigned int testPlane,
                                             unsigned int tpc,
-                                            unsigned int cryo,
-                                            lariov::DBTimeStamp_t ts) const
+                                            unsigned int cryo) const
 {
   double max_d = fTrkValidationDist2D;
   double d2, max_d2 = max_d * max_d;
@@ -387,7 +381,7 @@ double pma::ProjectionMatchingAlg::validate(detinfo::DetectorPropertiesData cons
     geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
     if (fGeom->HasWire(wireID)) {
       raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-      if (channelStatus.IsGood(ts, ch)) {
+      if (channelStatus.IsGood(ch)) {
         p2d.Set(wirepitch * p2d.X(), p2d.Y());
         for (const auto& h : hits)
           if ((h->WireID().Plane == testPlane) && (h->WireID().TPC == tpc) &&
