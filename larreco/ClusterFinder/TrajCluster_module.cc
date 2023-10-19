@@ -684,8 +684,7 @@ namespace cluster {
             if (clsIndex == clsCol.size()) continue;
             clsIndices.push_back(clsIndex);
           } // tjid
-          if (!util::CreateAssn(*this,
-                                evt,
+          if (!util::CreateAssn(evt,
                                 *pfp_cls_assn,
                                 pfpCol.size() - 1,
                                 clsIndices.begin(),
@@ -709,8 +708,7 @@ namespace cluster {
           }   // start vertex exists
           // PFParticle -> Seed
           if (!sedCol.empty()) {
-            if (!util::CreateAssn(*this,
-                                  evt,
+            if (!util::CreateAssn(evt,
                                   pfpCol,
                                   sedCol,
                                   *pfp_sed_assn,
@@ -737,8 +735,7 @@ namespace cluster {
               ++shwIndex[0];
             } // ss3
             if (shwIndex[0] < shwCol.size()) {
-              if (!util::CreateAssn(*this,
-                                    evt,
+              if (!util::CreateAssn(evt,
                                     *pfp_shwr_assn,
                                     pfpCol.size() - 1,
                                     shwIndex.begin(),
