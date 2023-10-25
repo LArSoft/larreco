@@ -27,7 +27,7 @@ namespace trkf {
     *
     * @param  minLength minimum length in cm of tracks (length here is based on the amout of segments)
     * @param  maxLength maximum length in cm of tracks (length here is based on the amout of segments)
-    * @param  stes_size size in cm of each segment to compute scattering
+    * @param  steps_size size in cm of each segment to compute scattering
     */
     TrackMomentumCalculator(double minLength = 100.0,
                             double maxLength = 1350.0,
@@ -111,7 +111,7 @@ namespace trkf {
     * @param xxx 3D reconstructed points x-axis
     * @param yyy 3D reconstructed points y-axiy
     * @param zzz 3D reconstructed points z-axiz
-    * @seg_size Segments size defined in class constructor
+    * @param seg_size Segments size defined in class constructor
     *
     * TODO: Add better description of steps
     *
