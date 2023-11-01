@@ -15,6 +15,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -40,7 +41,7 @@
 
 namespace lar_cluster3d {
 
-  class MinSpanTreeAlg : virtual public IClusterAlg {
+  class MinSpanTreeAlg : public IClusterAlg {
   public:
     /**
      *  @brief  Constructor
@@ -48,13 +49,6 @@ namespace lar_cluster3d {
      *  @param  pset
      */
     explicit MinSpanTreeAlg(const fhicl::ParameterSet&);
-
-    /**
-     *  @brief  Destructor
-     */
-    ~MinSpanTreeAlg();
-
-    void configure(fhicl::ParameterSet const& pset) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -68,9 +62,7 @@ namespace lar_cluster3d {
 
     void Cluster3DHits(reco::HitPairListPtr& hitPairList,
                        reco::ClusterParametersList& clusterParametersList) const override
-    {
-      return;
-    }
+    {}
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
@@ -149,7 +141,8 @@ namespace lar_cluster3d {
     mutable std::vector<float> m_timeVector;   ///<
     std::vector<std::vector<float>> m_wireDir; ///<
 
-    geo::Geometry const* m_geometry; //< pointer to the Geometry service
+    geo::GeometryCore const* m_geometry; //< pointer to the Geometry provider
+    geo::WireReadoutGeom const* m_wireReadoutGeom;
 
     PrincipalComponentsAlg m_pcaAlg; // For running Principal Components Analysis
     kdTree m_kdTree;                 // For the kdTree
@@ -159,41 +152,27 @@ namespace lar_cluster3d {
   };
 
   MinSpanTreeAlg::MinSpanTreeAlg(fhicl::ParameterSet const& pset)
-    : m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
+    : m_enableMonitoring{pset.get<bool>("EnableMonitoring", true)}
+    , m_geometry{art::ServiceHandle<geo::Geometry const>{}.get()}
+    , m_wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>{}->Get()}
+    , m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
     , m_kdTree(pset.get<fhicl::ParameterSet>("kdTree"))
   {
-    this->configure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  MinSpanTreeAlg::~MinSpanTreeAlg() {}
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void MinSpanTreeAlg::configure(fhicl::ParameterSet const& pset)
-  {
-    m_enableMonitoring = pset.get<bool>("EnableMonitoring", true);
-
-    art::ServiceHandle<geo::Geometry const> geometry;
-
-    m_geometry = &*geometry;
-
     m_timeVector.resize(NUMTIMEVALUES, 0.);
 
     // Determine the unit directon and normal vectors to the wires
     m_wireDir.resize(3);
 
     raw::ChannelID_t uChannel(0);
-    std::vector<geo::WireID> uWireID = m_geometry->ChannelToWire(uChannel);
-    const geo::WireGeo* uWireGeo = m_geometry->WirePtr(uWireID[0]);
+    std::vector<geo::WireID> uWireID = m_wireReadoutGeom->ChannelToWire(uChannel);
+    const geo::WireGeo* uWireGeo = m_wireReadoutGeom->WirePtr(uWireID[0]);
 
     auto const uWireDir = uWireGeo->Direction();
     m_wireDir[0] = {(float)uWireDir.X(), (float)-uWireDir.Z(), (float)uWireDir.Y()};
 
     raw::ChannelID_t vChannel(2400);
-    std::vector<geo::WireID> vWireID = m_geometry->ChannelToWire(vChannel);
-    const geo::WireGeo* vWireGeo = m_geometry->WirePtr(vWireID[0]);
+    std::vector<geo::WireID> vWireID = m_wireReadoutGeom->ChannelToWire(vChannel);
+    const geo::WireGeo* vWireGeo = m_wireReadoutGeom->WirePtr(vWireID[0]);
 
     auto const vWireDir = vWireGeo->Direction();
     m_wireDir[1] = {(float)vWireDir.X(), (float)-vWireDir.Z(), (float)vWireDir.Y()};
@@ -245,8 +224,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("MinSpanTreeAlg") << ">>>>> Cluster3DHits done, found "
                                    << clusterParametersList.size() << " clusters" << std::endl;
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -310,8 +287,6 @@ namespace lar_cluster3d {
       m_kdTree.FindNearestNeighbors(lastAddedHit, topNode, CandPairList, bestDistance);
 
       // Copy edges to the current list (but only for hits not already in a cluster)
-      //        for(auto& pair : CandPairList)
-      //            if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)) curEdgeList.push_back(reco::EdgeTuple(lastAddedHit,pair.second,pair.first));
       for (auto& pair : CandPairList) {
         if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)) {
           double edgeWeight = lastAddedHit->getHitChiSquare() * pair.second->getHitChiSquare();
@@ -373,8 +348,6 @@ namespace lar_cluster3d {
 
       m_timeVector[RUNDBSCAN] = theClockDBScan.accumulated_real_time();
     }
-
-    return;
   }
 
   void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& curCluster) const
@@ -438,8 +411,6 @@ namespace lar_cluster3d {
 
       m_timeVector[PATHFINDING] += theClockPathFinding.accumulated_real_time();
     }
-
-    return;
   }
 
   void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParams,
@@ -511,9 +482,6 @@ namespace lar_cluster3d {
                     << " hits, longest distance: " << DistanceBetweenNodes(startHit, stopHit)
                     << std::endl;
 
-          // Call the AStar function to try to find the best path...
-          //                AStar(startHit,stopHit,alpha,topNode,clusterParams);
-
           float cost(std::numeric_limits<float>::max());
 
           LeastCostPath(curEdgeMap[startHit].front(), stopHit, clusterParams, cost);
@@ -534,8 +502,6 @@ namespace lar_cluster3d {
 
       m_timeVector[PATHFINDING] += theClockPathFinding.accumulated_real_time();
     }
-
-    return;
   }
 
   void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
@@ -620,8 +586,6 @@ namespace lar_cluster3d {
         }
       }
     }
-
-    return;
   }
 
   void MinSpanTreeAlg::ReconstructBestPath(const reco::ClusterHit3D* goalNode,
@@ -641,8 +605,6 @@ namespace lar_cluster3d {
     }
 
     pathNodeList.push_front(goalNode);
-
-    return;
   }
 
   void MinSpanTreeAlg::LeastCostPath(const reco::EdgeTuple& curEdge,
@@ -689,8 +651,6 @@ namespace lar_cluster3d {
       clusterParams.getBestHitPairListPtr().push_front(std::get<1>(curEdge));
       clusterParams.getBestEdgeList().push_front(curEdge);
     }
-
-    return;
   }
 
   float MinSpanTreeAlg::DistanceBetweenNodes(const reco::ClusterHit3D* node1,
@@ -704,24 +664,6 @@ namespace lar_cluster3d {
     // Standard euclidean distance
     return std::sqrt(deltaNode[0] * deltaNode[0] + deltaNode[1] * deltaNode[1] +
                      deltaNode[2] * deltaNode[2]);
-
-    // Manhatten distance
-    //return std::fabs(deltaNode[0]) + std::fabs(deltaNode[1]) + std::fabs(deltaNode[2]);
-    /*
-    // Chebyshev distance
-    // We look for maximum distance by wires...
-
-    // Now go through the hits and compare view by view to look for delta wire and tigher constraint on delta t
-    int wireDeltas[] = {0,0,0};
-
-    for(size_t idx = 0; idx < 3; idx++)
-        wireDeltas[idx] = std::abs(int(node1->getWireIDs()[idx].Wire) - int(node2->getWireIDs()[idx].Wire));
-
-    // put wire deltas in order...
-    std::sort(wireDeltas, wireDeltas + 3);
-
-    return std::sqrt(deltaNode[0]*deltaNode[0] + 0.09 * float(wireDeltas[2]*wireDeltas[2]));
- */
   }
 
   reco::HitPairListPtr MinSpanTreeAlg::DepthFirstSearch(const reco::EdgeTuple& curEdge,
@@ -790,7 +732,6 @@ namespace lar_cluster3d {
       size_t nThisClusterOnly(0);
       size_t nOtherCluster(0);
 
-      //        reco::ClusterParameters* otherCluster;
       const std::set<const reco::ClusterHit3D*>* otherClusterHits = 0;
 
       for (const auto& hit2D : hit3D->getHits()) {
@@ -806,7 +747,6 @@ namespace lar_cluster3d {
 
             if (clusterHitMap.second.size() > nOtherCluster) {
               nOtherCluster = clusterHitMap.second.size();
-              //                        otherCluster     = clusterHitMap.first;
               otherClusterHits = &clusterHitMap.second;
             }
           }
@@ -843,8 +783,6 @@ namespace lar_cluster3d {
 
     hitPairVector.resize(goodHits.size());
     std::copy(goodHits.begin(), goodHits.end(), hitPairVector.begin());
-
-    return;
   }
 
   struct HitPairClusterOrder {
@@ -983,51 +921,15 @@ namespace lar_cluster3d {
             lastHitItr++;
           }
 
-          // How many hits in this chain?
-          //                size_t numHits(std::distance(firstHitItr,lastHitItr));
-          //                float  minOverlapFraction(0.);
-
-          //                if (numHits > 1)
-          //                {
-          //                    reco::HitPairListPtr::iterator bestMinOverlapItr = std::max_element(firstHitItr,lastHitItr,[](const auto& left, const auto& right){return left->getMinOverlapFraction() < right->getMinOverlapFraction();});
-          //
-          //                    minOverlapFraction = std::min(0.999*(*bestMinOverlapItr)->getMinOverlapFraction(),0.90);
-          //                }
-
           while (firstHitItr != lastHitItr) {
-            //                    if (currentHit->getMinOverlapFraction() > minOverlapFraction) testList.push_back(currentHit); //currentHit->setStatusBit(reco::ClusterHit3D::SKELETONHIT);
-
             currentHit = *++firstHitItr;
           }
 
           firstHitItr = lastHitItr;
         }
-        /*
-            for(const auto& hit : localHitList)
-            {
-                std::cout << "- wires: ";
-
-                for(size_t idx = 0; idx < 3; idx++)
-                {
-                    float viewTime = -1.;
-
-                    if (hit->getHits()[closestView[idx]]) viewTime = hit->getHits()[closestView[idx]]->getTimeTicks();
-
-                    std::cout << closestView[idx] << ":" << hit->getWireIDs()[closestView[idx]].Wire << " - " << viewTime << ", ";
-                }
-
-                bool isSkeleton = hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT;
-
-                std::cout << "ave time: " << hit->getAvePeakTime() << ", min/max overlap: " << hit->getMinOverlapFraction() << "/" << hit->getMaxOverlapFraction() << ", tagged: " << isSkeleton << std::endl;
-
-                if (isSkeleton) testList.push_back(hit);
-            }
-*/
         curCluster = testList;
       }
     }
-
-    return;
   }
 
   DEFINE_ART_CLASS_TOOL(MinSpanTreeAlg)

@@ -29,13 +29,7 @@ namespace trkf {
   class SpacePointAlg;
   class SeedFinderAlgorithm {
   public:
-    //--------------------------------------
-    // Constructors, destructor, reconfigure
-    //--------------------------------------
-
-    SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
-
-    void reconfigure(fhicl::ParameterSet const& pset);
+    explicit SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
 
     //----------------------
     // Seedfinding methods

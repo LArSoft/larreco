@@ -32,6 +32,7 @@
 //LArSoft includes:
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -78,15 +79,6 @@ namespace cluster {
 
     using ID_t = recob::Cluster::ID_t; ///< Type of cluster ID
     using ClusterEnds_t = recob::Cluster::ClusterEnds_t;
-
-    /*
-      typedef enum {
-        clStart,       ///< Represents the most likely start of the cluster
-        clEnd,         ///< Represents the end, or the alternative start, of the cluster
-        NEnds,         ///< End count
-        clFirstEnd = 0 ///< Just an alias for loops
-      } ClusterEnds_t; ///< Used to decide which end to use
-    */
 
     ClusterMerger() = default;
 
@@ -138,19 +130,15 @@ namespace cluster {
 
     /// Returns the wire coordinate of one of the end sides of the cluster
     float WireCoord(ClusterEnds_t side) const { return fEndWires[side]; }
-    //  float WireCoord(unsigned int side) const { return fEndWires[side]; }
 
     /// Returns the tick coordinate of one of the end sides of the cluster
     float TickCoord(ClusterEnds_t side) const { return fEndTicks[side]; }
-    //  float TickCoord(unsigned int side) const { return fEndTicks[side]; }
 
     /// Returns the uncertainty on wire coordinate of one of the end sides of the cluster
     float SigmaWireCoord(ClusterEnds_t side) const { return fSigmaEndWires[side]; }
-    //  float SigmaWireCoord(unsigned int side) const { return fSigmaEndWires[side]; }
 
     /// Returns the uncertainty on tick coordinate of one of the end sides of the cluster
     float SigmaTickCoord(ClusterEnds_t side) const { return fSigmaEndTicks[side]; }
-    //  float SigmaTickCoord(unsigned int side) const { return fSigmaEndTicks[side]; }
 
     /// Returns the charge on the first wire of the cluster
     float StartCharge() const { return fEndCharges[ClusterEnds_t::clStart]; }
@@ -172,15 +160,12 @@ namespace cluster {
 
     /// Returns the charge on the first or last wire of the cluster
     float EdgeCharge(ClusterEnds_t side) const { return fEndCharges[side]; }
-    //  float EdgeCharge(unsigned int side) const { return fEndCharges[side]; }
 
     /// Returns the angle at either end of the cluster
     float Angle(ClusterEnds_t side) const { return fAngles[side]; }
-    //  float Angle(unsigned int side) const { return fAngles[side]; }
 
     /// Returns the opening angle at either end of the cluster
     float OpeningAngle(ClusterEnds_t side) const { return fOpeningAngles[side]; }
-    //  float OpeningAngle(unsigned int side) const { return fOpeningAngles[side]; }
 
     /// A measure of the cluster width, in homogenized units.
     float Width() const { return fWidth; }
@@ -370,7 +355,10 @@ namespace cluster {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(), clockData, detProp};
+    util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(),
+                                       art::ServiceHandle<geo::WireReadout const>()->Get(),
+                                       clockData,
+                                       detProp};
 
     constexpr size_t nViews = 3; // number of views we map
 

@@ -14,12 +14,10 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 namespace detinfo {
@@ -82,6 +80,7 @@ namespace trkf {
     std::vector<std::vector<std::vector<std::vector<unsigned int>>>> vtraj;
 
     art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom = &art::ServiceHandle<geo::WireReadout>()->Get();
     const detinfo::LArProperties* larprop;
 
   }; //class CosmicTrackerAlg

@@ -17,6 +17,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -597,7 +598,7 @@ bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 
   art::ServiceHandle<geo::Geometry const> geom;
   geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
-  size_t cryoid = geom->PositionToCryostatID(vtx).Cryostat;
+  geo::CryostatID const cryoid = geom->PositionToCryostatID(vtx);
 
   art::Handle<std::vector<recob::Hit>> hitListHandle;
   art::Handle<std::vector<recob::Cluster>> cluListHandle;
@@ -608,14 +609,14 @@ bool ems::MultiEMShowers::convCluster(art::Event const& evt)
   art::FindManyP<recob::Hit> fbc(cluListHandle, evt, fCluModuleLabel);
 
   auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
+  auto const& readoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   double maxdist = 1.0; // 1 cm
   if (geom->HasTPC(idtpc)) {
-    const geo::CryostatGeo& cryostat = geom->Cryostat(geo::CryostatID(cryoid));
     if (evt.getByLabel(fHitsModuleLabel, hitListHandle) &&
         evt.getByLabel(fCluModuleLabel, cluListHandle)) {
       size_t conv = 0;
       while (conv < 2) {
-        for (size_t view = 0; view < cryostat.MaxPlanes(); view++) {
+        for (auto const& plane : readoutGeom.Iterate<geo::PlaneGeo>(cryoid)) {
 
           double mindist = maxdist;
           int clid = 0;
@@ -629,9 +630,10 @@ bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 
             std::vector<art::Ptr<recob::Hit>> hits = fbc.at(c);
             if (hits.size() < 20) continue;
-            if (hits[0]->WireID().Plane != view) continue;
+            if (hits[0]->WireID().Plane != plane.View()) continue;
 
-            double dist = getMinDist(detProp, hits, convp[conv], view, idtpc.TPC, cryoid);
+            double dist =
+              getMinDist(detProp, hits, convp[conv], plane.View(), idtpc.TPC, cryoid.Cryostat);
             if (dist < mindist) {
               mindist = dist;
               clid = c;

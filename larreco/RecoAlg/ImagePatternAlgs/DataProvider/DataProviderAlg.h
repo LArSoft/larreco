@@ -23,9 +23,7 @@
 #include "fhiclcpp/types/Table.h"
 
 // LArSoft includes
-namespace geo {
-  class GeometryCore;
-}
+#include "larcorealg/Geometry/fwd.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
@@ -238,7 +236,8 @@ protected:
   calo::CalorimetryAlg fCalorimetryAlg;
 
   // Geometry and detector properties:
-  geo::GeometryCore const* fGeometry;
+  geo::Geometry const* fGeometry;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 
 private:
   float scaleAdcSample(float val) const;

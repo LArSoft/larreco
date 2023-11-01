@@ -11,7 +11,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
@@ -157,7 +158,7 @@ namespace cluster {
         << "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
         << "\033[00m" << std::endl;
 
-    art::ServiceHandle<geo::Geometry const> geo;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     // Store output
     for (size_t out_index = 0; out_index < GetMergedCPAN().size(); ++out_index) {
@@ -176,7 +177,7 @@ namespace cluster {
       if (!hits.empty()) plane = hits.front()->WireID().planeID();
 
       // View_t needed but not a part of cluster_params, so retrieve it here
-      geo::View_t view_id = geo->Plane(plane).View();
+      geo::View_t view_id = wireReadoutGeom.Plane(plane).View();
 
       // Push back a new cluster data product with parameters copied from cluster_params
       out_clusters.emplace_back(res.start_point.w / fGeoU.WireToCm(), // start_wire

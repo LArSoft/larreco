@@ -17,7 +17,7 @@ services:
   RandomNumberGenerator: {} #ART native random number generator
 }
 
-services.ExptGeoHelperInterface: @local::microboone_geometry_helper
+services.WireReadout: @local::microboone_geometry_helper
 services.Geometry:           @local::microboone_geo 
 services.LArPropertiesService:      @local::microboone_properties
 services.DetectorPropertiesService: @local::microboone_detproperties

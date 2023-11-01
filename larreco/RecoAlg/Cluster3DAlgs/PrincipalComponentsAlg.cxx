@@ -14,7 +14,7 @@
 
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -40,7 +40,8 @@ namespace lar_cluster3d {
   PrincipalComponentsAlg::PrincipalComponentsAlg(fhicl::ParameterSet const& pset)
   {
     m_parallel = pset.get<float>("ParallelLines", 0.00001);
-    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const> {}
+    ->Get();
   }
 
   struct Sort3DHitsByDocaToAxis {
@@ -317,7 +318,7 @@ namespace lar_cluster3d {
         // the cluster's current axis.
         // Get this wire's geometry object
         const geo::WireID& hitID = hit->WireID();
-        const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
+        const geo::WireGeo& wire_geom = m_wireReadoutGeom->Wire(hitID);
 
         // From this, get the parameters of the line for the wire
         auto const wirePosArr = wire_geom.GetCenter();
@@ -565,7 +566,7 @@ namespace lar_cluster3d {
       // cluster's axis with a plane defined by the wire the hit is associated with.
       // Get this wire's geometry object
       const geo::WireID& hitID = hit->WireID();
-      const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
+      const geo::WireGeo& wire_geom = m_wireReadoutGeom->Wire(hitID);
 
       // From this, get the parameters of the line for the wire
       auto const wirePosArr = wire_geom.GetCenter();

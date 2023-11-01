@@ -21,7 +21,6 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/GeometryCore.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -59,7 +58,7 @@ public:
 
 private:
   // Declare member data here.
-  geo::GeometryCore const* fGeom;
+  art::ServiceHandle<geo::Geometry> fGeom;
   spacecharge::SpaceCharge const* fSCE;
 
   const bool fCorrectNoT0Tag, fCorrectSCE, fSCEXCorrFlip;
@@ -83,7 +82,6 @@ private:
 
 sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
   : EDProducer{p}
-  , fGeom(lar::providerFrom<geo::Geometry>())
   , fSCE(lar::providerFrom<spacecharge::SpaceChargeService>())
   , fCorrectNoT0Tag(p.get<bool>("CorrectNoT0Tag"))
   , fCorrectSCE(p.get<bool>("CorrectSCE"))
@@ -93,7 +91,6 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
   , fT0Labels(p.get<std::vector<std::string>>("T0Labels"))
   , fT0LabelsCorrectT0(p.get<std::vector<bool>>("T0LabelsCorrectT0"))
 {
-
   produces<std::vector<anab::T0>>();
   produces<std::vector<recob::Slice>>();
   produces<std::vector<recob::PFParticle>>();
@@ -102,7 +99,6 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
   produces<std::vector<recob::Vertex>>();
   produces<std::vector<larpandoraobj::PFParticleMetadata>>();
 
-  // produces<art::Assns<anab::T0, recob::Slice> >();
   produces<art::Assns<anab::T0, recob::PFParticle>>();
   produces<art::Assns<recob::Slice, recob::Hit>>();
 
@@ -118,7 +114,6 @@ sce::SCECorrection::SCECorrection(fhicl::ParameterSet const& p)
 void sce::SCECorrection::produce(art::Event& evt)
 {
   // Implementation of required member function here.
-  // auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
   auto t0Collection = std::make_unique<std::vector<anab::T0>>();
   auto pfpCollection = std::make_unique<std::vector<recob::PFParticle>>();
   auto clusterCollection = std::make_unique<std::vector<recob::Cluster>>();
@@ -127,7 +122,6 @@ void sce::SCECorrection::produce(art::Event& evt)
   auto sliceCollection = std::make_unique<std::vector<recob::Slice>>();
   auto pfpMetaCollection = std::make_unique<std::vector<larpandoraobj::PFParticleMetadata>>();
 
-  // auto t0SliceAssn       = std::make_unique<art::Assns<anab::T0, recob::Slice> >();
   auto t0PFPAssn = std::make_unique<art::Assns<anab::T0, recob::PFParticle>>();
   auto sliceHitAssn = std::make_unique<art::Assns<recob::Slice, recob::Hit>>();
   auto pfpSliceAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Slice>>();
@@ -195,7 +189,6 @@ void sce::SCECorrection::produce(art::Event& evt)
   }
 
   // For each slice, get all the PFPs and tracks and check for T0 tags
-  // std::cout<<"Test: Slices: "<<allSlices.size()<<std::endl;
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
@@ -226,7 +219,6 @@ void sce::SCECorrection::produce(art::Event& evt)
       // Create a new T0
       t0Collection->push_back(*sliceT0CorrectPair.first);
       newT0Ptr = t0PtrMaker(t0Collection->size() - 1);
-      // t0SliceAssn->addSingle(newT0Ptr, newSlicePtr);
     }
 
     // Make an association with the new slice and the old hits
@@ -359,8 +351,6 @@ void sce::SCECorrection::produce(art::Event& evt)
     } // slicePFPs
   }   // slice
 
-  // std::cout<<"Test: SPs: "<<spCollection->size()<<std::endl;
-
   // Put all the things we just produced into the event
   evt.put(std::move(t0Collection));
   evt.put(std::move(sliceCollection));
@@ -371,7 +361,6 @@ void sce::SCECorrection::produce(art::Event& evt)
   evt.put(std::move(pfpMetaCollection));
 
   evt.put(std::move(t0PFPAssn));
-  // evt.put(std::move(t0SliceAssn));
   evt.put(std::move(sliceHitAssn));
   evt.put(std::move(pfpSPAssn));
   evt.put(std::move(spHitAssn));
@@ -385,18 +374,13 @@ void sce::SCECorrection::produce(art::Event& evt)
 geo::Vector_t sce::SCECorrection::applyT0Shift(const double& t0Offset,
                                                const geo::TPCID& tpcId) const
 {
-
-  const geo::TPCGeo& tpcGeo = fGeom->GetElement(tpcId);
-  int driftDirection = tpcGeo.DetectDriftDirection();
-
-  switch (std::abs(driftDirection)) {
-  case 1: return geo::Vector_t{t0Offset * driftDirection, 0, 0};
-  case 2: return geo::Vector_t{0, t0Offset * driftDirection, 0};
-  case 3: return geo::Vector_t{0, 0, t0Offset * driftDirection};
-  default:
-    throw cet::exception("SCECorrection")
-      << "Drift direction unknown: " << driftDirection << std::endl;
+  auto const [axis, sign] = fGeom->TPC(tpcId).DriftAxisWithSign();
+  switch (axis) {
+  case geo::Coordinate::X: return geo::Vector_t{t0Offset * to_int(sign), 0, 0};
+  case geo::Coordinate::Y: return geo::Vector_t{0, t0Offset * to_int(sign), 0};
+  case geo::Coordinate::Z: return geo::Vector_t{0, 0, t0Offset * to_int(sign)};
   }
+  return {}; // unreachable
 }
 
 std::map<art::Ptr<anab::T0>, bool> sce::SCECorrection::getSliceT0s(

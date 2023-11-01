@@ -19,7 +19,7 @@
 
 #include "lardataobj/Simulation/SimChannel.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/MCBase/MCDataHolder.h"
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/MCBase/MCWireCollection.h"
@@ -51,10 +51,7 @@ namespace hit {
 
   void MCHitFinder::produce(art::Event& e)
   {
-
-    art::ServiceHandle<geo::Geometry const> geo;
-
-    const unsigned int nch = geo->Nchannels();
+    const unsigned int nch = art::ServiceHandle<geo::WireReadout const>()->Get().Nchannels();
 
     std::unique_ptr<std::vector<sim::MCHitCollection>> hits_v(
       new std::vector<sim::MCHitCollection>());
@@ -118,8 +115,6 @@ namespace hit {
 
           auto edep_iter = edep_wire_map.insert(std::make_pair(edep, wire));
 
-          //auto edep_iter = edep_wire_map.find(edep);
-
           auto last_tdc =
             (edep_iter).first->second.StartTDC() + (edep_iter).first->second.size() - 1;
 
@@ -133,18 +128,7 @@ namespace hit {
           }
 
           if (!(edep_iter.second)) {
-
-            if (last_tdc + 1 != tdc) {
-              /*
-              std::cerr
-                << "Found discontinuous TDC! "
-                << " Last (ADC @ TDC): " << (*(edep_iter.first->second.rbegin())) << " @ " << last_tdc
-                << " while current (ADC @ TDC): " << (ide.numElectrons * detp->ElectronsToADC()) << " @ " << tdc
-                << " ... skipping to store!"
-                << std::endl;
-              */
-              continue;
-            }
+            if (last_tdc + 1 != tdc) { continue; }
           }
           (edep_iter).first->second.push_back(ide.numElectrons);
         } // Done looping over IDEs in a particular TDC
@@ -199,4 +183,5 @@ namespace hit {
     }
   }
 }
+
 DEFINE_ART_MODULE(hit::MCHitFinder)

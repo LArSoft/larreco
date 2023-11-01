@@ -4,6 +4,7 @@
 
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -295,10 +296,9 @@ namespace tca {
 
     std::string fcnLabel = "FS";
 
-    geo::TPCGeo const& TPC = tcc.geom->TPC(slc.TPCID);
     // check for already-existing showers
-    for (unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-      CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
+    for (auto const planeid : tcc.wireReadoutGeom->Iterate<geo::PlaneID>(slc.TPCID)) {
+      CTP_t inCTP = EncodeCTP(planeid.Cryostat, planeid.TPC, planeid.Plane);
       for (auto& ss : slc.cots)
         if (ss.CTP == inCTP) return false;
     }
@@ -310,28 +310,28 @@ namespace tca {
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(slc.nPlanes);
-    for (unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
+    for (auto const planeid : tcc.wireReadoutGeom->Iterate<geo::PlaneID>(slc.TPCID)) {
       std::vector<std::vector<int>> tjList;
       // Make lists of lists of ShowerLike tjs that will become showers
       //      FindCots(fcnLabel, slc, inCTP, tjList, prt2S);
       SaveTjInfo(slc, tjList, "TJL");
       if (tjList.empty()) continue;
-      bigList[plane] = tjList;
+      bigList[planeid.Plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
-    for (unsigned short plane = 0; plane < TPC.Nplanes(); ++plane)
-      if (!bigList.empty()) ++nPlanesWithShowers;
+    if (!bigList.empty()) { nPlanesWithShowers = tcc.wireReadoutGeom->Nplanes(slc.TPCID); }
     if (nPlanesWithShowers < 2) return false;
-    for (unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-      CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
+
+    for (auto const planeid : tcc.wireReadoutGeom->Iterate<geo::PlaneID>(slc.TPCID)) {
+      CTP_t inCTP = EncodeCTP(planeid.Cryostat, planeid.TPC, planeid.Plane);
       // print detailed debug info for one plane
       bool prtCTP = (prt2S && inCTP == debug.CTP);
       // Create a shower for each one
-      for (auto& tjl : bigList[plane]) {
+      for (auto& tjl : bigList[planeid.Plane]) {
         if (tjl.empty()) continue;
         if (prtCTP) {
           mf::LogVerbatim myprt("TC");
-          myprt << "Plane " << plane << " tjList";
+          myprt << "Plane " << planeid.Plane << " tjList";
           for (auto& tjID : tjl)
             myprt << " " << tjID;
         }

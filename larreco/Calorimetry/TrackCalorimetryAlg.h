@@ -8,14 +8,15 @@
  * Input:       recob::Track, Assn<recob::Spacepoint,recob::Track>, Assn<recob::Hit,recob::Track>
  * Output:      anab::Calorimetry, (and Assn<anab::Calorimetry,recob::Track>)
 */
-#include <iostream>
 
-#include "larcorealg/CoreUtils/ProviderPack.h"
-#include "larcorealg/Geometry/GeometryCore.h"
-
+#include "larcorealg/Geometry/fwd.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
+#include "fhiclcpp/ParameterSet.h"
+
 #include "TVector3.h"
+
+#include <iostream>
 #include <set>
 
 namespace anab {
@@ -24,10 +25,6 @@ namespace anab {
 namespace detinfo {
   class DetectorClocksData;
   class DetectorPropertiesData;
-  class LArProperties;
-}
-namespace fhicl {
-  class ParameterSet;
 }
 namespace geo {
   struct PlaneID;
@@ -44,8 +41,6 @@ namespace calo {
 
 class calo::TrackCalorimetryAlg {
 public:
-  using Providers_t = lar::ProviderPack<geo::GeometryCore, detinfo::LArProperties>;
-
   TrackCalorimetryAlg(fhicl::ParameterSet const& p);
 
   void ExtractCalorimetry(detinfo::DetectorClocksData const& clock_data,
@@ -55,7 +50,7 @@ public:
                           std::vector<std::vector<size_t>> const&,
                           std::vector<anab::Calorimetry>&,
                           std::vector<size_t>&,
-                          Providers_t providers);
+                          geo::WireReadoutGeom const&);
 
 private:
   CalorimetryAlg caloAlg;
@@ -100,7 +95,7 @@ private:
                   std::vector<std::pair<geo::WireID, float>> const&,
                   std::vector<float> const&,
                   HitPropertiesMultiset_t&,
-                  geo::GeometryCore const&);
+                  geo::WireReadoutGeom const&);
 
   bool IsInvertedTrack(HitPropertiesMultiset_t const&);
 

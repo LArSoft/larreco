@@ -5,14 +5,12 @@
 
 #include "canvas/Persistency/Common/Ptr.h"
 
+#include "larcorealg/Geometry/fwd.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 namespace detinfo {
   class DetectorPropertiesData;
-}
-namespace geo {
-  class GeometryCore;
 }
 
 #include <map>
@@ -67,6 +65,7 @@ namespace reco3d {
 
   protected:
     const geo::GeometryCore* geom;
+    const geo::WireReadoutGeom* wireReadoutGeom;
 
     /// Helper for constructor
     void FillHitMap(const detinfo::DetectorPropertiesData& clockData,

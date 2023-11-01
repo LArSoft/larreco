@@ -12,10 +12,12 @@
 //Framework includes:
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/CoreUtils/NumericUtils.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/APAGeometryAlg.h"
 
@@ -26,32 +28,16 @@
 
 namespace apa {
 
-  APAGeometryAlg::APAGeometryAlg(fhicl::ParameterSet const& pset)
+  //----------------------------------------------------------
+  APAGeometryAlg::APAGeometryAlg()
+    : fWireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
   {
-    this->reconfigure(pset);
-    this->Init();
-  }
-
-  //----------------------------------------------------------
-  APAGeometryAlg::APAGeometryAlg() { this->Init(); }
-
-  //----------------------------------------------------------
-  void APAGeometryAlg::reconfigure(fhicl::ParameterSet const& /*p*/) {}
-
-  //----------------------------------------------------------
-  void APAGeometryAlg::Init()
-  {
-
     // find the number of channels per APA
     uint32_t channel = 0;
 
-    // old logic -- segfaults if there is just one APA
-    //while( fGeom->ChannelToWire(channel+1)[0].TPC < 2 ) channel++;
-    //fChannelsPerAPA = channel + 1;
-
-    fChannelsPerAPA = fGeom->Nchannels();
-    for (channel = 0; channel < fGeom->Nchannels(); ++channel) {
-      if (fGeom->ChannelToWire(channel)[0].TPC > 1) {
+    fChannelsPerAPA = fWireReadoutGeom->Nchannels();
+    for (channel = 0; channel < fWireReadoutGeom->Nchannels(); ++channel) {
+      if (fWireReadoutGeom->ChannelToWire(channel)[0].TPC > 1) {
         fChannelsPerAPA = channel;
         break;
       }
@@ -62,16 +48,15 @@ namespace apa {
     // (very dependent on the conventions implimented in the channel map)
     fFirstU = 0;
     uint32_t c = 1;
-    geo::WireID wid = (fGeom->ChannelToWire(c))[0];
+    geo::WireID wid = fWireReadoutGeom->ChannelToWire(c)[0];
     geo::WireID lastwid;
     while (wid.TPC < 2) {
-
-      if (fGeom->View(c) == geo::kV && fGeom->View(c - 1) == geo::kU) {
+      if (fWireReadoutGeom->View(c) == geo::kV && fWireReadoutGeom->View(c - 1) == geo::kU) {
         fLastU = c - 1;
         fFirstV = c;
       }
 
-      if (fGeom->View(c) == geo::kZ && fGeom->View(c - 1) == geo::kV) {
+      if (fWireReadoutGeom->View(c) == geo::kZ && fWireReadoutGeom->View(c - 1) == geo::kV) {
         fLastV = c - 1;
         fFirstZ0 = c;
       }
@@ -83,8 +68,8 @@ namespace apa {
 
       lastwid = wid;
       c++;
-      if (c >= fGeom->Nchannels()) break;
-      wid = (fGeom->ChannelToWire(c))[0]; // for the while condition
+      if (c >= fWireReadoutGeom->Nchannels()) break;
+      wid = fWireReadoutGeom->ChannelToWire(c)[0]; // for the while condition
     }
 
     fLastZ1 = c - 1;
@@ -94,14 +79,16 @@ namespace apa {
 
     // some other things that will be needed
     fAPAsPerCryo = fGeom->NTPC() / 2;
-    fChannelRange[0] = (fLastU - fFirstU + 1) * fGeom->WirePitch(geo::kU);
-    fChannelRange[1] = (fLastV - fFirstV + 1) * fGeom->WirePitch(geo::kV);
+    constexpr geo::TPCID tpcid{0, 0};
+    fChannelRange[0] =
+      (fLastU - fFirstU + 1) * fWireReadoutGeom->Plane({tpcid, geo::kU}).WirePitch();
+    fChannelRange[1] =
+      (fLastV - fFirstV + 1) * fWireReadoutGeom->Plane({tpcid, geo::kV}).WirePitch();
   }
 
   //----------------------------------------------------------
   void APAGeometryAlg::ChannelToAPA(uint32_t chan, unsigned int& apa, unsigned int& cryo) const
   {
-
     cryo = chan / (fAPAsPerCryo * fChannelsPerAPA);
 
     // Number apa uniquely across cryostats so that
@@ -109,8 +96,6 @@ namespace apa {
     // If we decide to reset APA number per cryo, uncomment:
     //chan -= cryo*fAPAsPerCryo*fChannelsPerAPA;
     apa = chan / fChannelsPerAPA;
-
-    return;
   }
 
   //----------------------------------------------------------
@@ -119,7 +104,6 @@ namespace apa {
   //----------------------------------------------------------
   unsigned int APAGeometryAlg::ChannelsInView(geo::View_t geoview) const
   {
-
     switch (geoview) {
     default: return 0;
     case geo::kU: return ChannelsInAPAView(kU);
@@ -136,7 +120,6 @@ namespace apa {
   //----------------------------------------------------------
   unsigned int APAGeometryAlg::ChannelsInAPAView(APAView_t apaview) const
   {
-
     switch (apaview) {
     default: return 0;
     case kU: return fFirstV - fFirstU;
@@ -151,7 +134,6 @@ namespace apa {
                                               unsigned int apa,
                                               unsigned int cryo) const
   {
-
     switch (geoview) {
     default: return 0 + (uint32_t)(apa + cryo * fAPAsPerCryo) * fChannelsPerAPA;
     case geo::kU: return fFirstU + (uint32_t)(apa + cryo * fAPAsPerCryo) * fChannelsPerAPA;
@@ -165,30 +147,27 @@ namespace apa {
   //----------------------------------------------------------
   uint32_t APAGeometryAlg::FirstChannelInView(uint32_t chan) const
   {
-
-    geo::View_t geoview = fGeom->View(chan);
+    geo::View_t geoview = fWireReadoutGeom->View(chan);
     unsigned int apa, cryo;
-    this->ChannelToAPA(chan, apa, cryo);
-    return this->FirstChannelInView(geoview, chan);
+    ChannelToAPA(chan, apa, cryo);
+    return FirstChannelInView(geoview, chan);
   }
 
   //----------------------------------------------------------
   uint32_t APAGeometryAlg::FirstChannelInView(geo::View_t geoview, uint32_t chan) const
   {
-
     unsigned int apa, cryo;
-    this->ChannelToAPA(chan, apa, cryo);
-    return this->FirstChannelInView(geoview, apa, cryo);
+    ChannelToAPA(chan, apa, cryo);
+    return FirstChannelInView(geoview, apa, cryo);
   }
 
   //----------------------------------------------------------
   APAView_t APAGeometryAlg::APAView(uint32_t chan) const
   {
-
     // it seems trivial to do this for U and V, but this gives a side to
     // geo::kZ, unlike Geometry::View(c), as is often needed in disambiguation
 
-    geo::View_t view = fGeom->View(chan);
+    geo::View_t view = fWireReadoutGeom->View(chan);
     switch (view) {
     default: break;
     case geo::kU: return kU;
@@ -206,9 +185,8 @@ namespace apa {
   //----------------------------------------------------------
   std::vector<geo::WireID> APAGeometryAlg::ChanSegsPerSide(uint32_t chan, unsigned int side) const
   {
-
-    std::vector<geo::WireID> wids = fGeom->ChannelToWire(chan);
-    return this->ChanSegsPerSide(wids, side);
+    std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(chan);
+    return ChanSegsPerSide(wids, side);
   }
 
   //----------------------------------------------------------
@@ -227,63 +205,59 @@ namespace apa {
   }
 
   //----------------------------------------------------------
-  geo::WireID APAGeometryAlg::NearestWireIDOnChan(const double WorldLoc[3],
+  geo::WireID APAGeometryAlg::NearestWireIDOnChan(geo::Point_t const& worldLoc,
                                                   uint32_t chan,
-                                                  unsigned int const plane,
-                                                  unsigned int const tpc,
-                                                  unsigned int const cstat) const
+                                                  geo::PlaneID const& planeID) const
   {
+    std::vector<geo::WireID> cWids = fWireReadoutGeom->ChannelToWire(chan);
 
-    std::vector<geo::WireID> cWids = fGeom->ChannelToWire(chan);
+    if (cWids[0].Cryostat != planeID.Cryostat)
+      throw cet::exception("APAGeometryAlg")
+        << "Channel " << chan << "not in cryostat " << planeID.Cryostat << "\n";
 
-    if (cWids[0].Cryostat != cstat)
+    if (std::floor(cWids[0].TPC / 2) != std::floor(planeID.TPC / 2))
       throw cet::exception("APAGeometryAlg")
-        << "Channel " << chan << "not in cryostat " << cstat << "\n";
-    if (std::floor(cWids[0].TPC / 2) != std::floor(tpc / 2))
-      throw cet::exception("APAGeometryAlg")
-        << "Channel " << chan << "not in APA " << std::floor(tpc / 2) << "\n";
+        << "Channel " << chan << "not in APA " << std::floor(planeID.TPC / 2) << "\n";
 
     // special case for vertical wires
-    if (fGeom->View(chan) == geo::kZ) return fGeom->ChannelToWire(chan)[0];
+    if (fWireReadoutGeom->View(chan) == geo::kZ) {
+      return fWireReadoutGeom->ChannelToWire(chan)[0];
+    }
 
-    unsigned int xyzWire = fGeom
-                             ->NearestWireID(geo::Point_t{WorldLoc[0], WorldLoc[1], WorldLoc[2]},
-                                             geo::PlaneID{cstat, tpc, plane})
-                             .Wire;
+    unsigned int xyzWire = fWireReadoutGeom->Plane(planeID).NearestWireID(worldLoc).Wire;
 
-    // The desired wire ID will be the only channel
-    // segment within half the channel range.
+    // The desired wire ID will be the only channel segment within half the channel range.
     geo::WireID wid;
     for (size_t i = 0; i < cWids.size(); i++) {
-      if (cWids[i].TPC != tpc) continue;
-      if (std::abs((int)cWids[i].Wire - (int)xyzWire) < fChannelRange[plane] / 2) wid = cWids[i];
+      if (cWids[i].TPC != planeID.TPC) continue;
+      if (std::abs((int)cWids[i].Wire - (int)xyzWire) < fChannelRange[planeID.Plane] / 2)
+        wid = cWids[i];
     }
 
     return wid;
   }
 
   //----------------------------------------------------------
-  bool APAGeometryAlg::LineSegChanIntersect(TVector3 xyzStart,
-                                            TVector3 xyzEnd,
+  bool APAGeometryAlg::LineSegChanIntersect(geo::Point_t const& xyzStart,
+                                            geo::Point_t const& xyzEnd,
                                             uint32_t chan,
                                             std::vector<geo::WireID>& widsCrossed,
                                             bool ExtendLine = true) const
   {
     // This assumes a smooth wire numbering, and that the line seg is contained in a tpc.
-    // Meant for use with the approximate line calculated
-    // by matching cluster endpoints in disambiguation.
+    // Meant for use with the approximate line calculated by matching cluster endpoints in
+    // disambiguation.
 
     // Find tpc, use midpoint in case start/end is on a boundary
-    geo::Point_t const xyzMid{
-      (xyzStart[0] + xyzEnd[0]) / 2, (xyzStart[1] + xyzEnd[1]) / 2, (xyzStart[2] + xyzEnd[2]) / 2};
+    geo::Point_t const xyzMid = geo::vect::middlePoint({xyzStart, xyzEnd});
     auto const& tpcid = fGeom->PositionToTPCID(xyzMid);
 
     // Find the nearest wire number to the line segment endpoints
-    std::vector<geo::WireID> wids = fGeom->ChannelToWire(chan);
+    std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(chan);
     geo::PlaneID const planeID{tpcid, wids[0].Plane};
-    using geo::vect::toPoint;
-    unsigned int startW = fGeom->NearestWireID(toPoint(xyzStart), planeID).Wire;
-    unsigned int endW = fGeom->NearestWireID(toPoint(xyzEnd), planeID).Wire;
+    auto const& plane = fWireReadoutGeom->Plane(planeID);
+    unsigned int startW = plane.NearestWireID(xyzStart).Wire;
+    unsigned int endW = plane.NearestWireID(xyzEnd).Wire;
 
     if (startW > endW) std::swap(startW, endW);
 
@@ -307,32 +281,31 @@ namespace apa {
         widsCrossed.push_back(wids[w]);
     }
 
-    return widsCrossed.size() > 0;
+    return not widsCrossed.empty();
   }
 
   //----------------------------------------------------------
   std::vector<double> APAGeometryAlg::ThreeChanPos(uint32_t u, uint32_t v, uint32_t z) const
   {
-
     // Say we've associated a U, V, and Z channel -- perhaps by associating hits
     // or cluster endpoints -- these don't necessarily all intersect, but they
     // are hopefully pretty close. Find the center of the 3 intersections.
 
     // get data needed along the way
     std::vector<geo::WireIDIntersection> UVIntersects;
-    this->APAChannelsIntersect(u, v, UVIntersects);
+    APAChannelsIntersect(u, v, UVIntersects);
     std::vector<double> UVzToZ(UVIntersects.size());
-    geo::WireID Zwid = fGeom->ChannelToWire(z)[0];
+    geo::WireID Zwid = fWireReadoutGeom->ChannelToWire(z)[0];
     unsigned int cryo = Zwid.Cryostat;
     unsigned int tpc = Zwid.TPC;
-    std::vector<geo::WireID> Uwids = fGeom->ChannelToWire(u);
-    std::vector<geo::WireID> Vwids = fGeom->ChannelToWire(v);
+    std::vector<geo::WireID> Uwids = fWireReadoutGeom->ChannelToWire(u);
+    std::vector<geo::WireID> Vwids = fWireReadoutGeom->ChannelToWire(v);
     std::vector<geo::WireID> UwidsInTPC, VwidsInTPC;
     for (size_t i = 0; i < Uwids.size(); i++)
       if (Uwids[i].TPC == tpc) UwidsInTPC.push_back(Uwids[i]);
     for (size_t i = 0; i < Vwids.size(); i++)
       if (Vwids[i].TPC == tpc) VwidsInTPC.push_back(Vwids[i]);
-    auto const Zcent = fGeom->WireIDToWireGeo(Zwid).GetCenter();
+    auto const Zcent = fWireReadoutGeom->Wire(Zwid).GetCenter();
 
     std::cout << "Zcent = " << Zcent.Z() << ", UVintersects zpos = ";
     for (size_t uv = 0; uv < UVIntersects.size(); uv++) {
@@ -343,9 +316,7 @@ namespace apa {
     /////////////////////////////////////
     /////////////////////////////////////
 
-    //std::cout << "U = " << u << " V = " << v << ", " << UVIntersects.size() << std::endl;
-
-    if (UVIntersects.size() == 0) {
+    if (UVIntersects.empty()) {
       if (UwidsInTPC.size() > 1 || VwidsInTPC.size() > 1)
         throw cet::exception("ThreeChanPos") << "U/V channels don't intersect, bad return.\n";
 
@@ -355,22 +326,21 @@ namespace apa {
       std::vector<double> yzCenter(2, 0.);
       geo::WireID Uwid = UwidsInTPC[0];
       geo::WireID Vwid = VwidsInTPC[0];
-      geo::WireIDIntersection UZInt, VZInt;
-      bool checkUZ = fGeom->WireIDsIntersect(Uwid, Zwid, UZInt);
-      bool checkVZ = fGeom->WireIDsIntersect(Vwid, Zwid, VZInt);
-      if (!checkUZ && !checkVZ)
+      auto const UZInt = fWireReadoutGeom->WireIDsIntersect(Uwid, Zwid);
+      auto const VZInt = fWireReadoutGeom->WireIDsIntersect(Vwid, Zwid);
+      if (!UZInt && !VZInt)
         throw cet::exception("NoChanIntersect") << "No channels intersect, bad return.\n";
-      if (checkUZ && !checkVZ) {
-        yzCenter[0] = UZInt.y;
-        yzCenter[1] = UZInt.z;
+      if (UZInt && !VZInt) {
+        yzCenter[0] = UZInt->y;
+        yzCenter[1] = UZInt->z;
       }
-      if (checkVZ && !checkUZ) {
-        yzCenter[0] = VZInt.y;
-        yzCenter[1] = VZInt.z;
+      if (VZInt && !UZInt) {
+        yzCenter[0] = VZInt->y;
+        yzCenter[1] = VZInt->z;
       }
-      if (checkUZ && checkVZ) {
-        yzCenter[0] = (VZInt.y + UZInt.y) / 2;
-        yzCenter[1] = (VZInt.z + UZInt.z) / 2;
+      if (UZInt && VZInt) {
+        yzCenter[0] = (VZInt->y + UZInt->y) / 2;
+        yzCenter[1] = (VZInt->z + UZInt->z) / 2;
       }
       return yzCenter;
     }
@@ -390,36 +360,26 @@ namespace apa {
     unsigned int bestWidI = 0;
     double minZdiff = fGeom->TPC(Zwid).Length(); // start it out at maximum z
     for (unsigned int widI = 0; widI < UVIntersects.size(); widI++) {
-
-      //std::cout << "widI = " << widI << std::endl;
-
       if (UVIntersects[widI].TPC == tpc && UVzToZ[widI] < minZdiff) {
         minZdiff = UVzToZ[widI];
         bestWidI = widI;
-        //std::cout << "bestWidI = " << bestWidI << std::endl;
       }
     }
     geo::WireIDIntersection ChosenUVInt = UVIntersects[bestWidI];
 
     // Now having the UV intersection, get the UZ and VZ
-    double UVInt[3] = {0.};
-    UVInt[1] = ChosenUVInt.y;
-    UVInt[2] = ChosenUVInt.z;
-    geo::WireID Uwid = this->NearestWireIDOnChan(UVInt, u, 0, tpc, cryo);
-    geo::WireID Vwid = this->NearestWireIDOnChan(UVInt, v, 1, tpc, cryo);
-    geo::WireIDIntersection UZInt, VZInt;
-    bool checkUZ = fGeom->WireIDsIntersect(Uwid, Zwid, UZInt);
-    bool checkVZ = fGeom->WireIDsIntersect(Vwid, Zwid, VZInt);
-
-    std::cout << "UZint.z = " << UZInt.z << " (" << checkUZ << "), VZint.z = " << VZInt.z << " ("
-              << checkVZ << ")\n";
+    geo::Point_t const UVInt{0., ChosenUVInt.y, ChosenUVInt.z};
+    geo::WireID Uwid = NearestWireIDOnChan(UVInt, u, {cryo, tpc, 0});
+    geo::WireID Vwid = NearestWireIDOnChan(UVInt, v, {cryo, tpc, 1});
+    auto const UZInt = fWireReadoutGeom->WireIDsIntersect(Uwid, Zwid);
+    auto const VZInt = fWireReadoutGeom->WireIDsIntersect(Vwid, Zwid);
 
     // find the center
     std::vector<double> yzCenter(2, 0.);
 
-    if (!checkUZ || !checkVZ) {
-      //throw cet::exception("ThreeChanPos")  << "WireIDs were expected to intersect.\n";
-
+    std::cout << "UZint = " << std::boolalpha << static_cast<bool>(UZInt)
+              << ", VZint = " << static_cast<bool>(VZInt) << '\n';
+    if (!UZInt || !VZInt) {
       std::cout << "ChosenUVint.y = " << ChosenUVInt.y << "ChosenUVint.z = " << ChosenUVInt.z
                 << std::endl;
 
@@ -428,9 +388,9 @@ namespace apa {
       yzCenter[1] = ChosenUVInt.z;
     }
     else {
-
-      yzCenter[0] = (ChosenUVInt.y + UZInt.y + VZInt.y) / 3;
-      yzCenter[1] = (ChosenUVInt.z + UZInt.z + VZInt.z) / 3;
+      std::cout << "UZint.z = " << UZInt->z << ", VZint.z = " << VZInt->z << '\n';
+      yzCenter[0] = (ChosenUVInt.y + UZInt->y + VZInt->y) / 3;
+      yzCenter[1] = (ChosenUVInt.z + UZInt->z + VZInt->z) / 3;
     }
 
     return yzCenter;
@@ -442,25 +402,22 @@ namespace apa {
     uint32_t chan2,
     std::vector<geo::WireIDIntersection>& IntersectVector) const
   {
-
     // Get the WireIDs and view for each channel, make sure views are different
-    geo::WireIDIntersection widIntersect;
-    std::vector<geo::WireID> wids1 = fGeom->ChannelToWire(chan1);
-    std::vector<geo::WireID> wids2 = fGeom->ChannelToWire(chan2);
-    geo::View_t view1 = fGeom->View(chan1);
-    geo::View_t view2 = fGeom->View(chan2);
+    std::vector<geo::WireID> wids1 = fWireReadoutGeom->ChannelToWire(chan1);
+    std::vector<geo::WireID> wids2 = fWireReadoutGeom->ChannelToWire(chan2);
+    geo::View_t view1 = fWireReadoutGeom->View(chan1);
+    geo::View_t view2 = fWireReadoutGeom->View(chan2);
     if (view1 == view2) {
       mf::LogWarning("APAChannelsIntersect")
         << "Comparing two channels in the same view, return false";
       return false;
     }
-    if (wids1[0].Cryostat != wids2[0].Cryostat ||
-        this->ChannelToAPA(chan1) != this->ChannelToAPA(chan2)) {
+    if (wids1[0].Cryostat != wids2[0].Cryostat || ChannelToAPA(chan1) != ChannelToAPA(chan2)) {
       throw cet::exception("APAChannelsIntersect")
         << "Comparing two channels in in different APAs: "
         << "channel " << chan1 << " in Cryo " << wids1[0].Cryostat << ", APA "
-        << this->ChannelToAPA(chan1) << ", and channel " << chan2 << " in Cryo "
-        << wids2[0].Cryostat << ", APA " << this->ChannelToAPA(chan2) << "\n";
+        << ChannelToAPA(chan1) << ", and channel " << chan2 << " in Cryo " << wids2[0].Cryostat
+        << ", APA " << ChannelToAPA(chan2) << "\n";
       return false;
     }
 
@@ -475,19 +432,9 @@ namespace apa {
             wids1[i1].Cryostat != wids2[i2].Cryostat)
           continue;
 
-        //      std::cout << "Checking: \n WireID 1 = ("
-        //                << wids1[i1].Cryostat << "," << wids1[i1].TPC << ","
-        //                << wids1[i1].Plane    << "," << wids1[i1].Wire
-        //                << ") \n WireID 2 = ("
-        //                << wids2[i2].Cryostat << "," << wids2[i2].TPC << ","
-        //                << wids2[i2].Plane    << "," << wids2[i2].Wire << ")" << std::endl;
-
         // Check if they even intersect; if they do, push back
-        if (fGeom->WireIDsIntersect(wids1[i1], wids2[i2], widIntersect)) {
-
-          //	  std::cout << "we have an intersect" << std::endl;
-
-          IntersectVector.push_back(widIntersect);
+        if (auto widIntersect = fWireReadoutGeom->WireIDsIntersect(wids1[i1], wids2[i2])) {
+          IntersectVector.push_back(*widIntersect);
         }
       }
     }
@@ -500,17 +447,13 @@ namespace apa {
         << chan2 << " - never expect more than 4, so far";
     }
 
-    // With increasing IntersectVector index, the WireID
-    // vector indices of the intersecting wireIDs increase.
-    //   This matches the direction in which ChannelToWire
-    //   builds its output WireID vector in the APA/35t Alg
+    // With increasing IntersectVector index, the WireID vector indices of the
+    // intersecting wireIDs increase.  This matches the direction in which ChannelToWire
+    // builds its output WireID vector in the APA/35t Alg
     std::sort(IntersectVector.begin(), IntersectVector.end());
 
     // return true if any intersection points were found
-    if (IntersectVector.size() == 0)
-      return false;
-    else
-      return true;
+    return not IntersectVector.empty();
   }
 
 } //end namespace apa

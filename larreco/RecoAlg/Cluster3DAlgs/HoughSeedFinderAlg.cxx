@@ -17,7 +17,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Seed.h"
 
 // ROOT includes
@@ -65,7 +66,8 @@ namespace lar_cluster3d {
     m_maxLoopsPerCluster = pset.get<int>("MaxLoopsPerCluster", 3);
     m_maximumGap = pset.get<double>("MaximumGap", 5.);
     m_displayHist = pset.get<bool>("DisplayHoughHist", false);
-    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const> {}
+    ->Get();
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
@@ -363,7 +365,8 @@ namespace lar_cluster3d {
     static int histCount(0);
     const double maxTheta(M_PI);                               // Obviously, 180 degrees
     const double thetaBinSize(maxTheta / double(m_thetaBins)); // around 4 degrees (45 bins)
-    const double rhoBinSizeMin(m_geometry->WirePitch()); // Wire spacing gives a natural bin size?
+    const double rhoBinSizeMin(
+      m_wireReadoutGeom->Plane({0, 0, 0}).WirePitch()); // Wire spacing gives a natural bin size?
 
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
     Eigen::Vector3f pcaCenter(
@@ -998,16 +1001,17 @@ namespace lar_cluster3d {
     // Loop over unique 2D hits from the input list of 3D hits
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
+      auto const& plane = m_wireReadoutGeom->Plane(wireID);
       unsigned int const ipl = wireID.Plane;
 
       // get the wire plane offset
-      double const off = m_geometry->WireCoordinate(geo::Point_t{}, wireID);
+      double const off = plane.WireCoordinate(geo::Point_t{});
 
       // get the "cosine-like" component
-      double const cw = m_geometry->WireCoordinate(geo::Point_t{0., 1., 0.}, wireID) - off;
+      double const cw = plane.WireCoordinate(geo::Point_t{0., 1., 0.}) - off;
 
       // the "sine-like" component
-      double const sw = m_geometry->WireCoordinate(geo::Point_t{0., 0., 1.}, wireID) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0., 0., 1.}) - off;
 
       double const x = hit->getXPosition() - XOrigin;
 
@@ -1039,10 +1043,10 @@ namespace lar_cluster3d {
 
     for (const auto& hit : hit2DSet) {
       geo::WireID const& wireID = hit->WireID();
-
-      double const off = m_geometry->WireCoordinate(geo::Point_t{0., 0., 0.}, wireID);
-      double const cw = m_geometry->WireCoordinate(geo::Point_t{0., 1., 0.}, wireID) - off;
-      double const sw = m_geometry->WireCoordinate(geo::Point_t{0., 0., 1.}, wireID) - off;
+      auto const& plane = m_wireReadoutGeom->Plane(wireID);
+      double const off = plane.WireCoordinate(geo::Point_t{0., 0., 0.});
+      double const cw = plane.WireCoordinate(geo::Point_t{0., 1., 0.}) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0., 0., 1.}) - off;
       double const x = hit->getXPosition() - XOrigin;
       double const ypr = tVec[0] + tVec[2] * x;
       double const zpr = tVec[1] + tVec[3] * x;
@@ -1050,7 +1054,8 @@ namespace lar_cluster3d {
       ChiDOF += diff * diff;
     }
 
-    float werr2 = m_geometry->WirePitch() * m_geometry->WirePitch();
+    auto const& plane = m_wireReadoutGeom->Plane({0, 0, 0});
+    float werr2 = plane.WirePitch() * plane.WirePitch();
     ChiDOF /= werr2;
     ChiDOF /= (float)(npts - 4);
 

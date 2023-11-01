@@ -50,6 +50,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -330,9 +331,8 @@ namespace trkf {
     // For now just Collection plane.
     // We should loop over all views, more generally.
     geo::SigType_t sig(geo::kCollection);
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     static art::PtrVector<recob::SpacePoint>::const_iterator sstart(s.begin());
-    //      art::PtrVector<recob::SpacePoint>::const_iterator sppt = sstart;
     art::PtrVector<recob::SpacePoint>::const_iterator sppt = s.begin();
     std::vector<double> v;
 
@@ -367,10 +367,10 @@ namespace trkf {
          ++ihit) {
       const recob::Hit& hit1 = **ihit;
       if (hit1.SignalType() != sig) continue;
-      geo::PlaneID const& hit1PlaneID = hit1.WireID().asPlaneID();
+      auto const& plane = wireReadoutGeom.Plane(hit1.WireID());
       charge = hit1.Integral();
-      wirePitch = geom->WirePitch(hit1PlaneID);
-      angleToVert = geom->Plane(hit1PlaneID).Wire(0).ThetaZ(false) - 0.5 * TMath::Pi();
+      wirePitch = plane.WirePitch();
+      angleToVert = plane.Wire(0).ThetaZ(false) - 0.5 * TMath::Pi();
     }
 
     double cosgamma =
@@ -479,10 +479,6 @@ namespace trkf {
     tree->Branch("pMCPos", fpMCPos, "pMCPos[4]/F");
     tree->Branch("pRECKalF", fpREC, "pRECKalF[4]/F");
     tree->Branch("pRECKalL", fpRECL, "pRECKalL[4]/F");
-
-    //TGeoManager* geomGENFIT = new TGeoManager("Geometry", "Geane geometry");
-    //TGeoManager::Import("config/genfitGeom.root");
-    //  gROOT->Macro("config/Geane.C");
   }
 
   //-------------------------------------------------
@@ -490,14 +486,6 @@ namespace trkf {
   {
     if (!rep) delete rep;
     if (!repMC) delete repMC;
-
-    /*
-  //  not sure why I can't do these, but at least some cause seg faults.
-  delete[] stMCT;
-  delete[] covMCT;
-  delete[] stREC;
-  delete[] covREC;
-  */
 
     delete[] fpREC;
     delete[] fpRECL;
@@ -533,7 +521,6 @@ namespace trkf {
   //------------------------------------------------------------------------------------//
   void Track3DKalmanSPS::produce(art::Event& evt)
   {
-
     rep = 0;
     repMC = 0;
     // get services
@@ -550,9 +537,6 @@ namespace trkf {
       new art::Assns<recob::Track, recob::Hit>);
 
     unsigned int tcnt = 0;
-
-    // define TPC parameters
-    TString tpcName = geom->GetLArTPCVolumeName();
 
     // get input Hit object(s).
     art::Handle<std::vector<recob::Cluster>> clusterListHandle;
@@ -633,6 +617,7 @@ namespace trkf {
     TParticlePDG* part = TDatabasePDG::Instance()->GetParticle(fPdg);
     Double_t mass = part->Mass();
 
+    auto const& tpc = geom->TPC({0, 0});
     size_t cntp(0);
     while (sppt != spptIn.end()) {
 
@@ -725,18 +710,17 @@ namespace trkf {
       double epsX(250.0);   // cm.
       double epsZ(0.001);   // cm.
 
-      if (spacepointss[spacepointss.size() - 1]->XYZ()[0] > (2. * geom->DetHalfWidth() - close) ||
+      if (spacepointss[spacepointss.size() - 1]->XYZ()[0] > (2. * tpc.HalfWidth() - close) ||
           spacepointss[spacepointss.size() - 1]->XYZ()[0] < close ||
-          spacepointss[0]->XYZ()[0] > (2. * geom->DetHalfWidth() - close) ||
+          spacepointss[0]->XYZ()[0] > (2. * tpc.HalfWidth() - close) ||
           spacepointss[0]->XYZ()[0] < close ||
-          spacepointss[spacepointss.size() - 1]->XYZ()[1] > (1. * geom->DetHalfHeight() - close) ||
-          (spacepointss[spacepointss.size() - 1]->XYZ()[1] < -1. * geom->DetHalfHeight() + close) ||
-          spacepointss[0]->XYZ()[1] > (1. * geom->DetHalfHeight() - close) ||
-          spacepointss[0]->XYZ()[1] < (-1. * geom->DetHalfHeight() + close) ||
-          spacepointss[spacepointss.size() - 1]->XYZ()[2] > (geom->DetLength() - close) ||
+          spacepointss[spacepointss.size() - 1]->XYZ()[1] > (1. * tpc.HalfHeight() - close) ||
+          (spacepointss[spacepointss.size() - 1]->XYZ()[1] < -1. * tpc.HalfHeight() + close) ||
+          spacepointss[0]->XYZ()[1] > (1. * tpc.HalfHeight() - close) ||
+          spacepointss[0]->XYZ()[1] < (-1. * tpc.HalfHeight() + close) ||
+          spacepointss[spacepointss.size() - 1]->XYZ()[2] > (tpc.Length() - close) ||
           spacepointss[spacepointss.size() - 1]->XYZ()[2] < close ||
-          spacepointss[0]->XYZ()[2] > (geom->DetLength() - close) ||
-          spacepointss[0]->XYZ()[2] < close)
+          spacepointss[0]->XYZ()[2] > (tpc.Length() - close) || spacepointss[0]->XYZ()[2] < close)
         uncontained = true;
       fErrScaleSHere = fErrScaleS;
       fErrScaleMHere = fErrScaleM;

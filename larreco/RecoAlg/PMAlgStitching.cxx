@@ -6,6 +6,7 @@
 #include "larreco/RecoAlg/PMAlgStitching.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
@@ -169,12 +170,8 @@ void pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockD
 
         // Make sure the x directions point towards eachother (could be an issue for matching a short track)
         if (t1Dir.X() * t2Dir.X() > 0) { continue; }
-        //        t1Pos.SetX(t1Pos.X() - xShift1);
-        //        t2Pos.SetX(t2Pos.X() + xShift1);
 
-        double score = 0;
-        //        score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir);
-        score = GetOptimalStitchShift(t1Pos, t2Pos, t1Dir, t2Dir, xShift1);
+        double score = GetOptimalStitchShift(t1Pos, t2Pos, t1Dir, t2Dir, xShift1);
 
         if (score < fStitchingThreshold && score < bestMatchScore) {
 
@@ -256,8 +253,8 @@ void pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockD
           mf::LogInfo("pma::PMAlgStitching") << "Unable to flip Track 1.";
           canMerge = false;
         }
-        for (const auto ts : newTracks) { // there may be a new track even if
-                                          // entire flip was not possible
+        for (const auto ts : newTracks) { // there may be a new track even if entire flip
+                                          // was not possible
           tracks.tracks().emplace_back(ts, -1, tid2);
         }
       }
@@ -269,9 +266,8 @@ void pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockD
         mf::LogInfo("pma::PMAlgStitching") << "Merging tracks...";
         int idx1 = tracks.getCandidateIndex(t1);
         int idx2 = tracks.getCandidateIndex(bestTrkMatch);
-        if (reverse) // merge current track to another track, do not increase
-                     // the outer loop index t (next after current track jumps
-                     // in at t)
+        if (reverse) // merge current track to another track, do not increase the outer
+                     // loop index t (next after current track jumps in at t)
         {
           if (tracks.setTreeOriginAtFront(detProp, t1)) {
             tracks.merge((size_t)idx2, (size_t)idx1);
@@ -281,7 +277,8 @@ void pma::PMAlgStitching::StitchTracks(const detinfo::DetectorClocksData& clockD
             ++t;
           }
         }
-        else // merge to the current track, do not increase the outer loop index t (maybe something else will match to the extended track)
+        else // merge to the current track, do not increase the outer loop index t (maybe
+             // something else will match to the extended track)
         {
           if (tracks.setTreeOriginAtFront(detProp, bestTrkMatch)) {
             tracks.merge((size_t)idx1, (size_t)idx2);
@@ -359,31 +356,30 @@ double pma::PMAlgStitching::GetTrackPairDelta(TVector3& pos1,
 // Get the CPA and APA positions from the geometry
 void pma::PMAlgStitching::GetTPCXOffsets()
 {
-
-  // Grab hold of the geometry
   auto const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   // Loop over each TPC and store the require information
-  for (geo::TPCID const& tID : geom->Iterate<geo::TPCID>()) {
-
-    geo::TPCGeo const& aTPC = geom->TPC(tID);
+  for (geo::TPCGeo const& aTPC : geom->Iterate<geo::TPCGeo>()) {
+    auto const& tID = aTPC.ID();
 
     // Loop over the 3 possible readout planes to find the x position
+    // KJK: Then why does the loop go from 0 through 3 (i.e. 4 planes)?
     unsigned int plane = 0;
     bool hasPlane = false;
     for (; plane < 4; ++plane) {
-      hasPlane = aTPC.HasPlane(plane);
+      hasPlane = wireReadoutGeom.HasPlane({tID, plane});
       if (hasPlane) { break; }
     }
 
     if (!hasPlane) { continue; }
 
     // Get the x position of the readout plane
-    double xAnode = aTPC.Plane(0).GetCenter().X();
+    double xAnode = wireReadoutGeom.FirstPlane(tID).GetCenter().X();
     fTPCXOffsetsAPA.insert(std::make_pair(tID, xAnode));
 
-    // For the cathode, we have to try a little harder. Firstly, find the
-    // min and max x values for the TPC.
+    // For the cathode, we have to try a little harder. Firstly, find the min and max x
+    // values for the TPC.
     auto const center = aTPC.GetCenter();
     double tpcDim[3] = {aTPC.HalfWidth(), aTPC.HalfHeight(), 0.5 * aTPC.Length()};
     double xmin = center.X() - tpcDim[0];

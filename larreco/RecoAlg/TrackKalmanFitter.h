@@ -8,7 +8,7 @@
 #include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Table.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/RecoObjects/KFTrackState.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/TrajectoryPointFlags.h"
@@ -296,7 +296,7 @@ namespace trkf {
                     std::vector<art::Ptr<recob::Hit>>& outHits,
                     trkmkr::OptionalOutputs& optionals) const;
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* channelMap_ = &art::ServiceHandle<geo::WireReadout>()->Get();
     const TrackStatePropagator* propagator;
     bool useRMS_;
     bool sortHitsByPlane_;

@@ -4,7 +4,7 @@
 //note for MT: this implementation is not thread-safe
 ////////////////////////////////////////////////////////////////////////
 
-#include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 #include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
@@ -76,7 +76,8 @@ namespace reco_tool {
     // Member variables from the fhicl file
     std::unique_ptr<reco_tool::IWaveformTool> fWaveformTool;
 
-    const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
+    const geo::WireReadoutGeom* fWireReadoutGeom =
+      &art::ServiceHandle<geo::WireReadout const>()->Get();
   };
 
   //----------------------------------------------------------------------
@@ -135,7 +136,7 @@ namespace reco_tool {
     fWaveformTool->firstDerivative(waveform, rawDerivativeVec);
     fWaveformTool->triangleSmooth(rawDerivativeVec, derivativeVec);
 
-    std::vector<geo::WireID> wids = fGeometry->ChannelToWire(channel);
+    std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(channel);
     size_t plane = wids[0].Plane;
     size_t cryo = wids[0].Cryostat;
     size_t tpc = wids[0].TPC;
@@ -168,12 +169,6 @@ namespace reco_tool {
 
     // Keep track of histograms if requested
     if (fOutputHistograms) {
-      // Recover the details...
-      //        std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
-      //        size_t                   plane = wids[0].Plane;
-      //        size_t                   cryo  = wids[0].Cryostat;
-      //        size_t                   tpc   = wids[0].TPC;
-      //        size_t                   wire  = wids[0].Wire;
 
       size_t channelCnt = fChannelCntMap[channel]++;
 

@@ -15,6 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
@@ -35,7 +36,6 @@ namespace cluster {
    *
    */
   class LineCluster : public art::EDProducer {
-
   public:
     explicit LineCluster(fhicl::ParameterSet const& pset);
 
@@ -132,44 +132,19 @@ namespace cluster {
 
     std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters = fCCAlg.GetClusters();
 
-    // Consistency check
-    /*
-    std::vector<short> const& inClus = fCCAlg.GetinClus();
-    for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
-        ClusterCrawlerAlg::ClusterStore const& clstr = Clusters[icl];
-        if(clstr.ID < 0) continue;
-        geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
-        unsigned short plane = planeID.Plane;
-        for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
-          unsigned int iht = clstr.tclhits[ii];
-          recob::Hit const& theHit = FinalHits->at(iht);
-          if(theHit.WireID().Plane != plane) {
-            mf::LogError("LineCluster")<<"Cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
-            <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
-            return;
-          }
-          if(inClus[iht] != clstr.ID) {
-            mf::LogError("LineCluster") << "InClus mis-match " << inClus[iht]
-            << " ID " << clstr.ID << " in cluster ID " << clstr.ID<<" cluster ProcCode "<<clstr.ProcCode;;
-            return;
-          }
-        } // ii
-      } // icl
-*/
     // make EndPoints (aka 2D vertices)
     std::vector<ClusterCrawlerAlg::VtxStore> const& EndPts = fCCAlg.GetEndPoints();
     std::vector<unsigned int> indxToIndx(EndPts.size());
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     unsigned short vtxID = 0, end, wire, ivx;
     for (ivx = 0; ivx < EndPts.size(); ++ivx) {
       if (EndPts[ivx].NClusters == 0) continue;
       indxToIndx[ivx] = vtxID;
       ++vtxID;
-      //      std::cout<<"EndPt "<<ivx<<" vtxID "<<vtxID<<"\n";
       wire = (0.5 + EndPts[ivx].Wire);
       geo::PlaneID plID = ClusterCrawlerAlg::DecodeCTP(EndPts[ivx].CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
-      geo::View_t view = geom->View(wID);
+      geo::View_t view = wireReadoutGeom.Plane(wID).View();
       sv2col.emplace_back((double)EndPts[ivx].Time, // Time
                           wID,                      // WireID
                           0,                        // strength - not relevant
@@ -259,7 +234,6 @@ namespace cluster {
       // make the cluster - EndPoint2D and Vertex associations
       if (clstr.BeginVtx >= 0) {
         end = 0;
-        //        std::cout<<clstr.ID<<" clsID "<<clsID<<" Begin vtx "<<clstr.BeginVtx<<" vtxID "<<indxToIndx[clstr.BeginVtx]<<"\n";
         if (!util::CreateAssnD(evt, *cep_assn, clsID - 1, indxToIndx[clstr.BeginVtx], end)) {
           throw art::Exception(art::errors::ProductRegistrationFailure)
             << "Failed to associate cluster " << clsID << " with EndPoint2D " << clstr.BeginVtx;
@@ -283,7 +257,6 @@ namespace cluster {
       }   // clstr.BeginVtx >= 0
       if (clstr.EndVtx >= 0) {
         end = 1;
-        //        std::cout<<clstr.ID<<" clsID "<<clsID<<" End   vtx "<<clstr.EndVtx<<" vtxID "<<indxToIndx[clstr.EndVtx]<<"\n";
         if (!util::CreateAssnD(evt, *cep_assn, clsID - 1, indxToIndx[clstr.EndVtx], end)) {
           throw art::Exception(art::errors::ProductRegistrationFailure)
             << "Failed to associate cluster " << clsID << " with EndPoint2D " << clstr.BeginVtx;

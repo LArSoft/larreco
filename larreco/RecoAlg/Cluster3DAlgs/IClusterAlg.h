@@ -9,11 +9,6 @@
 #ifndef IClusterAlg_h
 #define IClusterAlg_h
 
-// Framework Includes
-namespace fhicl {
-  class ParameterSet;
-}
-
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
@@ -29,13 +24,6 @@ namespace lar_cluster3d {
      *  @brief  Virtual Destructor
      */
     virtual ~IClusterAlg() noexcept = default;
-
-    /**
-     *  @brief Interface for configuring the particular algorithm tool
-     *
-     *  @param ParameterSet  The input set of parameters for configuration
-     */
-    virtual void configure(const fhicl::ParameterSet&) = 0;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters

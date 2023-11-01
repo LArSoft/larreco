@@ -34,6 +34,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/MCBase/MCTrack.h"
@@ -53,18 +54,18 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  double bdist(const TVector3& pos)
   {
     // Get geometry.
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
-    double d1 = pos.X();                             // Distance to right side (wires).
-    double d2 = 2. * geom->DetHalfWidth() - pos.X(); // Distance to left side (cathode).
-    double d3 = pos.Y() + geom->DetHalfHeight();     // Distance to bottom.
-    double d4 = geom->DetHalfHeight() - pos.Y();     // Distance to top.
-    double d5 = pos.Z();                             // Distance to front.
-    double d6 = geom->DetLength() - pos.Z();         // Distance to back.
+    double d1 = pos.X();                        // Distance to right side (wires).
+    double d2 = 2. * tpc.HalfWidth() - pos.X(); // Distance to left side (cathode).
+    double d3 = pos.Y() + tpc.HalfHeight();     // Distance to bottom.
+    double d4 = tpc.HalfHeight() - pos.Y();     // Distance to top.
+    double d5 = pos.Z();                        // Distance to front.
+    double d6 = tpc.Length() - pos.Z();         // Distance to back.
 
     return std::min({d1, d2, d3, d4, d5, d6});
   }
@@ -84,15 +85,15 @@ namespace {
                 TVector3& startmom,
                 TVector3& endmom)
   {
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
     // Get fiducial volume boundary.
     double xmin = 0.;
-    double xmax = 2. * geom->DetHalfWidth();
-    double ymin = -geom->DetHalfHeight();
-    double ymax = geom->DetHalfHeight();
+    double xmax = 2. * tpc.HalfWidth();
+    double ymin = -tpc.HalfHeight();
+    double ymax = tpc.HalfHeight();
     double zmin = 0.;
-    double zmax = geom->DetLength();
+    double zmax = tpc.Length();
     double result = 0.;
     TVector3 disp;
     int n = part.NumberTrajectoryPoints();
@@ -142,16 +143,16 @@ namespace {
                 TVector3& startmom,
                 TVector3& endmom)
   {
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
 
     // Get fiducial volume boundary.
 
     double xmin = 0.;
-    double xmax = 2. * geom->DetHalfWidth();
-    double ymin = -geom->DetHalfHeight();
-    double ymax = geom->DetHalfHeight();
+    double xmax = 2. * tpc.HalfWidth();
+    double ymin = -tpc.HalfHeight();
+    double ymax = tpc.HalfHeight();
     double zmin = 0.;
-    double zmax = geom->DetLength();
+    double zmax = tpc.Length();
     double result = 0.;
     TVector3 disp;
     int n = mctrk.size();
@@ -439,7 +440,7 @@ namespace trkf {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -450,27 +451,26 @@ namespace trkf {
     // Book histograms.
 
     fHstartx = dir.make<TH1F>(
-      "xstart", "X Start Position", 100, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHstarty = dir.make<TH1F>(
-      "ystart", "Y Start Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHstartz = dir.make<TH1F>("zstart", "Z Start Position", 100, 0., geom->DetLength());
-    fHstartd = dir.make<TH1F>(
-      "dstart", "Start Position Distance to Boundary", 100, -10., geom->DetHalfWidth());
-    fHendx = dir.make<TH1F>(
-      "xend", "X End Position", 100, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHendy =
-      dir.make<TH1F>("yend", "Y End Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHendz = dir.make<TH1F>("zend", "Z End Position", 100, 0., geom->DetLength());
+      "xstart", "X Start Position", 100, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHstarty =
+      dir.make<TH1F>("ystart", "Y Start Position", 100, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHstartz = dir.make<TH1F>("zstart", "Z Start Position", 100, 0., tpc.Length());
+    fHstartd =
+      dir.make<TH1F>("dstart", "Start Position Distance to Boundary", 100, -10., tpc.HalfWidth());
+    fHendx =
+      dir.make<TH1F>("xend", "X End Position", 100, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHendy = dir.make<TH1F>("yend", "Y End Position", 100, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHendz = dir.make<TH1F>("zend", "Z End Position", 100, 0., tpc.Length());
     fHendd =
-      dir.make<TH1F>("dend", "End Position Distance to Boundary", 100, -10., geom->DetHalfWidth());
+      dir.make<TH1F>("dend", "End Position Distance to Boundary", 100, -10., tpc.HalfWidth());
     fHtheta = dir.make<TH1F>("theta", "Theta", 100, 0., 3.142);
     fHphi = dir.make<TH1F>("phi", "Phi", 100, -3.142, 3.142);
     fHtheta_xz = dir.make<TH1F>("theta_xz", "Theta_xz", 100, -3.142, 3.142);
     fHtheta_yz = dir.make<TH1F>("theta_yz", "Theta_yz", 100, -3.142, 3.142);
     fHmom = dir.make<TH1F>("mom", "Momentum", 100, 0., 10.);
     fHmoml = dir.make<TH1F>("moml", "Momentum", 100, 0., 1.);
-    fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 1.1 * geom->DetLength());
-    fHlens = dir.make<TH1F>("lens", "Track Length", 100, 0., 0.1 * geom->DetLength());
+    fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 1.1 * tpc.Length());
+    fHlens = dir.make<TH1F>("lens", "Track Length", 100, 0., 0.1 * tpc.Length());
     fHHitChg = dir.make<TH1F>("hchg", "Hit Charge (ADC counts)", 100, 0., 4000.);
     fHHitWidth = dir.make<TH1F>("hwid", "Hit Width (ticks)", 40, 0., 20.);
     fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code", 5001, -2500.5, +2500.5);
@@ -513,7 +513,7 @@ namespace trkf {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& tpc = art::ServiceHandle<geo::Geometry const>()->TPC({0, 0});
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -547,10 +547,10 @@ namespace trkf {
                             "Reco Length vs. MC Truth Length",
                             100,
                             0.,
-                            1.1 * geom->DetLength(),
+                            1.1 * tpc.Length(),
                             100,
                             0.,
-                            1.1 * geom->DetLength());
+                            1.1 * tpc.Length());
     fHdl = dir.make<TH1F>("dl", "Track Length Minus MC Particle Length", 100, -50., 50.);
     fHpvsp =
       dir.make<TH2F>("pvsp", "Reco Momentum vs. MC Truth Momentum", 100, 0., 5., 100, 0., 5.);
@@ -562,15 +562,15 @@ namespace trkf {
     fHppullc = dir.make<TH1F>("ppullc", "Momentum Pull (Contained Tracks)", 100, -10., 10.);
 
     fHmcstartx = dir.make<TH1F>(
-      "mcxstart", "MC X Start Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHmcstarty = dir.make<TH1F>(
-      "mcystart", "MC Y Start Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position", 10, 0., geom->DetLength());
+      "mcxstart", "MC X Start Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHmcstarty =
+      dir.make<TH1F>("mcystart", "MC Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position", 10, 0., tpc.Length());
     fHmcendx = dir.make<TH1F>(
-      "mcxend", "MC X End Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHmcendy = dir.make<TH1F>(
-      "mcyend", "MC Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position", 10, 0., geom->DetLength());
+      "mcxend", "MC X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHmcendy =
+      dir.make<TH1F>("mcyend", "MC Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position", 10, 0., tpc.Length());
     fHmctheta = dir.make<TH1F>("mctheta", "MC Theta", 20, 0., 3.142);
     fHmcphi = dir.make<TH1F>("mcphi", "MC Phi", 10, -3.142, 3.142);
     fHmctheta_xz = dir.make<TH1F>("mctheta_xz", "MC Theta_xz", 40, -3.142, 3.142);
@@ -579,22 +579,19 @@ namespace trkf {
     fHmcmoml = dir.make<TH1F>("mcmoml", "MC Momentum", 10, 0., 1.);
     fHmcke = dir.make<TH1F>("mcke", "MC Kinetic Energy", 10, 0., 10.);
     fHmckel = dir.make<TH1F>("mckel", "MC Kinetic Energy", 10, 0., 1.);
-    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
-    fHmclens = dir.make<TH1F>("mclens", "MC Particle Length", 10, 0., 0.1 * geom->DetLength());
+    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * tpc.Length());
+    fHmclens = dir.make<TH1F>("mclens", "MC Particle Length", 10, 0., 0.1 * tpc.Length());
 
-    fHgstartx = dir.make<TH1F>("gxstart",
-                               "Good X Start Position",
-                               10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
-    fHgstarty = dir.make<TH1F>(
-      "gystart", "Good Y Start Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position", 10, 0., geom->DetLength());
+    fHgstartx = dir.make<TH1F>(
+      "gxstart", "Good X Start Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHgstarty =
+      dir.make<TH1F>("gystart", "Good Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position", 10, 0., tpc.Length());
     fHgendx = dir.make<TH1F>(
-      "gxend", "Good X End Position", 10, -2. * geom->DetHalfWidth(), 4. * geom->DetHalfWidth());
-    fHgendy = dir.make<TH1F>(
-      "gyend", "Good Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHgendz = dir.make<TH1F>("gzend", "Good Z End Position", 10, 0., geom->DetLength());
+      "gxend", "Good X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
+    fHgendy =
+      dir.make<TH1F>("gyend", "Good Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHgendz = dir.make<TH1F>("gzend", "Good Z End Position", 10, 0., tpc.Length());
     fHgtheta = dir.make<TH1F>("gtheta", "Good Theta", 20, 0., 3.142);
     fHgphi = dir.make<TH1F>("gphi", "Good Phi", 10, -3.142, 3.142);
     fHgtheta_xz = dir.make<TH1F>("gtheta_xz", "Good Theta_xz", 40, -3.142, 3.142);
@@ -603,29 +600,22 @@ namespace trkf {
     fHgmoml = dir.make<TH1F>("gmoml", "Good Momentum", 10, 0., 1.);
     fHgke = dir.make<TH1F>("gke", "Good Kinetic Energy", 10, 0., 10.);
     fHgkel = dir.make<TH1F>("gkel", "Good Kinetic Energy", 10, 0., 1.);
-    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
-    fHglens = dir.make<TH1F>("glens", "Good Particle Length", 10, 0., 0.1 * geom->DetLength());
+    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * tpc.Length());
+    fHglens = dir.make<TH1F>("glens", "Good Particle Length", 10, 0., 0.1 * tpc.Length());
 
     fHestartx = dir.make<TH1F>("exstart",
                                "Efficiency vs. X Start Position",
                                10,
-                               -2. * geom->DetHalfWidth(),
-                               4. * geom->DetHalfWidth());
-    fHestarty = dir.make<TH1F>("eystart",
-                               "Efficiency vs. Y Start Position",
-                               10,
-                               -geom->DetHalfHeight(),
-                               geom->DetHalfHeight());
-    fHestartz =
-      dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position", 10, 0., geom->DetLength());
-    fHeendx = dir.make<TH1F>("exend",
-                             "Efficiency vs. X End Position",
-                             10,
-                             -2. * geom->DetHalfWidth(),
-                             4. * geom->DetHalfWidth());
+                               -2. * tpc.HalfWidth(),
+                               4. * tpc.HalfWidth());
+    fHestarty = dir.make<TH1F>(
+      "eystart", "Efficiency vs. Y Start Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHestartz = dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position", 10, 0., tpc.Length());
+    fHeendx = dir.make<TH1F>(
+      "exend", "Efficiency vs. X End Position", 10, -2. * tpc.HalfWidth(), 4. * tpc.HalfWidth());
     fHeendy = dir.make<TH1F>(
-      "eyend", "Efficiency vs. Y End Position", 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
-    fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position", 10, 0., geom->DetLength());
+      "eyend", "Efficiency vs. Y End Position", 10, -tpc.HalfHeight(), tpc.HalfHeight());
+    fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position", 10, 0., tpc.Length());
     fHetheta = dir.make<TH1F>("etheta", "Efficiency vs. Theta", 20, 0., 3.142);
     fHephi = dir.make<TH1F>("ephi", "Efficiency vs. Phi", 10, -3.142, 3.142);
     fHetheta_xz = dir.make<TH1F>("etheta_xz", "Efficiency vs. Theta_xz", 40, -3.142, 3.142);
@@ -634,18 +624,11 @@ namespace trkf {
     fHemoml = dir.make<TH1F>("emoml", "Efficiency vs. Momentum", 10, 0., 1.);
     fHeke = dir.make<TH1F>("eke", "Efficiency vs. Kinetic Energy", 10, 0., 10.);
     fHekel = dir.make<TH1F>("ekel", "Efficiency vs. Kinetic Energy", 10, 0., 1.);
-    fHelen =
-      dir.make<TH1F>("elen", "Efficiency vs. Particle Length", 10, 0., 1.1 * geom->DetLength());
-    fHelens =
-      dir.make<TH1F>("elens", "Efficiency vs. Particle Length", 10, 0., 0.1 * geom->DetLength());
+    fHelen = dir.make<TH1F>("elen", "Efficiency vs. Particle Length", 10, 0., 1.1 * tpc.Length());
+    fHelens = dir.make<TH1F>("elens", "Efficiency vs. Particle Length", 10, 0., 0.1 * tpc.Length());
   }
 
   TrackAna::TrackAna(const fhicl::ParameterSet& pset)
-    //
-    // Purpose: Constructor.
-    //
-    // Arguments: pset - Module parameters.
-    //
     : EDAnalyzer(pset)
     , fTrackModuleLabel(pset.get<std::string>("TrackModuleLabel"))
     , fMCTrackModuleLabel(pset.get<std::string>("MCTrackModuleLabel"))
@@ -707,7 +690,7 @@ namespace trkf {
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     ++fNumEvent;
 
@@ -1173,11 +1156,12 @@ namespace trkf {
                         << " RecoTrkID " << track.ID() << " hitEff " << std::setprecision(2)
                         << hiteff << " hitPur " << hitpurity;
                       // this won't work for DUNE
-                      for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+                      for (unsigned short ipl = 0; ipl < wireReadoutGeom.Nplanes(); ++ipl) {
                         geo::PlaneID const planeID{0, 0, ipl};
-                        auto const sWire = geom->NearestWireID(mcstart, planeID).Wire;
+                        auto const& plane = wireReadoutGeom.Plane(planeID);
+                        auto const sWire = plane.NearestWireID(mcstart).Wire;
                         auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
-                        auto const eWire = geom->NearestWireID(mcend, planeID).Wire;
+                        auto const eWire = plane.NearestWireID(mcend).Wire;
                         auto const eTick = detProp.ConvertXToTicks(mcend.X(), planeID);
                         mf::LogVerbatim("TrackAna")
                           << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":" << sTick
@@ -1254,11 +1238,12 @@ namespace trkf {
           << plen << " cm";
         if (fPrintLevel > 1) {
           // this won't work for DUNE
-          for (unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+          for (unsigned short ipl = 0; ipl < wireReadoutGeom.Nplanes(); ++ipl) {
             geo::PlaneID const& planeID{0, 0, ipl};
-            auto const sWire = geom->NearestWireID(mcstart, planeID).Wire;
+            auto const& plane = wireReadoutGeom.Plane(planeID);
+            auto const sWire = plane.NearestWireID(mcstart).Wire;
             auto const sTick = detProp.ConvertXToTicks(mcstart.X(), planeID);
-            auto const eWire = geom->NearestWireID(mcend, planeID).Wire;
+            auto const eWire = plane.NearestWireID(mcend).Wire;
             auto const eTick = detProp.ConvertXToTicks(mcend.X(), planeID);
             mf::LogVerbatim("TrackAna") << "   Wire:Tick in Pln " << ipl << " W:T " << sWire << ":"
                                         << sTick << " - " << eWire << ":" << eTick;
@@ -1274,7 +1259,6 @@ namespace trkf {
   {
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
-    art::ServiceHandle<geo::Geometry const> geom;
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>>> hitmap; // trkID, otrk, hitvec
     std::map<int, int> KEmap; // length traveled in det [cm]?, trkID want to sort by KE

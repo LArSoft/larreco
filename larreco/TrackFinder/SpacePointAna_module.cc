@@ -26,6 +26,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
@@ -74,56 +75,51 @@ namespace trkf {
 
     // Histograms.
 
-    bool fBooked;    // Have histograms been booked yet?
-    TH1F* fHDTUE;    // U-drift electrons time difference.
-    TH1F* fHDTVE;    // V-drift electrons time difference.
-    TH1F* fHDTWE;    // W-drift electrons time difference.
-    TH1F* fHDTUPull; // U-drift electrons time pull.
-    TH1F* fHDTVPull; // V-drift electrons time pull.
-    TH1F* fHDTWPull; // W-drift electrons time pull.
-    TH1F* fHDTUV;    // U-V time difference.
-    TH1F* fHDTVW;    // V-W time difference.
-    TH1F* fHDTWU;    // W-U time difference.
-    TH2F* fHDTUVU;   // U-V time difference vs. U.
-    TH2F* fHDTUVV;   // U-V time difference vs. V.
-    TH2F* fHDTVWV;   // V-W time difference vs. V.
-    TH2F* fHDTVWW;   // V-W time difference vs. W.
-    TH2F* fHDTWUW;   // W-U time difference vs. W.
-    TH2F* fHDTWUU;   // W-U time difference vs. U.
-    TH1F* fHS;       // Spatial separation.
-    TH1F* fHchisq;   // Space point chisquare.
-    TH1F* fHx;       // X position.
-    TH1F* fHy;       // Y position.
-    TH1F* fHz;       // Z position.
-    TH1F* fHAmpU;    // U hit amplitude.
-    TH1F* fHAmpV;    // V hit amplitude.
-    TH1F* fHAmpW;    // W hit amplitude.
-    TH1F* fHAreaU;   // U hit area.
-    TH1F* fHAreaV;   // V hit area.
-    TH1F* fHAreaW;   // W hit area.
-    TH1F* fHSumU;    // U hit sum ADC.
-    TH1F* fHSumV;    // V hit sum ADC.
-    TH1F* fHSumW;    // W hit sum ADC.
-    TH1F* fHMCdx;    // X residual (reco vs. mc truth).
-    TH1F* fHMCdy;    // Y residual (reco vs. mc truth).
-    TH1F* fHMCdz;    // Z residual (reco vs. mc truth).
-    TH1F* fHMCxpull; // X pull (reco vs. mc truth).
-    TH1F* fHMCypull; // Y pull (reco vs. mc truth).
-    TH1F* fHMCzpull; // Z pull (reco vs. mc truth).
+    bool fBooked{false};      // Have histograms been booked yet?
+    TH1F* fHDTUE{nullptr};    // U-drift electrons time difference.
+    TH1F* fHDTVE{nullptr};    // V-drift electrons time difference.
+    TH1F* fHDTWE{nullptr};    // W-drift electrons time difference.
+    TH1F* fHDTUPull{nullptr}; // U-drift electrons time pull.
+    TH1F* fHDTVPull{nullptr}; // V-drift electrons time pull.
+    TH1F* fHDTWPull{nullptr}; // W-drift electrons time pull.
+    TH1F* fHDTUV{nullptr};    // U-V time difference.
+    TH1F* fHDTVW{nullptr};    // V-W time difference.
+    TH1F* fHDTWU{nullptr};    // W-U time difference.
+    TH2F* fHDTUVU{nullptr};   // U-V time difference vs. U.
+    TH2F* fHDTUVV{nullptr};   // U-V time difference vs. V.
+    TH2F* fHDTVWV{nullptr};   // V-W time difference vs. V.
+    TH2F* fHDTVWW{nullptr};   // V-W time difference vs. W.
+    TH2F* fHDTWUW{nullptr};   // W-U time difference vs. W.
+    TH2F* fHDTWUU{nullptr};   // W-U time difference vs. U.
+    TH1F* fHS{nullptr};       // Spatial separation.
+    TH1F* fHchisq{nullptr};   // Space point chisquare.
+    TH1F* fHx{nullptr};       // X position.
+    TH1F* fHy{nullptr};       // Y position.
+    TH1F* fHz{nullptr};       // Z position.
+    TH1F* fHAmpU{nullptr};    // U hit amplitude.
+    TH1F* fHAmpV{nullptr};    // V hit amplitude.
+    TH1F* fHAmpW{nullptr};    // W hit amplitude.
+    TH1F* fHAreaU{nullptr};   // U hit area.
+    TH1F* fHAreaV{nullptr};   // V hit area.
+    TH1F* fHAreaW{nullptr};   // W hit area.
+    TH1F* fHSumU{nullptr};    // U hit sum ADC.
+    TH1F* fHSumV{nullptr};    // V hit sum ADC.
+    TH1F* fHSumW{nullptr};    // W hit sum ADC.
+    TH1F* fHMCdx{nullptr};    // X residual (reco vs. mc truth).
+    TH1F* fHMCdy{nullptr};    // Y residual (reco vs. mc truth).
+    TH1F* fHMCdz{nullptr};    // Z residual (reco vs. mc truth).
+    TH1F* fHMCxpull{nullptr}; // X pull (reco vs. mc truth).
+    TH1F* fHMCypull{nullptr}; // Y pull (reco vs. mc truth).
+    TH1F* fHMCzpull{nullptr}; // Z pull (reco vs. mc truth).
 
     // Statistics.
 
-    int fNumEvent;
+    int fNumEvent{0};
   };
 
   DEFINE_ART_MODULE(SpacePointAna)
 
   SpacePointAna::SpacePointAna(const fhicl::ParameterSet& pset)
-    //
-    // Purpose: Constructor.
-    //
-    // Arguments: pset - Module parameters.
-    //
     : EDAnalyzer(pset)
     , fSptalgTime(pset.get<fhicl::ParameterSet>("SpacePointAlgTime"))
     , fSptalgSep(pset.get<fhicl::ParameterSet>("SpacePointAlgSep"))
@@ -138,43 +134,6 @@ namespace trkf {
     , fMaxY(pset.get<double>("MaxY", 1.e10))
     , fMinZ(pset.get<double>("MinZ", -1.e10))
     , fMaxZ(pset.get<double>("MaxZ", 1.e10))
-    , fBooked(false)
-    , fHDTUE(0)
-    , fHDTVE(0)
-    , fHDTWE(0)
-    , fHDTUPull(0)
-    , fHDTVPull(0)
-    , fHDTWPull(0)
-    , fHDTUV(0)
-    , fHDTVW(0)
-    , fHDTWU(0)
-    , fHDTUVU(0)
-    , fHDTUVV(0)
-    , fHDTVWV(0)
-    , fHDTVWW(0)
-    , fHDTWUW(0)
-    , fHDTWUU(0)
-    , fHS(0)
-    , fHchisq(0)
-    , fHx(0)
-    , fHy(0)
-    , fHz(0)
-    , fHAmpU(0)
-    , fHAmpV(0)
-    , fHAmpW(0)
-    , fHAreaU(0)
-    , fHAreaV(0)
-    , fHAreaW(0)
-    , fHSumU(0)
-    , fHSumV(0)
-    , fHSumW(0)
-    , fHMCdx(0)
-    , fHMCdy(0)
-    , fHMCdz(0)
-    , fHMCxpull(0)
-    , fHMCypull(0)
-    , fHMCzpull(0)
-    , fNumEvent(0)
   {
     mf::LogInfo("SpacePointAna") << "SpacePointAna configured with the following parameters:\n"
                                  << "  HitModuleLabel = " << fHitModuleLabel << "\n"
@@ -189,6 +148,7 @@ namespace trkf {
       fBooked = true;
 
       art::ServiceHandle<geo::Geometry const> geom;
+      auto const& tpc = geom->TPC({0, 0});
       art::ServiceHandle<art::TFileService> tfs;
       art::TFileDirectory dir = tfs->mkdir("sptana", "SpacePointAna histograms");
 
@@ -198,7 +158,8 @@ namespace trkf {
 
       // Loop over cryostats, tpcs, and planes.
 
-      for (auto const& pgeom : geom->Iterate<geo::PlaneGeo>()) {
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+      for (auto const& pgeom : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
         unsigned int const nwires = pgeom.Nwires();
         switch (pgeom.View()) {
         case geo::kU: nwiresU = nwires; break;
@@ -236,10 +197,9 @@ namespace trkf {
       }
       fHchisq = dir.make<TH1F>("chisq", "Chisquare", 100, 0., 20.);
 
-      fHx = dir.make<TH1F>("xpos", "X Position", 100, 0., 2. * geom->DetHalfWidth());
-      fHy =
-        dir.make<TH1F>("ypos", "Y Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
-      fHz = dir.make<TH1F>("zpos", "Z Position", 100, 0., geom->DetLength());
+      fHx = dir.make<TH1F>("xpos", "X Position", 100, 0., 2. * tpc.HalfWidth());
+      fHy = dir.make<TH1F>("ypos", "Y Position", 100, -tpc.HalfHeight(), tpc.HalfHeight());
+      fHz = dir.make<TH1F>("zpos", "Z Position", 100, 0., tpc.Length());
       fHAmpU = dir.make<TH1F>("ampU", "U Hit Amplitude", 50, 0., 50.);
       fHAmpV = dir.make<TH1F>("ampV", "V Hit Amplitude", 50, 0., 50.);
       fHAmpW = dir.make<TH1F>("ampW", "W Hit Amplitude", 50, 0., 50.);

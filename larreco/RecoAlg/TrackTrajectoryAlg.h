@@ -15,11 +15,9 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
-namespace geo {
-  struct WireID;
-}
 
 #include "TVector3.h"
 
@@ -34,7 +32,7 @@ namespace trkf {
                          std::vector<TVector3>& TrajDir);
 
   private:
-    art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom = &art::ServiceHandle<geo::WireReadout>()->Get();
 
     double minX;
     unsigned short minXPln;

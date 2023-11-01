@@ -15,6 +15,7 @@
 
 #include <vector>
 
+#include "larcorealg/Geometry/fwd.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
@@ -23,12 +24,7 @@
 
 #include "RFFHitFitter.h"
 
-namespace fhicl {
-  class ParameterSet;
-}
-namespace geo {
-  class Geometry;
-}
+#include "fhiclcpp/fwd.h"
 
 namespace hit {
 
@@ -39,8 +35,10 @@ namespace hit {
   public:
     RFFHitFinderAlg(fhicl::ParameterSet const&);
 
-    void SetFitterParamsVectors(geo::Geometry const&);
-    void Run(std::vector<recob::Wire> const&, std::vector<recob::Hit>&, geo::Geometry const&);
+    void SetFitterParamsVectors(unsigned int num_planes);
+    void Run(std::vector<recob::Wire> const&,
+             std::vector<recob::Hit>&,
+             geo::WireReadoutGeom const&);
 
   private:
     std::vector<float> fMatchThresholdVec;

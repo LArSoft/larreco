@@ -16,12 +16,11 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // larsoft
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -274,6 +273,8 @@ private:
 
   // Services used by this class
   art::ServiceHandle<geo::Geometry const> fGeom;
+  geo::WireReadoutGeom const* fWireReadoutGeom{
+    &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
   // Algs used by this class
   shower::ShowerEnergyAlg const fShowerEnergyAlg;

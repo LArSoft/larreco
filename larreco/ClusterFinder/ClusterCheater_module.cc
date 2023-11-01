@@ -10,6 +10,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -140,7 +141,9 @@ namespace cluster {
 
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{*geo, clockData, detProp};
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+
+    util::GeometryUtilities const gser{*geo, wireReadoutGeom, clockData, detProp};
 
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -159,7 +162,7 @@ namespace cluster {
       unsigned int cryostat = planeID.Cryostat;
       unsigned int tpc = planeID.TPC;
       unsigned int plane = planeID.Plane;
-      auto xyz = geo->Plane(planeID).GetBoxCenter();
+      auto xyz = wireReadoutGeom.Plane(planeID).GetBoxCenter();
 
       MF_LOG_DEBUG("ClusterCheater")
         << "make cluster for eveID: " << hitMapItr.first.eveID << " in cryostat: " << cryostat
@@ -183,14 +186,15 @@ namespace cluster {
       unsigned int w1 = 0;
       unsigned int w2 = 0;
 
+      auto const& planeg = wireReadoutGeom.Plane(planeID);
       try {
-        w1 = geo->NearestWireID(xyz, planeID).Wire;
+        w1 = planeg.NearestWireID(xyz).Wire;
       }
       catch (cet::exception& e) {
         w1 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());
       }
       try {
-        w2 = geo->NearestWireID(xyz2, planeID).Wire;
+        w2 = planeg.NearestWireID(xyz2).Wire;
       }
       catch (cet::exception& e) {
         w2 = atoi(e.explain_self().substr(e.explain_self().find("#") + 1, 5).c_str());

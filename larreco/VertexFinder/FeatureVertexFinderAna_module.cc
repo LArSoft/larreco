@@ -10,15 +10,13 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 
 // LArSoft
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "larsim/MCCheater/BackTrackerService.h"
-
-// C++
-#include <string>
 
 // Framework
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -35,6 +33,9 @@
 // ROOT
 #include "TH1F.h"
 #include "TH2D.h"
+
+// C++
+#include <string>
 
 namespace vertex {
 
@@ -268,7 +269,7 @@ namespace vertex {
     // Getting information from BackTrackerService
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     auto const clock_data =
       art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const det_prop =
@@ -283,13 +284,13 @@ namespace vertex {
     evt.getByLabel(fVertexModuleLabel, vertex3dListHandle);
 
     // Detector numbers that are useful (to be set later)
-    std::vector<double> WirePitch_CurrentPlane(geom->Views().size(),
+    std::vector<double> WirePitch_CurrentPlane(wireReadoutGeom.Views().size(),
                                                0.); //<---Setting the Wire pitch for each plane
                                                     // Right now assuming only 3 planes
     // get the wire pitch for each view
     size_t vn = 0;
-    for (auto v : geom->Views()) {
-      WirePitch_CurrentPlane[vn] = geom->WirePitch(v);
+    for (auto v : wireReadoutGeom.Views()) {
+      WirePitch_CurrentPlane[vn] = wireReadoutGeom.Plane({0, 0, v}).WirePitch();
       ++vn;
     }
 
@@ -329,10 +330,11 @@ namespace vertex {
     fTruthVtxZPos->Fill(truth_vertex.Z());
 
     // Looping over geo::PlaneIDs
-    for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
+    for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
+      auto const& pid = plane.ID();
       // Calculating the nearest wire the vertex corresponds to in each plane
       try {
-        VtxWireNum[pid.Plane] = geom->NearestWireID(truth_vertex, pid).Wire;
+        VtxWireNum[pid.Plane] = plane.NearestWireID(truth_vertex).Wire;
       }
       catch (...) {
         mf::LogWarning("FeatureVertexFinderAna") << "Can't find nearest wire";
@@ -390,7 +392,7 @@ namespace vertex {
     if (vert2d.size() > 0) {
 
       // Looping over geo::PlaneIDs
-      for (auto const& pid : geom->Iterate<geo::PlaneID>()) {
+      for (auto const& pid : wireReadoutGeom.Iterate<geo::PlaneID>()) {
         for (size_t ww = 0; ww < vert2d.size(); ++ww) {
           // Only look at this 2d vertex if it is in the current plane
           if (vert2d[ww]->WireID().planeID() != pid) { continue; }

@@ -15,7 +15,8 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -56,7 +57,7 @@ private:
 
   DBScan3DAlg fDBScan;
 
-  geo::GeometryCore const* fGeom;
+  geo::WireReadoutGeom const* fChannelMap;
 
   double tickToDist;
   double fMinHitDis;
@@ -74,7 +75,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const& p)
   produces<art::Assns<recob::Slice, recob::Hit>>();
   produces<art::Assns<recob::Slice, recob::SpacePoint>>();
 
-  fGeom = art::ServiceHandle<geo::Geometry const>().get();
+  fChannelMap = &art::ServiceHandle<geo::WireReadout const>()->Get();
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
   auto const det_prop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob(clock_data);
@@ -165,7 +166,7 @@ void cluster::DBCluster3D::produce(art::Event& evt)
       }
     }
     if (!found) {
-      double wirePitch = fGeom->WirePitch(hit->WireID());
+      double wirePitch = fChannelMap->Plane(hit->WireID()).WirePitch();
       double UnitsPerTick = tickToDist / wirePitch;
       double x0 = hit->WireID().Wire;
       double y0 = hit->PeakTime() * UnitsPerTick;

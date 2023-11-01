@@ -7,6 +7,7 @@
 #include "larreco/RecoAlg/PMAlgCosmicTagger.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
@@ -17,6 +18,7 @@
 
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
+#include <limits>
 #include <numeric> // std::accumulate
 
 void pma::PMAlgCosmicTagger::tag(detinfo::DetectorClocksData const& clockData,
@@ -52,32 +54,29 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks) c
 
     pma::Track3D& trk = *(t.Track());
 
-    double min, max, p;
     bool node_out_of_drift_min = false;
     bool node_out_of_drift_max = false;
     for (size_t nidx = 0; nidx < trk.Nodes().size(); ++nidx) {
       auto const& node = *(trk.Nodes()[nidx]);
       auto const& tpcGeo = geom->TPC(geo::TPCID(node.Cryo(), node.TPC()));
-      // DetectDriftDirection returns a short int, but switch requires an int
-      int driftDir = abs(tpcGeo.DetectDriftDirection());
-      p = node.Point3D()[driftDir - 1];
-      switch (driftDir) {
-      case 1:
+      double min{std::numeric_limits<double>::max()};
+      double max{std::numeric_limits<double>::min()};
+      auto const [axis, _] = tpcGeo.DriftAxisWithSign();
+      switch (axis) {
+      case geo::Coordinate::X:
         min = tpcGeo.MinX();
         max = tpcGeo.MaxX();
         break;
-      case 2:
+      case geo::Coordinate::Y:
         min = tpcGeo.MinY();
         max = tpcGeo.MaxY();
         break;
-      case 3:
+      case geo::Coordinate::Z:
         min = tpcGeo.MinZ();
         max = tpcGeo.MaxZ();
         break;
-      default:
-        throw cet::exception("PMAlgCosmicTagger")
-          << "Drift direction unknown: " << driftDir << std::endl;
       }
+      double const p = node.Point3D()[to_int(axis)];
       if (p < min - fOutOfDriftMargin) { node_out_of_drift_min = true; }
       if (p > max + fOutOfDriftMargin) { node_out_of_drift_max = true; }
     }
@@ -177,6 +176,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
   // are very likely to be cosmics that leave through the APA, but have their
   // drift coordinate incorrectly set due to lack of T0
   auto const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   short int hIdx = ConvertDirToInt(geom->TPC().HeightDir());
 
@@ -230,7 +230,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
         std::vector<float> nSigmaPerView;
 
         // Loop over the views
-        for (auto const view : geom->Views()) {
+        for (auto const view : wireReadoutGeom.Views()) {
 
           // Get the dedx for this track and view
           std::map<size_t, std::vector<double>> dedx;
@@ -414,9 +414,8 @@ void pma::PMAlgCosmicTagger::GetDimensions()
 
   // Since we can stack TPCs, we can't just use geom::TPCGeom::Height()
   for (geo::TPCGeo const& TPC : geom->Iterate<geo::TPCGeo>()) {
-    // We need to make sure we only include the real TPCs
-    // We have dummy TPCs in the protoDUNE and DUNE geometries
-    // The dummy ones have a drift distance of only ~13 cm.
+    // We need to make sure we only include the real TPCs We have dummy TPCs in the
+    // protoDUNE and DUNE geometries The dummy ones have a drift distance of only ~13 cm.
     if (TPC.DriftDistance() < 25.0) { continue; }
 
     // get center in world coordinates

@@ -24,6 +24,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -50,9 +51,9 @@
 namespace lar_cluster3d {
 
   /**
- *   @brief What follows are several highly useful typedefs which we
- *          want to expose to the outside world
- */
+   *   @brief What follows are several highly useful typedefs which we
+   *          want to expose to the outside world
+   */
 
   // forward declaration to define an ordering function for our hit set
   struct Hit2DSetCompare {
@@ -69,12 +70,10 @@ namespace lar_cluster3d {
   using TPCToPlaneToWireToHitSetMap = std::map<geo::TPCID, PlaneToWireToHitSetMap>;
   using HitVectorMap = std::map<size_t, HitVector>;
 
-  //using HitPairVector               = std::vector<std::unique_ptr<reco::ClusterHit3D>>;
-
   /**
- *  @brief  StandardHit3DBuilder class definiton
- */
-  class StandardHit3DBuilder : virtual public IHit3DBuilder {
+   *  @brief  StandardHit3DBuilder class definiton
+   */
+  class StandardHit3DBuilder : public IHit3DBuilder {
   public:
     /**
      *  @brief  Constructor
@@ -88,8 +87,6 @@ namespace lar_cluster3d {
      *         let the top level producer module "know" what it is outputting
      */
     void produces(art::ProducesCollector&) override;
-
-    void configure(const fhicl::ParameterSet&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -295,28 +292,13 @@ namespace lar_cluster3d {
     mutable bool m_weHaveAllBeenHereBefore = false;
 
     const geo::Geometry* m_geometry;
+    const geo::WireReadoutGeom* m_wireReadoutGeom;
     const lariov::ChannelStatusProvider* m_channelFilter;
   };
 
   StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const& pset)
     : m_geometry(art::ServiceHandle<geo::Geometry const>{}.get())
     , m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
-  {
-    this->configure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void StandardHit3DBuilder::produces(art::ProducesCollector& collector)
-  {
-    collector.produces<std::vector<recob::Hit>>();
-    collector.produces<art::Assns<recob::Wire, recob::Hit>>();
-    collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void StandardHit3DBuilder::configure(fhicl::ParameterSet const& pset)
   {
     m_hitFinderTagVec = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",
                                                              std::vector<art::InputTag>{"gaushit"});
@@ -331,18 +313,19 @@ namespace lar_cluster3d {
     m_outputHistograms = pset.get<bool>("OutputHistograms", false);
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    m_wirePitch[0] = m_geometry->WirePitch(geo::PlaneID{tpcid, 0});
-    m_wirePitch[1] = m_geometry->WirePitch(geo::PlaneID{tpcid, 1});
-    m_wirePitch[2] = m_geometry->WirePitch(geo::PlaneID{tpcid, 2});
-
-    // Access ART's TFileService, which will handle creating and writing
-    // histograms and n-tuples for us.
-    art::ServiceHandle<art::TFileService> tfs;
+    m_wirePitch[0] = m_wireReadoutGeom->Plane({tpcid, 0}).WirePitch();
+    m_wirePitch[1] = m_wireReadoutGeom->Plane({tpcid, 1}).WirePitch();
+    m_wirePitch[2] = m_wireReadoutGeom->Plane({tpcid, 2}).WirePitch();
 
     if (m_outputHistograms) {
+      // Access ART's TFileService, which will handle creating and writing
+      // histograms and n-tuples for us.
+      art::ServiceHandle<art::TFileService> tfs;
+
       m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by StandardHit3DBuilder");
 
       clear();
@@ -361,9 +344,18 @@ namespace lar_cluster3d {
       m_tupleTree->Branch("SPCharge", "std::vector<float>", &m_spacePointChargeVec);
       m_tupleTree->Branch("HitAsymmetry", "std::vector<float>", &m_hitAsymmetryVec);
     }
-
-    return;
   }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
+
+  void StandardHit3DBuilder::produces(art::ProducesCollector& collector)
+  {
+    collector.produces<std::vector<recob::Hit>>();
+    collector.produces<art::Assns<recob::Wire, recob::Hit>>();
+    collector.produces<art::Assns<raw::RawDigit, recob::Hit>>();
+  }
+
+  //------------------------------------------------------------------------------------------------------------------------------------------
 
   void StandardHit3DBuilder::clear()
   {
@@ -380,8 +372,6 @@ namespace lar_cluster3d {
     m_qualityMetricVec.clear();
     m_spacePointChargeVec.clear();
     m_hitAsymmetryVec.clear();
-
-    return;
   }
 
   void StandardHit3DBuilder::BuildChannelStatusVec(
@@ -391,19 +381,20 @@ namespace lar_cluster3d {
     if (!m_channelStatus.empty()) m_channelStatus.clear();
 
     m_numBadChannels = 0;
-    m_channelStatus.resize(m_geometry->Nplanes());
+    m_channelStatus.resize(m_wireReadoutGeom->Nplanes());
 
     // Loop through views/planes to set the wire length vectors
     constexpr geo::TPCID tpcid{0, 0};
     for (unsigned int idx = 0; idx < m_channelStatus.size(); idx++) {
-      m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(geo::PlaneID{tpcid, idx}), 5);
+      m_channelStatus[idx] =
+        ChannelStatusVec(m_wireReadoutGeom->Nwires(geo::PlaneID{tpcid, idx}), 5);
     }
 
     // Loop through the channels and mark those that are "bad"
-    for (size_t channel = 0; channel < m_geometry->Nchannels(); channel++) {
+    for (size_t channel = 0; channel < m_wireReadoutGeom->Nchannels(); channel++) {
       if (m_channelFilter->IsGood(channel)) continue;
 
-      std::vector<geo::WireID> wireIDVec = m_geometry->ChannelToWire(channel);
+      std::vector<geo::WireID> wireIDVec = m_wireReadoutGeom->ChannelToWire(channel);
       geo::WireID wireID = wireIDVec[0];
       lariov::ChannelStatusProvider::Status_t chanStat = m_channelFilter->Status(channel);
 
@@ -445,12 +436,12 @@ namespace lar_cluster3d {
 
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt);
+    CollectArtHits(evt);
 
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
     if (!m_planeToWireToHitSetMap.empty()) {
       // Call the algorithm that builds 3D hits
-      this->BuildHit3D(hitPairList);
+      BuildHit3D(hitPairList);
 
       // If we built 3D points then attempt to output a new hit list as well
       if (!hitPairList.empty())
@@ -879,9 +870,7 @@ namespace lar_cluster3d {
     const geo::WireID& hit1WireID = hit1->WireID();
     const geo::WireID& hit2WireID = hit2->WireID();
 
-    geo::WireIDIntersection widIntersect;
-
-    if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect)) {
+    if (auto widIntersect = m_wireReadoutGeom->WireIDsIntersect(hit1WireID, hit2WireID)) {
       // Wires intersect so now we can check the timing
       float hit1Peak = hit1->getTimeTicks();
       float hit1Sigma = hit1->getHit()->RMS();
@@ -929,7 +918,7 @@ namespace lar_cluster3d {
                             hit2SigSq / (hit1SigSq + hit2SigSq);
 
           Eigen::Vector3f position(
-            xPosition, float(widIntersect.y), float(widIntersect.z) - m_zPosOffset);
+            xPosition, float(widIntersect->y), float(widIntersect->z) - m_zPosOffset);
 
           // If to here then we need to sort out the hit pair code telling what views are used
           unsigned statusBits = 1 << hit1->WireID().Plane | 1 << hit2->WireID().Plane;
@@ -1313,18 +1302,14 @@ namespace lar_cluster3d {
       if (!wireStatus) wireID.Wire += 1;
 
       // Want to refine position since we "know" the missing wire
-      geo::WireIDIntersection widIntersect0;
-
-      if (m_geometry->WireIDsIntersect(wireID0, wireID, widIntersect0)) {
-        geo::WireIDIntersection widIntersect1;
-
-        if (m_geometry->WireIDsIntersect(wireID1, wireID, widIntersect1)) {
+      if (auto widIntersect0 = m_wireReadoutGeom->WireIDsIntersect(wireID0, wireID)) {
+        if (auto widIntersect1 = m_wireReadoutGeom->WireIDsIntersect(wireID1, wireID)) {
           Eigen::Vector3f newPosition(
             pair.getPosition()[0], pair.getPosition()[1], pair.getPosition()[2]);
 
-          newPosition[1] = (newPosition[1] + widIntersect0.y + widIntersect1.y) / 3.;
+          newPosition[1] = (newPosition[1] + widIntersect0->y + widIntersect1->y) / 3.;
           newPosition[2] =
-            (newPosition[2] + widIntersect0.z + widIntersect1.z - 2. * m_zPosOffset) / 3.;
+            (newPosition[2] + widIntersect0->z + widIntersect1->z - 2. * m_zPosOffset) / 3.;
 
           pairOut = pair;
           pairOut.setWireID(wireID);
@@ -1410,7 +1395,7 @@ namespace lar_cluster3d {
     try {
       // Switch from NearestWireID to this method to avoid the roundoff error issues...
       double distanceToWire =
-        m_geometry->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
+        m_wireReadoutGeom->Plane(wireIDIn).WireCoordinate(geo::vect::toPoint(position.data()));
 
       wireID.Wire = int(distanceToWire);
     }
@@ -1420,10 +1405,10 @@ namespace lar_cluster3d {
                                   << exc.what() << std::endl;
 
       // Assume extremum for wire number depending on z coordinate
-      if (position[2] < 0.5 * m_geometry->DetLength())
+      if (position[2] < 0.5 * m_geometry->TPC().Length())
         wireID.Wire = 0;
       else
-        wireID.Wire = m_geometry->Nwires(wireIDIn.asPlaneID()) - 1;
+        wireID.Wire = m_wireReadoutGeom->Nwires(wireIDIn.asPlaneID()) - 1;
     }
 
     return wireID;
@@ -1440,7 +1425,7 @@ namespace lar_cluster3d {
       Eigen::Vector3d wireStart;
       Eigen::Vector3d wireEnd;
 
-      m_geometry->WireEndPoints(wireIDIn, &wireStart[0], &wireEnd[0]);
+      m_wireReadoutGeom->WireEndPoints(wireIDIn, &wireStart[0], &wireEnd[0]);
 
       // Want the hit position to have same x value as wire coordinates
       Eigen::Vector3d hitPosition(wireStart[0], position[1], position[2]);
@@ -1578,7 +1563,8 @@ namespace lar_cluster3d {
 
       // For some detectors we can have multiple wire ID's associated to a given channel.
       // So we recover the list of these wire IDs
-      const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
+      const std::vector<geo::WireID>& wireIDs =
+        m_wireReadoutGeom->ChannelToWire(recobHit->Channel());
 
       // And then loop over all possible to build out our maps
       for (const auto& wireID : wireIDs) {

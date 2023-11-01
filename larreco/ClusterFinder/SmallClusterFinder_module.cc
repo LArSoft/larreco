@@ -46,6 +46,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //All the larsoft goodies:
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -70,12 +72,12 @@ namespace cluster {
                                                the dTdW of the 2D shower*/
 
     art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const& wireReadoutGeom =
+      art::ServiceHandle<geo::WireReadout const>()->Get();
 
     //input parameters
     std::string fHitFinderModuleLabel;
     bool verbose;
-    //  double fRadiusSizePar;		//Determines the max radius of the cluster, must be separated
-    //  double fNHitsInClust;		//Forces cluster to have a max number of hits
     // Remember, this is the *small* cluster finder
 
     SmallClusterFinderAlg fSmallClusterFinderAlg; //object that actually finds and sorts gammas
@@ -106,7 +108,7 @@ namespace cluster {
   void SmallClusterFinder::beginJob()
   {
     // this will not change on a run per run basis.
-    fNPlanes = geom->Nplanes(); //get the number of planes in the TPC
+    fNPlanes = wireReadoutGeom.Nplanes(); //get the number of planes in the ODTPC
   }
 
   // ***************** //
@@ -138,13 +140,11 @@ namespace cluster {
       hitlist[iHit] = art::Ptr<recob::Hit>(HitListHandle, iHit);
     }
 
-    //std::cout << "Passing " << hitlist.size() << " hits to the alg." << std::endl;
-
     // Now run the alg to find the gammas:
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    util::GeometryUtilities const gser{*geom, clockData, detProp};
+    util::GeometryUtilities const gser{*geom, wireReadoutGeom, clockData, detProp};
     fSmallClusterFinderAlg.FindSmallClusters(gser, clockData, detProp, hitlist);
 
     // make an art::PtrVector of the clusters
@@ -170,20 +170,21 @@ namespace cluster {
         ClusterParamAlgo.ImportHits(gser, leftoverHits);
 
         // create the recob::Cluster directly in the vector
-        ClusterCreator leftover(gser,
-                                ClusterParamAlgo, // algo
-                                0.,               // start_wire
-                                0.,               // sigma_start_wire
-                                0.,               // start_tick
-                                0.,               // sigma_start_tick
-                                0.,               // end_wire
-                                0.,               // sigma_end_wire,
-                                0.,               // end_tick
-                                0.,               // sigma_end_tick
-                                iplane * 100,     // ID
-                                geom->Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
-                                planeID,               // plane
-                                recob::Cluster::Sentry // sentry
+        ClusterCreator leftover(
+          gser,
+          ClusterParamAlgo, // algo
+          0.,               // start_wire
+          0.,               // sigma_start_wire
+          0.,               // start_tick
+          0.,               // sigma_start_tick
+          0.,               // end_wire
+          0.,               // sigma_end_wire,
+          0.,               // end_tick
+          0.,               // sigma_end_tick
+          iplane * 100,     // ID
+          wireReadoutGeom.Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
+          planeID,               // plane
+          recob::Cluster::Sentry // sentry
         );
 
         SmallClusterFinder->emplace_back(leftover.move());
@@ -211,7 +212,7 @@ namespace cluster {
                              0.,                   // end_tick
                              0.,                   // sigma_end_tick
                              iplane * 100 + i + 1, // ID
-                             geom->Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
+                             wireReadoutGeom.Plane(geo::PlaneID{planeID.asTPCID(), iplane}).View(),
                              planeID,               // plane
                              recob::Cluster::Sentry // sentry
         );

@@ -43,6 +43,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -208,7 +209,8 @@ namespace trkf {
     if (fPmaTrackerConfig.Validation() == "calib") // create histograms only in the calibration mode
     {
       art::ServiceHandle<art::TFileService const> tfs;
-      for (size_t p = 0; p < fGeom->MaxPlanes(); ++p) {
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+      for (size_t p = 0; p < wireReadoutGeom.MaxPlanes(); ++p) {
         std::ostringstream ss1;
         ss1 << "adc_plane_" << p;
         fAdcInPassingPoints.push_back(tfs->make<TH1F>(
@@ -444,30 +446,36 @@ namespace trkf {
       auto const make_ctptr = art::PtrMaker<anab::CosmicTag>(evt);
 
       tracks->reserve(result.size());
+      art::ServiceHandle<geo::Geometry> geometry;
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
       for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex) {
         pma::Track3D* trk = result[trkIndex].Track();
 
         trk->SelectHits(); // just in case, set all to enabled
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
         pma::dedx_map dedx_tmp;
-        auto const& tpc = fGeom->TPC(geo::TPCID(icryo, itpc));
-        if (tpc.HasPlane(geo::kU)) {
+        geo::TPCGeo const& tpcgeo = geometry->TPC({icryo, itpc});
+        auto const& tpcid = tpcgeo.ID();
+        auto has_plane = [&wireReadoutGeom, &tpcid](auto const view) {
+          return wireReadoutGeom.HasPlane(geo::PlaneID(tpcid, view));
+        };
+        if (has_plane(geo::kU)) {
           trk->CompleteMissingWires(detProp, geo::kU);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kU, 1);
         }
-        if (tpc.HasPlane(geo::kV)) {
+        if (has_plane(geo::kV)) {
           trk->CompleteMissingWires(detProp, geo::kV);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kV, 1);
         }
-        if (tpc.HasPlane(geo::kX)) {
+        if (has_plane(geo::kX)) {
           trk->CompleteMissingWires(detProp, geo::kX);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kX, 1);
         }
-        if (tpc.HasPlane(geo::kY)) {
+        if (has_plane(geo::kY)) {
           trk->CompleteMissingWires(detProp, geo::kY);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kY, 1);
         }
-        if (tpc.HasPlane(geo::kZ)) {
+        if (has_plane(geo::kZ)) {
           trk->CompleteMissingWires(detProp, geo::kZ);
           trk->GetRawdEdxSequence(dedx_tmp, geo::kZ, 1);
         }
@@ -503,13 +511,13 @@ namespace trkf {
           std::vector<float> trkEnd1;
           // Get the drift direction, but don't care about the sign
           // Also need to subtract 1 due to the definition.
-          int driftDir = abs(tpc.DetectDriftDirection()) - 1;
+          auto const [axis, _] = tpcgeo.DriftAxisWithSign();
 
           for (int i = 0; i < 3; ++i) {
             // Get the drift direction and apply the opposite of the drift shift in order to
             // give the CosmicTag the drift coordinate assuming T0 = T_beam as it requests.
             double shift = 0.0;
-            if (i == driftDir) { shift = trk->Nodes()[0]->GetDriftShift(); }
+            if (i == to_int(axis)) { shift = trk->Nodes()[0]->GetDriftShift(); }
             trkEnd0.push_back(trk->Nodes()[0]->Point3D()[i] - shift);
             trkEnd1.push_back(trk->Nodes()[trk->Nodes().size() - 1]->Point3D()[i] - shift);
           }

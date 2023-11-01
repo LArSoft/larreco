@@ -11,7 +11,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -140,7 +140,7 @@ namespace hit {
     fEvt = evt.id().event();
     fRun = evt.run();
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     auto const clock_data =
       art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const det_prop =
@@ -240,7 +240,7 @@ namespace hit {
       // ================================================
       // Establishing the x-position of the current plane
       // ================================================
-      auto const pos = geom->Plane(planeID).GetBoxCenter();
+      auto const pos = wireReadoutGeom.Plane(planeID).GetBoxCenter();
       double planePos_timeCorr = (pos.X() / drift_velocity) * (1. / time_tick) + 60;
       //<---x position of plane / drift velocity + 60 (Trigger offset)
 

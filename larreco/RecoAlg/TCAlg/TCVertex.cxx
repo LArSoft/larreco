@@ -1,6 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
 
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
@@ -1339,14 +1340,18 @@ namespace tca {
                 << (int)jvx2.Pos[1] << " dX " << dX;
             }
             double y = -1000, z = -1000;
-            tcc.geom->IntersectionPoint(
-              geo::WireID{cstat, tpc, ipl, iWire}, geo::WireID{cstat, tpc, jpl, jWire}, y, z);
+            if (auto intersection = tcc.wireReadoutGeom->WireIDsIntersect(
+                  geo::WireID{cstat, tpc, ipl, iWire}, geo::WireID{cstat, tpc, jpl, jWire})) {
+              y = intersection->y;
+              z = intersection->z;
+            }
             if (y < slc.yLo || y > slc.yHi || z < slc.zLo || z > slc.zHi) continue;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             int kWire = -1;
             if (slc.nPlanes > 2) {
-              kWire = tcc.geom->WireCoordinate(geo::Point_t{0, y, z}, geo::PlaneID{slc.TPCID, kpl});
+              kWire =
+                tcc.wireReadoutGeom->Plane({slc.TPCID, kpl}).WireCoordinate(geo::Point_t{0, y, z});
               std::array<int, 2> wireWindow;
               std::array<float, 2> timeWindow;
               wireWindow[0] = kWire - maxSep;
@@ -1415,8 +1420,11 @@ namespace tca {
               if (dW > tcc.vtx3DCuts[1]) continue;
               // put the Y,Z difference in YErr and ZErr
               double y = -1000, z = -1000;
-              tcc.geom->IntersectionPoint(
-                geo::WireID(cstat, tpc, ipl, iWire), geo::WireID(cstat, tpc, kpl, kWire), y, z);
+              if (auto intersection = tcc.wireReadoutGeom->WireIDsIntersect(
+                    geo::WireID(cstat, tpc, ipl, iWire), geo::WireID(cstat, tpc, kpl, kWire))) {
+                y = intersection->y;
+                z = intersection->z;
+              }
               v3d.YErr = y - v3d.Y;
               v3d.ZErr = z - v3d.Z;
               v3d.Vx2ID[kpl] = slc.vtxs[kvx].ID;
@@ -2852,10 +2860,9 @@ namespace tca {
   {
     // returns the 2D position of the vertex in the plane
     geo::PlaneID const planeID{vx3.TPCID, plane};
-    pos[0] = tcc.geom->WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z}, planeID);
+    pos[0] = tcc.wireReadoutGeom->Plane(planeID).WireCoordinate(geo::Point_t{0, vx3.Y, vx3.Z});
     pos[1] = detProp.ConvertXToTicks(vx3.X, planeID) * tcc.unitsPerTick;
-
-  } // PosInPlane
+  }
 
   /////////////////////////////////////////
   unsigned short IsCloseToVertex(const TCSlice& slc, const VtxStore& inVx2)

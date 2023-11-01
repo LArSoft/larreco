@@ -30,7 +30,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 
@@ -151,7 +151,6 @@ namespace cluster {
 
     art::PtrVector<recob::Cluster> clusters;
     art::PtrVector<recob::Cluster> dbclusters;
-    //   art::PtrVector<recob::Hit> hits;// unused, as yet. EC, 5-Oct-2010.
 
     for (size_t ii = 0; ii < hlfListHandle->size(); ++ii) {
       art::Ptr<recob::Cluster> cluster(hlfListHandle, ii);
@@ -164,7 +163,6 @@ namespace cluster {
     }
 
     MF_LOG_VERBATIM("HoughLineFinderAna") << "run    : " << evt.id().run();
-    //std::cout << "subrun : " << evt.subRun() << std::endl;
     MF_LOG_VERBATIM("HoughLineFinderAna") << "event  : " << evt.id().event();
     fm_run = evt.id().run();
     fm_event = evt.id().event();
@@ -174,9 +172,9 @@ namespace cluster {
     fm_sizeClusterZ = 0;
     fm_sizeHitZ = 0;
     fm_dbsize = 0;
-    art::ServiceHandle<geo::Geometry const> geo;
 
-    for (auto view : geo->Views()) {
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+    for (auto view : wireReadoutGeom.Views()) {
 
       fm_dbsize = 0;
       fm_sizeClusterZ = clusters.size();
@@ -221,8 +219,4 @@ namespace cluster {
 
 } // end namespace
 
-namespace cluster {
-
-  DEFINE_ART_MODULE(HoughLineFinderAna)
-
-} // end namespace caldata
+DEFINE_ART_MODULE(cluster::HoughLineFinderAna)

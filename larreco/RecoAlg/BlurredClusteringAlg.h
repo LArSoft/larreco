@@ -16,16 +16,15 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 namespace detinfo {
   class DetectorProperties;
-}
-namespace fhicl {
-  class ParameterSet;
 }
 namespace lariov {
   class ChannelStatusProvider;
@@ -170,7 +169,8 @@ private:
   std::string fDebugPDFName{};
 
   // art service handles
-  art::ServiceHandle<geo::Geometry const> fGeom;
+  geo::WireReadoutGeom const* fWireReadoutGeom{
+    &art::ServiceHandle<geo::WireReadout const>()->Get()};
   lariov::ChannelStatusProvider const& fChanStatus{
     art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
 };

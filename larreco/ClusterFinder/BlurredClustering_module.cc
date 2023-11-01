@@ -23,6 +23,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -101,7 +102,8 @@ void cluster::BlurredClustering::produce(art::Event& evt)
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-  util::GeometryUtilities const gser{*geom, clockData, detProp};
+  util::GeometryUtilities const gser{
+    *geom, art::ServiceHandle<geo::WireReadout const>()->Get(), clockData, detProp};
   int const readoutWindowSize = detProp.ReadOutWindowSize();
 
   // Get the hits from the event

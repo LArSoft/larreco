@@ -16,7 +16,7 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -70,7 +70,6 @@ namespace trkf {
     double fLineIntThreshold;
 
     std::map<int, std::vector<double>> fEndPointTimes;
-    art::ServiceHandle<geo::Geometry const> fGeometryHandle;
   };
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset)
@@ -104,10 +103,11 @@ namespace trkf {
     std::vector<recob::Wire> const& wireVec(*wireHandle);
 
     //First, have it process the wires.
-    fCorner.GrabWires(wireVec, *fGeometryHandle);
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+    fCorner.GrabWires(wireVec, wireReadoutGeom);
 
     std::vector<recob::EndPoint2D> EndPoints;
-    fCorner.get_feature_points(EndPoints, *fGeometryHandle);
+    fCorner.get_feature_points(EndPoints, wireReadoutGeom);
 
     fEndPointTimes = ExtractEndPointTimes(EndPoints);
 
@@ -277,17 +277,17 @@ namespace trkf {
                                         std::vector<double>& uvw,
                                         std::vector<double>& t)
   {
-    art::ServiceHandle<geo::Geometry const> geo;
-
     constexpr geo::TPCID tpcID{0, 0};
-    unsigned int NPlanes = geo->TPC(tpcID).Nplanes();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+    unsigned int NPlanes = wireReadoutGeom.Nplanes(tpcID);
 
     uvw.resize(NPlanes);
     t.resize(NPlanes);
 
-    for (unsigned int plane = 0; plane != NPlanes; plane++) {
-      uvw[plane] = geo->NearestWireID(xyz, geo::PlaneID{tpcID, plane}).Wire;
-      t[plane] = detProp.ConvertXToTicks(xyz.X(), geo::PlaneID{tpcID, plane});
+    for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(tpcID)) {
+      auto const p = plane.ID().Plane;
+      uvw[p] = plane.NearestWireID(xyz).Wire;
+      t[p] = detProp.ConvertXToTicks(xyz.X(), plane.ID());
     }
   }
 

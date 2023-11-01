@@ -24,7 +24,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 //LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RawData/RawDigit.h"
@@ -276,7 +276,7 @@ namespace cluster {
       exit(1);
     }
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
@@ -387,7 +387,7 @@ namespace cluster {
 
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     if (clusters.size() != 0 && hits.size() != 0) {
-      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
         geo::View_t view = plane.View();
         for (size_t j = 0; j < clusters.size(); ++j) {
 

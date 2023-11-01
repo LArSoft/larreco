@@ -27,6 +27,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -201,7 +202,7 @@ namespace hit {
     art::Handle<std::vector<recob::Hit>> hitHandle;
     evt.getByLabel(fFFTHitFinderModuleLabel, hitHandle);
 
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     // We're going to want to compare the reconstructed Z with the
     // simulted Z. For that purpose we use the simultion backtracking.
@@ -221,13 +222,15 @@ namespace hit {
       hitWireID = itr->WireID();
       // By assumption the drift occurs only in the z-direction, so
       // we can get all the info we need from the z-measug plane.
-      if (hitWireID.Plane != (geom->Nplanes() - 1)) continue;
+      if (hitWireID.Plane != (wireReadoutGeom.Nplanes() - 1)) continue;
 
       // Charge collected at the wire
       //
       // Exactly once for each recob::Hit
-      auto const w0pos = geom->Plane(hitWireID).Wire(0).GetCenter();
-      double HitZpos = w0pos.Z() + hitWireID.Wire * geom->TPC(hitWireID).WirePitch();
+      auto const w0pos = wireReadoutGeom.Plane(hitWireID).Wire(0).GetCenter();
+      double HitZpos =
+        w0pos.Z() +
+        hitWireID.Wire * wireReadoutGeom.FirstPlane({hitWireID.TPC, hitWireID.Plane}).WirePitch();
       double Charge = itr->Integral();
       fHitZpos->Fill(HitZpos, Charge);
 

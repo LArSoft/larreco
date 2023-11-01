@@ -220,7 +220,7 @@ namespace trkf {
       new art::Assns<recob::Track, recob::Hit>);
 
     // define TPC parameters
-    TString tpcName = geom->GetLArTPCVolumeName();
+    TString tpcName = geom->TPC({0, 0}).ActiveVolume()->GetName();
 
     // get input Hit object(s).
     art::Handle<std::vector<recob::Track>> trackListHandle;

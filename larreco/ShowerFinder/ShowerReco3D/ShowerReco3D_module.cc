@@ -17,6 +17,7 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -67,7 +68,8 @@ private:
   ::cmtool::CFAlgoTimeOverlap* fCFAlgoTimeOverlap;
 };
 
-ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
+ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p)
+  : EDProducer{p}, fManager{art::ServiceHandle<geo::WireReadout>()->Get().Nplanes()}
 {
   fInputProducer = p.get<std::string>("InputProducer");
   fUsePFParticle = p.get<bool>("UsePFParticle");
@@ -104,10 +106,11 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const& p) : EDProducer{p}
 void ShowerReco3D::produce(art::Event& e)
 {
   auto const& geom = *lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clockData);
-  util::GeometryUtilities const gser{geom, clockData, detProp};
+  util::GeometryUtilities const gser{geom, wireReadoutGeom, clockData, detProp};
 
   // Create output data product containers
   std::unique_ptr<std::vector<recob::Shower>> out_shower_v(new std::vector<recob::Shower>);
@@ -153,7 +156,8 @@ void ShowerReco3D::produce(art::Event& e)
   std::vector<recob::Shower> shower_v;
 
   if (!fUsePFParticle) {
-    matched_pairs = fManager.Reconstruct(geom, clockData, detProp, local_clusters, shower_v);
+    matched_pairs =
+      fManager.Reconstruct(geom, wireReadoutGeom, clockData, detProp, local_clusters, shower_v);
   }
   else {
 
@@ -198,7 +202,8 @@ void ShowerReco3D::produce(art::Event& e)
       shower_pfpart_index.push_back(i);
     }
     // Run reconstruction
-    fManager.Reconstruct(geom, clockData, detProp, local_clusters, matched_pairs, shower_v);
+    fManager.Reconstruct(
+      geom, wireReadoutGeom, clockData, detProp, local_clusters, matched_pairs, shower_v);
   }
 
   // Make sure output shower vector size is same as expected length
