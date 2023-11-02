@@ -59,7 +59,7 @@ void hit::RFFHitFinderAlg::Run(std::vector<recob::Wire> const& wireVector,
   hitVector.reserve(wireVector.size());
   for (auto const& wire : wireVector) {
     geo::SigType_t const& sigtype = wireReadoutGeom.SignalType(wire.Channel());
-    geo::WireID const& wireID = wireReadoutGeom.ChannelToWire(wire.Channel()).at(0);
+    geo::WireID const wireID = wireReadoutGeom.ChannelToWire(wire.Channel()).at(0);
 
     SetFitterParams(wire.View());
 
