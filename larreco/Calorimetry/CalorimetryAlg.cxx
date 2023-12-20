@@ -26,12 +26,31 @@ namespace calo {
     , fUseModBox{config.CaloUseModBox()}
     , fLifeTimeForm{config.CaloLifeTimeForm()}
     , fDoLifeTimeCorrection{config.CaloDoLifeTimeCorrection()}
+    , fModBoxA{config.ModBoxA()}
+    , fModBoxBF("ModBoxB", config.ModBoxBTF1().c_str(), 0, 90)
+    , fBirksA{config.BirksA()}
+    , fBirksKF("BirksK", config.BirksKTF1().c_str(), 0, 90)
   {
     if (fLifeTimeForm != 0 and fLifeTimeForm != 1) {
       throw cet::exception("CalorimetryAlg")
         << "Unknow CaloLifeTimeForm " << fLifeTimeForm << '\n'
         << "Must select either '0' for exponential or '1' for exponential + "
            "constant.\n";
+    }
+
+    // Set the parameters for the TF1s
+    std::vector<double> modboxb_param;
+    if (!config.ModBoxBParam(modboxb_param)) modboxb_param = {util::kModBoxB};
+
+    for (unsigned i = 0; i < modboxb_param.size(); i++) {
+      fModBoxBF.SetParameter(i, modboxb_param[i]);
+    }
+
+    std::vector<double> birksk_param;
+    if (!config.BirksKParam(birksk_param)) birksk_param = {util::kRecombk};
+
+    for (unsigned i = 0; i < birksk_param.size(); i++) {
+      fBirksKF.SetParameter(i, birksk_param[i]);
     }
   }
 
@@ -51,20 +70,6 @@ namespace calo {
                     hit.WireID().Plane,
                     T0,
                     det_prop.Efield());
-  }
-
-  ///\todo The plane argument should really be for a view instead
-  // ----------------------------------------------------------------------------------//
-  double CalorimetryAlg::dEdx_AMP(detinfo::DetectorClocksData const& clock_data,
-                                  detinfo::DetectorPropertiesData const& det_prop,
-                                  double const dQ,
-                                  double const time,
-                                  double const pitch,
-                                  unsigned int const plane,
-                                  double const T0) const
-  {
-    double const dQdx = dQ / pitch; // in ADC/cm
-    return dEdx_AMP(clock_data, det_prop, dQdx, time, plane, T0, det_prop.Efield());
   }
 
   // ----------------------------------------------------------------------------------//
@@ -88,7 +93,8 @@ namespace calo {
                                   recob::Hit const& hit,
                                   double const pitch,
                                   double const T0,
-                                  double const EField) const
+                                  double const EField,
+                                  double const phi) const
   {
     return dEdx_AMP(clock_data,
                     det_prop,
@@ -96,22 +102,8 @@ namespace calo {
                     hit.PeakTime(),
                     hit.WireID().Plane,
                     T0,
-                    EField);
-  }
-
-  ///\todo The plane argument should really be for a view instead
-  // ----------------------------------------------------------------------------------//
-  double CalorimetryAlg::dEdx_AMP(detinfo::DetectorClocksData const& clock_data,
-                                  detinfo::DetectorPropertiesData const& det_prop,
-                                  double const dQ,
-                                  double const time,
-                                  double const pitch,
-                                  unsigned int const plane,
-                                  double const T0,
-                                  double const EField) const
-  {
-    double const dQdx = dQ / pitch; // in ADC/cm
-    return dEdx_AMP(clock_data, det_prop, dQdx, time, plane, T0, EField);
+                    EField,
+                    phi);
   }
 
   // ----------------------------------------------------------------------------------//
@@ -121,11 +113,12 @@ namespace calo {
                                   double const time,
                                   unsigned int const plane,
                                   double const T0,
-                                  double const EField) const
+                                  double const EField,
+                                  double const phi) const
   {
     double const fADCtoEl = fCalAmpConstants[plane];
     double const dQdx_e = dQdx / fADCtoEl; // Conversion from ADC/cm to e/cm
-    return dEdx_from_dQdx_e(clock_data, det_prop, dQdx_e, time, T0, EField);
+    return dEdx_from_dQdx_e(clock_data, det_prop, dQdx_e, time, T0, EField, phi);
   }
 
   //------------------------------------------------------------------------------------//
@@ -149,19 +142,6 @@ namespace calo {
   // ----------------------------------------------------------------------------------//
   double CalorimetryAlg::dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
                                    detinfo::DetectorPropertiesData const& det_prop,
-                                   double const dQ,
-                                   double const time,
-                                   double const pitch,
-                                   unsigned int const plane,
-                                   double const T0) const
-  {
-    double const dQdx = dQ / pitch; // in ADC/cm
-    return dEdx_AREA(clock_data, det_prop, dQdx, time, plane, T0, det_prop.Efield());
-  }
-
-  // ----------------------------------------------------------------------------------//
-  double CalorimetryAlg::dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
-                                   detinfo::DetectorPropertiesData const& det_prop,
                                    double const dQdx,
                                    double const time,
                                    unsigned int const plane,
@@ -180,24 +160,17 @@ namespace calo {
                                    recob::Hit const& hit,
                                    double const pitch,
                                    double const T0,
-                                   double const EField) const
+                                   double const EField,
+                                   double const phi) const
   {
-    return dEdx_AREA(
-      clock_data, det_prop, hit.Integral() / pitch, hit.PeakTime(), hit.WireID().Plane, T0, EField);
-  }
-
-  // ----------------------------------------------------------------------------------//
-  double CalorimetryAlg::dEdx_AREA(detinfo::DetectorClocksData const& clock_data,
-                                   detinfo::DetectorPropertiesData const& det_prop,
-                                   double const dQ,
-                                   double const time,
-                                   double const pitch,
-                                   unsigned int const plane,
-                                   double const T0,
-                                   double const EField) const
-  {
-    double const dQdx = dQ / pitch; // in ADC/cm
-    return dEdx_AREA(clock_data, det_prop, dQdx, time, plane, T0, EField);
+    return dEdx_AREA(clock_data,
+                     det_prop,
+                     hit.Integral() / pitch,
+                     hit.PeakTime(),
+                     hit.WireID().Plane,
+                     T0,
+                     EField,
+                     phi);
   }
 
   // ----------------------------------------------------------------------------------//
@@ -207,11 +180,12 @@ namespace calo {
                                    double const time,
                                    unsigned int const plane,
                                    double const T0,
-                                   double const EField) const
+                                   double const EField,
+                                   double const phi) const
   {
     double const fADCtoEl = fCalAreaConstants[plane];
     double const dQdx_e = dQdx / fADCtoEl; // Conversion from ADC/cm to e/cm
-    return dEdx_from_dQdx_e(clock_data, det_prop, dQdx_e, time, T0, EField);
+    return dEdx_from_dQdx_e(clock_data, det_prop, dQdx_e, time, T0, EField, phi);
   }
 
   // Apply Lifetime and recombination correction.
@@ -228,15 +202,16 @@ namespace calo {
                                           double dQdx_e,
                                           double const time,
                                           double const T0,
-                                          double const EField) const
+                                          double const EField,
+                                          double const phi) const
   {
     if (fDoLifeTimeCorrection) {
       dQdx_e *= LifetimeCorrection(clock_data, det_prop, time, T0); // (dQdx_e in e/cm)
     }
 
-    if (fUseModBox) { return det_prop.ModBoxCorrection(dQdx_e, EField); }
+    if (fUseModBox) { return ModBoxCorrection(dQdx_e, phi, det_prop.Density(), EField); }
 
-    return det_prop.BirksCorrection(dQdx_e, EField);
+    return BirksCorrection(dQdx_e, phi, det_prop.Density(), EField);
   }
 
   //------------------------------------------------------------------------------------//
@@ -263,6 +238,41 @@ namespace calo {
     auto const& elifetime_provider =
       art::ServiceHandle<lariov::ElectronLifetimeService const>()->GetProvider();
     return elifetime_provider.Lifetime(adjusted_time);
+  }
+
+  // Reombination corrections
+
+  // Modified box: allow for a general behavior of beta from phi, the angle between the track
+  // and the electric field
+  double calo::CalorimetryAlg::ModBoxCorrection(double dQdx,
+                                                double phi,
+                                                double rho,
+                                                double E_field) const
+  {
+    // Modified Box model correction has better behavior than the Birks
+    // correction at high values of dQ/dx.
+    constexpr double Wion = 1000. / util::kGeVToElectrons; // 23.6 eV = 1e, Wion in MeV/e
+    double const Beta = fModBoxBF.Eval(phi) / (rho * E_field);
+    double const Alpha = fModBoxA;
+    double const dEdx = (exp(Beta * Wion * dQdx) - Alpha) / Beta;
+
+    return dEdx;
+  }
+
+  double calo::CalorimetryAlg::BirksCorrection(double dQdx,
+                                               double phi,
+                                               double rho,
+                                               double E_field) const
+  {
+    // from: S.Amoruso et al., NIM A 523 (2004) 275
+
+    double A = fBirksA;
+    double K = fBirksKF.Eval(phi);                              // in KV/cm*(g/cm^2)/MeV
+    constexpr double Wion = 1000. / util::kGeVToElectrons;      // 23.6 eV = 1e, Wion in MeV/e
+    K /= rho;                                                   // KV/MeV
+    double const dEdx = dQdx / (A / Wion - K / E_field * dQdx); // MeV/cm
+
+    return dEdx;
   }
 
 } // namespace

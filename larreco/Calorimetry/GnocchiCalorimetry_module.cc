@@ -284,6 +284,10 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
         // Get the EField
         double EField = GetEfield(det_prop, track, hits[hit_index], thms[hit_index]);
 
+        // Angle to the drift electric field (in x direction), in units of degrees
+        geo::Vector_t direction = track.DirectionAtPoint(thms[hit_index]->Index());
+        double phi = acos(abs(direction.x())) * 180 / M_PI;
+
         double dQdx = charge / pitch;
 
         // Normalize out the detector response
@@ -302,14 +306,16 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
                                           hits[hit_index]->PeakTime(),
                                           hits[hit_index]->WireID().Plane,
                                           T0,
-                                          EField) :
+                                          EField,
+                                          phi) :
                         fCaloAlg.dEdx_AREA(clock_data,
                                            det_prop,
                                            dQdx,
                                            hits[hit_index]->PeakTime(),
                                            hits[hit_index]->WireID().Plane,
                                            T0,
-                                           EField);
+                                           EField,
+                                           phi);
 
         // save the length between each pair of hits
         if (xyzs.size() == 0) { lengths.push_back(0.); }

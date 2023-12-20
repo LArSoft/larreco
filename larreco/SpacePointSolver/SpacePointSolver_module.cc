@@ -103,6 +103,8 @@ namespace reco3d {
 
     const geo::GeometryCore* geom;
     std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
+
+    unsigned int fMinNHits;
   };
 
   DEFINE_ART_MODULE(SpacePointSolver)
@@ -120,6 +122,7 @@ namespace reco3d {
     , fMaxIterationsNoReg(pset.get<int>("MaxIterationsNoReg"))
     , fMaxIterationsReg(pset.get<int>("MaxIterationsReg"))
     , fXHitOffset(pset.get<double>("XHitOffset"))
+    , fMinNHits(pset.get<unsigned int>("MinNHits"))
   {
     recob::ChargedSpacePointCollectionCreator::produces(producesCollector(), "pre");
     if (fFit) {
@@ -425,7 +428,7 @@ namespace reco3d {
     auto assns = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
 
     // Skip very small events
-    if (hits->size() < 20) {
+    if (hits->size() < fMinNHits) {
       spcol_pre.put();
       if (fFit) {
         spcol.put();

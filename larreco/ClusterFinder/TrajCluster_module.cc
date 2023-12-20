@@ -687,12 +687,8 @@ namespace cluster {
             if (clsIndex == clsCol.size()) continue;
             clsIndices.push_back(clsIndex);
           } // tjid
-          if (!util::CreateAssn(*this,
-                                evt,
-                                *pfp_cls_assn,
-                                pfpCol.size() - 1,
-                                clsIndices.begin(),
-                                clsIndices.end())) {
+          if (!util::CreateAssn(
+                evt, *pfp_cls_assn, pfpCol.size() - 1, clsIndices.begin(), clsIndices.end())) {
             throw art::Exception(art::errors::ProductRegistrationFailure)
               << "Failed to associate clusters with PFParticle";
           } // exception
@@ -712,8 +708,7 @@ namespace cluster {
           }   // start vertex exists
           // PFParticle -> Seed
           if (!sedCol.empty()) {
-            if (!util::CreateAssn(*this,
-                                  evt,
+            if (!util::CreateAssn(evt,
                                   pfpCol,
                                   sedCol,
                                   *pfp_sed_assn,
@@ -740,12 +735,8 @@ namespace cluster {
               ++shwIndex[0];
             } // ss3
             if (shwIndex[0] < shwCol.size()) {
-              if (!util::CreateAssn(*this,
-                                    evt,
-                                    *pfp_shwr_assn,
-                                    pfpCol.size() - 1,
-                                    shwIndex.begin(),
-                                    shwIndex.end())) {
+              if (!util::CreateAssn(
+                    evt, *pfp_shwr_assn, pfpCol.size() - 1, shwIndex.begin(), shwIndex.end())) {
                 throw art::Exception(art::errors::ProductRegistrationFailure)
                   << "Failed to associate shower with PFParticle";
               } // exception
