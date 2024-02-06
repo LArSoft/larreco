@@ -92,7 +92,7 @@ namespace trkf {
     float fMaxMergeError;
     float fMergeErrorCut;
 
-    float fChgWindow;
+    float fChgWindow{40}; // window (ticks) for identifying shower-like clusters
     float fWirePitch;
     // cosmic ray tagging
     float fFiducialCut;
@@ -377,8 +377,6 @@ namespace trkf {
   void CCTrackMaker::produce(art::Event& evt)
   {
     fWirePitch = wireReadoutGeom.Plane({0, 0, 0}).WirePitch();
-
-    fChgWindow = 40; // window (ticks) for identifying shower-like clusters
 
     auto tcol = std::make_unique<std::vector<recob::Track>>();
     auto thassn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
@@ -2319,12 +2317,11 @@ namespace trkf {
     // cluster match combinations and make tracks from them
     CluLen merr;
     std::vector<CluLen> materr;
-    unsigned int ii, im;
 
     if (matcomb.size() == 0) return;
 
     // sort by decreasing error
-    for (ii = 0; ii < matcomb.size(); ++ii) {
+    for (std::size_t ii = 0; ii < matcomb.size(); ++ii) {
       merr.index = ii;
       merr.length = matcomb[ii].Err + matcomb[ii].oErr;
       materr.push_back(merr);
@@ -2337,8 +2334,8 @@ namespace trkf {
       myprt << "SortMatches\n";
       myprt << "   ii    im  Vx   Err     dW     dA     dX  oVx   oErr    odW   odA    odX   Asym  "
                " icl   jcl   kcl \n";
-      for (ii = 0; ii < materr.size(); ++ii) {
-        im = materr[ii].index;
+      for (std::size_t ii = 0; ii < materr.size(); ++ii) {
+        unsigned int im = materr[ii].index;
         float asym =
           fabs(matcomb[im].Chg[0] - matcomb[im].Chg[1]) / (matcomb[im].Chg[0] + matcomb[im].Chg[1]);
         asym *=
@@ -2360,8 +2357,7 @@ namespace trkf {
 
     // define an array to ensure clusters are only used once
     std::array<std::vector<bool>, 3> pclUsed;
-    unsigned short ipl;
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       pclUsed[ipl].resize(clsChain[ipl].size());
     }
 
@@ -2369,8 +2365,8 @@ namespace trkf {
     unsigned short matcombTotCl = 0;
     float matcombTotLen = 0;
     unsigned short icl;
-    for (ii = 0; ii < matcomb.size(); ++ii) {
-      for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (std::size_t ii = 0; ii < matcomb.size(); ++ii) {
+      for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
         if (matcomb[ii].Cls[ipl] < 0) continue;
         icl = matcomb[ii].Cls[ipl];
         ++matcombTotCl;
@@ -2397,14 +2393,14 @@ namespace trkf {
     // fraction of the length of all clustters in matcomb that are used in a match
     float fracLen;
 
-    for (ii = 0; ii < materr.size(); ++ii) {
-      im = materr[ii].index;
+    for (std::size_t ii = 0; ii < materr.size(); ++ii) {
+      unsigned int im = materr[ii].index;
       matIndex.clear();
       // skip really bad matches
       if (matcomb[im].Err > bestTotErr) continue;
       totLen = 0;
       // initialize pclUsed and flag the clusters in this match
-      for (ipl = 0; ipl < nplanes; ++ipl) {
+      for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
         // initialize to no clusters used
         std::fill(pclUsed[ipl].begin(), pclUsed[ipl].end(), false);
         // check for 2 plane match
@@ -2425,7 +2421,7 @@ namespace trkf {
         if (matcomb[jm].Err > bestTotErr) continue;
         // check for non-unique cluster indices
         nused = 0;
-        for (ipl = 0; ipl < nplanes; ++ipl) {
+        for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
           if (matcomb[jm].Cls[ipl] < 0) continue;
           jcl = matcomb[jm].Cls[ipl];
           if (pclUsed[ipl][jcl]) ++nused;
@@ -2439,7 +2435,7 @@ namespace trkf {
         totErr += matcomb[jm].Err;
         matIndex.push_back(jm);
         // Flag the clusters used and see if all of them are used
-        for (ipl = 0; ipl < nplanes; ++ipl) {
+        for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
           if (matcomb[jm].Cls[ipl] < 0) continue;
           jcl = matcomb[jm].Cls[ipl];
           pclUsed[ipl][jcl] = true;
@@ -2447,7 +2443,7 @@ namespace trkf {
       }   // jm
       if (totLen == 0) continue;
       nused = 0;
-      for (ipl = 0; ipl < nplanes; ++ipl) {
+      for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
         for (unsigned short indx = 0; indx < pclUsed[ipl].size(); ++indx)
           if (pclUsed[ipl][indx]) ++nused;
       } // ipl
@@ -2481,8 +2477,8 @@ namespace trkf {
 
     if (bestTotErr > 9000) return;
 
-    for (ii = 0; ii < bestMatIndex.size(); ++ii) {
-      im = bestMatIndex[ii];
+    for (std::size_t ii = 0; ii < bestMatIndex.size(); ++ii) {
+      unsigned int im = bestMatIndex[ii];
       FillTrkHits(fmCluHits, im, nplanes);
       // look for missing clusters?
       // store this track with processor code 1
@@ -3076,7 +3072,7 @@ namespace trkf {
                               << matcomb[imat].Cls[0] << " " << matcomb[imat].Cls[1] << " "
                               << matcomb[imat].Cls[2];
 
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       if (matcomb[imat].Cls[ipl] < 0) continue;
       // ccl is the cluster chain index
       ccl = matcomb[imat].Cls[ipl];
@@ -3349,10 +3345,7 @@ namespace trkf {
   {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg
 
-    unsigned short ipl;
-
-    // initialize everything
-    for (ipl = 0; ipl < 3; ++ipl) {
+    for (unsigned int ipl = 0; ipl < 3; ++ipl) {
       firstWire[ipl] = INT_MAX;
       lastWire[ipl] = 0;
       firstHit[ipl] = INT_MAX;
@@ -3365,7 +3358,7 @@ namespace trkf {
     unsigned short oldipl = 0;
     for (unsigned int hit = 0; hit < allhits.size(); ++hit) {
       if (static_cast<geo::TPCID const&>(allhits[hit]->WireID()) != tpcid) continue;
-      ipl = allhits[hit]->WireID().Plane;
+      auto const ipl = allhits[hit]->WireID().Plane;
       if (allhits[hit]->WireID().Wire >
           wireReadoutGeom.Nwires(allhits[hit]->WireID().asPlaneID())) {
         if (lastWire[ipl] < firstWire[ipl]) {
@@ -3389,7 +3382,7 @@ namespace trkf {
 
     // xxx
     auto const nplanes = wireReadoutGeom.Nplanes(tpcid);
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       if (lastWire[ipl] < firstWire[ipl]) {
         mf::LogError("CCTM") << "Invalid first/last wire in plane " << ipl;
         return;
@@ -3398,14 +3391,14 @@ namespace trkf {
 
     // normalize charge in induction planes to the collection plane
     //    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
-    for (ipl = 0; ipl < nplanes; ++ipl)
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl)
       ChgNorm[ipl] = 1;
 
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
     unsigned int indx, thisWire, thisHit, lastFirstHit;
     //uint32_t chan;
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       nwires = lastWire[ipl] - firstWire[ipl] + 1;
       WireHitRange[ipl].resize(nwires);
       // start by defining the "no hits on wire" condition
@@ -3445,20 +3438,20 @@ namespace trkf {
     } // ipl
 
     // error checking
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       if (firstWire[ipl] < INT_MAX) continue;
       if (lastWire[ipl] > 0) continue;
       if (firstHit[ipl] < INT_MAX) continue;
       if (lastHit[ipl] > 0) continue;
       std::cout << "FWHR problem\n";
-      exit(1);
-    } // ipl
+      exit(1); // FIXME: Should not exit from library code
+    }          // ipl
 
     unsigned int nht = 0;
     std::vector<bool> hchk(allhits.size());
     for (unsigned int ii = 0; ii < hchk.size(); ++ii)
       hchk[ii] = false;
-    for (ipl = 0; ipl < nplanes; ++ipl) {
+    for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
       for (unsigned int w = firstWire[ipl]; w < lastWire[ipl]; ++w) {
         indx = w - firstWire[ipl];
         if (indx > lastWire[ipl]) {

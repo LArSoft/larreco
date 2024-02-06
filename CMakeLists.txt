@@ -39,7 +39,6 @@ find_package(nurandom REQUIRED EXPORT)
 find_package(nusimdata REQUIRED EXPORT)
 
 find_package(art_root_io REQUIRED EXPORT)
-find_package(canvas_root_io REQUIRED EXPORT)
 find_package(art REQUIRED EXPORT)
 find_package(messagefacility REQUIRED EXPORT)
 find_package(canvas REQUIRED EXPORT)
@@ -47,15 +46,15 @@ find_package(fhiclcpp REQUIRED EXPORT)
 find_package(cetlib REQUIRED EXPORT)
 find_package(cetlib_except REQUIRED EXPORT)
 
-find_package(Boost COMPONENTS headers REQUIRED EXPORT)
+find_package(Boost COMPONENTS REQUIRED EXPORT)
 find_package(CLHEP COMPONENTS Random REQUIRED EXPORT)
-find_package(Eigen3 REQUIRED EXPORT)
+find_package(Eigen3 REQUIRED)
+find_package(Geant4 REQUIRED)
 find_package(ROOT COMPONENTS Core EG GenVector Geom Gpad Graf Graf3d Hist MathCore Matrix Minuit Minuit2 Physics RIO TMVA Tree REQUIRED EXPORT)
-find_package(Range-v3 REQUIRED EXPORT)
+find_package(Range-v3 REQUIRED)
 find_package(RStarTree REQUIRED EXPORT)
-find_package(TBB REQUIRED EXPORT)
+find_package(TBB REQUIRED)
 
-include(BuildDictionary)
 include(BuildPlugins)
 
 # source

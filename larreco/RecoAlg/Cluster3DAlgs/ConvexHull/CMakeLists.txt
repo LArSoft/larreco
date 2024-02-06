@@ -5,7 +5,7 @@ cet_make_library(SOURCE ConvexHull.cxx
   PUBLIC
   larreco::RecoAlg_Cluster3DAlgs
   PRIVATE
-  Boost::headers
+  Boost::boost
   Eigen3::Eigen
 )
 

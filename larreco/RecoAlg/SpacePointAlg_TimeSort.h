@@ -27,9 +27,7 @@ namespace detinfo {
 
 // Frmaework includes
 #include "canvas/Persistency/Common/Ptr.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 //boost includes
 #include "boost/multi_array.hpp"

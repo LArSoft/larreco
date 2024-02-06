@@ -125,7 +125,7 @@ cet_make_library(SOURCE
   ROOT::MathCore
   ROOT::Physics
   ROOT::TMVA
-  Boost::headers
+  Boost::boost
   RStarTree::RStarTree
   PRIVATE
   larreco::RecoAlg_ImagePatternAlgs_DataProvider
