@@ -232,15 +232,6 @@ namespace hit {
     // ###############################################
     // ### Making a ptr vector to put on the event ###
     // ###############################################
-    // this contains the hit collection
-    // and its associations to wires and raw digits
-    recob::HitCollectionCreator allHitCol(evt, fAllHitsInstanceName, true, false);
-
-    // Handle the filtered hits collection...
-    recob::HitCollectionCreator hcol(evt, "", true, false);
-    recob::HitCollectionCreator* filteredHitCol = 0;
-
-    if (fFilterHits) filteredHitCol = &hcol;
 
     //store in a thread safe way
     struct hitstruct {
@@ -494,113 +485,101 @@ namespace hit {
                   NDF                         // dof
                 );
 
-                if (filteredHitCol) filteredHitVec.push_back(hitcreator.copy());
-
-                const recob::Hit hit(hitcreator.move());
+                if (fFilterHits) filteredHitVec.push_back(hitcreator.copy());
 
                 // This loop will store ALL hits
-                hitstruct tmp{std::move(hit), wire};
-                hitstruct_vec.push_back(std::move(tmp));
+                hitstruct_vec.emplace_back(hitcreator.move(), wire);
 
                 numHits++;
               } // <---End loop over gaussians
 
               // Should we filter hits?
-              if (filteredHitCol && !filteredHitVec.empty()) {
-                // #######################################################################
-                // Is all this sorting really necessary?  Would it be faster to just loop
-                // through the hits and perform simple cuts on amplitude and width on a
-                // hit-by-hit basis, either here in the module (using fPulseHeightCuts and
-                // fPulseWidthCuts) or in HitFilterAlg?
-                // #######################################################################
+              if (!fFilterHits || filteredHitVec.empty()) {
+                continue;
+              }
 
-                // Sort in ascending peak height
+              // #######################################################################
+              // Is all this sorting really necessary?  Would it be faster to just loop
+              // through the hits and perform simple cuts on amplitude and width on a
+              // hit-by-hit basis, either here in the module (using fPulseHeightCuts and
+              // fPulseWidthCuts) or in HitFilterAlg?
+              // #######################################################################
+
+              // Sort in ascending peak height
+              std::sort(filteredHitVec.begin(),
+                        filteredHitVec.end(),
+                        [](const auto& left, const auto& right) {
+                          return left.PeakAmplitude() > right.PeakAmplitude();
+                        });
+
+              // Reject if the first hit fails the PH/wid cuts
+              if (filteredHitVec.front().PeakAmplitude() < fPulseHeightCuts.at(plane) ||
+                  filteredHitVec.front().RMS() < fPulseWidthCuts.at(plane))
+                filteredHitVec.clear();
+
+              // Now check other hits in the snippet
+              if (filteredHitVec.size() > 1) {
+                // The largest pulse height will now be at the front...
+                float largestPH = filteredHitVec.front().PeakAmplitude();
+
+                // Find where the pulse heights drop below threshold
+                float threshold(fPulseRatioCuts.at(plane));
+
+                std::vector<recob::Hit>::iterator smallHitItr =
+                  std::find_if(filteredHitVec.begin(),
+                               filteredHitVec.end(),
+                               [largestPH, threshold](const auto& hit) {
+                                 return hit.PeakAmplitude() < 8. &&
+                                 hit.PeakAmplitude() / largestPH < threshold;
+                               });
+
+                // Shrink to fit
+                if (smallHitItr != filteredHitVec.end())
+                  filteredHitVec.resize(std::distance(filteredHitVec.begin(), smallHitItr));
+
+                // Resort in time order
                 std::sort(filteredHitVec.begin(),
                           filteredHitVec.end(),
                           [](const auto& left, const auto& right) {
-                            return left.PeakAmplitude() > right.PeakAmplitude();
+                            return left.PeakTime() < right.PeakTime();
                           });
-
-                // Reject if the first hit fails the PH/wid cuts
-                if (filteredHitVec.front().PeakAmplitude() < fPulseHeightCuts.at(plane) ||
-                    filteredHitVec.front().RMS() < fPulseWidthCuts.at(plane))
-                  filteredHitVec.clear();
-
-                // Now check other hits in the snippet
-                if (filteredHitVec.size() > 1) {
-                  // The largest pulse height will now be at the front...
-                  float largestPH = filteredHitVec.front().PeakAmplitude();
-
-                  // Find where the pulse heights drop below threshold
-                  float threshold(fPulseRatioCuts.at(plane));
-
-                  std::vector<recob::Hit>::iterator smallHitItr =
-                    std::find_if(filteredHitVec.begin(),
-                                 filteredHitVec.end(),
-                                 [largestPH, threshold](const auto& hit) {
-                                   return hit.PeakAmplitude() < 8. &&
-                                          hit.PeakAmplitude() / largestPH < threshold;
-                                 });
-
-                  // Shrink to fit
-                  if (smallHitItr != filteredHitVec.end())
-                    filteredHitVec.resize(std::distance(filteredHitVec.begin(), smallHitItr));
-
-                  // Resort in time order
-                  std::sort(filteredHitVec.begin(),
-                            filteredHitVec.end(),
-                            [](const auto& left, const auto& right) {
-                              return left.PeakTime() < right.PeakTime();
-                            });
-                }
-
-                // Copy the hits we want to keep to the filtered hit collection
-                for (const auto& filteredHit : filteredHitVec)
-                  if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(filteredHit)) {
-                    hitstruct tmp{std::move(filteredHit), wire};
-                    filthitstruct_vec.push_back(std::move(tmp));
-                  }
-
-                if (fFillHists) fChi2->Fill(chi2PerNDF);
               }
+
+              // Copy the hits we want to keep to the filtered hit collection
+              for (const auto& filteredHit : filteredHitVec) {
+                assert(fHitFilterAlg);
+                if (fHitFilterAlg->IsGoodHit(filteredHit)) {
+                  hitstruct tmp{std::move(filteredHit), wire};
+                  filthitstruct_vec.push_back(std::move(tmp));
+                }
+              }
+
+              if (fFillHists) fChi2->Fill(chi2PerNDF);
             } //<---End loop over merged candidate hits
           }   //<---End looping over ROI's
         );    //end tbb parallel for
       }       //<---End looping over all the wires
     );        //end tbb parallel for
 
+    // this contains the hit collection
+    // and its associations to wires and raw digits
+    if (fFilterHits) {
+      recob::HitCollectionCreator filteredHitCol(evt, "", true, false);
+      for (size_t j = 0; j < filthitstruct_vec.size(); j++) {
+        filteredHitCol.emplace_back(filthitstruct_vec[j].hit_tbb, filthitstruct_vec[j].wire_tbb);
+      }
+      filteredHitCol.put_into(evt);
+
+      if (fAllHitsInstanceName.empty()) {
+        return;
+      }
+    }
+
+    recob::HitCollectionCreator allHitCol(evt, fAllHitsInstanceName, true, false);
     for (size_t i = 0; i < hitstruct_vec.size(); i++) {
       allHitCol.emplace_back(hitstruct_vec[i].hit_tbb, hitstruct_vec[i].wire_tbb);
     }
-
-    for (size_t j = 0; j < filthitstruct_vec.size(); j++) {
-      filteredHitCol->emplace_back(filthitstruct_vec[j].hit_tbb, filthitstruct_vec[j].wire_tbb);
-    }
-
-    //==================================================================================================
-    // End of the event -- move the hit collection and the associations into the event
-
-    if (filteredHitCol) {
-
-      // If we filtered hits but no instance name was
-      // specified for the "all hits" collection, then
-      // only save the filtered hits to the event
-      if (fAllHitsInstanceName == "") {
-        filteredHitCol->put_into(evt);
-
-        // otherwise, save both
-      }
-      else {
-        filteredHitCol->put_into(evt);
-        allHitCol.put_into(evt);
-      }
-    }
-    else {
-      allHitCol.put_into(evt);
-    }
-
-    // Keep track of events processed
-    //fEventCount++;
+    allHitCol.put_into(evt);
 
   } // End of produce()
 
