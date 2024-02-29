@@ -12,7 +12,7 @@ find_package(cetmodules 3.12.00 REQUIRED)
 project(larreco LANGUAGES CXX)
 
 include(CetCMakeEnv)
-set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 09.90.00-rc1)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 09.90.00-rc2)
 cet_cmake_env()
 
 cet_set_compiler_flags(DIAGS CAUTIOUS
