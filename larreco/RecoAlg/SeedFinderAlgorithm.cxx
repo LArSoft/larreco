@@ -25,7 +25,10 @@
 namespace trkf {
 
   //----------------------------------------------------------------------------
-  SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset) { reconfigure(pset); }
+  SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset)
+  {
+    reconfigure(pset);
+  }
 
   //----------------------------------------------------------------------------
   void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)

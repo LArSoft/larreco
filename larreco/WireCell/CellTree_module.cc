@@ -384,7 +384,10 @@ namespace wc {
   }
 
   //-----------------------------------------------------------------------
-  void CellTree::beginRun(const art::Run& /*run*/) { mf::LogInfo("CellTree") << "begin run"; }
+  void CellTree::beginRun(const art::Run& /*run*/)
+  {
+    mf::LogInfo("CellTree") << "begin run";
+  }
 
   //-----------------------------------------------------------------------
   void CellTree::analyze(const art::Event& event)

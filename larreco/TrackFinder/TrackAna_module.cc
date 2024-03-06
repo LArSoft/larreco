@@ -71,7 +71,10 @@ namespace {
 
   // Length of reconstructed track.
   //----------------------------------------------------------------------------
-  double length(const recob::Track& track) { return track.Length(); }
+  double length(const recob::Track& track)
+  {
+    return track.Length();
+  }
 
   // Length of MC particle.
   //----------------------------------------------------------------------------

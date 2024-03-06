@@ -456,8 +456,9 @@ double pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detPro
   }
 
   double v = 0;
-  auto const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService const> {}
-  ->GetProvider();
+  auto const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>
+  {
+    } -> GetProvider();
   switch (fValidation) {
   case pma::PMAlgTracker::kAdc:
     v = fProjectionMatchingAlg.validate_on_adc(

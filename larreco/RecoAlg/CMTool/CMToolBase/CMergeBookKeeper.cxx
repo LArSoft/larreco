@@ -7,7 +7,10 @@
 
 namespace cmtool {
 
-  CMergeBookKeeper::CMergeBookKeeper(unsigned short nclusters) { Reset(nclusters); }
+  CMergeBookKeeper::CMergeBookKeeper(unsigned short nclusters)
+  {
+    Reset(nclusters);
+  }
 
   void CMergeBookKeeper::Reset(unsigned short nclusters)
   {

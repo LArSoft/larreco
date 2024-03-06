@@ -95,7 +95,10 @@ namespace quad {
   }
 
   // ---------------------------------------------------------------------------
-  void QuadVtx::beginJob() { geom = art::ServiceHandle<const geo::Geometry>()->provider(); }
+  void QuadVtx::beginJob()
+  {
+    geom = art::ServiceHandle<const geo::Geometry>()->provider();
+  }
 
   // ---------------------------------------------------------------------------
   // x = m*z+c. z1 and z2 are the two intercepts in case of returning true

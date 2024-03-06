@@ -29,7 +29,10 @@ namespace {
     float length;
   };
 
-  bool greaterThan1(PlnLen p1, PlnLen p2) { return p1.length > p2.length; }
+  bool greaterThan1(PlnLen p1, PlnLen p2)
+  {
+    return p1.length > p2.length;
+  }
 }
 
 namespace trkf {

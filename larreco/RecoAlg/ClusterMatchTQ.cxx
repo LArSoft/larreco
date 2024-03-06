@@ -24,7 +24,10 @@ namespace {
     float length;
   };
 
-  bool SortByLength(CluLen const& c1, CluLen const& c2) { return c1.length > c2.length; }
+  bool SortByLength(CluLen const& c1, CluLen const& c2)
+  {
+    return c1.length > c2.length;
+  }
 
   bool SortByWire(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2)
   {

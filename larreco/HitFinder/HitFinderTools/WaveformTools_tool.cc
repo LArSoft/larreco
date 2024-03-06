@@ -134,7 +134,10 @@ namespace reco_tool {
 
   //----------------------------------------------------------------------
   // Constructor.
-  WaveformTools::WaveformTools(const fhicl::ParameterSet& pset) { configure(pset); }
+  WaveformTools::WaveformTools(const fhicl::ParameterSet& pset)
+  {
+    configure(pset);
+  }
 
   void WaveformTools::configure(const fhicl::ParameterSet& pset)
   {

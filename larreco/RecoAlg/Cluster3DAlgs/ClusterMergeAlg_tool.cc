@@ -210,7 +210,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void ClusterMergeAlg::initializeHistograms(art::TFileDirectory&) { return; }
+  void ClusterMergeAlg::initializeHistograms(art::TFileDirectory&)
+  {
+    return;
+  }
 
   void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
   {

@@ -756,7 +756,10 @@ namespace tca {
   } // OverlapFraction
 
   /////////////////////////////////////////
-  unsigned short AngleRange(TrajPoint const& tp) { return AngleRange(tp.Ang); }
+  unsigned short AngleRange(TrajPoint const& tp)
+  {
+    return AngleRange(tp.Ang);
+  }
 
   /////////////////////////////////////////
   void SetAngleCode(TrajPoint& tp)
