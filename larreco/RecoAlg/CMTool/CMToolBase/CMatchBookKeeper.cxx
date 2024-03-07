@@ -2,9 +2,15 @@
 
 namespace cmtool {
 
-  CMatchBookKeeper::CMatchBookKeeper() { Reset(); }
+  CMatchBookKeeper::CMatchBookKeeper()
+  {
+    Reset();
+  }
 
-  void CMatchBookKeeper::Reset() { _register.clear(); }
+  void CMatchBookKeeper::Reset()
+  {
+    _register.clear();
+  }
 
   void CMatchBookKeeper::Match(const std::vector<unsigned int>& matched_indexes, const float& score)
   {

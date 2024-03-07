@@ -801,8 +801,7 @@ namespace trkf {
             // clean set of sppts. This creates larger gains, bigger
             // updates: bigger sensitivity to multiple scattering.
           }
-          else if (rePass == 2 && !uncontained) {
-          }
+          else if (rePass == 2 && !uncontained) {}
           if (point > 0 &&
               ((one - two).Mag() < epsMag ||               // too close
                ((one - two).Mag() > 8.0 && rePass == 1) || // too far

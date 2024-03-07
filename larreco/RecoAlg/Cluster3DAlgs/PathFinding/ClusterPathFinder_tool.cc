@@ -133,7 +133,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void ClusterPathFinder::initializeHistograms(art::TFileDirectory&) { return; }
+  void ClusterPathFinder::initializeHistograms(art::TFileDirectory&)
+  {
+    return;
+  }
 
   void ClusterPathFinder::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
   {

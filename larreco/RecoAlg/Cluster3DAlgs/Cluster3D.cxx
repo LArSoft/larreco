@@ -57,7 +57,10 @@ namespace reco {
     return o;
   }
 
-  bool operator<(const ClusterHit2D& a, const ClusterHit2D& b) { return a.getHit() < b.getHit(); }
+  bool operator<(const ClusterHit2D& a, const ClusterHit2D& b)
+  {
+    return a.getHit() < b.getHit();
+  }
 
   ClusterHit3D::ClusterHit3D()
     : fID(std::numeric_limits<size_t>::max())
@@ -169,7 +172,10 @@ namespace reco {
     return;
   }
 
-  void ClusterHit3D::setWireID(const geo::WireID& wid) const { fWireIDVector[wid.Plane] = wid; }
+  void ClusterHit3D::setWireID(const geo::WireID& wid) const
+  {
+    fWireIDVector[wid.Plane] = wid;
+  }
 
   std::ostream& operator<<(std::ostream& o, const ClusterHit3D& c)
   {

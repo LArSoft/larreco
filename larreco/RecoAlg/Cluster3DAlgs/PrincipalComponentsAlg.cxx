@@ -40,8 +40,7 @@ namespace lar_cluster3d {
   PrincipalComponentsAlg::PrincipalComponentsAlg(fhicl::ParameterSet const& pset)
   {
     m_parallel = pset.get<float>("ParallelLines", 0.00001);
-    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const> {}
-    ->Get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
   }
 
   struct Sort3DHitsByDocaToAxis {

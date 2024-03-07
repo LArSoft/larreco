@@ -46,7 +46,10 @@
 // Local functions.
 
 namespace {
-  inline double calcMagnitude(const double* x) { return std::hypot(x[0], x[1], x[2]); }
+  inline double calcMagnitude(const double* x)
+  {
+    return std::hypot(x[0], x[1], x[2]);
+  }
 
   //----------------------------------------------------------------------------
   // Filter a collection of hits (set difference).

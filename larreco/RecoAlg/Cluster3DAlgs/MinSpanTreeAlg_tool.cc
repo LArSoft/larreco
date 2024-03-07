@@ -154,7 +154,7 @@ namespace lar_cluster3d {
   MinSpanTreeAlg::MinSpanTreeAlg(fhicl::ParameterSet const& pset)
     : m_enableMonitoring{pset.get<bool>("EnableMonitoring", true)}
     , m_geometry{art::ServiceHandle<geo::Geometry const>{}.get()}
-    , m_wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>{}->Get()}
+    , m_wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
     , m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
     , m_kdTree(pset.get<fhicl::ParameterSet>("kdTree"))
   {

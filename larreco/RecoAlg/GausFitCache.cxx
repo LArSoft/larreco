@@ -56,7 +56,10 @@ namespace hit {
   } // GausFitCache::Get()
 
   //----------------------------------------------------------------------------
-  TF1* GausFitCache::GetClone(size_t nFunc) { return static_cast<TF1*>(Get(nFunc)->Clone()); }
+  TF1* GausFitCache::GetClone(size_t nFunc)
+  {
+    return static_cast<TF1*>(Get(nFunc)->Clone());
+  }
 
   //----------------------------------------------------------------------------
   TF1* GausFitCache::CreateFunction(size_t nFunc) const

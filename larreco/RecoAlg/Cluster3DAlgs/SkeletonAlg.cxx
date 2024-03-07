@@ -21,7 +21,10 @@
 
 namespace lar_cluster3d {
 
-  SkeletonAlg::SkeletonAlg(fhicl::ParameterSet const& pset) { reconfigure(pset); }
+  SkeletonAlg::SkeletonAlg(fhicl::ParameterSet const& pset)
+  {
+    reconfigure(pset);
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 

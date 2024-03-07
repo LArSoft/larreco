@@ -50,7 +50,10 @@ namespace reco3d {
                   std::vector<art::Ptr<recob::Hit>>&) const override; // output hits plane 2
   };
 
-  HitsStandard::HitsStandard(fhicl::ParameterSet const& pset) { this->configure(pset); }
+  HitsStandard::HitsStandard(fhicl::ParameterSet const& pset)
+  {
+    this->configure(pset);
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 

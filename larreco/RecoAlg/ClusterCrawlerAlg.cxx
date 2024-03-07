@@ -43,7 +43,10 @@ namespace {
     int length;
   };
 
-  bool greaterThan(CluLen c1, CluLen c2) { return c1.length > c2.length; }
+  bool greaterThan(CluLen c1, CluLen c2)
+  {
+    return c1.length > c2.length;
+  }
 }
 
 namespace cluster {
@@ -123,7 +126,10 @@ namespace cluster {
   } // reconfigure
 
   // used for sorting hits on wires
-  bool SortByLowHit(unsigned int i, unsigned int j) { return i > j; }
+  bool SortByLowHit(unsigned int i, unsigned int j)
+  {
+    return i > j;
+  }
 
   bool ClusterCrawlerAlg::SortByMultiplet(recob::Hit const& a, recob::Hit const& b)
   {

@@ -125,7 +125,10 @@ namespace voronoi2d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  bool compareSiteEventPtrs(const IEvent* left, const IEvent* right) { return *left < *right; }
+  bool compareSiteEventPtrs(const IEvent* left, const IEvent* right)
+  {
+    return *left < *right;
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 

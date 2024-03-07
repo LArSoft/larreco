@@ -1087,7 +1087,10 @@ namespace DUNE {
       ->SetOption("colz");
   }
   //========================================================================
-  void MuonTrackingEff::endJob() { doEfficiencies(); }
+  void MuonTrackingEff::endJob()
+  {
+    doEfficiencies();
+  }
   //========================================================================
   void MuonTrackingEff::beginRun(const art::Run& /*run*/)
   {

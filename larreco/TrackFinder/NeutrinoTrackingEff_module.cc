@@ -410,7 +410,10 @@ namespace DUNE {
     h_michelwtrk_length->Sumw2();
   }
   //========================================================================
-  void NeutrinoTrackingEff::endJob() { doEfficiencies(); }
+  void NeutrinoTrackingEff::endJob()
+  {
+    doEfficiencies();
+  }
   //========================================================================
   void NeutrinoTrackingEff::beginRun(const art::Run& /*run*/)
   {

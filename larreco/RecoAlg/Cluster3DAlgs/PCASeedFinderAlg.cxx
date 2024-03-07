@@ -43,8 +43,7 @@ namespace lar_cluster3d {
     m_gapDistance = pset.get<double>("GapDistance", 5.);
     m_numSeed2DHits = pset.get<size_t>("NumSeed2DHits", 80);
     m_minAllowedCosAng = pset.get<double>("MinAllowedCosAng", 0.7);
-    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const> {}
-    ->Get();
+    m_wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
   }
 
   bool PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr& inputHitPairListPtr,

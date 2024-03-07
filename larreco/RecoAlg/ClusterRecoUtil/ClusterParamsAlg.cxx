@@ -169,7 +169,10 @@ namespace cluster {
     fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
 
-  void ClusterParamsAlg::EnableFANN() { enableFANN = true; }
+  void ClusterParamsAlg::EnableFANN()
+  {
+    enableFANN = true;
+  }
 
   void ClusterParamsAlg::FillParams(util::GeometryUtilities const& gser,
                                     bool override_DoGetAverages,
