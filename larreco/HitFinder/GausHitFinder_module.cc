@@ -350,10 +350,10 @@ namespace hit {
               if (endT - startT < 5) continue;
 
               // #######################################################
-              // ### Clearing the parameter vector for the new pulse ###
+              // ### Clearing the parameter vector for the new Pulse ###
               // #######################################################
 
-              // === Setting the number of Gaussians to try ===
+              // === Setting The Number Of Gaussians to try ===
               int nGausForFit = mergedCands.size();
 
               // ##################################################
@@ -442,11 +442,46 @@ namespace hit {
               // Make a container for what will be the filtered collection
               std::vector<recob::Hit> filteredHitVec;
 
+	      
+	      float nextpeak(0);
+	      float prevpeak(0);
+	      float nextpeakSig(0);
+	      float prevpeakSig(0);
+	      float nsigmaADC(2.0);
+	      float newright(0);
+	      float newleft(0);
               for (const auto& peakParams : peakParamsVec) {
                 // Extract values for this hit
                 float peakAmp = peakParams.peakAmplitude;
                 float peakMean = peakParams.peakCenter;
                 float peakWidth = peakParams.peakSigma;
+
+		//std::cout<<" ans hits "<<numHits<<" gaus "<<nGausForFit<<std::endl;
+		
+		//ANS get prev and next
+		if(numHits==0)
+		  {
+		    newleft =-9999;
+		    newright=9999;
+		    nextpeak=0;
+		    prevpeak=0;
+		    nextpeakSig=0;
+		    prevpeakSig=0;
+		  }
+		if(numHits<nGausForFit-1)
+		  {	
+		    nextpeak = (peakParamsVec.at(numHits+1)).peakCenter;
+		    nextpeakSig = (peakParamsVec.at(numHits+1)).peakSigma;
+		    //std::cout<<" ans size "<<peakParamsVec.size()<<" hit "<<numHits<<" next peak "<<nextpeak<<" sig "<<nextpeakSig<<std::endl;
+		  }
+		if(numHits>0)
+		  {
+		    prevpeak= (peakParamsVec.at(numHits-1)).peakCenter;
+		    prevpeakSig = (peakParamsVec.at(numHits-1)).peakSigma;
+		    //std::cout<<" ans size "<<peakParamsVec.size()<<"hit "<<numHits<<" prev peak "<<prevpeak<<" sig "<<prevpeakSig<<std::endl;
+		  }
+		
+
 
                 // Place one bit of protection here
                 if (std::isnan(peakAmp)) {
@@ -471,8 +506,67 @@ namespace hit {
                 std::vector<float>::const_iterator sumStartItr = range.begin() + startT;
                 std::vector<float>::const_iterator sumEndItr = range.begin() + endT;
 
+		//ANS test to change limits in ADC counts and match the gaussian fit at nsigmaADC sigmas
+                std::vector<float>::const_iterator sumStartItrAns = range.begin() + peakMean -nsigmaADC*peakWidth;
+                std::vector<float>::const_iterator sumEndItrAns = range.begin() + peakMean +nsigmaADC*peakWidth;
+
+		//std::cout<<" prev and next "<<nextpeak<<" "<<prevpeak<<" "<<nextpeakSig<<" "<<prevpeakSig<<std::endl;
+		
+                if(nGausForFit>1)
+		  {
+		    if(numHits>0)
+		      {
+			if((peakMean-nsigmaADC*peakWidth)<(prevpeak+nsigmaADC*prevpeakSig))
+			  {
+			    // std::cout<<" change here since we have left "<<peakMean-2*peakWidth<<" and prev right "<<prevpeak+2*prevpeakSig<<std::endl;
+			    float difPeak = peakMean-prevpeak;
+			    float weightpeak = prevpeakSig/(prevpeakSig+peakWidth);
+			    sumStartItrAns=range.begin() + prevpeak + difPeak*weightpeak;
+			    //std::cout<<" NEW LEFT "<< prevpeak + difPeak*weightpeak<<std::endl;
+			    newleft=prevpeak + difPeak*weightpeak;
+			  }  
+		      }
+
+		    if(numHits<nGausForFit-1)
+		      {
+			if((peakMean+nsigmaADC*peakWidth)>(nextpeak-nsigmaADC*nextpeakSig))
+                          {
+			    //std::cout<<" change here since we have right "<<peakMean+2*peakWidth<<" and next left "<<nextpeak-2*nextpeakSig<<std::endl;
+                            float difPeak = nextpeak-peakMean;
+                            float weightpeak = peakWidth/(nextpeakSig+peakWidth);
+                            sumEndItrAns=range.begin() + peakMean + difPeak*weightpeak;
+			    //std::cout<<" NEW RIGHT "<< peakMean + difPeak*weightpeak<<std::endl;
+			    newright= peakMean + difPeak*weightpeak;
+			   
+                          }
+
+		      }
+		  }
+		   
+		//protection
+		if(newright-newleft < 0)
+		  //std::cout<<" should have lost "<<newright-newleft<<std::endl;
+		  continue;
+
+		if(sumStartItrAns<sumStartItr)
+		  sumStartItrAns=sumStartItr;
+
+		if(sumEndItrAns>sumEndItr)
+		  sumEndItrAns=sumEndItr;
+
+		  
+		
+
                 // ### Sum of ADC counts
                 double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
+		//ANS test                
+		double sumADCAns = std::accumulate(sumStartItrAns, sumEndItrAns, 0.);
+
+		//ANS
+		if(sumADC-charge > 50 && plane==2)
+		//if(plane==2)
+		  //		  std::cout<<" plane "<<plane<<" hit ADC "<<sumADC<<" integral "<<charge<<" dif "<<sumADC-charge<<" wire "<<wid<<" chi2 "<<chi2PerNDF <<" dof "<<NDF<<" roifirst "<<roiFirstBinTick<<" start "<<startT<<" end "<<endT<<" peakWidth "<<peakWidth<<" peakmean "<<peakMean<<" ngaus "<<nGausForFit<<" Ans start "<<peakMean -2*peakWidth<<" Ans end "<<peakMean +2*peakWidth<<" sumADCAns "<<sumADCAns<<" AnsDiff "<<sumADCAns-charge<<std::endl;
+		  std::cout<<" plane "<<plane<<" hit ADC "<<sumADC<<" integral "<<charge<<" dif "<<sumADC-charge<<" wire "<<wid<<" chi2 "<<chi2PerNDF <<" dof "<<NDF<<" roifirst "<<roiFirstBinTick<<" start "<<startT<<" end "<<endT<<" peakWidth "<<peakWidth<<" peakmean "<<peakMean<<" ngaus "<<nGausForFit<<" sumADCAns "<<sumADCAns<<" AnsDiff "<<sumADCAns-charge<<std::endl;
 
                 // ok, now create the hit
                 recob::HitCreator hitcreator(
@@ -487,7 +581,8 @@ namespace hit {
                   peakAmpErr,                 // sigma_peak_amplitude
                   charge,                     // hit_integral
                   chargeErr,                  // hit_sigma_integral
-                  sumADC,                     // summedADC FIXME
+		  //                  sumADC,                     // summedADC FIXME
+                  sumADCAns,                     // summedADC FIXME
                   nGausForFit,                // multiplicity
                   numHits,                    // local_index TODO check that the order is correct
                   chi2PerNDF,                 // goodness_of_fit
