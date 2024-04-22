@@ -623,7 +623,7 @@ double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
   switch (fConfig.ChargeMethod()) {
   case calo::GnocchiCalorimetry::Config::cmIntegral: return hit->Integral();
   case calo::GnocchiCalorimetry::Config::cmAmplitude: return hit->PeakAmplitude();
-  case calo::GnocchiCalorimetry::Config::cmSummedADC: return hit->SummedADC();
+  case calo::GnocchiCalorimetry::Config::cmSummedADC: return hit->ROISummedADC();
   case calo::GnocchiCalorimetry::Config::cmSummedIntegral:
     return std::accumulate(
       sharedHits.cbegin(),

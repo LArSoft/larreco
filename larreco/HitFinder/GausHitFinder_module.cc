@@ -409,10 +409,9 @@ namespace hit {
 
                 for (int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++) {
                   // This hit parameters
-                  double sumADC =
-                    std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
+                  double ROIsumADC = std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
                   double peakSigma = (lastTick - firstTick) / 3.; // Set the width...
-                  double peakAmp = 0.3989 * sumADC / peakSigma;   // Use gaussian formulation
+                  double peakAmp = 0.3989 * ROIsumADC / peakSigma;   // Use gaussian formulation
                   double peakMean = (firstTick + lastTick) / 2.;
 
                   // Store hit params
@@ -506,23 +505,19 @@ namespace hit {
                 std::vector<float>::const_iterator sumStartItr = range.begin() + startT;
                 std::vector<float>::const_iterator sumEndItr = range.begin() + endT;
 
-		//ANS test to change limits in ADC counts and match the gaussian fit at nsigmaADC sigmas
-                std::vector<float>::const_iterator sumStartItrAns = range.begin() + peakMean -nsigmaADC*peakWidth;
-                std::vector<float>::const_iterator sumEndItrAns = range.begin() + peakMean +nsigmaADC*peakWidth;
+		//### limits for the sum of the Hit based on the gaussian peak and sigma
+                std::vector<float>::const_iterator HitsumStartItr = range.begin() + peakMean -nsigmaADC*peakWidth;
+                std::vector<float>::const_iterator HitsumEndItr = range.begin() + peakMean +nsigmaADC*peakWidth;
 
-		//std::cout<<" prev and next "<<nextpeak<<" "<<prevpeak<<" "<<nextpeakSig<<" "<<prevpeakSig<<std::endl;
-		
                 if(nGausForFit>1)
 		  {
 		    if(numHits>0)
 		      {
 			if((peakMean-nsigmaADC*peakWidth)<(prevpeak+nsigmaADC*prevpeakSig))
 			  {
-			    // std::cout<<" change here since we have left "<<peakMean-2*peakWidth<<" and prev right "<<prevpeak+2*prevpeakSig<<std::endl;
 			    float difPeak = peakMean-prevpeak;
 			    float weightpeak = prevpeakSig/(prevpeakSig+peakWidth);
-			    sumStartItrAns=range.begin() + prevpeak + difPeak*weightpeak;
-			    //std::cout<<" NEW LEFT "<< prevpeak + difPeak*weightpeak<<std::endl;
+			    HitsumStartItr=range.begin() + prevpeak + difPeak*weightpeak;
 			    newleft=prevpeak + difPeak*weightpeak;
 			  }  
 		      }
@@ -531,42 +526,33 @@ namespace hit {
 		      {
 			if((peakMean+nsigmaADC*peakWidth)>(nextpeak-nsigmaADC*nextpeakSig))
                           {
-			    //std::cout<<" change here since we have right "<<peakMean+2*peakWidth<<" and next left "<<nextpeak-2*nextpeakSig<<std::endl;
-                            float difPeak = nextpeak-peakMean;
+			    float difPeak = nextpeak-peakMean;
                             float weightpeak = peakWidth/(nextpeakSig+peakWidth);
-                            sumEndItrAns=range.begin() + peakMean + difPeak*weightpeak;
-			    //std::cout<<" NEW RIGHT "<< peakMean + difPeak*weightpeak<<std::endl;
+                            HitsumEndItr=range.begin() + peakMean + difPeak*weightpeak;
 			    newright= peakMean + difPeak*weightpeak;
-			   
-                          }
+			  }
 
 		      }
 		  }
 		   
-		//protection
+		//protection to avoid negative ranges
 		if(newright-newleft < 0)
-		  //std::cout<<" should have lost "<<newright-newleft<<std::endl;
 		  continue;
 
-		if(sumStartItrAns<sumStartItr)
-		  sumStartItrAns=sumStartItr;
+		//avoid ranges out of ROI if it happens
+		if(HitsumStartItr<sumStartItr)
+		  HitsumStartItr=sumStartItr;
 
-		if(sumEndItrAns>sumEndItr)
-		  sumEndItrAns=sumEndItr;
+		if(HitsumEndItr>sumEndItr)
+		  HitsumEndItr=sumEndItr;
 
 		  
 		
 
                 // ### Sum of ADC counts
-                double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
-		//ANS test                
-		double sumADCAns = std::accumulate(sumStartItrAns, sumEndItrAns, 0.);
+                double ROIsumADC = std::accumulate(sumStartItr, sumEndItr, 0.);          
+		double HitsumADC = std::accumulate(HitsumStartItr, HitsumEndItr, 0.);
 
-		//ANS
-		if(sumADC-charge > 50 && plane==2)
-		//if(plane==2)
-		  //		  std::cout<<" plane "<<plane<<" hit ADC "<<sumADC<<" integral "<<charge<<" dif "<<sumADC-charge<<" wire "<<wid<<" chi2 "<<chi2PerNDF <<" dof "<<NDF<<" roifirst "<<roiFirstBinTick<<" start "<<startT<<" end "<<endT<<" peakWidth "<<peakWidth<<" peakmean "<<peakMean<<" ngaus "<<nGausForFit<<" Ans start "<<peakMean -2*peakWidth<<" Ans end "<<peakMean +2*peakWidth<<" sumADCAns "<<sumADCAns<<" AnsDiff "<<sumADCAns-charge<<std::endl;
-		  std::cout<<" plane "<<plane<<" hit ADC "<<sumADC<<" integral "<<charge<<" dif "<<sumADC-charge<<" wire "<<wid<<" chi2 "<<chi2PerNDF <<" dof "<<NDF<<" roifirst "<<roiFirstBinTick<<" start "<<startT<<" end "<<endT<<" peakWidth "<<peakWidth<<" peakmean "<<peakMean<<" ngaus "<<nGausForFit<<" sumADCAns "<<sumADCAns<<" AnsDiff "<<sumADCAns-charge<<std::endl;
 
                 // ok, now create the hit
                 recob::HitCreator hitcreator(
@@ -581,8 +567,8 @@ namespace hit {
                   peakAmpErr,                 // sigma_peak_amplitude
                   charge,                     // hit_integral
                   chargeErr,                  // hit_sigma_integral
-		  //                  sumADC,                     // summedADC FIXME
-                  sumADCAns,                     // summedADC FIXME
+		  ROIsumADC,                  // summedADC of the ROI
+                  HitsumADC,                  // summedADC of the Hit
                   nGausForFit,                // multiplicity
                   numHits,                    // local_index TODO check that the order is correct
                   chi2PerNDF,                 // goodness_of_fit

@@ -1294,7 +1294,7 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
       for (size_t i = 0; i < lastHits.size(); ++i) {
         clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));
         integralQ.add(clusterHits.back()->Integral());
-        summedQ.add(clusterHits.back()->SummedADC());
+        summedQ.add(clusterHits.back()->ROISummedADC());
         skip.at(hitTemp.at(lastHits.at(i))) = 1;
       }
       //protection against very steep uncorrelated hits

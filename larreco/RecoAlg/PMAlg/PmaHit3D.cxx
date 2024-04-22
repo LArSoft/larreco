@@ -51,7 +51,7 @@ pma::Hit3D::Hit3D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
   fPeakTime = src->PeakTime();
 
   fAmpl = src->PeakAmplitude();
-  fArea = src->SummedADC();
+  fArea = src->ROISummedADC();
 
   fPoint2D = pma::WireDriftToCm(detProp, fWire, fPeakTime, fPlane, fTPC, fCryo);
 }

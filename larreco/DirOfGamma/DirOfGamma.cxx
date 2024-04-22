@@ -23,7 +23,7 @@ ems::Hit2D::Hit2D(detinfo::DetectorPropertiesData const& detProp, art::Ptr<recob
   double const globalWire =
     geom->WireCoordinate(wireCenter, geo::PlaneID{wireID.Cryostat, wireID.TPC % 2, wireID.Plane});
   fPoint.Set(globalWire, x);
-  fCharge = src->SummedADC();
+  fCharge = src->ROISummedADC();
 }
 
 ems::Bin2D::Bin2D(const TVector2& center) : fCenter2D(center), fTotCharge(0.0), fSize(0) {}

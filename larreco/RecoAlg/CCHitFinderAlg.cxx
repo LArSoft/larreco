@@ -624,7 +624,8 @@ namespace hit {
                            par[index + 2],          // rms
                            par[index],              // peak_amplitude
                            parerr[index],           // sigma_peak_amplitude
-                           adcsum * charge / gsum,  // summedADC
+                           adcsum * charge / gsum,  // ROIsummedADC
+			   adcsum * charge / gsum,  // HitsummedADC  NOT CORRECTLY FILLED
                            charge,                  // hit_integral
                            charge_err,              // hit_sigma_integral
                            nhits,                   // multiplicity

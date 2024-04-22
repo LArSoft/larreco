@@ -241,7 +241,8 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
                             time.RMS(),                // RMS
                             maxCharge,                 // peak_amplitude
                             std::sqrt(maxCharge),      // sigma_peak_amplitude
-                            totCharge,                 // summedADC
+                            totCharge,                 // ROIsummedADC
+			    totCharge,                 // HitsummedADC
                             totCharge,                 // hit_integral
                             std::sqrt(totCharge),      // hit_sigma_integral
                             multiplicity,              // multiplicity
@@ -292,7 +293,8 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
                         time.RMS(),                // RMS
                         maxCharge,                 // peak_amplitude
                         std::sqrt(maxCharge),      // sigma_peak_amplitude
-                        totCharge,                 // summedADC
+                        totCharge,                 // ROIsummedADC
+			totCharge,                 // HitsummedADC
                         totCharge,                 // hit_integral
                         std::sqrt(totCharge),      // hit_sigma_integral
                         multiplicity,              // multiplicity

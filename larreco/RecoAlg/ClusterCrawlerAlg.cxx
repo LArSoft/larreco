@@ -1683,7 +1683,8 @@ namespace cluster {
                                RMS,       // rms
                                amplitude, // peak_amplitude
                                hit.SigmaPeakAmplitude(),
-                               hit.SummedADC(),
+                               hit.ROISummedADC(),
+			       hit.HitSummedADC(),
                                chgsum, // hit_integral
                                hit.SigmaIntegral(),
                                NewMultiplicity, // multiplicity
@@ -1737,7 +1738,8 @@ namespace cluster {
                                hit.RMS(),
                                hit.PeakAmplitude(),
                                hit.SigmaPeakAmplitude(),
-                               hit.SummedADC(),
+                               hit.ROISummedADC(),
+			       hit.HitSummedADC(),
                                hit.Integral(),
                                hit.SigmaIntegral(),
                                multiplicity, // multiplicity

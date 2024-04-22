@@ -173,7 +173,7 @@ namespace cluster {
         unsigned int iht = clstr.tclhits[itt];
         recob::Hit const& hit = FinalHits->at(iht);
         sumChg += hit.Integral();
-        sumADC += hit.SummedADC();
+        sumADC += hit.ROISummedADC();
       } // itt
       // get the wire, plane from a hit
       unsigned int iht = clstr.tclhits[0];
