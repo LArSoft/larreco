@@ -412,7 +412,7 @@ namespace hit {
                               std::accumulate(holder.begin() + (int)start,
                                               holder.begin() + (int)end,
                                               0.), //SUMMED CHARGE.
-			      std::accumulate(holder.begin() + (int)start,
+                              std::accumulate(holder.begin() + (int)start,
                                               holder.begin() + (int)end,
                                               0.), //SUMMED CHARGE. TO BE MODIFIED
                               1,                   //MULTIPLICITY.

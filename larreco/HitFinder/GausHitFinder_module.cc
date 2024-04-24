@@ -409,9 +409,10 @@ namespace hit {
 
                 for (int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++) {
                   // This hit parameters
-                  double ROIsumADC = std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
-                  double peakSigma = (lastTick - firstTick) / 3.; // Set the width...
-                  double peakAmp = 0.3989 * ROIsumADC / peakSigma;   // Use gaussian formulation
+                  double ROIsumADC =
+                    std::accumulate(range.begin() + firstTick, range.begin() + lastTick, 0.);
+                  double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
+                  double peakAmp = 0.3989 * ROIsumADC / peakSigma; // Use gaussian formulation
                   double peakMean = (firstTick + lastTick) / 2.;
 
                   // Store hit params
@@ -441,46 +442,40 @@ namespace hit {
               // Make a container for what will be the filtered collection
               std::vector<recob::Hit> filteredHitVec;
 
-	      
-	      float nextpeak(0);
-	      float prevpeak(0);
-	      float nextpeakSig(0);
-	      float prevpeakSig(0);
-	      float nsigmaADC(2.0);
-	      float newright(0);
-	      float newleft(0);
+              float nextpeak(0);
+              float prevpeak(0);
+              float nextpeakSig(0);
+              float prevpeakSig(0);
+              float nsigmaADC(2.0);
+              float newright(0);
+              float newleft(0);
               for (const auto& peakParams : peakParamsVec) {
                 // Extract values for this hit
                 float peakAmp = peakParams.peakAmplitude;
                 float peakMean = peakParams.peakCenter;
                 float peakWidth = peakParams.peakSigma;
 
-		//std::cout<<" ans hits "<<numHits<<" gaus "<<nGausForFit<<std::endl;
-		
-		//ANS get prev and next
-		if(numHits==0)
-		  {
-		    newleft =-9999;
-		    newright=9999;
-		    nextpeak=0;
-		    prevpeak=0;
-		    nextpeakSig=0;
-		    prevpeakSig=0;
-		  }
-		if(numHits<nGausForFit-1)
-		  {	
-		    nextpeak = (peakParamsVec.at(numHits+1)).peakCenter;
-		    nextpeakSig = (peakParamsVec.at(numHits+1)).peakSigma;
-		    //std::cout<<" ans size "<<peakParamsVec.size()<<" hit "<<numHits<<" next peak "<<nextpeak<<" sig "<<nextpeakSig<<std::endl;
-		  }
-		if(numHits>0)
-		  {
-		    prevpeak= (peakParamsVec.at(numHits-1)).peakCenter;
-		    prevpeakSig = (peakParamsVec.at(numHits-1)).peakSigma;
-		    //std::cout<<" ans size "<<peakParamsVec.size()<<"hit "<<numHits<<" prev peak "<<prevpeak<<" sig "<<prevpeakSig<<std::endl;
-		  }
-		
+                //std::cout<<" ans hits "<<numHits<<" gaus "<<nGausForFit<<std::endl;
 
+                //ANS get prev and next
+                if (numHits == 0) {
+                  newleft = -9999;
+                  newright = 9999;
+                  nextpeak = 0;
+                  prevpeak = 0;
+                  nextpeakSig = 0;
+                  prevpeakSig = 0;
+                }
+                if (numHits < nGausForFit - 1) {
+                  nextpeak = (peakParamsVec.at(numHits + 1)).peakCenter;
+                  nextpeakSig = (peakParamsVec.at(numHits + 1)).peakSigma;
+                  //std::cout<<" ans size "<<peakParamsVec.size()<<" hit "<<numHits<<" next peak "<<nextpeak<<" sig "<<nextpeakSig<<std::endl;
+                }
+                if (numHits > 0) {
+                  prevpeak = (peakParamsVec.at(numHits - 1)).peakCenter;
+                  prevpeakSig = (peakParamsVec.at(numHits - 1)).peakSigma;
+                  //std::cout<<" ans size "<<peakParamsVec.size()<<"hit "<<numHits<<" prev peak "<<prevpeak<<" sig "<<prevpeakSig<<std::endl;
+                }
 
                 // Place one bit of protection here
                 if (std::isnan(peakAmp)) {
@@ -505,54 +500,43 @@ namespace hit {
                 std::vector<float>::const_iterator sumStartItr = range.begin() + startT;
                 std::vector<float>::const_iterator sumEndItr = range.begin() + endT;
 
-		//### limits for the sum of the Hit based on the gaussian peak and sigma
-                std::vector<float>::const_iterator HitsumStartItr = range.begin() + peakMean -nsigmaADC*peakWidth;
-                std::vector<float>::const_iterator HitsumEndItr = range.begin() + peakMean +nsigmaADC*peakWidth;
+                //### limits for the sum of the Hit based on the gaussian peak and sigma
+                std::vector<float>::const_iterator HitsumStartItr =
+                  range.begin() + peakMean - nsigmaADC * peakWidth;
+                std::vector<float>::const_iterator HitsumEndItr =
+                  range.begin() + peakMean + nsigmaADC * peakWidth;
 
-                if(nGausForFit>1)
-		  {
-		    if(numHits>0)
-		      {
-			if((peakMean-nsigmaADC*peakWidth)<(prevpeak+nsigmaADC*prevpeakSig))
-			  {
-			    float difPeak = peakMean-prevpeak;
-			    float weightpeak = prevpeakSig/(prevpeakSig+peakWidth);
-			    HitsumStartItr=range.begin() + prevpeak + difPeak*weightpeak;
-			    newleft=prevpeak + difPeak*weightpeak;
-			  }  
-		      }
+                if (nGausForFit > 1) {
+                  if (numHits > 0) {
+                    if ((peakMean - nsigmaADC * peakWidth) < (prevpeak + nsigmaADC * prevpeakSig)) {
+                      float difPeak = peakMean - prevpeak;
+                      float weightpeak = prevpeakSig / (prevpeakSig + peakWidth);
+                      HitsumStartItr = range.begin() + prevpeak + difPeak * weightpeak;
+                      newleft = prevpeak + difPeak * weightpeak;
+                    }
+                  }
 
-		    if(numHits<nGausForFit-1)
-		      {
-			if((peakMean+nsigmaADC*peakWidth)>(nextpeak-nsigmaADC*nextpeakSig))
-                          {
-			    float difPeak = nextpeak-peakMean;
-                            float weightpeak = peakWidth/(nextpeakSig+peakWidth);
-                            HitsumEndItr=range.begin() + peakMean + difPeak*weightpeak;
-			    newright= peakMean + difPeak*weightpeak;
-			  }
+                  if (numHits < nGausForFit - 1) {
+                    if ((peakMean + nsigmaADC * peakWidth) > (nextpeak - nsigmaADC * nextpeakSig)) {
+                      float difPeak = nextpeak - peakMean;
+                      float weightpeak = peakWidth / (nextpeakSig + peakWidth);
+                      HitsumEndItr = range.begin() + peakMean + difPeak * weightpeak;
+                      newright = peakMean + difPeak * weightpeak;
+                    }
+                  }
+                }
 
-		      }
-		  }
-		   
-		//protection to avoid negative ranges
-		if(newright-newleft < 0)
-		  continue;
+                //protection to avoid negative ranges
+                if (newright - newleft < 0) continue;
 
-		//avoid ranges out of ROI if it happens
-		if(HitsumStartItr<sumStartItr)
-		  HitsumStartItr=sumStartItr;
+                //avoid ranges out of ROI if it happens
+                if (HitsumStartItr < sumStartItr) HitsumStartItr = sumStartItr;
 
-		if(HitsumEndItr>sumEndItr)
-		  HitsumEndItr=sumEndItr;
-
-		  
-		
+                if (HitsumEndItr > sumEndItr) HitsumEndItr = sumEndItr;
 
                 // ### Sum of ADC counts
-                double ROIsumADC = std::accumulate(sumStartItr, sumEndItr, 0.);          
-		double HitsumADC = std::accumulate(HitsumStartItr, HitsumEndItr, 0.);
-
+                double ROIsumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
+                double HitsumADC = std::accumulate(HitsumStartItr, HitsumEndItr, 0.);
 
                 // ok, now create the hit
                 recob::HitCreator hitcreator(
@@ -567,7 +551,7 @@ namespace hit {
                   peakAmpErr,                 // sigma_peak_amplitude
                   charge,                     // hit_integral
                   chargeErr,                  // hit_sigma_integral
-		  ROIsumADC,                  // summedADC of the ROI
+                  ROIsumADC,                  // summedADC of the ROI
                   HitsumADC,                  // summedADC of the Hit
                   nGausForFit,                // multiplicity
                   numHits,                    // local_index TODO check that the order is correct

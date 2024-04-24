@@ -204,7 +204,8 @@ namespace trkf {
         case geo::kU: nwiresU = nwires; break;
         case geo::kV: nwiresV = nwires; break;
         case geo::kZ: nwiresW = nwires; break;
-        default: {}
+        default: {
+        }
         }
       }
 
