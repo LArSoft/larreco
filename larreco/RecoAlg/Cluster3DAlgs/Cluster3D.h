@@ -66,6 +66,7 @@ namespace reco {
                  const recob::Hit* recobHit);
 
     ClusterHit2D(const ClusterHit2D&);
+    ClusterHit2D& operator=(ClusterHit2D const&);
 
     unsigned getStatusBits() const { return m_statusBits; }
     float getDocaToAxis() const { return m_docaToAxis; }
@@ -131,6 +132,7 @@ namespace reco {
                  const std::vector<geo::WireID>& wireIDVec);
 
     ClusterHit3D(const ClusterHit3D&);
+    ClusterHit3D& operator=(ClusterHit3D const&);
 
     void initialize(size_t id,
                     unsigned int statusBits,
@@ -180,7 +182,7 @@ namespace reco {
 
     void setPosition(const Eigen::Vector3f& pos) const { fPosition = pos; }
 
-    const bool operator<(const reco::ClusterHit3D& other) const
+    bool operator<(const reco::ClusterHit3D& other) const
     {
       if (fPosition[2] != other.fPosition[2])
         return fPosition[2] < other.fPosition[2];
@@ -188,7 +190,7 @@ namespace reco {
         return fPosition[0] < other.fPosition[0];
     }
 
-    const bool operator==(const reco::ClusterHit3D& other) const { return fID == other.fID; }
+    bool operator==(const reco::ClusterHit3D& other) const { return fID == other.fID; }
 
     friend std::ostream& operator<<(std::ostream& o, const ClusterHit3D& c);
     //friend bool          operator <  (const ClusterHit3D & a, const ClusterHit3D & b);
@@ -240,7 +242,7 @@ namespace reco {
     const EigenValues& getEigenValues() const { return m_eigenValues; }
     const EigenVectors& getEigenVectors() const { return m_eigenVectors; }
     const Eigen::Vector3f& getAvePosition() const { return m_avePosition; }
-    const float getAveHitDoca() const { return m_aveHitDoca; }
+    float getAveHitDoca() const { return m_aveHitDoca; }
 
     void flipAxis(size_t axis);
     void setAveHitDoca(double doca) const { m_aveHitDoca = doca; }

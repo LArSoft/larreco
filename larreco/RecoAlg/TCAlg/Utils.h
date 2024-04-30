@@ -49,32 +49,31 @@ namespace tca {
   // dressed muons
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
-  float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
+  float MaxChargeAsymmetry(TCSlice& slc, std::vector<int> const& tjIDs);
   int PDGCodeVote(const TCSlice& slc, const std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(const TCSlice& slc, const Trajectory& tj);
   int PrimaryID(const TCSlice& slc, const Trajectory& tj);
-  int PrimaryUID(const TCSlice& slc, const PFPStruct& pfp);
+  int PrimaryUID(const PFPStruct& pfp);
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt);
-  float PointPull(TCSlice& slc, Point2_t pos, float chg, const Trajectory& tj);
-  bool CompatibleMerge(const TCSlice& slc, std::vector<int>& tjIDs, bool prt);
-  bool CompatibleMerge(const TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2, bool prt);
-  float OverlapFraction(const TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2);
+  float PointPull(Point2_t pos, float chg, const Trajectory& tj);
+  bool CompatibleMerge(const TCSlice& slc, std::vector<int> const& tjIDs, bool prt);
+  bool CompatibleMerge(const Trajectory& tj1, const Trajectory& tj2, bool prt);
+  float OverlapFraction(const Trajectory& tj1, const Trajectory& tj2);
   unsigned short AngleRange(TrajPoint const& tp);
   void SetAngleCode(TrajPoint& tp);
   unsigned short AngleRange(float angle);
-  void FitTraj(TCSlice& slc, Trajectory& tj);
-  void FitTraj(TCSlice& slc,
+  void FitTraj(TCSlice const& slc, Trajectory& tj);
+  void FitTraj(TCSlice const& slc,
                Trajectory& tj,
                unsigned short originPt,
                unsigned short npts,
                short fitDir,
                TrajPoint& tpFit);
   unsigned short GetPFPIndex(const TCSlice& slc, int tjID);
-  void ReleaseHits(TCSlice& slc, Trajectory& tj);
+  void ReleaseHits(TCSlice& slc, Trajectory const& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
-  void FitPar(const TCSlice& slc,
-              const Trajectory& tj,
+  void FitPar(const Trajectory& tj,
               unsigned short originPt,
               unsigned short npts,
               short fitDir,
@@ -83,29 +82,22 @@ namespace tca {
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   bool BraggSplit(TCSlice& slc, unsigned short itj);
-  void ChkEndKink(TCSlice& slc, Trajectory& tj, bool prt);
+  void ChkEndKink(TCSlice const& slc, Trajectory& tj, bool prt);
   void TrimHiChgEndPts(TCSlice& slc, Trajectory& tj, bool prt);
   void TrimEndPts(std::string fcnLabel,
                   TCSlice& slc,
                   Trajectory& tj,
                   const std::vector<float>& fQualityCuts,
                   bool prt);
-  void ChkMissedKink(TCSlice& slc, Trajectory& tj, bool prt);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
-  bool SignalBetween(const TCSlice& slc,
-                     const TrajPoint& tp1,
-                     const TrajPoint& tp2,
-                     const float& MinWireSignalFraction);
-  bool SignalBetween(const TCSlice& slc,
-                     TrajPoint tp,
-                     float toPos0,
-                     const float& MinWireSignalFraction);
-  float ChgFracBetween(const TCSlice& slc, TrajPoint tp, float toPos0);
-  bool TrajHitsOK(TCSlice& slc,
+  bool SignalBetween(const TrajPoint& tp1, const TrajPoint& tp2, float MinWireSignalFraction);
+  bool SignalBetween(TrajPoint tp, float toPos0, float MinWireSignalFraction);
+  float ChgFracBetween(TrajPoint tp, float toPos0);
+  bool TrajHitsOK(TCSlice const& slc,
                   const std::vector<unsigned int>& iHitsInMultiplet,
                   const std::vector<unsigned int>& jHitsInMultiplet);
-  bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
-  float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
+  bool TrajHitsOK(TCSlice const& slc, const unsigned int iht, const unsigned int jht);
+  float ExpectedHitsRMS(const TrajPoint& tp);
   bool SignalAtTpInSlc(const TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTp(TrajPoint& tp);
   bool NearbySrcHit(geo::PlaneID plnID, unsigned int wire, float loTick, float hiTick);
@@ -146,12 +138,12 @@ namespace tca {
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(const TCSlice& slc, unsigned int iht, TrajPoint const& tp);
   // returns the DOCA between a (W,T) point and a trajectory
-  float PointTrajDOCA(const TCSlice& slc, float wire, float time, TrajPoint const& tp);
+  float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
   // returns the DOCA^2 between a point and a trajectory
-  float PointTrajDOCA2(const TCSlice& slc, float wire, float time, TrajPoint const& tp);
+  float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
-  bool FindCloseHits(TCSlice& slc, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
+  bool FindCloseHits(TCSlice const& slc, TrajPoint& tp, float maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(const TCSlice& slc,
                                           std::array<int, 2> const& wireWindow,
                                           Point2_t const& timeWindow,
@@ -159,21 +151,21 @@ namespace tca {
                                           HitStatus_t hitRequest,
                                           bool usePeakTime,
                                           bool& hitsNear);
-  unsigned short NearbyCleanPt(const TCSlice& slc, const Trajectory& tj, unsigned short nearPt);
+  unsigned short NearbyCleanPt(const Trajectory& tj, unsigned short nearPt);
   std::vector<int> FindCloseTjs(const TCSlice& slc,
                                 const TrajPoint& fromTp,
                                 const TrajPoint& toTp,
                                 const float& maxDelta);
   float ElectronLikelihood(const TCSlice& slc, const Trajectory& tj);
-  float KinkSignificance(TCSlice& slc,
-                         Trajectory& tj1,
+  float KinkSignificance(TCSlice const& slc,
+                         Trajectory const& tj1,
                          unsigned short end1,
-                         Trajectory& tj2,
+                         Trajectory const& tj2,
                          unsigned short end2,
                          unsigned short nPtsFit,
                          bool useChg,
                          bool prt);
-  float KinkSignificance(TCSlice& slc,
+  float KinkSignificance(TCSlice const& slc,
                          Trajectory& tj,
                          unsigned short kinkPt,
                          unsigned short nPtsFit,
@@ -181,16 +173,15 @@ namespace tca {
                          bool prt);
   float ChgFracNearPos(const TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
-  void ReverseTraj(TCSlice& slc, Trajectory& tj);
+  void ReverseTraj(Trajectory& tj);
   // returns the end of a trajectory that is closest to a point
-  unsigned short CloseEnd(const TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
+  unsigned short CloseEnd(const Trajectory& tj, const Point2_t& pos);
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const Point2_t& pos1, const Point2_t& pos2);
   float PosSep2(const Point2_t& pos1, const Point2_t& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
-  void TrajPointTrajDOCA(const TCSlice& slc,
-                         TrajPoint const& tp,
+  void TrajPointTrajDOCA(TrajPoint const& tp,
                          Trajectory const& tj,
                          unsigned short& closePt,
                          float& minSep);
@@ -219,7 +210,7 @@ namespace tca {
                     bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(const TrajPoint& tp1, const TrajPoint& tp2);
-  void TagJunkTj(TCSlice& slc, Trajectory& tj, bool prt);
+  void TagJunkTj(Trajectory& tj, bool prt);
   std::vector<unsigned int> PutHitsInVector(const TCSlice& slc,
                                             PFPStruct const& pfp,
                                             HitStatus_t hitRequest);
@@ -259,8 +250,7 @@ namespace tca {
                     float& chg,
                     HitStatus_t hitRequest);
   unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
-  unsigned short NumUsedHitsInTj(const TCSlice& slc, const Trajectory& tj);
-  unsigned short NearestPtWithChg(const TCSlice& slc, const Trajectory& tj, unsigned short thePt);
+  unsigned short NearestPtWithChg(const Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
   short MCSMom(const TCSlice& slc, const std::vector<int>& tjIDs);
   short MCSMom(const TCSlice& slc, const Trajectory& tj);
@@ -269,31 +259,25 @@ namespace tca {
                unsigned short FirstPt,
                unsigned short lastPt);
   // Calculate MCS theta RMS over the points specified. Returns MCS angle for the full length
-  double MCSThetaRMS(const TCSlice& slc,
-                     const Trajectory& tj,
-                     unsigned short firstPt,
-                     unsigned short lastPt);
+  double MCSThetaRMS(const Trajectory& tj, unsigned short firstPt, unsigned short lastPt);
   // Calculate MCS theta RMS over the entire length. Returns MCS angle for 1 WSE unit
-  float MCSThetaRMS(const TCSlice& slc, const Trajectory& tj);
-  void TjDeltaRMS(const TCSlice& slc,
-                  const Trajectory& tj,
+  float MCSThetaRMS(const Trajectory& tj);
+  void TjDeltaRMS(const Trajectory& tj,
                   unsigned short firstPt,
                   unsigned short lastPt,
                   double& rms,
                   unsigned short& cnt);
   void SetTPEnvironment(TCSlice& slc, CTP_t inCTP);
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
-  bool TrajIsClean(TCSlice& slc, Trajectory& tj, bool prt);
-  void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
+  bool TrajIsClean(Trajectory const& tj, bool prt);
+  void UpdateTjChgProperties(std::string inFcnLabel, TCSlice const& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(TCSlice& slc);
   void UpdateVxEnvironment(TCSlice& slc, VtxStore& vx2, bool prt);
   TrajPoint MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
-                       const TCSlice& slc,
                        const Point3_t& pos,
                        CTP_t inCTP);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTP(detinfo::DetectorPropertiesData const& detProp,
-                       const TCSlice& slc,
                        const Point3_t& pos,
                        const Vector3_t& dir,
                        CTP_t inCTP);
@@ -301,21 +285,17 @@ namespace tca {
                          unsigned int fromHit,
                          unsigned int toHit,
                          TrajPoint& tp);
-  bool MakeBareTrajPoint(const TCSlice& slc,
-                         float fromWire,
+  bool MakeBareTrajPoint(float fromWire,
                          float fromTick,
                          float toWire,
                          float toTick,
                          CTP_t tCTP,
                          TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
-  bool MakeBareTrajPoint(const TCSlice& slc,
-                         const TrajPoint& tpIn1,
-                         const TrajPoint& tpIn2,
-                         TrajPoint& tpOut);
-  unsigned short FarEnd(TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
+  bool MakeBareTrajPoint(const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  unsigned short FarEnd(const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
-  void SetPDGCode(TCSlice& slc, Trajectory& tj);
+  void SetPDGCode(TCSlice const& slc, Trajectory& tj);
   void SetPDGCode(TCSlice& slc, unsigned short itj);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
@@ -324,17 +304,19 @@ namespace tca {
                         detinfo::DetectorPropertiesData const& detProp,
                         TCSlice& slc);
   //  bool CheckWireHitRange(TCSlice& slc);
-  bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
+  bool WireHitRangeOK(TCSlice const& slc, const CTP_t& inCTP);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
-  std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
+  std::vector<int> GetAssns(TCSlice const& slc,
+                            std::string type1Name,
+                            int id,
+                            std::string type2Name);
   // Start a trajectory going from fromHit to (toWire, toTick)
-  bool StartTraj(TCSlice& slc,
+  bool StartTraj(TCSlice const& slc,
                  Trajectory& tj,
                  unsigned int fromhit,
                  unsigned int tohit,
                  unsigned short pass);
-  bool StartTraj(TCSlice& slc,
-                 Trajectory& tj,
+  bool StartTraj(Trajectory& tj,
                  float fromWire,
                  float fromTick,
                  float toWire,
@@ -357,25 +339,23 @@ namespace tca {
   void DumpTj();
   void PrintDebugMode();
   void PrintAll(detinfo::DetectorPropertiesData const& detProp, std::string someText);
-  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
+  void PrintP(mf::LogVerbatim& myprt, PFPStruct const& pfp, bool& printHeader);
   void Print3V(detinfo::DetectorPropertiesData const& detProp,
-               std::string someText,
                mf::LogVerbatim& myprt,
-               Vtx3Store& vx3,
+               Vtx3Store const& vx3,
                bool& printHeader);
-  void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2, bool& printHeader);
+  void Print2V(mf::LogVerbatim& myprt, VtxStore const& vx2, bool& printHeader);
   void Print3S(detinfo::DetectorPropertiesData const& detProp,
-               std::string someText,
                mf::LogVerbatim& myprt,
-               ShowerStruct3D& ss3);
-  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
+               ShowerStruct3D const& ss3);
+  void PrintT(mf::LogVerbatim& myprt, Trajectory const& tj, bool& printHeader);
   void PrintTrajectory(std::string someText,
                        const TCSlice& slc,
                        const Trajectory& tj,
                        unsigned short tPoint);
   void PrintAllTraj(detinfo::DetectorPropertiesData const& detProp,
                     std::string someText,
-                    TCSlice& slc,
+                    TCSlice const& slc,
                     unsigned short itj,
                     unsigned short ipt,
                     bool printVtx = true);
@@ -387,16 +367,16 @@ namespace tca {
                unsigned short pass,
                const TrajPoint& tp);
   std::string TPEnvString(const TrajPoint& tp);
-  void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader);
-  void PrintPFPs(std::string someText, TCSlice& slc);
+  void PrintPFP(std::string someText, TCSlice const& slc, const PFPStruct& pfp, bool printHeader);
+  void PrintPFPs(std::string someText, TCSlice const& slc);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
   std::string PrintHit(const TCHit& hit);
   std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
-  std::string PrintPos(const TCSlice& slc, const TrajPoint& tp);
-  std::string PrintPos(const TCSlice& slc, const Point2_t& pos);
+  std::string PrintPos(const TrajPoint& tp);
+  std::string PrintPos(const Point2_t& pos);
   std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
   std::string PrintEndFlag(const PFPStruct& pfp, unsigned short end);
 

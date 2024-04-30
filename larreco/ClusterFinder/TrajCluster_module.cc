@@ -67,8 +67,7 @@ namespace cluster {
     void GetHits(const std::vector<recob::Hit>& inputHits,
                  const geo::TPCID& tpcid,
                  std::vector<std::vector<unsigned int>>& tpcHits);
-    void GetHits(const std::vector<recob::Hit>& inputHits,
-                 const geo::TPCID& tpcid,
+    void GetHits(const geo::TPCID& tpcid,
                  const std::vector<recob::Slice>& inputSlices,
                  art::FindManyP<recob::Hit>& hitFromSlc,
                  std::vector<std::vector<unsigned int>>& tpcHits,
@@ -302,7 +301,7 @@ namespace cluster {
         if (inputSlices.isValid()) {
           // get hits in this TPC and slice
           art::FindManyP<recob::Hit> hitFromSlc(inputSlices, evt, fSliceModuleLabel);
-          GetHits(*inputHits, tpcid, *inputSlices, hitFromSlc, sltpcHits, slcIDs);
+          GetHits(tpcid, *inputSlices, hitFromSlc, sltpcHits, slcIDs);
         }
         else {
           // get hits in this TPC
@@ -885,8 +884,7 @@ namespace cluster {
   } // GetHits
 
   ////////////////////////////////////////////////
-  void TrajCluster::GetHits(const std::vector<recob::Hit>& inputHits,
-                            const geo::TPCID& tpcid,
+  void TrajCluster::GetHits(const geo::TPCID& tpcid,
                             const std::vector<recob::Slice>& inputSlices,
                             art::FindManyP<recob::Hit>& hitFromSlc,
                             std::vector<std::vector<unsigned int>>& tpcHits,

@@ -115,8 +115,8 @@ namespace cluster {
      * This is left to the implementation, that might still implement a
      * different strategy.
      */
-    virtual void SetHits(util::GeometryUtilities const& gser,
-                         std::vector<recob::Hit const*> const& hits) = 0;
+    virtual void SetHitsFromPointers(util::GeometryUtilities const& gser,
+                                     std::vector<recob::Hit const*> const& hits) = 0;
 
     /**
      * @brief Sets the list of input hits
@@ -143,7 +143,7 @@ namespace cluster {
                      hits.end(),
                      std::back_inserter(hitptrs),
                      [](recob::Hit const& hit) { return &hit; });
-      SetHits(gser, hitptrs);
+      SetHitsFromPointers(gser, hitptrs);
     }
 
     /// Set the verbosity level
@@ -154,14 +154,11 @@ namespace cluster {
      * @brief Computes the charge on the first and last wire of the track
      * @return the charge in ADC counts, with uncertainty
      */
-    virtual Measure_t StartCharge(util::GeometryUtilities const& gser)
+    virtual Measure_t StartCharge(util::GeometryUtilities const&)
     {
       throw NotImplemented(__func__);
     }
-    virtual Measure_t EndCharge(util::GeometryUtilities const& gser)
-    {
-      throw NotImplemented(__func__);
-    }
+    virtual Measure_t EndCharge(util::GeometryUtilities const&) { throw NotImplemented(__func__); }
     //@}
 
     //@{

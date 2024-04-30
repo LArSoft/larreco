@@ -212,7 +212,7 @@ namespace hit {
               ++npt;
             }
             // decide if this RAT should be studied
-            if (fStudyHits) StudyHits(1, npt, ticks, signl, tstart);
+            if (fStudyHits) StudyHits(1, npt, signl, tstart);
             // just make a crude hit if too many bumps
             if (bumps.size() > fMaxBumps) {
               MakeCrudeHit(npt, ticks, signl);
@@ -234,7 +234,7 @@ namespace hit {
               FitNG(nHitsFit, npt, ticks, signl);
               if (fStudyHits && first && SelRAT) {
                 first = false;
-                StudyHits(2, npt, ticks, signl, tstart);
+                StudyHits(2, npt, signl, tstart);
               }
               // good chisq so store it
               if (chidof < fChiSplit) {
@@ -654,7 +654,6 @@ namespace hit {
   //////////////////////////////////////////////////
   void CCHitFinderAlg::StudyHits(unsigned short flag,
                                  unsigned short npt,
-                                 float* ticks,
                                  float* signl,
                                  unsigned short tstart)
   {

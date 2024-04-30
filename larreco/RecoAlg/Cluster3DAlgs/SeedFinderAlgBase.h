@@ -8,10 +8,7 @@
 #ifndef SeedFinderAlgBase_h
 #define SeedFinderAlgBase_h
 
-// Framework Includes
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 #include "lardataobj/RecoBase/Seed.h"
 
 // Algorithm includes
@@ -29,6 +26,7 @@ namespace lar_cluster3d {
  */
   class SeedFinderAlgBase {
   public:
+    virtual ~SeedFinderAlgBase() = default;
     /**
      *  @brief Define the interface to take an input list of 3D hits and return seed candidates
      *         so hits are ordered along the axis

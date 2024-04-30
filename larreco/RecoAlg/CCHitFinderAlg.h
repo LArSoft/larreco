@@ -156,8 +156,7 @@ namespace hit {
     std::vector<short> fWWireRange, fWTickRange;
     void StudyHits(unsigned short flag,
                    unsigned short npt = 0,
-                   float* ticks = 0,
-                   float* signl = 0,
+                   float* signl = nullptr,
                    unsigned short tstart = 0);
     std::vector<int> bumpCnt;
     std::vector<int> RATCnt;

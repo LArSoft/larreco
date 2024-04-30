@@ -326,7 +326,7 @@ size_t pma::PMAlgVertexing::run(const detinfo::DetectorPropertiesData& detProp,
 // ------------------------------------------------------
 
 size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl& trk_input,
-                                const std::vector<TVector3>& vtx_input)
+                                const std::vector<TVector3>& /* vtx_input */)
 {
   sortTracks(trk_input); // copy input and split by tag/size
 

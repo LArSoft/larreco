@@ -14,7 +14,7 @@ project(larreco VERSION 09.24.04 LANGUAGES CXX)
 include(CetCMakeEnv)
 cet_cmake_env()
 
-cet_set_compiler_flags(DIAGS CAUTIOUS
+cet_set_compiler_flags(DIAGS CAUTIOUS DWARF_VER 4
   WERROR
   NO_UNDEFINED
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs

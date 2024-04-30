@@ -268,7 +268,6 @@ namespace trkf {
     bool setupInputStates(detinfo::DetectorPropertiesData const& detProp,
                           const std::vector<art::Ptr<recob::Hit>>& hits,
                           const std::vector<recob::TrajectoryPointFlags>& flags,
-                          const KFTrackState& trackState,
                           std::vector<HitState>& hitstatev,
                           std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const;
 

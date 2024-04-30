@@ -144,7 +144,7 @@ public:
     fIniHits = fCandidates[id].MaxChargeBin().GetIniHits();
   }
 
-  const size_t GetIdCandidate() { return fCandidateID; }
+  size_t GetIdCandidate() { return fCandidateID; }
 
   art::Ptr<recob::Hit> const& GetFirstHit() const { return fStartHit; }
 
@@ -154,7 +154,7 @@ public:
 
   std::vector<art::Ptr<recob::Hit>> const& GetIniHits() const { return fIniHits; }
 
-  size_t const GetIdCl() const { return fIdCl; }
+  size_t GetIdCl() const { return fIdCl; }
 
 private:
   size_t fNbins;

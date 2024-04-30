@@ -223,26 +223,6 @@ namespace trkmkr {
                            optionals);
     }
 
-    /// override of TrackMaker virtual function with recob::Track as argument
-    bool makeTrack(const detinfo::DetectorPropertiesData& detProp,
-                   const recob::Track& track,
-                   const std::vector<art::Ptr<recob::Hit>>& inHits,
-                   recob::Track& outTrack,
-                   std::vector<art::Ptr<recob::Hit>>& outHits,
-                   OptionalOutputs& optionals) const override
-    {
-      auto covs = track.Covariances();
-      return makeTrackImpl(detProp,
-                           track.Trajectory(),
-                           track.ID(),
-                           inHits,
-                           covs.first,
-                           covs.second,
-                           outTrack,
-                           outHits,
-                           optionals);
-    }
-
     /// set the particle ID hypothesis
     int getParticleID(const recob::TrackTrajectory& traj, const int tkID) const;
     /// set the initial momentum estimate
@@ -351,7 +331,7 @@ double trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajecto
 }
 
 int trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& traj,
-                                                     const int tkID) const
+                                                     const int /* tkID */) const
 {
   if (pidFromColl_) {
     return -1; //pid->at(tkID).Pdg();
@@ -361,7 +341,7 @@ int trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajector
 }
 
 bool trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory& traj,
-                                                        const int tkID) const
+                                                        const int /* tkID */) const
 {
   if (alwaysFlip_) { return true; }
   else if (dirFromVec_) {

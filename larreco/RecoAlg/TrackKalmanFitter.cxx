@@ -162,7 +162,7 @@ bool trkf::TrackKalmanFitter::fitTrack(detinfo::DetectorPropertiesData const& de
   // this is what we'll loop over during the fit
   std::vector<HitState> hitstatev;
   std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv;
-  bool inputok = setupInputStates(detProp, hits, flags, trackState, hitstatev, hitflagsv);
+  bool inputok = setupInputStates(detProp, hits, flags, hitstatev, hitflagsv);
   if (!inputok) return false;
 
   // track and index vectors we use to store the fit results
@@ -247,7 +247,6 @@ bool trkf::TrackKalmanFitter::setupInputStates(
   detinfo::DetectorPropertiesData const& detProp,
   const std::vector<art::Ptr<recob::Hit>>& hits,
   const std::vector<recob::TrajectoryPointFlags>& flags,
-  const KFTrackState& trackState,
   std::vector<HitState>& hitstatev,
   std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const
 {
@@ -960,7 +959,7 @@ bool trkf::TrackKalmanFitter::fillResult(
     const auto& trackstate = fwdUpdTkState[p];
     const auto& hitflags = hitflagsv[hitstateidx[p]];
     const unsigned int originalPos = hitstateidx[p];
-    if (dumpLevel_ > 2) assert(originalPos >= 0 && originalPos < hitstatev.size());
+    if (dumpLevel_ > 2) assert(originalPos < hitstatev.size());
     //
     const auto& prdtrack = fwdPrdTkState[p];
     const auto& hitstate = hitstatev[hitstateidx[p]];

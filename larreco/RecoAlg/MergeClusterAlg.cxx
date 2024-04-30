@@ -291,16 +291,11 @@ int cluster::MergeClusterAlg::MergeClusters(
         double projectedWidth = FindProjectedWidth(centre1, start1, end1, centre2, start2, end2);
         double angle = direction1.DeltaPhi(direction2);
         if (angle > 1.57) angle = 3.14159 - angle;
-        double overlap = FindClusterOverlap(direction, centre, start1, end1, start2, end2);
         double separation = FindMinSeparation(cluster, oldClusters.at(trialCluster));
 
         if (separation > fMaxMergeSeparation) continue;
-        if (PassCuts(angle,
-                     crossingDistance,
-                     projectedWidth,
-                     separation,
-                     overlap,
-                     TMath::Max(length1, length2))) {
+        if (PassCuts(
+              angle, crossingDistance, projectedWidth, separation, TMath::Max(length1, length2))) {
 
           for (auto& hit : oldClusters.at(trialCluster))
             cluster.push_back(hit);
@@ -325,12 +320,11 @@ int cluster::MergeClusterAlg::MergeClusters(
   return clusters.size();
 }
 
-bool cluster::MergeClusterAlg::PassCuts(double const& angle,
-                                        double const& crossingDistance,
-                                        double const& projectedWidth,
-                                        double const& separation,
-                                        double const& overlap,
-                                        double const& longLength) const
+bool cluster::MergeClusterAlg::PassCuts(double const angle,
+                                        double const crossingDistance,
+                                        double const projectedWidth,
+                                        double const separation,
+                                        double const longLength) const
 {
 
   /// Boolean function which decides whether or not two clusters should be merged, depending on their properties

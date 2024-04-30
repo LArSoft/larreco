@@ -346,10 +346,9 @@ namespace reco_tool {
     return;
   }
 
-  void CandHitDerivative::MergeHitCandidates(
-    const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
-    const HitCandidateVec& hitCandidateVec,
-    MergeHitCandidateVec& mergedHitsVec) const
+  void CandHitDerivative::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
+                                             const HitCandidateVec& hitCandidateVec,
+                                             MergeHitCandidateVec& mergedHitsVec) const
   {
     // If nothing on the input end then nothing to do
     if (hitCandidateVec.empty()) return;

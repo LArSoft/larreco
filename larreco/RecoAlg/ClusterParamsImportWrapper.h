@@ -72,7 +72,7 @@ namespace cluster {
       std::transform(begin, end, std::back_inserter(hits), [](auto value) {
         return lar::util::make_pointer(value);
       });
-      ClusterParamsAlg_t::SetHits(gser, hits);
+      ClusterParamsAlg_t::SetHitsFromPointers(gser, hits);
     } // ImportHits()
 
     /**

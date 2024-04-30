@@ -32,8 +32,6 @@
 
 /** ****************************************************************************
  * @brief Runs the test
- * @param argc number of arguments in argv
- * @param argv arguments to the function
  * @return number of detected errors (0 on success)
  * @throw cet::exception most of error situations throw
  *
@@ -47,7 +45,7 @@
  *
  */
 //------------------------------------------------------------------------------
-int main(int argc, char const** argv)
+int main()
 {
   int nErrors(0);
   /*

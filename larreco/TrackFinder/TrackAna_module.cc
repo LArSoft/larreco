@@ -78,8 +78,7 @@ namespace {
 
   // Length of MC particle.
   //----------------------------------------------------------------------------
-  double length(detinfo::DetectorClocksData const& clockData,
-                detinfo::DetectorPropertiesData const& detProp,
+  double length(detinfo::DetectorPropertiesData const& detProp,
                 const simb::MCParticle& part,
                 double dx,
                 geo::Point_t& start,
@@ -136,8 +135,7 @@ namespace {
   // In this function, the extracted start and end momenta are converted to GeV
   // (MCTrack stores momenta in Mev).
   //----------------------------------------------------------------------------
-  double length(detinfo::DetectorClocksData const& clockData,
-                detinfo::DetectorPropertiesData const& detProp,
+  double length(detinfo::DetectorPropertiesData const& detProp,
                 const sim::MCTrack& mctrk,
                 double dx,
                 geo::Point_t& start,
@@ -788,8 +786,7 @@ namespace trkf {
             geo::Point_t mcend;
             TVector3 mcstartmom;
             TVector3 mcendmom;
-            double plen =
-              length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+            double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
             // Apply minimum fiducial length cut.  Always reject particles that have
             // zero length in the tpc regardless of the configured cut.
@@ -1039,8 +1036,7 @@ namespace trkf {
               geo::Point_t mcend;
               TVector3 mcstartmom;
               TVector3 mcendmom;
-              double plen =
-                length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+              double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
               // Get the displacement of this mc particle in the global coordinate system.
 
@@ -1249,7 +1245,7 @@ namespace trkf {
         geo::Point_t mcstart, mcend;
         TVector3 mcstartmom, mcendmom;
         double mcdx = mctrk.Start().T() * 1.e-3 * detProp.DriftVelocity(); // cm
-        double plen = length(clockData, detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+        double plen = length(detProp, mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
         mf::LogVerbatim("TrackAna")
           << evt.run() << "." << evt.event() << " NoMat MCTkID " << std::setw(6) << mctrk.TrackID()
           << " Origin " << mctrk.Origin() << " PDG" << std::setw(5) << mctrk.PdgCode() << " KE"
@@ -1381,8 +1377,7 @@ namespace trkf {
                   double mctime = part->T();                              // nsec
                   double mcdx = mctime * 1.e-3 * detProp.DriftVelocity(); // cm
 
-                  double plen =
-                    length(clockData, detProp, *part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+                  double plen = length(detProp, *part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
                   KEmap[(int)(1e6 * plen)] = trackID; // multiple assignment but always the same, so
                                                       // fine.

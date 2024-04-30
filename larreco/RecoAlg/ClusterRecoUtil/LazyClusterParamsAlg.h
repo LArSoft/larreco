@@ -53,8 +53,8 @@ namespace cluster {
      * The parameters have already been computed.
      * This function is dummy.
      */
-    void SetHits(util::GeometryUtilities const& gser,
-                 std::vector<recob::Hit const*> const& hits) override
+    void SetHitsFromPointers(util::GeometryUtilities const& /* gser */,
+                             std::vector<recob::Hit const*> const& /* hits */) override
     {}
 
     //@{

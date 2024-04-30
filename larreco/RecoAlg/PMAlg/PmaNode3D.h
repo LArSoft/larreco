@@ -83,10 +83,7 @@ public:
   pma::Vector3D GetDirection3D() const override;
 
   /// In case of a node it is simply 3D position of the node.
-  TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const override
-  {
-    return fPoint3D;
-  }
+  TVector3 GetUnconstrainedProj3D(const TVector2&, unsigned int) const override { return fPoint3D; }
 
   /// Set hit 3D position and its 2D projection to the vertex.
   void SetProjection(pma::Hit3D& h) const override;

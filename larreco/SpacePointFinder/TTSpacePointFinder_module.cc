@@ -65,7 +65,7 @@ namespace sppt {
   }
 
   //-------------------------------------------------
-  void TTSpacePointFinder::beginRun(art::Run& run)
+  void TTSpacePointFinder::beginRun(art::Run&)
   {
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();

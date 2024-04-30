@@ -100,9 +100,9 @@ namespace dcel2d {
     {}
 
     const HalfEdge* getHalfEdge() const { return fHalfEdge; }
-    const bool onConvexHull() const { return fConvexHull; }
+    bool onConvexHull() const { return fConvexHull; }
     const Coords& getCoords() const { return fCoords; }
-    const double getFaceArea() const { return fFaceArea; }
+    double getFaceArea() const { return fFaceArea; }
     const reco::ClusterHit3D* getClusterHit3D() const { return fClusterHit3D; }
 
     void setHalfEdge(HalfEdge* half) { fHalfEdge = half; }

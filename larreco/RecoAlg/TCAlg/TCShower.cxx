@@ -87,7 +87,7 @@ namespace tca {
       auto& ss = slc.cots[cid - 1];
       // Find the position, direction and projection in this plane
       auto& stj = slc.tjs[ss.ShowerTjID - 1];
-      auto chgCtrTP = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, stj.CTP);
+      auto chgCtrTP = MakeBareTP(detProp, ss3.ChgPos, ss3.Dir, stj.CTP);
       // projection too small in this view?
       if (chgCtrTP.Delta < 0.5) continue;
       auto& startTP = stj.Pts[0];
@@ -118,7 +118,7 @@ namespace tca {
     auto& ss = slc.cots[useCID - 1];
     auto& stj = slc.tjs[ss.ShowerTjID - 1];
 
-    auto chgCtrTP = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, stj.CTP);
+    auto chgCtrTP = MakeBareTP(detProp, ss3.ChgPos, ss3.Dir, stj.CTP);
     if (ss3.Vx3ID > 0) {
       auto& vx3 = slc.vtx3s[ss3.Vx3ID - 1];
       ss3.Start[0] = vx3.X;
@@ -670,7 +670,7 @@ namespace tca {
       else {
         // only one occurrence. check proximity to ss3
         auto& pfp = slc.pfps[pc[0] - 1];
-        unsigned short nearEnd = 1 - FarEnd(slc, pfp, ss3.ChgPos);
+        unsigned short nearEnd = 1 - FarEnd(pfp, ss3.ChgPos);
         float prob = InShowerProb(slc, ss3, pfp);
         auto pos = PosAtEnd(pfp, nearEnd);
         float sep = PosSep(pos, ss3.ChgPos);
@@ -983,7 +983,7 @@ namespace tca {
     stp1.Pos[1] /= stj.TotChg;
     ss.Energy = ChgToMeV(stj.TotChg);
     if (prt)
-      mf::LogVerbatim("TC") << fcnLabel << " 2S" << ss.ID << " Chg ctr " << PrintPos(slc, stp1.Pos)
+      mf::LogVerbatim("TC") << fcnLabel << " 2S" << ss.ID << " Chg ctr " << PrintPos(stp1.Pos)
                             << " Energy " << (int)ss.Energy << " MeV";
 
     // find the direction using the shower parent if one exists
@@ -991,7 +991,7 @@ namespace tca {
       // Set the direction to be the start of the parent to the shower center
       auto& ptj = slc.tjs[ss.ParentID - 1];
       // find the parent end farthest away from the charge center
-      unsigned short pend = FarEnd(slc, ptj, stp1.Pos);
+      unsigned short pend = FarEnd(ptj, stp1.Pos);
       auto& ptp = ptj.Pts[ptj.EndPt[pend]];
       stp1.Dir = PointDirection(ptp.Pos, stp1.Pos);
       stp1.Ang = atan2(stp1.Dir[1], stp1.Dir[0]);
@@ -1077,7 +1077,7 @@ namespace tca {
       // with ShPts and reverse if needed
       auto& ptj = slc.tjs[ss.ParentID - 1];
       // find the parent end farthest away from the charge center
-      unsigned short pend = FarEnd(slc, ptj, stp1.Pos);
+      unsigned short pend = FarEnd(ptj, stp1.Pos);
       auto& ptp = ptj.Pts[ptj.EndPt[pend]];
       auto& firstShPt = ss.ShPts[0];
       auto& lastShPt = ss.ShPts[ss.ShPts.size() - 1];
@@ -1125,7 +1125,7 @@ namespace tca {
     // check consistency
     if (ss3.ParentID > 0) {
       auto& pfp = slc.pfps[ss3.ParentID - 1];
-      unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
+      unsigned short pend = FarEnd(pfp, ss3.ChgPos);
       if (pfp.Vx3ID[pend] != ss3.Vx3ID) {
         if (prt)
           std::cout << fcnLabel << " ********* 3S" << ss3.ID << " has parent P" << ss3.ParentID
@@ -1161,7 +1161,7 @@ namespace tca {
       // There is a 3D-matched pfp at the shower start. The end that is farthest away from the
       // shower center should be shower start
       auto& pfp = slc.pfps[ss3.ParentID - 1];
-      unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
+      unsigned short pend = FarEnd(pfp, ss3.ChgPos);
       ss3.Start = PosAtEnd(pfp, pend);
       ss3.Dir = dir;
     }
@@ -1653,7 +1653,7 @@ namespace tca {
                               << pfpEnergy;
       if (pfpEnergy > energy) continue;
       // find the end that is farthest away
-      unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
+      unsigned short pEnd = FarEnd(pfp, ss3.ChgPos);
       auto pos = PosAtEnd(pfp, pEnd);
       auto pToS = PointDirection(pos, ss3.ChgPos);
       double costh1 = std::abs(DotProd(pToS, ss3.Dir));
@@ -1705,12 +1705,12 @@ namespace tca {
           break;
         } // cid
         if (ssid == 0) continue;
-        auto tpFrom = MakeBareTP(detProp, slc, pos, pToS, inCTP);
+        auto tpFrom = MakeBareTP(detProp, pos, pToS, inCTP);
         auto& ss = slc.cots[ssid - 1];
         auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
         float sep = PosSep(tpFrom.Pos, stp1.Pos);
         float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
-        float cf = ChgFracBetween(slc, tpFrom, toPos);
+        float cf = ChgFracBetween(tpFrom, toPos);
         // weight by the separation in the plane
         totSep += sep;
         chgFrac += sep * cf;
@@ -1793,7 +1793,7 @@ namespace tca {
 
     ss3.ParentID = bestPFP;
     auto& pfp = slc.pfps[bestPFP - 1];
-    unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
+    unsigned short pend = FarEnd(pfp, ss3.ChgPos);
     ss3.Vx3ID = pfp.Vx3ID[pend];
 
     if (SetParent(detProp, fcnLabel, slc, pfp, ss3, prt) && UpdateShower(fcnLabel, slc, ss3, prt)) {
@@ -1846,7 +1846,7 @@ namespace tca {
         // Don't define it to be the parent if it is short and the pfp projection in this plane is low
         auto pos = PosAtEnd(pfp, 0);
         auto dir = DirAtEnd(pfp, 0);
-        auto tp = MakeBareTP(detProp, slc, pos, dir, tj.CTP);
+        auto tp = MakeBareTP(detProp, pos, dir, tj.CTP);
         unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         if (tp.Delta > 0.5 || npts > 20) {
           if (prt)
@@ -1878,9 +1878,9 @@ namespace tca {
     }   // cid
     ss3.ParentID = pfp.ID;
 
-    unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
+    unsigned short pEnd = FarEnd(pfp, ss3.ChgPos);
     ss3.Vx3ID = pfp.Vx3ID[pEnd];
-    float fom3D = ParentFOM(fcnLabel, slc, pfp, pEnd, ss3, prt);
+    float fom3D = ParentFOM(fcnLabel, slc, pfp, ss3, prt);
     for (auto cid : ss3.CotIDs)
       slc.cots[cid - 1].ParentFOM = fom3D;
 
@@ -1888,7 +1888,7 @@ namespace tca {
   } // SetParent
 
   ////////////////////////////////////////////////
-  bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
+  bool IsShowerLike(TCSlice const& slc, std::vector<int> const& TjIDs)
   {
     // Vote for the list of Tjs (assumed associated with a PFParticle) being shower-like
     if (TjIDs.empty()) return false;
@@ -2051,7 +2051,6 @@ namespace tca {
   float ParentFOM(std::string inFcnLabel,
                   TCSlice& slc,
                   PFPStruct& pfp,
-                  unsigned short pend,
                   ShowerStruct3D& ss3,
                   bool prt)
   {
@@ -2075,7 +2074,7 @@ namespace tca {
       auto& ptj = slc.tjs[tjid - 1];
       auto& stj = slc.tjs[ss.ShowerTjID - 1];
       // determine which end is farthest away from the shower center
-      unsigned short ptjEnd = FarEnd(slc, ptj, stj.Pts[1].Pos);
+      unsigned short ptjEnd = FarEnd(ptj, stj.Pts[1].Pos);
       auto& farTP = ptj.Pts[ptj.EndPt[ptjEnd]];
       float chgCtrSep2 = PosSep2(farTP.Pos, stj.Pts[1].Pos);
       if (chgCtrSep2 < PosSep2(farTP.Pos, stj.Pts[0].Pos) &&
@@ -2137,7 +2136,7 @@ namespace tca {
     // Shower charge center TP
     TrajPoint& stp1 = stj.Pts[1];
     // get the end that is farthest away from the shower center
-    tjEnd = FarEnd(slc, tj, stp1.Pos);
+    tjEnd = FarEnd(tj, stp1.Pos);
     // prospective parent TP
     TrajPoint& ptp = tj.Pts[tj.EndPt[tjEnd]];
     // find the along and trans components in WSE units relative to the
@@ -2172,7 +2171,7 @@ namespace tca {
     }
     // make a tp between the supposed parent TP and the shower center
     TrajPoint tp;
-    if (!MakeBareTrajPoint(slc, ptp, stp1, tp)) return 100;
+    if (!MakeBareTrajPoint(ptp, stp1, tp)) return 100;
     // we have three angles to compare. The ptp angle, the shower angle and
     // the tp angle.
     float dang1 = DeltaAngle(ptp.Ang, stp1.Ang);
@@ -2205,7 +2204,7 @@ namespace tca {
     fom += chgFracFOM;
     ++cnt;
     // Fraction of wires that have a signal between the parent start and the shower center
-    float chgFracBtw = ChgFracBetween(slc, ptp, stp1.Pos[0]);
+    float chgFracBtw = ChgFracBetween(ptp, stp1.Pos[0]);
     float chgFrcBtwFOM = (1 - chgFrac) / 0.05;
     fom += chgFrcBtwFOM;
     ++cnt;
@@ -2219,7 +2218,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt << fcnLabel;
       myprt << " 2S" << ss.ID;
-      myprt << " T" << tj.ID << "_" << tjEnd << " Pos " << PrintPos(slc, ptp);
+      myprt << " T" << tj.ID << "_" << tjEnd << " Pos " << PrintPos(ptp);
       myprt << std::fixed << std::setprecision(2);
       myprt << " along " << std::fixed << std::setprecision(1) << alongTrans[0] << " fom "
             << longFOM;
@@ -2241,7 +2240,6 @@ namespace tca {
                     TCSlice& slc,
                     Trajectory& tj,
                     unsigned short tjEnd,
-                    ShowerStruct& ss,
                     bool prt)
   {
     // Returns true if the trajectory was split by a 3D vertex match and the end of this trajectory is further
@@ -2545,25 +2543,24 @@ namespace tca {
       if (sepij > minSep) continue;
       bool skipit = DontCluster(slc, iss.TjIDs, jss.TjIDs);
       if (prt)
-        mf::LogVerbatim("TC") << fcnLabel << " i2S" << iss.ID << " "
-                              << PrintPos(slc, tpList[ii].Pos) << " j2S" << jss.ID << " "
-                              << PrintPos(slc, tpList[jj].Pos) << " sepij " << sepij << " skipit? "
-                              << skipit;
+        mf::LogVerbatim("TC") << fcnLabel << " i2S" << iss.ID << " " << PrintPos(tpList[ii].Pos)
+                              << " j2S" << jss.ID << " " << PrintPos(tpList[jj].Pos) << " sepij "
+                              << sepij << " skipit? " << skipit;
       if (skipit) continue;
       // draw a line between these points
       TrajPoint tp;
-      MakeBareTrajPoint(slc, tpList[ii], tpList[jj], tp);
+      MakeBareTrajPoint(tpList[ii], tpList[jj], tp);
       for (unsigned short kk = jj + 1; kk < sids.size(); ++kk) {
         auto& kss = slc.cots[sids[kk] - 1];
         if (kss.ID == 0) continue;
         if (DontCluster(slc, iss.TjIDs, kss.TjIDs)) continue;
         if (DontCluster(slc, jss.TjIDs, kss.TjIDs)) continue;
         float sepjk = PosSep(tpList[jj].Pos, tpList[kk].Pos);
-        float delta = PointTrajDOCA(slc, tpList[kk].Pos[0], tpList[kk].Pos[1], tp);
+        float delta = PointTrajDOCA(tpList[kk].Pos[0], tpList[kk].Pos[1], tp);
         if (prt) {
           mf::LogVerbatim myprt("TC");
-          myprt << fcnLabel << "   k2S" << kss.ID << " " << PrintPos(slc, tpList[kk].Pos)
-                << " sepjk " << sepjk << " delta " << delta;
+          myprt << fcnLabel << "   k2S" << kss.ID << " " << PrintPos(tpList[kk].Pos) << " sepjk "
+                << sepjk << " delta " << delta;
           if (sepjk > minSep || delta > maxDelta) {
             myprt << " failed separation " << minSep << " or delta cut " << maxDelta;
           }
@@ -2599,7 +2596,7 @@ namespace tca {
             chain.push_back(sids[kk]);
           }
           // Refine the TP position and direction
-          MakeBareTrajPoint(slc, tpList[ii], tpList[kk], tp);
+          MakeBareTrajPoint(tpList[ii], tpList[kk], tp);
         } // add to an existing chain
       }   // kk
       // push the last one
@@ -2663,7 +2660,7 @@ namespace tca {
         if (DontCluster(slc, tjid, ss.TjIDs)) continue;
         float tjEnergy = ChgToMeV(tj.TotChg);
         // find the end that is furthest away from the shower center
-        unsigned short farEnd = FarEnd(slc, tj, stj.Pts[1].Pos);
+        unsigned short farEnd = FarEnd(tj, stj.Pts[1].Pos);
         // compare MCSMom at the far end and the near end
         unsigned short midpt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
         float mom1 = MCSMom(slc, tj, tj.EndPt[farEnd], midpt);
@@ -2671,7 +2668,7 @@ namespace tca {
         float asym = (mom1 - mom2) / (mom1 + mom2);
         auto& farTP = tj.Pts[tj.EndPt[farEnd]];
         // IP btw the far end TP and the shower center
-        float doca = PointTrajDOCA(slc, stp0.Pos[0], stp0.Pos[1], farTP);
+        float doca = PointTrajDOCA(stp0.Pos[0], stp0.Pos[1], farTP);
         float sep = PosSep(farTP.Pos, stp0.Pos);
         float dang = doca / sep;
         if (prt) {
@@ -2814,10 +2811,10 @@ namespace tca {
             // Find the IP between them using the projection of the one with the lowest aspect ratio
             float delta = 9999;
             if (iss.AspectRatio < jss.AspectRatio) {
-              delta = PointTrajDOCA(slc, jstp1.Pos[0], jstp1.Pos[1], istp1);
+              delta = PointTrajDOCA(jstp1.Pos[0], jstp1.Pos[1], istp1);
             }
             else {
-              delta = PointTrajDOCA(slc, istp1.Pos[0], istp1.Pos[1], jstp1);
+              delta = PointTrajDOCA(istp1.Pos[0], istp1.Pos[1], jstp1);
             }
             // See if delta is consistent with the cone angle of the i shower
             float dang = delta / sep;
@@ -3134,7 +3131,7 @@ namespace tca {
     }
     if (ss.DirectionFOM != 0) ss.DirectionFOM = 1 / ss.DirectionFOM;
     auto& stj = slc.tjs[ss.ShowerTjID - 1];
-    ReverseTraj(slc, stj);
+    ReverseTraj(stj);
     DefineEnvelope(fcnLabel, slc, ss, prt);
     if (prt) mf::LogVerbatim("TC") << fcnLabel << " Reversed shower. Shower angle = " << ss.Angle;
   } // ReverseShower
@@ -3213,7 +3210,9 @@ namespace tca {
   } // MakeShowerObsolete
 
   ////////////////////////////////////////////////
-  bool DontCluster(TCSlice& slc, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2)
+  bool DontCluster(TCSlice const& slc,
+                   const std::vector<int>& tjlist1,
+                   const std::vector<int>& tjlist2)
   {
     // returns true if a pair of tjs in the two lists are in the dontCluster vector
     if (tjlist1.empty() || tjlist2.empty()) return false;
@@ -3230,7 +3229,7 @@ namespace tca {
   } // DontCluster
 
   ////////////////////////////////////////////////
-  void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP)
+  void TagShowerLike(TCSlice& slc, const CTP_t& inCTP)
   {
     // Tag Tjs as InShower if they have MCSMom < ShowerTag[1] and there are more than
     // ShowerTag[6] other Tjs with a separation < ShowerTag[2].
@@ -3376,7 +3375,7 @@ namespace tca {
       if (std::find(ntj.begin(), ntj.end(), tj.ID) != ntj.end()) continue;
       // check proximity of long high MCSMom Tjs to the shower center
       if (tj.Pts.size() > 40 && tj.MCSMom > 200) {
-        float delta = PointTrajDOCA(slc, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], tj.Pts[tj.EndPt[0]]);
+        float delta = PointTrajDOCA(stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], tj.Pts[tj.EndPt[0]]);
         // TODO: This could be done much better
         if (delta < 20) {
           float doca = fiveRadLen;
@@ -3677,7 +3676,7 @@ namespace tca {
     }
 
     // Create and fill a vector of the charge at the beginning of the shower in 1 WSE bins
-    auto schg = StartChgVec(slc, cotID, prt);
+    auto schg = StartChgVec(slc, cotID);
     if (schg.empty()) return;
 
     // Look for two consecutive charge entries. Use the second one
@@ -3772,7 +3771,7 @@ namespace tca {
   } // FindStartChg
 
   ////////////////////////////////////////////////
-  std::vector<float> StartChgVec(TCSlice& slc, int cotID, bool prt)
+  std::vector<float> StartChgVec(TCSlice& slc, int cotID)
   {
     // Returns a histogram vector of the charge in bins of 1 WSE unit at the start of the shower
 
@@ -4150,7 +4149,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void PrintShowers(detinfo::DetectorPropertiesData const& detProp,
                     std::string fcnLabel,
-                    TCSlice& slc)
+                    TCSlice const& slc)
   {
     if (slc.showers.empty()) return;
     mf::LogVerbatim myprt("TC");
@@ -4168,8 +4167,8 @@ namespace tca {
       std::vector<float> projInPlane(slc.nPlanes);
       for (unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
         CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-        auto tp = MakeBareTP(detProp, slc, ss3.ChgPos, ss3.Dir, inCTP);
-        myprt << " " << PrintPos(slc, tp.Pos);
+        auto tp = MakeBareTP(detProp, ss3.ChgPos, ss3.Dir, inCTP);
+        myprt << " " << PrintPos(tp.Pos);
         projInPlane[plane] = tp.Delta;
       } // plane
       myprt << " projInPlane";
@@ -4181,8 +4180,8 @@ namespace tca {
         myprt << "\n  2S" << ss.ID;
         auto& stj = slc.tjs[ss.ShowerTjID - 1];
         myprt << " ST" << stj.ID;
-        myprt << " " << PrintPos(slc, stj.Pts[stj.EndPt[0]].Pos) << " - "
-              << PrintPos(slc, stj.Pts[stj.EndPt[1]].Pos);
+        myprt << " " << PrintPos(stj.Pts[stj.EndPt[0]].Pos) << " - "
+              << PrintPos(stj.Pts[stj.EndPt[1]].Pos);
       } // ci
       if (ss3.NeedsUpdate) myprt << " *** Needs update";
       myprt << "\n";
@@ -4190,7 +4189,10 @@ namespace tca {
   }   // PrintShowers
 
   ////////////////////////////////////////////////
-  void Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers)
+  void Print2DShowers(std::string someText,
+                      TCSlice const& slc,
+                      CTP_t inCTP,
+                      bool printKilledShowers)
   {
     // Prints a one-line summary of 2D showers
     if (slc.cots.empty()) return;
@@ -4279,7 +4281,7 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void PrintShower(std::string someText,
-                   TCSlice& slc,
+                   TCSlice const& slc,
                    const ShowerStruct& ss,
                    bool printHeader,
                    bool printExtras)
@@ -4313,7 +4315,7 @@ namespace tca {
     if (stj.VtxID[0] > 0) vid = "2V" + std::to_string(stj.VtxID[0]);
     myprt << std::setw(5) << vid;
     for (auto& spt : stj.Pts) {
-      myprt << std::setw(10) << PrintPos(slc, spt.Pos);
+      myprt << std::setw(10) << PrintPos(spt.Pos);
       myprt << std::setw(7) << std::fixed << std::setprecision(1) << spt.Chg / 1000;
       //        myprt<<std::setw(5)<<spt.NTPsFit;
       myprt << std::setw(5) << std::setprecision(1) << spt.DeltaRMS;
@@ -4324,7 +4326,7 @@ namespace tca {
     myprt << std::setw(6) << sss;
     if (ss.SS3ID > 0 && ss.SS3ID < (int)slc.showers.size()) {
       auto& ss3 = slc.showers[ss.SS3ID - 1];
-      if (ss3.PFPIndex >= 0 && ss3.PFPIndex < slc.pfps.size()) {
+      if (ss3.PFPIndex < slc.pfps.size()) {
         std::string pid = "P" + std::to_string(ss3.PFPIndex + 1);
         myprt << std::setw(6) << pid;
       }

@@ -240,8 +240,7 @@ namespace trkf {
     float dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits,
                    unsigned short ipl,
                    unsigned short icl1,
-                   unsigned short end1,
-                   unsigned short icl2);
+                   unsigned short end1);
     void FillChgNear(detinfo::DetectorPropertiesData const& detProp, geo::TPCID const& tpcid);
     void FillWireHitRange(geo::TPCID const& tpcid);
 
@@ -253,9 +252,7 @@ namespace trkf {
                   art::FindManyP<recob::Hit> const& fmCluHits,
                   geo::TPCID const& tpcid);
     // match clusters in all planes
-    void PlnMatch(detinfo::DetectorPropertiesData const& detProp,
-                  art::FindManyP<recob::Hit> const& fmCluHits,
-                  geo::TPCID const& tpcid);
+    void PlnMatch(detinfo::DetectorPropertiesData const& detProp, geo::TPCID const& tpcid);
     // match clusters in all planes
     void AngMatch(art::FindManyP<recob::Hit> const& fmCluHits);
 
@@ -270,7 +267,7 @@ namespace trkf {
                       geo::TPCID const& tpcid,
                       MatchPars& match);
     // 2D version
-    void FillEndMatch2(detinfo::DetectorPropertiesData const& detProp, MatchPars& match);
+    void FillEndMatch2(MatchPars& match);
 
     float ChargeAsym(std::array<float, 3>& mChg);
 
@@ -602,7 +599,7 @@ namespace trkf {
         }
         else if (fMatchAlgs[algIndex] == 2) {
           prt = (fDebugAlg == 2);
-          PlnMatch(detProp, fmCluHits, tpcgeom.ID());
+          PlnMatch(detProp, tpcgeom.ID());
           if (fMakeAlgTracks[algIndex]) SortMatches(detProp, fmCluHits, 2, tpcgeom.ID());
         }
         if (prt) PrintClusters(detProp, tpcgeom.ID());
@@ -1276,7 +1273,7 @@ namespace trkf {
                 match.Err = 1E6;
                 match.oErr = 1E6;
                 if (nplanes == 2) {
-                  FillEndMatch2(detProp, match);
+                  FillEndMatch2(match);
                   if (prt)
                     mf::LogVerbatim("CCTM")
                       << "FillEndMatch2: Err " << match.Err << " oErr " << match.oErr;
@@ -1570,7 +1567,7 @@ namespace trkf {
 
             // handle overlapping clusters
             if (dA2 < 0.01 && abs(dx) > dXCut && dx < -1) {
-              dx = dXClTraj(fmCluHits, ipl, icl1, 1, icl2);
+              dx = dXClTraj(fmCluHits, ipl, icl1, 1);
               if (prt) mf::LogVerbatim("CCTM") << " new dx from dXClTraj " << dx;
             }
 
@@ -1848,8 +1845,7 @@ namespace trkf {
   float CCTrackMaker::dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits,
                                unsigned short ipl,
                                unsigned short icl1,
-                               unsigned short end1,
-                               unsigned short icl2)
+                               unsigned short end1)
   {
     // project cluster icl1 at end1 to find the best intersection with icl2
     float dw, dx, best = 999;
@@ -2076,7 +2072,6 @@ namespace trkf {
 
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::PlnMatch(detinfo::DetectorPropertiesData const& detProp,
-                              art::FindManyP<recob::Hit> const& fmCluHits,
                               geo::TPCID const& tpcid)
   {
     // Match clusters in all planes
@@ -2483,7 +2478,7 @@ namespace trkf {
   } // SortMatches
 
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::FillEndMatch2(detinfo::DetectorPropertiesData const& detProp, MatchPars& match)
+  void CCTrackMaker::FillEndMatch2(MatchPars& match)
   {
     // 2D version of FillEndMatch
 
@@ -2584,7 +2579,7 @@ namespace trkf {
     auto const nplanes = geom->Nplanes(tpcid);
 
     if (nplanes == 2) {
-      FillEndMatch2(detProp, match);
+      FillEndMatch2(match);
       return;
     }
 

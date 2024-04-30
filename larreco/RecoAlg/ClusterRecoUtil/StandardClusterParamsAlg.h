@@ -55,8 +55,8 @@ namespace cluster {
      * This method calls Clear() at the beginning (although the protocol does
      * not requires it).
      */
-    void SetHits(util::GeometryUtilities const& gser,
-                 std::vector<recob::Hit const*> const& hits) override;
+    void SetHitsFromPointers(util::GeometryUtilities const& gser,
+                             std::vector<recob::Hit const*> const& hits) override;
 
     /**
      * @brief Sets the list of input hits
