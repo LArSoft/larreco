@@ -3517,16 +3517,16 @@ namespace tca {
     while (iterate) {
       iterate = false;
       for (unsigned int it1 = 0; it1 < slc.tjs.size(); ++it1) {
-        auto& tj1 = slc.tjs[it1];
-        if (tj1.AlgMod[kKilled]) continue;
-        if (tj1.CTP != inCTP) continue;
+        auto* tj1 = &slc.tjs[it1];
+        if (tj1->AlgMod[kKilled]) continue;
+        if (tj1->CTP != inCTP) continue;
         // don't try to merge high energy electrons
-        if (tj1.PDGCode == 111) continue;
+        if (tj1->PDGCode == 111) continue;
         for (unsigned short end1 = 0; end1 < 2; ++end1) {
           // no merge if there is a vertex at the end
-          if (tj1.VtxID[end1] > 0) continue;
+          if (tj1->VtxID[end1] > 0) continue;
           // make a copy of tp1 so we can mess with it
-          TrajPoint tp1 = tj1.Pts[tj1.EndPt[end1]];
+          TrajPoint tp1 = tj1->Pts[tj1->EndPt[end1]];
           // do a local fit on the lastpass only using the last 3 points
           if (lastPass && tp1.NTPsFit > 3) {
             // make a local copy of the tj
@@ -3546,12 +3546,12 @@ namespace tca {
             if (it1 == it2) continue;
             auto& tj2 = slc.tjs[it2];
             // check for consistent direction
-            if (tj1.StepDir != tj2.StepDir) continue;
+            if (tj1->StepDir != tj2.StepDir) continue;
             if (tj2.AlgMod[kKilled]) continue;
             if (tj2.CTP != inCTP) continue;
             // don't try to merge high energy electrons
             if (tj2.PDGCode == 111) continue;
-            float olf = OverlapFraction(tj1, tj2);
+            float olf = OverlapFraction(*tj1, tj2);
             if (olf > 0.25) continue;
             unsigned short end2 = 1 - end1;
             // check for a vertex at this end
@@ -3562,7 +3562,7 @@ namespace tca {
             if (std::abs(tp2OtherEnd.Pos[0] - tp1.Pos[0]) < std::abs(tp2.Pos[0] - tp1.Pos[0]))
               continue;
             // ensure that the order is correct
-            if (tj1.StepDir > 0) {
+            if (tj1->StepDir > 0) {
               if (tp2.Pos[0] < tp1.Pos[0] - 2) continue;
             }
             else {
@@ -3577,7 +3577,7 @@ namespace tca {
             if (isVLA) {
               // compare the minimum separation between Large Angle trajectories using a generous cut
               unsigned short ipt1, ipt2;
-              TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, doca);
+              TrajTrajDOCA(slc, *tj1, tj2, ipt1, ipt2, doca);
             }
             else {
               // small angle
@@ -3595,51 +3595,51 @@ namespace tca {
 
           // Make angle adjustments to tp1.
           unsigned int it2 = imbest;
-          auto& tj2 = slc.tjs[imbest];
+          auto* tj2 = &slc.tjs[imbest];
           unsigned short end2 = 1 - end1;
-          bool loMCSMom = (tj1.MCSMom + tj2.MCSMom) < 150;
+          bool loMCSMom = (tj1->MCSMom + tj2->MCSMom) < 150;
           // Don't use the angle at the end Pt for high momentum long trajectories in case there is a little kink at the end
-          if (tj1.Pts.size() > 50 && tj1.MCSMom > 100) {
-            if (end1 == 0) { tp1.Ang = tj1.Pts[tj1.EndPt[0] + 2].Ang; }
+          if (tj1->Pts.size() > 50 && tj1->MCSMom > 100) {
+            if (end1 == 0) { tp1.Ang = tj1->Pts[tj1->EndPt[0] + 2].Ang; }
             else {
-              tp1.Ang = tj1.Pts[tj1.EndPt[1] - 2].Ang;
+              tp1.Ang = tj1->Pts[tj1->EndPt[1] - 2].Ang;
             }
           }
           else if (loMCSMom) {
             // Low momentum - calculate the angle using the two Pts at the end
             unsigned short pt1, pt2;
             if (end1 == 0) {
-              pt1 = tj1.EndPt[0];
+              pt1 = tj1->EndPt[0];
               pt2 = pt1 + 1;
             }
             else {
-              pt2 = tj1.EndPt[1];
+              pt2 = tj1->EndPt[1];
               pt1 = pt2 - 1;
             }
             TrajPoint tpdir;
-            if (MakeBareTrajPoint(tj1.Pts[pt1], tj1.Pts[pt2], tpdir)) tp1.Ang = tpdir.Ang;
+            if (MakeBareTrajPoint(tj1->Pts[pt1], tj1->Pts[pt2], tpdir)) tp1.Ang = tpdir.Ang;
           } // low MCSMom
           // Now do the same for tj2
-          TrajPoint tp2 = tj2.Pts[tj2.EndPt[end2]];
-          if (tj2.Pts.size() > 50 && tj2.MCSMom > 100) {
-            if (end1 == 0) { tp2.Ang = tj2.Pts[tj2.EndPt[0] + 2].Ang; }
+          TrajPoint tp2 = tj2->Pts[tj2->EndPt[end2]];
+          if (tj2->Pts.size() > 50 && tj2->MCSMom > 100) {
+            if (end1 == 0) { tp2.Ang = tj2->Pts[tj2->EndPt[0] + 2].Ang; }
             else {
-              tp2.Ang = tj2.Pts[tj2.EndPt[1] - 2].Ang;
+              tp2.Ang = tj2->Pts[tj2->EndPt[1] - 2].Ang;
             }
           }
           else if (loMCSMom) {
             // Low momentum - calculate the angle using the two Pts at the end
             unsigned short pt1, pt2;
             if (end2 == 0) {
-              pt1 = tj2.EndPt[0];
+              pt1 = tj2->EndPt[0];
               pt2 = pt1 + 1;
             }
             else {
-              pt2 = tj2.EndPt[1];
+              pt2 = tj2->EndPt[1];
               pt1 = pt2 - 1;
             }
             TrajPoint tpdir;
-            if (MakeBareTrajPoint(tj2.Pts[pt1], tj2.Pts[pt2], tpdir)) tp2.Ang = tpdir.Ang;
+            if (MakeBareTrajPoint(tj2->Pts[pt1], tj2->Pts[pt2], tpdir)) tp2.Ang = tpdir.Ang;
           } // low MCSMom
 
           if (!isVLA && !SignalBetween(tp1, tp2, 0.99)) continue;
@@ -3661,7 +3661,7 @@ namespace tca {
           if (!loMCSMom) {
             unsigned short nPtsFit = tcc.kinkCuts[0];
             bool useChg = (tcc.kinkCuts[2] > 0);
-            kinkSig = KinkSignificance(slc, tj1, end1, tj2, end2, nPtsFit, useChg, prt);
+            kinkSig = KinkSignificance(slc, *tj1, end1, *tj2, end2, nPtsFit, useChg, prt);
           }
           docaCut = 1.5;
           if (isVLA) docaCut = 15;
@@ -3681,13 +3681,14 @@ namespace tca {
 
           // check the merge cuts. Start with doca and dang requirements
           bool doMerge = bestDOCA < docaCut && dang < dangCut;
-          bool showerTjs = tj1.PDGCode == 11 || tj2.PDGCode == 11;
-          bool hiMCSMom = tj1.MCSMom > 200 || tj2.MCSMom > 200;
+          bool showerTjs = tj1->PDGCode == 11 || tj2->PDGCode == 11;
+          bool hiMCSMom = tj1->MCSMom > 200 || tj2->MCSMom > 200;
           // add a charge similarity requirement if not shower-like or low momentum or not LA
           if (doMerge && !showerTjs && hiMCSMom && chgPull > tcc.chargeCuts[0] && !isVLA)
             doMerge = false;
           // ignore the charge pull cut if both are high momentum and dang is really small
-          if (!doMerge && tj1.MCSMom > 900 && tj2.MCSMom > 900 && dang < 0.1 && bestDOCA < docaCut)
+          if (!doMerge && tj1->MCSMom > 900 && tj2->MCSMom > 900 && dang < 0.1 &&
+              bestDOCA < docaCut)
             doMerge = true;
 
           // do not merge if chgPull is really high
@@ -3697,9 +3698,9 @@ namespace tca {
           if (doMerge) {
             if (lastPass) {
               // last pass cuts are looser but ensure that the tj after merging meets the quality cut
-              float npwc = NumPtsWithCharge(slc, tj1, true) + NumPtsWithCharge(slc, tj2, true);
-              auto& tp1OtherEnd = tj1.Pts[tj1.EndPt[1 - end1]];
-              auto& tp2OtherEnd = tj2.Pts[tj2.EndPt[1 - end2]];
+              float npwc = NumPtsWithCharge(slc, *tj1, true) + NumPtsWithCharge(slc, *tj2, true);
+              auto& tp1OtherEnd = tj1->Pts[tj1->EndPt[1 - end1]];
+              auto& tp2OtherEnd = tj2->Pts[tj2->EndPt[1 - end2]];
               float nwires = std::abs(tp1OtherEnd.Pos[0] - tp2OtherEnd.Pos[0]);
               if (nwires == 0) nwires = 1;
               float hitFrac = npwc / nwires;
@@ -3727,14 +3728,14 @@ namespace tca {
           if (doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
 
           // Check the MCSMom asymmetry and don't merge if it is higher than the user-specified cut
-          float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
+          float momAsym = std::abs(tj1->MCSMom - tj2->MCSMom) / (float)(tj1->MCSMom + tj2->MCSMom);
           if (doMerge && momAsym > tcc.vtx2DCuts[9]) doMerge = false;
-          if (doMerge && (tj1.EndFlag[end1][kAtKink] || tj2.EndFlag[end2][kAtKink])) {
+          if (doMerge && (tj1->EndFlag[end1][kAtKink] || tj2->EndFlag[end2][kAtKink])) {
             // don't merge if a kink exists and the tjs are not too long
             if (len1 < 40 && len2 < 40) doMerge = false;
             // Kink on one + Bragg at other end of the other
-            if (tj1.EndFlag[end1][kAtKink] && tj2.EndFlag[1 - end2][kBragg]) doMerge = false;
-            if (tj1.EndFlag[1 - end1][kBragg] && tj2.EndFlag[end2][kAtKink]) doMerge = false;
+            if (tj1->EndFlag[end1][kAtKink] && tj2->EndFlag[1 - end2][kBragg]) doMerge = false;
+            if (tj1->EndFlag[1 - end1][kBragg] && tj2->EndFlag[end2][kAtKink]) doMerge = false;
           }
 
           // decide if we should make a vertex instead
@@ -3772,9 +3773,14 @@ namespace tca {
               didMerge = MergeAndStore(slc, it2, it1, tcc.dbgMrg);
             }
             if (didMerge) {
+              // If the merge succeeded, then the underlying slc.tjs vector may have been
+              // reallocated, and we need to reset the pointers for tj1 and tj2.
+              tj1 = &slc.tjs[it1];
+              tj2 = &slc.tjs[it2];
+
               // Set the end merge flag for the killed trajectories to aid tracing merges
-              tj1.AlgMod[kMerge] = true;
-              tj2.AlgMod[kMerge] = true;
+              tj1->AlgMod[kMerge] = true;
+              tj2->AlgMod[kMerge] = true;
               iterate = true;
             } // Merge and store successfull
             else {
@@ -3847,8 +3853,8 @@ namespace tca {
             aVtx.NTraj = 2;
             aVtx.Pass = slc.tjs[it1].Pass;
             aVtx.Topo = end1 + end2;
-            tj1.AlgMod[kMerge] = true;
-            tj2.AlgMod[kMerge] = true;
+            tj1->AlgMod[kMerge] = true;
+            tj2->AlgMod[kMerge] = true;
             if (!StoreVertex(slc, aVtx)) continue;
             SetVx2Score(slc);
             if (prt) {
@@ -3861,12 +3867,12 @@ namespace tca {
             // BB Oct 1, 2019. Don't kill the vertex in this function since it is
             // called before short trajectories are reconstructed
             auto& newVx2 = slc.vtxs[slc.vtxs.size() - 1];
-            if (newVx2.Score < tcc.vtx2DCuts[7] && CompatibleMerge(tj1, tj2, prt)) {
+            if (newVx2.Score < tcc.vtx2DCuts[7] && CompatibleMerge(*tj1, *tj2, prt)) {
               if (prt) {
                 mf::LogVerbatim myprt("TC");
                 myprt << "  Bad vertex: Bad score? " << (newVx2.Score < tcc.vtx2DCuts[7]);
                 myprt << " cut " << tcc.vtx2DCuts[7];
-                myprt << " CompatibleMerge? " << CompatibleMerge(tj1, tj2, prt);
+                myprt << " CompatibleMerge? " << CompatibleMerge(*tj1, *tj2, prt);
               }
               slc.tjs[it1].VtxID[end1] = 0;
               slc.tjs[it2].VtxID[end2] = 0;
@@ -3877,9 +3883,14 @@ namespace tca {
                 didMerge = MergeAndStore(slc, it2, it1, tcc.dbgMrg);
               }
               if (didMerge) {
+                // If the merge succeeded, then the underlying slc.tjs vector may have been
+                // reallocated, and we need to reset the pointers for tj1 and tj2.
+                tj1 = &slc.tjs[it1];
+                tj2 = &slc.tjs[it2];
+
                 // Set the end merge flag for the killed trajectories to aid tracing merges
-                tj1.AlgMod[kMerge] = true;
-                tj2.AlgMod[kMerge] = true;
+                tj1->AlgMod[kMerge] = true;
+                tj2->AlgMod[kMerge] = true;
                 iterate = true;
               } // Merge and store successfull
               else {
@@ -3887,7 +3898,7 @@ namespace tca {
               }
             } // OK score
           }   // create a vertex
-          if (tj1.AlgMod[kKilled]) break;
+          if (tj1->AlgMod[kKilled]) break;
         } // end1
       }   // it1
     }     // iterate
