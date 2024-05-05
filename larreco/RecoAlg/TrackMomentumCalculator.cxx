@@ -105,8 +105,8 @@ namespace {
         result += cet::square(diff / ey);
       }
 
-      // Adds a penalty for higher resolutions
-      result += 2.0 / (4.6) * theta0; // *std::log( 1.0/14.0 );
+      // Adds a penalty for higher resolutions: removed after adding better limits to theta0
+      // result += 2.0 / (4.6) * theta0; // *std::log( 1.0/14.0 );
 
       if (std::isnan(result) || std::isinf(result)) {
         MF_LOG_DEBUG("TrackMomentumCalculator") << " Is nan in my_mcs_chi2 ! ";
@@ -128,9 +128,12 @@ namespace trkf {
 
   TrackMomentumCalculator::TrackMomentumCalculator(double const min,
                                                    double const max,
-                                                   double const stepsize)
-    : minLength{min}, maxLength{max}, steps_size{stepsize}
+                                                   double const stepsize,
+                                                   int const angleMethod,
+                                                   int const nsteps)
+    : minLength{min}, maxLength{max}, steps_size{stepsize}, fMCSAngleMethod{static_cast<ScatterAngleMethods>(angleMethod)}
   {
+    n_steps = nsteps;
     for (int i = 1; i <= n_steps; i++) {
       steps.push_back(steps_size * i);
     }
@@ -276,8 +279,8 @@ namespace trkf {
     auto const seg_steps = segments->x.size();
     if (seg_steps < 2) return -1;
 
-    double const recoL = segments->L.at(seg_steps - 1);
-    if (recoL < minLength || recoL > maxLength) return -1;
+    double const recoSegmentLength = segments->L.at(seg_steps - 1);
+    if (recoSegmentLength < minLength || recoSegmentLength > maxLength) return -1;
 
     std::vector<double> dEi;
     std::vector<double> dEj;
@@ -354,8 +357,8 @@ namespace trkf {
     auto const seg_steps = segments->x.size();
     if (seg_steps < 2) return -1;
 
-    double const recoL = segments->L.at(seg_steps - 1);
-    if (recoL < 15.0 || recoL > maxLength) return -1;
+    double const recoSegmentLength = segments->L.at(seg_steps - 1);
+    if (recoSegmentLength < 15.0 || recoSegmentLength > maxLength) return -1;
 
     std::vector<double> dEi;
     std::vector<double> dEj;
@@ -363,6 +366,8 @@ namespace trkf {
     std::vector<double> ind;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
 
+
+    auto const recoL = trk->Length();
     double const p_range = recoL * kcal;
     double const logL = my_mcs_llhd(dEi, dEj, dthij, ind, p_range, 5.65);
 
@@ -501,8 +506,8 @@ namespace trkf {
     auto const seg_steps = segments->x.size();
     if (seg_steps < 2) return -1;
 
-    double const recoL = segments->L.at(seg_steps - 1);
-    if (recoL < minLength || recoL > maxLength) return -1;
+    double const recoSegmentLength = segments->L.at(seg_steps - 1);
+    if (recoSegmentLength < minLength || recoSegmentLength > maxLength) return -1;
 
     double ymax = -999.0;
     double ymin = +999.0;
@@ -530,8 +535,9 @@ namespace trkf {
         continue;
       }
 
-      xmeas.push_back(trial); // Is this what is intended?
-      ymeas.push_back(rms);
+      if (mean == -1 && rms == -1 && rmse == -1) continue;
+      xmeas.push_back(trial); // x values are different steps length, ex: 10, 20, 30 cm
+      ymeas.push_back(rms); // y values are the RMS of the scattered angle for each step defined
       eymeas.push_back(std::sqrt(cet::sum_of_squares(
         rmse, 0.05 * rms))); // <--- conservative syst. error to fix chi^{2} behaviour !!!
 
@@ -558,15 +564,16 @@ namespace trkf {
     gr_meas.SetMaximum(1.80 * ymax);
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapper const wrapper{move(xmeas), move(ymeas), move(eymeas)};
+    FcnWrapper const wrapper{std::move(xmeas), std::move(ymeas), std::move(eymeas)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
     mP.SetFunction(FCA);
     mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(1, "#delta#theta", 0.0, 1.0, 0.0, 45.0);
+    mP.SetLimitedVariable(1, "#delta#theta", 2.0, 0.5, 0.5, 5);
+    mP.FixVariable(1);
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
-    mP.SetTolerance(0.01);
+    mP.SetTolerance(1);
     mP.SetStrategy(2);
     mP.SetErrorDef(1.0);
 
@@ -577,6 +584,7 @@ namespace trkf {
     const double* pars = mP.X();
     const double* erpars = mP.Errors();
 
+    auto const recoL = trk->Length();
     double const deltap = (recoL * kcal) / 2.0;
 
     double const p_mcs = pars[0] + deltap;
@@ -1000,15 +1008,37 @@ namespace trkf {
           TVector3 const rot_here{Rx.Dot(here_vec), Ry.Dot(here_vec), Rz.Dot(here_vec)};
 
           double const scx = rot_here.X();
+          double const scy = rot_here.Y();
           double const scz = rot_here.Z();
 
+          double const azy = find_angle(scz, scy);
           double const azx = find_angle(scz, scx);
 
-          double const ULim = 10000.0;
-          double const LLim = -10000.0;
+          constexpr double ULim = 10000.0; // Avoid huge (wrong) angles
+          constexpr double LLim = -10000.0;
 
-          if (azx <= ULim && azx >= LLim) { buf0.push_back(azx); }
+          if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
 
+            if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
+              if (fMCSAngleMethod == kAnglezx){
+                buf0.push_back(azx); // scattered angle z-x
+              }
+              else if(fMCSAngleMethod == kAnglezy){
+                buf0.push_back(azy);
+              }
+              else if(fMCSAngleMethod == kAngleCombined){
+                buf0.push_back(std::sqrt((azx*azx + azy*azy)/2)); // space angle (applying correction of sqrt(2))
+              }
+            }
+            else{
+              std::cerr << "SOMETHING BAD azx!!! " << std::endl;  
+              std::cerr << scx << " " << scz << " " << azx << std::endl;
+            }
+          }
+          else{
+            std::cerr << "SOMETHING BAD azy!!! " << std::endl;  
+            std::cerr << scy << " " << scz << " " << azy << std::endl;
+          }
           break; // of course !
         }
       }
@@ -1025,6 +1055,9 @@ namespace trkf {
       mean += buf0.at(i);
       nnn++;
     }
+
+    if (nnn<2) // if there is only 1 scatter angle for a given step, this step is removed
+      return std::make_tuple(-1,-1,-1);
     mean = mean / nnn;
 
     for (int i = 0; i < nmeas; i++)

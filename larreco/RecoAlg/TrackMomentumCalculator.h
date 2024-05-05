@@ -31,7 +31,9 @@ namespace trkf {
     */
     TrackMomentumCalculator(double minLength = 100.0,
                             double maxLength = 1350.0,
-                            double steps_size = 10.);
+                            double steps_size = 10.,
+                            int angleMethod = 1,
+                            int nsteps = 6);
 
     double GetTrackMomentum(double trkrange, int pdg) const;
     /**
@@ -202,7 +204,7 @@ namespace trkf {
     */
     double find_angle(double vz, double vy) const;
 
-    int n_steps{6};
+    int n_steps;
     std::vector<double> steps;
 
     double minLength;
@@ -229,6 +231,16 @@ namespace trkf {
     TGraph gr_seg_xy{};
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
+
+    enum ScatterAngleMethods
+    {
+      kAnglezx = 1,    ///< Use scattered angle z-x (z is along the particle's direction)
+      kAnglezy,        ///< Use scattered angle z-y
+      kAngleCombined,  ///< Use space angle: sqrt( zx^2 + zy^2 )/sqrt(2)
+    };
+    
+    ScatterAngleMethods fMCSAngleMethod;
+
   };
 
 } // namespace trkf
