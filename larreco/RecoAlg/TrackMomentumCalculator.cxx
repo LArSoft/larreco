@@ -40,18 +40,18 @@ namespace {
 
   constexpr auto range_gramper_cm()
   {
-    std::array<float, 29> Range_grampercm{
+    std::array<double, 29> Range_grampercm{
       {9.833E-1, 1.786E0, 3.321E0, 6.598E0, 1.058E1, 3.084E1, 4.250E1, 6.732E1, 1.063E2, 1.725E2,
        2.385E2,  4.934E2, 6.163E2, 8.552E2, 1.202E3, 1.758E3, 2.297E3, 4.359E3, 5.354E3, 7.298E3,
        1.013E4,  1.469E4, 1.910E4, 3.558E4, 4.326E4, 5.768E4, 7.734E4, 1.060E5, 1.307E5}};
-    for (float& value : Range_grampercm) {
+    for (double& value : Range_grampercm) {
       value /= 1.396; // convert to cm
     }
     return Range_grampercm;
   }
 
   constexpr auto Range_grampercm = range_gramper_cm();
-  constexpr std::array<float, 29> KE_MeV{
+  constexpr std::array<double, 29> KE_MeV{
     {10,    14,    20,    30,    40,     80,     100,    140,    200,   300,
      400,   800,   1000,  1400,  2000,   3000,   4000,   8000,   10000, 14000,
      20000, 30000, 40000, 80000, 100000, 140000, 200000, 300000, 400000}};
@@ -61,7 +61,7 @@ namespace {
   TVector3 const basex{1, 0, 0};
   TVector3 const basey{0, 1, 0};
   TVector3 const basez{0, 0, 1};
-  constexpr float kcal{0.0024}; // Approximation of dE/dx for mip muon in LAr
+  constexpr double kcal{0.0021}; // Approximation of dE/dx for mip muon in LAr
 
   class FcnWrapper {
   public:
@@ -143,11 +143,11 @@ namespace trkf {
        http://pdg.lbl.gov/2012/AtomicNuclearProperties/MUON_ELOSS_TABLES/muonloss_289.pdf
 
        CSDA table values:
-       float Range_grampercm[30] = {9.833E-1, 1.786E0, 3.321E0,
+       double Range_grampercm[30] = {9.833E-1, 1.786E0, 3.321E0,
        6.598E0, 1.058E1, 3.084E1, 4.250E1, 6.732E1, 1.063E2, 1.725E2,
        2.385E2, 4.934E2, 6.163E2, 8.552E2, 1.202E3, 1.758E3, 2.297E3,
        4.359E3, 5.354E3, 7.298E3, 1.013E4, 1.469E4, 1.910E4, 3.558E4,
-       4.326E4, 5.768E4, 7.734E4, 1.060E5, 1.307E5}; float KE_MeV[30] = {10, 14,
+       4.326E4, 5.768E4, 7.734E4, 1.060E5, 1.307E5}; double KE_MeV[30] = {10, 14,
        20, 30, 40, 80, 100, 140, 200, 300, 400, 800, 1000, 1400, 2000, 3000,
        4000, 8000, 10000, 14000, 20000, 30000, 40000, 80000, 100000, 140000,
        200000, 300000, 400000};
@@ -249,9 +249,10 @@ namespace trkf {
                                                               const int MomentumStep_MeV,
                                                               const int max_resolution)
   {
-    std::vector<float> recoX;
-    std::vector<float> recoY;
-    std::vector<float> recoZ;
+
+    std::vector<double> recoX;
+    std::vector<double> recoY;
+    std::vector<double> recoZ;
 
     int n_points = trk->NumberTrajectoryPoints();
 
@@ -278,10 +279,10 @@ namespace trkf {
     double const recoL = segments->L.at(seg_steps - 1);
     if (recoL < minLength || recoL > maxLength) return -1;
 
-    std::vector<float> dEi;
-    std::vector<float> dEj;
-    std::vector<float> dthij;
-    std::vector<float> ind;
+    std::vector<double> dEi;
+    std::vector<double> dEj;
+    std::vector<double> dthij;
+    std::vector<double> ind;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
 
     double logL = 1e+16;
@@ -329,9 +330,9 @@ namespace trkf {
   double TrackMomentumCalculator::GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk,
                                                          bool const dir)
   {
-    std::vector<float> recoX;
-    std::vector<float> recoY;
-    std::vector<float> recoZ;
+    std::vector<double> recoX;
+    std::vector<double> recoY;
+    std::vector<double> recoZ;
 
     int const n_points = trk->NumberTrajectoryPoints();
     for (int i = 0; i < n_points; ++i) {
@@ -356,10 +357,10 @@ namespace trkf {
     double const recoL = segments->L.at(seg_steps - 1);
     if (recoL < 15.0 || recoL > maxLength) return -1;
 
-    std::vector<float> dEi;
-    std::vector<float> dEj;
-    std::vector<float> dthij;
-    std::vector<float> ind;
+    std::vector<double> dEi;
+    std::vector<double> dEj;
+    std::vector<double> dthij;
+    std::vector<double> ind;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
 
     double const p_range = recoL * kcal;
@@ -368,10 +369,10 @@ namespace trkf {
     return logL;
   }
 
-  int TrackMomentumCalculator::getDeltaThetaij_(std::vector<float>& ei,
-                                                std::vector<float>& ej,
-                                                std::vector<float>& th,
-                                                std::vector<float>& ind,
+  int TrackMomentumCalculator::getDeltaThetaij_(std::vector<double>& ei,
+                                                std::vector<double>& ej,
+                                                std::vector<double>& th,
+                                                std::vector<double>& ind,
                                                 Segments const& segments,
                                                 double const thick) const
   {
@@ -475,9 +476,9 @@ namespace trkf {
                                                               const bool checkValidPoints,
                                                               const int maxMomentum_MeV)
   {
-    std::vector<float> recoX;
-    std::vector<float> recoY;
-    std::vector<float> recoZ;
+    std::vector<double> recoX;
+    std::vector<double> recoY;
+    std::vector<double> recoZ;
 
     int n_points = trk->NumberTrajectoryPoints();
 
@@ -583,9 +584,9 @@ namespace trkf {
     return mstatus ? p_mcs : -1.0;
   }
 
-  bool TrackMomentumCalculator::plotRecoTracks_(std::vector<float> const& xxx,
-                                                std::vector<float> const& yyy,
-                                                std::vector<float> const& zzz)
+  bool TrackMomentumCalculator::plotRecoTracks_(std::vector<double> const& xxx,
+                                                std::vector<double> const& yyy,
+                                                std::vector<double> const& zzz)
   {
     auto const n = xxx.size();
     auto const y_size = yyy.size();
@@ -596,12 +597,12 @@ namespace trkf {
       return false;
     }
 
-    // Here, we perform a const-cast to float* because, sadly,
+    // Here, we perform a const-cast to double* because, sadly,
     // TPolyLine3D requires a pointer to a non-const object.  We will
     // trust that ROOT does not mess around with the underlying data.
-    auto xs = const_cast<float*>(xxx.data());
-    auto ys = const_cast<float*>(yyy.data());
-    auto zs = const_cast<float*>(zzz.data());
+    auto xs = const_cast<double*>(xxx.data());
+    auto ys = const_cast<double*>(yyy.data());
+    auto zs = const_cast<double*>(zzz.data());
 
     auto const narrowed_size = static_cast<int>(n); // ROOT requires a signed integral type
     delete gr_reco_xyz;
@@ -613,15 +614,15 @@ namespace trkf {
     return true;
   }
 
-  void TrackMomentumCalculator::compute_max_fluctuation_vector(const std::vector<float> segx,
-                                                               const std::vector<float> segy,
-                                                               const std::vector<float> segz,
-                                                               std::vector<float>& segnx,
-                                                               std::vector<float>& segny,
-                                                               std::vector<float>& segnz,
-                                                               std::vector<float>& vx,
-                                                               std::vector<float>& vy,
-                                                               std::vector<float>& vz)
+  void TrackMomentumCalculator::compute_max_fluctuation_vector(const std::vector<double> segx,
+                                                               const std::vector<double> segy,
+                                                               const std::vector<double> segz,
+                                                               std::vector<double>& segnx,
+                                                               std::vector<double>& segny,
+                                                               std::vector<double>& segnz,
+                                                               std::vector<double>& vx,
+                                                               std::vector<double>& vy,
+                                                               std::vector<double>& vz)
   {
     auto const na = vx.size();
 
@@ -719,9 +720,9 @@ namespace trkf {
   }
 
   std::optional<TrackMomentumCalculator::Segments> TrackMomentumCalculator::getSegTracks_(
-    std::vector<float> const& xxx,
-    std::vector<float> const& yyy,
-    std::vector<float> const& zzz,
+    std::vector<double> const& xxx,
+    std::vector<double> const& yyy,
+    std::vector<double> const& zzz,
     double const seg_size)
   {
     double stag = 0.0;
@@ -737,10 +738,10 @@ namespace trkf {
 
     int const stopper = seg_stop / seg_size;
 
-    std::vector<float> segx, segnx;
-    std::vector<float> segy, segny;
-    std::vector<float> segz, segnz;
-    std::vector<float> segL;
+    std::vector<double> segx, segnx;
+    std::vector<double> segy, segny;
+    std::vector<double> segz, segnz;
+    std::vector<double> segL;
 
     int ntot = 0;
 
@@ -756,9 +757,9 @@ namespace trkf {
 
     int indC = 0;
 
-    std::vector<float> vx;
-    std::vector<float> vy;
-    std::vector<float> vz;
+    std::vector<double> vx;
+    std::vector<double> vy;
+    std::vector<double> vz;
 
     for (int i = 0; i < a1; i++) {
       x0 = xxx.at(i);
@@ -954,7 +955,7 @@ namespace trkf {
 
     double const thick1 = thick + 0.13;
 
-    std::vector<float> buf0;
+    std::vector<double> buf0;
 
     for (int i = 0; i < tot; i++) {
       double const dx = segnx.at(i);
@@ -1088,6 +1089,12 @@ namespace trkf {
     else if (vz == 0 && vy < 0) {
       thetayz = 3.0 * TMath::Pi() / 2.0;
     }
+    else if (vz > 0 && vy == 0){
+      thetayz = 0;
+    }
+    else if (vz < 0 && vy == 0){
+      thetayz = TMath::Pi();
+    }
 
     if (thetayz > TMath::Pi()) { thetayz = thetayz - 2.0 * TMath::Pi(); }
 
@@ -1111,10 +1118,10 @@ namespace trkf {
     return result;
   }
 
-  double TrackMomentumCalculator::my_mcs_llhd(std::vector<float> const& dEi,
-                                              std::vector<float> const& dEj,
-                                              std::vector<float> const& dthij,
-                                              std::vector<float> const& ind,
+  double TrackMomentumCalculator::my_mcs_llhd(std::vector<double> const& dEi,
+                                              std::vector<double> const& dEj,
+                                              std::vector<double> const& dthij,
+                                              std::vector<double> const& ind,
                                               double const x0,
                                               double const x1) const
   {

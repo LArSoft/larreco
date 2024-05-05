@@ -70,9 +70,9 @@ namespace trkf {
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
 
   private:
-    bool plotRecoTracks_(std::vector<float> const& xxx,
-                         std::vector<float> const& yyy,
-                         std::vector<float> const& zzz);
+    bool plotRecoTracks_(std::vector<double> const& xxx,
+                         std::vector<double> const& yyy,
+                         std::vector<double> const& zzz);
 
     /**
     * @brief Computes the vector with most scattering inside a segment with size steps_size
@@ -81,15 +81,15 @@ namespace trkf {
     * @param vector used to control points to be used at segments
     *
     */
-    void compute_max_fluctuation_vector(const std::vector<float> segx,
-                                        const std::vector<float> segy,
-                                        const std::vector<float> segz,
-                                        std::vector<float>& segnx,
-                                        std::vector<float>& segny,
-                                        std::vector<float>& segnz,
-                                        std::vector<float>& vx,
-                                        std::vector<float>& vy,
-                                        std::vector<float>& vz);
+    void compute_max_fluctuation_vector(const std::vector<double> segx,
+                                        const std::vector<double> segy,
+                                        const std::vector<double> segz,
+                                        std::vector<double>& segnx,
+                                        std::vector<double>& segny,
+                                        std::vector<double>& segnz,
+                                        std::vector<double>& vx,
+                                        std::vector<double>& vy,
+                                        std::vector<double>& vz);
     /**
     * \struct Segments
     * @brief Struct to store segments.
@@ -99,10 +99,10 @@ namespace trkf {
     *
     */
     struct Segments {
-      std::vector<float> x, nx;
-      std::vector<float> y, ny;
-      std::vector<float> z, nz;
-      std::vector<float> L;
+      std::vector<double> x, nx;
+      std::vector<double> y, ny;
+      std::vector<double> z, nz;
+      std::vector<double> L;
     };
 
     /**
@@ -117,9 +117,9 @@ namespace trkf {
     *
     * @return Segments
     */
-    std::optional<Segments> getSegTracks_(std::vector<float> const& xxx,
-                                          std::vector<float> const& yyy,
-                                          std::vector<float> const& zzz,
+    std::optional<Segments> getSegTracks_(std::vector<double> const& xxx,
+                                          std::vector<double> const& yyy,
+                                          std::vector<double> const& zzz,
                                           double seg_size);
 
     /**
@@ -146,10 +146,10 @@ namespace trkf {
     *
     * @return sucess or failure
     */
-    int getDeltaThetaij_(std::vector<float>& ei,
-                         std::vector<float>& ej,
-                         std::vector<float>& th,
-                         std::vector<float>& ind,
+    int getDeltaThetaij_(std::vector<double>& ei,
+                         std::vector<double>& ej,
+                         std::vector<double>& th,
+                         std::vector<double>& ind,
                          Segments const& segments,
                          double thick) const;
 
@@ -178,19 +178,19 @@ namespace trkf {
     *
     * @return momentum in GeV
     */
-    double my_mcs_llhd(std::vector<float> const& dEi,
-                       std::vector<float> const& dEj,
-                       std::vector<float> const& dthij,
-                       std::vector<float> const& ind,
+    double my_mcs_llhd(std::vector<double> const& dEi,
+                       std::vector<double> const& dEj,
+                       std::vector<double> const& dthij,
+                       std::vector<double> const& ind,
                        double x0,
                        double x1) const;
 
-    float seg_stop{-1.};
+    double seg_stop{-1.};
     int n_seg{};
 
-    float x_seg[50000];
-    float y_seg[50000];
-    float z_seg[50000];
+    double x_seg[50000];
+    double y_seg[50000];
+    double z_seg[50000];
 
     /**
     * @brief Gets angle between two vy and vz
@@ -203,7 +203,7 @@ namespace trkf {
     double find_angle(double vz, double vy) const;
 
     int n_steps{6};
-    std::vector<float> steps;
+    std::vector<double> steps;
 
     double minLength;
     double maxLength;
