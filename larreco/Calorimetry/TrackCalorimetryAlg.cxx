@@ -50,9 +50,6 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(
     for (unsigned int i_plane = 0; i_plane < wireReadoutGeom.Nplanes(); ++i_plane) {
       geo::PlaneID const planeID{0, 0, i_plane};
 
-      ClearInternalVectors();
-      ReserveInternalVectors(hit_indices_per_plane[i_plane].size());
-
       //project down the track into wire/tick space for this plane
       std::vector<std::pair<geo::WireID, float>> traj_points_in_plane(
         track.NumberTrajectoryPoints());

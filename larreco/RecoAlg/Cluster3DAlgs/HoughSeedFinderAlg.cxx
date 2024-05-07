@@ -348,7 +348,6 @@ namespace lar_cluster3d {
 
   void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairListPtr,
                                              reco::PrincipalComponents& pca,
-                                             int& nLoops,
                                              RhoThetaAccumulatorBinMap& rhoThetaAccumulatorBinMap,
                                              HoughClusterList& houghClusters) const
   {
@@ -696,7 +695,7 @@ namespace lar_cluster3d {
         RhoThetaAccumulatorBinMap rhoThetaAccumulatorBinMap;
         HoughClusterList houghClusters;
 
-        findHoughClusters(hitPairListPtr, pca, nLoops, rhoThetaAccumulatorBinMap, houghClusters);
+        findHoughClusters(hitPairListPtr, pca, rhoThetaAccumulatorBinMap, houghClusters);
 
         // If no clusters then done
         if (houghClusters.empty()) break;
@@ -859,8 +858,6 @@ namespace lar_cluster3d {
     // Make sure we are using the right pca
     reco::HitPairListPtr hitPairListPtr = inputHitPairListPtr;
 
-    int nLoops(0);
-
     // Make a local copy of the input PCA
     reco::PrincipalComponents pca = inputPCA;
 
@@ -875,7 +872,7 @@ namespace lar_cluster3d {
       RhoThetaAccumulatorBinMap rhoThetaAccumulatorBinMap;
       HoughClusterList houghClusters;
 
-      findHoughClusters(hitPairListPtr, pca, nLoops, rhoThetaAccumulatorBinMap, houghClusters);
+      findHoughClusters(hitPairListPtr, pca, rhoThetaAccumulatorBinMap, houghClusters);
 
       // **********************************************************************
       // Part II: Go through the clusters to find the peak bins

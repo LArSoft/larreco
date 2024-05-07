@@ -22,7 +22,7 @@ namespace calib {
 
   class PhotonCalibratorStandard : public IPhotonCalibrator {
   public:
-    PhotonCalibratorStandard(fhicl::ParameterSet const& pset, art::ActivityRegistry& reg)
+    PhotonCalibratorStandard(fhicl::ParameterSet const& pset)
       : fSPESize(pset.get<float>("SPESize"))
       , fSPEShift(pset.get<float>("SPEShift", 0.))
       , fUseArea(pset.get<bool>("UseArea"))
@@ -33,7 +33,10 @@ namespace calib {
     {}
 
     // Override base class functions
-    double PE(double adcs, int opchannel) const override { return adcs / fSPESize + fSPEShift; }
+    double PE(double adcs, int /* opchannel */) const override
+    {
+      return adcs / fSPESize + fSPEShift;
+    }
     bool UseArea() const override { return fUseArea; }
 
     // Setters for this implementation

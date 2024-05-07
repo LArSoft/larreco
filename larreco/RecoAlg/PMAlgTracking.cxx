@@ -749,9 +749,7 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1,
   return false;
 }
 
-// ------------------------------------------------------
-bool pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorClocksData const& clockData,
-                                      detinfo::DetectorPropertiesData const& detProp,
+bool pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorPropertiesData const& detProp,
                                       pma::TrkCandidateColl& tracks) const
 {
   double distThr = 0.25;   // max gap as a fraction of the longer track length
@@ -982,7 +980,7 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
 
     if (fMergeWithinTPC) {
       mf::LogVerbatim("PMAlgTracker") << "Merge co-linear tracks within TPC " << tpcid.TPC << ".";
-      while (mergeCoLinear(clockData, detProp, tracks[tpcid.TPC])) {
+      while (mergeCoLinear(detProp, tracks[tpcid.TPC])) {
         mf::LogVerbatim("PMAlgTracker") << "  found co-linear tracks";
       }
     }
@@ -1198,8 +1196,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
         idx = 0;
         while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
         {
-          idx =
-            matchCluster(detProp, candidate, minSize, fraction, geo::kUnknown, testView, tpc, cryo);
+          idx = matchCluster(detProp, candidate, minSize, fraction, geo::kUnknown, testView);
           if (idx >= 0) {
             // try building extended copy:
             if (extendTrack(detProp, candidate, fCluHits[idx], testView, true)) {
@@ -1215,10 +1212,11 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 
         idx = 0;
         bool extended = false;
-        while ((idx >= 0) && (testView != geo::kUnknown)) { // match clusters from the plane used
-                                                            // previously for the validation
-          idx =
-            matchCluster(detProp, candidate, minSize, fraction, testView, geo::kUnknown, tpc, cryo);
+        while ((idx >= 0) &&
+               (testView != geo::kUnknown)) { //                     match clusters from the
+                                              //                     plane used previously
+                                              //                     for the validation
+          idx = matchCluster(detProp, candidate, minSize, fraction, testView, geo::kUnknown);
           if (idx >= 0) {
             // validation not checked here, no new nodes:
             if (extendTrack(detProp, candidate, fCluHits[idx], geo::kUnknown, false)) {
@@ -1321,9 +1319,7 @@ int pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detPr
                                     size_t minSize,
                                     double fraction,
                                     unsigned int preferedView,
-                                    unsigned int testView,
-                                    unsigned int tpc,
-                                    unsigned int cryo) const
+                                    unsigned int testView) const
 {
   double f, fmax = 0.0;
   unsigned int n, max = 0;

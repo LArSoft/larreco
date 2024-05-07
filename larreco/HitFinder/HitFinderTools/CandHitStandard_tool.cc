@@ -51,7 +51,7 @@ namespace reco_tool {
     const recob::Wire::RegionsOfInterest_t::datarange_t& dataRange,
     const size_t roiStartTick,
     const size_t channel,
-    const size_t eventCount,
+    const size_t /* eventCount */,
     HitCandidateVec& hitCandidateVec) const
   {
     // Recover the actual waveform
@@ -137,10 +137,9 @@ namespace reco_tool {
     }
   }
 
-  void CandHitStandard::MergeHitCandidates(
-    const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
-    const HitCandidateVec& hitCandidateVec,
-    MergeHitCandidateVec& mergedHitsVec) const
+  void CandHitStandard::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
+                                           const HitCandidateVec& hitCandidateVec,
+                                           MergeHitCandidateVec& mergedHitsVec) const
   {
     // If no hits then nothing to do here
     if (hitCandidateVec.empty()) return;

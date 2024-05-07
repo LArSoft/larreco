@@ -75,12 +75,7 @@ double Metric(const std::vector<SpaceCharge*>& scs, double alpha);
 double Metric(const std::vector<CollectionWireHit*>& cwires, double alpha);
 QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha);
 
-double SolvePair(CollectionWireHit* cwire,
-                 SpaceCharge* sci,
-                 SpaceCharge* scj,
-                 double xmin,
-                 double xmax,
-                 double alpha);
+double SolvePair(SpaceCharge* sci, SpaceCharge* scj, double xmin, double xmax, double alpha);
 void Iterate(CollectionWireHit* cwire, double alpha);
 void Iterate(SpaceCharge* sc, double alpha);
 void Iterate(const std::vector<CollectionWireHit*>& cwires,

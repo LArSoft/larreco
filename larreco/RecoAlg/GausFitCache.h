@@ -371,8 +371,8 @@ namespace hit {
     } // CompiledGausFitCacheBaseStruct::gaus_trunc()
 
     template <>
-    inline Double_t CompiledGausFitCacheBaseStruct::ngaus<0>(Double_t const* x,
-                                                             Double_t const* params)
+    inline Double_t CompiledGausFitCacheBaseStruct::ngaus<0>(Double_t const* /* x */,
+                                                             Double_t const* /* params */)
     {
       return 0.;
     }

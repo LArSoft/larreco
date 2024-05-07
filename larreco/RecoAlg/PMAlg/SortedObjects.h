@@ -27,7 +27,7 @@ public:
   SortedObjectBase(pma::SortedObjectBase* prevElement, pma::SortedObjectBase* nextElement);
 
   /// Note: copy constructor does not preserve connections.
-  SortedObjectBase(const pma::SortedObjectBase& src) : next(0), prev(0) {}
+  SortedObjectBase(const pma::SortedObjectBase&) : next(0), prev(0) {}
 
   virtual ~SortedObjectBase(void) { Disconnect(); }
 
@@ -40,7 +40,7 @@ public:
   virtual bool IsLast(void) const { return !next; }
 
   virtual pma::SortedObjectBase* Prev(void) const { return prev; }
-  virtual pma::SortedObjectBase* Next(unsigned int index = 0) const { return next; }
+  virtual pma::SortedObjectBase* Next(unsigned int /* index */ = 0) const { return next; }
   virtual unsigned int NextCount(void) const
   {
     if (next)
@@ -65,7 +65,7 @@ public:
     if (nextElement) next_vector.push_back(next);
   }
   /// Note: copy constructor does not preserve connections.
-  SortedBranchBase(const pma::SortedBranchBase& src) : pma::SortedObjectBase() {}
+  SortedBranchBase(const pma::SortedBranchBase&) : pma::SortedObjectBase() {}
 
   virtual ~SortedBranchBase(void) { Disconnect(); }
 

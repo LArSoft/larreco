@@ -390,20 +390,13 @@ namespace cluster {
     // ************** 3D vertex routines *******************
 
     // match vertices between planes
-    void VtxMatch(detinfo::DetectorClocksData const& clock_data,
-                  detinfo::DetectorPropertiesData const& det_prop,
-                  geo::TPCID const& tpcid);
+    void VtxMatch(detinfo::DetectorPropertiesData const& det_prop, geo::TPCID const& tpcid);
     // Match clusters to endpoints using 3D vertex information
-    void Vtx3ClusterMatch(detinfo::DetectorClocksData const& clock_data,
-                          detinfo::DetectorPropertiesData const& det_prop,
-                          geo::TPCID const& tpcid);
+    void Vtx3ClusterMatch(detinfo::DetectorPropertiesData const& det_prop, geo::TPCID const& tpcid);
     // split clusters using 3D vertex information
-    void Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
-                          detinfo::DetectorPropertiesData const& det_prop,
-                          geo::TPCID const& tpcid);
+    void Vtx3ClusterSplit(detinfo::DetectorPropertiesData const& det_prop, geo::TPCID const& tpcid);
     // look for a long cluster that stops at a short cluster in two views
-    void FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
-                            detinfo::DetectorPropertiesData const& det_prop);
+    void FindHammerClusters(detinfo::DetectorPropertiesData const& det_prop);
 
     // ************** utility routines *******************
 

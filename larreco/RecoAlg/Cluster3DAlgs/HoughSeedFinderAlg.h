@@ -90,7 +90,6 @@ namespace lar_cluster3d {
 
     void findHoughClusters(const reco::HitPairListPtr& inputHits,
                            reco::PrincipalComponents& pca,
-                           int& nLoops,
                            RhoThetaAccumulatorBinMap& rhoThetaMap,
                            HoughClusterList& clusterList) const;
 

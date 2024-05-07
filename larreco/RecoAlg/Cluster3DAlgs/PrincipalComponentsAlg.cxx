@@ -105,7 +105,7 @@ namespace lar_cluster3d {
 
         maxRange = sclFctr * 0.5 * (maxRange + aveDoca); // was std::max(maxRange, aveDoca);
 
-        int numRejHits = PCAAnalysis_reject2DOutliers(hitPairVector, pcaLoop, maxRange);
+        int numRejHits = PCAAnalysis_reject2DOutliers(hitPairVector, maxRange);
         int totalRejects(numRejHits);
         int maxRejects(0.4 * hitPairVector.size());
 
@@ -117,7 +117,7 @@ namespace lar_cluster3d {
           maxRange =
             sclFctr * 0.5 * (3. * sqrt(pcaLoop.getEigenValues()[1]) + pcaLoop.getAveHitDoca());
 
-          numRejHits = PCAAnalysis_reject2DOutliers(hitPairVector, pcaLoop, maxRange);
+          numRejHits = PCAAnalysis_reject2DOutliers(hitPairVector, maxRange);
         }
       }
 
@@ -626,7 +626,6 @@ namespace lar_cluster3d {
 
   int PrincipalComponentsAlg::PCAAnalysis_reject2DOutliers(
     const reco::HitPairListPtr& hitPairVector,
-    reco::PrincipalComponents& pca,
     float maxDocaAllowed) const
   {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject

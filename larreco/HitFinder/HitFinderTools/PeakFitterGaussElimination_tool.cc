@@ -47,9 +47,9 @@ namespace reco_tool {
   void PeakFitterGaussElimination::findPeakParameters(
     const std::vector<float>& roiSignalVec,
     const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
-    PeakParamsVec& peakParamsVec,
-    double& chi2PerNDF,
-    int& NDF) const
+    PeakParamsVec& /* peakParamsVec */,
+    double& /* chi2PerNDF */,
+    int& /* NDF */) const
   {
     // This module tries to use the method for fitting hits found in the RRFHitFinder
     // from Wes Ketchum. It uses the gaussian elimation algorithm he set up.

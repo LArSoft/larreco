@@ -47,16 +47,13 @@ namespace shower {
   int TCShowerAlg::makeShowers(detinfo::DetectorClocksData const& clockData,
                                detinfo::DetectorPropertiesData const& detProp,
                                std::vector<art::Ptr<recob::PFParticle>> const& pfplist,
-                               std::vector<art::Ptr<recob::Vertex>> const& vertexlist,
                                std::vector<art::Ptr<recob::Cluster>> const& clusterlist,
                                std::vector<art::Ptr<recob::Hit>> const& hitlist,
                                art::FindManyP<recob::Hit> const& cls_fm,
                                art::FindManyP<recob::Cluster> const& clspfp_fm,
                                art::FindManyP<recob::Vertex> const& vtxpfp_fm,
-                               art::FindManyP<recob::PFParticle> const& hit_fm,
                                art::FindManyP<recob::Cluster> const& hitcls_fm,
-                               art::FindManyP<recob::Track> const& trkpfp_fm,
-                               art::FindManyP<anab::Calorimetry> const& fmcal)
+                               art::FindManyP<recob::Track> const& trkpfp_fm)
   {
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);

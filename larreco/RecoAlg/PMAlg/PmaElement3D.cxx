@@ -19,6 +19,8 @@
 // Impact factors on the objective function:  U     V     Z
 float pma::Element3D::fOptFactors[3] = {0.2F, 0.8F, 1.0F};
 
+pma::Element3D::~Element3D() = default;
+
 pma::Element3D::Element3D() : fTPC(-1), fCryo(-1), fFrozen(false), fHitsRadius(0)
 {
   fNThisHitsEnabledAll = 0;
@@ -44,7 +46,7 @@ void pma::Element3D::SortHits(void)
   std::sort(fAssignedHits.begin(), fAssignedHits.end(), pma::bTrajectory3DOrderLess());
 }
 
-void pma::Element3D::ClearAssigned(pma::Track3D* trk)
+void pma::Element3D::ClearAssigned(pma::Track3D*)
 {
   fAssignedPoints.clear();
   fAssignedHits.clear();
@@ -71,7 +73,7 @@ void pma::Element3D::UpdateHitParams(void)
   pma::SortedObjectBase const* chain = dynamic_cast<pma::SortedObjectBase*>(this);
   pma::Element3D* el = 0;
   for (size_t b = 0; b < chain->NextCount(); b++) {
-    el = dynamic_cast<pma::Element3D*>(chain->Next(b));
+    el = dynamic_cast<pma::Element3D*>(chain->Next());
     if (el)
       for (auto h : el->fAssignedHits) {
         switch (h->View2D()) {

@@ -190,7 +190,7 @@ void showertree::Loop()
 
 } // Loop
 
-int main(int argc, char* argv[])
+int main(int /* argc */, char* argv[])
 {
 
   if (!argv[1]) {

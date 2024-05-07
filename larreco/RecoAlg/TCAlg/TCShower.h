@@ -63,7 +63,9 @@ namespace tca {
                    bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
-  bool DontCluster(TCSlice& slc, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2);
+  bool DontCluster(TCSlice const& slc,
+                   const std::vector<int>& tjlist1,
+                   const std::vector<int>& tjlist2);
   void DefineDontCluster(TCSlice& slc, bool prt);
   bool RemovePFP(std::string inFcnLabel,
                  TCSlice& slc,
@@ -113,9 +115,8 @@ namespace tca {
                     TCSlice& slc,
                     Trajectory& tj,
                     unsigned short tjEnd,
-                    ShowerStruct& ss,
                     bool prt);
-  bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs);
+  bool IsShowerLike(TCSlice const& slc, std::vector<int> const& TjIDs);
   float InShowerProb(TCSlice& slc, const ShowerStruct3D& ss3, const PFPStruct& pfp);
   float InShowerProb(TCSlice& slc, const ShowerStruct& ss, const Trajectory& tj);
   void ShowerParams(double showerEnergy, double& shMaxAlong, double& shE95Along);
@@ -126,7 +127,6 @@ namespace tca {
   float ParentFOM(std::string inFcnLabel,
                   TCSlice& slc,
                   PFPStruct& pfp,
-                  unsigned short pend,
                   ShowerStruct3D& ss3,
                   bool prt);
   float ParentFOM(std::string inFcnLabel,
@@ -141,7 +141,7 @@ namespace tca {
   bool AddTjsInsideEnvelope(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   bool AddLooseHits(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt);
   void FindStartChg(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt);
-  std::vector<float> StartChgVec(TCSlice& slc, int cotID, bool prt);
+  std::vector<float> StartChgVec(TCSlice& slc, int cotID);
   void DumpShowerPts(std::string inFcnLabel, TCSlice& slc, int cotID);
 
   void FindCots(std::string inFcnLabel,
@@ -149,7 +149,7 @@ namespace tca {
                 const CTP_t& inCTP,
                 std::vector<std::vector<int>>& tjLists,
                 bool prt);
-  void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP);
+  void TagShowerLike(TCSlice& slc, const CTP_t& inCTP);
   void FindNearbyTjs(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
   void AddCloseTjsToList(std::string inFcnLabel,
                          TCSlice& slc,
@@ -178,10 +178,13 @@ namespace tca {
   bool ChkAssns(std::string inFcnLabel, TCSlice& slc);
   void PrintShowers(detinfo::DetectorPropertiesData const& detProp,
                     std::string someText,
-                    TCSlice& slc);
-  void Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers);
+                    TCSlice const& slc);
+  void Print2DShowers(std::string someText,
+                      TCSlice const& slc,
+                      CTP_t inCTP,
+                      bool printKilledShowers);
   void PrintShower(std::string someText,
-                   TCSlice& slc,
+                   TCSlice const& slc,
                    const ShowerStruct& ss,
                    bool printHeader,
                    bool printExtras);

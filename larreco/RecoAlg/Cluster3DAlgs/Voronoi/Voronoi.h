@@ -121,14 +121,12 @@ namespace voronoi2d {
                               const dcel2d::Coords&,
                               const dcel2d::Coords&,
                               dcel2d::Coords&,
-                              double&,
                               double&) const;
 
     bool computeCircleCenter3(const dcel2d::Coords&,
                               const dcel2d::Coords&,
                               const dcel2d::Coords&,
                               dcel2d::Coords&,
-                              double&,
                               double&) const;
 
     /**

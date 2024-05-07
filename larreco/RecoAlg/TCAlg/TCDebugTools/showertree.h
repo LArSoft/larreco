@@ -17,8 +17,7 @@
 #include "TTree.h"
 class TBranch;
 
-class showertree {
-public:
+struct showertree {
   TTree* fChain;  //!pointer to the analyzed TTree or TChain
   Int_t fCurrent; //!current Tree number in a TChain
 
@@ -84,19 +83,17 @@ public:
   TBranch* b_nStages;
   TBranch* b_nPlanes;
 
-  showertree(TTree* tree = 0);
-  virtual void Init(TTree* tree);
-  virtual void Loop();
+  showertree(TTree* tree = nullptr);
+  void Init(TTree* tree);
+  void Loop();
 };
 
-#endif
-
-showertree::showertree(TTree* tree) : fChain(0)
+inline showertree::showertree(TTree* tree) : fChain(0)
 {
   Init(tree);
 }
 
-void showertree::Init(TTree* tree)
+inline void showertree::Init(TTree* tree)
 {
   // Set object pointer
   BeginWir = 0;
@@ -156,3 +153,5 @@ void showertree::Init(TTree* tree)
   fChain->SetBranchAddress("nStages", &nStages, &b_nStages);
   fChain->SetBranchAddress("nPlanes", &nPlanes, &b_nPlanes);
 }
+
+#endif

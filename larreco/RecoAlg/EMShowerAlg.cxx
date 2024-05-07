@@ -607,8 +607,7 @@ void shower::EMShowerAlg::FindInitialTrack(
   detinfo::DetectorPropertiesData const& detProp,
   const std::map<int, std::vector<art::Ptr<recob::Hit>>>& showerHitsMap,
   std::unique_ptr<recob::Track>& initialTrack,
-  std::map<int, std::vector<art::Ptr<recob::Hit>>>& initialTrackHits,
-  int plane) const
+  std::map<int, std::vector<art::Ptr<recob::Hit>>>& initialTrackHits) const
 {
 
   /// Finding the initial track requires three stages:

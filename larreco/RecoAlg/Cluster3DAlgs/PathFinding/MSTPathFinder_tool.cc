@@ -134,8 +134,6 @@ namespace lar_cluster3d {
      */
     void AStar(const reco::ClusterHit3D*,
                const reco::ClusterHit3D*,
-               float alpha,
-               kdTree::KdTreeNode&,
                reco::ClusterParameters&) const;
 
     using BestNodeTuple = std::tuple<const reco::ClusterHit3D*, float, float>;
@@ -163,10 +161,6 @@ namespace lar_cluster3d {
     using MinMaxPointPair = std::pair<MinMaxPoints, MinMaxPoints>;
 
     void buildConvexHull(reco::ClusterParameters&, reco::HitPairListPtr&, int level = 0) const;
-
-    float findConvexHullEndPoints(const reco::EdgeList&,
-                                  const reco::ClusterHit3D*,
-                                  const reco::ClusterHit3D*) const;
 
     /**
      *  @brief Data members to follow
@@ -219,7 +213,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void MSTPathFinder::initializeHistograms(art::TFileDirectory& histDir)
+  void MSTPathFinder::initializeHistograms(art::TFileDirectory& /* histDir */)
   {
     // It is assumed that the input TFileDirectory has been set up to group histograms into a common
     // folder at the calling routine's level. Here we create one more level of indirection to keep
@@ -502,7 +496,7 @@ namespace lar_cluster3d {
   }
 
   void MSTPathFinder::FindBestPathInCluster(reco::ClusterParameters& clusterParams,
-                                            kdTree::KdTreeNode& topNode) const
+                                            kdTree::KdTreeNode& /* topNode */) const
   {
     // Set up for timing the function
     cet::cpu_timer theClockPathFinding;
@@ -572,7 +566,7 @@ namespace lar_cluster3d {
                     << std::endl;
 
           // Call the AStar function to try to find the best path...
-          //                AStar(startHit,stopHit,alpha,topNode,clusterParams);
+          //                AStar(startHit,stopHit,clusterParams);
 
           float cost(std::numeric_limits<float>::max());
 
@@ -607,8 +601,6 @@ namespace lar_cluster3d {
 
   void MSTPathFinder::AStar(const reco::ClusterHit3D* startNode,
                             const reco::ClusterHit3D* goalNode,
-                            float alpha,
-                            kdTree::KdTreeNode& topNode,
                             reco::ClusterParameters& clusterParams) const
   {
     // Recover the list of hits and edges
@@ -628,8 +620,6 @@ namespace lar_cluster3d {
 
     bestNodeMap[startNode] =
       BestNodeTuple(startNode, 0., DistanceBetweenNodes(startNode, goalNode));
-
-    alpha = 1.; //std::max(0.5,alpha);
 
     while (!openList.empty()) {
       // The list is not empty so by def we will return something
@@ -1045,30 +1035,6 @@ namespace lar_cluster3d {
     }
 
     return;
-  }
-
-  float MSTPathFinder::findConvexHullEndPoints(const reco::EdgeList& convexHull,
-                                               const reco::ClusterHit3D* first3D,
-                                               const reco::ClusterHit3D* last3D) const
-  {
-    float largestDistance(0.);
-
-    // Note that edges are vectors and that the convex hull edge list will be ordered
-    // The idea is that the maximum distance from a given edge is to the edge just before the edge that "turns back" towards the current edge
-    // meaning that the dot product of the two edges becomes negative.
-    reco::EdgeList::const_iterator firstEdgeItr = convexHull.begin();
-
-    while (firstEdgeItr != convexHull.end()) {
-      reco::EdgeList::const_iterator nextEdgeItr = firstEdgeItr;
-
-      //        Eigen::Vector2f firstEdgeVec(std::get<3>(*firstEdgeItr),std::get<);
-      //        Eigen::Vector2f lastPrimaryVec(lastPCA.getEigenVectors()[0][0],lastPCA.getEigenVectors()[0][1],lastPCA.getEigenVectors()[0][2]);
-      //        float           cosToLast = newPrimaryVec.dot(lastPrimaryVec);
-
-      while (++nextEdgeItr != convexHull.end()) {}
-    }
-
-    return largestDistance;
   }
 
   DEFINE_ART_CLASS_TOOL(MSTPathFinder)

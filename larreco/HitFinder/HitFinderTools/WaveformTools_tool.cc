@@ -139,7 +139,7 @@ namespace reco_tool {
     configure(pset);
   }
 
-  void WaveformTools::configure(const fhicl::ParameterSet& pset)
+  void WaveformTools::configure(const fhicl::ParameterSet&)
   {
     // Start by recovering the parameters
     //    fThisPlane       = pset.get<size_t>("Plane");

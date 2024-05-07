@@ -94,7 +94,7 @@ namespace lar_cluster3d {
     /**
      * @brief Perform charge integration between limits
      */
-    float chargeIntegral(float, float, float, float, int, int) const;
+    float chargeIntegral(float, float, float, int, int) const;
 
     using Hit2DVector = std::vector<reco::ClusterHit2D>;
 
@@ -438,7 +438,6 @@ namespace lar_cluster3d {
           chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),
                                              hit2D->getHit()->PeakAmplitude(),
                                              hit2D->getHit()->RMS(),
-                                             1.,
                                              lowMaxIndex,
                                              hiMinIndex));
 
@@ -554,7 +553,6 @@ namespace lar_cluster3d {
   float SpacePointHit3DBuilder::chargeIntegral(float peakMean,
                                                float peakAmp,
                                                float peakSigma,
-                                               float areaNorm,
                                                int low,
                                                int hi) const
   {

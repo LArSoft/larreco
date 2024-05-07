@@ -42,19 +42,15 @@ namespace tca {
   void CompleteIncomplete3DVertices(detinfo::DetectorPropertiesData const& detProp, TCSlice& slc);
   void CompleteIncomplete3DVerticesInGaps(detinfo::DetectorPropertiesData const& detProp,
                                           TCSlice& slc);
-  bool RefineVtxPosition(TCSlice& slc,
-                         const Trajectory& tj,
-                         unsigned short& nearPt,
-                         short nPtsToChk,
-                         bool prt);
+  bool RefineVtxPosition(const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   unsigned short TPNearVertex(const TCSlice& slc, const TrajPoint& tp);
   bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt);
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt);
   bool AttachAnyTrajToVertex(TCSlice& slc, unsigned short iv, bool prt);
   bool AttachTrajToVertex(TCSlice& slc, Trajectory& tj, VtxStore& vx, bool prt);
-  float TrajPointVertexPull(const TCSlice& slc, const TrajPoint& tp, const VtxStore& vx);
-  float VertexVertexPull(const TCSlice& slc, const Vtx3Store& vx1, const Vtx3Store& vx2);
-  float VertexVertexPull(const TCSlice& slc, const VtxStore& vx1, const VtxStore& vx2);
+  float TrajPointVertexPull(const TrajPoint& tp, const VtxStore& vx);
+  float VertexVertexPull(const Vtx3Store& vx1, const Vtx3Store& vx2);
+  float VertexVertexPull(const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TCSlice& slc, VtxStore& vx, bool prt);
   bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint>& vxTp, bool prt);
   bool StoreVertex(TCSlice& slc, VtxStore& vx);
@@ -70,7 +66,6 @@ namespace tca {
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score);
   void PosInPlane(detinfo::DetectorPropertiesData const& detProp,
-                  const TCSlice& slc,
                   const Vtx3Store& vx3,
                   unsigned short plane,
                   Point2_t& pos);

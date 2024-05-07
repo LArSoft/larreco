@@ -61,7 +61,6 @@ namespace lar_cluster3d {
                                  const reco::PrincipalComponents& pca) const;
 
     int PCAAnalysis_reject2DOutliers(const reco::HitPairListPtr& hitPairVector,
-                                     reco::PrincipalComponents& pca,
                                      float aveHitDoca) const;
 
     int PCAAnalysis_reject3DOutliers(const reco::HitPairListPtr& hitPairVector,

@@ -255,21 +255,28 @@ namespace hit {
     //### Default is to compute the normalized area ###
     //#################################################
     std::function<double(double, double, double, double, int, int)> chargeFunc =
-      [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi) {
-        return std::sqrt(2 * TMath::Pi()) * peakAmp * peakWidth / areaNorm;
-      };
+      [](double /* peakMean */,
+         double peakAmp,
+         double peakWidth,
+         double areaNorm,
+         int /* low */,
+         int /* hi */) { return std::sqrt(2 * TMath::Pi()) * peakAmp * peakWidth / areaNorm; };
 
     //##############################################
     //### Alternative is to integrate over pulse ###
     //##############################################
     if (fAreaMethod == 0)
-      chargeFunc =
-        [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi) {
-          double charge(0);
-          for (int sigPos = low; sigPos < hi; sigPos++)
-            charge += peakAmp * TMath::Gaus(sigPos, peakMean, peakWidth);
-          return charge;
-        };
+      chargeFunc = [](double peakMean,
+                      double peakAmp,
+                      double peakWidth,
+                      double /* areaNorm */,
+                      int low,
+                      int hi) {
+        double charge(0);
+        for (int sigPos = low; sigPos < hi; sigPos++)
+          charge += peakAmp * TMath::Gaus(sigPos, peakMean, peakWidth);
+        return charge;
+      };
 
     //##############################
     //### Looping over the wires ###

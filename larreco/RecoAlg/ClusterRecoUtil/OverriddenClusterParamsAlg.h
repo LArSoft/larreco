@@ -148,10 +148,10 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    void SetHits(util::GeometryUtilities const& gser,
-                 std::vector<recob::Hit const*> const& hits) override
+    void SetHitsFromPointers(util::GeometryUtilities const& gser,
+                             std::vector<recob::Hit const*> const& hits) override
     {
-      algo.SetHits(gser, hits);
+      algo.SetHitsFromPointers(gser, hits);
     }
 
     /**

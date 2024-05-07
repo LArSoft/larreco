@@ -268,7 +268,7 @@ void NuShowerEff::endJob()
 }
 
 //============================================================================
-void NuShowerEff::beginRun(art::Run const& run)
+void NuShowerEff::beginRun(art::Run const&)
 {
   mf::LogInfo("ShowerEff") << "==== begin run ... ====" << endl;
 }

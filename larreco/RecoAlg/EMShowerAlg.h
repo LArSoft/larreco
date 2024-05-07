@@ -101,8 +101,7 @@ public:
   void FindInitialTrack(detinfo::DetectorPropertiesData const& detProp,
                         std::map<int, std::vector<art::Ptr<recob::Hit>>> const& hits,
                         std::unique_ptr<recob::Track>& initialTrack,
-                        std::map<int, std::vector<art::Ptr<recob::Hit>>>& initialTrackHits,
-                        int plane) const;
+                        std::map<int, std::vector<art::Ptr<recob::Hit>>>& initialTrackHits) const;
 
   /// Makes showers given a map between tracks and all clusters associated with them
   std::vector<std::vector<int>> FindShowers(

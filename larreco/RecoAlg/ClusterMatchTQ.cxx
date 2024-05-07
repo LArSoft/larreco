@@ -48,7 +48,6 @@ namespace cluster {
 
   //---------------------------------------------------------------------
   std::vector<std::vector<unsigned int>> ClusterMatchTQ::MatchedClusters(
-    const detinfo::DetectorClocksData& clockdata,
     const detinfo::DetectorPropertiesData& detProp,
     const std::vector<art::Ptr<recob::Cluster>>& clusterlist,
     const art::FindManyP<recob::Hit>& fm) const

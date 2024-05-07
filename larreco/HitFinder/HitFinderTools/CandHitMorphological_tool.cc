@@ -693,7 +693,7 @@ namespace reco_tool {
   }
 
   void CandHitMorphological::MergeHitCandidates(
-    const recob::Wire::RegionsOfInterest_t::datarange_t& rangeData,
+    const recob::Wire::RegionsOfInterest_t::datarange_t&,
     const HitCandidateVec& hitCandidateVec,
     MergeHitCandidateVec& mergedHitsVec) const
   {

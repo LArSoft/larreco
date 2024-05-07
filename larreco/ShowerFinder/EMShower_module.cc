@@ -362,7 +362,7 @@ void shower::EMShower::produce(art::Event& evt)
       // Find the track at the start of the shower
       std::unique_ptr<recob::Track> initialTrack;
       std::map<int, std::vector<art::Ptr<recob::Hit>>> initialTrackHits;
-      fEMShowerAlg.FindInitialTrack(detProp, showerHitsMap, initialTrack, initialTrackHits, fPlane);
+      fEMShowerAlg.FindInitialTrack(detProp, showerHitsMap, initialTrack, initialTrackHits);
 
       // Make space points
       std::vector<std::vector<art::Ptr<recob::Hit>>> hitAssns;

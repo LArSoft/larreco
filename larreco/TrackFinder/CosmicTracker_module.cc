@@ -77,7 +77,6 @@ bool AnglesConsistent(const TVector3& p1,
 // compare end points and directions
 bool MatchTrack(const std::vector<trkPoint>& trkpts1,
                 const std::vector<trkPoint>& trkpts2,
-                double discut,
                 double angcut)
 {
   bool match = false;
@@ -213,7 +212,6 @@ namespace trkf {
     std::string fSortDir; ///< sort space points
 
     bool fStitchTracks; ///< Stitch tracks from different TPCs
-    double fDisCut;     ///< Distance cut for track merging
     double fAngCut;     ///< Angle cut for track merging
 
     bool fTrajOnly; ///< Only use trajectory points from TrackTrajectoryAlg for debugging
@@ -233,7 +231,6 @@ namespace trkf {
     fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
     fSortDir = pset.get<std::string>("SortDirection", "+z");
     fStitchTracks = pset.get<bool>("StitchTracks");
-    fDisCut = pset.get<double>("DisCut");
     fAngCut = pset.get<double>("AngCut");
     fTrajOnly = pset.get<bool>("TrajOnly");
 
@@ -285,7 +282,7 @@ namespace trkf {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    auto const matchedclusters = fClusterMatch.MatchedClusters(clockData, detProp, clusterlist, fm);
+    auto const matchedclusters = fClusterMatch.MatchedClusters(detProp, clusterlist, fm);
 
     // get track space points
     std::vector<std::vector<trkPoint>> trkpts(matchedclusters.size());
@@ -417,7 +414,7 @@ namespace trkf {
       if (fStitchTracks) {
         for (size_t itrk1 = 0; itrk1 < trkpts.size(); ++itrk1) {
           for (size_t itrk2 = itrk1 + 1; itrk2 < trkpts.size(); ++itrk2) {
-            if (MatchTrack(trkpts[itrk1], trkpts[itrk2], fDisCut, fAngCut)) {
+            if (MatchTrack(trkpts[itrk1], trkpts[itrk2], fAngCut)) {
               int found1 = -1;
               int found2 = -1;
               for (size_t i = 0; i < trkidx.size(); ++i) {

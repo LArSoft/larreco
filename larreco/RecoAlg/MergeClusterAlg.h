@@ -70,7 +70,6 @@ public:
                 double crossingDistance,
                 double projectedWidth,
                 double separation,
-                double overlap,
                 double longLength) const;
 
 private:

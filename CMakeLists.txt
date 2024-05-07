@@ -15,7 +15,7 @@ include(CetCMakeEnv)
 set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.00.00-rc1)
 cet_cmake_env()
 
-cet_set_compiler_flags(DIAGS CAUTIOUS
+cet_set_compiler_flags(DIAGS CAUTIOUS DWARF_VER 4
   WERROR
   NO_UNDEFINED
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs

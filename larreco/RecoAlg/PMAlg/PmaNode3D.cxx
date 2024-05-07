@@ -501,7 +501,7 @@ double pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
     else if (next) {
       seg = static_cast<pma::Segment3D*>(next);
 
-      SortedObjectBase* nextVtx = seg->Next(0);
+      SortedObjectBase* nextVtx = seg->Next();
       nSeg += nextVtx->NextCount() + 1;
     }
     else {

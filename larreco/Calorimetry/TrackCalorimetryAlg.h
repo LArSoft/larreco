@@ -83,9 +83,6 @@ private:
 
   using HitPropertiesMultiset_t = std::multiset<HitProperties, HitPropertySorter>;
 
-  void ClearInternalVectors() {}
-  void ReserveInternalVectors(size_t s) {}
-
   std::vector<float> CreatePathLengthFractionVector(recob::Track const& track);
 
   void AnalyzeHit(detinfo::DetectorClocksData const&,

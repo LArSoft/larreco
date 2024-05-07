@@ -26,7 +26,6 @@ namespace tca {
   void SaveCRInfo(detinfo::DetectorClocksData const& clockData,
                   TCSlice& slc,
                   PFPStruct& pfp,
-                  bool prt,
                   bool fIsRealData)
   {
     //Check the origin of pfp

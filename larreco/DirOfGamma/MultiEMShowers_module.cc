@@ -42,9 +42,9 @@ namespace ems {
 
 class ems::MCinfo {
 public:
-  MCinfo(const art::Event& evt);
-  void Info(const art::Event& evt);
-  void Findtpcborders(const art::Event& evt);
+  MCinfo();
+  void Info();
+  void Findtpcborders();
 
   int GetNgammas() const { return fNgammas; }
 
@@ -62,10 +62,10 @@ public:
   TVector3 const& GetDirgamma1() const { return fDirgamma1; }
   TVector3 const& GetDirgamma2() const { return fDirgamma2; }
 
-  bool const& IsInside1() const { return fInside1; }
-  bool const& IsInside2() const { return fInside2; }
+  bool IsInside1() const { return fInside1; }
+  bool IsInside2() const { return fInside2; }
 
-  bool const& IsCompton() const { return fCompton; }
+  bool IsCompton() const { return fCompton; }
 
 private:
   bool insideFidVol(const TLorentzVector& pvtx) const;
@@ -98,13 +98,13 @@ private:
   TVector3 fDirgamma2;
 };
 
-ems::MCinfo::MCinfo(const art::Event& evt) : fFidVolCut(2.0)
+ems::MCinfo::MCinfo() : fFidVolCut(2.0)
 {
-  Info(evt);
-  Findtpcborders(evt);
+  Info();
+  Findtpcborders();
 }
 
-void ems::MCinfo::Findtpcborders(const art::Event& evt)
+void ems::MCinfo::Findtpcborders()
 {
   art::ServiceHandle<geo::Geometry const> geom;
   for (const geo::TPCGeo& tpcg : geom->Iterate<geo::TPCGeo>()) {
@@ -117,7 +117,7 @@ void ems::MCinfo::Findtpcborders(const art::Event& evt)
   }
 }
 
-void ems::MCinfo::Info(const art::Event& evt)
+void ems::MCinfo::Info()
 {
   fMompi0 = 0.0;
   fPi0pos.SetXYZ(0, 0, 0);
@@ -411,7 +411,7 @@ void ems::MultiEMShowers::analyze(art::Event const& e)
   fDedxV = 0.0;
   fDedxU = 0.0;
 
-  ems::MCinfo mc(e);
+  ems::MCinfo mc;
   fPrimary = mc.GetPrimary();
   fPi0mom = mc.GetMompi0();
   fGmom1 = mc.GetMomGamma1();
@@ -591,7 +591,7 @@ void ems::MultiEMShowers::analyze(art::Event const& e)
 // true if there are clusters corresponding to mc conversion points
 bool ems::MultiEMShowers::convCluster(art::Event const& evt)
 {
-  ems::MCinfo mc(evt);
+  ems::MCinfo mc;
   TVector3 const convp[2]{mc.GetPosgamma1(), mc.GetPosgamma2()};
 
   geo::Point_t const vtx{convp[0].X(), convp[0].Y(), convp[0].Z()};
