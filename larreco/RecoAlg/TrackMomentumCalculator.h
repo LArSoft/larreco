@@ -68,8 +68,8 @@ namespace trkf {
     double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk,
                                        const bool checkValidPoints = false,
                                        const int maxMomentum_MeV = 7500,
-                                       const int MomentumStep_MeV = 10,
-                                       const int max_resolution = 0);
+                                       const double min_resolution = 0.001,
+                                       const double max_resolution = 800);
     double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
 

@@ -122,6 +122,85 @@ namespace {
     std::vector<double> const eymeas_;
   };
 
+  class FcnWrapperLLHD {
+  public:
+    explicit FcnWrapperLLHD(std::vector<double>& dEi,
+                            std::vector<double>& dEj,
+                            std::vector<double>& dthij,
+                            std::vector<double>& ind,
+                            double stepsize)
+      : dEi_{dEi}, dEj_{dEj}, dthij_{dthij}, ind_{ind}, stepsize_{stepsize}
+    {}
+
+	double MomentumDependentConstant(const double p) const
+    {
+		double a = 0.1049;
+		double c = 11.0038;
+		return (a/(p*p)) + c;
+	}
+
+    double my_mcs_llhd(double const* x) const
+    {
+      double result = 0.0;
+      constexpr double rad_length{14.0};
+
+      double p = x[0];
+      double theta0 = x[1];
+
+      auto const n = dEi_.size(); // number of segments of energy
+
+      for (std::size_t i = 0; i < n; ++i) {
+
+        double red_length = stepsize_ / rad_length;
+
+		const double m_muon = 0.1057;
+		// Total initial energy of the muon (converting the input "p" into energy with muon mass)
+		double Etot = std::sqrt( cet::sum_of_squares(p, m_muon) );
+
+		// Total energy of the muon including energy lost upstream of this segment 
+		double Eij = Etot - dEi_.at( i );
+
+		// Total momentum of the muon including momentum lost upstream of this segment (converting Eij to momentum)
+		double pij = std::sqrt(Eij*Eij - m_muon*m_muon);
+
+		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(pij*pij + m_muon*m_muon)) );
+
+        // Highland formula
+        // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
+		Double_t tH0 = ( MomentumDependentConstant(pij) / (pij*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
+
+        double rms_square = -1.0;
+
+        double prob = 0;
+        double DT = 0;
+        // Computes the rms of angle (no need to evaluate sqrt)
+        rms_square = cet::sum_of_squares(tH0, theta0);
+
+        DT = dthij_.at(i);
+
+        // Formula is modified so we don't compute sqrt(rms), use factor in log instead
+        prob = -0.5 * std::log(2.0 * TMath::Pi()) - 0.5*std::log(rms_square) - 0.5 * DT * DT / rms_square;
+
+        result = result - 2.0 * prob; // Adds for each segment
+        // std::cout << "result: " << result << std::endl;
+      }
+
+
+      return result;
+    }
+
+  private:
+    std::vector<double> const dEi_;
+    std::vector<double> const dEj_;
+    std::vector<double> const dthij_;
+    std::vector<double> const ind_;
+    double const stepsize_;
+
+
+
+  };
+
+
 }
 
 namespace trkf {
@@ -249,8 +328,8 @@ namespace trkf {
   double TrackMomentumCalculator::GetMomentumMultiScatterLLHD(const art::Ptr<recob::Track>& trk,
                                                               const bool checkValidPoints,
                                                               const int maxMomentum_MeV,
-                                                              const int MomentumStep_MeV,
-                                                              const int max_resolution)
+                                                              const double min_resolution,
+                                                              const double max_resolution)
   {
 
     std::vector<double> recoX;
@@ -288,29 +367,47 @@ namespace trkf {
     std::vector<double> ind;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
 
-    double logL = 1e+16;
-    double bf = -666.0; // double errs = -666.0;
+    auto const ndEi = dEi.size();
+    if (ndEi < 1) return -1;
 
-    int const start1{};
-    int const end1{static_cast<int>(maxMomentum_MeV / MomentumStep_MeV)};
-    int const start2{};
-    int const end2{max_resolution}; // 800.0;
+    ROOT::Minuit2::Minuit2Minimizer mP{};
+    FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (seg_size)};
+    ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
-    for (int k = start1; k <= end1; ++k) {
-      double const p_test = 0.001 + k * 0.01;
+    mP.SetFunction(FCA);
+    double const totaldEi = dEi.back();
+    // Set minimum energy based on first dEi + 1 MeV to avoid negative values on the fit
+    double minP = std::sqrt(totaldEi*(2*0.1057+totaldEi)) + 0.001;
 
-      for (int l = start2; l <= end2; ++l) {
-        double const res_test = (start2 == end2) ? 2.0 : 0.001 + l * 1.0; // 0.001+l*1.0;
-        double const fv = my_mcs_llhd(dEi, dEj, dthij, ind, p_test, res_test);
+    // Start point for resolution
+    double startpoint = 2;
+    if (startpoint < min_resolution) startpoint = (max_resolution-min_resolution)/2.;
+    if (max_resolution == 0) startpoint = min_resolution;
 
-        if (fv < logL) {
-          bf = p_test;
-          logL = fv;
-          // errs = res_test;
-        }
-      }
+    mP.SetLimitedVariable(0, "p_{MCS}", minP*2, minP, 0.001, maxMomentum_MeV / 1.e3);
+    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint/2., min_resolution, max_resolution);
+    if (max_resolution == 0){
+      mP.FixVariable(1);
     }
-    return bf;
+    mP.SetMaxFunctionCalls(1.E9);
+    mP.SetMaxIterations(1.E9);
+    mP.SetTolerance(0.01);
+    mP.SetStrategy(2);
+    mP.SetErrorDef(1);
+
+
+    bool const mstatus = mP.Minimize();
+
+    mP.Hesse();
+
+    const double* pars = mP.X();
+    const double* erpars = mP.Errors();
+
+
+    double const p_mcs = pars[0];
+    double const p_mcs_e [[maybe_unused]] = erpars[0];
+    return mstatus ? p_mcs : -1.0;
+
   }
 
   TVector3 TrackMomentumCalculator::GetMultiScatterStartingPoint(const art::Ptr<recob::Track>& trk)
@@ -455,20 +552,22 @@ namespace trkf {
           double const Li = segL.at(i);
           double const Lj = segL.at(j);
 
-          if (azy <= ULim && azy >= LLim) { // save scatter in the yz plane
-            ei.push_back(Li * cL);          // Energy deposited at i
-            ej.push_back(Lj * cL);          // Energy deposited at j
-            th.push_back(azy);              // scattered angle
-            ind.push_back(2);
-          }
+          if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
 
-          if (azx <= ULim && azx >= LLim) { // save scatter in the za plane
-            ei.push_back(Li * cL);
-            ej.push_back(Lj * cL);
-            th.push_back(azx);
-            ind.push_back(1);
+            if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
+              ei.push_back(Li * cL); // Energy deposited at i
+              ej.push_back(Lj * cL); // Energy deposited at j
+              if (fMCSAngleMethod == kAnglezx){
+                th.push_back(azx); // scattered angle z-x
+              }
+              else if(fMCSAngleMethod == kAnglezy){
+                th.push_back(azy);
+              }
+              else if(fMCSAngleMethod == kAngleCombined){
+                th.push_back(std::sqrt((azx*azx + azy*azy)/2)); // space angle (applying correction of sqrt(2))
+              }
+            }
           }
-
           break; // of course !
         }
       }
@@ -1039,14 +1138,6 @@ namespace trkf {
                 buf0.push_back(std::sqrt((azx*azx + azy*azy)/2)); // space angle (applying correction of sqrt(2))
               }
             }
-            else{
-              std::cerr << "SOMETHING BAD azx!!! " << std::endl;  
-              std::cerr << scx << " " << scz << " " << azx << std::endl;
-            }
-          }
-          else{
-            std::cerr << "SOMETHING BAD azy!!! " << std::endl;  
-            std::cerr << scy << " " << scz << " " << azy << std::endl;
           }
           break; // of course !
         }
