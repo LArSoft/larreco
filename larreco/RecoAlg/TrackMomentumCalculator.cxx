@@ -479,7 +479,9 @@ namespace trkf {
 
   double TrackMomentumCalculator::GetMomentumMultiScatterChi2(const art::Ptr<recob::Track>& trk,
                                                               const bool checkValidPoints,
-                                                              const int maxMomentum_MeV)
+                                                              const int maxMomentum_MeV,
+                                                              const double min_resolution,
+                                                              const double max_resolution)
   {
     std::vector<double> recoX;
     std::vector<double> recoY;
@@ -567,13 +569,20 @@ namespace trkf {
     FcnWrapper const wrapper{std::move(xmeas), std::move(ymeas), std::move(eymeas)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
+    // Start point for resolution
+    double startpoint = 2;
+    if (startpoint < min_resolution) startpoint = (max_resolution-min_resolution)/2.;
+    if (max_resolution == 0) startpoint = min_resolution;
+
     mP.SetFunction(FCA);
     mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(1, "#delta#theta", 2.0, 0.5, 0.5, 5);
-    mP.FixVariable(1);
+    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint/2., min_resolution, max_resolution);
+    if (max_resolution == 0){
+      mP.FixVariable(1);
+    }
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
-    mP.SetTolerance(1);
+    mP.SetTolerance(0.01);
     mP.SetStrategy(2);
     mP.SetErrorDef(1.0);
 

@@ -49,7 +49,9 @@ namespace trkf {
     */
     double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk,
                                        const bool checkValidPoints = false,
-                                       const int maxMomentum_MeV = 7500);
+                                       const int maxMomentum_MeV = 7500,
+                                       const double min_resolution = 0,
+                                       const double max_resolution = 45);
     /**
     * @brief  Calculate muon momentum (GeV) using multiple coulomb scattering by log likelihood
     *
