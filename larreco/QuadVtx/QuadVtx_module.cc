@@ -147,7 +147,7 @@ namespace quad {
         for (unsigned int j = i + offset + 1; j < pts.size(); j += stride) {
           const Line2D l(pts[i], pts[j]);
 
-          if (isinf(l.m) || isnan(l.m) || isinf(l.c) || isnan(l.c)) continue;
+          if (std::isinf(l.m) || std::isnan(l.m) || std::isinf(l.c) || std::isnan(l.c)) continue;
 
           if (R > 0) {
             float z1, z2;

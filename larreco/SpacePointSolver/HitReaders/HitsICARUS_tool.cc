@@ -75,7 +75,7 @@ namespace reco3d {
     std::vector<art::Ptr<recob::Hit>>& secondIndHits) const // output hits plane 2
   {
     for (auto& hit : inputHits) {
-      if (hit->Integral() < 0 || isnan(hit->Integral()) || isinf(hit->Integral())) {
+      if (hit->Integral() < 0 || std::isnan(hit->Integral()) || std::isinf(hit->Integral())) {
         mf::LogWarning("Hits_ICARUS") << "WARNING: bad recob::Hit::Integral() = " << hit->Integral()
                                       << ". Skipping." << std::endl;
         continue;
