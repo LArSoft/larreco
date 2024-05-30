@@ -216,7 +216,7 @@ namespace reco3d {
           const double coupling = exp(-sqrt(dist2) / 2);
           sc1->fNeighbours.emplace_back(sc2, coupling);
 
-          if (isnan(1 / sqrt(dist2)) || isinf(1 / sqrt(dist2))) {
+          if (std::isnan(1 / sqrt(dist2)) || std::isinf(1 / sqrt(dist2))) {
             std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " "
                       << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             abort();
