@@ -161,9 +161,10 @@ namespace {
                             std::vector<double>& dEj,
                             std::vector<double>& dthij,
                             std::vector<double>& ind,
+                            std::vector<bool>& dthij_valid,
                             double stepsize,
                             double correction)
-      : dEi_{dEi}, dEj_{dEj}, dthij_{dthij}, ind_{ind}, stepsize_{stepsize}, correction_{correction}
+      : dEi_{dEi}, dEj_{dEj}, dthij_{dthij}, ind_{ind}, dthij_valid_{dthij_valid}, stepsize_{stepsize}, correction_{correction}
     {}
 
 	double MomentumDependentConstant(const double p) const
@@ -215,6 +216,7 @@ namespace {
           }
         }
 
+        if (dthij_valid_.at(i)==false) continue;
 
         // Uses geometric mean of energy
 		double Eij = std::sqrt(Ei*Ej);
@@ -261,6 +263,7 @@ namespace {
     std::vector<double> const dEj_;
     std::vector<double> const dthij_;
     std::vector<double> const ind_;
+    std::vector<bool> const dthij_valid_;
     double const stepsize_;
     double const correction_;
 
@@ -431,6 +434,7 @@ namespace trkf {
     std::vector<double> dEj;
     std::vector<double> dthij;
     std::vector<double> ind;
+    std::vector<bool> dthij_valid = segments->nvalid;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1;
 
     auto const ndEi = dEi.size();
@@ -441,7 +445,7 @@ namespace trkf {
       correction = std::sqrt(2.);
     }
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (seg_size), (correction)};
+    FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
     mP.SetFunction(FCA);
@@ -823,6 +827,7 @@ namespace trkf {
                                                                std::vector<double>& segnx,
                                                                std::vector<double>& segny,
                                                                std::vector<double>& segnz,
+                                                               std::vector<bool> &segn_isvalid,
                                                                std::vector<double>& vx,
                                                                std::vector<double>& vy,
                                                                std::vector<double>& vz)
@@ -832,6 +837,15 @@ namespace trkf {
     double sumx = 0.0;
     double sumy = 0.0;
     double sumz = 0.0;
+
+
+    bool isvalid = true;
+    if (na <= 3){
+      isvalid=false;
+    }
+    
+    segn_isvalid.push_back(isvalid);
+
 
     // computes the average in x, y, z
     for (std::size_t i = 0; i < na; ++i) {
@@ -960,6 +974,7 @@ namespace trkf {
     std::vector<double> segx, segnx;
     std::vector<double> segy, segny;
     std::vector<double> segz, segnz;
+    std::vector<bool> segn_isvalid;
     std::vector<double> segL;
 
     int ntot = 0;
@@ -1171,7 +1186,7 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, vx, vy, vz);
+        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
 
         // vectors are cleared in previous step
         ntot = 1;
@@ -1189,7 +1204,7 @@ namespace trkf {
     gr_seg_xz = TGraph{n_seg, z_seg, x_seg};
     gr_seg_xy = TGraph{n_seg, x_seg, y_seg};
 
-    return std::make_optional<Segments>(Segments{segx, segnx, segy, segny, segz, segnz, segL});
+    return std::make_optional<Segments>(Segments{segx, segnx, segy, segny, segz, segnz, segL, segn_isvalid});
   }
 
   /* Computes the rms by groups of `thick`

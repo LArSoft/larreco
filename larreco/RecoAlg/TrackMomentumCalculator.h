@@ -91,6 +91,7 @@ namespace trkf {
                                         std::vector<double>& segnx,
                                         std::vector<double>& segny,
                                         std::vector<double>& segnz,
+                                        std::vector<bool>& segn_isvalid,
                                         std::vector<double>& vx,
                                         std::vector<double>& vy,
                                         std::vector<double>& vz);
@@ -107,6 +108,7 @@ namespace trkf {
       std::vector<double> y, ny;
       std::vector<double> z, nz;
       std::vector<double> L;
+      std::vector<bool> nvalid;
     };
 
     /**
