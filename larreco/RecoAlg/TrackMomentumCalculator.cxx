@@ -39,6 +39,7 @@ using std::endl;
 namespace {
 
   constexpr double LAr_density{1.396}; //TODO: Replace for some global variable present in the art file
+  constexpr double rad_length{14.0};
   constexpr double m_muon{0.1057}; // muon mass
   constexpr auto range_gramper_cm()
   {
@@ -94,6 +95,17 @@ namespace {
   TVector3 const basez{0, 0, 1};
   constexpr double kcal{0.0021}; // Approximation of dE/dx for mip muon in LAr
 
+  constexpr double MomentumDependentConstant(const double p) 
+  {
+      double a = 0.1049;
+      double c = 11.0038;
+      return (a/(p*p)) + c;
+  }
+  double ComputeExpetecteRMS(const double p, const double red_length){
+		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
+		return ( MomentumDependentConstant(p) / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
+
+  }
   class FcnWrapper {
   public:
     explicit FcnWrapper(std::vector<double>&& xmeas,
@@ -124,7 +136,6 @@ namespace {
           return -1;
         }
 
-        constexpr double rad_length{14.0};
         double const l0 = xx / rad_length;
         double res1 = 0.0;
         // Highland formula
@@ -167,17 +178,10 @@ namespace {
       : dEi_{dEi}, dEj_{dEj}, dthij_{dthij}, ind_{ind}, dthij_valid_{dthij_valid}, stepsize_{stepsize}, correction_{correction}
     {}
 
-	double MomentumDependentConstant(const double p) const
-    {
-		double a = 0.1049;
-		double c = 11.0038;
-		return (a/(p*p)) + c;
-	}
 
     double my_mcs_llhd(double const* x) const
     {
       double result = 0.0;
-      constexpr double rad_length{14.0};
 
       double red_length = stepsize_ / rad_length;
 
@@ -224,12 +228,10 @@ namespace {
 		// Total momentum of the muon including momentum lost upstream of this segment (converting Eij to momentum)
 		double pij = std::sqrt(Eij*Eij - m_muon*m_muon);
 
-		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(pij*pij + m_muon*m_muon)) );
-
         // Highland formula
         // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
         // Modified with uboone studies: https://iopscience.iop.org/article/10.1088/1748-0221/12/10/P10010
-		Double_t tH0 = ( MomentumDependentConstant(pij) / (pij*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
+		double tH0 = ComputeExpetecteRMS(pij, red_length);
 
         // The tH0 (theta rms) is calculated for projected angles
         // If space angles are used instead, tH0 needs to be multiplied by sqrt(2)
@@ -444,22 +446,37 @@ namespace trkf {
     if (fMCSAngleMethod == kAngleCombined){
       correction = std::sqrt(2.);
     }
+    // Get minimum energy that we can use spline
+    // And estimate min energy to avoid as much as possible energies below this point
+    double minE = E_GeV[0]+0.010; 
+    for (unsigned i = 0; i < ndEi; i++){
+      double dE = dEdx_vs_E_spline3.Eval(minE)*seg_size;
+      minE+=dE;
+    }
+
+    // minimum momentum so energy does not go to below spline
+    double minP = std::sqrt(minE*minE - m_muon*m_muon);
+
+    // Assumes that the smallet possible energy is given by 90% p with CSDA
+    auto const recoL = trk->Length();
+    double const minPrange = this->GetTrackMomentum(recoL, 13)*0.9;
+
+    if (minPrange > minP){
+      minP = minPrange;
+    }
+    double maximum_rms = ComputeExpetecteRMS(minP, seg_size/rad_length);
+
+    for (unsigned int i = 0; i < ndEi; i++){
+      if (abs(dthij[i]) > 7*maximum_rms){
+        dthij_valid[i] = false;
+      }
+    }
+
     ROOT::Minuit2::Minuit2Minimizer mP{};
     FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
     mP.SetFunction(FCA);
-
-    double minE = E_GeV[0]+0.010;
-    for (unsigned i = 0; i < ndEi; i++){
-      double dE = dEdx_vs_E_spline3.Eval(minE)*seg_size;
-      minE+=dE;
-    }
-    // // Assumes that the smallet possible energy is given by CSDA
-    // double const minP = this->GetTrackMomentum(recoL, 13);
-
-    // minimum momentum so energy does not go to below spline
-    double const minP = std::sqrt(minE*minE - m_muon*m_muon);
 
     // Start point for resolution
     double startpoint = 2;
@@ -644,7 +661,7 @@ namespace trkf {
                 th.push_back(azy);
               }
               else if(fMCSAngleMethod == kAngleCombined){
-                th.push_back(std::sqrt((azx*azx + azy*azy))); // space angle (correction of sqrt(2) is added in expected rms during fit
+                th.push_back(std::sqrt((azx*azx + azy*azy)*2)); // space angle (correction of sqrt(2) is added in expected rms during fit
               }
             }
           }
@@ -840,6 +857,8 @@ namespace trkf {
 
 
     bool isvalid = true;
+    // In case vx, vy, etc have 3 points, probably two are just "linear"
+    // interpolations. In this case, the angle of scattering will be zero.
     if (na <= 3){
       isvalid=false;
     }
@@ -1293,7 +1312,7 @@ namespace trkf {
                 buf0.push_back(azy);
               }
               else if(fMCSAngleMethod == kAngleCombined){
-                buf0.push_back(std::sqrt((azx*azx + azy*azy))); // space angle (correction of sqrt(2) will be applied on the fit)
+                buf0.push_back(std::sqrt((azx*azx + azy*azy)*2)); // space angle (correction of sqrt(2) will be applied on the fit)
               }
             }
           }
