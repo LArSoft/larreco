@@ -225,7 +225,7 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
-  art::FindManyP<recob::PFParticle> fmPFPs(trackListHandle, evt, fConfig.PFPModuleLabel());
+  art::FindManyP<recob::PFParticle> fmPFPs(trackListHandle, evt, fConfig.TrackModuleLabel());
   std::vector<art::Ptr<recob::PFParticle>> pfpList;
   if (fConfig.PFPModuleLabel().size()) {
     for (std::size_t itrk = 0, sz = fmPFPs.size(); itrk < sz; ++itrk) {
