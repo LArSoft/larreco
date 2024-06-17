@@ -27,6 +27,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 
@@ -77,6 +78,9 @@ namespace calo {
 
       fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
                                              Comment("Module label for T0 time producer."),
+                                             ""};
+      fhicl::Atom<std::string> PFPModuleLabel{Name("PFPModuleLabel"),
+                                             Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
                                              ""};
 
       fhicl::Atom<std::string> AssocHitModuleLabel{
@@ -218,8 +222,18 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
                                   fConfig.AssocHitModuleLabel();
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmHits(trackListHandle, evt, hitLabel);
 
+
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
+  art::FindManyP<recob::PFParticle> fmPFPs(trackListHandle, evt, fConfig.PFPModuleLabel());
+  std::vector<art::Ptr<recob::PFParticle>> pfpList;
+  if (fConfig.PFPModuleLabel().size()) {
+    for (std::size_t itrk = 0, sz = fmPFPs.size(); itrk < sz; ++itrk) {
+      // assuming every recob::Track has exactly one associated recob::PFParticle
+      pfpList.push_back(fmPFPs.at(itrk).at(0));
+    }
+  }
+  art::FindManyP<anab::T0> fmPFPT0s(pfpList, evt, fConfig.T0ModuleLabel());
 
   for (auto const& nt : fNormTools)
     nt->setup(evt);
@@ -234,8 +248,13 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
     double T0 = 0;
     if (fConfig.T0ModuleLabel().size()) {
-      const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
-      if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      if (fConfig.PFPModuleLabel().size()) {
+	const std::vector<art::Ptr<anab::T0>>& this_t0s = fmPFPT0s.at(trk_i);
+	if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      } else {
+	const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
+	if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      }
     }
 
     // organize the hits by plane
