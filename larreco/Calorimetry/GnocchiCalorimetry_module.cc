@@ -77,18 +77,15 @@ namespace calo {
                                                 Comment("Module label for track producer.")};
 
       fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
-                                             Comment("Module label for T0 time producer."),
-                                             ""};
+                                             Comment("Module label for T0 time producer.")};
       fhicl::Atom<std::string> PFPModuleLabel{
         Name("PFPModuleLabel"),
-        Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
-        ""};
+        Comment("Module label for PFP producer. To be used to associate T0 with tracks.")};
 
       fhicl::Atom<std::string> AssocHitModuleLabel{
         Name("AssocHitModuleLabel"),
         Comment("Module label for association between tracks and hits. If not set, defaults to "
-                "TrackModuleLabel."),
-        ""};
+                "TrackModuleLabel.")};
 
       fhicl::Atom<unsigned> ChargeMethod{
         Name("ChargeMethod"),

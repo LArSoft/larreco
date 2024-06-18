@@ -52,6 +52,9 @@ standard_gnocchicalo:
   PFPModuleLabel: "" # NEW! Needed if T0ModuleLabel provided and input data
                      # have associations PFParticle<->T0 and
                      # PFPaticle <-> Track, but no direct T0 <-> Track.
+                     # Note -- there is no default value for this parameter in
+                     # the module and one should excplicitly set it to empty
+                     # if they do not want this functionality
   ChargeMethod: 1
   FieldDistortion: false
   TrackIsFieldDistortionCorrected: false
