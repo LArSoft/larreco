@@ -49,6 +49,9 @@ standard_gnocchicalo:
   SpacePointModuleLabel: "spacepointfinder"
   T0ModuleLabel: ""
   AssocHitModuleLabel: ""
+  PFPModuleLabel: "" # NEW! Needed if T0ModuleLabel provided and input data
+                     # have associations PFParticle<->T0 and
+                     # PFPaticle <-> Track, but no direct T0 <-> Track.
   ChargeMethod: 1
   FieldDistortion: false
   TrackIsFieldDistortionCorrected: false
