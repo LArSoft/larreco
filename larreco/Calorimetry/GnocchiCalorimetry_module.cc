@@ -25,9 +25,9 @@
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/AnalysisBase/T0.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
-#include "lardataobj/RecoBase/PFParticle.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 
@@ -79,9 +79,10 @@ namespace calo {
       fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
                                              Comment("Module label for T0 time producer."),
                                              ""};
-      fhicl::Atom<std::string> PFPModuleLabel{Name("PFPModuleLabel"),
-                                             Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
-                                             ""};
+      fhicl::Atom<std::string> PFPModuleLabel{
+        Name("PFPModuleLabel"),
+        Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
+        ""};
 
       fhicl::Atom<std::string> AssocHitModuleLabel{
         Name("AssocHitModuleLabel"),
@@ -222,7 +223,6 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
                                   fConfig.AssocHitModuleLabel();
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmHits(trackListHandle, evt, hitLabel);
 
-
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
   art::FindManyP<recob::PFParticle> fmPFPs(trackListHandle, evt, fConfig.TrackModuleLabel());
@@ -249,11 +249,12 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
     double T0 = 0;
     if (fConfig.T0ModuleLabel().size()) {
       if (fConfig.PFPModuleLabel().size()) {
-	const std::vector<art::Ptr<anab::T0>>& this_t0s = fmPFPT0s.at(trk_i);
-	if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
-      } else {
-	const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
-	if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+        const std::vector<art::Ptr<anab::T0>>& this_t0s = fmPFPT0s.at(trk_i);
+        if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      }
+      else {
+        const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
+        if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
       }
     }
 
