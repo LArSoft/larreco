@@ -539,17 +539,17 @@ namespace trkf {
         if (view == geo::kU) {
           fHAmpU->Fill(hit.PeakAmplitude());
           fHAreaU->Fill(hit.Integral());
-          fHSumU->Fill(hit.SummedADC());
+          fHSumU->Fill(hit.ROISummedADC());
         }
         if (view == geo::kV) {
           fHAmpV->Fill(hit.PeakAmplitude());
           fHAreaV->Fill(hit.Integral());
-          fHSumV->Fill(hit.SummedADC());
+          fHSumV->Fill(hit.ROISummedADC());
         }
         if (view == geo::kZ) {
           fHAmpW->Fill(hit.PeakAmplitude());
           fHAreaW->Fill(hit.Integral());
-          fHSumW->Fill(hit.SummedADC());
+          fHSumW->Fill(hit.ROISummedADC());
         }
       }
 
