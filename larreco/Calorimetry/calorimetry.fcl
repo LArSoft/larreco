@@ -46,12 +46,18 @@ standard_gnocchicalo:
 {
   module_type: "GnocchiCalorimetry"
   TrackModuleLabel: "track3d"
-  SpacePointModuleLabel: "spacepointfinder"
   T0ModuleLabel: ""
   AssocHitModuleLabel: ""
+  PFPModuleLabel: "" # NEW! Needed if T0ModuleLabel provided and input data
+                     # have associations PFParticle<->T0 and
+                     # PFPaticle <-> Track, but no direct T0 <-> Track.
+                     # Note -- there is no default value for this parameter in
+                     # the module and one should excplicitly set it to empty
+                     # if they do not want this functionality
   ChargeMethod: 1
   FieldDistortion: false
   TrackIsFieldDistortionCorrected: false
+  FieldDistortionCorrectionXSign: 1.
   Cryostat: 0
   CaloAlg: @local::standard_calorimetryalgdata
   NormTools: []
@@ -96,7 +102,7 @@ standard_printcalorimetry:
 standard_calocheck: {
   module_type: CaloChecker
   TrackLabel: track # overwrite with the track producer
-  CaloLabels: [oldcalo, newcalo] # overwrite with the two Calo producers 
+  CaloLabels: [oldcalo, newcalo] # overwrite with the two Calo producers
 }
 
 END_PROLOG
