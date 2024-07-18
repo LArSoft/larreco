@@ -79,6 +79,7 @@ namespace calo {
       fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
                                              Comment("Module label for T0 time producer."),
                                              ""};
+
       fhicl::Atom<std::string> PFPModuleLabel{
         Name("PFPModuleLabel"),
         Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
