@@ -116,7 +116,8 @@ namespace calo {
       fhicl::Atom<float> FieldDistortionCorrectionXSign{
         Name("FieldDistortionCorrectionXSign"),
         Comment("Sign of the field distortion correction to be applied in the X direction. "
-                "Positive by default.")};
+                "Positive by default."),
+        1.f};
 
       fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig{
         Name("CaloAlg"),
