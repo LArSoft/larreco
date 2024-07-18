@@ -77,15 +77,19 @@ namespace calo {
                                                 Comment("Module label for track producer.")};
 
       fhicl::Atom<std::string> T0ModuleLabel{Name("T0ModuleLabel"),
-                                             Comment("Module label for T0 time producer.")};
+                                             Comment("Module label for T0 time producer."),
+                                             ""};
+
       fhicl::Atom<std::string> PFPModuleLabel{
         Name("PFPModuleLabel"),
-        Comment("Module label for PFP producer. To be used to associate T0 with tracks.")};
+        Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
+        ""};
 
       fhicl::Atom<std::string> AssocHitModuleLabel{
         Name("AssocHitModuleLabel"),
         Comment("Module label for association between tracks and hits. If not set, defaults to "
-                "TrackModuleLabel.")};
+                "TrackModuleLabel."),
+        ""};
 
       fhicl::Atom<unsigned> ChargeMethod{
         Name("ChargeMethod"),
@@ -113,7 +117,8 @@ namespace calo {
       fhicl::Atom<float> FieldDistortionCorrectionXSign{
         Name("FieldDistortionCorrectionXSign"),
         Comment("Sign of the field distortion correction to be applied in the X direction. "
-                "Positive by default.")};
+                "Positive by default."),
+        1.f};
 
       fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig{
         Name("CaloAlg"),
