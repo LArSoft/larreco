@@ -526,7 +526,7 @@ namespace cluster {
           for (unsigned int indx = hitColBeginIndex; indx < hitCol.size(); ++indx) {
             auto& hit = hitCol[indx];
             sumChg += hit.Integral();
-            sumADC += hit.SummedADC();
+            sumADC += hit.ROISummedADC();
             if (!slices.empty() &&
                 !util::CreateAssn(evt, hitCol, slices[slcIndex], *slc_hit_assn, indx)) {
               throw art::Exception(art::errors::ProductRegistrationFailure)
