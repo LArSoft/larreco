@@ -245,6 +245,14 @@ namespace trkf {
     
     ScatterAngleMethods fMCSAngleMethod;
 
+
+    // (LLHD) Correction for space angle due to possible oversmoothing
+    double angle_correction = 1./0.757; 
+
+    // (LLHD) set to true will only check if scatter angles are valid.  Angles
+    // are invalid if there is only two points in one segment.
+    bool check_valid_scattered = true;
+
   };
 
 } // namespace trkf

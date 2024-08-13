@@ -97,9 +97,10 @@ namespace {
 
   constexpr double MomentumDependentConstant(const double p) 
   {
-      double a = 0.1049;
-      double c = 11.0038;
-      return (a/(p*p)) + c;
+    // values measured with MC
+    double a = 0.079;
+    double c = 10.435;
+    return (a/(p*p)) + c;
   }
   double ComputeExpetecteRMS(const double p, const double red_length){
     double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
@@ -194,41 +195,28 @@ namespace {
       double Etot = std::sqrt( cet::sum_of_squares(p, m_muon) );
 
       double Ei{Etot};
-      double Ej{Etot};
 
       double dEi{0};
-      double dEj{0};
       auto const n = dEi_.size(); // number of segments of energy
 
       bool addpenality = false;
       for (std::size_t i = 0; i < n; ++i) {
-
-        // ensures spline only once
-        if (i>0){// first point does not lose energy on i
-        // Energy lost upstream of this segment:
-          dEi = dEj; // dEj was evaluated in previous step
-          // Total energy of the muon including energy lost upstream of this segment 
-          Ei -= dEi;
+        Ei -= dEi;
+        if (Ei >= E_GeV[0]){//otherwise keep dEi the same (In any case, this is close to p = 0)
+          dEi = dEdx_vs_E_spline3.Eval(Ei)*stepsize_;
         }
-        if (Ej >= E_GeV[0]){
-          dEj = dEdx_vs_E_spline3.Eval(Ej)*stepsize_;
-        }//otherwise keep dEj the same (In any case, this is close to p = 0)
-		Ej -= dEj;
-        if (Ej < m_muon){
-          Ej = m_muon+0.010; // Reached zero energy, keep this value constant to not evaluate `nan` in pij nor tH0
+        else{
+          dEi = dEdx_GeV_per_cm[0]*stepsize_;
+        }
+        if (Ei <= m_muon){
+          Ei = m_muon+0.010; // Reached zero energy, keep this value constant to not evaluate `nan` in pij nor tH0
           addpenality = true;
-          if (Ei < m_muon){
-            Ei = m_muon+0.010;
-          }
         }
 
         if (dthij_valid_.at(i)==false) continue;
 
-        // Uses geometric mean of energy
-		double Eij = std::sqrt(Ei*Ej);
-
 		// Total momentum of the muon including momentum lost upstream of this segment (converting Eij to momentum)
-		double pij = std::sqrt(Eij*Eij - m_muon*m_muon);
+		double pij = std::sqrt(Ei*Ei - m_muon*m_muon);
 
         // Highland formula
         // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
@@ -252,7 +240,7 @@ namespace {
         prob = -0.5 * std::log(2.0 * TMath::Pi()) - 0.5*std::log(rms_square) - 0.5 * DT * DT / rms_square;
 
         if (addpenality){
-          prob -= 2*rms_square*rms_square;
+          prob -= 2*rms_square;
         }
 
         result = result - 2.0 * prob; // Adds for each segment
@@ -398,6 +386,9 @@ namespace trkf {
 
   // email: kalousis@vt.edu
 
+  // Updated by: Henrique Vieira de Souza (June 2024)
+  // email: hvsouza@apc.in2p3.fr
+
   double TrackMomentumCalculator::GetMomentumMultiScatterLLHD(const art::Ptr<recob::Track>& trk,
                                                               const bool checkValidPoints,
                                                               const int maxMomentum_MeV,
@@ -448,31 +439,10 @@ namespace trkf {
     if (fMCSAngleMethod == kAngleCombined){
       correction = std::sqrt(2.);
     }
-    // Get minimum energy that we can use spline
-    // And estimate min energy to avoid as much as possible energies below this point
-    double minE = E_GeV[0]+0.010; 
-    for (unsigned i = 0; i < ndEi; i++){
-      double dE = dEdx_vs_E_spline3.Eval(minE)*seg_size;
-      minE+=dE;
-    }
 
-    // minimum momentum so energy does not go to below spline
-    double minP = std::sqrt(minE*minE - m_muon*m_muon);
-
-    // Assumes that the smallet possible energy is given by 90% p with CSDA
-    auto const recoL = trk->Length();
-    double const minPrange = this->GetTrackMomentum(recoL, 13)*0.9;
-
-    if (minPrange > minP){
-      minP = minPrange;
-    }
-    double maximum_rms = ComputeExpetecteRMS(minP, seg_size/rad_length);
-
-    for (unsigned int i = 0; i < ndEi; i++){
-      if (abs(dthij[i]) > 7*maximum_rms){
-        dthij_valid[i] = false;
-      }
-    }
+    // Assumes that the smallet possible energy is given by 80% p with CSDA
+    auto recoL = trk->Length();
+    double const minP = this->GetTrackMomentum(recoL, 13);
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
     FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
@@ -485,7 +455,10 @@ namespace trkf {
     if (startpoint < min_resolution) startpoint = (max_resolution-min_resolution)/2.;
     if (max_resolution == 0) startpoint = min_resolution;
 
-    mP.SetLimitedVariable(0, "p_{MCS}", minP*2, minP, 0.001, maxMomentum_MeV / 1.e3);
+    // Starting energy as double of the energy by range
+    // Step as 10 %
+    // Minimum value at 60%
+    mP.SetLimitedVariable(0, "p_{MCS}", minP*2, minP*0.1, minP*0.6, maxMomentum_MeV / 1.e3);
     mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint/2., min_resolution, max_resolution);
     if (max_resolution == 0){
       mP.FixVariable(1);
@@ -622,52 +595,41 @@ namespace trkf {
       TVector3 const Ry{vec_y.Dot(basex), vec_y.Dot(basey), vec_y.Dot(basez)};
       TVector3 const Rz{vec_z.Dot(basex), vec_z.Dot(basey), vec_z.Dot(basez)};
 
-      double const refL = segL.at(i);
 
-      // Now loop over next segments until thick1 is reached in the next segment
-      for (int j = i; j < tot; j++) {
-        double const L1 = segL.at(j);
+      double const here_dx = segnx.at(i+1);
+      double const here_dy = segny.at(i+1);
+      double const here_dz = segnz.at(i+1);
 
-        double const dz1 = L1 - refL;
+      TVector3 const here_vec{here_dx, here_dy, here_dz};
+      TVector3 const rot_here{Rx.Dot(here_vec), Ry.Dot(here_vec), Rz.Dot(here_vec)};
 
-        if (dz1 >= thick) {
-          double const here_dx = segnx.at(j);
-          double const here_dy = segny.at(j);
-          double const here_dz = segnz.at(j);
+      double const scx = rot_here.X();
+      double const scy = rot_here.Y();
+      double const scz = rot_here.Z();
 
-          TVector3 const here_vec{here_dx, here_dy, here_dz};
-          TVector3 const rot_here{Rx.Dot(here_vec), Ry.Dot(here_vec), Rz.Dot(here_vec)};
+      double const azy = find_angle(scz, scy);
+      double const azx = find_angle(scz, scx);
 
-          double const scx = rot_here.X();
-          double const scy = rot_here.Y();
-          double const scz = rot_here.Z();
+      constexpr double ULim = 10000.0; // Avoid huge (wrong) angles
+      constexpr double LLim = -10000.0;
 
-          double const azy = find_angle(scz, scy);
-          double const azx = find_angle(scz, scx);
+      double const Li = segL.at(i);
+      double const Lj = segL.at(i+1);
 
-          constexpr double ULim = 10000.0; // Avoid huge (wrong) angles
-          constexpr double LLim = -10000.0;
+      if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
 
-          double const Li = segL.at(i);
-          double const Lj = segL.at(j);
-
-          if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
-
-            if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
-              ei.push_back(Li); // Energy deposited at i
-              ej.push_back(Lj); // Energy deposited at j
-              if (fMCSAngleMethod == kAnglezx){
-                th.push_back(azx); // scattered angle z-x
-              }
-              else if(fMCSAngleMethod == kAnglezy){
-                th.push_back(azy);
-              }
-              else if(fMCSAngleMethod == kAngleCombined){
-                th.push_back(std::sqrt((azx*azx + azy*azy)*2)); // space angle (correction of sqrt(2) is added in expected rms during fit
-              }
-            }
+        if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
+          ei.push_back(Li); // Energy deposited at i
+          ej.push_back(Lj); // Energy deposited at i+1
+          if (fMCSAngleMethod == kAnglezx){
+            th.push_back(azx); // scattered angle z-x
           }
-          break; // of course !
+          else if(fMCSAngleMethod == kAnglezy){
+            th.push_back(azy);
+          }
+          else if(fMCSAngleMethod == kAngleCombined){
+            th.push_back(std::sqrt(azx*azx + azy*azy)*angle_correction); // space angle (applying correction of sqrt(2))
+          }
         }
       }
     }
