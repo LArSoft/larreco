@@ -93,7 +93,7 @@ namespace {
   TVector3 const basex{1, 0, 0};
   TVector3 const basey{0, 1, 0};
   TVector3 const basez{0, 0, 1};
-  constexpr double kcal{0.0021}; // Approximation of dE/dx for mip muon in LAr
+  constexpr double kcal{0.0024}; // Approximation of dE/dx for mip muon in LAr
 
   constexpr double MomentumDependentConstant(const double p) 
   {
@@ -102,8 +102,8 @@ namespace {
       return (a/(p*p)) + c;
   }
   double ComputeExpetecteRMS(const double p, const double red_length){
-		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
-		return ( MomentumDependentConstant(p) / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
+    double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
+    return ( MomentumDependentConstant(p) / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
 
   }
   class FcnWrapper {
@@ -140,7 +140,9 @@ namespace {
         double res1 = 0.0;
         // Highland formula
         // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
-        if (xx > 0 && p > 0) res1 = (13.6 / p) * std::sqrt(l0) * (1.0 + 0.038 * std::log(l0));
+		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
+        if (xx > 0 && p > 0) res1 = ( 13.6 / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( l0 / cet::square( beta ) ) ) * std::sqrt( l0 );
+        res1 *= correction_;
 
         res1 = std::sqrt(res1 * res1 + theta0 * theta0);
 
@@ -595,7 +597,7 @@ namespace trkf {
 
     int tot = a1;
 
-    for (int i = 0; i < tot; i++) {
+    for (int i = 0; i < tot-1; i++) {
       double const dx = segnx.at(i);
       double const dy = segny.at(i);
       double const dz = segnz.at(i);
@@ -786,7 +788,7 @@ namespace trkf {
     mP.SetMaxIterations(1.E9);
     mP.SetTolerance(0.01);
     mP.SetStrategy(2);
-    mP.SetErrorDef(1.0);
+    mP.SetErrorDef(1);
 
     bool const mstatus = mP.Minimize();
 
@@ -859,11 +861,10 @@ namespace trkf {
     bool isvalid = true;
     // In case vx, vy, etc have 3 points, probably two are just "linear"
     // interpolations. In this case, the angle of scattering will be zero.
-    if (na <= 3){
+    if (check_valid_scattered && na <= 2){
       isvalid=false;
     }
     
-    segn_isvalid.push_back(isvalid);
 
 
     // computes the average in x, y, z
@@ -956,7 +957,10 @@ namespace trkf {
       segnx.push_back(ax);
       segny.push_back(ay);
       segnz.push_back(az);
+      segn_isvalid.push_back(isvalid);
+
     }
+
     // clear the vectors
     vx.clear();
     vy.clear();
@@ -996,7 +1000,6 @@ namespace trkf {
     std::vector<bool> segn_isvalid;
     std::vector<double> segL;
 
-    int ntot = 0;
 
     n_seg = 0;
 
@@ -1031,7 +1034,7 @@ namespace trkf {
         segy.push_back(y0);
         segz.push_back(z0);
 
-        segL.push_back(stag);
+        segL.push_back(0);
 
         // TGraph
         x_seg[n_seg] = x0;
@@ -1044,7 +1047,6 @@ namespace trkf {
         vy.push_back(y0);
         vz.push_back(z0);
 
-        ntot++;
 
         indC = i + 1;
 
@@ -1074,14 +1076,13 @@ namespace trkf {
         vy.push_back(y1);
         vz.push_back(z1);
 
-        ntot++;
       }
       
       /* If current point is inside segment length w.r.t. the first point of
        * the segment (x0,y0,z0), but the next point is outsize: create a new
        * point in between (x1,y1,z1) and (x2,y2,z2) in which will be exacly at
        * the segment length (w.r.t. to the first point) This is done using the
-       * consides law for a given factor `t` times dr (x2-x1, ...), and so:
+       * cosines law for a given factor `t` times dr (x2-x1, ...), and so:
        *
        * (ds)^2 = (dr1)^2 + (t*dr)^2 + 2*dot_product(dr1, t*dr)
        * Using cos(180-theta) = -cos(theta))
@@ -1124,7 +1125,7 @@ namespace trkf {
         segy.push_back(yp);
         segz.push_back(zp);
 
-        segL.push_back(1.0 * n_seg * 1.0 * seg_size + stag);
+        segL.push_back(n_seg*seg_size);
 
         // for TGraph
         x_seg[n_seg] = xp;
@@ -1143,7 +1144,6 @@ namespace trkf {
         vy.push_back(y0);
         vz.push_back(z0);
 
-        ntot++;
         if (n_seg <= 1) // This should never happen
           return std::nullopt;
 
@@ -1151,8 +1151,8 @@ namespace trkf {
         // vx, vy, vz are used and cleared afterwards
         compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
 
+
         // Starting over
-        ntot = 1;
         vx.push_back(x0);
         vy.push_back(y0);
         vz.push_back(z0);
@@ -1199,7 +1199,6 @@ namespace trkf {
         vy.push_back(y0);
         vz.push_back(z0);
 
-        ntot++;
         if (n_seg <= 1) // This should never happen
           return std::nullopt;
 
@@ -1208,7 +1207,6 @@ namespace trkf {
         compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
 
         // vectors are cleared in previous step
-        ntot = 1;
         vx.push_back(x0);
         vy.push_back(y0);
         vz.push_back(z0);
@@ -1312,7 +1310,7 @@ namespace trkf {
                 buf0.push_back(azy);
               }
               else if(fMCSAngleMethod == kAngleCombined){
-                buf0.push_back(std::sqrt((azx*azx + azy*azy)*2)); // space angle (correction of sqrt(2) will be applied on the fit)
+                buf0.push_back(std::sqrt(azx*azx + azy*azy)); // space angle (applying correction of sqrt(2))
               }
             }
           }
