@@ -69,7 +69,9 @@ namespace trkf {
                                        const bool checkValidPoints = false,
                                        const int maxMomentum_MeV = 7500,
                                        const double min_resolution = 0.001,
-                                       const double max_resolution = 800);
+                                       const double max_resolution = 800,
+                                       const bool check_valid_scattered_ = false,
+                                       const bool angle_correction_ = 0.757);
     double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
 
@@ -246,12 +248,15 @@ namespace trkf {
     ScatterAngleMethods fMCSAngleMethod;
 
 
-    // (LLHD) Correction for space angle due to possible oversmoothing
-    double angle_correction = 1./0.757; 
+    // (LLHD) Correction for space angle due to possible oversmoothing The
+    // value (0.757) was set based on studies with MC. Change this value
+    // through the fhcl file
+    double angle_correction;
 
-    // (LLHD) set to true will only check if scatter angles are valid.  Angles
+    // (LLHD) set to true will check if scatter angles are valid.  Angles
     // are invalid if there is only two points in one segment.
-    bool check_valid_scattered = true;
+    // (Chi2) Keep it false. Should not have any effect
+    bool check_valid_scattered;
 
   };
 

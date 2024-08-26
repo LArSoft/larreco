@@ -393,8 +393,12 @@ namespace trkf {
                                                               const bool checkValidPoints,
                                                               const int maxMomentum_MeV,
                                                               const double min_resolution,
-                                                              const double max_resolution)
+                                                              const double max_resolution,
+                                                              const bool check_valid_scattered_,
+                                                              const bool angle_correction_
+                                                              )
   {
+
 
     std::vector<double> recoX;
     std::vector<double> recoY;
@@ -411,6 +415,12 @@ namespace trkf {
     }
 
     if (recoX.size() < 2) return -1.0;
+
+    // If set to true, scattered angles in segments with only 2 points will not be considered
+    check_valid_scattered = check_valid_scattered_;
+
+    // Correction due to oversmoothing, applied for space angle only
+    angle_correction = angle_correction_;
 
     if (!plotRecoTracks_(recoX, recoY, recoZ)) return -1.0;
 
@@ -628,7 +638,7 @@ namespace trkf {
             th.push_back(azy);
           }
           else if(fMCSAngleMethod == kAngleCombined){
-            th.push_back(std::sqrt(azx*azx + azy*azy)*angle_correction); // space angle (applying correction of sqrt(2))
+            th.push_back(std::sqrt(azx*azx + azy*azy)/angle_correction); // space angle (applying correction)
           }
         }
       }
