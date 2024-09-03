@@ -172,10 +172,7 @@ namespace lar_cluster3d {
     /**
      *  @brief This algorithm takes lists of hit pairs and finds good triplets
      */
-    void findGoodTriplets(HitMatchPairVecMap&,
-                          HitMatchPairVecMap&,
-                          reco::HitPairList&,
-                          bool = false) const;
+    void findGoodTriplets(HitMatchPairVecMap&, HitMatchPairVecMap&, reco::HitPairList&) const;
 
     /**
      *  @brief Make a HitPair object by checking two hits
@@ -198,9 +195,8 @@ namespace lar_cluster3d {
      */
     bool makeDeadChannelPair(reco::ClusterHit3D& pairOut,
                              const reco::ClusterHit3D& pair,
-                             size_t maxStatus = 4,
-                             size_t minStatus = 0,
-                             float minOverlap = 0.2) const;
+                             size_t maxStatus,
+                             size_t minStatus) const;
 
     /**
      *  @brief A utility routine for finding a 2D hit closest in time to the given pair
@@ -230,12 +226,12 @@ namespace lar_cluster3d {
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
-    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap) const;
+    void BuildChannelStatusVec() const;
 
     /**
      * @brief Perform charge integration between limits
      */
-    float chargeIntegral(float, float, float, float, int, int) const;
+    float chargeIntegral(float, float, float, int, int) const;
 
     /**
      *  @brief define data structure for keeping track of channel status
@@ -384,8 +380,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void StandardHit3DBuilder::BuildChannelStatusVec(
-    PlaneToWireToHitSetMap& planeToWireToHitSetMap) const
+  void StandardHit3DBuilder::BuildChannelStatusVec() const
   {
     // This is called each event, clear out the previous version and start over
     if (!m_channelStatus.empty()) m_channelStatus.clear();
@@ -495,7 +490,7 @@ namespace lar_cluster3d {
 
     // The first task is to take the lists of input 2D hits (a map of view to sorted lists of 2D hits)
     // and then to build a list of 3D hits to be used in downstream processing
-    BuildChannelStatusVec(m_planeToWireToHitSetMap);
+    BuildChannelStatusVec();
 
     size_t numHitPairs = BuildHitPairMap(m_planeToHitVectorMap, hitPairList);
 
@@ -749,8 +744,7 @@ namespace lar_cluster3d {
 
   void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map,
                                               HitMatchPairVecMap& pair13Map,
-                                              reco::HitPairList& hitPairList,
-                                              bool tagged) const
+                                              reco::HitPairList& hitPairList) const
   {
     // Build triplets from the two lists of hit pairs
     if (!pair12Map.empty()) {
@@ -809,7 +803,7 @@ namespace lar_cluster3d {
           const reco::ClusterHit3D* pair = pairMapPair.first;
 
           // Here we look to see if we failed to make a triplet because the partner wire was dead/noisy/sick
-          if (makeDeadChannelPair(deadChanPair, *pair, 4, 0, 0.))
+          if (makeDeadChannelPair(deadChanPair, *pair, 4, 0))
             tempDeadChanVec.emplace_back(deadChanPair);
         }
 
@@ -1150,7 +1144,6 @@ namespace lar_cluster3d {
               chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),
                                                  hit2D->getHit()->PeakAmplitude(),
                                                  hit2D->getHit()->RMS(),
-                                                 1.,
                                                  lowMaxIndex,
                                                  hiMinIndex));
 
@@ -1254,7 +1247,6 @@ namespace lar_cluster3d {
   float StandardHit3DBuilder::chargeIntegral(float peakMean,
                                              float peakAmp,
                                              float peakSigma,
-                                             float areaNorm,
                                              int low,
                                              int hi) const
   {
@@ -1271,8 +1263,7 @@ namespace lar_cluster3d {
   bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D& pairOut,
                                                  const reco::ClusterHit3D& pair,
                                                  size_t maxChanStatus,
-                                                 size_t minChanStatus,
-                                                 float minOverlap) const
+                                                 size_t minChanStatus) const
   {
     // Assume failure (most common result)
     bool result(false);

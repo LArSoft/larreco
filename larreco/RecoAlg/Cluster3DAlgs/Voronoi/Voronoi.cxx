@@ -125,7 +125,10 @@ namespace voronoi2d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  bool compareSiteEventPtrs(const IEvent* left, const IEvent* right) { return *left < *right; }
+  bool compareSiteEventPtrs(const IEvent* left, const IEvent* right)
+  {
+    return *left < *right;
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -783,8 +786,7 @@ namespace voronoi2d {
                                             const dcel2d::Coords& p2,
                                             const dcel2d::Coords& p3,
                                             dcel2d::Coords& center,
-                                            double& radius,
-                                            double& delta) const
+                                            double& radius) const
   {
     // Compute the circle center as the intersection of the two perpendicular bisectors of rays between the points
     double slope12 = (p2[1] - p1[1]) / (p2[0] - p1[0]);
@@ -817,8 +819,7 @@ namespace voronoi2d {
                                             const dcel2d::Coords& p2,
                                             const dcel2d::Coords& p3,
                                             dcel2d::Coords& center,
-                                            double& radius,
-                                            double& delta) const
+                                            double& radius) const
   {
     // Yet another bisector method to calculate the circle center...
     double temp = p2[0] * p2[0] + p2[1] * p2[1];

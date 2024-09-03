@@ -64,8 +64,8 @@ namespace lar_cluster3d {
 
     void FillClusterParams(reco::ClusterParameters&,
                            reco::Hit2DToClusterMap&,
-                           double minUniqueFrac = 0.,
-                           double maxLostFrac = 1.) const override;
+                           double /* NminUniqueFrac */,
+                           double /* maxLostFrac */) const override;
 
   private:
     /**
@@ -288,9 +288,9 @@ namespace lar_cluster3d {
   }
 
   void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterParams,
-                                               reco::Hit2DToClusterMap& hit2DToClusterMap,
-                                               double minUniqueFrac,
-                                               double maxLostFrac) const
+                                               reco::Hit2DToClusterMap& /* hit2DToClusterMap */,
+                                               double /* minUniqueFrac */,
+                                               double /* maxLostFrac */) const
   {
     /**
      *  @brief Given a list of hits fill out the remaining parameters for this cluster and evaluate the

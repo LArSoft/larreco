@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include <iomanip>
+#include <utility>
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
@@ -50,14 +51,24 @@ namespace reco {
     m_hit = toCopy.m_hit;
   }
 
+  ClusterHit2D& ClusterHit2D::operator=(ClusterHit2D const& toCopy)
+  {
+    using std::swap;
+    auto tmp = toCopy;
+    swap(tmp, *this);
+    return *this;
+  }
+
   std::ostream& operator<<(std::ostream& o, const ClusterHit2D& c)
   {
     o << c.getHit();
-
     return o;
   }
 
-  bool operator<(const ClusterHit2D& a, const ClusterHit2D& b) { return a.getHit() < b.getHit(); }
+  bool operator<(const ClusterHit2D& a, const ClusterHit2D& b)
+  {
+    return a.getHit() < b.getHit();
+  }
 
   ClusterHit3D::ClusterHit3D()
     : fID(std::numeric_limits<size_t>::max())
@@ -134,6 +145,14 @@ namespace reco {
     fWireIDVector = toCopy.fWireIDVector;
   }
 
+  ClusterHit3D& ClusterHit3D::operator=(ClusterHit3D const& toCopy)
+  {
+    using std::swap;
+    auto tmp = toCopy;
+    swap(tmp, *this);
+    return *this;
+  }
+
   void ClusterHit3D::initialize(size_t id,
                                 unsigned int statusBits,
                                 const Eigen::Vector3f& position,
@@ -169,7 +188,10 @@ namespace reco {
     return;
   }
 
-  void ClusterHit3D::setWireID(const geo::WireID& wid) const { fWireIDVector[wid.Plane] = wid; }
+  void ClusterHit3D::setWireID(const geo::WireID& wid) const
+  {
+    fWireIDVector[wid.Plane] = wid;
+  }
 
   std::ostream& operator<<(std::ostream& o, const ClusterHit3D& c)
   {

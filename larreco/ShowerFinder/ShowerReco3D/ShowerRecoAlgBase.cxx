@@ -6,7 +6,10 @@
 
 namespace showerreco {
 
-  void ShowerRecoAlgBase::Reset() { fInputClusters.clear(); }
+  void ShowerRecoAlgBase::Reset()
+  {
+    fInputClusters.clear();
+  }
 
   void ShowerRecoAlgBase::AppendInputClusters(
     const std::vector<::cluster::ClusterParamsAlg>& cpan_v)

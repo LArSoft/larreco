@@ -340,7 +340,7 @@ double pma::VtxCandidate::Compute()
     pma::Segment3D* seg = trk->NextSegment(vtx1);
     double segLength = seg->Length();
     if (segLength >= fSegMinLength) {
-      pma::Node3D* vtx2 = static_cast<pma::Node3D*>(seg->Next(0));
+      pma::Node3D* vtx2 = static_cast<pma::Node3D*>(seg->Next());
 
       std::pair<TVector3, TVector3> endpoints(vtx1->Point3D(), vtx2->Point3D());
       double dy = endpoints.first.Y() - endpoints.second.Y();
@@ -369,7 +369,7 @@ double pma::VtxCandidate::Compute()
   double wsum = 0.0;
   for (size_t s = 0; s < segments.size(); s++) {
     pma::Node3D* vprev = static_cast<pma::Node3D*>(segments[s]->Prev());
-    pma::Node3D* vnext = static_cast<pma::Node3D*>(segments[s]->Next(0));
+    pma::Node3D* vnext = static_cast<pma::Node3D*>(segments[s]->Next());
 
     pproj = pma::GetProjectionToSegment(result, vprev->Point3D(), vnext->Point3D());
 

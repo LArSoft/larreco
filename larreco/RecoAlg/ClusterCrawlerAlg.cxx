@@ -263,11 +263,11 @@ namespace cluster {
       } // plane
       if (fVertex3DCut > 0) {
         // Match vertices in 3 planes
-        VtxMatch(clock_data, det_prop, tpcid);
-        Vtx3ClusterMatch(clock_data, det_prop, tpcid);
-        if (fFindHammerClusters) FindHammerClusters(clock_data, det_prop);
+        VtxMatch(det_prop, tpcid);
+        Vtx3ClusterMatch(det_prop, tpcid);
+        if (fFindHammerClusters) FindHammerClusters(det_prop);
         // split clusters using 3D vertices
-        Vtx3ClusterSplit(clock_data, det_prop, tpcid);
+        Vtx3ClusterSplit(det_prop, tpcid);
       }
       if (fDebugPlane >= 0) {
         mf::LogVerbatim("CC") << "Clustering done in TPC ";
@@ -5181,8 +5181,7 @@ namespace cluster {
   } // FitVtx
 
   //////////////////////////////////////
-  void ClusterCrawlerAlg::Vtx3ClusterMatch(detinfo::DetectorClocksData const& clock_data,
-                                           detinfo::DetectorPropertiesData const& det_prop,
+  void ClusterCrawlerAlg::Vtx3ClusterMatch(detinfo::DetectorPropertiesData const& det_prop,
                                            geo::TPCID const& tpcid)
   {
     // Look for clusters that end/begin near the expected wire/time
@@ -5266,8 +5265,7 @@ namespace cluster {
   }   // Vtx3ClusterMatch
 
   //////////////////////////////////////
-  void ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorClocksData const& clock_data,
-                                           detinfo::DetectorPropertiesData const& det_prop,
+  void ClusterCrawlerAlg::Vtx3ClusterSplit(detinfo::DetectorPropertiesData const& det_prop,
                                            geo::TPCID const& tpcid)
   {
     // Try to split clusters in a view in which there is no 2D vertex
@@ -5490,8 +5488,7 @@ namespace cluster {
   } // Vtx3ClusterSplit()
 
   //////////////////////////////////////
-  void ClusterCrawlerAlg::FindHammerClusters(detinfo::DetectorClocksData const& clock_data,
-                                             detinfo::DetectorPropertiesData const& det_prop)
+  void ClusterCrawlerAlg::FindHammerClusters(detinfo::DetectorPropertiesData const& det_prop)
   {
     // look for a long cluster that stops at a short cluster in two views. This can occur in a CCmu
     // interaction where two protons are emitted back-to-back and are therefore reconstructed as one cluster
@@ -5681,8 +5678,7 @@ namespace cluster {
   } // FindHammerClusters
 
   //////////////////////////////////////
-  void ClusterCrawlerAlg::VtxMatch(detinfo::DetectorClocksData const& clock_data,
-                                   detinfo::DetectorPropertiesData const& det_prop,
+  void ClusterCrawlerAlg::VtxMatch(detinfo::DetectorPropertiesData const& det_prop,
                                    geo::TPCID const& tpcid)
   {
     // Create 3D vertices from 2D vertices. 3D vertices that are matched

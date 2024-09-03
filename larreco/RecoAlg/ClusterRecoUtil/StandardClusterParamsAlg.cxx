@@ -36,8 +36,9 @@ void cluster::StandardClusterParamsAlg::Clear()
 }
 
 //------------------------------------------------------------------------------
-void cluster::StandardClusterParamsAlg::SetHits(util::GeometryUtilities const& gser,
-                                                std::vector<recob::Hit const*> const& hits)
+void cluster::StandardClusterParamsAlg::SetHitsFromPointers(
+  util::GeometryUtilities const& gser,
+  std::vector<recob::Hit const*> const& hits)
 {
   Clear();
   util::PxHitConverter pxhitconverter{gser};

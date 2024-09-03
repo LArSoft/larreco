@@ -287,8 +287,7 @@ private:
   void freezeBranchingNodes(pma::TrkCandidateColl& tracks) const;
   void releaseAllNodes(pma::TrkCandidateColl& tracks) const;
 
-  bool mergeCoLinear(detinfo::DetectorClocksData const& clockData,
-                     detinfo::DetectorPropertiesData const& detProp,
+  bool mergeCoLinear(detinfo::DetectorPropertiesData const& detProp,
                      pma::TrkCandidateColl& tracks) const;
   void mergeCoLinear(detinfo::DetectorClocksData const& clockData,
                      detinfo::DetectorPropertiesData const& detProp,
@@ -332,9 +331,7 @@ private:
                    size_t minSize,
                    double fraction,
                    unsigned int preferedView,
-                   unsigned int testView,
-                   unsigned int tpc,
-                   unsigned int cryo) const;
+                   unsigned int testView) const;
 
   bool extendTrack(detinfo::DetectorPropertiesData const& detProp,
                    pma::TrkCandidate& candidate,

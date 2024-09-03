@@ -823,7 +823,10 @@ namespace DUNE {
     }
   }
   //========================================================================
-  void NeutrinoShowerEff::endJob() { doEfficiencies(); }
+  void NeutrinoShowerEff::endJob()
+  {
+    doEfficiencies();
+  }
   //========================================================================
   void NeutrinoShowerEff::beginRun(const art::Run& /*run*/)
   {

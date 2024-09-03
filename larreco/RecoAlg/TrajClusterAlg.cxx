@@ -394,7 +394,7 @@ namespace tca {
     } // plane
     if (tcc.match3DCuts[0] > 0) {
       FindPFParticles(clockData, detProp, slc);
-      DefinePFPParents(slc, false);
+      DefinePFPParents(slc);
     } // 3D matching requested
     KillPoorVertices(slc);
     // Use 3D matching information to find showers in 2D. FindShowers3D returns
@@ -563,7 +563,7 @@ namespace tca {
             if (!hitsOK) continue;
             // start a trajectory with direction from iht -> jht
             Trajectory work;
-            if (!StartTraj(slc, work, fromWire, fromTick, toWire, toTick, inCTP, pass)) continue;
+            if (!StartTraj(work, fromWire, fromTick, toWire, toTick, inCTP, pass)) continue;
             // check for a major failure
             if (!slc.isValid) {
               std::cout << "RAT: StartTraj major failure\n";
@@ -695,8 +695,7 @@ namespace tca {
         if (!StoreTraj(slc, work)) continue;
         if (tcc.dbgStp) {
           auto& tj = slc.tjs[slc.tjs.size() - 1];
-          mf::LogVerbatim("TC") << "TRP RAT Stored T" << tj.ID << " using seed TP "
-                                << PrintPos(slc, tp);
+          mf::LogVerbatim("TC") << "TRP RAT Stored T" << tj.ID << " using seed TP " << PrintPos(tp);
         }
         BraggSplit(slc, slc.tjs.size() - 1);
       } // seed
@@ -728,7 +727,7 @@ namespace tca {
     }   // dressed muons
 
     // Tag ShowerLike Tjs
-    if (tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
+    if (tcc.showerTag[0] > 0) TagShowerLike(slc, inCTP);
     // Set TP Environment bits
     SetTPEnvironment(slc, inCTP);
     Find2DVertices(detProp, slc, inCTP, USHRT_MAX);

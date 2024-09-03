@@ -26,7 +26,7 @@ namespace tca {
   // Updates the last added trajectory point fit, average hit rms, etc.
   void UpdateTraj(TCSlice& slc, Trajectory& tj);
   // Version with a different strategy for tracking high energy electrons
-  void UpdateStiffEl(TCSlice& slc, Trajectory& tj);
+  void UpdateStiffEl(TCSlice const& slc, Trajectory& tj);
   // Check the quality of the trajectory and possibly trim it
   void CheckTraj(TCSlice& slc, Trajectory& tj);
   void CheckStiffEl(TCSlice& slc, Trajectory& tj);
@@ -57,14 +57,14 @@ namespace tca {
   void CheckHiMultUnusedHits(TCSlice& slc, Trajectory& tj);
   void CheckHiMultEndHits(TCSlice& slc, Trajectory& tj);
   // Estimate the Delta RMS of the TPs on the end of tj.
-  void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj);
+  void UpdateDeltaRMS(Trajectory& tj);
   void MaskBadTPs(TCSlice& slc, Trajectory& tj, float const& maxChi);
   // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
   // current configuration or whether to stop and possibly try with the next pass settings
   bool MaskedHitsOK(TCSlice& slc, Trajectory& tj);
   // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
   // fitted points to get FitCHi < 2
-  bool StopIfBadFits(TCSlice& slc, Trajectory& tj);
+  bool StopIfBadFits(Trajectory& tj);
   // Does a local fit of just-added TPs to identify a kink while stepping.
   // Truncates the vector and returns true if one is found.
   bool GottaKink(TCSlice& slc, Trajectory& tj, bool doTrim);
@@ -76,12 +76,12 @@ namespace tca {
   bool IsGhost(TCSlice& slc, Trajectory& tj);
   void LastEndMerge(TCSlice& slc, CTP_t inCTP);
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);
-  TrajPoint CreateTPFromTj(TCSlice& slc, const Trajectory& tj);
+  TrajPoint CreateTPFromTj(const Trajectory& tj);
   void MaskTrajEndPoints(TCSlice& slc, Trajectory& tj, unsigned short nPts);
   // Sets the StopsAtEnd bits for the trajectory
-  void ChkStop(TCSlice& slc, Trajectory& tj);
+  void ChkStop(Trajectory& tj);
   // Check the Michel electron topology, lastGoodPt is the last point of muon
-  bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt);
+  bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
   // Make a junk trajectory using the list of hits in tHits
   bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits);
 } // namespace tca

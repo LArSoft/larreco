@@ -56,7 +56,10 @@ namespace hit {
   } // GausFitCache::Get()
 
   //----------------------------------------------------------------------------
-  TF1* GausFitCache::GetClone(size_t nFunc) { return static_cast<TF1*>(Get(nFunc)->Clone()); }
+  TF1* GausFitCache::GetClone(size_t nFunc)
+  {
+    return static_cast<TF1*>(Get(nFunc)->Clone());
+  }
 
   //----------------------------------------------------------------------------
   TF1* GausFitCache::CreateFunction(size_t nFunc) const
@@ -92,7 +95,7 @@ namespace hit {
     return params[0] * std::exp(-0.5 * sqr((x[0] - params[1]) / params[2]));
   } // details::CompiledGausFitCacheBaseStruct::gaus()
 
-  TF1* details::CompiledGausFitCacheBaseStruct::GetClone(size_t nFunc)
+  TF1* details::CompiledGausFitCacheBaseStruct::GetClone(size_t /* nFunc */)
   {
     throw art::Exception(art::errors::LogicError)
       << "CompiledGausFitCacheBaseStruct: compiled functions can't be cloned";

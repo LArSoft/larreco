@@ -33,7 +33,10 @@ namespace apa {
   }
 
   //----------------------------------------------------------
-  APAGeometryAlg::APAGeometryAlg() { this->Init(); }
+  APAGeometryAlg::APAGeometryAlg()
+  {
+    this->Init();
+  }
 
   //----------------------------------------------------------
   void APAGeometryAlg::reconfigure(fhicl::ParameterSet const& /*p*/) {}
@@ -114,7 +117,10 @@ namespace apa {
   }
 
   //----------------------------------------------------------
-  unsigned int APAGeometryAlg::ChannelToAPA(uint32_t chan) const { return chan / fChannelsPerAPA; }
+  unsigned int APAGeometryAlg::ChannelToAPA(uint32_t chan) const
+  {
+    return chan / fChannelsPerAPA;
+  }
 
   //----------------------------------------------------------
   unsigned int APAGeometryAlg::ChannelsInView(geo::View_t geoview) const

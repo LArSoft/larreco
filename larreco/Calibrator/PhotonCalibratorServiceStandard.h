@@ -15,7 +15,6 @@
 #include "larreco/Calibrator/PhotonCalibratorStandard.h"
 
 #include "art/Framework/Principal/Run.h"
-#include "art/Framework/Services/Registry/ActivityRegistry.h"
 #include "art/Framework/Services/Registry/ServiceDeclarationMacros.h"
 #include "art/Framework/Services/Registry/ServiceTable.h"
 #include "fhiclcpp/ParameterSet.h"
@@ -35,9 +34,7 @@ namespace calib {
 
     using Parameters = art::ServiceTable<ServiceConfiguration_t>;
 
-    PhotonCalibratorServiceStandard(Parameters const& config, art::ActivityRegistry& aReg)
-      : fProvider{config.get_PSet(), aReg}
-    {}
+    PhotonCalibratorServiceStandard(Parameters const& config) : fProvider{config.get_PSet()} {}
 
   private:
     provider_type const* provider() const override { return &fProvider; }

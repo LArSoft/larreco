@@ -640,9 +640,9 @@ double trkf::KalmanFilterFinalTrackFitter::setMomValue(
 }
 
 int trkf::KalmanFilterFinalTrackFitter::setPId(
-  const unsigned int iTrack,
-  const std::unique_ptr<art::FindManyP<anab::ParticleID>>& trackId,
-  const int pfPid) const
+  const unsigned int /* iTrack */,
+  const std::unique_ptr<art::FindManyP<anab::ParticleID>>& /* trackId */,
+  const int /* pfPid */) const
 {
   /*
   int result = p_().options().pdgId();

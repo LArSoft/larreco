@@ -66,11 +66,9 @@ namespace lar_cluster3d {
     void Cluster3DHits(reco::HitPairList& hitPairList,
                        reco::ClusterParametersList& clusterParametersList) const override;
 
-    void Cluster3DHits(reco::HitPairListPtr& hitPairList,
-                       reco::ClusterParametersList& clusterParametersList) const override
-    {
-      return;
-    }
+    void Cluster3DHits(reco::HitPairListPtr& /* hitPairList */,
+                       reco::ClusterParametersList& /* clusterParametersList */) const override
+    {}
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
@@ -112,8 +110,6 @@ namespace lar_cluster3d {
      */
     void AStar(const reco::ClusterHit3D*,
                const reco::ClusterHit3D*,
-               float alpha,
-               kdTree::KdTreeNode&,
                reco::ClusterParameters&) const;
 
     using BestNodeTuple = std::tuple<const reco::ClusterHit3D*, float, float>;
@@ -443,7 +439,7 @@ namespace lar_cluster3d {
   }
 
   void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParams,
-                                             kdTree::KdTreeNode& topNode) const
+                                             kdTree::KdTreeNode& /* topNode */) const
   {
     // Set up for timing the function
     cet::cpu_timer theClockPathFinding;
@@ -540,8 +536,6 @@ namespace lar_cluster3d {
 
   void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
                              const reco::ClusterHit3D* goalNode,
-                             float alpha,
-                             kdTree::KdTreeNode& topNode,
                              reco::ClusterParameters& clusterParams) const
   {
     // Recover the list of hits and edges
@@ -561,8 +555,6 @@ namespace lar_cluster3d {
 
     bestNodeMap[startNode] =
       BestNodeTuple(startNode, 0., DistanceBetweenNodes(startNode, goalNode));
-
-    alpha = 1.; //std::max(0.5,alpha);
 
     while (!openList.empty()) {
       // The list is not empty so by def we will return something

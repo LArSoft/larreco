@@ -50,7 +50,10 @@ namespace {
     float length;
   };
 
-  bool myfunction(CluLen c1, CluLen c2) { return (c1.length > c2.length); }
+  bool myfunction(CluLen c1, CluLen c2)
+  {
+    return (c1.length > c2.length);
+  }
 
   struct SortByWire {
     bool operator()(art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const

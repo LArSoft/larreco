@@ -13,7 +13,10 @@
 
 namespace btutil {
 
-  MCMatchAlg::MCMatchAlg() { _view_to_plane.clear(); }
+  MCMatchAlg::MCMatchAlg()
+  {
+    _view_to_plane.clear();
+  }
 
   bool MCMatchAlg::BuildMap(detinfo::DetectorClocksData const& clockData,
                             const std::vector<unsigned int>& g4_trackid_v,

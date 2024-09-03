@@ -73,15 +73,12 @@ private:
   std::vector<ems::DirOfGamma*> CollectShower2D(detinfo::DetectorPropertiesData const& detProp,
                                                 art::Event const& e);
 
-  void Link(art::Event const& e,
-            detinfo::DetectorPropertiesData const& detProp,
-            std::vector<ems::DirOfGamma*> input);
+  void Link(detinfo::DetectorPropertiesData const& detProp, std::vector<ems::DirOfGamma*> input);
 
   // Remove tracks which are too close to each other
   void Reoptimize(detinfo::DetectorPropertiesData const& detProp);
 
-  void Make3DSeg(art::Event const& e,
-                 detinfo::DetectorPropertiesData const& detProp,
+  void Make3DSeg(detinfo::DetectorPropertiesData const& detProp,
                  std::vector<ems::DirOfGamma*> pair);
 
   bool Validate(detinfo::DetectorPropertiesData const& detProp,
@@ -105,8 +102,7 @@ private:
 
   bool Has(const std::vector<size_t>& v, size_t idx);
 
-  size_t LinkCandidates(art::Event const& e,
-                        detinfo::DetectorPropertiesData const& detProp,
+  size_t LinkCandidates(detinfo::DetectorPropertiesData const& detProp,
                         std::vector<ems::DirOfGamma*> input,
                         size_t id);
 
@@ -344,7 +340,7 @@ void ems::EMShower3D::produce(art::Event& e)
 
     std::vector<ems::DirOfGamma*> showernviews = CollectShower2D(detProp, e);
 
-    Link(e, detProp, showernviews);
+    Link(detProp, showernviews);
 
     while (fInisegs.size()) {
       fSeltracks.push_back(fInisegs[0]);
@@ -612,8 +608,7 @@ std::vector<ems::DirOfGamma*> ems::EMShower3D::CollectShower2D(
   return input;
 }
 
-void ems::EMShower3D::Link(art::Event const& e,
-                           detinfo::DetectorPropertiesData const& detProp,
+void ems::EMShower3D::Link(detinfo::DetectorPropertiesData const& detProp,
                            std::vector<ems::DirOfGamma*> input)
 {
   std::vector<std::vector<size_t>> saveids;
@@ -664,7 +659,7 @@ void ems::EMShower3D::Link(art::Event const& e,
         if ((saveids[v][1] == i) || (saveids[v][1] == idsave)) exist = true;
 
     if (pairs.size()) {
-      if (!exist) Make3DSeg(e, detProp, pairs);
+      if (!exist) Make3DSeg(detProp, pairs);
 
       std::vector<size_t> ids;
       ids.push_back(i);
@@ -680,13 +675,12 @@ void ems::EMShower3D::Link(art::Event const& e,
 
   i = 0;
   while (i < saveidsnotusedcls.size()) {
-    LinkCandidates(e, detProp, input, i);
+    LinkCandidates(detProp, input, i);
     i++;
   }
 }
 
-size_t ems::EMShower3D::LinkCandidates(art::Event const& e,
-                                       detinfo::DetectorPropertiesData const& detProp,
+size_t ems::EMShower3D::LinkCandidates(detinfo::DetectorPropertiesData const& detProp,
                                        std::vector<ems::DirOfGamma*> input,
                                        size_t id)
 {
@@ -758,14 +752,13 @@ size_t ems::EMShower3D::LinkCandidates(art::Event const& e,
   if (found && pairs.size()) {
     input[id]->SetIdCandidate(idcsave);
     input[idsave]->SetIdCandidate(idcjsave);
-    Make3DSeg(e, detProp, pairs);
+    Make3DSeg(detProp, pairs);
   }
 
   return index;
 }
 
-void ems::EMShower3D::Make3DSeg(art::Event const& e,
-                                detinfo::DetectorPropertiesData const& detProp,
+void ems::EMShower3D::Make3DSeg(detinfo::DetectorPropertiesData const& detProp,
                                 std::vector<ems::DirOfGamma*> pair)
 {
   if (pair.size() < 2) return;

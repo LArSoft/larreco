@@ -20,7 +20,6 @@ namespace tca {
   void SaveCRInfo(detinfo::DetectorClocksData const& clockData,
                   TCSlice& tcs,
                   PFPStruct& ms,
-                  bool prt,
                   bool fIsRealData);
   int GetOrigin(detinfo::DetectorClocksData const& clockData, TCSlice& tcs, PFPStruct& ms);
   void ClearCRInfo(TCSlice& tcs);

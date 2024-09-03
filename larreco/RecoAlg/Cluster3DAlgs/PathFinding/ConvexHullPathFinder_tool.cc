@@ -82,7 +82,6 @@ namespace lar_cluster3d {
      */
     reco::ClusterParametersList::iterator subDivideCluster(
       reco::ClusterParameters& cluster,
-      reco::PrincipalComponents& lastPCA,
       reco::ClusterParametersList::iterator positionItr,
       reco::ClusterParametersList& outputClusterList,
       int level = 0) const;
@@ -130,10 +129,6 @@ namespace lar_cluster3d {
     using MinMaxPointPair = std::pair<MinMaxPoints, MinMaxPoints>;
 
     void buildConvexHull(reco::ClusterParameters& clusterParameters, int level = 0) const;
-
-    float findConvexHullEndPoints(const reco::EdgeList&,
-                                  const reco::ClusterHit3D*,
-                                  const reco::ClusterHit3D*) const;
 
     using KinkTuple =
       std::tuple<int, reco::ConvexHullKinkTuple, HitOrderTupleList, HitOrderTupleList>;
@@ -312,11 +307,7 @@ namespace lar_cluster3d {
             buildConvexHull(cluster, 2);
 
             // Break our cluster into smaller elements...
-            subDivideCluster(cluster,
-                             cluster.getFullPCA(),
-                             cluster.daughterList().end(),
-                             cluster.daughterList(),
-                             0);
+            subDivideCluster(cluster, cluster.daughterList().end(), cluster.daughterList(), 0);
 
             // Add the daughters to the cluster
             clusterParameters.daughterList().insert(clusterParameters.daughterList().end(),
@@ -364,7 +355,6 @@ namespace lar_cluster3d {
 
   reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(
     reco::ClusterParameters& clusterToBreak,
-    reco::PrincipalComponents& lastPCA,
     reco::ClusterParametersList::iterator positionItr,
     reco::ClusterParametersList& outputClusterList,
     int level) const
@@ -464,8 +454,7 @@ namespace lar_cluster3d {
       for (auto& clusterParams : tempClusterParametersList) {
         size_t curOutputClusterListSize = outputClusterList.size();
 
-        positionItr =
-          subDivideCluster(clusterParams, fullPCA, positionItr, outputClusterList, level + 4);
+        positionItr = subDivideCluster(clusterParams, positionItr, outputClusterList, level + 4);
 
         // If the cluster we sent in was successfully broken then the position iterator will be shifted
         // This means we don't want to restore the current cluster here
@@ -1298,30 +1287,6 @@ namespace lar_cluster3d {
     poca1 = P1 + arcLen1 * u1;
 
     return (poca0 - poca1).norm();
-  }
-
-  float ConvexHullPathFinder::findConvexHullEndPoints(const reco::EdgeList& convexHull,
-                                                      const reco::ClusterHit3D* first3D,
-                                                      const reco::ClusterHit3D* last3D) const
-  {
-    float largestDistance(0.);
-
-    // Note that edges are vectors and that the convex hull edge list will be ordered
-    // The idea is that the maximum distance from a given edge is to the edge just before the edge that "turns back" towards the current edge
-    // meaning that the dot product of the two edges becomes negative.
-    reco::EdgeList::const_iterator firstEdgeItr = convexHull.begin();
-
-    while (firstEdgeItr != convexHull.end()) {
-      reco::EdgeList::const_iterator nextEdgeItr = firstEdgeItr;
-
-      //        Eigen::Vector2f firstEdgeVec(std::get<3>(*firstEdgeItr),std::get<);
-      //        Eigen::Vector2f lastPrimaryVec(lastPCA.getEigenVectors()[0][0],lastPCA.getEigenVectors()[0][1],lastPCA.getEigenVectors()[0][2]);
-      //        float           cosToLast = newPrimaryVec.dot(lastPrimaryVec);
-
-      while (++nextEdgeItr != convexHull.end()) {}
-    }
-
-    return largestDistance;
   }
 
   DEFINE_ART_CLASS_TOOL(ConvexHullPathFinder)

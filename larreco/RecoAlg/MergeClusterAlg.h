@@ -18,9 +18,7 @@
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -71,12 +69,11 @@ public:
   int MergeClusters(std::vector<art::PtrVector<recob::Hit>> const& planeClusters,
                     std::vector<art::PtrVector<recob::Hit>>& clusters) const;
   void reconfigure(fhicl::ParameterSet const& p);
-  bool PassCuts(double const& angle,
-                double const& crossingDistance,
-                double const& projectedWidth,
-                double const& separation,
-                double const& overlap,
-                double const& longLength) const;
+  bool PassCuts(double angle,
+                double crossingDistance,
+                double projectedWidth,
+                double separation,
+                double longLength) const;
 
 private:
   // Merging parameters

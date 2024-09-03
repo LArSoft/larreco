@@ -25,6 +25,7 @@
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/AnalysisBase/T0.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -79,6 +80,11 @@ namespace calo {
                                              Comment("Module label for T0 time producer."),
                                              ""};
 
+      fhicl::Atom<std::string> PFPModuleLabel{
+        Name("PFPModuleLabel"),
+        Comment("Module label for PFP producer. To be used to associate T0 with tracks."),
+        ""};
+
       fhicl::Atom<std::string> AssocHitModuleLabel{
         Name("AssocHitModuleLabel"),
         Comment("Module label for association between tracks and hits. If not set, defaults to "
@@ -112,7 +118,7 @@ namespace calo {
         Name("FieldDistortionCorrectionXSign"),
         Comment("Sign of the field distortion correction to be applied in the X direction. "
                 "Positive by default."),
-        1.};
+        1.f};
 
       fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlgConfig{
         Name("CaloAlg"),
@@ -150,9 +156,7 @@ namespace calo {
       const std::vector<const recob::TrackHitMeta*>& thms,
       const recob::Track& track,
       unsigned nplanes);
-    bool HitIsValid(const art::Ptr<recob::Hit> hit,
-                    const recob::TrackHitMeta* thm,
-                    const recob::Track& track);
+    bool HitIsValid(const recob::TrackHitMeta* thm, const recob::Track& track);
     geo::Point_t GetLocation(const recob::Track& track,
                              const art::Ptr<recob::Hit> hit,
                              const recob::TrackHitMeta* meta);
@@ -222,6 +226,15 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
   // must be valid if the T0 module label is non-empty
   art::FindManyP<anab::T0> fmT0s(trackListHandle, evt, fConfig.T0ModuleLabel());
+  art::FindManyP<recob::PFParticle> fmPFPs(trackListHandle, evt, fConfig.TrackModuleLabel());
+  std::vector<art::Ptr<recob::PFParticle>> pfpList;
+  if (fConfig.PFPModuleLabel().size()) {
+    for (std::size_t itrk = 0, sz = fmPFPs.size(); itrk < sz; ++itrk) {
+      // assuming every recob::Track has exactly one associated recob::PFParticle
+      pfpList.push_back(fmPFPs.at(itrk).at(0));
+    }
+  }
+  art::FindManyP<anab::T0> fmPFPT0s(pfpList, evt, fConfig.T0ModuleLabel());
 
   for (auto const& nt : fNormTools)
     nt->setup(evt);
@@ -236,8 +249,14 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
 
     double T0 = 0;
     if (fConfig.T0ModuleLabel().size()) {
-      const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
-      if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      if (fConfig.PFPModuleLabel().size()) {
+        const std::vector<art::Ptr<anab::T0>>& this_t0s = fmPFPT0s.at(trk_i);
+        if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      }
+      else {
+        const std::vector<art::Ptr<anab::T0>>& this_t0s = fmT0s.at(trk_i);
+        if (this_t0s.size()) T0 = this_t0s.at(0)->Time();
+      }
     }
 
     // organize the hits by plane
@@ -423,7 +442,7 @@ std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsIn
 {
   std::vector<std::vector<OrganizedHits>> ret(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
-    if (HitIsValid(hits[i], thms[i], track)) { ret[hits[i]->WireID().Plane].push_back({i, {}}); }
+    if (HitIsValid(thms[i], track)) { ret[hits[i]->WireID().Plane].push_back({i, {}}); }
   }
 
   return ret;
@@ -467,7 +486,7 @@ std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsSn
   std::vector<std::vector<OrganizedHits>> ret(nplanes);
   std::vector<std::vector<HitIdentifier>> hit_idents(nplanes);
   for (unsigned i = 0; i < hits.size(); i++) {
-    if (HitIsValid(hits[i], thms[i], track)) {
+    if (HitIsValid(thms[i], track)) {
       HitIdentifier this_ident(*hits[i]);
 
       // check if we have found a hit on this snippet before
@@ -496,13 +515,10 @@ std::vector<std::vector<OrganizedHits>> calo::GnocchiCalorimetry::OrganizeHitsSn
   return ret;
 }
 
-bool calo::GnocchiCalorimetry::HitIsValid(const art::Ptr<recob::Hit> hit,
-                                          const recob::TrackHitMeta* thm,
-                                          const recob::Track& track)
+bool calo::GnocchiCalorimetry::HitIsValid(const recob::TrackHitMeta* thm, const recob::Track& track)
 {
   if (thm->Index() == int_max_as_unsigned_int) return false;
-  if (!track.HasValidPoint(thm->Index())) return false;
-  return true;
+  return track.HasValidPoint(thm->Index());
 }
 
 geo::Point_t calo::GnocchiCalorimetry::GetLocation(const recob::Track& track,

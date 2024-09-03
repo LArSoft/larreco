@@ -9,12 +9,12 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 find_package(cetmodules 3.12.00 REQUIRED)
-project(larreco VERSION 09.23.04 LANGUAGES CXX)
+project(larreco VERSION 09.25.06 LANGUAGES CXX)
 
 include(CetCMakeEnv)
 cet_cmake_env()
 
-cet_set_compiler_flags(DIAGS CAUTIOUS
+cet_set_compiler_flags(DIAGS CAUTIOUS DWARF_VER 4
   WERROR
   NO_UNDEFINED
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs

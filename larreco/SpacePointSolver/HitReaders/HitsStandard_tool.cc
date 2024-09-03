@@ -50,7 +50,10 @@ namespace reco3d {
                   std::vector<art::Ptr<recob::Hit>>&) const override; // output hits plane 2
   };
 
-  HitsStandard::HitsStandard(fhicl::ParameterSet const& pset) { this->configure(pset); }
+  HitsStandard::HitsStandard(fhicl::ParameterSet const& pset)
+  {
+    this->configure(pset);
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -58,7 +61,7 @@ namespace reco3d {
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
-  void HitsStandard::configure(fhicl::ParameterSet const& pset)
+  void HitsStandard::configure(fhicl::ParameterSet const&)
   {
     //    m_enableMonitoring   = pset.get<bool>  ("EnableMonitoring",  true  );
 
@@ -74,7 +77,7 @@ namespace reco3d {
     bool is2view = false;
 
     for (auto& hit : inputHits) {
-      if (hit->Integral() < 0 || isnan(hit->Integral()) || isinf(hit->Integral())) {
+      if (hit->Integral() < 0 || std::isnan(hit->Integral()) || std::isinf(hit->Integral())) {
         mf::LogWarning("HitsStandard")
           << "WARNING: bad recob::Hit::Integral() = " << hit->Integral() << ". Skipping."
           << std::endl;

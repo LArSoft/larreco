@@ -29,6 +29,8 @@ namespace pma {
 
 class pma::Element3D {
 public:
+  virtual ~Element3D();
+
   /// TPC index or -1 if out of any TPC.
   int TPC(void) const { return fTPC; }
   /// Cryostat index or -1 if out of any cryostat.

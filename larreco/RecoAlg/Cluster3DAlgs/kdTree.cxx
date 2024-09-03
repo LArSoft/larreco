@@ -21,7 +21,10 @@
 
 namespace lar_cluster3d {
 
-  kdTree::kdTree(fhicl::ParameterSet const& pset) { this->configure(pset); }
+  kdTree::kdTree(fhicl::ParameterSet const& pset)
+  {
+    this->configure(pset);
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -212,7 +212,7 @@ QuadExpr Metric(const SpaceCharge* sc, double alpha)
 }
 
 // ---------------------------------------------------------------------------
-double SolvePair(CollectionWireHit* cwire, SpaceCharge* sci, SpaceCharge* scj, double alpha)
+double SolvePair(SpaceCharge* sci, SpaceCharge* scj, double alpha)
 {
   const QuadExpr chisq = Metric(sci, scj, alpha);
   const double chisq0 = chisq.Eval(0);
@@ -268,7 +268,7 @@ void Iterate(CollectionWireHit* cwire, double alpha)
     for (unsigned int j = i + 1; j < N; ++j) {
       SpaceCharge* scj = cwire->fCrossings[j];
 
-      const double x = SolvePair(cwire, sci, scj, alpha);
+      const double x = SolvePair(sci, scj, alpha);
 
       if (x == 0) continue;
 

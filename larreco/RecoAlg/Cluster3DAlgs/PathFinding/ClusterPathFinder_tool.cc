@@ -96,7 +96,7 @@ namespace lar_cluster3d {
     using MinMaxPointPair = std::pair<MinMaxPoints, MinMaxPoints>;
 
     void buildConvexHull(reco::ClusterParameters& clusterParameters, int level = 0) const;
-    void buildVoronoiDiagram(reco::ClusterParameters& clusterParameters, int level = 0) const;
+    void buildVoronoiDiagram(reco::ClusterParameters& clusterParameters) const;
     /**
      *  @brief Data members to follow
      */
@@ -133,7 +133,10 @@ namespace lar_cluster3d {
     return;
   }
 
-  void ClusterPathFinder::initializeHistograms(art::TFileDirectory&) { return; }
+  void ClusterPathFinder::initializeHistograms(art::TFileDirectory&)
+  {
+    return;
+  }
 
   void ClusterPathFinder::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
   {
@@ -553,8 +556,7 @@ namespace lar_cluster3d {
     return;
   }
 
-  void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterParameters,
-                                              int level) const
+  void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterParameters) const
   {
     // The plan is to build the enclosing 2D polygon around the points in the PCA plane of most spread for this cluster
     // To do so we need to start by building a list of 2D projections onto the plane of most spread...

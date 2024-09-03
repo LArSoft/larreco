@@ -24,7 +24,7 @@ namespace tca {
       if (tj1.CTP != inCTP) continue;
       if (tj1.AlgMod[kKilled]) continue;
 
-      SaveTjInfoStuff(slc, tj1, stageNum, stageName);
+      SaveTjInfoStuff(slc, tj1, stageNum);
 
       int trajID = tj1.ID;
       bool inShower = false;
@@ -88,7 +88,7 @@ namespace tca {
       }
 
       if (isShowerTj) continue;
-      if (tjIndex == -1) SaveTjInfoStuff(slc, tj1, stageNum, stageName);
+      if (tjIndex == -1) SaveTjInfoStuff(slc, tj1, stageNum);
 
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
@@ -141,7 +141,7 @@ namespace tca {
 
   } // SaveTjInfo (cots)
 
-  void SaveTjInfoStuff(TCSlice& slc, Trajectory& tj, int stageNum, std::string stageName)
+  void SaveTjInfoStuff(TCSlice& slc, Trajectory& tj, int stageNum)
   {
     if (!tcc.modes[kSaveShowerTree]) return;
 

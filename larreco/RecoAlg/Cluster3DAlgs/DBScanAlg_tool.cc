@@ -94,7 +94,10 @@ namespace lar_cluster3d {
     kdTree m_kdTree;    // For the kdTree
   };
 
-  DBScanAlg::DBScanAlg(fhicl::ParameterSet const& pset) { this->configure(pset); }
+  DBScanAlg::DBScanAlg(fhicl::ParameterSet const& pset)
+  {
+    this->configure(pset);
+  }
 
   //------------------------------------------------------------------------------------------------------------------------------------------
 
