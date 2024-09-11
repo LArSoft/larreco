@@ -124,7 +124,7 @@ namespace reco3d {
     , fMaxIterationsReg(pset.get<int>("MaxIterationsReg"))
     , fXHitOffset(pset.get<double>("XHitOffset"))
     , fMinNHits(pset.get<unsigned int>("MinNHits"))
-    , fMaxNTriplets(pset.get<unsigned int>("MaxNTriplets", 0))
+    , fMaxNTriplets(pset.get<unsigned int>("MaxNTriplets"))
   {
     recob::ChargedSpacePointCollectionCreator::produces(producesCollector(), "pre");
     if (fFit) {

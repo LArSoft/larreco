@@ -33,6 +33,10 @@ standard_spacepointsolver:
 
   # Minimum number of hits required in an event to run the spacepoint solver
   MinNHits: 20
+
+  # Maximum number of triplets allowed in the spacepoint solver (bail out if exceeded).
+  # Zero (default) means that no maximum is set.
+  MaxNTriplets: 0
 }
 
 END_PROLOG
