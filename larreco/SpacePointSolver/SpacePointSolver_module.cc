@@ -105,6 +105,7 @@ namespace reco3d {
     std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
 
     unsigned int fMinNHits;
+    unsigned int fMaxNTriplets;
   };
 
   DEFINE_ART_MODULE(SpacePointSolver)
@@ -123,6 +124,7 @@ namespace reco3d {
     , fMaxIterationsReg(pset.get<int>("MaxIterationsReg"))
     , fXHitOffset(pset.get<double>("XHitOffset"))
     , fMinNHits(pset.get<unsigned int>("MinNHits"))
+    , fMaxNTriplets(pset.get<unsigned int>("MaxNTriplets"))
   {
     recob::ChargedSpacePointCollectionCreator::produces(producesCollector(), "pre");
     if (fFit) {
@@ -427,14 +429,18 @@ namespace reco3d {
     auto spcol = recob::ChargedSpacePointCollectionCreator::forPtrs(evt);
     auto assns = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
 
-    // Skip very small events
-    if (hits->size() < fMinNHits) {
+    auto putemptycols = [&]() {
       spcol_pre.put();
       if (fFit) {
         spcol.put();
         evt.put(std::move(assns));
         spcol_noreg.put();
       }
+    };
+
+    // Skip very small events
+    if (hits->size() < fMinNHits) {
+      putemptycols();
       return;
     }
 
@@ -483,7 +489,13 @@ namespace reco3d {
                        fDistThresh,
                        fDistThreshDrift,
                        fXHitOffset);
-      BuildSystem(tf.TripletsTwoView(), cwires, iwires, orphanSCs, fAlpha != 0, hitmap);
+      auto triplets = tf.TripletsTwoView();
+      if (fMaxNTriplets > 0 && triplets.size() > fMaxNTriplets) {
+        std::cout << "Huge Triplet Size, bailing out" << std::endl;
+        putemptycols();
+        return;
+      }
+      BuildSystem(triplets, cwires, iwires, orphanSCs, fAlpha != 0, hitmap);
     }
     else {
       std::cout << "Finding XUV coincidences..." << std::endl;
@@ -497,7 +509,13 @@ namespace reco3d {
                        fDistThresh,
                        fDistThreshDrift,
                        fXHitOffset);
-      BuildSystem(tf.Triplets(), cwires, iwires, orphanSCs, fAlpha != 0, hitmap);
+      auto triplets = tf.Triplets();
+      if (fMaxNTriplets > 0 && triplets.size() > fMaxNTriplets) {
+        std::cout << "Huge Triplet Size, bailing out" << std::endl;
+        putemptycols();
+        return;
+      }
+      BuildSystem(triplets, cwires, iwires, orphanSCs, fAlpha != 0, hitmap);
     }
 
     FillSystemToSpacePoints(cwires, orphanSCs, spcol_pre);
