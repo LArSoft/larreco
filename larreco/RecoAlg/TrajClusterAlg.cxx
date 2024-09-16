@@ -1061,7 +1061,8 @@ namespace tca {
                         oldHit.RMS(),
                         oldHit.PeakAmplitude(),
                         oldHit.SigmaPeakAmplitude(),
-                        oldHit.SummedADC(),
+                        oldHit.ROISummedADC(),
+                        oldHit.HitSummedADC(),
                         oldHit.Integral(),
                         oldHit.SigmaIntegral(),
                         1,
@@ -1079,7 +1080,8 @@ namespace tca {
     double sPeakTime = 0;
     double peakAmp = 0;
     double sPeakAmp = 0;
-    float sumADC = 0;
+    float ROIsumADC = 0;
+    float HitsumADC = 0;
     raw::TDCtick_t startTick = INT_MAX;
     raw::TDCtick_t endTick = 0;
     for (auto allHitsIndex : tpHits) {
@@ -1090,7 +1092,8 @@ namespace tca {
       double intgrl = hit.Integral();
       sPeakTime += intgrl * hit.SigmaPeakTime();
       sPeakAmp += intgrl * hit.SigmaPeakAmplitude();
-      sumADC += hit.SummedADC();
+      ROIsumADC += hit.ROISummedADC();
+      HitsumADC += hit.HitSummedADC();
       integral += intgrl;
       sIntegral += intgrl * hit.SigmaIntegral();
       // Get the charge normalization from an input hit
@@ -1155,7 +1158,8 @@ namespace tca {
                       rms,
                       peakAmp,
                       sPeakAmp,
-                      sumADC,
+                      ROIsumADC,
+                      HitsumADC,
                       integral,
                       sIntegral,
                       1,

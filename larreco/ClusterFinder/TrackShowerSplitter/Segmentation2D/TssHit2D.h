@@ -38,7 +38,7 @@ public:
   int StartTick() const { return fHit->StartTick(); }
   int EndTick() const { return fHit->EndTick(); }
 
-  float SummedADC() const { return fHit->SummedADC(); }
+  float SummedADC() const { return fHit->ROISummedADC(); }
   float GetAmplitude() const { return fHit->PeakAmplitude(); }
 
 private:

@@ -114,6 +114,7 @@ void hit::RFFHitFinderAlg::EmplaceHit(std::vector<recob::Hit>& hitVector,
                            fFitter.AmplitudeVector()[ihit],
                            fFitter.AmplitudeErrorVector()[ihit],
                            summedADCTotal * areaFracVector[ihit],
+                           summedADCTotal * areaFracVector[ihit], //NOT CORRECTLY FILLED
                            areaVector[ihit],
                            areaErrorVector[ihit],
                            fFitter.NHits(),
