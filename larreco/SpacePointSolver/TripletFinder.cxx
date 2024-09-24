@@ -4,8 +4,7 @@
 
 #include "TVector3.h"
 
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 
 namespace reco3d {
@@ -20,7 +19,7 @@ namespace reco3d {
                                double distThresh,
                                double distThreshDrift,
                                double xhitOffset)
-    : geom(art::ServiceHandle<geo::Geometry const>()->provider())
+    : wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
     , fDistThresh(distThresh)
     , fDistThreshDrift(distThreshDrift)
     , fXHitOffset(xhitOffset)
@@ -40,12 +39,13 @@ namespace reco3d {
                                  std::map<geo::TPCID, std::vector<HitOrChan>>& out)
   {
     for (const art::Ptr<recob::Hit>& hit : hits) {
-      for (geo::TPCID tpc : geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()))) {
+      for (geo::TPCID tpc :
+           wireReadoutGeom->ROPtoTPCs(wireReadoutGeom->ChannelToROP(hit->Channel()))) {
         double xpos = 0;
-        for (geo::WireID wire : geom->ChannelToWire(hit->Channel())) {
+        for (geo::WireID wire : wireReadoutGeom->ChannelToWire(hit->Channel())) {
           if (geo::TPCID(wire) == tpc) {
             xpos = detProp.ConvertTicksToX(hit->PeakTime(), wire);
-            if (geom->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
+            if (wireReadoutGeom->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
           }
         }
 
@@ -61,7 +61,7 @@ namespace reco3d {
                                  std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out)
   {
     for (raw::ChannelID_t chan : bads) {
-      for (geo::TPCID tpc : geom->ROPtoTPCs(geom->ChannelToROP(chan))) {
+      for (geo::TPCID tpc : wireReadoutGeom->ROPtoTPCs(wireReadoutGeom->ChannelToROP(chan))) {
         out[tpc].push_back(chan);
       }
     }
@@ -70,45 +70,40 @@ namespace reco3d {
   // -------------------------------------------------------------------------
   class IntersectionCache {
   public:
-    IntersectionCache(geo::TPCID tpc)
-      : geom(art::ServiceHandle<geo::Geometry const>()->provider()), fTPC(tpc)
+    IntersectionCache(geo::WireReadoutGeom const* cmAlg, geo::TPCID tpc)
+      : wireReadoutGeom{cmAlg}, fTPC(tpc)
     {}
 
-    bool operator()(raw::ChannelID_t a, raw::ChannelID_t b, geo::WireIDIntersection& pt)
+    std::optional<geo::WireIDIntersection> const& operator()(raw::ChannelID_t a, raw::ChannelID_t b)
     {
-      const auto key = std::make_pair(a, b);
+      auto const key = std::make_pair(a, b);
 
-      auto it = fMap.find(key);
-      if (it != fMap.end()) {
-        pt = fPtMap[key];
-        return it->second;
-      }
+      auto it = fPtMap.find(key);
+      if (it != fPtMap.end()) { return it->second; }
 
-      const bool res = ISect(a, b, pt);
-      fMap.insert({key, res});
-      fPtMap.insert({key, pt});
-      return res;
+      return fPtMap.try_emplace(key, ISect(a, b)).first->second;
     }
 
-  protected:
-    bool ISect(raw::ChannelID_t chanA, raw::ChannelID_t chanB, geo::WireIDIntersection& pt) const
+  private:
+    std::optional<geo::WireIDIntersection> ISect(raw::ChannelID_t chanA,
+                                                 raw::ChannelID_t chanB) const
     {
-      for (geo::WireID awire : geom->ChannelToWire(chanA)) {
+      for (geo::WireID awire : wireReadoutGeom->ChannelToWire(chanA)) {
         if (geo::TPCID(awire) != fTPC) continue;
-        for (geo::WireID bwire : geom->ChannelToWire(chanB)) {
+        for (geo::WireID bwire : wireReadoutGeom->ChannelToWire(chanB)) {
           if (geo::TPCID(bwire) != fTPC) continue;
 
-          if (geom->WireIDsIntersect(awire, bwire, pt)) return true;
+          if (auto pt = wireReadoutGeom->WireIDsIntersect(awire, bwire)) return pt;
         }
       }
 
-      return false;
+      return std::nullopt;
     }
 
-    const geo::GeometryCore* geom;
+    const geo::WireReadoutGeom* wireReadoutGeom;
 
-    std::map<std::pair<raw::ChannelID_t, raw::ChannelID_t>, bool> fMap;
-    std::map<std::pair<raw::ChannelID_t, raw::ChannelID_t>, geo::WireIDIntersection> fPtMap;
+    using key_t = std::pair<raw::ChannelID_t, raw::ChannelID_t>;
+    std::map<key_t, std::optional<geo::WireIDIntersection>> fPtMap;
 
     geo::TPCID fTPC;
   };
@@ -154,7 +149,7 @@ namespace reco3d {
       std::vector<ChannelDoublet> xvs = DoubletsXV(tpc);
 
       // Cache to prevent repeating the same questions
-      IntersectionCache isectUV(tpc);
+      IntersectionCache isectUV(wireReadoutGeom, tpc);
 
       // For the efficient looping below to work we need to sort the doublet
       // lists so the X hits occur in the same order.
@@ -183,9 +178,10 @@ namespace reco3d {
 
           if (u.hit && v.hit && !CloseDrift(u.xpos, v.xpos)) continue;
 
-          geo::WireIDIntersection ptUV;
-          if (!isectUV(u.chan, v.chan, ptUV)) continue;
+          auto maybe_ptUV = isectUV(u.chan, v.chan);
+          if (!maybe_ptUV) continue;
 
+          auto const& ptUV = *maybe_ptUV;
           if (!CloseSpace(xu.pt, xvit->pt) || !CloseSpace(xu.pt, ptUV) ||
               !CloseSpace(xvit->pt, ptUV))
             continue;
@@ -294,15 +290,14 @@ namespace reco3d {
   {
     std::vector<ChannelDoublet> ret;
 
-    IntersectionCache isect(tpc);
+    IntersectionCache isect(wireReadoutGeom, tpc);
 
     auto b_begin = bhits.begin();
 
     for (const HitOrChan& a : ahits) {
       // Bad channels are easy because there's no timing constraint
       for (raw::ChannelID_t b : bbads) {
-        geo::WireIDIntersection pt;
-        if (isect(a.chan, b, pt)) { ret.emplace_back(a, b, pt); }
+        if (auto pt = isect(a.chan, b)) { ret.emplace_back(a, b, *pt); }
       }
 
       while (b_begin != bhits.end() && b_begin->xpos < a.xpos && !CloseDrift(b_begin->xpos, a.xpos))
@@ -313,10 +308,10 @@ namespace reco3d {
 
         if (b.xpos > a.xpos && !CloseDrift(b.xpos, a.xpos)) break;
 
-        geo::WireIDIntersection pt;
-        if (!isect(a.chan, b.chan, pt)) continue;
+        auto pt = isect(a.chan, b.chan);
+        if (!pt) continue;
 
-        ret.emplace_back(a, b, pt);
+        ret.emplace_back(a, b, *pt);
       } // end for b
     }   // end for a
 

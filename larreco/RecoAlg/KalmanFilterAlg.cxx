@@ -38,25 +38,22 @@
 
 namespace {
 
-  void hit_position(const trkf::KHitBase& hit, double& z, double& x)
+  std::pair<double, double> hit_position(const trkf::KHitBase& hit)
   {
-
     // Map hit -> (z,x) for plotting.
+    art::ServiceHandle<geo::Geometry const> geom;
 
-    // Default result.
-
-    z = 0.;
-    x = 0.;
+    double z = 0.;
+    double x = 0.;
 
     // Cast this hit to KHit<1>.  Only know how to handle 1D hits.
 
-    const trkf::KHit<1>* phit1 = dynamic_cast<const trkf::KHit<1>*>(&hit);
-    if (phit1) {
+    if (auto phit1 = dynamic_cast<const trkf::KHit<1>*>(&hit)) {
       const std::shared_ptr<const trkf::Surface>& psurf = hit.getMeasSurface();
 
       // Handle SurfYZPlane.
 
-      if (const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf)) {
+      if (auto pyz = dynamic_cast<const trkf::SurfYZPlane*>(psurf.get())) {
 
         // Now finished doing casts.
         // We have a kind of hit and measurement surface that we know how to handle.
@@ -72,14 +69,13 @@ namespace {
         double z0 = pyz->z0();
         double y0 = pyz->y0();
         double phi = pyz->phi();
-        art::ServiceHandle<geo::Geometry const> geom;
-        double ymax = geom->DetHalfWidth();
+        double ymax = geom->TPC().HalfWidth();
         if (phi > 0.)
           z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
         else
           z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
       }
-      else if (const trkf::SurfYZLine* pyz = dynamic_cast<const trkf::SurfYZLine*>(&*psurf)) {
+      else if (auto pyz = dynamic_cast<const trkf::SurfYZLine*>(psurf.get())) {
 
         // Now finished doing casts.
         // We have a kind of hit and measurement surface that we know how to handle.
@@ -95,14 +91,14 @@ namespace {
         double z0 = pyz->z0();
         double y0 = pyz->y0();
         double phi = pyz->phi();
-        art::ServiceHandle<geo::Geometry const> geom;
-        double ymax = geom->DetHalfWidth();
+        double ymax = geom->TPC().HalfWidth();
         if (phi > 0.)
           z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
         else
           z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
       }
     }
+    return {z, x};
   }
 
   void update_momentum(const trkf::KVector<2>::type& defl,
@@ -477,9 +473,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
         const KHitBase& hit = *phit;
         int pl = hit.getMeasPlane();
         if (pl >= 0 && pl < int(fPads.size())) {
-          double z = 0.;
-          double x = 0.;
-          hit_position(hit, z, x);
+          auto const [z, x] = hit_position(hit);
           TMarker* marker = new TMarker(z, x, 20);
           fMarkerMap[hit.getID()] = marker;
           fPads[pl]->cd();
@@ -505,9 +499,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
         const KHitBase& hit = *phit;
         int pl = hit.getMeasPlane();
         if (pl >= 0 && pl < int(fPads.size())) {
-          double z = 0.;
-          double x = 0.;
-          hit_position(hit, z, x);
+          auto const [z, x] = hit_position(hit);
           TMarker* marker = new TMarker(z, x, 20);
           fMarkerMap[hit.getID()] = marker;
           fPads[pl]->cd();
@@ -628,7 +620,6 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
             TMarker* marker = marker_it->second;
             marker->SetMarkerColor(kBlue);
           }
-          //fCanvases.back()->Update();
         }
 
         // Update predction using current track hypothesis and get
@@ -1269,9 +1260,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
               TMarker* marker = 0;
               auto marker_it = fMarkerMap.find(hit.getID());
               if (marker_it == fMarkerMap.end()) {
-                double z = 0.;
-                double x = 0.;
-                hit_position(hit, z, x);
+                auto const [z, x] = hit_position(hit);
                 marker = new TMarker(z, x, 20);
                 fMarkerMap[hit.getID()] = marker;
                 fPads[pl]->cd();
@@ -1305,9 +1294,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
               TMarker* marker = 0;
               auto marker_it = fMarkerMap.find(hit.getID());
               if (marker_it == fMarkerMap.end()) {
-                double z = 0.;
-                double x = 0.;
-                hit_position(hit, z, x);
+                auto const [z, x] = hit_position(hit);
                 marker = new TMarker(z, x, 20);
                 fMarkerMap[hit.getID()] = marker;
                 fPads[pl]->cd();
@@ -1323,8 +1310,6 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
         }
         fCanvases.back()->Update();
       }
-
-      //std::cout << "extendTrack: marker map has " << fMarkerMap.size() << " entries." << std::endl;
 
       // Extend loop starts here.
 

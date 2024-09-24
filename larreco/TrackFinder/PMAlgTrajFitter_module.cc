@@ -27,6 +27,7 @@
 // LArSoft includes
 #include "canvas/Utilities/InputTag.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -102,7 +103,7 @@ namespace trkf {
     static const std::string kNodesName; // pma nodes
 
     // *********************** geometry **************************
-    art::ServiceHandle<geo::Geometry const> fGeom;
+    geo::WireReadoutGeom const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   };
   // -------------------------------------------------------------
   const std::string PMAlgTrajFitter::kKinksName = "kink";
@@ -113,14 +114,10 @@ namespace trkf {
     : EDProducer{config}
     , fHitModuleLabel(config().HitModuleLabel())
     , fPfpModuleLabel(config().PfpModuleLabel())
-    ,
-
-    fPmaConfig(config().ProjectionMatchingAlg())
+    , fPmaConfig(config().ProjectionMatchingAlg())
     , fPmaFitterConfig(config().PMAlgFitting())
     , fPmaVtxConfig(config().PMAlgVertexing())
-    ,
-
-    fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx())
+    , fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx())
     , fSavePmaNodes(config().SavePmaNodes())
   {
     produces<std::vector<recob::Track>>();
@@ -243,10 +240,14 @@ namespace trkf {
 
         trk->SelectHits(); // just in case, set all to enabled
         unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
-        auto const& tpc = fGeom->TPC(geo::TPCID(icryo, itpc));
-        if (tpc.HasPlane(geo::kU)) trk->CompleteMissingWires(detProp, geo::kU);
-        if (tpc.HasPlane(geo::kV)) trk->CompleteMissingWires(detProp, geo::kV);
-        if (tpc.HasPlane(geo::kZ)) trk->CompleteMissingWires(detProp, geo::kZ);
+        geo::TPCID const tpcid{icryo, itpc};
+        auto has_plane = [this, &tpcid](auto const view) {
+          return wireReadoutGeom.HasPlane(geo::PlaneID(tpcid, view));
+        };
+
+        if (has_plane(geo::kU)) trk->CompleteMissingWires(detProp, geo::kU);
+        if (has_plane(geo::kV)) trk->CompleteMissingWires(detProp, geo::kV);
+        if (has_plane(geo::kZ)) trk->CompleteMissingWires(detProp, geo::kZ);
 
         // gc: make sure no tracks are created with less than 2 points
         if (trk->size() < 2) continue;

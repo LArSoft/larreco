@@ -22,7 +22,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/RecoObjects/KETrack.h"
@@ -509,7 +509,7 @@ void trkf::Track3DKalmanHitAlg::fitnupdateMomentum(Propagator const& propagator,
 recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData const& detProp,
                                                 const Hits& hits) const
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   // Do a linear 3D least squares for of y and z vs. x.
   // y = y0 + ay*(x-x0)
@@ -554,7 +554,7 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(detinfo::DetectorPropertiesData 
     // Extract the angle, w and x coordinates from hit.
 
     geo::WireID wire_id = hit.WireID();
-    const geo::WireGeo& wgeom = geom->Wire(wire_id);
+    const geo::WireGeo& wgeom = wireReadoutGeom.Wire(wire_id);
     auto const xyz = wgeom.GetCenter();
 
     // Phi convention is the one documented in SurfYZPlane.h.

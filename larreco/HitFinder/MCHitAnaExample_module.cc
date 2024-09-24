@@ -15,7 +15,7 @@
 #include "art_root_io/TFileService.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/MCBase/MCHitCollection.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -25,12 +25,9 @@
 
 namespace hit {
 
-  class MCHitAnaExample;
-
   class MCHitAnaExample : public art::EDAnalyzer {
   public:
     explicit MCHitAnaExample(fhicl::ParameterSet const& p);
-    virtual ~MCHitAnaExample();
 
   private:
     void analyze(art::Event const& e) override;
@@ -129,9 +126,9 @@ namespace hit {
 
     art::ServiceHandle<art::TFileService const> fs;
 
-    art::ServiceHandle<geo::Geometry const> geo;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
-    for (unsigned char plane = 0; plane < geo->Nplanes(); ++plane) {
+    for (unsigned char plane = 0; plane < wireReadoutGeom.Nplanes(); ++plane) {
 
       hMCHitQ_v.push_back(
         fs->make<TH1D>(Form("hMCHitQ_%d", plane),
@@ -267,13 +264,11 @@ namespace hit {
       200);
   }
 
-  MCHitAnaExample::~MCHitAnaExample() {}
-
   void MCHitAnaExample::analyze(art::Event const& e)
   {
     fAnaWatch.Start();
 
-    art::ServiceHandle<geo::Geometry const> geo;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
 
     fReadWatch.Start();
@@ -287,25 +282,21 @@ namespace hit {
     //
     // Work on purely MCHit info
     //
-    std::vector<size_t> mchit_mult(geo->Nplanes(), 0);
+    std::vector<size_t> mchit_mult(wireReadoutGeom.Nplanes(), 0);
     for (auto const& mchits : mchits_v) {
-
-      auto plane = geo->ChannelToWire(mchits.Channel()).at(0).Plane;
-
+      auto plane = wireReadoutGeom.ChannelToWire(mchits.Channel()).at(0).Plane;
       mchit_mult.at(plane) += mchits.size();
 
       for (auto const& mchit : mchits)
-
         hMCHitQ_v.at(plane)->Fill(mchit.Charge(true));
     }
 
-    std::vector<size_t> recohit_mult(geo->Nplanes(), 0);
+    std::vector<size_t> recohit_mult(wireReadoutGeom.Nplanes(), 0);
 
     double search_time_sum = 0;
 
     // Loop over RecoHit
     for (size_t hit_index = 0; hit_index < recohits.size(); ++hit_index) {
-
       auto const& hit = recohits.at(hit_index);
 
       auto const& wire_id = hit.WireID();
@@ -315,7 +306,7 @@ namespace hit {
       recohit_mult.at(wire_id.Plane) += 1;
 
       // Figure out channel & retrieve MCHitCollection for this channel
-      auto ch = geo->PlaneWireToChannel(wire_id);
+      auto ch = wireReadoutGeom.PlaneWireToChannel(wire_id);
 
       if (mchits_v.size() <= ch)
         throw cet::exception(__PRETTY_FUNCTION__)
@@ -384,7 +375,7 @@ namespace hit {
     } // end looping over hits
 
     // Fill purely-MCHit and purely-RecoHit multiplicity histograms
-    for (unsigned char plane = 0; plane < geo->Nplanes(); ++plane) {
+    for (unsigned char plane = 0; plane < wireReadoutGeom.Nplanes(); ++plane) {
       std::cout << mchit_mult.at(plane) << std::endl;
       hMCHitMult_v.at(plane)->Fill(mchit_mult.at(plane));
       hRecoHitMult_v.at(plane)->Fill(recohit_mult.at(plane));

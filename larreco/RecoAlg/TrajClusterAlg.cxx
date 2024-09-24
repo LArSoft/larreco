@@ -12,6 +12,7 @@
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
@@ -314,6 +315,7 @@ namespace tca {
     evt.event = event;
     // refresh service references
     tcc.geom = lar::providerFrom<geo::Geometry>();
+    tcc.wireReadoutGeom = &art::ServiceHandle<geo::WireReadout const>()->Get();
     evt.WorkID = 0;
     evt.globalT_UID = 0;
     evt.global2V_UID = 0;
@@ -1239,7 +1241,7 @@ namespace tca {
         cstat = hit.WireID().Cryostat;
         tpc = hit.WireID().TPC;
         slc.TPCID = geo::TPCID(cstat, tpc);
-        nHitsInPln.resize(tcc.geom->Nplanes(slc.TPCID));
+        nHitsInPln.resize(tcc.wireReadoutGeom->Nplanes(slc.TPCID));
         first = false;
       }
       if (hit.WireID().Cryostat != cstat || hit.WireID().TPC != tpc) return false;

@@ -14,6 +14,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -27,13 +28,6 @@ namespace trkf {
   //----------------------------------------------------------------------------
   SeedFinderAlgorithm::SeedFinderAlgorithm(const fhicl::ParameterSet& pset)
   {
-    reconfigure(pset);
-  }
-
-  //----------------------------------------------------------------------------
-  void SeedFinderAlgorithm::reconfigure(fhicl::ParameterSet const& pset)
-  {
-
     fSptalg = new trkf::SpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
 
     fInitSeedLength = pset.get<double>("InitSeedLength");
@@ -610,14 +604,12 @@ namespace trkf {
                                               double& disp,
                                               double& s) const
   {
-    art::ServiceHandle<geo::Geometry const> geom;
-
-    double xyzStart[3], xyzEnd[3];
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     constexpr geo::TPCID tpcid{0, 0};
     geo::PlaneID const planeID{tpcid, AHit->WireID().Plane};
 
-    geom->WireEndPoints(geo::WireID{planeID, 0}, xyzStart, xyzEnd);
+    auto const [start, end] = wireReadoutGeom.WireEndPoints(geo::WireID{planeID, 0});
 
     double HitX = detProp.ConvertTicksToX(AHit->PeakTime(), planeID);
     double HitXHigh = detProp.ConvertTicksToX(AHit->PeakTimePlusRMS(), planeID);
@@ -632,8 +624,8 @@ namespace trkf {
 
     TVector3 sPt(pt[0], pt[1], pt[2]);
     TVector3 sDir(dir[0], dir[1], dir[2]);
-    TVector3 hPt(HitX, xyzStart[1], xyzStart[2]);
-    TVector3 hDir(0, xyzStart[1] - xyzEnd[1], xyzStart[2] - xyzEnd[2]);
+    TVector3 hPt(HitX, start.Y(), start.Z());
+    TVector3 hDir(0, start.Y() - end.Y(), start.Z() - end.Z());
 
     s = (sPt - hPt).Dot(hDir * (hDir.Dot(sDir)) - sDir * (hDir.Dot(hDir))) /
         (hDir.Dot(hDir) * sDir.Dot(sDir) - pow(hDir.Dot(sDir), 2));
@@ -931,15 +923,16 @@ namespace trkf {
   void SeedFinderAlgorithm::CalculateGeometricalElements()
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // Total number of channels in the detector
-    fNChannels = geom->Nchannels();
+    fNChannels = wireReadoutGeom.Nchannels();
 
     // Find pitch of each wireplane
     fPitches.resize(3);
-    fPitches.at(0) = fabs(geom->WirePitch(geo::kU));
-    fPitches.at(1) = fabs(geom->WirePitch(geo::kV));
-    fPitches.at(2) = fabs(geom->WirePitch(geo::kW));
+    fPitches.at(0) = fabs(wireReadoutGeom.Plane({0, 0, geo::kU}).WirePitch());
+    fPitches.at(1) = fabs(wireReadoutGeom.Plane({0, 0, geo::kV}).WirePitch());
+    fPitches.at(2) = fabs(wireReadoutGeom.Plane({0, 0, geo::kW}).WirePitch());
 
     // Setup basis vectors
     fXDir = TVector3(1, 0, 0);
@@ -955,8 +948,8 @@ namespace trkf {
 
     // Calculate wire coordinate systems
     for (unsigned int n = 0; n != 3u; ++n) {
-      geom->WireEndPoints(geo::WireID{0, 0, n, 0}, xyzStart1, xyzEnd1);
-      geom->WireEndPoints(geo::WireID{0, 0, n, 1}, xyzStart2, xyzEnd2);
+      wireReadoutGeom.WireEndPoints(geo::WireID{0, 0, n, 0}, xyzStart1, xyzEnd1);
+      wireReadoutGeom.WireEndPoints(geo::WireID{0, 0, n, 1}, xyzStart2, xyzEnd2);
       fWireDir[n] =
         TVector3(xyzEnd1[0] - xyzStart1[0], xyzEnd1[1] - xyzStart1[1], xyzEnd1[2] - xyzStart1[2])
           .Unit();

@@ -2,8 +2,6 @@
  * @file   TrajCluster_module.cc
  * @brief  Cluster finder using trajectories
  * @author Bruce Baller (baller@fnal.gov)
- *
-*
  */
 
 // C/C++ standard libraries
@@ -20,6 +18,7 @@
 
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
@@ -291,12 +290,12 @@ namespace cluster {
         art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
       auto const detProp =
         art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-      auto const* geom = lar::providerFrom<geo::Geometry>();
-      for (const auto& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (const auto& tpcgeo : tca::tcc.geom->Iterate<geo::TPCGeo>()) {
         // ignore protoDUNE dummy TPCs
-        if (geom->TPC(tpcid).DriftDistance() < 25.0) continue;
+        if (tpcgeo.DriftDistance() < 25.0) continue;
         // a vector for the subset of hits in each slice in a TPC
         //    slice      hits in this tpc
+        auto const& tpcid = tpcgeo.ID();
         std::vector<std::vector<unsigned int>> sltpcHits;
         if (inputSlices.isValid()) {
           // get hits in this TPC and slice
@@ -440,7 +439,7 @@ namespace cluster {
           unsigned int wire = std::nearbyint(vx2.Pos[0]);
           geo::PlaneID plID = tca::DecodeCTP(vx2.CTP);
           geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
-          geo::View_t view = tca::tcc.geom->View(wID);
+          geo::View_t view = tca::tcc.wireReadoutGeom->Plane(wID).View();
           vx2Col.emplace_back((double)vx2.Pos[1] / tca::tcc.unitsPerTick, // Time
                               wID,                                        // WireID
                               vx2.Score,                                  // strength = score
@@ -819,21 +818,14 @@ namespace cluster {
     fTCAlg.ClearResults();
 
     // convert vectors to unique_ptrs
-    std::unique_ptr<std::vector<recob::Hit>> hcol(new std::vector<recob::Hit>(std::move(hitCol)));
-    std::unique_ptr<std::vector<recob::Cluster>> ccol(
-      new std::vector<recob::Cluster>(std::move(clsCol)));
-    std::unique_ptr<std::vector<recob::EndPoint2D>> v2col(
-      new std::vector<recob::EndPoint2D>(std::move(vx2Col)));
-    std::unique_ptr<std::vector<recob::Vertex>> v3col(
-      new std::vector<recob::Vertex>(std::move(vx3Col)));
-    std::unique_ptr<std::vector<recob::PFParticle>> pcol(
-      new std::vector<recob::PFParticle>(std::move(pfpCol)));
-    std::unique_ptr<std::vector<recob::Seed>> sdcol(
-      new std::vector<recob::Seed>(std::move(sedCol)));
-    std::unique_ptr<std::vector<recob::Shower>> scol(
-      new std::vector<recob::Shower>(std::move(shwCol)));
-    std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(
-      new std::vector<anab::CosmicTag>(std::move(ctCol)));
+    auto hcol = std::make_unique<std::vector<recob::Hit>>(move(hitCol));
+    auto ccol = std::make_unique<std::vector<recob::Cluster>>(move(clsCol));
+    auto v2col = std::make_unique<std::vector<recob::EndPoint2D>>(move(vx2Col));
+    auto v3col = std::make_unique<std::vector<recob::Vertex>>(move(vx3Col));
+    auto pcol = std::make_unique<std::vector<recob::PFParticle>>(move(pfpCol));
+    auto sdcol = std::make_unique<std::vector<recob::Seed>>(move(sedCol));
+    auto scol = std::make_unique<std::vector<recob::Shower>>(move(shwCol));
+    auto ctgcol = std::make_unique<std::vector<anab::CosmicTag>>(move(ctCol));
 
     // move the cluster collection and the associations into the event:
     if (fHitModuleLabel != "NA") {

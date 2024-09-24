@@ -9,6 +9,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 #include "larreco/RecoAlg/PMAlgStitching.h"
 
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
@@ -51,8 +52,8 @@ recob::Track pma::convertFrom(const pma::Track3D& src, unsigned int tidx, int pd
     covEnd,
     tidx);
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 pma::PMAlgTrackingBase::PMAlgTrackingBase(const std::vector<art::Ptr<recob::Hit>>& allhitlist,
                                           const pma::ProjectionMatchingAlg::Config& pmalgConfig,
                                           const pma::PMAlgVertexing::Config& pmvtxConfig)
@@ -67,15 +68,15 @@ pma::PMAlgTrackingBase::PMAlgTrackingBase(const std::vector<art::Ptr<recob::Hit>
     fHitMap[cryo][tpc][view].push_back(h);
   }
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 pma::PMAlgTrackingBase::~PMAlgTrackingBase()
 {
   for (auto t : fResult.tracks())
     t.DeleteTrack();
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTrackingBase::guideEndpoints(detinfo::DetectorPropertiesData const& detProp,
                                             pma::TrkCandidateColl& tracks)
 {
@@ -94,10 +95,8 @@ void pma::PMAlgTrackingBase::guideEndpoints(detinfo::DetectorPropertiesData cons
     }
   }
 }
-// ------------------------------------------------------
-// ------------------------------------------------------
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 pma::PMAlgFitter::PMAlgFitter(const std::vector<art::Ptr<recob::Hit>>& allhitlist,
                               const std::vector<recob::Cluster>& clusters,
                               const std::vector<recob::PFParticle>& pfparticles,
@@ -140,9 +139,7 @@ pma::PMAlgFitter::PMAlgFitter(const std::vector<art::Ptr<recob::Hit>>& allhitlis
   mf::LogVerbatim("PMAlgFitter") << "...done, " << fCluHits.size() << " clusters from "
                                  << fPfpClusters.size() << " pfparticles for 3D tracking.";
 }
-// ------------------------------------------------------
 
-// ------------------------------------------------------
 // ------------------------------------------------------
 int pma::PMAlgFitter::build(detinfo::DetectorPropertiesData const& detProp)
 {
@@ -165,9 +162,8 @@ int pma::PMAlgFitter::build(detinfo::DetectorPropertiesData const& detProp)
 
   return fResult.size();
 }
-// ------------------------------------------------------
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgFitter::buildTracks(detinfo::DetectorPropertiesData const& detProp)
 {
   bool skipPdg = true;
@@ -221,8 +217,8 @@ void pma::PMAlgFitter::buildTracks(detinfo::DetectorPropertiesData const& detPro
     }
   }
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgFitter::buildShowers(detinfo::DetectorPropertiesData const& detProp)
 {
   bool skipPdg = true;
@@ -277,10 +273,8 @@ void pma::PMAlgFitter::buildShowers(detinfo::DetectorPropertiesData const& detPr
     }
   }
 }
-// ------------------------------------------------------
-// ------------------------------------------------------
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 pma::PMAlgTracker::PMAlgTracker(const std::vector<art::Ptr<recob::Hit>>& allhitlist,
                                 const std::vector<recob::Wire>& wires,
                                 const pma::ProjectionMatchingAlg::Config& pmalgConfig,
@@ -316,9 +310,10 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector<art::Ptr<recob::Hit>>& allhitl
   , fRunVertexing(pmalgTrackerConfig.RunVertexing())
   , fAdcInPassingPoints(hpassing)
   , fAdcInRejectedPoints(hrejected)
-  , fGeom(&*(art::ServiceHandle<geo::Geometry const>()))
+  , fGeom(art::ServiceHandle<geo::Geometry const>().get())
+  , fWireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
 {
-  for (const auto v : fGeom->Views()) {
+  for (const auto v : fWireReadoutGeom->Views()) {
     fAvailableViews.push_back(v);
   }
   std::reverse(fAvailableViews.begin(), fAvailableViews.end());
@@ -332,7 +327,7 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector<art::Ptr<recob::Hit>>& allhitl
   mf::LogVerbatim("PMAlgTracker") << "Validation mode in config: "
                                   << pmalgTrackerConfig.Validation();
 
-  size_t nplanes = fGeom->MaxPlanes();
+  size_t nplanes = fWireReadoutGeom->MaxPlanes();
   for (size_t p = 0; p < nplanes; ++p) {
     fAdcImages.emplace_back(pmalgTrackerConfig.AdcImageAlg());
   }
@@ -362,8 +357,8 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector<art::Ptr<recob::Hit>>& allhitl
     }
   }
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters)
 {
   mf::LogVerbatim("PMAlgTracker") << "Sort hits by clusters...";
@@ -380,8 +375,8 @@ void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters)
   }
   mf::LogVerbatim("PMAlgTracker") << "...done, " << fCluHits.size() << " clusters for 3D tracking.";
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters,
                              const std::vector<float>& trackLike)
 {
@@ -398,8 +393,8 @@ void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters,
     fCluWeights.push_back(trackLike[i]);
   }
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters,
                              const art::FindManyP<recob::Hit>& hitsFromEmParts)
 {
@@ -437,8 +432,8 @@ void pma::PMAlgTracker::init(const art::FindManyP<recob::Hit>& hitsFromClusters,
   }
   mf::LogVerbatim("PMAlgTracker") << "...done, " << n << " clusters for 3D tracking.";
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 double pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detProp,
                                    pma::Track3D& trk,
                                    unsigned int testView)
@@ -483,13 +478,12 @@ double pma::PMAlgTracker::validate(detinfo::DetectorPropertiesData const& detPro
 
   default:
     throw cet::exception("pma::PMAlgTracker") << "validation mode not supported" << std::endl;
-    break;
   }
 
   return v;
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 bool pma::PMAlgTracker::reassignHits_1(detinfo::DetectorPropertiesData const& detProp,
                                        const std::vector<art::Ptr<recob::Hit>>& hits,
                                        pma::TrkCandidateColl& tracks,
@@ -565,6 +559,7 @@ bool pma::PMAlgTracker::reassignHits_1(detinfo::DetectorPropertiesData const& de
   return result;
 }
 
+// ------------------------------------------------------
 double pma::PMAlgTracker::collectSingleViewEnd(pma::Track3D& trk,
                                                std::vector<art::Ptr<recob::Hit>>& hits) const
 {
@@ -585,6 +580,7 @@ double pma::PMAlgTracker::collectSingleViewEnd(pma::Track3D& trk,
   return d2;
 }
 
+// ------------------------------------------------------
 double pma::PMAlgTracker::collectSingleViewFront(pma::Track3D& trk,
                                                  std::vector<art::Ptr<recob::Hit>>& hits) const
 {
@@ -605,6 +601,7 @@ double pma::PMAlgTracker::collectSingleViewFront(pma::Track3D& trk,
   return d2;
 }
 
+// ------------------------------------------------------
 bool pma::PMAlgTracker::reassignSingleViewEnds_1(detinfo::DetectorPropertiesData const& detProp,
                                                  pma::TrkCandidateColl& tracks)
 {
@@ -630,6 +627,7 @@ bool pma::PMAlgTracker::reassignSingleViewEnds_1(detinfo::DetectorPropertiesData
   return result;
 }
 
+// ------------------------------------------------------
 bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1,
                                     pma::Track3D* trk2,
                                     double& dist,
@@ -681,18 +679,14 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1,
     pma::Track3D* tmp = 0;
     switch (k) // swap or flip to get trk1 end before trk2 start
     {
-    case 0:
-      trk1->Flip(); // detProp);
-      break;
+    case 0: trk1->Flip(); break;
     case 1:
       tmp = trk1;
       trk1 = trk2;
       trk2 = tmp;
       break;
     case 2: break;
-    case 3:
-      trk2->Flip(); // detProp);
-      break;
+    case 3: trk2->Flip(); break;
     default: mf::LogError("PMAlgTracker") << "Should never happen.";
     }
     if (k == 1)
@@ -816,14 +810,16 @@ bool pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorPropertiesData const& det
 
   return foundMerge;
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::freezeBranchingNodes(pma::TrkCandidateColl& tracks) const
 {
   for (auto const& trk : tracks.tracks())
     for (auto node : trk.Track()->Nodes())
       if (node->IsBranching()) node->SetFrozen(true);
 }
+
+// ------------------------------------------------------
 void pma::PMAlgTracker::releaseAllNodes(pma::TrkCandidateColl& tracks) const
 {
   for (auto const& trk : tracks.tracks())
@@ -831,6 +827,7 @@ void pma::PMAlgTracker::releaseAllNodes(pma::TrkCandidateColl& tracks) const
       node->SetFrozen(false);
 }
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorClocksData const& clockData,
                                       detinfo::DetectorPropertiesData const& detProp,
                                       pma::tpc_track_map& tracks) const
@@ -893,29 +890,24 @@ void pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorClocksData const& clockDa
           << "Merge track (" << tpc1 << ":" << tracks1.size() << ":" << trk1->size()
           << ") with track (" << best_tpc << ":" << tracks[best_tpc].size() << ":"
           << best_trk2->size() << ")";
-        auto const* geom = lar::providerFrom<geo::Geometry>();
         auto const* first_node_trk1 = trk1->Nodes().front();
-        const geo::TPCGeo& tpc1 =
-          geom->TPC(geo::TPCID(first_node_trk1->Cryo(), first_node_trk1->TPC()));
         auto const* first_node_trk2 = best_trk2->Nodes().front();
-        const geo::TPCGeo& tpc2 =
-          geom->TPC(geo::TPCID(first_node_trk2->Cryo(), first_node_trk2->TPC()));
+        geo::TPCID const tpc1ID(first_node_trk1->Cryo(), first_node_trk1->TPC());
+        geo::TPCID const tpc2ID(first_node_trk2->Cryo(), first_node_trk2->TPC());
+        auto const [axis1, sign1] = fGeom->TPC(tpc1ID).DriftAxisWithSign();
+        auto const [axis2, sign2] = fGeom->TPC(tpc2ID).DriftAxisWithSign();
         if (reverse) {
           fProjectionMatchingAlg.mergeTracks(detProp, *best_trk2, *trk1, true);
-          // This track will have a shift in x equal to zero. This will
-          // properly set the track T0
-          if (tpc1.DetectDriftDirection() * tpc2.DetectDriftDirection() < 0) {
-            best_trk2->ApplyDriftShiftInTree(clockData, detProp, 0.0);
-          }
+          // This track will have a shift in x equal to zero. This will properly set the
+          // track T0
+          if (sign1 != sign2) { best_trk2->ApplyDriftShiftInTree(clockData, detProp, 0.0); }
           tracks1[t].SetTrack(best_trk2);
         }
         else {
           fProjectionMatchingAlg.mergeTracks(detProp, *trk1, *best_trk2, true);
-          // This track will have a shift in x equal to zero. This will
-          // properly set the track T0
-          if (tpc1.DetectDriftDirection() * tpc2.DetectDriftDirection() < 0) {
-            trk1->ApplyDriftShiftInTree(clockData, detProp, 0.0);
-          }
+          // This track will have a shift in x equal to zero. This will properly set the
+          // track T0
+          if (sign1 != sign2) { trk1->ApplyDriftShiftInTree(clockData, detProp, 0.0); }
           tracks[best_tpc][best_idx].DeleteTrack();
         }
         tracks[best_tpc].erase_at(best_idx);
@@ -924,11 +916,9 @@ void pma::PMAlgTracker::mergeCoLinear(detinfo::DetectorClocksData const& clockDa
         t++;
     }
   }
-
-  //for (auto & tpc_entry : tracks) releaseAllNodes(tpc_entry.second);
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 size_t pma::PMAlgTracker::matchTrack(detinfo::DetectorPropertiesData const& detProp,
                                      const pma::TrkCandidateColl& tracks,
                                      const std::vector<art::Ptr<recob::Hit>>& hits) const
@@ -942,7 +932,6 @@ size_t pma::PMAlgTracker::matchTrack(detinfo::DetectorPropertiesData const& detP
 }
 
 // ------------------------------------------------------
-// ------------------------------------------------------
 int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
                              detinfo::DetectorPropertiesData const& detProp)
 {
@@ -950,7 +939,7 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
   fTriedClusters.clear();
   fUsedClusters.clear();
 
-  size_t nplanes = fGeom->MaxPlanes();
+  size_t nplanes = fWireReadoutGeom->MaxPlanes();
 
   pma::tpc_track_map tracks; // track parts in tpc's
 
@@ -958,8 +947,8 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
     mf::LogVerbatim("PMAlgTracker")
       << "Reconstruct tracks within Cryo:" << tpcid.Cryostat << " / TPC:" << tpcid.TPC << ".";
 
-    if (fValidation != pma::PMAlgTracker::kHits) // initialize ADC images for all planes in
-                                                 // this TPC (in "adc" and "calib")
+    if (fValidation != pma::PMAlgTracker::kHits) // initialize ADC images for all planes
+                                                 // in this TPC (in "adc" and "calib")
     {
       mf::LogVerbatim("PMAlgTracker") << "Prepare validation ADC images...";
       bool ok = true;
@@ -986,8 +975,7 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
 
     // add 3D ref.points for clean endpoints of wire-plane parallel track
     guideEndpoints(detProp, tracks[tpcid.TPC]);
-    // try correcting single-view sections spuriously merged on 2D clusters
-    // level
+    // try correcting single-view sections spuriously merged on 2D clusters level
     reassignSingleViewEnds_1(detProp, tracks[tpcid.TPC]);
 
     if (fMergeWithinTPC) {
@@ -1048,8 +1036,8 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
                                   1); // flip the tracks / trees to point downward (-Y)
   else if (fFlipToX)
     fResult.flipTreesToCoordinate(detProp,
-                                  0); // flip the tracks / trees to point in -X
-                                      // direction (downwards for dual phase)
+                                  0); // flip the tracks / trees to point in -X direction
+                                      // (downwards for dual phase)
 
   if (fAutoFlip_dQdx)
     fResult.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
@@ -1059,9 +1047,8 @@ int pma::PMAlgTracker::build(detinfo::DetectorClocksData const& clockData,
   listUsedClusters(detProp);
   return fResult.size();
 }
-// ------------------------------------------------------
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::fromMaxCluster_tpc(detinfo::DetectorPropertiesData const& detProp,
                                            pma::TrkCandidateColl& result,
                                            size_t minBuildSize,
@@ -1093,8 +1080,8 @@ void pma::PMAlgTracker::fromMaxCluster_tpc(detinfo::DetectorPropertiesData const
 
   fInitialClusters.clear();
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 pma::TrkCandidate pma::PMAlgTracker::matchCluster(
   detinfo::DetectorPropertiesData const& detProp,
   int first_clu_idx,
@@ -1128,8 +1115,8 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
     if (x < xmin) { xmin = x; }
   }
 
-  pma::TrkCandidateColl candidates; // possible solutions of the selected cluster and clusters in
-                                    // complementary views
+  pma::TrkCandidateColl candidates; // possible solutions of the selected cluster and
+                                    // clusters in complementary views
 
   size_t imatch = 0;
   bool try_build = true;
@@ -1170,7 +1157,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
       mf::LogVerbatim("PMAlgTracker")
         << "    cluster in view  *** " << bestView << " ***  size: " << nMaxHits;
 
-      if (!fGeom->TPC(geo::TPCID(cryo, tpc)).HasPlane(testView)) {
+      if (!fWireReadoutGeom->HasPlane(geo::PlaneID(cryo, tpc, testView))) {
         mf::LogVerbatim("PMAlgTracker") << "    no validation plane  *** ";
         testView = geo::kUnknown;
       }
@@ -1188,7 +1175,8 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
           fProjectionMatchingAlg.isContained(*(candidate.Track()), 2.0F)) // sticks out of TPC's?
       {
         m0 = candidate.Track()->GetMse();
-        if (m0 < mseThr) // check validation only if MSE is OK - thanks for Tracy for noticing this
+        if (m0 < mseThr) // check validation only if MSE is OK - thanks for Tracy for
+                         // noticing this
         {
           v0 = validate(detProp, *(candidate.Track()), testView);
         }
@@ -1211,7 +1199,6 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
           idx = matchCluster(detProp, candidate, minSize, fraction, geo::kUnknown, testView);
           if (idx >= 0) {
             // try building extended copy:
-            //                src,        hits,      valid.plane, add nodes
             if (extendTrack(detProp, candidate, fCluHits[idx], testView, true)) {
               candidate.Clusters().push_back(idx);
             }
@@ -1240,8 +1227,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
               idx = -1;
           }
         }
-        // need to calculate again only if trk was extended w/o checking
-        // validation:
+        // need to calculate again only if trk was extended w/o checking validation:
         if (extended) candidate.SetValidation(validate(detProp, *(candidate.Track()), testView));
       }
       else {
@@ -1290,8 +1276,8 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 
   return result;
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 bool pma::PMAlgTracker::extendTrack(detinfo::DetectorPropertiesData const& detProp,
                                     pma::TrkCandidate& candidate,
                                     const std::vector<art::Ptr<recob::Hit>>& hits,
@@ -1326,8 +1312,8 @@ bool pma::PMAlgTracker::extendTrack(detinfo::DetectorPropertiesData const& detPr
     return false;
   }
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 int pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detProp,
                                     const pma::TrkCandidate& trk,
                                     size_t minSize,
@@ -1368,8 +1354,8 @@ int pma::PMAlgTracker::matchCluster(detinfo::DetectorPropertiesData const& detPr
 
   return idx;
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 int pma::PMAlgTracker::maxCluster(detinfo::DetectorPropertiesData const& detProp,
                                   int first_idx_tag,
                                   const pma::TrkCandidateColl& candidates,
@@ -1425,8 +1411,8 @@ int pma::PMAlgTracker::maxCluster(detinfo::DetectorPropertiesData const& detProp
 
   return -1;
 }
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
                                   geo::View_t view,
                                   unsigned int tpc,
@@ -1453,9 +1439,8 @@ int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
   }
   return idx;
 }
-// ------------------------------------------------------
-// ------------------------------------------------------
 
+// ------------------------------------------------------
 void pma::PMAlgTracker::listUsedClusters(detinfo::DetectorPropertiesData const& detProp) const
 {
   mf::LogVerbatim("PMAlgTracker") << std::endl << "----------- matched clusters: -----------";
@@ -1485,5 +1470,3 @@ void pma::PMAlgTracker::listUsedClusters(detinfo::DetectorPropertiesData const& 
   mf::LogVerbatim("PMAlgTracker") << "    single hits: " << nsingles;
   mf::LogVerbatim("PMAlgTracker") << "-----------------------------------------";
 }
-// ------------------------------------------------------
-// ------------------------------------------------------

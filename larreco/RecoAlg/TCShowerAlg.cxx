@@ -2,9 +2,7 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/GeometryCore.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataalg/DetectorInfo/DetectorClocksData.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
@@ -62,11 +60,10 @@ namespace shower {
     dEdx.resize(2);
     dEdxErr.resize(2);
 
-    art::ServiceHandle<geo::Geometry const> geom;
-
     std::vector<pfpStuff> allpfps;
 
     // put together pfparticle information
+    auto const& plane_2 = art::ServiceHandle<geo::WireReadout>()->Get().Plane({0, 0, 2});
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
       thispfp.hits.clear();
@@ -101,8 +98,8 @@ namespace shower {
 
         allpfps.push_back(thispfp);
 
-        double tick = detProp.ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0, 0, 2));
-        int wire = geom->WireCoordinate(thispfp.vtx->position(), geo::PlaneID(0, 0, 2));
+        double tick = detProp.ConvertXToTicks(thispfp.vtx->position().X(), plane_2.ID());
+        int wire = plane_2.WireCoordinate(thispfp.vtx->position());
 
         std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":"
                   << clustersize[1] << ":" << clustersize[2] << " vertex " << thispfp.vtx->ID()
@@ -123,6 +120,7 @@ namespace shower {
 
     bool showerCandidate = false;
 
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     for (size_t i = 0; i < allpfps.size(); ++i) {
 
       showerHits.clear();
@@ -188,11 +186,12 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
-      for (auto const& planeid : geom->Iterate<geo::PlaneID>()) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
+        auto const& planeid = plane.ID();
         trk_tick1[planeid] = detProp.ConvertXToTicks(pfpStart.X(), planeid);
-        trk_wire1[planeid] = geom->WireCoordinate(pfpStart, planeid);
+        trk_wire1[planeid] = plane.WireCoordinate(pfpStart);
         trk_tick2[planeid] = detProp.ConvertXToTicks(pfpPt2.X(), planeid);
-        trk_wire2[planeid] = geom->WireCoordinate(pfpPt2, planeid);
+        trk_wire2[planeid] = plane.WireCoordinate(pfpPt2);
       }
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {
@@ -393,9 +392,8 @@ namespace shower {
                            std::map<geo::PlaneID, double> const& trk_tick2,
                            int& pull) const
   {
-    art::ServiceHandle<geo::Geometry const> geom;
-
-    double wirePitch = geom->WirePitch(hit->WireID());
+    double wirePitch =
+      art::ServiceHandle<geo::WireReadout>()->Get().Plane(hit->WireID()).WirePitch();
     double tickToDist = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     tickToDist *= 1.e-3 * sampling_rate(clockData); // 1e-3 is conversion of 1/us to 1/ns
     double UnitsPerTick = tickToDist / wirePitch;

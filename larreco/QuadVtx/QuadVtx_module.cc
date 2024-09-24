@@ -20,7 +20,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft libraries
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Vertex.h"
@@ -80,7 +80,7 @@ namespace quad {
 
     bool fSavePlots;
 
-    const geo::GeometryCore* geom;
+    const geo::WireReadoutGeom* wireReadoutGeom;
   };
 
   DEFINE_ART_MODULE(QuadVtx)
@@ -97,7 +97,7 @@ namespace quad {
   // ---------------------------------------------------------------------------
   void QuadVtx::beginJob()
   {
-    geom = art::ServiceHandle<const geo::Geometry>()->provider();
+    wireReadoutGeom = &art::ServiceHandle<const geo::WireReadout>()->Get();
   }
 
   // ---------------------------------------------------------------------------
@@ -318,7 +318,7 @@ namespace quad {
                 const std::vector<recob::Hit>& hits,
                 std::vector<std::vector<Pt2D>>& pts,
                 std::vector<recob::tracking::Vector_t>& dirs,
-                const geo::GeometryCore* geom)
+                const geo::WireReadoutGeom* wireReadoutGeom)
   {
     pts.resize(3); // 3 views
 
@@ -330,12 +330,11 @@ namespace quad {
 
       const double xpos = detProp.ConvertTicksToX(hit.PeakTime(), wire);
 
-      auto const r0 = geom->WireEndPoints(wire).start();
-      auto const r1 = geom->WireEndPoints(wire).end();
+      auto const [r0, r1] = wireReadoutGeom->WireEndPoints(wire);
 
       const double energy = hit.Integral();
 
-      if (geom->View(hit.Channel()) == geo::kZ) {
+      if (wireReadoutGeom->View(hit.Channel()) == geo::kZ) {
         pts[0].emplace_back(xpos, r0.z(), 0, energy);
         continue;
       }
@@ -383,7 +382,7 @@ namespace quad {
     std::vector<std::vector<Pt2D>> pts;
     std::vector<recob::tracking::Vector_t> dirs;
 
-    GetPts2D(detProp, hits, pts, dirs, geom);
+    GetPts2D(detProp, hits, pts, dirs, wireReadoutGeom);
 
     double minx = +1e9;
     double maxx = -1e9;

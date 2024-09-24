@@ -264,7 +264,7 @@ bool trkf::TrackKalmanFitter::setupInputStates(
       detProp.ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
     double xerr = terr * detProp.GetXTicksCoefficient();
     hitstatev.emplace_back(
-      x, hitErr2ScaleFact_ * xerr * xerr, hit->WireID(), geom->WireIDToWireGeo(hit->WireID()));
+      x, hitErr2ScaleFact_ * xerr * xerr, hit->WireID(), channelMap_->Wire(hit->WireID()));
     //
     if (fsize > 0 && ihit < fsize)
       hitflagsv.push_back(flags[ihit].mask());
@@ -318,14 +318,14 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState,
 
   if (sortHitsByPlane_) {
     //array of hit indices in planes, keeping the original sorting by plane
-    const unsigned int nplanes = geom->MaxPlanes();
+    const unsigned int nplanes = channelMap_->MaxPlanes();
     std::vector<std::vector<unsigned int>> hitsInPlanes(nplanes);
     for (unsigned int ihit = 0; ihit < hitstatev.size(); ihit++) {
       hitsInPlanes[hitstatev[ihit].wireId().Plane].push_back(ihit);
     }
     if (sortHitsByWire_) {
       constexpr geo::TPCID tpcid{0, 0};
-      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+      for (auto const& plane : channelMap_->Iterate<geo::PlaneGeo>(tpcid)) {
         auto const iplane = plane.ID().Plane;
         if (plane.GetIncreasingWireDirection().Dot(trackState.momentum()) > 0) {
           std::sort(hitsInPlanes[iplane].begin(),
@@ -824,7 +824,7 @@ void trkf::TrackKalmanFitter::sortOutput(
   //
   if (sortOutputHitsMinLength_) {
     //sort hits keeping fixed the order on planes and picking the closest next plane
-    const unsigned int nplanes = geom->MaxPlanes();
+    const unsigned int nplanes = channelMap_->MaxPlanes();
     std::vector<std::vector<unsigned int>> tracksInPlanes(nplanes);
     for (unsigned int p = 0; p < hitstateidx.size(); ++p) {
       const auto& hitstate = hitstatev[hitstateidx[p]];

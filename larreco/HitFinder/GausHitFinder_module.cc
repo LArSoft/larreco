@@ -41,7 +41,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft Includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -181,8 +181,8 @@ namespace hit {
         "GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
 
     std::vector<double> output;
-    art::ServiceHandle<geo::Geometry const> geom;
-    const unsigned int N_PLANES = geom->Nplanes();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+    const unsigned int N_PLANES = wireReadoutGeom.Nplanes();
 
     if (input.size() == 1)
       output.resize(N_PLANES, input[0]);
@@ -220,14 +220,7 @@ namespace hit {
 
     TH1::AddDirectory(kFALSE);
 
-    // Instantiate and Reset a stop watch
-    //TStopwatch StopWatch;
-    //StopWatch.Reset();
-
-    // ################################
-    // ### Calling Geometry service ###
-    // ################################
-    art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // ###############################################
     // ### Making a ptr vector to put on the event ###
@@ -250,8 +243,6 @@ namespace hit {
 
     tbb::concurrent_vector<hitstruct> hitstruct_vec;
     tbb::concurrent_vector<hitstruct> filthitstruct_vec;
-
-    //    if (fAllHitsInstanceName != "") filteredHitCol = &hcol;
 
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -290,8 +281,6 @@ namespace hit {
     //##############################
     //### Looping over the wires ###
     //##############################
-    //for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
-    //{
     tbb::parallel_for(
       static_cast<std::size_t>(0),
       wireVecHandle->size(),
@@ -306,7 +295,7 @@ namespace hit {
         raw::ChannelID_t channel = wire->Channel();
 
         // get the WireID for this hit
-        std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+        std::vector<geo::WireID> wids = wireReadoutGeom.ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
         geo::WireID wid = wids[0];
         // We need to know the plane to look up parameters
@@ -322,7 +311,6 @@ namespace hit {
         // #################################################
         const recob::Wire::RegionsOfInterest_t& signalROI = wire->SignalROI();
 
-        // for (const auto& range : signalROI.get_ranges()) {
         tbb::parallel_for(
           static_cast<std::size_t>(0),
           signalROI.n_ranges(),
@@ -670,10 +658,6 @@ namespace hit {
     else {
       allHitCol.put_into(evt);
     }
-
-    // Keep track of events processed
-    //fEventCount++;
-
   } // End of produce()
 
   DEFINE_ART_MODULE(GausHitFinder)

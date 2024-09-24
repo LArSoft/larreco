@@ -23,6 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -156,15 +157,15 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
                                         int spill)
 {
   art::ServiceHandle<geo::Geometry const> geo;
-
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
   raw::ChannelID_t channel = sc->Channel();
-  geo::SigType_t signal_type = geo->SignalType(channel);
-  geo::View_t view = geo->View(channel);
+  geo::SigType_t signal_type = wireReadoutGeom.SignalType(channel);
+  geo::View_t view = wireReadoutGeom.View(channel);
 
   // determine the possible geo::WireIDs for this particular channel
   // then make a map of tdc to electrons for each one of those geo::WireIDs
   // then find hits on each geo::WireID
-  std::vector<geo::WireID> wireids = geo->ChannelToWire(channel);
+  std::vector<geo::WireID> wireids = wireReadoutGeom.ChannelToWire(channel);
 
   std::map<geo::WireID, std::map<unsigned int, double>> wireIDSignals;
 
@@ -203,7 +204,8 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
           // in the right TPC, now figure out which wire we want
           // this works because there is only one plane option for
           // each WireID in each TPC
-          if (wid.Wire == geo->NearestWireID(pos, wid).Wire) wireIDSignals[wid][tdc] += edep;
+          if (wid.Wire == wireReadoutGeom.Plane(wid).NearestWireID(pos).Wire)
+            wireIDSignals[wid][tdc] += edep;
         } // end if in the correct TPC and Cryostat
       }   // end loop over wireids for this channel
     }     // end loop over ides for this channel

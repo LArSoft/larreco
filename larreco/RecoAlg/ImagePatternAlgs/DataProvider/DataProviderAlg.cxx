@@ -10,6 +10,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
@@ -17,10 +18,6 @@ namespace detinfo {
   class DetectorClocksData;
 }
 #include "lardataobj/RecoBase/Wire.h"
-
-namespace geo {
-  class GeometryCore;
-}
 
 #include "CLHEP/Random/RandGauss.h"
 
@@ -34,18 +31,18 @@ img::DataProviderAlg::DataProviderAlg(const Config& config)
   , fDownscaleMode(img::DataProviderAlg::kMax)
   , fDriftWindow(10)
   , fCalorimetryAlg(config.CalorimetryAlg())
-  , fGeometry(art::ServiceHandle<geo::Geometry const>().get())
+  , fGeometry{art::ServiceHandle<geo::Geometry const>().get()}
+  , fWireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
   , fAdcSumOverThr(0)
-  , fAdcSumThr(10)
-  , // set fixed threshold of 10 ADC counts for counting the sum
-  fAdcAreaOverThr(0)
+  , fAdcSumThr(10) // set fixed threshold of 10 ADC counts for counting the sum
+  , fAdcAreaOverThr(0)
   , fNoiseSigma(0)
   , fCoherentSigma(0)
 {
   fCalibrateLifetime = config.CalibrateLifetime();
   fCalibrateAmpl = config.CalibrateAmpl();
 
-  fAmplCalibConst.resize(fGeometry->MaxPlanes());
+  fAmplCalibConst.resize(fWireReadoutGeom->MaxPlanes());
   if (fCalibrateAmpl) {
     mf::LogInfo("DataProviderAlg") << "Using calibration constants:";
     for (size_t p = 0; p < fAmplCalibConst.size(); ++p) {
@@ -303,7 +300,7 @@ bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& c
   fAdcSumOverThr = 0;
   fAdcAreaOverThr = 0;
 
-  size_t nwires = fGeometry->Nwires({cryo, tpc, plane});
+  size_t nwires = fWireReadoutGeom->Nwires({cryo, tpc, plane});
   size_t ndrifts = det_prop.NumberTimeSamples();
 
   fAlgView = resizeView(clock_data, det_prop, nwires, ndrifts);
@@ -317,7 +314,7 @@ bool img::DataProviderAlg::setWireDriftData(detinfo::DetectorClocksData const& c
     if (!channelStatus.IsGood(wireChannelNumber)) { continue; }
 
     size_t w_idx = 0;
-    for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber)) {
+    for (auto const& id : fWireReadoutGeom->ChannelToWire(wireChannelNumber)) {
       if ((id.Plane == plane) && (id.TPC == tpc) && (id.Cryostat == cryo)) {
         w_idx = id.Wire;
 

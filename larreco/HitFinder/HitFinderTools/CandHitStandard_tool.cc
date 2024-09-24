@@ -5,9 +5,9 @@
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Utilities/ToolMacros.h"
-#include "larcore/CoreUtils/ServiceUtil.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 
 #include <algorithm>
 
@@ -37,7 +37,8 @@ namespace reco_tool {
     // Member variables from the fhicl file
     const float fRoiThreshold; ///< minimum maximum to minimum peak distance
 
-    const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
+    const geo::WireReadoutGeom* fWireReadoutGeom =
+      &art::ServiceHandle<geo::WireReadout const>()->Get();
   };
 
   //----------------------------------------------------------------------
@@ -57,13 +58,11 @@ namespace reco_tool {
     const Waveform& waveform = dataRange.data();
 
     // Recover the plane index for this method
-    std::vector<geo::WireID> wids = fGeometry->ChannelToWire(channel);
+    std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(channel);
     const size_t plane = wids[0].Plane;
 
     // Use the recursive version to find the candidate hits
     findHitCandidates(waveform.begin(), waveform.end(), roiStartTick, plane, hitCandidateVec);
-
-    return;
   }
 
   void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator startItr,
@@ -136,8 +135,6 @@ namespace reco_tool {
                           hitCandidateVec);
       }
     }
-
-    return;
   }
 
   void CandHitStandard::MergeHitCandidates(const recob::Wire::RegionsOfInterest_t::datarange_t&,
@@ -169,8 +166,6 @@ namespace reco_tool {
 
     // Check end condition
     if (!groupedHitVec.empty()) mergedHitsVec.emplace_back(groupedHitVec);
-
-    return;
   }
 
   DEFINE_ART_CLASS_TOOL(CandHitStandard)

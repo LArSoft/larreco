@@ -17,6 +17,8 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/Calorimetry/INormalizeCharge.h"
 
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -161,15 +163,14 @@ namespace calo {
                              const art::Ptr<recob::Hit> hit,
                              const recob::TrackHitMeta* meta);
     geo::Point_t GetLocationAtWires(const recob::Track& track,
-                                    const art::Ptr<recob::Hit> hit,
+                                    const recob::Hit& hit,
                                     const recob::TrackHitMeta* meta);
     geo::Point_t WireToTrajectoryPosition(const geo::Point_t& loc, const geo::TPCID& tpc);
     geo::Point_t TrajectoryToWirePosition(const geo::Point_t& loc, const geo::TPCID& tpc);
     double GetPitch(const recob::Track& track,
-                    const art::Ptr<recob::Hit> hit,
+                    const recob::Hit& hit,
                     const recob::TrackHitMeta* meta);
-    double GetCharge(const art::Ptr<recob::Hit> hit,
-                     const std::vector<recob::Hit const*>& sharedHits);
+    double GetCharge(const recob::Hit& hit, const std::vector<recob::Hit const*>& sharedHits);
     double GetEfield(const detinfo::DetectorPropertiesData& dprop,
                      const recob::Track& track,
                      const art::Ptr<recob::Hit> hit,
@@ -199,12 +200,12 @@ calo::GnocchiCalorimetry::GnocchiCalorimetry(Parameters const& param)
 void calo::GnocchiCalorimetry::produce(art::Event& evt)
 {
   // Get services
-  art::ServiceHandle<geo::Geometry const> geom;
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const det_prop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clock_data);
 
-  size_t nplanes = geom->Nplanes();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
+  size_t nplanes = wireReadoutGeom.Nplanes();
 
   // Define output collections
   std::unique_ptr<std::vector<anab::Calorimetry>> outputCalo(new std::vector<anab::Calorimetry>);
@@ -294,10 +295,10 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
         geo::Point_t location = GetLocation(track, hits[hit_index], thms[hit_index]);
 
         // Get the pitch
-        double pitch = GetPitch(track, hits[hit_index], thms[hit_index]);
+        double pitch = GetPitch(track, *hits[hit_index], thms[hit_index]);
 
         // And the charge
-        double charge = GetCharge(hits[hit_index], sharedHits);
+        double charge = GetCharge(*hits[hit_index], sharedHits);
 
         // Get the EField
         double EField = GetEfield(det_prop, track, hits[hit_index], thms[hit_index]);
@@ -549,11 +550,11 @@ geo::Point_t calo::GnocchiCalorimetry::WireToTrajectoryPosition(const geo::Point
 }
 
 geo::Point_t calo::GnocchiCalorimetry::GetLocationAtWires(const recob::Track& track,
-                                                          const art::Ptr<recob::Hit> hit,
+                                                          const recob::Hit& hit,
                                                           const recob::TrackHitMeta* meta)
 {
   geo::Point_t loc = track.LocationAtPoint(meta->Index());
-  return fConfig.TrackIsFieldDistortionCorrected() ? TrajectoryToWirePosition(loc, hit->WireID()) :
+  return fConfig.TrackIsFieldDistortionCorrected() ? TrajectoryToWirePosition(loc, hit.WireID()) :
                                                      loc;
 }
 
@@ -561,7 +562,7 @@ geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point
                                                                 const geo::TPCID& tpc)
 {
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
-  art::ServiceHandle<geo::Geometry const> geom;
+  art::ServiceHandle<geo::Geometry> geom;
 
   geo::Point_t ret = loc;
 
@@ -580,16 +581,17 @@ geo::Point_t calo::GnocchiCalorimetry::TrajectoryToWirePosition(const geo::Point
 }
 
 double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
-                                          const art::Ptr<recob::Hit> hit,
+                                          const recob::Hit& hit,
                                           const recob::TrackHitMeta* meta)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
-  double angleToVert =
-    geom->WireAngleToVertical(hit->View(), hit->WireID().asPlaneID()) - 0.5 * ::util::pi<>();
+  double angleToVert = wireReadoutGeom.WireAngleToVertical(hit.View(), hit.WireID().asPlaneID()) -
+                       0.5 * ::util::pi<>();
 
   geo::Vector_t dir;
+  auto const& plane = wireReadoutGeom.Plane({0, 0, hit.View()});
 
   // "dir" should be the direction that the wires see. If the track already has the field
   // distortion corrections applied, then we need to de-apply them to get the direction as
@@ -600,11 +602,11 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
 
     // compute the dir of the track trajectory
     geo::Vector_t track_dir = track.DirectionAtPoint(meta->Index());
-    geo::Point_t loc_mdx = loc - track_dir * (geom->WirePitch(hit->View()) / 2.);
-    geo::Point_t loc_pdx = loc + track_dir * (geom->WirePitch(hit->View()) / 2.);
+    geo::Point_t loc_mdx = loc - track_dir * plane.WirePitch() / 2.;
+    geo::Point_t loc_pdx = loc + track_dir * plane.WirePitch() / 2.;
 
-    loc_mdx = TrajectoryToWirePosition(loc_mdx, hit->WireID());
-    loc_pdx = TrajectoryToWirePosition(loc_pdx, hit->WireID());
+    loc_mdx = TrajectoryToWirePosition(loc_mdx, hit.WireID());
+    loc_pdx = TrajectoryToWirePosition(loc_pdx, hit.WireID());
 
     // Direction at wires
     dir = (loc_pdx - loc_mdx) / (loc_mdx - loc_pdx).r();
@@ -616,24 +618,21 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
   }
 
   double cosgamma = std::abs(std::sin(angleToVert) * dir.Y() + std::cos(angleToVert) * dir.Z());
-  double pitch;
-  if (cosgamma) { pitch = geom->WirePitch(hit->View()) / cosgamma; }
-  else {
-    pitch = 0.;
-  }
+  double pitch{0.};
+  if (cosgamma) { pitch = plane.WirePitch() / cosgamma; }
 
   // now take the pitch computed on the wires and correct it back to the particle trajectory
   geo::Point_t loc_w = GetLocationAtWires(track, hit, meta);
 
-  geo::Point_t locw_pdx_traj = WireToTrajectoryPosition(loc_w + pitch * dir, hit->WireID());
-  geo::Point_t loc = WireToTrajectoryPosition(loc_w, hit->WireID());
+  geo::Point_t locw_pdx_traj = WireToTrajectoryPosition(loc_w + pitch * dir, hit.WireID());
+  geo::Point_t loc = WireToTrajectoryPosition(loc_w, hit.WireID());
 
   pitch = (locw_pdx_traj - loc).R();
 
   return pitch;
 }
 
-double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
+double calo::GnocchiCalorimetry::GetCharge(const recob::Hit& hit,
                                            const std::vector<recob::Hit const*>& sharedHits)
 {
   switch (fConfig.ChargeMethod()) {
@@ -644,7 +643,7 @@ double calo::GnocchiCalorimetry::GetCharge(const art::Ptr<recob::Hit> hit,
     return std::accumulate(
       sharedHits.cbegin(),
       sharedHits.cend(),
-      hit->Integral(),
+      hit.Integral(),
       [](double sum, recob::Hit const* sharedHit) { return sum + sharedHit->Integral(); });
   default: return 0.;
   }

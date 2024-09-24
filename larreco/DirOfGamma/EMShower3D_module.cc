@@ -13,6 +13,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -180,9 +181,9 @@ recob::Track ems::EMShower3D::ConvertFrom(detinfo::DetectorClocksData const& clo
                                           detinfo::DetectorPropertiesData const& detProp,
                                           pma::Track3D& src)
 {
-  auto const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
-  unsigned int nplanes = geom->Nplanes({src.front()->Cryo(), src.front()->TPC()});
+  unsigned int nplanes = wireReadoutGeom.Nplanes({src.front()->Cryo(), src.front()->TPC()});
   size_t nusedhitsmax = 0;
   int bestplane = -1;
   for (unsigned int p = 0; p < nplanes; ++p) {
@@ -242,10 +243,10 @@ recob::Track ems::EMShower3D::ConvertFrom2(detinfo::DetectorClocksData const& cl
                                            detinfo::DetectorPropertiesData const& detProp,
                                            pma::Track3D& src)
 {
-  auto const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
-  unsigned int nplanes = geom->Nplanes({src.front()->Cryo(), src.front()->TPC()});
+  unsigned int nplanes = wireReadoutGeom.Nplanes({src.front()->Cryo(), src.front()->TPC()});
   size_t nusedhitsmax = 0;
   int bestplane = -1;
   for (unsigned int p = 0; p < nplanes; ++p) {
@@ -684,7 +685,7 @@ size_t ems::EMShower3D::LinkCandidates(detinfo::DetectorPropertiesData const& de
                                        std::vector<ems::DirOfGamma*> input,
                                        size_t id)
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   size_t index = id;
   bool found = false;
@@ -719,13 +720,15 @@ size_t ems::EMShower3D::LinkCandidates(detinfo::DetectorPropertiesData const& de
 
         size_t thirdview = startview;
 
-        const geo::CryostatGeo& cryostat = geom->Cryostat(geo::CryostatID(cryo));
-        for (size_t p = 0; p < cryostat.MaxPlanes(); p++)
+        for (geo::PlaneGeo const& plane :
+             wireReadoutGeom.Iterate<geo::PlaneGeo>(geo::CryostatID(cryo))) {
+          auto const p = plane.ID().Plane;
           if ((p == startview) || (p == secondview)) { continue; }
           else {
             thirdview = p;
             break;
           }
+        }
 
         if ((startview != secondview) && (tpc == tpc_j) && (cryo == cryo_j)) {
           float t2 = input[j]->GetCandidates()[cj].GetPosition().Y();

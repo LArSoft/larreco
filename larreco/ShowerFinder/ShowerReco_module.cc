@@ -38,6 +38,7 @@
 // ### LArSoft includes ###
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/ArtDataHelper/ToElement.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -70,6 +71,7 @@ namespace shwf {
                                        unsigned int plane); // Get shower vertex and slopes.
 
     void LongTransEnergy(geo::GeometryCore const* geom,
+                         geo::WireReadoutGeom const& wireReadoutGeom,
                          detinfo::DetectorClocksData const& clockData,
                          detinfo::DetectorPropertiesData const& detProp,
                          unsigned int set,
@@ -182,13 +184,11 @@ namespace shwf {
   // ***************** //
   void ShowerReco::beginJob()
   {
-    art::ServiceHandle<geo::Geometry const> geo;
-
-    /// \todo the call to geo->Nplanes() assumes this is a single cryostat and
-    /// single TPC detector; need to generalize to multiple cryostats and
-    /// TPCs
-    fNPlanes = geo->Nplanes();
-    fMean_wire_pitch = geo->WirePitch(); // wire pitch in cm
+    /// \todo the call to geo->Nplanes() assumes this is a single cryostat and single TPC
+    /// detector; need to generalize to multiple cryostats and TPCs
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+    fNPlanes = wireReadoutGeom.Nplanes();
+    fMean_wire_pitch = wireReadoutGeom.Plane({0, 0, 0}).WirePitch(); // wire pitch in cm
 
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
     ftimetick = sampling_rate(clockData) / 1000.;
@@ -232,12 +232,14 @@ namespace shwf {
 
   void ShowerReco::beginRun(art::Run&)
   {
-    auto const* geom = lar::providerFrom<geo::Geometry>();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();
 
-    fWirePitch = geom->WirePitch(); // wire pitch in cm
+    fWirePitch = art::ServiceHandle<geo::WireReadout>()
+                   ->Get()
+                   .Plane({0, 0, 0})
+                   .WirePitch(); // wire pitch in cm
     fTimeTick = sampling_rate(clockData) / 1000.;
     fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
     fWireTimetoCmCm = (fTimeTick * fDriftVelocity) / fWirePitch;
@@ -350,13 +352,14 @@ namespace shwf {
   void ShowerReco::produce(art::Event& evt)
   {
     auto const* geom = lar::providerFrom<geo::Geometry>();
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
 
-    util::GeometryUtilities const gser{*geom, clockData, detProp};
+    util::GeometryUtilities const gser{*geom, wireReadoutGeom, clockData, detProp};
     constexpr geo::TPCID tpcid{0, 0};
-    fNPlanes = geom->Nplanes(tpcid);
+    fNPlanes = wireReadoutGeom.Nplanes(tpcid);
     auto Shower3DVector = std::make_unique<std::vector<recob::Shower>>();
     auto cassn = std::make_unique<art::Assns<recob::Shower, recob::Cluster>>();
     auto hassn = std::make_unique<art::Assns<recob::Shower, recob::Hit>>();
@@ -384,6 +387,7 @@ namespace shwf {
 
     std::vector<art::PtrVector<recob::Cluster>>::const_iterator clusterSet =
       clusterAssociationHandle->begin();
+
     // loop over vector of vectors (each size of NPlanes) and reconstruct showers from each of those
     for (size_t iClustSet = 0; iClustSet < clusterAssociationHandle->size(); iClustSet++) {
 
@@ -461,7 +465,7 @@ namespace shwf {
       std::vector<geo::Point_t> position;
       position.reserve(fNPlanes);
       // get starting positions for all planes -- FIXME: only position[0] is used.
-      for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(tpcid)) {
         position.push_back(plane.GetBoxCenter());
       }
 
@@ -471,14 +475,12 @@ namespace shwf {
       double fTimeTick = sampling_rate(clockData) / 1000.;
       double fDriftVelocity = detProp.DriftVelocity(detProp.Efield(), detProp.Temperature());
       try {
-        int chan1 = geom->PlaneWireToChannel({0, 0, bp1, fWire_vertex[bp1]});
-        int chan2 = geom->PlaneWireToChannel({0, 0, bp2, fWire_vertex[bp2]});
+        int chan1 = wireReadoutGeom.PlaneWireToChannel({0, 0, bp1, fWire_vertex[bp1]});
+        int chan2 = wireReadoutGeom.PlaneWireToChannel({0, 0, bp2, fWire_vertex[bp2]});
 
-        double y, z;
-        geom->ChannelsIntersect(chan1, chan2, y, z);
-
-        xyz_vertex_fit[1] = y;
-        xyz_vertex_fit[2] = z;
+        auto const intersection = wireReadoutGeom.ChannelsIntersect(chan1, chan2).value();
+        xyz_vertex_fit[1] = intersection.y;
+        xyz_vertex_fit[2] = intersection.z;
         xyz_vertex_fit[0] =
           (fTime_vertex[bp1] - trigger_offset(clockData)) * fDriftVelocity * fTimeTick +
           position[0].X();
@@ -493,10 +495,11 @@ namespace shwf {
       // if collection is not best plane, project starting point from that
       if (bp1 != fNPlanes - 1 && bp2 != fNPlanes - 1) {
         geo::PlaneID const lastPlaneID{0, 0, fNPlanes - 1};
-        auto pos = geom->Plane(lastPlaneID).GetBoxCenter();
+        auto const& plane = wireReadoutGeom.Plane(lastPlaneID);
+        auto pos = plane.GetBoxCenter();
         pos.SetY(xyz_vertex_fit[1]);
         pos.SetZ(xyz_vertex_fit[2]);
-        auto const wirevertex = geom->NearestWireID(pos, lastPlaneID).Wire;
+        auto const wirevertex = plane.NearestWireID(pos).Wire;
 
         double drifttick =
           (xyz_vertex_fit[0] / detProp.DriftVelocity(detProp.Efield(), detProp.Temperature())) *
@@ -535,6 +538,7 @@ namespace shwf {
       // do loop and choose Collection. With ful calorimetry can do all.
       if (!(fabs(xphi) > 89 && fabs(xphi) < 91)) // do not calculate pitch for extreme angles
         LongTransEnergy(geom,
+                        wireReadoutGeom,
                         clockData,
                         detProp,
                         0,
@@ -601,6 +605,7 @@ namespace shwf {
 
   //------------------------------------------------------------------------------
   void ShowerReco::LongTransEnergy(geo::GeometryCore const* geom,
+                                   geo::WireReadoutGeom const& wireReadoutGeom,
                                    detinfo::DetectorClocksData const& clockData,
                                    detinfo::DetectorPropertiesData const& detProp,
                                    unsigned int set,
@@ -630,7 +635,7 @@ namespace shwf {
     double wire_on_line, time_on_line;
 
     //get effective pitch using 3D angles
-    util::GeometryUtilities const gser{*geom, clockData, detProp};
+    util::GeometryUtilities const gser{*geom, wireReadoutGeom, clockData, detProp};
     double newpitch = gser.PitchInView(plane, xphi, xtheta);
 
     using lar::to_element;
@@ -698,7 +703,7 @@ namespace shwf {
     } // end first loop on hits.
 
     auto const signalType =
-      hitlist.empty() ? geo::kMysteryType : geom->SignalType(hitlist.front()->WireID());
+      hitlist.empty() ? geo::kMysteryType : wireReadoutGeom.SignalType(hitlist.front()->WireID());
 
     if (signalType == geo::kCollection) {
       fTotChargeADC[set] = totCnrg * newpitch;

@@ -17,12 +17,10 @@
 
 // framework libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft libraries
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
@@ -78,15 +76,10 @@ namespace hit {
    */
 
   class CCHitFinderAlg {
-
   public:
     std::vector<recob::Hit> allhits;
 
-    CCHitFinderAlg(fhicl::ParameterSet const& pset);
-    virtual ~CCHitFinderAlg() = default;
-
-    virtual void reconfigure(fhicl::ParameterSet const& pset);
-
+    explicit CCHitFinderAlg(fhicl::ParameterSet const& pset);
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
 
     /// Returns (and loses) the collection of reconstructed hits
@@ -113,15 +106,13 @@ namespace hit {
     unsigned short thePlane;
 
     float chinorm;
-    //  float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi = 1.7725;
 
     bool fUseChannelFilter;
 
-    //    bool prt;
-
-    art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom{
+      &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float* ticks, float* signl);
@@ -135,14 +126,11 @@ namespace hit {
     std::vector<unsigned short> bumps;
 
     /// exchange data about the originating wire
-    class HitChannelInfo_t {
-    public:
+    struct HitChannelInfo_t {
       recob::Wire const* wire;
       geo::WireID wireID;
       geo::SigType_t sigType;
-
-      HitChannelInfo_t(recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
-    }; // HitChannelInfo_t
+    };
 
     // make a cruddy hit if fitting fails
     void MakeCrudeHit(unsigned short npt, float* ticks, float* signl);
@@ -173,16 +161,14 @@ namespace hit {
 
     bool fUseFastFit; ///< whether to attempt using a fast fit on single gauss.
 
-    std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
+    GausFitCache FitCache; ///< a set of functions ready to be used
 
     struct FitStats_t {
       unsigned int FastFits;                   ///< count of single-Gaussian fast fits
       std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
 
       void Reset(unsigned int nGaus);
-
       void AddMultiGaus(unsigned int nGaus);
-
       void AddFast() { ++FastFits; }
     };
 
@@ -225,7 +211,6 @@ namespace hit {
 template <typename Stream>
 void hit::CCHitFinderAlg::PrintStats(Stream& out) const
 {
-
   out << "CCHitFinderAlg fit statistics:";
   if (fUseFastFit) {
     out << "\n  fast 1-Gaussian fits: " << FinalFitStats.FastFits << " succeeded ("
@@ -245,7 +230,6 @@ void hit::CCHitFinderAlg::PrintStats(Stream& out) const
         << TriedFitStats.MultiGausFits.back() << " tried)";
   }
   out << std::endl;
-
 } // CCHitFinderAlg::FitStats_t::Print()
 
 /////////////////////////////////////////

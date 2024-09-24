@@ -8,17 +8,13 @@
 #ifndef PrincipalComponentsAlg_h
 #define PrincipalComponentsAlg_h
 
-// Framework Includes
-namespace fhicl {
-  class ParameterSet;
-}
+// Framework Includese
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
+#include "larcorealg/Geometry/fwd.h"
 namespace detinfo {
   class DetectorPropertiesData;
-}
-namespace geo {
-  class Geometry;
 }
 
 // Algorithm includes
@@ -72,8 +68,8 @@ namespace lar_cluster3d {
                                      float aveHitDoca) const;
 
   private:
-    float m_parallel;                ///< means lines are parallel
-    const geo::Geometry* m_geometry; // pointer to the Geometry service
+    float m_parallel;                              ///< means lines are parallel
+    const geo::WireReadoutGeom* m_wireReadoutGeom; // pointer to the Geometry service
   };
 
 } // namespace lar_cluster3d

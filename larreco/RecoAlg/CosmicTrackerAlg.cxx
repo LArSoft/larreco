@@ -14,6 +14,7 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -171,13 +172,14 @@ namespace trkf {
       vtraj[cstat].resize(cryostat.NTPC());
       for (size_t tpc = 0; tpc < cryostat.NTPC(); ++tpc) {
         const geo::TPCGeo& tpcgeom = cryostat.TPC(tpc);
-        vw[cstat][tpc].resize(tpcgeom.Nplanes());
-        vt[cstat][tpc].resize(tpcgeom.Nplanes());
-        vtraj[cstat][tpc].resize(tpcgeom.Nplanes());
-        for (unsigned int plane = 0; plane < tpcgeom.Nplanes(); ++plane) {
+        unsigned int nplanes = wireReadoutGeom->Nplanes(tpcgeom.ID());
+        vw[cstat][tpc].resize(nplanes);
+        vt[cstat][tpc].resize(nplanes);
+        vtraj[cstat][tpc].resize(nplanes);
+        for (unsigned int plane = 0; plane < nplanes; ++plane) {
           for (size_t i = 0; i < trajPos.size(); ++i) {
-            double wirecord = geom->WireCoordinate(geo::Point_t{0, trajPos[i].Y(), trajPos[i].Z()},
-                                                   geo::PlaneID{tpcgeom.ID(), plane});
+            double wirecord = wireReadoutGeom->Plane({tpcgeom.ID(), plane})
+                                .WireCoordinate(geo::Point_t{0, trajPos[i].Y(), trajPos[i].Z()});
             double tick = detProp.ConvertXToTicks(trajPos[i].X(), plane, tpc, cstat);
             vw[cstat][tpc][plane].push_back(wirecord);
             vt[cstat][tpc][plane].push_back(tick);
@@ -319,8 +321,8 @@ namespace trkf {
         Efield_drift, Temperature); //drift velocity in the drift region (cm/us)
       double timepitch = driftvelocity * timetick;
 
-      double wire_pitch =
-        geom->WirePitch(vhitmap[0].begin()->second->WireID().asPlaneID()); //wire pitch in cm
+      double wire_pitch = wireReadoutGeom->Plane(vhitmap[0].begin()->second->WireID().asPlaneID())
+                            .WirePitch(); //wire pitch in cm
 
       //find out 2d track length for all clusters associated with track candidate
       std::vector<double> vtracklength;
@@ -403,12 +405,9 @@ namespace trkf {
           geo::WireID c1 = (ihit1->second)->WireID();
           geo::WireID c2 = (matchedhit->second)->WireID();
 
-          geo::WireIDIntersection tmpWIDI;
-          bool sameTpcOrNot = geom->WireIDsIntersect(c1, c2, tmpWIDI);
-
-          if (sameTpcOrNot) {
-            hitcoord[1] = tmpWIDI.y;
-            hitcoord[2] = tmpWIDI.z;
+          if (auto intersection = wireReadoutGeom->WireIDsIntersect(c1, c2)) {
+            hitcoord[1] = intersection->y;
+            hitcoord[2] = intersection->z;
           }
 
           if (hitcoord[1] > -1e9 && hitcoord[2] > -1e9) {
@@ -453,7 +452,7 @@ namespace trkf {
       unsigned int plane = wireid.Plane;
       unsigned int tpc = wireid.TPC;
       unsigned int cstat = wireid.Cryostat;
-      double wire_pitch = geom->WirePitch(wireid.asPlaneID()); //wire pitch in cm
+      double wire_pitch = wireReadoutGeom->Plane(wireid).WirePitch(); //wire pitch in cm
       //find the two trajectory points that enclose the hit
       //find the nearest trajectory point first
       for (size_t j = 0; j < vw[cstat][tpc][plane].size(); ++j) {

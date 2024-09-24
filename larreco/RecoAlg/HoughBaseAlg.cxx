@@ -43,6 +43,7 @@
 // larsoft libraries
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -278,7 +279,6 @@ size_t cluster::HoughBaseAlg::Transform(
 {
   int nClustersTemp = *nClusters;
 
-  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   lariov::ChannelStatusProvider const* channelStatus =
     lar::providerFrom<lariov::ChannelStatusService>();
 
@@ -286,12 +286,14 @@ size_t cluster::HoughBaseAlg::Transform(
   unsigned int wireMax = 0;
   geo::WireID const& wireid = hits[0]->WireID();
 
-  geo::SigType_t sigt = geom->SignalType(wireid);
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+
+  geo::SigType_t sigt = wireReadoutGeom.SignalType(wireid);
   std::vector<int> skip;
 
-  auto const num_planes = geom->Nplanes(wireid.asPlaneID().asTPCID());
+  auto const num_planes = wireReadoutGeom.Nplanes(wireid.asPlaneID().asTPCID());
   std::vector<double> wire_pitch(num_planes, 0.);
-  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
+  for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(geo::TPCID{0, 0})) {
     auto const p = plane.ID().Plane;
     wire_pitch[p] = plane.WirePitch();
   }
@@ -309,8 +311,8 @@ size_t cluster::HoughBaseAlg::Transform(
 
   int x, y;
   // there must be a better way to find which plane a cluster comes from
-  const int dx = geom->Plane(wireid.asPlaneID()).Nwires(); // number of wires
-  const int dy = detProp.NumberTimeSamples();              // number of time samples.
+  const int dx = wireReadoutGeom.Plane(wireid.asPlaneID()).Nwires(); // number of wires
+  const int dy = detProp.NumberTimeSamples();                        // number of time samples.
   skip.clear();
   skip.resize(hits.size());
   std::vector<int> listofxmax;
@@ -875,12 +877,13 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
   HoughTransform c;
 
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-  util::GeometryUtilities const gser{*geom, clockData, detProp};
+  util::GeometryUtilities const gser{*geom, wireReadoutGeom, clockData, detProp};
 
   // prepare the algorithm to compute the cluster characteristics;
   // we use the "standard" one here; configuration would happen here,
@@ -889,7 +892,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   std::vector<art::Ptr<recob::Hit>> hit;
 
-  for (auto view : geom->Views()) {
+  for (auto view : wireReadoutGeom.Views()) {
 
     MF_LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
 
@@ -1014,7 +1017,7 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
 {
   std::vector<int> skip;
 
-  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
   lariov::ChannelStatusProvider const* channelStatus =
     lar::providerFrom<lariov::ChannelStatusService>();
 
@@ -1036,16 +1039,16 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
   geo::WireID const& wireid = hit.at(0)->WireID();
   auto const& tpcid = wireid.asPlaneID().asTPCID();
 
-  geo::SigType_t sigt = geom->SignalType(wireid);
+  geo::SigType_t sigt = wireReadoutGeom.SignalType(wireid);
 
   if (hit.size() == 0) {
     if (fPerCluster) { ++cinctr; }
     return -1; // continue;
   }
 
-  auto const num_planes = geom->Nplanes(tpcid);
+  auto const num_planes = wireReadoutGeom.Nplanes(tpcid);
   std::vector<double> wire_pitch(num_planes, 0.);
-  for (auto const& plane : geom->Iterate<geo::PlaneGeo>(tpcid)) {
+  for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>(tpcid)) {
     auto const p = plane.ID().Plane;
     wire_pitch[p] = plane.WirePitch();
   }
@@ -1060,8 +1063,8 @@ size_t cluster::HoughBaseAlg::FastTransform(detinfo::DetectorClocksData const& c
     xyScale[p] = driftVelFactor * sampling_rate(clockData) / wire_pitch[p];
 
   int x = 0, y = 0;
-  int dx = geom->Plane(wireid.asPlaneID()).Nwires(); // number of wires
-  const int dy = detProp.ReadOutWindowSize();        // number of time samples.
+  int dx = wireReadoutGeom.Plane(wireid.asPlaneID()).Nwires(); // number of wires
+  const int dy = detProp.ReadOutWindowSize();                  // number of time samples.
   skip.clear();
   skip.resize(hit.size());
   std::vector<int> listofxmax;
@@ -1356,10 +1359,10 @@ size_t cluster::HoughBaseAlg::Transform(detinfo::DetectorPropertiesData const& d
 {
   HoughTransform c;
 
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
-  int dx = geom->Nwires(geo::PlaneID{0, 0, 0}); // number of wires
-  const int dy = detProp.ReadOutWindowSize();   // number of time samples.
+  int dx = wireReadoutGeom.Nwires(geo::PlaneID{0, 0, 0}); // number of wires
+  const int dy = detProp.ReadOutWindowSize();             // number of time samples.
 
   c.Init(dx, dy, fRhoResolutionFactor, fNumAngleCells);
 

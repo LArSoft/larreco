@@ -3,7 +3,7 @@
 #include "TString.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/MCComp/MCBTAlg.h"
@@ -44,8 +44,8 @@ namespace btutil {
   {
     size_t num_mcobj = fBTAlgo.NumParts();
     size_t num_cluster = cluster_v.size();
-    //auto geo = ::larutil::Geometry::GetME();
-    art::ServiceHandle<geo::Geometry const> geo;
+
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     //
     // Perform back-tracking
@@ -59,13 +59,13 @@ namespace btutil {
     _cluster_mcq_v.clear();
     _cluster_plane_id.clear();
 
-    _summed_mcq.resize(num_mcobj + 1, std::vector<double>(geo->Nplanes(), 0));
+    _summed_mcq.resize(num_mcobj + 1, std::vector<double>(wireReadoutGeom.Nplanes(), 0));
     _cluster_mcq_v.reserve(num_cluster);
     _cluster_plane_id.reserve(num_cluster);
 
     for (auto const& hit_v : cluster_v) {
 
-      size_t plane = geo->Nplanes();
+      size_t plane = wireReadoutGeom.Nplanes();
 
       // Create hit list
       std::vector<WireRange_t> wr_v;
@@ -78,8 +78,7 @@ namespace btutil {
         wr.start = h->StartTick();
         wr.end = h->EndTick();
         wr_v.push_back(wr);
-        if (plane == geo->Nplanes()) plane = h->WireID().Plane;
-        //if(plane==geo->Nplanes()) plane = h->View();
+        if (plane == wireReadoutGeom.Nplanes()) plane = h->WireID().Plane;
       }
 
       _cluster_plane_id.push_back(plane);
@@ -97,15 +96,14 @@ namespace btutil {
     // Find the best matched pair (and its charge) per MC object
     //
     _bmatch_id.clear();
-    _bmatch_id.resize(num_mcobj, std::vector<int>(geo->Nplanes(), -1));
+    _bmatch_id.resize(num_mcobj, std::vector<int>(wireReadoutGeom.Nplanes(), -1));
 
-    std::vector<std::vector<double>> bmatch_mcq(num_mcobj, std::vector<double>(geo->Nplanes(), 0));
+    std::vector<std::vector<double>> bmatch_mcq(num_mcobj,
+                                                std::vector<double>(wireReadoutGeom.Nplanes(), 0));
 
     for (size_t mc_index = 0; mc_index < num_mcobj; ++mc_index) {
 
       for (size_t cluster_index = 0; cluster_index < num_cluster; ++cluster_index) {
-
-        //if((_cluster_mcq_v[cluster_index].back()) < 0) continue;
 
         auto plane = _cluster_plane_id.at(cluster_index);
 

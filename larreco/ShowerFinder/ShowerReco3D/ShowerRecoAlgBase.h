@@ -16,11 +16,9 @@
 
 #include <vector>
 
+#include "larcorealg/Geometry/fwd.h"
 #include "lardata/Utilities/PxUtils.h"
 #include "lardataobj/RecoBase/Shower.h"
-namespace geo {
-  class GeometryCore;
-}
 namespace calo {
   class CalorimetryAlg;
 }
@@ -59,6 +57,7 @@ namespace showerreco {
 
     /// Execute reconstruction
     std::vector<recob::Shower> Reconstruct(geo::GeometryCore const& geom,
+                                           geo::WireReadoutGeom const& wireReadoutGeom,
                                            detinfo::DetectorClocksData const& clockData,
                                            detinfo::DetectorPropertiesData const& detProp);
 
@@ -69,6 +68,7 @@ namespace showerreco {
     /// Function to reconstruct one shower
     virtual ::recob::Shower RecoOneShower(
       geo::GeometryCore const& geom,
+      geo::WireReadoutGeom const& wireReadoutGeom,
       detinfo::DetectorClocksData const& clockData,
       detinfo::DetectorPropertiesData const& detProp,
       const std::vector<showerreco::ShowerCluster_t>& clusters) = 0;

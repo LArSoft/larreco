@@ -18,7 +18,7 @@ services:
 {
   TFileService: {fileName: "tracks_hist.root"}
   TimeTracker   {}
-  ExptGeoHelperInterface: @local::argoneut_geometry_helper
+  WireReadout: @local::argoneut_geometry_helper
   Geometry:	     @local::argoneut_geo
   DetectorPropertiesService: @local::argoneut_detproperties
   LArPropertiesService:    @local::argoneut_properties

@@ -22,10 +22,8 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcorealg/Geometry/fwd.h"
 #include "lardataobj/RecoBase/Hit.h"
-namespace geo {
-  struct WireID;
-}
 
 #include "TVector2.h"
 class TTree;
@@ -68,7 +66,6 @@ public:
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit) const;
   int MergeClusters(std::vector<art::PtrVector<recob::Hit>> const& planeClusters,
                     std::vector<art::PtrVector<recob::Hit>>& clusters) const;
-  void reconfigure(fhicl::ParameterSet const& p);
   bool PassCuts(double angle,
                 double crossingDistance,
                 double projectedWidth,
@@ -84,8 +81,8 @@ private:
     fProjWidthThreshold; // Maximum projected width (width of a tube parallel to the line connecting centres of clusters which just encompasses the clusters) for merging
 
   // Create geometry and detector property handle
-  art::ServiceHandle<geo::Geometry const> fGeom;
   art::ServiceHandle<art::TFileService const> tfs;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 
   std::map<int, int> trueClusterMap;
 
@@ -102,7 +99,6 @@ private:
   double fProjectedWidth;
   double fOverlap;
   bool fTrueMerge;
-  //  bool fMerge;
 };
 
 #endif

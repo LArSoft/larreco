@@ -16,12 +16,10 @@
 
 // framework libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-namespace geo {
-  class Geometry;
-}
 
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
@@ -216,6 +214,8 @@ namespace cluster {
     unsigned short NClusters;
 
     art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom{
+      &art::ServiceHandle<geo::WireReadout const>()->Get()};
 
     std::vector<recob::Hit> fHits;    ///< our version of the hits
     std::vector<short> inClus;        ///< Hit used in cluster (-1 = obsolete, 0 = free)

@@ -8,27 +8,36 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
+// LArSoft includes
+//\todo Remove include of BackTrackerService.h once this algorithm is stripped of test for MC
 #include "larreco/RecoAlg/SpacePointAlg.h"
-#include "canvas/Persistency/Common/PtrVector.h"
-#include "cetlib_except/exception.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "lardata/ArtDataHelper/ToElement.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <iostream>
-#include <map>
-//\todo Remove include of BackTrackerService.h once this algorithm is stripped of test for MC
 #include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KHitWireX.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larsim/MCCheater/BackTrackerService.h"
+
+// Framework includes
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "cetlib_except/exception.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+// C++ STL includes
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <map>
+
+using lar::to_element;
 
 //----------------------------------------------------------------------
 // Constructor.
@@ -85,12 +94,13 @@ namespace trkf {
     // Get services.
 
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // Calculate and print geometry information.
 
     if (report) mf::LogInfo("SpacePointAlg") << "Updating geometry constants.\n";
 
-    for (auto const& plane : geom->Iterate<geo::PlaneGeo>()) {
+    for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
 
       // Fill view-dependent quantities.
 
@@ -107,7 +117,7 @@ namespace trkf {
         throw cet::exception("SpacePointAlg") << "Bad view = " << view << "\n";
 
       std::string sigtypename = "?";
-      geo::SigType_t sigtype = geom->SignalType(plane.ID());
+      geo::SigType_t sigtype = wireReadoutGeom.SignalType(plane.ID());
       if (sigtype == geo::kInduction)
         sigtypename = "Induction";
       else if (sigtype == geo::kCollection)
@@ -126,18 +136,19 @@ namespace trkf {
 
       if (report) {
         auto const xyz = plane.GetCenter();
-        auto const& tpcgeom = geom->TPC(plane.ID());
+        auto const& planeid = plane.ID();
         mf::LogInfo("SpacePointAlg")
           << '\n'
-          << plane.ID() << '\n'
+          << planeid << '\n'
           << "  View: " << viewname << "\n"
           << "  SignalType: " << sigtypename << "\n"
           << "  Orientation: " << orientname << "\n"
           << "  Plane location: " << xyz.X() << "\n"
-          << "  Plane pitch: " << tpcgeom.Plane0Pitch(plane.ID().Plane) << "\n"
+          << "  Plane pitch: " << wireReadoutGeom.Plane0Pitch(planeid.parentID(), planeid.Plane)
+          << "\n"
           << "  Wire angle: " << plane.Wire(0).ThetaZ() << "\n"
-          << "  Wire pitch: " << tpcgeom.WirePitch() << "\n"
-          << "  Time offset: " << detProp.GetXTicksOffset(plane.ID()) << "\n";
+          << "  Wire pitch: " << wireReadoutGeom.Plane(planeid).WirePitch() << "\n"
+          << "  Time offset: " << detProp.GetXTicksOffset(planeid) << "\n";
       }
 
       if (orient != geo::kVertical)
@@ -150,10 +161,6 @@ namespace trkf {
   double SpacePointAlg::correctedTime(detinfo::DetectorPropertiesData const& detProp,
                                       const recob::Hit& hit) const
   {
-    // Get services.
-
-    art::ServiceHandle<geo::Geometry const> geom;
-
     // Correct time for trigger offset and plane-dependent time offsets.
 
     double t = hit.PeakTime() - detProp.GetXTicksOffset(hit.WireID());
@@ -171,10 +178,6 @@ namespace trkf {
   // Spatial separation of hits (zero if two or fewer).
   double SpacePointAlg::separation(const art::PtrVector<recob::Hit>& hits) const
   {
-    // Get geometry service.
-
-    art::ServiceHandle<geo::Geometry const> geom;
-
     // Trivial case - fewer than three hits.
 
     if (hits.size() < 3) return 0.;
@@ -197,12 +200,14 @@ namespace trkf {
     unsigned int tpcs[3];
     unsigned int planes[3];
 
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+
     for (int i = 0; i < 3; ++i) {
 
       // Get tpc, plane, wire.
 
       const recob::Hit& hit = *(hits[i]);
-      const geo::WireGeo& wgeom = geom->WireIDToWireGeo(hit.WireID());
+      const geo::WireGeo& wgeom = wireReadoutGeom.Wire(hit.WireID());
       cstats[i] = hit.WireID().Cryostat;
       tpcs[i] = hit.WireID().TPC;
       planes[i] = hit.WireID().Plane;
@@ -358,6 +363,8 @@ namespace trkf {
         double sinth[3] = {0., 0., 0.};
         double costh[3] = {0., 0., 0.};
 
+        auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+
         for (int i = 0; i < 3; ++i) {
 
           // Get tpc, plane, wire.
@@ -365,7 +372,7 @@ namespace trkf {
           const recob::Hit& hit = *(hits[i]);
           geo::WireID hitWireID = hit.WireID();
 
-          const geo::WireGeo& wgeom = geom->WireIDToWireGeo(hit.WireID());
+          const geo::WireGeo& wgeom = wireReadoutGeom.Wire(hit.WireID());
           if ((hitWireID.TPC != tpc) || (hitWireID.Cryostat != cstat))
             throw cet::exception("SpacePointAlg") << "compatible(): geometry mismatch\n";
 
@@ -476,12 +483,10 @@ namespace trkf {
 
       // Loop over points.
 
-      for (art::PtrVector<recob::Hit>::const_iterator ihit = hits.begin(); ihit != hits.end();
-           ++ihit) {
-
-        const recob::Hit& hit = **ihit;
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+      for (auto const& hit : hits | ranges::views::transform(to_element)) {
         geo::WireID hitWireID = hit.WireID();
-        const geo::WireGeo& wgeom = geom->WireIDToWireGeo(hit.WireID());
+        const geo::WireGeo& wgeom = wireReadoutGeom.Wire(hit.WireID());
 
         // Calculate angle and wire coordinate in this view.
 
@@ -491,7 +496,7 @@ namespace trkf {
         double s = (cen1.Y() - cen.Y()) / hl;
         double c = (cen1.Z() - cen.Z()) / hl;
         double u = cen.Z() * s - cen.Y() * c;
-        double eu = geom->WirePitch(hitWireID.asPlaneID()) / std::sqrt(12.);
+        double eu = wireReadoutGeom.Plane(hitWireID).WirePitch() / std::sqrt(12.);
         double w = 1. / (eu * eu);
 
         // Summations
@@ -606,6 +611,7 @@ namespace trkf {
                                             int sptid) const
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     // Calculate time pitch.
 
@@ -630,7 +636,7 @@ namespace trkf {
     // Do a preliminary scan of hits.
     // Determine weight given to hits in each view.
 
-    unsigned int nplanes = geom->TPC(geo::TPCID(cstat0, tpc0)).Nplanes();
+    unsigned int nplanes = wireReadoutGeom.Nplanes(geo::TPCID(cstat0, tpc0));
     std::vector<int> numhits(nplanes, 0);
     std::vector<double> weight(nplanes, 0.);
 
@@ -709,12 +715,10 @@ namespace trkf {
 
       // Loop over points.
 
-      for (art::PtrVector<recob::Hit>::const_iterator ihit = hits.begin(); ihit != hits.end();
-           ++ihit) {
-
-        const recob::Hit& hit = **ihit;
+      auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+      for (auto const& hit : hits | ranges::views::transform(to_element)) {
         geo::WireID hitWireID = hit.WireID();
-        const geo::WireGeo& wgeom = geom->WireIDToWireGeo(hit.WireID());
+        const geo::WireGeo& wgeom = wireReadoutGeom.Wire(hit.WireID());
 
         // Calculate angle and wire coordinate in this view.
 
@@ -724,7 +728,7 @@ namespace trkf {
         double s = (cen1.Y() - cen.Y()) / hl;
         double c = (cen1.Z() - cen.Z()) / hl;
         double u = cen.Z() * s - cen.Y() * c;
-        double eu = geom->WirePitch(hitWireID.asPlaneID()) / std::sqrt(12.);
+        double eu = wireReadoutGeom.Plane(hitWireID).WirePitch() / std::sqrt(12.);
         double w = weight[hitWireID.Plane] / (eu * eu);
 
         // Summations
@@ -816,12 +820,15 @@ namespace trkf {
 
     unsigned int ncstat = geom->Ncryostats();
     hitmap.resize(ncstat);
+
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
+
     for (auto const& cryoid : geom->Iterate<geo::CryostatID>()) {
       unsigned int cstat = cryoid.Cryostat;
       unsigned int ntpc = geom->Cryostat(cryoid).NTPC();
       hitmap[cstat].resize(ntpc);
       for (unsigned int tpc = 0; tpc < ntpc; ++tpc) {
-        int nplane = geom->Cryostat(cryoid).TPC(tpc).Nplanes();
+        unsigned int nplane = wireReadoutGeom.Nplanes({cstat, tpc});
         hitmap[cstat][tpc].resize(nplane);
       }
     }
@@ -846,9 +853,9 @@ namespace trkf {
       art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       // First loop over hits and fill track ids and mc position.
-      for (auto const& id : geom->Iterate<geo::PlaneID>()) {
+      for (auto const& id : wireReadoutGeom.Iterate<geo::PlaneID>()) {
         auto const [cstat, tpc, plane] = std::make_tuple(id.Cryostat, id.TPC, id.Plane);
-        int nplane = geom->TPC(id).Nplanes();
+        int nplane = wireReadoutGeom.Nplanes(id);
         for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
                hitmap[cstat][tpc][plane].begin();
              ihit != hitmap[cstat][tpc][plane].end();
@@ -885,9 +892,9 @@ namespace trkf {
       }   // end loop oer planes
 
       // Loop over hits again and fill nearest neighbor information for real.
-      for (auto const& id : geom->Iterate<geo::PlaneID>()) {
+      for (auto const& id : wireReadoutGeom.Iterate<geo::PlaneID>()) {
         auto const [cstat, tpc, plane] = std::make_tuple(id.Cryostat, id.TPC, id.Plane);
-        int nplane = geom->TPC(id).Nplanes();
+        int nplane = wireReadoutGeom.Nplanes(id);
         for (std::map<unsigned int, art::Ptr<recob::Hit>>::const_iterator ihit =
                hitmap[cstat][tpc][plane].begin();
              ihit != hitmap[cstat][tpc][plane].end();
@@ -973,12 +980,11 @@ namespace trkf {
         index[i] = i;
 
       for (int i = 0; i < nplane - 1; ++i) {
-
         for (int j = i + 1; j < nplane; ++j) {
-          bool icoll =
-            fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[i])) == geo::kCollection;
-          bool jcoll =
-            fPreferColl && geom->SignalType(geo::PlaneID(tpcid, index[j])) == geo::kCollection;
+          bool icoll = fPreferColl && wireReadoutGeom.SignalType(geo::PlaneID(tpcid, index[i])) ==
+                                        geo::kCollection;
+          bool jcoll = fPreferColl && wireReadoutGeom.SignalType(geo::PlaneID(tpcid, index[j])) ==
+                                        geo::kCollection;
           if ((hitmap[cstat][tpc][index[i]].size() > hitmap[cstat][tpc][index[j]].size() &&
                !jcoll) ||
               icoll) {
@@ -1018,14 +1024,14 @@ namespace trkf {
 
             // Get angle, pitch, and offset of plane2 wires.
             geo::PlaneID const plane2_id{tpcid, plane2};
-            const geo::WireGeo& wgeo2 = geom->Plane(plane2_id).Wire(0);
+            const geo::WireGeo& wgeo2 = wireReadoutGeom.Plane(plane2_id).Wire(0);
             double const hl2 = wgeo2.HalfL();
             auto const xyz21 = wgeo2.GetStart();
             auto const xyz22 = wgeo2.GetEnd();
             double s2 = (xyz22.Y() - xyz21.Y()) / (2. * hl2);
             double c2 = (xyz22.Z() - xyz21.Z()) / (2. * hl2);
             double dist2 = -xyz21.Y() * c2 + xyz21.Z() * s2;
-            double pitch2 = geom->WirePitch(plane2_id);
+            double pitch2 = wireReadoutGeom.Plane(plane2_id).WirePitch();
 
             if (!fPreferColl &&
                 hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
@@ -1044,7 +1050,7 @@ namespace trkf {
 
               const art::Ptr<recob::Hit>& phit1 = ihit1->second;
               geo::WireID phit1WireID = phit1->WireID();
-              const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
+              const geo::WireGeo& wgeo = wireReadoutGeom.Wire(phit1WireID);
 
               // Get endpoint coordinates of this wire.
               // (kept as assertions for performance reasons)
@@ -1120,40 +1126,40 @@ namespace trkf {
         // Get angle, pitch, and offset of plane1 wires.
 
         geo::PlaneID const plane1_id{tpcid, plane1};
-        const geo::WireGeo& wgeo1 = geom->Plane(plane1_id).Wire(0);
+        const geo::WireGeo& wgeo1 = wireReadoutGeom.Plane(plane1_id).Wire(0);
         double const hl1 = wgeo1.HalfL();
         auto const xyz11 = wgeo1.GetStart();
         auto const xyz12 = wgeo1.GetEnd();
         double s1 = (xyz12.Y() - xyz11.Y()) / (2. * hl1);
         double c1 = (xyz12.Z() - xyz11.Z()) / (2. * hl1);
         double dist1 = -xyz11.Y() * c1 + xyz11.Z() * s1;
-        double pitch1 = geom->WirePitch(plane1_id);
+        double pitch1 = wireReadoutGeom.Plane(plane1_id).WirePitch();
         const double TicksOffset1 = detProp.GetXTicksOffset(plane1_id);
 
         // Get angle, pitch, and offset of plane2 wires.
 
         geo::PlaneID const plane2_id{tpcid, plane2};
-        const geo::WireGeo& wgeo2 = geom->Plane(plane2_id).Wire(0);
+        const geo::WireGeo& wgeo2 = wireReadoutGeom.Plane(plane2_id).Wire(0);
         double const hl2 = wgeo2.HalfL();
         auto const xyz21 = wgeo2.GetStart();
         auto const xyz22 = wgeo2.GetEnd();
         double s2 = (xyz22.Y() - xyz21.Y()) / (2. * hl2);
         double c2 = (xyz22.Z() - xyz21.Z()) / (2. * hl2);
         double dist2 = -xyz21.Y() * c2 + xyz21.Z() * s2;
-        double pitch2 = geom->WirePitch(plane2_id);
+        double pitch2 = wireReadoutGeom.Plane(plane2_id).WirePitch();
         const double TicksOffset2 = detProp.GetXTicksOffset(plane2_id);
 
         // Get angle, pitch, and offset of plane3 wires.
 
         geo::PlaneID const plane3_id{tpcid, plane3};
-        const geo::WireGeo& wgeo3 = geom->Plane(plane3_id).Wire(0);
+        const geo::WireGeo& wgeo3 = wireReadoutGeom.Plane(plane3_id).Wire(0);
         double const hl3 = wgeo3.HalfL();
         auto const xyz31 = wgeo3.GetStart();
         auto const xyz32 = wgeo3.GetEnd();
         double s3 = (xyz32.Y() - xyz31.Y()) / (2. * hl3);
         double c3 = (xyz32.Z() - xyz31.Z()) / (2. * hl3);
         double dist3 = -xyz31.Y() * c3 + xyz31.Z() * s3;
-        double pitch3 = geom->WirePitch(plane3_id);
+        double pitch3 = wireReadoutGeom.Plane(plane3_id).WirePitch();
         const double TicksOffset3 = detProp.GetXTicksOffset(plane3_id);
 
         // Get sine of angle differences.
@@ -1172,7 +1178,7 @@ namespace trkf {
           unsigned int wire1 = ihit1->first;
           const art::Ptr<recob::Hit>& phit1 = ihit1->second;
           geo::WireID phit1WireID = phit1->WireID();
-          const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
+          const geo::WireGeo& wgeo = wireReadoutGeom.Wire(phit1WireID);
 
           // Get endpoint coordinates of this wire from plane1.
           // (kept as assertions for performance reasons)

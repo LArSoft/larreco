@@ -8,17 +8,13 @@
 #define PCASeedFinderAlg_h
 
 // Framework Includes
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
+#include "larcorealg/Geometry/fwd.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
-namespace geo {
-  class Geometry;
-}
 
 // ROOT includes
 class TVector3;
@@ -58,7 +54,7 @@ namespace lar_cluster3d {
                        TVector3& Dir,
                        double& ChiDOF) const;
 
-    geo::Geometry const* m_geometry; // pointer to the Geometry service
+    geo::WireReadoutGeom const* m_wireReadoutGeom; // pointer to the Geometry service
 
     double m_gapDistance;      ///<
     size_t m_numSeed2DHits;    ///<

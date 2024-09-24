@@ -8,17 +8,13 @@
 #define HoughSeedFinderAlg_h
 
 // Framework includes
-namespace fhicl {
-  class ParameterSet;
-}
+#include "fhiclcpp/fwd.h"
 
 // LArSoft includes
+#include "larcorealg/Geometry/fwd.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
-namespace geo {
-  class Geometry;
-}
 
 // ROOT includes
 #include "TCanvas.h"
@@ -120,8 +116,8 @@ namespace lar_cluster3d {
     int m_maxLoopsPerCluster; ///<
     double m_maximumGap;      ///<
 
-    geo::Geometry const* m_geometry; // pointer to the Geometry service
-    PrincipalComponentsAlg m_pcaAlg; // For running Principal Components Analysis
+    geo::WireReadoutGeom const* m_wireReadoutGeom; // pointer to the Geometry service
+    PrincipalComponentsAlg m_pcaAlg;               // For running Principal Components Analysis
 
     bool m_displayHist;
     mutable std::vector<std::unique_ptr<TCanvas>> m_Canvases; ///< Graphical trace canvases.

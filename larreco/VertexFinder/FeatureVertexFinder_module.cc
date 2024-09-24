@@ -57,6 +57,7 @@
 
 // LArSoft Includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -81,30 +82,29 @@ namespace vertex {
   private:
     void produce(art::Event& evt) override;
 
-    // This function will take in and EndPoint2d from either cluster crawler
-    // or corner finder and only save points that make a 3d-candidate
+    // This function will take in and EndPoint2d from either cluster crawler or corner
+    // finder and only save points that make a 3d-candidate
     void Get3dVertexCandidates(detinfo::DetectorPropertiesData const& detProp,
                                std::vector<art::Ptr<recob::EndPoint2D>> const& EndPoints,
                                bool PlaneDet);
 
-    // This function will take in 2d Clusters (by default dBCluster)
-    // and return 2d vertex candidates for sorting later
+    // This function will take in 2d Clusters (by default dBCluster) and return 2d vertex
+    // candidates for sorting later
     void Find2dClusterVertexCandidates(detinfo::DetectorPropertiesData const& detProp,
                                        art::PtrVector<recob::Cluster> RawClusters,
                                        art::FindManyP<recob::Hit> fmhit);
 
     // This function takes in 2d Vertex candidates (found by
-    // Find2dClusterVertexCandidates), does some basic merging and
-    // then finds 3d-candidates for use later
+    // Find2dClusterVertexCandidates), does some basic merging and then finds
+    // 3d-candidates for use later
     void Find3dVtxFrom2dClusterVtxCand(detinfo::DetectorPropertiesData const& detProp,
                                        std::vector<double> const& Wire_2dvtx,
                                        std::vector<double> const& Time_2dvtx,
                                        std::vector<double> const& Plane_2dvtx);
 
-    // This function merges and sorts all the 3d vertex candidates, it
-    // merges them if they are within 2.0 cm in X, Y, and Z
-    // simultaneously and then sorts the list by vertex strength and Z
-    // location (lowest Z is first on the list
+    // This function merges and sorts all the 3d vertex candidates, it merges them if they
+    // are within 2.0 cm in X, Y, and Z simultaneously and then sorts the list by vertex
+    // strength and Z location (lowest Z is first on the list
     void MergeAndSort3dVtxCandidate(std::vector<double> const& merge_vtxX,
                                     std::vector<double> const& merge_vtxY,
                                     std::vector<double> const& merge_vtxZ,
@@ -119,21 +119,18 @@ namespace vertex {
     bool GT2PlaneDetector = false;
 
     // Unsorted Raw list of 3d-Vertex candidates filled
-
     std::vector<double> candidate_x = {0.};
     std::vector<double> candidate_y = {0.};
     std::vector<double> candidate_z = {0.};
     std::vector<double> candidate_strength = {0.};
 
     // Merged and sorted list of 3d-Vertex candidates filled
-
     std::vector<double> MergeSort3dVtx_xpos = {0.};
     std::vector<double> MergeSort3dVtx_ypos = {0.};
     std::vector<double> MergeSort3dVtx_zpos = {0.};
     std::vector<double> MergeSort3dVtx_strength = {0.};
 
     // 2d Cluster based Variables
-
     std::vector<std::vector<int>> Cls;                //<---- Index to clusters in each view
     std::vector<double> dtdwstart = {0.};             //<----Slope (delta Time Tick vs delta Wire)
     std::vector<double> dtdwstartError = {0.};        //<---Error on the slope
@@ -150,7 +147,6 @@ namespace vertex {
     std::vector<double> Clu_Length = {0.};      //<---Calculated Length of the cluster
 
     // 2d Cluster based verticies
-
     std::vector<double> TwoDvtx_wire = {0.};
     std::vector<double> TwoDvtx_time = {0.};
     std::vector<double> TwoDvtx_plane = {0.};
@@ -178,24 +174,22 @@ namespace vertex {
     produces<art::Assns<recob::Vertex, recob::Shower>>();
     produces<art::Assns<recob::Vertex, recob::Track>>();
 
-    art::ServiceHandle<geo::Geometry const> geom;
-    Cls.resize(geom->Nplanes(), std::vector<int>());
+    Cls.resize(art::ServiceHandle<geo::WireReadout const>()->Get().Nplanes(), std::vector<int>());
   }
 
   // -----------------------------------------------------------------------------
-  // Produce
   void FeatureVertexFinder::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     auto const detProp =
       art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt);
 
     // Figuring out if I have a 2 or 3 plane detector
-
     GT2PlaneDetector = false;
 
-    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
-      if (tpc.Nplanes() > 2) {
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      if (wireReadoutGeom.Nplanes(tpcid) > 2) {
         GT2PlaneDetector = true;
         std::cout << "yeah" << std::endl;
         break;
@@ -203,7 +197,6 @@ namespace vertex {
     }
 
     // These are the things I want to put on the event
-
     auto vcol = std::make_unique<std::vector<recob::Vertex>>();      // 3D vertex
     auto epcol = std::make_unique<std::vector<recob::EndPoint2D>>(); // 2D vertex
     auto assnep = std::make_unique<art::Assns<recob::EndPoint2D, recob::Hit>>();
@@ -275,12 +268,11 @@ namespace vertex {
     MergeAndSort3dVtxCandidate(candidate_x, candidate_y, candidate_z, candidate_strength);
 
     // Putting Vertices on the event
-    // ------------------------------------------------------------
-    // Now that I have a list of 3d vertex candidates I will return
-    // 3d/2d vertices based on which option the user has chosen
-    // fRunningMode == 0 (this returns a full list of all 3d/2d vertex
-    // candidates) fRunningMode == 1 (this returns only one vertex
-    // which is established as the most likely primary)
+    // -----------------------------------------------------------------------------------
+    // Now that I have a list of 3d vertex candidates I will return 3d/2d vertices based
+    // on which option the user has chosen fRunningMode == 0 (this returns a full list of
+    // all 3d/2d vertex candidates) fRunningMode == 1 (this returns only one vertex which
+    // is established as the most likely primary)
 
     // Returning all vertex candidates
     if (fRunningMode == 0) {
@@ -303,24 +295,23 @@ namespace vertex {
         // --- Now go make the 2DEndPoints that correspond to each 3d vertex ---
         // ---------------------------------------------------------------------
 
-        for (auto const& planeID : geom->Iterate<geo::PlaneID>()) {
+        for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
+          auto const& planeID = plane.ID();
           geo::Point_t const temp2dXYZ{
             MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
           double temp2dStrength = MergeSort3dVtx_strength[pri];
 
           // Skipping a vertex that is zero
-
           if (temp2dXYZ.X() == 0 && temp2dXYZ.Y() == 0 && temp2dXYZ.Z() == 0) { continue; }
 
-          // Converting the 3d vertex into 2d time ticks, wire, and
-          // channel
-
+          // Converting the 3d vertex into 2d time ticks, wire, and channel
           double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
           int EndPoint2d_Wire = 0;
           int EndPoint2d_Channel = 0;
+
           // Putting in protection in case NearestWire Fails
           try {
-            EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
+            EndPoint2d_Wire = plane.NearestWireID(temp2dXYZ).Wire;
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -328,7 +319,7 @@ namespace vertex {
           }
           // Putting in protection in case NearestChannel Fails
           try {
-            EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, planeID);
+            EndPoint2d_Channel = wireReadoutGeom.NearestChannel(temp2dXYZ, planeID);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -336,18 +327,17 @@ namespace vertex {
           }
 
           // Making geo::WireID and getting the current View number
-          geo::View_t View = geom->View(EndPoint2d_Channel);
+          geo::View_t View = wireReadoutGeom.View(EndPoint2d_Channel);
           geo::WireID wireID(planeID, EndPoint2d_Wire);
 
           // Putting the 2d Vertex found on the event
+          epcol->emplace_back(EndPoint2d_TimeTick, //<---TimeTick
+                              wireID,              //<---geo::WireID
+                              temp2dStrength,      //<---Vtx strength (JA: ?)
+                              epcol->size(),       //<---Vtx ID (JA: ?)
+                              View,                //<---Vtx View
+                              1);                  //<---Total Charge (JA: Need to figure this one?)
 
-          recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
-                                   wireID,              //<---geo::WireID
-                                   temp2dStrength,      //<---Vtx strength (JA: ?)
-                                   epcol->size(),       //<---Vtx ID (JA: ?)
-                                   View,                //<---Vtx View
-                                   1); //<---Total Charge (JA: Need to figure this one?)
-          epcol->push_back(vertex);
         } //<---End Plane loop
       }   //<---End pri loop
     }     //<---End fRunningMode == 0
@@ -360,22 +350,18 @@ namespace vertex {
       int bail = 0;
 
       // Looping over Primary Verticies
-
       for (size_t pri = 0; pri < MergeSort3dVtx_xpos.size(); pri++) {
 
         // Push each primary vertex onto the event
-
         double tempxyz[3] = {
           MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
 
         // Skipping a vertex that is zero
-
         if (bail > 0) { continue; }
         if (tempxyz[0] == 0 && tempxyz[1] == 0 && tempxyz[2] == 0) { continue; }
         position = pri;
         bail++;
-        recob::Vertex the3Dvertex(tempxyz, vcol->size());
-        vcol->push_back(the3Dvertex);
+        vcol->emplace_back(tempxyz, vcol->size());
       }
 
       // ---------------------------------------------------------------------
@@ -383,21 +369,20 @@ namespace vertex {
       // ---------------------------------------------------------------------
 
       // Looping over cryostats
-
-      for (auto const& planeID : geom->Iterate<geo::PlaneID>()) {
+      for (auto const& plane : wireReadoutGeom.Iterate<geo::PlaneGeo>()) {
+        auto const& planeID = plane.ID();
         geo::Point_t const temp2dXYZ{MergeSort3dVtx_xpos[position],
                                      MergeSort3dVtx_ypos[position],
                                      MergeSort3dVtx_zpos[position]};
         double temp2dStrength = MergeSort3dVtx_strength[position];
 
-        // Converting the 3d vertex into 2d time ticks, wire, and
-        // channel
+        // Converting the 3d vertex into 2d time ticks, wire, and channel
         double EndPoint2d_TimeTick = detProp.ConvertXToTicks(temp2dXYZ.X(), planeID);
         int EndPoint2d_Wire = 0;
         int EndPoint2d_Channel = 0;
         // Putting in protection in case NearestWire Fails
         try {
-          EndPoint2d_Wire = geom->NearestWireID(temp2dXYZ, planeID).Wire;
+          EndPoint2d_Wire = plane.NearestWireID(temp2dXYZ).Wire;
         }
         catch (...) {
           mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -405,7 +390,7 @@ namespace vertex {
         }
         // Putting in protection in case NearestChannel Fails
         try {
-          EndPoint2d_Channel = geom->NearestChannel(temp2dXYZ, planeID);
+          EndPoint2d_Channel = wireReadoutGeom.NearestChannel(temp2dXYZ, planeID);
         }
         catch (...) {
           mf::LogWarning("FeatureVertexFinder") << "2dWire failed";
@@ -413,18 +398,17 @@ namespace vertex {
         }
 
         // Making geo::WireID and getting the current View number
-        geo::View_t View = geom->View(EndPoint2d_Channel);
+        geo::View_t View = wireReadoutGeom.View(EndPoint2d_Channel);
         geo::WireID wireID(planeID, EndPoint2d_Wire);
 
         // Putting the 2d Vertex found on the event
+        epcol->emplace_back(EndPoint2d_TimeTick, //<---TimeTick
+                            wireID,              //<---geo::WireID
+                            temp2dStrength,      //<---Vtx strength (JA: ?)
+                            epcol->size(),       //<---Vtx ID (JA: ?)
+                            View,                //<---Vtx View
+                            1);                  //<---Total Charge (JA: Need to figure this one?)
 
-        recob::EndPoint2D vertex(EndPoint2d_TimeTick, //<---TimeTick
-                                 wireID,              //<---geo::WireID
-                                 temp2dStrength,      //<---Vtx strength (JA: ?)
-                                 epcol->size(),       //<---Vtx ID (JA: ?)
-                                 View,                //<---Vtx View
-                                 1); //<---Total Charge (JA: Need to figure this one?)
-        epcol->push_back(vertex);
       } //<---End Plane loop
     }   //<---End fRunningMode == 1
 
@@ -443,7 +427,6 @@ namespace vertex {
     evt.put(std::move(assnh));
 
     // Clearing vectors at the end of the event
-
     vcol.reset();
     epcol.reset();
     candidate_x.clear();
@@ -480,14 +463,9 @@ namespace vertex {
     bool PlaneDet)
   {
     art::ServiceHandle<geo::Geometry const> geom;
-
-    double y = 0., z = 0.;
-    double yy = 0., zz = 0.;
-    double yy2 = 0., zz2 = 0.;
-    double yy3 = 0., zz3 = 0.;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     auto const numEndPoints = size(EndPoints);
-
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
       for (size_t iendpt1 = 0; iendpt1 < numEndPoints; ++iendpt1) {
         for (size_t iendpt2 = iendpt1 + 1; iendpt2 < numEndPoints; ++iendpt2) {
@@ -512,18 +490,16 @@ namespace vertex {
           geo::WireID const endpt1_wireid{endpt1_planeid, endpt1.WireID().Wire};
           geo::WireID const endpt2_wireid{endpt2_planeid, endpt2.WireID().Wire};
 
-          if (!geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt1_wireid),
-                                       geom->PlaneWireToChannel(endpt2_wireid),
-                                       yy,
-                                       zz))
-            continue;
+          auto intersection =
+            wireReadoutGeom.ChannelsIntersect(wireReadoutGeom.PlaneWireToChannel(endpt1_wireid),
+                                              wireReadoutGeom.PlaneWireToChannel(endpt2_wireid));
+          if (!intersection) continue;
 
           // Use this fill if we are in a detector with fewer than 3 plane (e.g. ArgoNeuT)
-
           if (!PlaneDet) {
             candidate_x.push_back(tempXFeature1);
-            candidate_y.push_back(yy);
-            candidate_z.push_back(zz);
+            candidate_y.push_back(intersection->y);
+            candidate_z.push_back(intersection->z);
             candidate_strength.push_back(endpt1.Strength() + endpt2.Strength());
             continue;
           } //<---End fill for 2 plane detector
@@ -554,24 +530,22 @@ namespace vertex {
             }
 
             // Make sure our third feature has an intersecting channel with our other two channels.
-            if (!geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt3_wireid),
-                                         geom->PlaneWireToChannel(endpt1_wireid),
-                                         yy3,
-                                         zz3) ||
-                !geom->ChannelsIntersect(geom->PlaneWireToChannel(endpt3_wireid),
-                                         geom->PlaneWireToChannel(endpt2_wireid),
-                                         yy2,
-                                         zz2)) {
+            if (!wireReadoutGeom.ChannelsIntersect(
+                  wireReadoutGeom.PlaneWireToChannel(endpt3_wireid),
+                  wireReadoutGeom.PlaneWireToChannel(endpt1_wireid)) ||
+                !wireReadoutGeom.ChannelsIntersect(
+                  wireReadoutGeom.PlaneWireToChannel(endpt3_wireid),
+                  wireReadoutGeom.PlaneWireToChannel(endpt2_wireid))) {
               continue;
             }
             candidate_x.push_back(
               detProp.ConvertTicksToX(endpt1.DriftTime(), endpt1_wireid.asPlaneID()));
 
             // Finding intersection points
-            geom->IntersectionPoint(endpt1_wireid, endpt2_wireid, y, z);
-
-            candidate_y.push_back(y);
-            candidate_z.push_back(z);
+            auto intersection =
+              wireReadoutGeom.WireIDsIntersect(endpt1_wireid, endpt2_wireid).value();
+            candidate_y.push_back(intersection.y);
+            candidate_z.push_back(intersection.z);
             candidate_strength.push_back(endpt1.Strength() + endpt2.Strength() + endpt3.Strength());
 
             // Note: If I've made it here I have a matched triplet...since I don't want to use any
@@ -595,6 +569,7 @@ namespace vertex {
     art::FindManyP<recob::Hit> fmhit)
   {
     art::ServiceHandle<geo::Geometry const> geom;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
 
     int nClustersFound = 0;
 
@@ -695,8 +670,8 @@ namespace vertex {
 
     // Looping over cryostats
 
-    for (auto const& tpc : geom->Iterate<geo::TPCGeo>()) {
-      for (unsigned int i = 0; i < tpc.Nplanes(); ++i) {
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      for (unsigned int i = 0; i < wireReadoutGeom.Nplanes(tpcid); ++i) {
 
         // If there is at least one cluster found
 
@@ -789,11 +764,11 @@ namespace vertex {
           // Skipping crap intersection points
           geo::PlaneID const planeid(0, 0, Clu_Plane[m]);
           if (intersection_X2 < 1) { intersection_X2 = -999; }
-          if (intersection_X2 > geom->Nwires(planeid)) { intersection_X2 = -999; }
+          if (intersection_X2 > wireReadoutGeom.Nwires(planeid)) { intersection_X2 = -999; }
           if (intersection_Y2 < 0) { intersection_Y2 = -999; }
           if (intersection_Y2 > detProp.NumberTimeSamples()) { intersection_Y2 = -999; }
           if (intersection_X < 1) { intersection_X = -999; }
-          if (intersection_X > geom->Nwires(planeid)) { intersection_X = -999; }
+          if (intersection_X > wireReadoutGeom.Nwires(planeid)) { intersection_X = -999; }
           if (intersection_Y < 0) { intersection_Y = -999; }
           if (intersection_Y > detProp.NumberTimeSamples()) { intersection_Y = -999; }
 
@@ -848,7 +823,7 @@ namespace vertex {
           // detector
 
           if (intersection_X2 > 1 && intersection_Y2 > 0 &&
-              (intersection_X2 < geom->Nwires(planeid)) &&
+              (intersection_X2 < wireReadoutGeom.Nwires(planeid)) &&
               (intersection_Y2 < detProp.NumberTimeSamples())) {
 
             TwoDvtx_wire.push_back(intersection_X2);
@@ -860,7 +835,7 @@ namespace vertex {
           // detector
 
           if (intersection_X > 1 && intersection_Y > 0 &&
-              (intersection_X < geom->Nwires(planeid)) &&
+              (intersection_X < wireReadoutGeom.Nwires(planeid)) &&
               (intersection_Y < detProp.NumberTimeSamples())) {
             TwoDvtx_wire.push_back(intersection_X);
             TwoDvtx_time.push_back(intersection_Y);
@@ -882,12 +857,9 @@ namespace vertex {
     std::vector<double> const& Time_2dvtx,
     std::vector<double> const& Plane_2dvtx)
   {
-
     std::vector<double> vtx_wire_merged;
     std::vector<double> vtx_time_merged;
     std::vector<double> vtx_plane_merged;
-
-    double y_coord = 0, z_coord = 0;
 
     bool merged = false;
 
@@ -908,16 +880,12 @@ namespace vertex {
         if (Wire_2dvtx[vtxloop2] < 0) { continue; }
 
         // Make sure the 2d-Verticies are in the same plane
-
         if (Plane_2dvtx[vtxloop1] == Plane_2dvtx[vtxloop2]) {
 
-          // Considering merging 2d vertices if they
-          //    are within 3 wires of each other
-
+          // Considering merging 2d vertices if they are within 3 wires of each other
           if (fabs(Wire_2dvtx[vtxloop1] - Wire_2dvtx[vtxloop2]) < 4) {
 
             // Merge the verticies if they are within 10 time ticks
-
             if (fabs(Time_2dvtx[vtxloop1] - Time_2dvtx[vtxloop2]) < 10) {
               vtx_wire_merged.push_back(((Wire_2dvtx[vtxloop2] + Wire_2dvtx[vtxloop1]) / 2));
               vtx_time_merged.push_back(((Time_2dvtx[vtxloop2] + Time_2dvtx[vtxloop1]) / 2));
@@ -942,10 +910,9 @@ namespace vertex {
     uint32_t vtx1_channel = 0;
     uint32_t vtx2_channel = 0;
 
-    // Having now found a very long list of potential 2-d end points
-    // we need to check if any of them match between planes and only
-    // keep those that have matches
-
+    // Having now found a very long list of potential 2-d end points we need to check if
+    // any of them match between planes and only keep those that have matches
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
       for (unsigned int vtx = vtx_wire_merged.size(); vtx > 0; --vtx) {
         for (unsigned int vtx1 = 0; vtx1 < vtx; ++vtx1) {
@@ -953,14 +920,13 @@ namespace vertex {
           // Make sure we are comparing verticies from different planes
           if (vtx_plane_merged[vtx1] == vtx_plane_merged[vtx]) continue;
 
-          // To figure out if these two verticies are from a common
-          // point we need to check if the channels intersect and if
-          // they are close in time ticks as well...to do this we have
-          // to do some converting to use geom->PlaneWireToChannel(...)
+          // To figure out if these two verticies are from a common point we need to check
+          // if the channels intersect and if they are close in time ticks as well...to do
+          // this we have to do some converting to use geom->PlaneWireToChannel(...)
           geo::PlaneID const vtx1_planeid(tpcid, vtx_plane_merged[vtx1]);
           geo::WireID const vtx1_wireid(vtx1_planeid, vtx_wire_merged[vtx1]);
           try {
-            vtx1_channel = geom->PlaneWireToChannel(vtx1_wireid);
+            vtx1_channel = wireReadoutGeom.PlaneWireToChannel(vtx1_wireid);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
@@ -970,7 +936,7 @@ namespace vertex {
           geo::PlaneID const vtx2_planeid(tpcid, vtx_plane_merged[vtx]);
           geo::WireID const vtx2_wireid(vtx2_planeid, vtx_wire_merged[vtx]);
           try {
-            vtx2_channel = geom->PlaneWireToChannel(vtx2_wireid);
+            vtx2_channel = wireReadoutGeom.PlaneWireToChannel(vtx2_wireid);
           }
           catch (...) {
             mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
@@ -978,7 +944,8 @@ namespace vertex {
           }
 
           // Check to see if the channels intersect and save the y and z coordinate
-          if (!geom->ChannelsIntersect(vtx1_channel, vtx2_channel, y_coord, z_coord)) {
+          auto intersection = wireReadoutGeom.ChannelsIntersect(vtx1_channel, vtx2_channel);
+          if (!intersection) {
             mf::LogWarning("FeatureVertexFinder") << "match failed for some reason";
             continue;
           }
@@ -987,14 +954,14 @@ namespace vertex {
           float tempXCluster1 = detProp.ConvertTicksToX(vtx_time_merged[vtx1], vtx1_planeid);
           float tempXCluster2 = detProp.ConvertTicksToX(vtx_time_merged[vtx], vtx2_planeid);
 
-          // Now check if the matched channels are within 0.5 cm when
-          // projected in X and that we have less than 100 of these
-          // candidates...because more than that seems silly
+          // Now check if the matched channels are within 0.5 cm when projected in X and
+          // that we have less than 100 of these candidates...because more than that seems
+          // silly
 
           if (std::abs(tempXCluster1 - tempXCluster2) < 0.5 && candidate_x.size() < 101) {
             candidate_x.push_back(detProp.ConvertTicksToX(vtx_time_merged[vtx1], vtx1_planeid));
-            candidate_y.push_back(y_coord);
-            candidate_z.push_back(z_coord);
+            candidate_y.push_back(intersection->y);
+            candidate_z.push_back(intersection->z);
             candidate_strength.push_back(
               10); //<--For cluster verticies I give it a strength of "10"
                    // arbitrarily for now
@@ -1015,32 +982,26 @@ namespace vertex {
     std::vector<double> const& merge_vtxZ,
     std::vector<double> const& merge_vtxStgth)
   {
-
     std::vector<double> x_3dVertex_dupRemoved = {0.};
     std::vector<double> y_3dVertex_dupRemoved = {0.};
     std::vector<double> z_3dVertex_dupRemoved = {0.};
     std::vector<double> strength_dupRemoved = {0.};
 
     // Looping over the 3d candidates found thus far
-
     for (size_t dup = 0; dup < merge_vtxX.size(); dup++) {
-      // Temperary storing the current vertex
+      // Temporary storing the current vertex
       float tempX_dup = merge_vtxX[dup];
       float tempY_dup = merge_vtxY[dup];
       float tempZ_dup = merge_vtxZ[dup];
       float tempStgth = merge_vtxStgth[dup];
 
-      // Setting a boolian to see if this is a duplicate
-
       bool duplicate_found = false;
 
       // Looping over the rest of the list for duplicate check
-
       for (size_t check = dup + 1; check < merge_vtxX.size(); check++) {
 
-        // I am going to call a duplicate vertex one that matches in x, y,
-        // and z within 0.1 cm for all 3 coordinates simultaneously
-
+        // I am going to call a duplicate vertex one that matches in x, y, and z within
+        // 0.1 cm for all 3 coordinates simultaneously
         if (std::abs(merge_vtxX[check] - tempX_dup) < 0.1 &&
             std::abs(merge_vtxY[check] - tempY_dup) < 0.1 &&
             std::abs(merge_vtxZ[check] - tempZ_dup) < 0.1) {
@@ -1049,9 +1010,8 @@ namespace vertex {
 
       } //<---End check for loop
 
-      // If we didn't find a duplicate then lets save this 3d vertex
-      // as a real candidate for consideration
-
+      // If we didn't find a duplicate then lets save this 3d vertex as a real candidate
+      // for consideration
       if (!duplicate_found && tempX_dup > 0) {
         x_3dVertex_dupRemoved.push_back(tempX_dup);
         y_3dVertex_dupRemoved.push_back(tempY_dup);
@@ -1061,15 +1021,13 @@ namespace vertex {
 
     } //<---End dup for loop
 
-    // Sorting the verticies I have found such that the first in the
-    // list is the vertex with the highest vertex strength and the
-    // lowest z location
+    // Sorting the verticies I have found such that the first in the list is the vertex
+    // with the highest vertex strength and the lowest z location
 
     int flag = 1;
     double tempX, tempY, tempZ, tempS;
 
     // Looping over all duplicate removed candidates
-
     for (size_t npri = 0; (npri < x_3dVertex_dupRemoved.size()) && flag; npri++) {
       flag = 0;
       for (size_t mpri = 0; mpri < x_3dVertex_dupRemoved.size() - 1; mpri++) {
@@ -1099,8 +1057,7 @@ namespace vertex {
       }   //<---End mpri
     }     //<---End npri loop
 
-    // Pushing into a vector of merged and sorted verticies
-
+    // Pushing into a vector of merged and sorted vertices
     for (size_t count = 0; count < x_3dVertex_dupRemoved.size(); count++) {
       MergeSort3dVtx_xpos.push_back(x_3dVertex_dupRemoved[count]);
       MergeSort3dVtx_ypos.push_back(y_3dVertex_dupRemoved[count]);

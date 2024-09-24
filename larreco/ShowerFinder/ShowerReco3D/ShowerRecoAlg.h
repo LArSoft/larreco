@@ -4,11 +4,8 @@
 #include <vector>
 
 #include "ShowerRecoAlgBase.h"
+#include "larcorealg/Geometry/fwd.h"
 #include "lardataobj/RecoBase/Shower.h"
-
-namespace geo {
-  class GeometryCore;
-}
 
 namespace detinfo {
   class DetectorClocksData;
@@ -31,6 +28,7 @@ namespace showerreco {
 
     /// Function to reconstruct a shower
     recob::Shower RecoOneShower(geo::GeometryCore const& geom,
+                                geo::WireReadoutGeom const& wireReadoutGeom,
                                 detinfo::DetectorClocksData const& clockData,
                                 detinfo::DetectorPropertiesData const& detProp,
                                 std::vector<showerreco::ShowerCluster_t> const&);

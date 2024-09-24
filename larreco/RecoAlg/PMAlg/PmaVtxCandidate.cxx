@@ -16,7 +16,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -195,7 +195,7 @@ bool pma::VtxCandidate::Add(const pma::TrkCandidate& trk)
 
 double pma::VtxCandidate::ComputeMse2D()
 {
-  art::ServiceHandle<geo::Geometry const> geom;
+  auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   double mse = 0.0;
   TVector2 center2d;
@@ -203,23 +203,25 @@ double pma::VtxCandidate::ComputeMse2D()
     pma::Track3D* trk = t.first.Track();
     pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[t.second]);
 
-    int tpc = trk->Nodes()[t.second]->TPC();
-    int cryo = trk->Nodes()[t.second]->Cryo();
+    unsigned int tpc = trk->Nodes()[t.second]->TPC();
+    unsigned int cryo = trk->Nodes()[t.second]->Cryo();
 
     size_t k = 0;
     double m = 0.0;
-    auto const& tpcgeom = geom->TPC(geo::TPCID(cryo, tpc));
-    if (tpcgeom.HasPlane(geo::kU)) {
+    auto has_plane = [&wireReadoutGeom, cryo, tpc](auto const view) {
+      return wireReadoutGeom.HasPlane(geo::PlaneID{cryo, tpc, view});
+    };
+    if (has_plane(geo::kU)) {
       center2d = GetProjectionToPlane(fCenter, geo::kU, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kU);
       k++;
     }
-    if (tpcgeom.HasPlane(geo::kV)) {
+    if (has_plane(geo::kV)) {
       center2d = GetProjectionToPlane(fCenter, geo::kV, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kV);
       k++;
     }
-    if (tpcgeom.HasPlane(geo::kZ)) {
+    if (has_plane(geo::kZ)) {
       center2d = GetProjectionToPlane(fCenter, geo::kZ, tpc, cryo);
       m += seg->GetDistance2To(center2d, geo::kZ);
       k++;

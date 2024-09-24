@@ -10,7 +10,9 @@
 
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
 
-#include <math.h>
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include "TDecompSVD.h"
 #include "TMatrixDfwd.h"
@@ -19,8 +21,8 @@
 #include "TVector3.h"
 #include "TVectorDfwd.h"
 #include "TVectorT.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+
+#include <math.h>
 
 namespace trkf {
 
@@ -60,12 +62,13 @@ namespace trkf {
     unsigned short nok = 0;
     for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
       auto const& wid = hitWID[iht];
+      auto const& plane = wireReadoutGeom->Plane(wid);
       // get the wire plane offset
-      double const off = geom->WireCoordinate(geo::Point_t{0, 0, 0}, wid);
+      double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
       // get the "cosine-like" component
-      double const cw = geom->WireCoordinate(geo::Point_t{0, 1, 0}, wid) - off;
+      double const cw = plane.WireCoordinate(geo::Point_t{0, 1, 0}) - off;
       // the "sine-like" component
-      double const sw = geom->WireCoordinate(geo::Point_t{0, 0, 1}, wid) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0, 0, 1}) - off;
       double const x = hitX[iht] - XOrigin;
       double wght{1.};
       if (hitXErr[iht] > 0) { wght = 1 / hitXErr[iht]; }
@@ -99,11 +102,12 @@ namespace trkf {
     unsigned int tpc{-1u}, cstat{-1u};
     for (std::size_t iht = 0; iht < hitX.size(); ++iht) {
       auto const& wid = hitWID[iht];
+      auto const& plane = wireReadoutGeom->Plane(wid);
       tpc = wid.TPC;
       cstat = wid.Cryostat;
-      double const off = geom->WireCoordinate(geo::Point_t{0, 0, 0}, wid);
-      double const cw = geom->WireCoordinate(geo::Point_t{0, 1, 0}, wid) - off;
-      double const sw = geom->WireCoordinate(geo::Point_t{0, 0, 1}, wid) - off;
+      double const off = plane.WireCoordinate(geo::Point_t{0, 0, 0});
+      double const cw = plane.WireCoordinate(geo::Point_t{0, 1, 0}) - off;
+      double const sw = plane.WireCoordinate(geo::Point_t{0, 0, 1}) - off;
       double const x = hitX[iht] - XOrigin;
       double const ypr = tVec[0] + tVec[2] * x;
       double const zpr = tVec[1] + tVec[3] * x;
@@ -114,7 +118,7 @@ namespace trkf {
       ChiDOF += diff * diff;
     }
 
-    double werr2 = geom->WirePitch(geo::PlaneID{cstat, tpc, 0});
+    double werr2 = wireReadoutGeom->FirstPlane({cstat, tpc}).WirePitch();
     werr2 *= werr2;
     ChiDOF /= werr2;
     ChiDOF /= (double)(npts - 4);

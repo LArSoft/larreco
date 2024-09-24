@@ -22,25 +22,20 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
+#include "fhiclcpp/fwd.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Comment.h"
 #include "fhiclcpp/types/Name.h"
 #include "fhiclcpp/types/Table.h"
-namespace fhicl {
-  class ParameterSet;
-}
 
 // LArSoft includes
+#include "larcorealg/Geometry/fwd.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 namespace detinfo {
   class DetectorPropertiesData;
-}
-namespace geo {
-  class GeometryCore;
-  class TPCGeo;
 }
 namespace img {
   class DataProviderAlg;
@@ -333,6 +328,7 @@ private:
 
   // Geometry and detector properties
   geo::GeometryCore const* fGeom;
+  geo::WireReadoutGeom const* fWireReadoutGeom;
 };
 
 #endif

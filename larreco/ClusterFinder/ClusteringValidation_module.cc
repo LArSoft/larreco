@@ -24,7 +24,7 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -88,7 +88,6 @@ private:
   std::map<TrackID, std::map<std::string, double>> particleProperties;
   std::map<TrackID, simb::MCParticle> trueParticles;
 
-  art::ServiceHandle<geo::Geometry const> geometry;
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 };
@@ -271,7 +270,7 @@ private:
   std::map<TrackID, const simb::MCParticle*> trueParticles;
 
   // Services
-  art::ServiceHandle<geo::Geometry const> geometry;
+  geo::WireReadoutGeom const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 };
@@ -354,7 +353,7 @@ void ClusteringValidation::ClusterAnalyser::Analyse(detinfo::DetectorClocksData 
 {
 
   // Make a map of cluster counters in TPC/plane space
-  for (auto const& id : geometry->Iterate<geo::PlaneID>(geo::CryostatID{0})) {
+  for (auto const& id : wireReadoutGeom.Iterate<geo::PlaneID>(geo::CryostatID{0})) {
     auto const [tpc, plane] = std::make_tuple(id.TPC, id.Plane);
     clusterMap[tpc][plane] = std::make_unique<ClusterCounter>();
   }
@@ -530,7 +529,7 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms()
 {
 
   // Loop over the tpcs and planes in the geometry
-  for (auto const& id : geometry->Iterate<geo::PlaneID>(geo::CryostatID{0})) {
+  for (auto const& id : wireReadoutGeom.Iterate<geo::PlaneID>(geo::CryostatID{0})) {
     auto const [tpc, plane] = std::make_tuple(id.TPC, id.Plane);
     auto& counter = clusterMap[tpc][plane];
     ClusterIDs clusterIDs = counter->GetListOfClusterIDs();

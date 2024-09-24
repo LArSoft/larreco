@@ -16,7 +16,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larreco/RecoAlg/VertexFitMinuitStruct.h"
 
 // ROOT includes
@@ -42,7 +42,7 @@ namespace trkf {
     static void fcnVtxPos(Int_t&, Double_t*, Double_t& fval, double* par, Int_t flag);
 
   private:
-    art::ServiceHandle<geo::Geometry const> geom;
+    geo::WireReadoutGeom const* wireReadoutGeom = &art::ServiceHandle<geo::WireReadout>()->Get();
 
   }; // class VertexFitAlg
 

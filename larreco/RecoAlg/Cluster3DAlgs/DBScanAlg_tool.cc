@@ -14,7 +14,8 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
@@ -29,9 +30,9 @@
 namespace lar_cluster3d {
 
   /**
- *  @brief  DBScanAlg class definiton
- */
-  class DBScanAlg : virtual public IClusterAlg {
+   *  @brief  DBScanAlg class definiton
+   */
+  class DBScanAlg : public IClusterAlg {
   public:
     /**
      *  @brief  Constructor
@@ -39,13 +40,6 @@ namespace lar_cluster3d {
      *  @param  pset
      */
     explicit DBScanAlg(fhicl::ParameterSet const& pset);
-
-    /**
-     *  @brief  Destructor
-     */
-    ~DBScanAlg();
-
-    void configure(const fhicl::ParameterSet&) override;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -96,17 +90,6 @@ namespace lar_cluster3d {
 
   DBScanAlg::DBScanAlg(fhicl::ParameterSet const& pset)
   {
-    this->configure(pset);
-  }
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  DBScanAlg::~DBScanAlg() {}
-
-  //------------------------------------------------------------------------------------------------------------------------------------------
-
-  void DBScanAlg::configure(fhicl::ParameterSet const& pset)
-  {
     m_enableMonitoring = pset.get<bool>("EnableMonitoring", true);
     m_minPairPts = pset.get<size_t>("MinPairPts", 2);
 
@@ -117,13 +100,14 @@ namespace lar_cluster3d {
     fhicl::ParameterSet kdTreeParams(pset.get<fhicl::ParameterSet>("kdTree"));
 
     // Now work out the maximum wire pitch
-    art::ServiceHandle<geo::Geometry const> geometry;
+    auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     constexpr geo::TPCID tpcid{0, 0};
-    std::vector<double> const wirePitchVec{geometry->WirePitch(geo::PlaneID{tpcid, 0}),
-                                           geometry->WirePitch(geo::PlaneID{tpcid, 1}),
-                                           geometry->WirePitch(geo::PlaneID{tpcid, 2})};
+    std::vector<double> const wirePitchVec{
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 0}).WirePitch(),
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 1}).WirePitch(),
+      wireReadoutGeom.Plane(geo::PlaneID{tpcid, 2}).WirePitch()};
 
     float maxBestDist = 1.99 * *std::max_element(wirePitchVec.begin(), wirePitchVec.end());
 
@@ -207,8 +191,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> DBScan done, found " << clusterParametersList.size()
                               << " clusters" << std::endl;
-
-    return;
   }
 
   void DBScanAlg::Cluster3DHits(reco::HitPairListPtr& hitPairList,
@@ -286,8 +268,6 @@ namespace lar_cluster3d {
 
     mf::LogDebug("Cluster3D") << ">>>>> DBScan done, found " << clusterParametersList.size()
                               << " clusters" << std::endl;
-
-    return;
   }
 
   void DBScanAlg::expandCluster(const kdTree::KdTreeNode& topNode,
@@ -329,8 +309,6 @@ namespace lar_cluster3d {
 
       candPairList.pop_front();
     }
-
-    return;
   }
 
   //------------------------------------------------------------------------------------------------------------------------------------------

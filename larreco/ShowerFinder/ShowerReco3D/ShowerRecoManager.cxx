@@ -1,8 +1,5 @@
 #include "ShowerRecoManager.h"
 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-
-#include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMTException.h"
@@ -13,11 +10,11 @@
 
 namespace showerreco {
 
-  ShowerRecoManager::ShowerRecoManager() : fShowerAlgo(nullptr), fMatchMgr(nullptr)
+  ShowerRecoManager::ShowerRecoManager(unsigned int const num_planes)
+    : fShowerAlgo(nullptr), fMatchMgr(nullptr)
   {
     fMatch = true;
-    art::ServiceHandle<geo::Geometry const> geom;
-    fMatchMgr = new ::cmtool::CMatchManager(geom->Nplanes());
+    fMatchMgr = new ::cmtool::CMatchManager(num_planes);
   }
 
   void ShowerRecoManager::Reset()
@@ -27,12 +24,13 @@ namespace showerreco {
   }
 
   ClusterAss_t ShowerRecoManager::Reconstruct(geo::GeometryCore const& geom,
+                                              geo::WireReadoutGeom const& wireReadoutGeom,
                                               detinfo::DetectorClocksData const& clockData,
                                               detinfo::DetectorPropertiesData const& detProp,
                                               const std::vector<std::vector<util::PxHit>>& clusters,
                                               std::vector<::recob::Shower>& showers)
   {
-    util::GeometryUtilities const gser{geom, clockData, detProp};
+    util::GeometryUtilities const gser{geom, wireReadoutGeom, clockData, detProp};
     showers.clear();
     fMatchMgr->SetClusters(gser, clusters);
 
@@ -47,12 +45,13 @@ namespace showerreco {
     }
     res_ass = fMatchMgr->GetBookKeeper().GetResult();
 
-    Process(geom, clockData, detProp, res_ass, showers);
+    Process(geom, wireReadoutGeom, clockData, detProp, res_ass, showers);
 
     return res_ass;
   }
 
   void ShowerRecoManager::Reconstruct(geo::GeometryCore const& geom,
+                                      geo::WireReadoutGeom const& wireReadoutGeom,
                                       detinfo::DetectorClocksData const& clockData,
                                       detinfo::DetectorPropertiesData const& detProp,
                                       const std::vector<std::vector<util::PxHit>>& clusters,
@@ -60,13 +59,14 @@ namespace showerreco {
                                       std::vector<::recob::Shower>& showers)
   {
     showers.clear();
-    util::GeometryUtilities const gser{geom, clockData, detProp};
+    util::GeometryUtilities const gser{geom, wireReadoutGeom, clockData, detProp};
     fMatchMgr->SetClusters(gser, clusters);
 
-    Process(geom, clockData, detProp, ass, showers);
+    Process(geom, wireReadoutGeom, clockData, detProp, ass, showers);
   }
 
   void ShowerRecoManager::Process(geo::GeometryCore const& geom,
+                                  geo::WireReadoutGeom const& wireReadoutGeom,
                                   detinfo::DetectorClocksData const& clockData,
                                   detinfo::DetectorPropertiesData const& detProp,
                                   const ClusterAss_t& ass,
@@ -85,7 +85,7 @@ namespace showerreco {
     }
 
     // Run shower reco
-    showers = fShowerAlgo->Reconstruct(geom, clockData, detProp);
+    showers = fShowerAlgo->Reconstruct(geom, wireReadoutGeom, clockData, detProp);
   }
 
 }
