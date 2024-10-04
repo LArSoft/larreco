@@ -413,7 +413,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               double cosgamma =
                 std::abs(std::sin(angleToVert) * dir.Y() + std::cos(angleToVert) * dir.Z());
               if (cosgamma) {
-                pitch = wireReadoutGeom.Plane({0, 0, vhit[ii]->View()}).WirePitch() / cosgamma;
+                pitch = wireReadoutGeom.Plane({0, 0}, vhit[ii]->View()).WirePitch() / cosgamma;
               }
               else {
                 pitch = 0;
