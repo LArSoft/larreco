@@ -246,8 +246,7 @@ namespace cluster {
         raw::ChannelID_t channel = fHits[fFirstHit].Channel();
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
-        float wirePitch =
-          wireReadoutGeom->Plane(tpcid, wireReadoutGeom->View(channel)).WirePitch();
+        float wirePitch = wireReadoutGeom->Plane(tpcid, wireReadoutGeom->View(channel)).WirePitch();
         float tickToDist = det_prop.DriftVelocity(det_prop.Efield(), det_prop.Temperature());
         tickToDist *= 1.e-3 * sampling_rate(clock_data); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
