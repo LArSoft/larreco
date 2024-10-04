@@ -238,15 +238,13 @@ namespace trkf {
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
 
-    enum ScatterAngleMethods
-    {
-      kAnglezx = 1,    ///< Use scattered angle z-x (z is along the particle's direction)
-      kAnglezy,        ///< Use scattered angle z-y
-      kAngleCombined,  ///< Use space angle: sqrt( zx^2 + zy^2 )/sqrt(2)
+    enum ScatterAngleMethods {
+      kAnglezx = 1,   ///< Use scattered angle z-x (z is along the particle's direction)
+      kAnglezy,       ///< Use scattered angle z-y
+      kAngleCombined, ///< Use space angle: sqrt( zx^2 + zy^2 )/sqrt(2)
     };
-    
-    ScatterAngleMethods fMCSAngleMethod;
 
+    ScatterAngleMethods fMCSAngleMethod;
 
     // (LLHD) Correction for space angle due to possible oversmoothing The
     // value (0.757) was set based on studies with MC. Change this value
@@ -257,7 +255,6 @@ namespace trkf {
     // are invalid if there is only two points in one segment.
     // (Chi2) Keep it false. Should not have any effect
     bool check_valid_scattered;
-
   };
 
 } // namespace trkf

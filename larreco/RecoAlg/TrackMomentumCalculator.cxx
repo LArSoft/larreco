@@ -38,21 +38,21 @@ using std::endl;
 
 namespace {
 
-  constexpr double LAr_density{1.396}; //TODO: Replace for some global variable present in the art file
+  //TODO: Replace for some global variable present in the art file
+  constexpr double LAr_density{1.396};
   constexpr double rad_length{14.0};
   constexpr double m_muon{0.1057}; // muon mass
   constexpr auto range_gramper_cm()
   {
     std::array<double, 73> Range_grampercm{
-      { 0.9833, 1.36, 1.786, 2.507, 3.321, 4.859, 6.598, 8.512, 10.58, 12.78,
-        15.1, 17.52, 20.04, 25.31, 30.84, 36.59, 42.5, 54.73, 67.32, 86.66,
-        106.3, 139.4, 172.5, 205.6, 238.5, 271.1, 303.5, 335.7, 367.7, 431.0,
-        493.4, 555.2, 616.3, 736.8, 855.2, 1030.0, 1202.0, 1482.0, 1758.0,
-        2029.0, 2297.0, 2562.0, 2825.0, 3085.0, 3343.0, 3854.0, 4359.0, 4859.0,
-        5354.0, 6333.0, 7298.0, 8726.0, 10130.0, 12430.0, 14690.0, 16920.0,
-        19100.0, 21260.0, 23380.0, 25480.0, 27550.0, 31610.0, 35580.0, 39460.0,
-        43260.0, 50620.0, 57680.0, 67780.0, 77340.0, 92220.0, 1.06e+05,
-        1.188e+05, 1.307e+05 }};
+      {0.9833,   1.36,      1.786,    2.507,   3.321,   4.859,   6.598,   8.512,   10.58,   12.78,
+       15.1,     17.52,     20.04,    25.31,   30.84,   36.59,   42.5,    54.73,   67.32,   86.66,
+       106.3,    139.4,     172.5,    205.6,   238.5,   271.1,   303.5,   335.7,   367.7,   431.0,
+       493.4,    555.2,     616.3,    736.8,   855.2,   1030.0,  1202.0,  1482.0,  1758.0,  2029.0,
+       2297.0,   2562.0,    2825.0,   3085.0,  3343.0,  3854.0,  4359.0,  4859.0,  5354.0,  6333.0,
+       7298.0,   8726.0,    10130.0,  12430.0, 14690.0, 16920.0, 19100.0, 21260.0, 23380.0, 25480.0,
+       27550.0,  31610.0,   35580.0,  39460.0, 43260.0, 50620.0, 57680.0, 67780.0, 77340.0, 92220.0,
+       1.06e+05, 1.188e+05, 1.307e+05}};
     for (double& value : Range_grampercm) {
       value /= LAr_density; // convert to cm
     }
@@ -61,49 +61,46 @@ namespace {
 
   constexpr auto Range_grampercm = range_gramper_cm();
   constexpr std::array<double, 73> KE_MeV{
-    { 10.0, 12.0, 14.0, 17.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0,
-      60.0, 70.0, 80.0, 90.0, 100.0, 120.0, 140.0, 170.0, 200.0, 250.0, 300.0,
-      350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 700.0, 800.0, 900.0, 1000.0,
-      1200.0, 1400.0, 1700.0, 2000.0, 2500.0, 3000.0, 3500.0, 4000.0, 4500.0,
-      5000.0, 5500.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 12000.0,
-      14000.0, 17000.0, 20000.0, 25000.0, 30000.0, 35000.0, 40000.0, 45000.0,
-      50000.0, 55000.0, 60000.0, 70000.0, 80000.0, 90000.0, 1e+05, 1.2e+05,
-      1.4e+05, 1.7e+05, 2e+05, 2.5e+05, 3e+05, 3.5e+05, 4e+05 }};
+    {10.0,    12.0,    14.0,    17.0,    20.0,    25.0,    30.0,    35.0,    40.0,    45.0,
+     50.0,    55.0,    60.0,    70.0,    80.0,    90.0,    100.0,   120.0,   140.0,   170.0,
+     200.0,   250.0,   300.0,   350.0,   400.0,   450.0,   500.0,   550.0,   600.0,   700.0,
+     800.0,   900.0,   1000.0,  1200.0,  1400.0,  1700.0,  2000.0,  2500.0,  3000.0,  3500.0,
+     4000.0,  4500.0,  5000.0,  5500.0,  6000.0,  7000.0,  8000.0,  9000.0,  10000.0, 12000.0,
+     14000.0, 17000.0, 20000.0, 25000.0, 30000.0, 35000.0, 40000.0, 45000.0, 50000.0, 55000.0,
+     60000.0, 70000.0, 80000.0, 90000.0, 1e+05,   1.2e+05, 1.4e+05, 1.7e+05, 2e+05,   2.5e+05,
+     3e+05,   3.5e+05, 4e+05}};
   TGraph const KEvsR{73, Range_grampercm.data(), KE_MeV.data()};
   TSpline3 const KEvsR_spline3{"KEvsRS", &KEvsR};
 
   // Stopping power data from pdg, to be used with MCS
-  const std::vector<double> dedx_GeV_per_cm(){
+  const std::vector<double> dedx_GeV_per_cm()
+  {
     // original table (in MeV cm2/g)
     std::vector<double> dEdx{
-      { 5.687, 4.979, 4.461, 3.902, 3.502, 3.042, 2.731, 2.508, 2.34, 2.21,
-        2.107, 2.023, 1.954, 1.848, 1.771, 1.713, 1.67, 1.609, 1.57, 1.536,
-        1.519, 1.508, 1.51, 1.517, 1.526, 1.537, 1.548, 1.559, 1.57, 1.591,
-        1.61, 1.628, 1.645, 1.675, 1.7, 1.733, 1.761, 1.799, 1.829, 1.855,
-        1.877, 1.897, 1.914, 1.93, 1.944, 1.969, 1.991, 2.01, 2.028, 2.058,
-        2.084, 2.119, 2.149, 2.193, 2.232, 2.269, 2.304, 2.337, 2.369, 2.4,
-        2.43, 2.49, 2.548, 2.606, 2.663, 2.776, 2.888, 3.055, 3.224, 3.498,
-        3.774, 4.052, 4.332 }};
+      {5.687, 4.979, 4.461, 3.902, 3.502, 3.042, 2.731, 2.508, 2.34,  2.21,  2.107, 2.023, 1.954,
+       1.848, 1.771, 1.713, 1.67,  1.609, 1.57,  1.536, 1.519, 1.508, 1.51,  1.517, 1.526, 1.537,
+       1.548, 1.559, 1.57,  1.591, 1.61,  1.628, 1.645, 1.675, 1.7,   1.733, 1.761, 1.799, 1.829,
+       1.855, 1.877, 1.897, 1.914, 1.93,  1.944, 1.969, 1.991, 2.01,  2.028, 2.058, 2.084, 2.119,
+       2.149, 2.193, 2.232, 2.269, 2.304, 2.337, 2.369, 2.4,   2.43,  2.49,  2.548, 2.606, 2.663,
+       2.776, 2.888, 3.055, 3.224, 3.498, 3.774, 4.052, 4.332}};
     for (double& value : dEdx) {
-      value *= LAr_density*1e-3; // convert to GeV/cm
+      value *= LAr_density * 1e-3; // convert to GeV/cm
     }
     return dEdx;
   }
 
-
   const int ndedx = 73;
   const std::vector<double> dEdx_GeV_per_cm = dedx_GeV_per_cm();
   const std::vector<double> E_GeV{
-    { 0.115695, 0.117697, 0.119693, 0.122694, 0.125695, 0.13069, 0.135694,
-      0.14069, 0.145714, 0.150689, 0.155682, 0.160666, 0.165693, 0.17566,
-      0.185714, 0.1957, 0.205644, 0.225683, 0.245698, 0.275669, 0.305658,
-      0.355669, 0.405711, 0.45563, 0.505671, 0.555646, 0.605694, 0.655676,
-      0.705661, 0.805664, 0.905689, 1.00557, 1.10606, 1.30529, 1.50571, 1.8061,
-      2.10565, 2.60614, 3.1058, 3.60555, 4.10536, 4.60521, 5.10609, 5.606,
-      6.10591, 7.10579, 8.10569, 9.10561, 10.1106, 12.1105, 14.1104, 17.1103,
-      20.1103, 25.1102, 30.1102, 35.1102, 40.1101, 45.1101, 50.1101, 55.1101,
-      60.1101, 70.1101, 80.1101, 90.1101, 100.1, 120.1, 140.1, 170.1, 200.1,
-      250.1, 300.1, 350.1, 400.1 }};
+    {0.115695, 0.117697, 0.119693, 0.122694, 0.125695, 0.13069,  0.135694, 0.14069,  0.145714,
+     0.150689, 0.155682, 0.160666, 0.165693, 0.17566,  0.185714, 0.1957,   0.205644, 0.225683,
+     0.245698, 0.275669, 0.305658, 0.355669, 0.405711, 0.45563,  0.505671, 0.555646, 0.605694,
+     0.655676, 0.705661, 0.805664, 0.905689, 1.00557,  1.10606,  1.30529,  1.50571,  1.8061,
+     2.10565,  2.60614,  3.1058,   3.60555,  4.10536,  4.60521,  5.10609,  5.606,    6.10591,
+     7.10579,  8.10569,  9.10561,  10.1106,  12.1105,  14.1104,  17.1103,  20.1103,  25.1102,
+     30.1102,  35.1102,  40.1101,  45.1101,  50.1101,  55.1101,  60.1101,  70.1101,  80.1101,
+     90.1101,  100.1,    120.1,    140.1,    170.1,    200.1,    250.1,    300.1,    350.1,
+     400.1}};
   TGraph const dEdx_vs_E{ndedx, &E_GeV[0], &dEdx_GeV_per_cm[0]};
   TSpline3 const dEdx_vs_E_spline3{"dEdx_vs_E", &dEdx_vs_E};
 
@@ -112,17 +109,18 @@ namespace {
   TVector3 const basez{0, 0, 1};
   constexpr double kcal{0.0024}; // Approximation of dE/dx for mip muon in LAr
 
-  constexpr double MomentumDependentConstant(const double p) 
+  constexpr double MomentumDependentConstant(const double p)
   {
     // values measured with MC
     double a = 0.079;
     double c = 10.435;
-    return (a/(p*p)) + c;
+    return (a / (p * p)) + c;
   }
-  double ComputeExpetecteRMS(const double p, const double red_length){
-    double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
-    return ( MomentumDependentConstant(p) / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( red_length / cet::square( beta ) ) ) * std::sqrt( red_length );
-
+  double ComputeExpetecteRMS(const double p, const double red_length)
+  {
+    double beta = std::sqrt(1 - ((m_muon * m_muon) / (p * p + m_muon * m_muon)));
+    return (MomentumDependentConstant(p) / (p * beta)) *
+           (1.0 + 0.038 * TMath::Log(red_length / cet::square(beta))) * std::sqrt(red_length);
   }
   class FcnWrapper {
   public:
@@ -158,8 +156,10 @@ namespace {
         double res1 = 0.0;
         // Highland formula
         // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
-		double beta = std::sqrt( 1 - ((m_muon*m_muon)/(p*p + m_muon*m_muon)) );
-        if (xx > 0 && p > 0) res1 = ( 13.6 / (p*beta) ) * ( 1.0 + 0.038 * TMath::Log( l0 / cet::square( beta ) ) ) * std::sqrt( l0 );
+        double beta = std::sqrt(1 - ((m_muon * m_muon) / (p * p + m_muon * m_muon)));
+        if (xx > 0 && p > 0)
+          res1 = (13.6 / (p * beta)) * (1.0 + 0.038 * TMath::Log(l0 / cet::square(beta))) *
+                 std::sqrt(l0);
         res1 *= correction_;
 
         res1 = std::sqrt(res1 * res1 + theta0 * theta0);
@@ -195,9 +195,14 @@ namespace {
                             std::vector<bool>& dthij_valid,
                             double stepsize,
                             double correction)
-      : dEi_{dEi}, dEj_{dEj}, dthij_{dthij}, ind_{ind}, dthij_valid_{dthij_valid}, stepsize_{stepsize}, correction_{correction}
+      : dEi_{dEi}
+      , dEj_{dEj}
+      , dthij_{dthij}
+      , ind_{ind}
+      , dthij_valid_{dthij_valid}
+      , stepsize_{stepsize}
+      , correction_{correction}
     {}
-
 
     double my_mcs_llhd(double const* x) const
     {
@@ -207,9 +212,9 @@ namespace {
 
       double p = x[0];
       double theta0 = x[1];
-      
+
       // Total initial energy of the muon (converting the input "p" into energy with muon mass)
-      double Etot = std::sqrt( cet::sum_of_squares(p, m_muon) );
+      double Etot = std::sqrt(cet::sum_of_squares(p, m_muon));
 
       double Ei{Etot};
 
@@ -219,30 +224,32 @@ namespace {
       bool addpenality = false;
       for (std::size_t i = 0; i < n; ++i) {
         Ei -= dEi;
-        if (Ei >= E_GeV[0]){//otherwise keep dEi the same (In any case, this is close to p = 0)
-          dEi = dEdx_vs_E_spline3.Eval(Ei)*stepsize_;
+        if (Ei >= E_GeV[0]) { //otherwise keep dEi the same (In any case, this is close to p = 0)
+          dEi = dEdx_vs_E_spline3.Eval(Ei) * stepsize_;
         }
-        else{
-          dEi = dEdx_GeV_per_cm[0]*stepsize_;
+        else {
+          dEi = dEdx_GeV_per_cm[0] * stepsize_;
         }
-        if (Ei <= m_muon){
-          Ei = m_muon+0.010; // Reached zero energy, keep this value constant to not evaluate `nan` in pij nor tH0
+        if (Ei <= m_muon) {
+          Ei =
+            m_muon +
+            0.010; // Reached zero energy, keep this value constant to not evaluate `nan` in pij nor tH0
           addpenality = true;
         }
 
-        if (dthij_valid_.at(i)==false) continue;
+        if (dthij_valid_.at(i) == false) continue;
 
-		// Total momentum of the muon including momentum lost upstream of this segment (converting Eij to momentum)
-		double pij = std::sqrt(Ei*Ei - m_muon*m_muon);
+        // Total momentum of the muon including momentum lost upstream of this segment (converting Eij to momentum)
+        double pij = std::sqrt(Ei * Ei - m_muon * m_muon);
 
         // Highland formula
         // Parameters given at Particle Data Group https://pdg.lbl.gov/2023/web/viewer.html?file=../reviews/rpp2022-rev-passage-particles-matter.pdf
         // Modified with uboone studies: https://iopscience.iop.org/article/10.1088/1748-0221/12/10/P10010
-		double tH0 = ComputeExpetecteRMS(pij, red_length);
+        double tH0 = ComputeExpetecteRMS(pij, red_length);
 
         // The tH0 (theta rms) is calculated for projected angles
         // If space angles are used instead, tH0 needs to be multiplied by sqrt(2)
-        tH0*=correction_;
+        tH0 *= correction_;
 
         double rms_square = -1.0;
 
@@ -254,15 +261,13 @@ namespace {
         DT = dthij_.at(i);
 
         // Formula is modified so we don't compute sqrt(rms), use factor in log instead
-        prob = -0.5 * std::log(2.0 * TMath::Pi()) - 0.5*std::log(rms_square) - 0.5 * DT * DT / rms_square;
+        prob = -0.5 * std::log(2.0 * TMath::Pi()) - 0.5 * std::log(rms_square) -
+               0.5 * DT * DT / rms_square;
 
-        if (addpenality){
-          prob -= 2*rms_square;
-        }
+        if (addpenality) { prob -= 2 * rms_square; }
 
         result = result - 2.0 * prob; // Adds for each segment
       }
-
 
       return result;
     }
@@ -275,9 +280,7 @@ namespace {
     std::vector<bool> const dthij_valid_;
     double const stepsize_;
     double const correction_;
-
   };
-
 
 }
 
@@ -288,7 +291,10 @@ namespace trkf {
                                                    double const stepsize,
                                                    int const angleMethod,
                                                    int const nsteps)
-    : minLength{min}, maxLength{max}, steps_size{stepsize}, fMCSAngleMethod{static_cast<ScatterAngleMethods>(angleMethod)}
+    : minLength{min}
+    , maxLength{max}
+    , steps_size{stepsize}
+    , fMCSAngleMethod{static_cast<ScatterAngleMethods>(angleMethod)}
   {
     n_steps = nsteps;
     for (int i = 1; i <= n_steps; i++) {
@@ -365,7 +371,7 @@ namespace trkf {
     }
 
     double KE, Momentum, M;
-    constexpr double Muon_M = m_muon*1e3, Proton_M = 938.272;
+    constexpr double Muon_M = m_muon * 1e3, Proton_M = 938.272;
 
     if (abs(pdg) == 13) {
       M = Muon_M;
@@ -412,10 +418,8 @@ namespace trkf {
                                                               const double min_resolution,
                                                               const double max_resolution,
                                                               const bool check_valid_scattered_,
-                                                              const bool angle_correction_
-                                                              )
+                                                              const bool angle_correction_)
   {
-
 
     std::vector<double> recoX;
     std::vector<double> recoY;
@@ -463,16 +467,15 @@ namespace trkf {
     if (ndEi < 1) return -1;
 
     double correction = 1.;
-    if (fMCSAngleMethod == kAngleCombined){
-      correction = std::sqrt(2.);
-    }
+    if (fMCSAngleMethod == kAngleCombined) { correction = std::sqrt(2.); }
 
     // Gets energy evaluated by range
     auto recoL = trk->Length();
     double const minP = this->GetTrackMomentum(recoL, 13);
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapperLLHD const wrapper{(dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
+    FcnWrapperLLHD const wrapper{
+      (dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
     mP.SetFunction(FCA);
@@ -480,23 +483,22 @@ namespace trkf {
     // Start point for resolution
     // If max_resolution is zero, startpoint is equal min_resolution
     double startpoint = 2;
-    if (startpoint < min_resolution) startpoint = (max_resolution-min_resolution)/2.; // prevent wrong values
+    if (startpoint < min_resolution)
+      startpoint = (max_resolution - min_resolution) / 2.; // prevent wrong values
     if (max_resolution == 0) startpoint = min_resolution;
 
     // Starting energy as double of the energy by range
     // Assumes that the smallet possible energy is given by 60%  with CSDA
     // Step as 10 %
-    mP.SetLimitedVariable(0, "p_{MCS}", minP*2, minP*0.1, minP*0.6, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint/2., min_resolution, max_resolution);
-    if (max_resolution == 0){
-      mP.FixVariable(1);
-    }
+    mP.SetLimitedVariable(0, "p_{MCS}", minP * 2, minP * 0.1, minP * 0.6, maxMomentum_MeV / 1.e3);
+    mP.SetLimitedVariable(
+      1, "#delta#theta", startpoint, startpoint / 2., min_resolution, max_resolution);
+    if (max_resolution == 0) { mP.FixVariable(1); }
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
     mP.SetTolerance(0.01);
     mP.SetStrategy(2);
     mP.SetErrorDef(1);
-
 
     bool const mstatus = mP.Minimize();
 
@@ -505,13 +507,10 @@ namespace trkf {
     const double* pars = mP.X();
     const double* erpars = mP.Errors();
 
-
     double const p_mcs = pars[0];
     double const p_mcs_e [[maybe_unused]] = erpars[0];
 
-
     return mstatus ? p_mcs : -1.0;
-
   }
 
   TVector3 TrackMomentumCalculator::GetMultiScatterStartingPoint(const art::Ptr<recob::Track>& trk)
@@ -567,7 +566,6 @@ namespace trkf {
     std::vector<double> ind;
     if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
 
-
     auto const recoL = trk->Length();
     double const p_range = recoL * kcal;
     double const logL = my_mcs_llhd(dEi, dEj, dthij, ind, p_range, 5.65);
@@ -598,7 +596,7 @@ namespace trkf {
 
     int tot = a1;
 
-    for (int i = 0; i < tot-1; i++) {
+    for (int i = 0; i < tot - 1; i++) {
       double const dx = segnx.at(i);
       double const dy = segny.at(i);
       double const dz = segnz.at(i);
@@ -623,10 +621,9 @@ namespace trkf {
       TVector3 const Ry{vec_y.Dot(basex), vec_y.Dot(basey), vec_y.Dot(basez)};
       TVector3 const Rz{vec_z.Dot(basex), vec_z.Dot(basey), vec_z.Dot(basez)};
 
-
-      double const here_dx = segnx.at(i+1);
-      double const here_dy = segny.at(i+1);
-      double const here_dz = segnz.at(i+1);
+      double const here_dx = segnx.at(i + 1);
+      double const here_dy = segny.at(i + 1);
+      double const here_dz = segnz.at(i + 1);
 
       TVector3 const here_vec{here_dx, here_dy, here_dz};
       TVector3 const rot_here{Rx.Dot(here_vec), Ry.Dot(here_vec), Rz.Dot(here_vec)};
@@ -642,21 +639,22 @@ namespace trkf {
       constexpr double LLim = -10000.0;
 
       double const Li = segL.at(i);
-      double const Lj = segL.at(i+1);
+      double const Lj = segL.at(i + 1);
 
       if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
 
         if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
-          ei.push_back(Li); // Energy deposited at i
-          ej.push_back(Lj); // Energy deposited at i+1
-          if (fMCSAngleMethod == kAnglezx){
+          ei.push_back(Li);               // Energy deposited at i
+          ej.push_back(Lj);               // Energy deposited at i+1
+          if (fMCSAngleMethod == kAnglezx) {
             th.push_back(azx); // scattered angle z-x
           }
-          else if(fMCSAngleMethod == kAnglezy){
+          else if (fMCSAngleMethod == kAnglezy) {
             th.push_back(azy);
           }
-          else if(fMCSAngleMethod == kAngleCombined){
-            th.push_back(std::sqrt(azx*azx + azy*azy)/angle_correction); // space angle (applying correction)
+          else if (fMCSAngleMethod == kAngleCombined) {
+            th.push_back(std::sqrt(azx * azx + azy * azy) /
+                         angle_correction); // space angle (applying correction)
           }
         }
       }
@@ -728,7 +726,7 @@ namespace trkf {
 
       if (mean == -1 && rms == -1 && rmse == -1) continue;
       xmeas.push_back(trial); // x values are different steps length, ex: 10, 20, 30 cm
-      ymeas.push_back(rms); // y values are the RMS of the scattered angle for each step defined
+      ymeas.push_back(rms);   // y values are the RMS of the scattered angle for each step defined
       eymeas.push_back(std::sqrt(cet::sum_of_squares(
         rmse, 0.05 * rms))); // <--- conservative syst. error to fix chi^{2} behaviour !!!
 
@@ -755,25 +753,23 @@ namespace trkf {
     gr_meas.SetMaximum(1.80 * ymax);
 
     double correction = 1.;
-    if (fMCSAngleMethod == kAngleCombined){
-      correction = std::sqrt(2.);
-    }
+    if (fMCSAngleMethod == kAngleCombined) { correction = std::sqrt(2.); }
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapper const wrapper{std::move(xmeas), std::move(ymeas), std::move(eymeas), std::move(correction)};
+    FcnWrapper const wrapper{
+      std::move(xmeas), std::move(ymeas), std::move(eymeas), std::move(correction)};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
     // Start point for resolution
     double startpoint = 2;
-    if (startpoint < min_resolution) startpoint = (max_resolution-min_resolution)/2.;
+    if (startpoint < min_resolution) startpoint = (max_resolution - min_resolution) / 2.;
     if (max_resolution == 0) startpoint = min_resolution;
 
     mP.SetFunction(FCA);
     mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint/2., min_resolution, max_resolution);
-    if (max_resolution == 0){
-      mP.FixVariable(1);
-    }
+    mP.SetLimitedVariable(
+      1, "#delta#theta", startpoint, startpoint / 2., min_resolution, max_resolution);
+    if (max_resolution == 0) { mP.FixVariable(1); }
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
     mP.SetTolerance(0.01);
@@ -792,7 +788,6 @@ namespace trkf {
 
     double const p_mcs = pars[0] + deltap;
     double const p_mcs_e [[maybe_unused]] = erpars[0];
-
 
     return mstatus ? p_mcs : -1.0;
   }
@@ -836,7 +831,7 @@ namespace trkf {
                                                                std::vector<double>& segnx,
                                                                std::vector<double>& segny,
                                                                std::vector<double>& segnz,
-                                                               std::vector<bool> &segn_isvalid,
+                                                               std::vector<bool>& segn_isvalid,
                                                                std::vector<double>& vx,
                                                                std::vector<double>& vy,
                                                                std::vector<double>& vz)
@@ -847,15 +842,10 @@ namespace trkf {
     double sumy = 0.0;
     double sumz = 0.0;
 
-
     bool isvalid = true;
     // In case vx, vy, etc have 3 points, probably two are just "linear"
     // interpolations. In this case, the angle of scattering will be zero.
-    if (check_valid_scattered && na <= 2){
-      isvalid=false;
-    }
-    
-
+    if (check_valid_scattered && na <= 2) { isvalid = false; }
 
     // computes the average in x, y, z
     for (std::size_t i = 0; i < na; ++i) {
@@ -927,7 +917,7 @@ namespace trkf {
     double az = eigenvec(2, ind1);
 
     if (n_seg > 1) {
-      // for x, y and z, check if the last point is bigger then the previous point. 
+      // for x, y and z, check if the last point is bigger then the previous point.
       // Ensures that the computed fluctation follows the trend of the track
       if (segx.at(n_seg - 1) - segx.at(n_seg - 2) > 0)
         ax = std::abs(ax);
@@ -948,7 +938,6 @@ namespace trkf {
       segny.push_back(ay);
       segnz.push_back(az);
       segn_isvalid.push_back(isvalid);
-
     }
 
     // clear the vectors
@@ -956,7 +945,6 @@ namespace trkf {
     vy.clear();
     vz.clear();
   }
-
 
   /* This function will group each point of the track inside segments with
    * fixed size `seg_size`.
@@ -990,7 +978,6 @@ namespace trkf {
     std::vector<bool> segn_isvalid;
     std::vector<double> segL;
 
-
     n_seg = 0;
 
     double x0{};
@@ -1002,7 +989,6 @@ namespace trkf {
     double z00 = zzz.at(0);
 
     int indC = 0;
-
 
     // These vectors will keep the points inside reach segments
     // They are cleared inside the function `compute_max_fluctuation_vector`
@@ -1019,7 +1005,7 @@ namespace trkf {
       double const RR0 = std::sqrt(cet::sum_of_squares(x00 - x0, y00 - y0, z00 - z0));
 
       if (RR0 >= stag) { // stag is aways set to zero, this is always true
-        
+
         segx.push_back(x0);
         segy.push_back(y0);
         segz.push_back(z0);
@@ -1037,7 +1023,6 @@ namespace trkf {
         vy.push_back(y0);
         vz.push_back(z0);
 
-
         indC = i + 1;
 
         break;
@@ -1051,7 +1036,7 @@ namespace trkf {
       double const z1 = zzz.at(i);
 
       // distante from previous point
-      double const dr1 = std::sqrt(cet::sum_of_squares(x1 - x0, y1 - y0, z1 - z0)); 
+      double const dr1 = std::sqrt(cet::sum_of_squares(x1 - x0, y1 - y0, z1 - z0));
 
       // next point
       double const x2 = xxx.at(i + 1);
@@ -1065,9 +1050,8 @@ namespace trkf {
         vx.push_back(x1);
         vy.push_back(y1);
         vz.push_back(z1);
-
       }
-      
+
       /* If current point is inside segment length w.r.t. the first point of
        * the segment (x0,y0,z0), but the next point is outsize: create a new
        * point in between (x1,y1,z1) and (x2,y2,z2) in which will be exacly at
@@ -1076,7 +1060,7 @@ namespace trkf {
        *
        * (ds)^2 = (dr1)^2 + (t*dr)^2 + 2*dot_product(dr1, t*dr)
        * Using cos(180-theta) = -cos(theta))
-       * 
+       *
        * Solve for `t` the second degree equation: t^2 + beta*t + gamma = 0
        */
       if (dr1 <= seg_size && dr2 > seg_size) {
@@ -1104,7 +1088,6 @@ namespace trkf {
         double const lysi1 = (-beta + std::sqrt(delta)) / 2.0;
         double const t = lysi1;
 
-
         // find next points in that will exactly at the segment length from x0
         double const xp = x1 + t * dx;
         double const yp = y1 + t * dy;
@@ -1115,7 +1098,7 @@ namespace trkf {
         segy.push_back(yp);
         segz.push_back(zp);
 
-        segL.push_back(n_seg*seg_size);
+        segL.push_back(n_seg * seg_size);
 
         // for TGraph
         x_seg[n_seg] = xp;
@@ -1139,8 +1122,8 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
-
+        compute_max_fluctuation_vector(
+          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
 
         // Starting over
         vx.push_back(x0);
@@ -1151,7 +1134,7 @@ namespace trkf {
 
         // Rolling `i` back for the next iteration.
         // Because the current point does not belong to this segment
-        i = (i - 1); 
+        i = (i - 1);
 
         double const dx = x1 - x0;
         double const dy = y1 - y0;
@@ -1194,7 +1177,8 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
+        compute_max_fluctuation_vector(
+          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
 
         // vectors are cleared in previous step
         vx.push_back(x0);
@@ -1211,7 +1195,8 @@ namespace trkf {
     gr_seg_xz = TGraph{n_seg, z_seg, x_seg};
     gr_seg_xy = TGraph{n_seg, x_seg, y_seg};
 
-    return std::make_optional<Segments>(Segments{segx, segnx, segy, segny, segz, segnz, segL, segn_isvalid});
+    return std::make_optional<Segments>(
+      Segments{segx, segnx, segy, segny, segz, segnz, segL, segn_isvalid});
   }
 
   /* Computes the rms by groups of `thick`
@@ -1236,7 +1221,6 @@ namespace trkf {
     }
 
     int const tot = a1;
-
 
     std::vector<double> buf0;
 
@@ -1293,14 +1277,15 @@ namespace trkf {
           if (azy <= ULim && azy >= LLim) { // safe scatter in the yz plane
 
             if (azx <= ULim && azx >= LLim) { // safe scatter in the za plane
-              if (fMCSAngleMethod == kAnglezx){
+              if (fMCSAngleMethod == kAnglezx) {
                 buf0.push_back(azx); // scattered angle z-x
               }
-              else if(fMCSAngleMethod == kAnglezy){
+              else if (fMCSAngleMethod == kAnglezy) {
                 buf0.push_back(azy);
               }
-              else if(fMCSAngleMethod == kAngleCombined){
-                buf0.push_back(std::sqrt(azx*azx + azy*azy)); // space angle (applying correction of sqrt(2))
+              else if (fMCSAngleMethod == kAngleCombined) {
+                buf0.push_back(
+                  std::sqrt(azx * azx + azy * azy)); // space angle (applying correction of sqrt(2))
               }
             }
           }
@@ -1385,10 +1370,10 @@ namespace trkf {
     else if (vz == 0 && vy < 0) {
       thetayz = 3.0 * TMath::Pi() / 2.0;
     }
-    else if (vz > 0 && vy == 0){
+    else if (vz > 0 && vy == 0) {
       thetayz = 0;
     }
-    else if (vz < 0 && vy == 0){
+    else if (vz < 0 && vy == 0) {
       thetayz = TMath::Pi();
     }
 
