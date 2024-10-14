@@ -111,7 +111,7 @@ namespace {
 
   constexpr double MomentumDependentConstant(const double p)
   {
-    // values measured with MC
+    // values measured with MC: https://indico.fnal.gov/event/62283/contributions/299163/attachments/181289/248600/20240910_SimReco_Update_CM.pdf
     double a = 0.079;
     double c = 10.435;
     return (a / (p * p)) + c;
