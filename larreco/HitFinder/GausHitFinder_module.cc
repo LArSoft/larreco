@@ -535,6 +535,7 @@ namespace hit {
 
                 //protection to avoid negative ranges
                 if (newright - newleft < 0) continue;
+		if (HitsumStartItr > HitsumEndItr) continue;
 
                 //avoid ranges out of ROI if it happens
                 if (HitsumStartItr < sumStartItr) HitsumStartItr = sumStartItr;
