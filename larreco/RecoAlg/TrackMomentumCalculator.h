@@ -60,6 +60,12 @@ namespace trkf {
     * @param  maxMomentum_MeV maximum momentum in MeV for the minimization
     * @param  MomentumStep_MeV energy steps for minimization
     * @param  max_resolution maximum angular resolution for fit. Setting to zero will cause the fit only over momentum and fixed resolution of 2 mrad
+    * @param  check_valid_scattered set to true will check if scatter angles
+    * are valid.  Angles are invalid if there is only two points in one
+    * segment.
+    * @param  angle_correction Correction for space angle due to possible
+    * oversmoothing. The value (0.757) was set based on studies with MC. Change
+    * this value through the fhcl file
     *
     * TODO: Add better description of the steps done
     *
@@ -70,8 +76,8 @@ namespace trkf {
                                        const int maxMomentum_MeV = 7500,
                                        const double min_resolution = 0.001,
                                        const double max_resolution = 800,
-                                       const bool check_valid_scattered_ = false,
-                                       const bool angle_correction_ = 0.757);
+                                       const bool check_valid_scattered = false,
+                                       const double angle_correction = 0.757);
     double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
     TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
 
@@ -96,7 +102,8 @@ namespace trkf {
                                         std::vector<bool>& segn_isvalid,
                                         std::vector<double>& vx,
                                         std::vector<double>& vy,
-                                        std::vector<double>& vz);
+                                        std::vector<double>& vz,
+                                        bool check_valid_scattered);
     /**
     * \struct Segments
     * @brief Struct to store segments.
@@ -120,7 +127,9 @@ namespace trkf {
     * @param yyy 3D reconstructed points y-axiy
     * @param zzz 3D reconstructed points z-axiz
     * @param seg_size Segments size defined in class constructor
-    *
+    * @param  check_valid_scattered set to true will check if scatter angles
+    * are valid. Angles are invalid if there is only two points in one
+    * segment. Set true only for LLHD!
     * TODO: Add better description of steps
     *
     * @return Segments
@@ -128,7 +137,8 @@ namespace trkf {
     std::optional<Segments> getSegTracks_(std::vector<double> const& xxx,
                                           std::vector<double> const& yyy,
                                           std::vector<double> const& zzz,
-                                          double seg_size);
+                                          double seg_size,
+                                          bool check_valid_scattered = false);
 
     /**
     * @brief Gets the scattered angle RMS for a all segments
@@ -151,7 +161,7 @@ namespace trkf {
     * @param ind selection of scattering plane
     * @param segments
     * @param thick is the steps_size
-    *
+    * @param angle_correction Correction due to oversmoothing, applied for space angle only
     * @return sucess or failure
     */
     int getDeltaThetaij_(std::vector<double>& ei,
@@ -159,7 +169,8 @@ namespace trkf {
                          std::vector<double>& th,
                          std::vector<double>& ind,
                          Segments const& segments,
-                         double thick) const;
+                         double thick,
+                         double const angle_correction) const;
 
     /**
     * @brief chi square minizer using Minuit2, it will minize (xx-Q)/s
@@ -210,13 +221,21 @@ namespace trkf {
     */
     double find_angle(double vz, double vy) const;
 
-    int n_steps;
     std::vector<double> steps;
 
     double minLength;
     double maxLength;
     double steps_size;
     double rad_length{14.0};
+
+    enum ScatterAngleMethods {
+      kAnglezx = 1,   ///< Use scattered angle z-x (z is along the particle's direction)
+      kAnglezy,       ///< Use scattered angle z-y
+      kAngleCombined, ///< Use space angle: sqrt( zx^2 + zy^2 )/sqrt(2)
+    };
+
+    ScatterAngleMethods fMCSAngleMethod;
+    int n_steps;
 
     // The following are objects that are created but not drawn or
     // saved.  This class should consider accepting a "debug"
@@ -238,23 +257,7 @@ namespace trkf {
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
 
-    enum ScatterAngleMethods {
-      kAnglezx = 1,   ///< Use scattered angle z-x (z is along the particle's direction)
-      kAnglezy,       ///< Use scattered angle z-y
-      kAngleCombined, ///< Use space angle: sqrt( zx^2 + zy^2 )/sqrt(2)
-    };
 
-    ScatterAngleMethods fMCSAngleMethod;
-
-    // (LLHD) Correction for space angle due to possible oversmoothing The
-    // value (0.757) was set based on studies with MC. Change this value
-    // through the fhcl file
-    double angle_correction;
-
-    // (LLHD) set to true will check if scatter angles are valid.  Angles
-    // are invalid if there is only two points in one segment.
-    // (Chi2) Keep it false. Should not have any effect
-    bool check_valid_scattered;
   };
 
 } // namespace trkf

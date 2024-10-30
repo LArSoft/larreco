@@ -73,7 +73,7 @@ namespace {
   TSpline3 const KEvsR_spline3{"KEvsRS", &KEvsR};
 
   // Stopping power data from pdg, to be used with MCS
-  const std::vector<double> dedx_GeV_per_cm()
+  std::vector<double> dedx_GeV_per_cm()
   {
     // original table (in MeV cm2/g)
     std::vector<double> dEdx{
@@ -101,7 +101,7 @@ namespace {
      30.1102,  35.1102,  40.1101,  45.1101,  50.1101,  55.1101,  60.1101,  70.1101,  80.1101,
      90.1101,  100.1,    120.1,    140.1,    170.1,    200.1,    250.1,    300.1,    350.1,
      400.1}};
-  TGraph const dEdx_vs_E{ndedx, &E_GeV[0], &dEdx_GeV_per_cm[0]};
+  TGraph const dEdx_vs_E{ndedx, E_GeV.data(), dEdx_GeV_per_cm.data()};
   TSpline3 const dEdx_vs_E_spline3{"dEdx_vs_E", &dEdx_vs_E};
 
   TVector3 const basex{1, 0, 0};
@@ -128,7 +128,7 @@ namespace {
                         std::vector<double>&& ymeas,
                         std::vector<double>&& eymeas,
                         double correction)
-      : xmeas_{xmeas}, ymeas_{ymeas}, eymeas_{eymeas}, correction_{correction}
+      : xmeas_{std::move(xmeas)}, ymeas_{std::move(ymeas)}, eymeas_{std::move(eymeas)}, correction_{correction}
     {}
 
     double my_mcs_chi2(double const* x) const
@@ -162,14 +162,11 @@ namespace {
                  std::sqrt(l0);
         res1 *= correction_;
 
-        res1 = std::sqrt(res1 * res1 + theta0 * theta0);
+        res1 = std::hypot(res1, theta0);
 
         double const diff = yy - res1;
         result += cet::square(diff / ey);
       }
-
-      // Adds a penalty for higher resolutions: removed after adding better limits to theta0
-      // result += 2.0 / (4.6) * theta0; // *std::log( 1.0/14.0 );
 
       if (std::isnan(result) || std::isinf(result)) {
         MF_LOG_DEBUG("TrackMomentumCalculator") << " Is nan in my_mcs_chi2 ! ";
@@ -188,18 +185,18 @@ namespace {
 
   class FcnWrapperLLHD {
   public:
-    explicit FcnWrapperLLHD(std::vector<double>& dEi,
-                            std::vector<double>& dEj,
-                            std::vector<double>& dthij,
-                            std::vector<double>& ind,
-                            std::vector<bool>& dthij_valid,
+    explicit FcnWrapperLLHD(std::vector<double>&& dEi,
+                            std::vector<double>&& dEj,
+                            std::vector<double>&& dthij,
+                            std::vector<double>&& ind,
+                            std::vector<bool>&& dthij_valid,
                             double stepsize,
                             double correction)
-      : dEi_{dEi}
-      , dEj_{dEj}
-      , dthij_{dthij}
-      , ind_{ind}
-      , dthij_valid_{dthij_valid}
+      : dEi_{std::move(dEi)}
+      , dEj_{std::move(dEj)}
+      , dthij_{std::move(dthij)}
+      , ind_{std::move(ind)}
+      , dthij_valid_{std::move(dthij_valid)}
       , stepsize_{stepsize}
       , correction_{correction}
     {}
@@ -214,7 +211,7 @@ namespace {
       double theta0 = x[1];
 
       // Total initial energy of the muon (converting the input "p" into energy with muon mass)
-      double Etot = std::sqrt(cet::sum_of_squares(p, m_muon));
+      double Etot = std::hypot(p, m_muon);
 
       double Ei{Etot};
 
@@ -295,8 +292,8 @@ namespace trkf {
     , maxLength{max}
     , steps_size{stepsize}
     , fMCSAngleMethod{static_cast<ScatterAngleMethods>(angleMethod)}
+    , n_steps{nsteps}
   {
-    n_steps = nsteps;
     for (int i = 1; i <= n_steps; i++) {
       steps.push_back(steps_size * i);
     }
@@ -417,8 +414,8 @@ namespace trkf {
                                                               const int maxMomentum_MeV,
                                                               const double min_resolution,
                                                               const double max_resolution,
-                                                              const bool check_valid_scattered_,
-                                                              const bool angle_correction_)
+                                                              const bool check_valid_scattered,
+                                                              const double angle_correction)
   {
 
     std::vector<double> recoX;
@@ -437,17 +434,12 @@ namespace trkf {
 
     if (recoX.size() < 2) return -1.0;
 
-    // If set to true, scattered angles in segments with only 2 points will not be considered
-    check_valid_scattered = check_valid_scattered_;
-
-    // Correction due to oversmoothing, applied for space angle only
-    angle_correction = angle_correction_;
 
     if (!plotRecoTracks_(recoX, recoY, recoZ)) return -1.0;
 
     double const seg_size{steps_size};
 
-    auto const segments = getSegTracks_(recoX, recoY, recoZ, seg_size);
+    auto const segments = getSegTracks_(recoX, recoY, recoZ, seg_size, check_valid_scattered);
     if (!segments.has_value()) return -1.0;
 
     auto const seg_steps = segments->x.size();
@@ -461,7 +453,7 @@ namespace trkf {
     std::vector<double> dthij;
     std::vector<double> ind;
     std::vector<bool> dthij_valid = segments->nvalid;
-    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1;
+    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0) return -1;
 
     auto const ndEi = dEi.size();
     if (ndEi < 1) return -1;
@@ -475,7 +467,7 @@ namespace trkf {
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
     FcnWrapperLLHD const wrapper{
-      (dEi), (dEj), (dthij), (ind), (dthij_valid), (seg_size), (correction)};
+      std::move(dEi), std::move(dEj), std::move(dthij), std::move(ind), std::move(dthij_valid), seg_size, correction};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
     mP.SetFunction(FCA);
@@ -505,10 +497,8 @@ namespace trkf {
     mP.Hesse();
 
     const double* pars = mP.X();
-    const double* erpars = mP.Errors();
 
     double const p_mcs = pars[0];
-    double const p_mcs_e [[maybe_unused]] = erpars[0];
 
     return mstatus ? p_mcs : -1.0;
   }
@@ -564,7 +554,8 @@ namespace trkf {
     std::vector<double> dEj;
     std::vector<double> dthij;
     std::vector<double> ind;
-    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size) != 0) return -1.0;
+    double angle_correction = 1; // never tested in this function
+    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0) return -1;
 
     auto const recoL = trk->Length();
     double const p_range = recoL * kcal;
@@ -578,7 +569,8 @@ namespace trkf {
                                                 std::vector<double>& th,
                                                 std::vector<double>& ind,
                                                 Segments const& segments,
-                                                double const thick) const
+                                                double const thick,
+                                                double const angle_correction) const
   {
     auto const& segnx = segments.nx;
     auto const& segny = segments.ny;
@@ -653,7 +645,7 @@ namespace trkf {
             th.push_back(azy);
           }
           else if (fMCSAngleMethod == kAngleCombined) {
-            th.push_back(std::sqrt(azx * azx + azy * azy) /
+            th.push_back(std::hypot(azx, azy) /
                          angle_correction); // space angle (applying correction)
           }
         }
@@ -727,8 +719,7 @@ namespace trkf {
       if (mean == -1 && rms == -1 && rmse == -1) continue;
       xmeas.push_back(trial); // x values are different steps length, ex: 10, 20, 30 cm
       ymeas.push_back(rms);   // y values are the RMS of the scattered angle for each step defined
-      eymeas.push_back(std::sqrt(cet::sum_of_squares(
-        rmse, 0.05 * rms))); // <--- conservative syst. error to fix chi^{2} behaviour !!!
+      eymeas.push_back(std::hypot(rmse, 0.05 * rms)); // <--- conservative syst. error to fix chi^{2} behaviour !!!
 
       if (ymin > rms) ymin = rms;
       if (ymax < rms) ymax = rms;
@@ -757,7 +748,7 @@ namespace trkf {
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
     FcnWrapper const wrapper{
-      std::move(xmeas), std::move(ymeas), std::move(eymeas), std::move(correction)};
+      std::move(xmeas), std::move(ymeas), std::move(eymeas), correction};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
     // Start point for resolution
@@ -781,13 +772,11 @@ namespace trkf {
     mP.Hesse();
 
     const double* pars = mP.X();
-    const double* erpars = mP.Errors();
 
     auto const recoL = trk->Length();
     double const deltap = (recoL * kcal) / 2.0;
 
     double const p_mcs = pars[0] + deltap;
-    double const p_mcs_e [[maybe_unused]] = erpars[0];
 
     return mstatus ? p_mcs : -1.0;
   }
@@ -834,7 +823,8 @@ namespace trkf {
                                                                std::vector<bool>& segn_isvalid,
                                                                std::vector<double>& vx,
                                                                std::vector<double>& vy,
-                                                               std::vector<double>& vz)
+                                                               std::vector<double>& vz,
+                                                               bool check_valid_scattered)
   {
     auto const na = vx.size();
 
@@ -956,7 +946,8 @@ namespace trkf {
     std::vector<double> const& xxx,
     std::vector<double> const& yyy,
     std::vector<double> const& zzz,
-    double const seg_size)
+    double const seg_size,
+    bool const check_valid_scattered)
   {
     double stag = 0.0;
 
@@ -1002,7 +993,7 @@ namespace trkf {
       y0 = yyy.at(i);
       z0 = zzz.at(i);
 
-      double const RR0 = std::sqrt(cet::sum_of_squares(x00 - x0, y00 - y0, z00 - z0));
+      double const RR0 = std::hypot(x00 - x0, y00 - y0, z00 - z0);
 
       if (RR0 >= stag) { // stag is aways set to zero, this is always true
 
@@ -1036,7 +1027,7 @@ namespace trkf {
       double const z1 = zzz.at(i);
 
       // distante from previous point
-      double const dr1 = std::sqrt(cet::sum_of_squares(x1 - x0, y1 - y0, z1 - z0));
+      double const dr1 = std::hypot(x1 - x0, y1 - y0, z1 - z0);
 
       // next point
       double const x2 = xxx.at(i + 1);
@@ -1044,7 +1035,7 @@ namespace trkf {
       double const z2 = zzz.at(i + 1);
 
       // distant of next point to previous point
-      double const dr2 = std::sqrt(cet::sum_of_squares(x2 - x0, y2 - y0, z2 - z0));
+      double const dr2 = std::hypot(x2 - x0, y2 - y0, z2 - z0);
 
       if (dr1 < seg_size) {
         vx.push_back(x1);
@@ -1067,7 +1058,7 @@ namespace trkf {
         double const dx = x2 - x1;
         double const dy = y2 - y1;
         double const dz = z2 - z1;
-        double const dr = std::sqrt(dx * dx + dy * dy + dz * dz);
+        double const dr = std::hypot(dx, dy, dz);
 
         if (dr == 0) {
           cout << " ( Zero ) Error ! " << endl;
@@ -1122,8 +1113,7 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(
-          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
+        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
 
         // Starting over
         vx.push_back(x0);
@@ -1139,7 +1129,7 @@ namespace trkf {
         double const dx = x1 - x0;
         double const dy = y1 - y0;
         double const dz = z1 - z0;
-        double const dr = std::sqrt(cet::sum_of_squares(dx, dy, dz));
+        double const dr = std::hypot(dx, dy, dz);
 
         if (dr == 0) {
           cout << " ( Zero ) Error ! " << endl;
@@ -1177,8 +1167,7 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(
-          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz);
+        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
 
         // vectors are cleared in previous step
         vx.push_back(x0);
@@ -1284,8 +1273,7 @@ namespace trkf {
                 buf0.push_back(azy);
               }
               else if (fMCSAngleMethod == kAngleCombined) {
-                buf0.push_back(
-                  std::sqrt(azx * azx + azy * azy)); // space angle (applying correction of sqrt(2))
+                buf0.push_back(std::hypot(azx, azy)); 
               }
             }
           }
@@ -1434,7 +1422,7 @@ namespace trkf {
 
       if (ind.at(i) == 1) {
         // Computes the rms of angle
-        rms = std::sqrt(tH0 * tH0 + cet::square(theta0x));
+        rms = std::hypot(tH0, theta0x);
 
         double const DT = dthij.at(i) + addth;
         double const prob = my_g(DT, 0.0, rms); // Computes log likelihood
