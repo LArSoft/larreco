@@ -256,8 +256,6 @@ namespace trkf {
     TGraph gr_seg_xy{};
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
-
-
   };
 
 } // namespace trkf

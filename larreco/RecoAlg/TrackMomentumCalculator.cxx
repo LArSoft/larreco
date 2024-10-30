@@ -128,7 +128,10 @@ namespace {
                         std::vector<double>&& ymeas,
                         std::vector<double>&& eymeas,
                         double correction)
-      : xmeas_{std::move(xmeas)}, ymeas_{std::move(ymeas)}, eymeas_{std::move(eymeas)}, correction_{correction}
+      : xmeas_{std::move(xmeas)}
+      , ymeas_{std::move(ymeas)}
+      , eymeas_{std::move(eymeas)}
+      , correction_{correction}
     {}
 
     double my_mcs_chi2(double const* x) const
@@ -434,7 +437,6 @@ namespace trkf {
 
     if (recoX.size() < 2) return -1.0;
 
-
     if (!plotRecoTracks_(recoX, recoY, recoZ)) return -1.0;
 
     double const seg_size{steps_size};
@@ -453,7 +455,8 @@ namespace trkf {
     std::vector<double> dthij;
     std::vector<double> ind;
     std::vector<bool> dthij_valid = segments->nvalid;
-    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0) return -1;
+    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0)
+      return -1;
 
     auto const ndEi = dEi.size();
     if (ndEi < 1) return -1;
@@ -466,8 +469,13 @@ namespace trkf {
     double const minP = this->GetTrackMomentum(recoL, 13);
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapperLLHD const wrapper{
-      std::move(dEi), std::move(dEj), std::move(dthij), std::move(ind), std::move(dthij_valid), seg_size, correction};
+    FcnWrapperLLHD const wrapper{std::move(dEi),
+                                 std::move(dEj),
+                                 std::move(dthij),
+                                 std::move(ind),
+                                 std::move(dthij_valid),
+                                 seg_size,
+                                 correction};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_llhd(xs); }, 2);
 
     mP.SetFunction(FCA);
@@ -555,7 +563,8 @@ namespace trkf {
     std::vector<double> dthij;
     std::vector<double> ind;
     double angle_correction = 1; // never tested in this function
-    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0) return -1;
+    if (getDeltaThetaij_(dEi, dEj, dthij, ind, *segments, seg_size, angle_correction) != 0)
+      return -1;
 
     auto const recoL = trk->Length();
     double const p_range = recoL * kcal;
@@ -719,7 +728,8 @@ namespace trkf {
       if (mean == -1 && rms == -1 && rmse == -1) continue;
       xmeas.push_back(trial); // x values are different steps length, ex: 10, 20, 30 cm
       ymeas.push_back(rms);   // y values are the RMS of the scattered angle for each step defined
-      eymeas.push_back(std::hypot(rmse, 0.05 * rms)); // <--- conservative syst. error to fix chi^{2} behaviour !!!
+      eymeas.push_back(
+        std::hypot(rmse, 0.05 * rms)); // <--- conservative syst. error to fix chi^{2} behaviour !!!
 
       if (ymin > rms) ymin = rms;
       if (ymax < rms) ymax = rms;
@@ -747,8 +757,7 @@ namespace trkf {
     if (fMCSAngleMethod == kAngleCombined) { correction = std::sqrt(2.); }
 
     ROOT::Minuit2::Minuit2Minimizer mP{};
-    FcnWrapper const wrapper{
-      std::move(xmeas), std::move(ymeas), std::move(eymeas), correction};
+    FcnWrapper const wrapper{std::move(xmeas), std::move(ymeas), std::move(eymeas), correction};
     ROOT::Math::Functor FCA([&wrapper](double const* xs) { return wrapper.my_mcs_chi2(xs); }, 2);
 
     // Start point for resolution
@@ -1113,7 +1122,8 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
+        compute_max_fluctuation_vector(
+          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
 
         // Starting over
         vx.push_back(x0);
@@ -1167,7 +1177,8 @@ namespace trkf {
 
         // Now, compute the deviation in `segx, ...` of the segment
         // vx, vy, vz are used and cleared afterwards
-        compute_max_fluctuation_vector(segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
+        compute_max_fluctuation_vector(
+          segx, segy, segz, segnx, segny, segnz, segn_isvalid, vx, vy, vz, check_valid_scattered);
 
         // vectors are cleared in previous step
         vx.push_back(x0);
@@ -1273,7 +1284,7 @@ namespace trkf {
                 buf0.push_back(azy);
               }
               else if (fMCSAngleMethod == kAngleCombined) {
-                buf0.push_back(std::hypot(azx, azy)); 
+                buf0.push_back(std::hypot(azx, azy));
               }
             }
           }
