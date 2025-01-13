@@ -594,7 +594,8 @@ namespace reco_tool {
                                                           Waveform<T>& differenceVec) const
   {
     // Set the window size
-    int halfWindowSize(structuringElement / 2);
+    int halfWindowSize(
+      std::min<int>(structuringElement / 2, static_cast<int>(inputWaveform.size())));
 
     // Initialize min and max elements
     std::pair<typename Waveform<T>::const_iterator, typename Waveform<T>::const_iterator>
