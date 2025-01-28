@@ -1410,11 +1410,12 @@ namespace trkf {
 
       if (mc) {
         // one vector per o trk, for all modes of stitched i trks
-        NtrkIdsAll.push_back(vecMode);
+        auto& back = NtrkIdsAll.emplace_back(vecMode);
 
-        std::unique(NtrkIdsAll.back().begin(), NtrkIdsAll.back().end());
+        auto const last = std::unique(back.begin(), back.end());
+        back.erase(last, back.end());
         double sum(0.0);
-        for (auto const val : NtrkIdsAll.back()) {
+        for (auto const val : back) {
           sum += hitmap[val][o].size();
         }
         ntvsorted.push_back(sum);

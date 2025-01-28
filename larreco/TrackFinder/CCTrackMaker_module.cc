@@ -421,7 +421,7 @@ namespace trkf {
 
     std::vector<CluLen> clulens;
 
-    unsigned short ipl, icl, end, itr, tID, tIndex;
+    unsigned short itr, tID, tIndex;
 
     // maximum error (see MakeClusterChains) for considering clusters broken
     fMaxMergeError = 30;
@@ -445,8 +445,8 @@ namespace trkf {
 
     // check consistency between clusters and associated hits
     std::vector<art::Ptr<recob::Hit>> clusterhits;
-    for (icl = 0; icl < clusterlist.size(); ++icl) {
-      ipl = clusterlist[icl]->Plane().Plane;
+    for (std::size_t icl = 0; icl < clusterlist.size(); ++icl) {
+      auto const ipl = clusterlist[icl]->Plane().Plane;
       clusterhits = fmCluHits.at(icl);
       if (clusterhits[0]->WireID().Wire != std::nearbyint(clusterlist[icl]->EndWire())) {
         std::cout << "CCTM Cluster-Hit End wire mis-match " << clusterhits[0]->WireID().Wire
@@ -468,7 +468,7 @@ namespace trkf {
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
       unsigned int const nplanes = wireReadoutGeom.Nplanes(tpcid);
       if (nplanes > 3) continue;
-      for (ipl = 0; ipl < 3; ++ipl) {
+      for (std::size_t ipl = 0; ipl < 3; ++ipl) {
         cls[ipl].clear();
         clsChain[ipl].clear();
         trkHits[ipl].clear();
@@ -478,7 +478,7 @@ namespace trkf {
       for (auto const& planeid : wireReadoutGeom.Iterate<geo::PlaneID>(tpcid)) {
         clulens.clear();
         // sort clusters by increasing End wire number
-        for (icl = 0; icl < clusterlist.size(); ++icl) {
+        for (std::size_t icl = 0; icl < clusterlist.size(); ++icl) {
           if (clusterlist[icl]->Plane() != planeid) continue;
           CluLen clulen;
           clulen.index = icl;
@@ -501,7 +501,7 @@ namespace trkf {
           clstr.Angle[1] = cluster.StartAngle();
           clstr.Slope[1] = std::tan(cluster.StartAngle());
           clstr.Dir[1] = 0;
-          clstr.Charge[1] = ChgNorm[ipl] * cluster.StartCharge();
+          clstr.Charge[1] = ChgNorm[planeid.Plane] * cluster.StartCharge();
           // this will be filled later
           clstr.ChgNear[1] = 0;
           clstr.VtxIndex[1] = -1;
@@ -523,7 +523,7 @@ namespace trkf {
             clstr.Dir[0] = -1;
             clstr.Dir[1] = 1;
           }
-          clstr.Charge[0] = ChgNorm[ipl] * cluster.EndCharge();
+          clstr.Charge[0] = ChgNorm[planeid.Plane] * cluster.EndCharge();
           // this will be filled later
           clstr.ChgNear[1] = 0;
           clstr.VtxIndex[0] = -1;
@@ -533,7 +533,7 @@ namespace trkf {
           // other info
           clstr.InTrack = -1;
           clstr.Length = (unsigned short)(0.5 + clstr.Wire[1] - clstr.Wire[0]);
-          clstr.TotChg = ChgNorm[ipl] * cluster.Integral();
+          clstr.TotChg = ChgNorm[planeid.Plane] * cluster.Integral();
           if (clstr.TotChg <= 0) clstr.TotChg = 1;
           clusterhits = fmCluHits.at(icl);
           if (clusterhits.size() == 0) {
@@ -542,7 +542,7 @@ namespace trkf {
           }
           // correct charge for missing cluster hits
           clstr.TotChg *= clstr.Length / (float)clusterhits.size();
-          cls[ipl].push_back(clstr);
+          cls[planeid.Plane].push_back(clstr);
         } // ii (icl)
       }   // planeid
 
@@ -564,10 +564,10 @@ namespace trkf {
         std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(ivx);
         std::vector<const unsigned short*> const& vtxClsEnd = fmVtxCls.data(ivx);
         for (unsigned short vcass = 0; vcass < vtxCls.size(); ++vcass) {
-          icl = vtxCls[vcass].key();
+          auto const icl = vtxCls[vcass].key();
           // the cluster plane
-          ipl = vtxCls[vcass]->Plane().Plane;
-          end = *vtxClsEnd[vcass];
+          auto const ipl = vtxCls[vcass]->Plane().Plane;
+          auto end = *vtxClsEnd[vcass];
           if (end > 1)
             throw cet::exception("CCTM")
               << "Invalid end data from vertex - cluster association" << end;
@@ -692,12 +692,12 @@ namespace trkf {
           trk[tIndex].ID = -trk[tIndex].ID;
           // track -> hits association
           tmpHits.clear();
-          for (ipl = 0; ipl < nplanes; ++ipl)
+          for (unsigned int ipl = 0; ipl < nplanes; ++ipl)
             tmpHits.insert(
               tmpHits.end(), trk[tIndex].TrkHits[ipl].begin(), trk[tIndex].TrkHits[ipl].end());
           util::CreateAssn(evt, *tcol, tmpHits, *thassn);
           // Find seed hits and the end of the track that is best
-          end = 0;
+          unsigned int end = 0;
           unsigned short itj = 0;
           if (end > 0) itj = trk[tIndex].TrjPos.size() - 1;
           for (unsigned short ii = 0; ii < 3; ++ii) {
@@ -712,14 +712,14 @@ namespace trkf {
           util::CreateAssn(evt, *pcol, *scol, *psassn, sStart, sEnd);
           // Seed-hit association
           tmpHits.clear();
-          for (ipl = 0; ipl < nplanes; ++ipl)
+          for (unsigned int ipl = 0; ipl < nplanes; ++ipl)
             tmpHits.insert(tmpHits.end(), seedHits[ipl].begin(), seedHits[ipl].end());
           util::CreateAssn(evt, *scol, tmpHits, *shassn);
           // cluster association
           // PFP-cluster association
           tmpCls.clear();
           for (unsigned short ii = 0; ii < trk[tIndex].ClsEvtIndices.size(); ++ii) {
-            icl = trk[tIndex].ClsEvtIndices[ii];
+            auto const icl = trk[tIndex].ClsEvtIndices[ii];
             tmpCls.push_back(clusterlist[icl]);
           } // ii
           util::CreateAssn(evt, *pcol, tmpCls, *pcassn);
@@ -742,7 +742,7 @@ namespace trkf {
           trk[itr].ID);
         tcol->emplace_back(std::move(track));
         tmpHits.clear();
-        for (ipl = 0; ipl < nplanes; ++ipl)
+        for (unsigned int ipl = 0; ipl < nplanes; ++ipl)
           tmpHits.insert(tmpHits.end(), trk[itr].TrkHits[ipl].begin(), trk[itr].TrkHits[ipl].end());
         util::CreateAssn(evt, *tcol, tmpHits, *thassn);
       } // itr
@@ -758,8 +758,8 @@ namespace trkf {
       if (fDebugAlg > 0) PrintTracks();
 
       double orphanLen = 0;
-      for (ipl = 0; ipl < nplanes; ++ipl) {
-        for (icl = 0; icl < cls[ipl].size(); ++icl) {
+      for (unsigned int ipl = 0; ipl < nplanes; ++ipl) {
+        for (std::size_t icl = 0; icl < cls[ipl].size(); ++icl) {
           if (cls[ipl][icl].Length > 40 && cls[ipl][icl].InTrack < 0) {
             orphanLen += cls[ipl][icl].Length;
             // unused cluster
@@ -771,12 +771,12 @@ namespace trkf {
 
         cls[ipl].clear();
         clsChain[ipl].clear();
+        std::cout << "Total orphan length " << orphanLen << "\n";
+        trkHits[ipl].clear();
+        seedHits[ipl].clear();
+        vxCls[ipl].clear();
       } // ipl
-      std::cout << "Total orphan length " << orphanLen << "\n";
-      trkHits[ipl].clear();
-      seedHits[ipl].clear();
-      vxCls[ipl].clear();
-    } // tpcs
+    }   // tpcs
 
     evt.put(std::move(pcol));
     evt.put(std::move(ptassn));
@@ -1682,7 +1682,7 @@ namespace trkf {
       } // cls[ipl].size() > 1
 
       // follow mother-daughter broken clusters and put them in the cluster chain array
-      unsigned short end, mom, momBrkEnd, dtrBrkEnd, nit;
+      unsigned short mom, momBrkEnd, dtrBrkEnd, nit;
       short dtr;
 
       std::vector<bool> gotcl(cls[ipl].size());
@@ -1699,7 +1699,7 @@ namespace trkf {
         if (gotcl[icl]) continue;
         // don't start with a cluster broken at both ends
         if (cls[ipl][icl].BrkIndex[0] >= 0 && cls[ipl][icl].BrkIndex[1] >= 0) continue;
-        for (end = 0; end < 2; ++end) {
+        for (unsigned int end = 0; end < 2; ++end) {
           if (cls[ipl][icl].BrkIndex[end] < 0) continue;
           if (cls[ipl][icl].MergeError[end] > fMergeErrorCut) continue;
           gotcl[icl] = true;
@@ -1758,7 +1758,7 @@ namespace trkf {
         unsigned short jcl = sCluster[0];
         if (jcl > cls[ipl].size()) std::cout << "oops MCC\n";
         unsigned short oend;
-        for (end = 0; end < 2; ++end) {
+        for (unsigned int end = 0; end < 2; ++end) {
           oend = end;
           if (sOrder[0] > 0) oend = 1 - end;
           ccp.Wire[end] = cls[ipl][jcl].Wire[oend];
@@ -1779,7 +1779,7 @@ namespace trkf {
           jcl = sCluster[ii];
           if (jcl > cls[ipl].size()) std::cout << "oops MCC\n";
           // end is the end where the break is being mended
-          end = sOrder[ii];
+          unsigned int end = sOrder[ii];
           if (end > 1) std::cout << "oops2 MCC\n";
           oend = 1 - end;
           // update the parameters at the other end of the chain
@@ -1959,9 +1959,9 @@ namespace trkf {
 
     // determine if each end is good in the sense that there are hits in each plane
     // that are consistent in time and are presumed to form a good 3D space point
-    unsigned short end, nClose, indx, jndx;
+    unsigned short nClose, indx, jndx;
     float xErr;
-    for (end = 0; end < 2; ++end) {
+    for (unsigned int end = 0; end < 2; ++end) {
       nClose = 0;
       for (unsigned short ipl = 0; ipl < nplanes - 1; ++ipl) {
         if (trkX[ipl].size() == 0) continue;
@@ -1986,7 +1986,7 @@ namespace trkf {
     unsigned short ivx, itj, ccl;
     float dx, dy, dz, dr0, dr1;
     unsigned short attachEnd;
-    for (end = 0; end < 2; ++end) {
+    for (unsigned int end = 0; end < 2; ++end) {
       ivx = USHRT_MAX;
       if (end == 0 && matcomb[imat].Vtx >= 0) ivx = matcomb[imat].Vtx;
       if (end == 1 && matcomb[imat].oVtx >= 0) ivx = matcomb[imat].oVtx;
