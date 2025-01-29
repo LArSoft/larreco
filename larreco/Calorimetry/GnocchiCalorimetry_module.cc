@@ -591,7 +591,7 @@ double calo::GnocchiCalorimetry::GetPitch(const recob::Track& track,
                        0.5 * ::util::pi<>();
 
   geo::Vector_t dir;
-  auto const& plane = wireReadoutGeom.Plane({0, 0, hit.View()});
+  auto const& plane = wireReadoutGeom.Plane({hit.WireID().Cryostat, hit.WireID().TPC, hit.WireID().Plane});
 
   // "dir" should be the direction that the wires see. If the track already has the field
   // distortion corrections applied, then we need to de-apply them to get the direction as
