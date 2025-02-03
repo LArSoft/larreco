@@ -108,7 +108,6 @@ void genf::GFDaf::processTrack(GFTrack* trk)
           //std::cout << "forward ### iBeta, ipl, irep " << iBeta<< " " << ipl << " " << irep << std::endl;
           //	  rep->getState().Print();
           try {
-            hits.at(0);
             pl = hits.at(0)->getDetPlane(rep);
             //do the extrapolation
             rep->extrapolate(pl, state, cov);

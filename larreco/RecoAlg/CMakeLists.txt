@@ -162,6 +162,13 @@ cet_make_library(SOURCE
   CLHEP::Random
 )
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "13.2")
+  # GCC 13.2 (and above) aggressively/spuriously warns about array-bounds issues.
+  target_compile_options(larreco_RecoAlg
+                         PRIVATE "-Wno-array-bounds;-Wno-stringop-overflow;-Wno-stringop-overread")
+endif()
+
 install_headers()
 install_fhicl()
 install_source()
