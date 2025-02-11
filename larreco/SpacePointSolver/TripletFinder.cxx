@@ -18,11 +18,13 @@ namespace reco3d {
                                const std::vector<raw::ChannelID_t>& vbad,
                                double distThresh,
                                double distThreshDrift,
-                               double xhitOffset)
+                               double xhitOffset,
+                               int maxTriplets)
     : wireReadoutGeom{&art::ServiceHandle<geo::WireReadout const>()->Get()}
     , fDistThresh(distThresh)
     , fDistThreshDrift(distThreshDrift)
     , fXHitOffset(xhitOffset)
+    , fMaxTriplets(maxTriplets)
   {
     FillHitMap(detProp, xhits, fX_by_tpc);
     FillHitMap(detProp, uhits, fU_by_tpc);
@@ -169,6 +171,7 @@ namespace reco3d {
 
         // Loop through all those matching hits
         for (auto xvit = xvit_begin; xvit != xvs.end() && SameXHit(*xvit, xu); ++xvit) {
+          if (fMaxTriplets > 0 and nxuv > fMaxTriplets) break;
           const HitOrChan& v = xvit->b;
 
           // Only allow one bad channel per triplet
@@ -207,6 +210,7 @@ namespace reco3d {
 
           ret.emplace_back(HitTriplet{x.hit, u.hit, v.hit, pt});
           ++nxuv;
+          if (fMaxTriplets > 0 and nxuv > fMaxTriplets) break;
         } // end for xv
       }   // end for xu
 

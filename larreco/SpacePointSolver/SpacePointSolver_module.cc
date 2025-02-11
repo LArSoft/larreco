@@ -479,7 +479,8 @@ namespace reco3d {
                        {},
                        fDistThresh,
                        fDistThreshDrift,
-                       fXHitOffset);
+                       fXHitOffset,
+                       fMaxNTriplets);
       auto triplets = tf.TripletsTwoView();
       if (fMaxNTriplets > 0 && triplets.size() > fMaxNTriplets) {
         std::cout << "Huge Triplet Size, bailing out" << std::endl;
@@ -499,7 +500,8 @@ namespace reco3d {
                        vbadchans,
                        fDistThresh,
                        fDistThreshDrift,
-                       fXHitOffset);
+                       fXHitOffset,
+                       fMaxNTriplets);
       auto triplets = tf.Triplets();
       if (fMaxNTriplets > 0 && triplets.size() > fMaxNTriplets) {
         std::cout << "Huge Triplet Size, bailing out" << std::endl;
