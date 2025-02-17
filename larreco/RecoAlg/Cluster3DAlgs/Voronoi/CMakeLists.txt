@@ -21,7 +21,7 @@ cet_make_library(SOURCE
   PUBLIC
   larreco::Voronoi_IEvent
   larreco::Voronoi_DCEL
-  Boost::headers
+  Boost::boost
   Eigen3::Eigen
   PRIVATE
   larreco::RecoAlg_Cluster3DAlgs_ConvexHull
