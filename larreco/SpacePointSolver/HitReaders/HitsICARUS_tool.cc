@@ -14,6 +14,7 @@
 #include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
 
 // std includes
+#include <cmath>
 #include <ostream>
 #include <vector>
 

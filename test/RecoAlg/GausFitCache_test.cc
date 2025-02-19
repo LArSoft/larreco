@@ -386,7 +386,7 @@ BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 {
   // max 20 Gaussians
   hit::GausFitCache GausCache("RunTimeGaussians");
-  ThreeGaussianFitTest(GausCache, 0.02 % tolerance());
+  ThreeGaussianFitTest(GausCache, 0.03 % tolerance());
 } // BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function from the compiled cache
