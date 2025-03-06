@@ -14,6 +14,14 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/Simulation/SimEnergyDeposit.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesStandard.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/WireReadout.h"
+
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
+
 #include "nusimdata/SimulationBase/MCNeutrino.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -67,6 +75,7 @@ namespace wc {
 
     void processRaw(const art::Event& evt);
     void processCalib(const art::Event& evt);
+    void processDNNCalib(const art::Event& evt);
     void processOpHit(const art::Event& evt);
     void processOpFlash(const art::Event& evt);
     void processSpacePoint(const art::Event& event, TString option, ostream& out = cout);
@@ -92,6 +101,7 @@ namespace wc {
     // the parameters we'll read from the .fcl
     std::string fRawDigitLabel;
     std::string fCalibLabel;
+    std::string fDNNCalibLabel;
     std::string fOpHitLabel;
     std::string fOpFlashLabel;
     std::string fTriggerLabel;
@@ -107,6 +117,7 @@ namespace wc {
     bool fSaveSimChannel;
     bool fSaveRaw;
     bool fSaveCalib;
+    bool fSaveDNNCalib;
     bool fSaveOpHit;
     bool fSaveOpFlash;
     bool fSaveMC;
@@ -137,11 +148,14 @@ namespace wc {
     unsigned int fTriggerbits;   //trigger bits
 
     int fCalib_nChannel;
+    int fDNNCalib_nChannel;
     // int fCalib_channelId[MAX_CHANNEL];  // hit channel id; size == fCalib_Nhit
     // // FIXEME:: cannot save e.g std::vector<std::vector<float> > in ttree
     std::vector<int> fCalib_channelId;
+    std::vector<int> fDNNCalib_channelId;
     // std::vector<std::vector<float> > fCalib_wf;
     TClonesArray* fCalib_wf;
+    TClonesArray* fDNNCalib_wf;
     // std::vector<std::vector<int> > fCalib_wfTDC;
 
     int oh_nHits;
@@ -163,6 +177,8 @@ namespace wc {
     int fSIMIDE_size;
     vector<int> fSIMIDE_channelIdY;
     vector<int> fSIMIDE_trackId;
+    vector<float> fSIMIDE_isnu;
+    vector<float> fSIMIDE_pdg;
     vector<unsigned short> fSIMIDE_tdc;
     vector<float> fSIMIDE_x;
     vector<float> fSIMIDE_y;
@@ -216,6 +232,7 @@ namespace wc {
 
     fRawDigitLabel = p.get<std::string>("RawDigitLabel");
     fCalibLabel = p.get<std::string>("CalibLabel");
+    fDNNCalibLabel = p.get<std::string>("DNNCalibLabel");
     fOpHitLabel = p.get<std::string>("OpHitLabel");
     fOpFlashLabel = p.get<std::string>("OpFlashLabel");
     fTriggerLabel = p.get<std::string>("TriggerLabel");
@@ -227,6 +244,7 @@ namespace wc {
     fSaveMCTrackPoints = p.get<bool>("saveMCTrackPoints");
     fSaveRaw = p.get<bool>("saveRaw");
     fSaveCalib = p.get<bool>("saveCalib");
+    fSaveDNNCalib = p.get<bool>("saveDNNCalib");
     fSaveOpHit = p.get<bool>("saveOpHit");
     fSaveOpFlash = p.get<bool>("saveOpFlash");
     fSaveMC = p.get<bool>("saveMC");
@@ -274,9 +292,14 @@ namespace wc {
 
     fEventTree->Branch("calib_nChannel",
                        &fCalib_nChannel); // number of hit channels above threshold
+    fEventTree->Branch("dnncalib_nChannel",
+                       &fDNNCalib_nChannel); // number of hit channels above threshold
     fEventTree->Branch("calib_channelId", &fCalib_channelId); // hit channel id; size == calib_Nhit
+    fEventTree->Branch("dnncalib_channelId", &fDNNCalib_channelId); // hit channel id; size == calib_Nhit
     fCalib_wf = new TClonesArray("TH1F");
     fEventTree->Branch("calib_wf", &fCalib_wf, 256000, 0); // calib waveform adc of each channel
+    fDNNCalib_wf = new TClonesArray("TH1F");
+    fEventTree->Branch("dnncalib_wf", &fDNNCalib_wf, 256000, 0); // calib waveform adc of each channel
     // fCalib_wf->BypassStreamer();
     // fEventTree->Branch("calib_wfTDC", &fCalib_wfTDC);  // calib waveform tdc of each channel
 
@@ -298,6 +321,8 @@ namespace wc {
     fEventTree->Branch("simide_size", &fSIMIDE_size); // size of stored sim:IDE
     fEventTree->Branch("simide_channelIdY", &fSIMIDE_channelIdY);
     fEventTree->Branch("simide_trackId", &fSIMIDE_trackId);
+    fEventTree->Branch("simide_isnu", &fSIMIDE_isnu);
+    fEventTree->Branch("simide_pdg", &fSIMIDE_pdg);
     fEventTree->Branch("simide_tdc", &fSIMIDE_tdc);
     fEventTree->Branch("simide_x", &fSIMIDE_x);
     fEventTree->Branch("simide_y", &fSIMIDE_y);
@@ -402,6 +427,7 @@ namespace wc {
 
     if (fSaveRaw) processRaw(event);
     if (fSaveCalib) processCalib(event);
+    if (fSaveDNNCalib) processDNNCalib(event);
     if (fSaveOpHit) processOpHit(event);
     if (fSaveOpFlash) processOpFlash(event);
     if (fSaveSimChannel) processSimChannel(event);
@@ -451,6 +477,9 @@ namespace wc {
     fCalib_channelId.clear();
     fCalib_wf->Clear();
 
+    fDNNCalib_channelId.clear();
+    fDNNCalib_wf->Clear();
+
     oh_channel.clear();
     oh_bgtime.clear();
     oh_trigtime.clear();
@@ -463,6 +492,8 @@ namespace wc {
 
     fSIMIDE_channelIdY.clear();
     fSIMIDE_trackId.clear();
+    fSIMIDE_isnu.clear();
+    fSIMIDE_pdg.clear();
     fSIMIDE_tdc.clear();
     fSIMIDE_x.clear();
     fSIMIDE_y.clear();
@@ -573,6 +604,35 @@ namespace wc {
     }
   }
 
+  //-----------------------------------------------------------------------
+  void CellTree::processDNNCalib(const art::Event& event)
+  {
+
+    art::Handle<std::vector<recob::Wire>> wires_handle;
+    if (!event.getByLabel(fDNNCalibLabel, wires_handle)) {
+      cout << "WARNING: no label " << fDNNCalibLabel << endl;
+      return;
+    }
+    std::vector<art::Ptr<recob::Wire>> wires;
+    art::fill_ptr_vector(wires, wires_handle);
+
+    // wires size should == Nchannels == 1992; (no hit channel has a flat 0-waveform)
+    // cout << "\n wires size: " << wires.size() << endl;
+    fDNNCalib_nChannel = wires.size();
+
+    int i = 0;
+    for (auto const& wire : wires) {
+      std::vector<float> calibwf = wire->Signal();
+      int chanId = wire->Channel();
+      fDNNCalib_channelId.push_back(chanId);
+      TH1F* h = new ((*fDNNCalib_wf)[i]) TH1F("", "", nRawSamples, 0, nRawSamples);
+      for (int j = 1; j <= nRawSamples; j++) {
+        h->SetBinContent(j, calibwf[j]);
+      }
+      i++;
+    }
+  }
+
   //----------------------------------------------------------------------
   void CellTree::processOpHit(const art::Event& event)
   {
@@ -656,6 +716,27 @@ namespace wc {
           // cout << channelNumber << ": " << energyDeposit.trackID << ": " << timeSlice.first << ": "
           //      << energyDeposit.x << ", " << energyDeposit.y << ", " << energyDeposit.z << ", "
           //      << energyDeposit.numElectrons << endl;
+          art::ServiceHandle<cheat::ParticleInventoryService> pi_serv; // for getting mctruth
+          art::ServiceHandle<cheat::BackTrackerService> bt_serv; // if we want to use hits
+          bool matchFound = false;
+          art::Ptr<simb::MCTruth> mctruth;
+          try {
+            mctruth = pi_serv->TrackIdToMCTruth_P(energyDeposit.trackID);
+            matchFound = true;
+          } 
+          catch(...) {
+            std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
+            matchFound = false;
+          }
+          if (matchFound) {
+            if(mctruth->Origin() == simb::kBeamNeutrino) {
+              fSIMIDE_isnu.push_back(1.);
+            } 
+            else {
+              fSIMIDE_isnu.push_back(0.);
+            }
+            fSIMIDE_pdg.push_back(mctruth->GetParticle(0).PdgCode());
+          }
         }
       }
     }
