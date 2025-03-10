@@ -485,15 +485,20 @@ namespace trkf {
     double startpoint = 2;
     if (startpoint < min_resolution)
       startpoint = (max_resolution - min_resolution) / 2.; // prevent wrong values
-    if (max_resolution == 0) startpoint = min_resolution;
+    bool fixresolution = false;
+    double maxres = max_resolution;
+    if (max_resolution == 0 || max_resolution == min_resolution) {
+      fixresolution = true;
+      startpoint = min_resolution;
+      maxres += 1;
+    }
 
     // Starting energy as double of the energy by range
     // Assumes that the smallet possible energy is given by 60%  with CSDA
     // Step as 10 %
     mP.SetLimitedVariable(0, "p_{MCS}", minP * 2, minP * 0.1, minP * 0.6, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(
-      1, "#delta#theta", startpoint, startpoint / 2., min_resolution, max_resolution);
-    if (max_resolution == 0) { mP.FixVariable(1); }
+    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint / 2., min_resolution, maxres);
+    if (fixresolution) { mP.FixVariable(1); }
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
     mP.SetTolerance(0.01);
@@ -763,13 +768,18 @@ namespace trkf {
     // Start point for resolution
     double startpoint = 2;
     if (startpoint < min_resolution) startpoint = (max_resolution - min_resolution) / 2.;
-    if (max_resolution == 0) startpoint = min_resolution;
+    bool fixresolution = false;
+    double maxres = max_resolution;
+    if (max_resolution == 0 || max_resolution == min_resolution) {
+      fixresolution = true;
+      startpoint = min_resolution;
+      maxres += 1;
+    }
 
     mP.SetFunction(FCA);
     mP.SetLimitedVariable(0, "p_{MCS}", 1.0, 0.01, 0.001, maxMomentum_MeV / 1.e3);
-    mP.SetLimitedVariable(
-      1, "#delta#theta", startpoint, startpoint / 2., min_resolution, max_resolution);
-    if (max_resolution == 0) { mP.FixVariable(1); }
+    mP.SetLimitedVariable(1, "#delta#theta", startpoint, startpoint / 2., min_resolution, maxres);
+    if (fixresolution) { mP.FixVariable(1); }
     mP.SetMaxFunctionCalls(1.E9);
     mP.SetMaxIterations(1.E9);
     mP.SetTolerance(0.01);
