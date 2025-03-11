@@ -770,7 +770,7 @@ namespace trkf {
     if (startpoint < min_resolution) startpoint = (max_resolution - min_resolution) / 2.;
     bool fixresolution = false;
     double maxres = max_resolution;
-    if (max_resolution == 0 || max_resolution == min_resolution) {
+    if (max_resolution == 0 || max_resolution <= min_resolution) {
       fixresolution = true;
       startpoint = min_resolution;
       maxres += 1;
