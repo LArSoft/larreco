@@ -83,7 +83,7 @@ namespace {
      81303.4, 89561.4, 1.06e+05, 1.21e+05, 1.43e+05, 1.65e+05, 1.98e+05, 2.28e+05, 2.55e+05,
      2.77e+05}};
   TGraph const KEvsRPi{73, Range_grampercm.data(), KE_MeV_Pi.data()};
-  TSpline3 const KEvsRPi_spline3{"KEvsRS_pion", &KEvsR};
+  TSpline3 const KEvsRPi_spline3{"KEvsRS_pion", &KEvsRPi};
 
   // Stopping power data from pdg, to be used with MCS
   std::vector<double> dedx_GeV_per_cm()
