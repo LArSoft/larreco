@@ -72,6 +72,19 @@ namespace {
   TGraph const KEvsR{73, Range_grampercm.data(), KE_MeV.data()};
   TSpline3 const KEvsR_spline3{"KEvsRS", &KEvsR};
 
+  constexpr std::array<double, 73> KE_MeV_Pi{
+    {11.1928, 13.4567, 15.6946,  19.0487,  22.3945,  27.9408,  33.4579,  38.9494,  44.4198,
+     49.8612, 55.2838, 60.6757,  66.0632,  76.7631,  87.3839,  97.9617,  108.461,  129.341,
+     150.023, 180.793, 211.275,  261.704,  311.585,  361.284,  410.705,  459.809,  508.805,
+     557.727, 606.592, 704.011,  801.047,  898.111,  994.983,  1188.51,  1381.61,  1671.44,
+     1961.46, 2442.32, 2925.25,  3406.69,  3888.88,  4370.85,  4853.71,  5335.02,  5816.14,
+     6778.21, 7739.41, 8699.89,  9658.32,  11572.9,  13480.8,  16335.1,  19171.0,  23866.9,
+     28529.9, 33169.1, 37734.7,  42284.0,  46770.4,  51233.2,  55648.5,  64349.8,  72904.4,
+     81303.4, 89561.4, 1.06e+05, 1.21e+05, 1.43e+05, 1.65e+05, 1.98e+05, 2.28e+05, 2.55e+05,
+     2.77e+05}};
+  TGraph const KEvsRPi{73, Range_grampercm.data(), KE_MeV_Pi.data()};
+  TSpline3 const KEvsRPi_spline3{"KEvsRS_pion", &KEvsRPi};
+
   // Stopping power data from pdg, to be used with MCS
   std::vector<double> dedx_GeV_per_cm()
   {
@@ -365,13 +378,26 @@ namespace trkf {
     //corresponding to a Muon KE of 5 GeV**********//
     ///////////////////////////////////////////////////////////////////////////
 
+    /* Pion range-momentum extracted from Bethe-Bloch equation.  The
+       computation are all one using
+       https://github.com/sungbinoh/PDSPTreeAnalyzer.git (last commit 4a3d1d2)
+
+       The computation is done with the spline of the Range_grampercm and
+       KE_MeV_Pion.*/
+
+    ///////////////////////////////////////////////////////////////////////////
+    //*********For pion, the calculations are valid only when there is no
+    //inelastic scattering present. So this method should be used
+    //carefully.**********//
+    ///////////////////////////////////////////////////////////////////////////
+
     if (trkrange < 0 || std::isnan(trkrange)) {
       mf::LogError("TrackMomentumCalculator") << "Invalid track range " << trkrange << " return -1";
       return -1.;
     }
 
     double KE, Momentum, M;
-    constexpr double Muon_M = m_muon * 1e3, Proton_M = 938.272;
+    constexpr double Muon_M = m_muon * 1e3, Proton_M = 938.272, Pion_M = 139.57039;
 
     if (abs(pdg) == 13) {
       M = Muon_M;
@@ -389,6 +415,10 @@ namespace trkf {
              (-1.71763E-16 * trkrange * trkrange * trkrange * trkrange * trkrange * trkrange);
       else
         KE = -999;
+    }
+    else if (abs(pdg) == 211) {
+      M = Pion_M;
+      KE = KEvsRPi_spline3.Eval(trkrange);
     }
     else
       KE = -999;
