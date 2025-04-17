@@ -177,8 +177,8 @@ namespace wc {
     int fSIMIDE_size;
     vector<int> fSIMIDE_channelIdY;
     vector<int> fSIMIDE_trackId;
-    vector<float> fSIMIDE_isnu;
-    vector<float> fSIMIDE_pdg;
+    vector<int> fSIMIDE_isnu;
+    vector<int> fSIMIDE_pdg;
     vector<unsigned short> fSIMIDE_tdc;
     vector<float> fSIMIDE_x;
     vector<float> fSIMIDE_y;
@@ -723,9 +723,10 @@ namespace wc {
           try {
             mctruth = pi_serv->TrackIdToMCTruth_P(energyDeposit.trackID);
             matchFound = true;
+            // std::cout << "TrackID " << energyDeposit.trackID << " matched to MCTruth " << mctruth->Origin() << std::endl;
           } 
           catch(...) {
-            std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
+            // std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
             matchFound = false;
           }
           if (matchFound) {
@@ -736,6 +737,9 @@ namespace wc {
               fSIMIDE_isnu.push_back(0.);
             }
             fSIMIDE_pdg.push_back(mctruth->GetParticle(0).PdgCode());
+          } else {
+            fSIMIDE_isnu.push_back(-1);
+            fSIMIDE_pdg.push_back(-1e8);
           }
         }
       }
