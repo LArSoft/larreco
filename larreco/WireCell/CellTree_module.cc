@@ -83,6 +83,10 @@ namespace wc {
                                     TString option,
                                     ostream& out = cout,
                                     bool t0_corrected = true);
+    void processSpacePointTruthDepo_Particle(const art::Event& event,
+                                    TString option,
+                                    ostream& out = cout,
+                                    bool t0_corrected = true);
     void processSimChannel(const art::Event& evt);
     void processMC(const art::Event& evt);
     void processMCTracks();
@@ -112,6 +116,7 @@ namespace wc {
     std::string mcOption;
     int nRawSamples;
     float opMultPEThresh;
+    int tdcOffset {-3400}; // offset for TDC, in ticks
     float drift_speed;
     bool fSaveMCTrackPoints;
     bool fSaveSimChannel;
@@ -121,10 +126,19 @@ namespace wc {
     bool fSaveOpHit;
     bool fSaveOpFlash;
     bool fSaveMC;
+    bool fprocessSpacePointTruthDepo_Particle{true};
     bool fSaveTrigger;
     bool fSaveJSON;
     bool fT0_corrected;
     art::ServiceHandle<geo::Geometry const> fGeometry; // pointer to Geometry service
+    int readout_start; // us. Ewerton Feb, 2025.
+    int readout_end; // us. Ewerton Feb, 2025.
+    std::string save_apa; // us. Ewerton Feb, 2025.
+    int first_cluster_id; // unit: integer. ID assigned to first cluster. Ewerton Feb, 2025.
+    float clustering_delta_t;
+    float z_offset; // cm. Ewerton Mar, 2025.
+
+    TString geomName{"uboone"};
 
     // art::ServiceHandle<geo::Geometry const> fGeom;
     // // auto const* larp = lar::providerFrom<detinfo::LArPropertiesService>();
@@ -181,6 +195,7 @@ namespace wc {
     vector<int> fSIMIDE_pdg;
     vector<unsigned short> fSIMIDE_tdc;
     vector<float> fSIMIDE_x;
+    vector<float> fSIMIDE_x_tdc;
     vector<float> fSIMIDE_y;
     vector<float> fSIMIDE_z;
     vector<float> fSIMIDE_numElectrons;
@@ -254,7 +269,14 @@ namespace wc {
     fT0_corrected = p.get<bool>("t0_corrected");
     opMultPEThresh = p.get<float>("opMultPEThresh");
     drift_speed = p.get<float>("drift_speed"); // mm/us
+    tdcOffset = p.get<int>("tdcOffset");
     nRawSamples = p.get<int>("nRawSamples");
+    readout_start = p.get<int>("readout_start"); // unit: us. Ewerton Feb, 2025.
+    readout_end = p.get<int>("readout_end"); // unit: us. Ewerton Feb, 2025.
+    save_apa = p.get<std::string>("save_apa"); // Ewerton Feb, 2025.
+    first_cluster_id = p.get<int>("first_cluster_id"); // unit: integer. Ewerton Feb, 2025.
+    clustering_delta_t = p.get<float>("clustering_delta_t"); // unit: ns. Ewerton Feb, 2025.
+    z_offset = p.get<float>("z_offset"); // unit: cm. Ewerton Mar, 2025.
 
     InitProcessMap();
     initOutput();
@@ -325,6 +347,7 @@ namespace wc {
     fEventTree->Branch("simide_pdg", &fSIMIDE_pdg);
     fEventTree->Branch("simide_tdc", &fSIMIDE_tdc);
     fEventTree->Branch("simide_x", &fSIMIDE_x);
+    fEventTree->Branch("simide_x_tdc", &fSIMIDE_x_tdc);
     fEventTree->Branch("simide_y", &fSIMIDE_y);
     fEventTree->Branch("simide_z", &fSIMIDE_z);
     fEventTree->Branch("simide_numElectrons", &fSIMIDE_numElectrons);
@@ -425,6 +448,27 @@ namespace wc {
     TTimeStamp tts(ts.timeHigh(), ts.timeLow());
     fEventTime = tts.AsDouble();
 
+    geomName = fGeometry->DetectorName().c_str();
+    if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodunevd")) {
+      geomName = "protodunevd";
+    }
+    else if (geomName.Contains("protodune")) {
+      geomName = "protodune";
+    }
+    else if (geomName.Contains("workspace")) {
+      geomName = "dune10kt_workspace";
+    }
+    else if (geomName.Contains("icarus")) {
+      geomName = "icarus";
+    }
+    else if (geomName.Contains("sbnd")) {
+      geomName = "sbnd";
+    }
+    else {
+      geomName = "uboone";
+    } // use uboone as default
+
     if (fSaveRaw) processRaw(event);
     if (fSaveCalib) processCalib(event);
     if (fSaveDNNCalib) processDNNCalib(event);
@@ -442,12 +486,22 @@ namespace wc {
         jsonfile.Form("bee/data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == "truthDepo") {
+          std::cout << "run processSpacePointTruthDepo" << std::endl;
           processSpacePointTruthDepo(event, fSpacePointLabels[i], out, fT0_corrected);
         }
         else {
+          std::cout << "run processSpacePoint" << std::endl;
           processSpacePoint(event, fSpacePointLabels[i], out);
         }
         out.close();
+
+        if (fSpacePointLabels[i] == "truthDepo" and fprocessSpacePointTruthDepo_Particle) {
+          TString jsonfile_sptp;
+          jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+          std::ofstream out_sptp(jsonfile_sptp.Data());
+          processSpacePointTruthDepo_Particle(event, fSpacePointLabels[i], out_sptp, fT0_corrected);
+          out_sptp.close();
+        }
       }
 
       if (fSaveMC) {
@@ -496,6 +550,7 @@ namespace wc {
     fSIMIDE_pdg.clear();
     fSIMIDE_tdc.clear();
     fSIMIDE_x.clear();
+    fSIMIDE_x_tdc.clear();
     fSIMIDE_y.clear();
     fSIMIDE_z.clear();
     fSIMIDE_numElectrons.clear();
@@ -704,12 +759,31 @@ namespace wc {
       auto const& timeSlices = channel.TDCIDEMap();
       for (auto const& timeSlice : timeSlices) {
         auto const& energyDeposits = timeSlice.second;
-        for (auto const& energyDeposit : energyDeposits) {
+        for (auto const& energyDeposit : energyDeposits) { /*sim::IDE*/
           fSIMIDE_size++;
           fSIMIDE_channelIdY.push_back(channelNumber);
           fSIMIDE_tdc.push_back(timeSlice.first);
           fSIMIDE_trackId.push_back(energyDeposit.trackID);
           fSIMIDE_x.push_back(energyDeposit.x);
+          float x = energyDeposit.x;
+          float t = (tdcOffset+timeSlice.first-400)*0.5; // tdc -> time (us)
+          float x_tdc = -1e8;
+          if (geomName == "sbnd") {
+            if (x > 0) {
+              x_tdc = 202.05 - t*drift_speed*0.1; // cm
+            }
+            else if (x < 0) {
+              x_tdc = -202.05 + t*drift_speed*0.1; // cm
+              // std::cout << "before x: " << x << " x_tdc: " << x_tdc << std::endl;
+            }
+          }
+          else if (geomName == "uboone") {
+            x_tdc = t*drift_speed*0.1; // cm
+          }
+          else {
+            cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
+          }
+          fSIMIDE_x_tdc.push_back(x_tdc);
           fSIMIDE_y.push_back(energyDeposit.y);
           fSIMIDE_z.push_back(energyDeposit.z);
           fSIMIDE_numElectrons.push_back(energyDeposit.numElectrons);
@@ -914,27 +988,6 @@ namespace wc {
     out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
     out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
     out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
-
-    TString geomName(fGeometry->DetectorName().c_str());
-    if (geomName.Contains("35t")) { geomName = "dune35t"; }
-    else if (geomName.Contains("protodunevd")) {
-      geomName = "protodunevd";
-    }
-    else if (geomName.Contains("protodune")) {
-      geomName = "protodune";
-    }
-    else if (geomName.Contains("workspace")) {
-      geomName = "dune10kt_workspace";
-    }
-    else if (geomName.Contains("icarus")) {
-      geomName = "icarus";
-    }
-    else if (geomName.Contains("sbnd")) {
-      geomName = "sbnd";
-    }
-    else {
-      geomName = "uboone";
-    } // use uboone as default
     out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
 
     print_vector(out, vx, "x");
@@ -965,89 +1018,251 @@ namespace wc {
     art::fill_ptr_vector(sed, sed_handle);
     int size = sed.size();
     double t = 0, x = 0, y = 0, z = 0, q = 0, nq = 1, cluster_id = 1;
-    vector<double> vx, vy, vz, vq, vnq, vcluster;
-
-    TString geomName(fGeometry->DetectorName().c_str());
-    if (geomName.Contains("35t")) { geomName = "dune35t"; }
-    else if (geomName.Contains("protodunevd")) {
-      geomName = "protodunevd";
-    }
-    else if (geomName.Contains("protodune")) {
-      geomName = "protodune";
-    }
-    else if (geomName.Contains("workspace")) {
-      geomName = "dune10kt_workspace";
-    }
-    else if (geomName.Contains("icarus")) {
-      geomName = "icarus";
-    }
-    else if (geomName.Contains("sbnd")) {
-      geomName = "sbnd";
-    }
-    else {
-      geomName = "uboone";
-    } // use uboone as default
+    double e = 0; //Ewerton 02/11
+    vector<double> vx, vy, vz, vt, vq, vnq, vcluster;
+    vector<double> ve, sedidx; //Ewerton 01/24
 
     for (int i = 0; i < size; i++) {
-      // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
-      x = sed[i]->MidPointX(); // unit: cm
-      t = sed[i]->Time();      // unit: ns
-      y = sed[i]->MidPointY();
-      z = sed[i]->MidPointZ();
-      q = sed[i]->NumElectrons();
-      if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
-      // cout << q << ", " << sed[i]->Energy()*25000 << endl;
-      if (q < 1000) continue; // skip small dots to reduce size
-      if (!t0_corrected) {    // t0 ''enters'' in position along drift
-        if (geomName == "sbnd") {
-          if (x < 0) {
-            x = x + t * 1e-3 * drift_speed * 0.1;
-            cluster_id = 1;
+        // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+        x = sed[i]->MidPointX(); // unit: cm
+        t = sed[i]->Time();      // t0 wrt trigger time unit: ns
+        y = sed[i]->MidPointY();
+        z = sed[i]->MidPointZ();
+        q = sed[i]->NumElectrons();
+        e = sed[i]->Energy(); //MeV
+        if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
+        // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+        if (q < 1000) continue; // skip small dots to reduce size
+        if (!t0_corrected) {    // t0 ''enters'' in position along drift
+          if (geomName == "sbnd") {
+            if (x < 0) {
+              x = x + t * 1e-3 * drift_speed * 0.1;
+              cluster_id = 1;
+            }
+            else if (x > 0) {
+              x = x - t * 1e-3 * drift_speed * 0.1;
+              cluster_id = 2;
+            }
+            else {
+              cluster_id = 3;
+            }
+            if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
           }
-          else if (x > 0) {
-            x = x - t * 1e-3 * drift_speed * 0.1;
-            cluster_id = 2;
+          else if (geomName == "uboone") {
+            x = x + t * 1e-3 * drift_speed * 0.1;
           }
           else {
-            cluster_id = 3;
+            cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
           }
-          if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
         }
-        else if (geomName == "uboone") {
-          x = x + t * 1e-3 * drift_speed * 0.1;
-        }
-        else {
-          cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
-        }
+    
+        double x_real = sed[i]->MidPointX(); // unit: cm
+        double x_c = (x_real<0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
+        double x_drift = (x_real - x_c)*10; // unit: mm. negative for APA 1, should use absolute value next
+        double t_drift = abs(x_drift) / drift_speed ; // unit: us
+        double t_readout = t*1e-3 + t_drift; // unit: us
+  
+        // select edepos within readout time 
+        if(!(readout_start<t_readout && t_readout<readout_end)) continue;
+  
+        // select edepos by APA: APA0(x_real<0), APA1(x_real>0) 
+        if( save_apa == "apa0" && x_real>0 ) continue;
+        if( save_apa == "apa1" && x_real<0 ) continue; 
+  
+        // add offset to z
+        z += z_offset;
+  
+        sedidx.push_back(i); //Ewerton 01/24
+        vx.push_back(x);
+        vy.push_back(y);
+        vz.push_back(z);
+        vt.push_back(t);
+        vq.push_back(q);
+        vnq.push_back(nq);
+        ve.push_back(e);
+        vcluster.push_back(cluster_id);
       }
-      vx.push_back(x);
-      vy.push_back(y);
-      vz.push_back(z);
-      vq.push_back(q);
-      vnq.push_back(nq);
-      vcluster.push_back(cluster_id);
+  
+      //---------Ewerton 01/24-------------
+      vector<double> vid(sedidx.size(), -1); //cluster ID vector. sedidx is sed index vector. 
+      int id = first_cluster_id;
+      int delta_t = clustering_delta_t; // unit: ns
+  
+      // assign new cluster id
+      for (unsigned int i=0; i < sedidx.size(); i++) {
+        double ti = sed[sedidx[i]]->Time() ;
+        double tmin = ti - delta_t;
+        double tmax = ti + delta_t;
+        if (i == 0){ //first assignment
+          vid[i]= id;
+        }
+        if (i != 0 && vid[i] != -1) {continue;} //skip seds with ID already assigned
+        for (unsigned int k=0; k < sedidx.size(); k++) {
+          double tk = sed[sedidx[k]]->Time();
+          if(tmin < tk && tk < tmax) {vid[k] = id;}
+        }
+        id++;
+      } 
+      //---------Ewerton 01/24-------------
+  
+      out << fixed << setprecision(1);
+      out << "{" << endl;
+  
+      out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+      out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+      out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+  
+      out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+  
+      print_vector(out, vx, "x");
+      print_vector(out, vy, "y");
+      print_vector(out, vz, "z");
+      print_vector(out, vt, "t");
+  
+      out << fixed << setprecision(0);  // added Ewerton
+      print_vector(out, vq, "q");
+      print_vector(out, vnq, "nq");
+      //print_vector(out, vcluster, "cluster_id"); //original
+      print_vector(out, vid, "cluster_id"); // added Ewerton
+  
+      out << fixed << setprecision(10);  // added Ewerton
+      print_vector(out, ve, "e");// added Ewerton 
+      out << fixed << setprecision(0);
+      out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+      out << "}" << endl;
+  }
+
+  void CellTree::processSpacePointTruthDepo_Particle(const art::Event& event,
+                                            TString option,
+                                            ostream& out,
+                                            bool t0_corrected)
+  {
+
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv; // for getting mctruth
+    art::Handle<std::vector<sim::SimEnergyDeposit>> sed_handle;
+    if (!event.getByLabel(fSimEnergyDepositLabel, sed_handle)) {
+      cout << "WARNING: no label " << fSimEnergyDepositLabel << " for SimEnergyDeposit" << endl;
+      return;
     }
+    std::vector<art::Ptr<sim::SimEnergyDeposit>> sed;
+    art::fill_ptr_vector(sed, sed_handle);
+    int size = sed.size();
+    double t = 0, x = 0, y = 0, z = 0, q = 0, nq = 1, cluster_id = 1;
+    double e = 0; //Ewerton 02/11
+    vector<double> vx, vy, vz, vt, vq, vnq, vcluster;
+    vector<double> ve, sedidx; //Ewerton 01/24
+    vector<double> vparticlid, visnu;
 
-    out << fixed << setprecision(1);
-    out << "{" << endl;
-
-    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
-    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
-    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
-
-    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
-
-    print_vector(out, vx, "x");
-    print_vector(out, vy, "y");
-    print_vector(out, vz, "z");
-
-    out << fixed << setprecision(0);
-    print_vector(out, vq, "q");
-    print_vector(out, vnq, "nq");
-    print_vector(out, vcluster, "cluster_id");
-
-    out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
-    out << "}" << endl;
+    for (int i = 0; i < size; i++) {
+        // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+        x = sed[i]->MidPointX(); // unit: cm
+        t = sed[i]->Time();      // t0 wrt trigger time unit: ns
+        y = sed[i]->MidPointY();
+        z = sed[i]->MidPointZ();
+        q = sed[i]->NumElectrons();
+        e = sed[i]->Energy(); //MeV
+        if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
+        // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+        if (q < 1000) continue; // skip small dots to reduce size
+        if (!t0_corrected) {    // t0 ''enters'' in position along drift
+          if (geomName == "sbnd") {
+            if (x < 0) {
+              x = x + t * 1e-3 * drift_speed * 0.1;
+              cluster_id = 1;
+            }
+            else if (x > 0) {
+              x = x - t * 1e-3 * drift_speed * 0.1;
+              cluster_id = 2;
+            }
+            else {
+              cluster_id = 3;
+            }
+            if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
+          }
+          else if (geomName == "uboone") {
+            x = x + t * 1e-3 * drift_speed * 0.1;
+          }
+          else {
+            cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
+          }
+        }
+        double particleid = -1;
+        double isnu = -1;
+        bool matchFound = false;
+        art::Ptr<simb::MCTruth> mctruth;
+        try {
+          mctruth = pi_serv->TrackIdToMCTruth_P(sed[i]->TrackID());
+          matchFound = true;
+          // std::cout << "TrackID " << energyDeposit.trackID << " matched to MCTruth " << mctruth->Origin() << std::endl;
+        } 
+        catch(...) {
+          // std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
+          matchFound = false;
+        }
+        if (matchFound) {
+          if(mctruth->Origin() == simb::kBeamNeutrino) {
+            isnu = 1.;
+          }
+          else {
+            isnu = 0.;
+          }
+          particleid = mctruth->GetParticle(0).TrackId();
+        }
+    
+        double x_real = sed[i]->MidPointX(); // unit: cm
+        double x_c = (x_real<0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
+        double x_drift = (x_real - x_c)*10; // unit: mm. negative for APA 1, should use absolute value next
+        double t_drift = abs(x_drift) / drift_speed ; // unit: us
+        double t_readout = t*1e-3 + t_drift; // unit: us
+  
+        // select edepos within readout time 
+        if(!(readout_start<t_readout && t_readout<readout_end)) continue;
+  
+        // select edepos by APA: APA0(x_real<0), APA1(x_real>0) 
+        if( save_apa == "apa0" && x_real>0 ) continue;
+        if( save_apa == "apa1" && x_real<0 ) continue; 
+  
+        // add offset to z
+        z += z_offset;
+  
+        sedidx.push_back(i); //Ewerton 01/24
+        vx.push_back(x);
+        vy.push_back(y);
+        vz.push_back(z);
+        vt.push_back(t);
+        vq.push_back(q);
+        vnq.push_back(nq);
+        ve.push_back(e);
+        vcluster.push_back(cluster_id);
+        vparticlid.push_back(particleid);
+        visnu.push_back(isnu);
+      }
+  
+      out << fixed << setprecision(1);
+      out << "{" << endl;
+  
+      out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+      out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+      out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+  
+      out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+  
+      print_vector(out, vx, "x");
+      print_vector(out, vy, "y");
+      print_vector(out, vz, "z");
+      print_vector(out, vt, "t");
+  
+      out << fixed << setprecision(0);  // added Ewerton
+      // print_vector(out, vq, "q");
+      print_vector(out, vnq, "nq");
+      print_vector(out, vparticlid, "cluster_id");
+      print_vector(out, visnu, "q");
+  
+      out << fixed << setprecision(10);  // added Ewerton
+      print_vector(out, ve, "e");// added Ewerton 
+      out << fixed << setprecision(0);
+      out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+      out << "}" << endl;
   }
 
   //-----------------------------------------------------------------------
