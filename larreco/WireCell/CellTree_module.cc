@@ -266,6 +266,7 @@ namespace wc {
     fSaveSimChannel = p.get<bool>("saveSimChannel");
     fSaveTrigger = p.get<bool>("saveTrigger");
     fSaveJSON = p.get<bool>("saveJSON");
+    fprocessSpacePointTruthDepo_Particle = p.get<bool>("processSpacePointTruthDepo_Particle");
     fT0_corrected = p.get<bool>("t0_corrected");
     opMultPEThresh = p.get<float>("opMultPEThresh");
     drift_speed = p.get<float>("drift_speed"); // mm/us
@@ -494,14 +495,6 @@ namespace wc {
           processSpacePoint(event, fSpacePointLabels[i], out);
         }
         out.close();
-
-        if (fSpacePointLabels[i] == "truthDepo" and fprocessSpacePointTruthDepo_Particle) {
-          TString jsonfile_sptp;
-          jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-          std::ofstream out_sptp(jsonfile_sptp.Data());
-          processSpacePointTruthDepo_Particle(event, fSpacePointLabels[i], out_sptp, fT0_corrected);
-          out_sptp.close();
-        }
       }
 
       if (fSaveMC) {
@@ -511,6 +504,20 @@ namespace wc {
         std::ofstream out(jsonfile.Data());
         DumpMCJSON(out);
         out.close();
+      }
+    }
+
+    if (fprocessSpacePointTruthDepo_Particle) {
+      int nSp = fSpacePointLabels.size();
+      for (int i = 0; i < nSp; i++) {
+        if (fSpacePointLabels[i] == "truthDepo") {
+          TString jsonfile_sptp;
+          // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+          jsonfile_sptp.Form("tru-%s-%i.json", save_apa.c_str(), entryNo);
+          std::ofstream out_sptp(jsonfile_sptp.Data());
+          processSpacePointTruthDepo_Particle(event, fSpacePointLabels[i], out_sptp, fT0_corrected);
+          out_sptp.close();
+        }
       }
     }
 
