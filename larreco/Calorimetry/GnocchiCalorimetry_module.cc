@@ -408,8 +408,8 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
                                                 Phis));
       }
       else {
-        outputCalo->push_back(
-          anab::Calorimetry(util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane, {}, {}));
+        outputCalo->push_back(anab::Calorimetry(
+          util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane, {}, {}));
       }
 
       util::CreateAssn(evt, *outputCalo, tracklist[trk_i], *outputCaloAssn);
