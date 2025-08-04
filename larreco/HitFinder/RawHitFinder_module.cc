@@ -143,7 +143,7 @@ namespace hit {
       art::Ptr<raw::RawDigit> digitVec(digitVecHandle, rdIter);
       channel = digitVec->Channel();
       fDataSize = digitVec->Samples();
-
+      if (fDataSize == 0) continue;
       rawadc.resize(fDataSize);
       holder.resize(fDataSize);
 
