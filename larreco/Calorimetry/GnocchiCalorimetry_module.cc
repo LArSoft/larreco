@@ -275,6 +275,8 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
       std::vector<geo::Point_t> xyzs;
       std::vector<size_t> tp_indices;
       geo::PlaneID plane;
+      std::vector<float> Efields;
+      std::vector<float> Phis;
 
       // setup the plane ID
       plane.Plane = plane_i;
@@ -348,6 +350,8 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
         pitches.push_back(pitch);
         xyzs.push_back(location);
         kinetic_energy += dEdx * pitch;
+        Efields.push_back(EField);
+        Phis.push_back(phi);
 
         // TODO: FIXME
         // It seems weird that the "trajectory-point-index" actually is the
@@ -399,11 +403,13 @@ void calo::GnocchiCalorimetry::produce(art::Event& evt)
                                                 pitches,
                                                 xyzs,
                                                 tp_indices,
-                                                plane));
+                                                plane,
+                                                Efields,
+                                                Phis));
       }
       else {
-        outputCalo->push_back(
-          anab::Calorimetry(util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane));
+        outputCalo->push_back(anab::Calorimetry(
+          util::kBogusD, {}, {}, {}, {}, util::kBogusD, {}, {}, {}, plane, {}, {}));
       }
 
       util::CreateAssn(evt, *outputCalo, tracklist[trk_i], *outputCaloAssn);
