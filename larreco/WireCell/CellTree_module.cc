@@ -87,6 +87,8 @@ namespace wc {
                                     TString option,
                                     ostream& out = cout,
                                     bool t0_corrected = true);
+    void processOpFlash_json(const art::Event& event,
+                                    ostream& out);
     void processSimChannel(const art::Event& evt);
     void processMC(const art::Event& evt);
     void processMCTracks();
@@ -127,6 +129,7 @@ namespace wc {
     bool fSaveOpFlash;
     bool fSaveMC;
     bool fprocessSpacePointTruthDepo_Particle{true};
+    bool fprocessOpFlash_json{true};
     bool fSaveTrigger;
     bool fSaveJSON;
     bool fT0_corrected;
@@ -519,6 +522,15 @@ namespace wc {
           out_sptp.close();
         }
       }
+    }
+
+    if (fprocessOpFlash_json) {
+        TString jsonfile_sptp;
+        // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+        jsonfile_sptp.Form("tru-op-%s-%i.json", save_apa.c_str(), entryNo);
+        std::ofstream out_sptp(jsonfile_sptp.Data());
+        processOpFlash_json(event, out_sptp);
+        out_sptp.close();
     }
 
     // printEvent();
@@ -1137,6 +1149,85 @@ namespace wc {
       out << fixed << setprecision(0);
       out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
       out << "}" << endl;
+  }
+
+  void CellTree::processOpFlash_json(const art::Event& event, ostream& out)
+  {
+    art::Handle<std::vector<recob::OpFlash>> flash_handle;
+    if (!event.getByLabel(fOpFlashLabel, flash_handle)) {
+      cout << "WARNING: no label " << fOpFlashLabel << endl;
+      return;
+    }
+    std::vector<art::Ptr<recob::OpFlash>> flashes;
+    art::fill_ptr_vector(flashes, flash_handle);
+    int nFlashes = flashes.size();
+    
+    int nOpDet = fGeometry->NOpDets();
+    
+    vector<double> flash_time;        // Time in us w.r.t. trigger
+    vector<double> flash_ycenter;        // barycenter Y of the flash
+    vector<double> flash_zcenter;        // barycenter Z of the flash
+    vector<double> flash_pe_total;    // Total PE (sum of all PMTs)
+    vector<double> flash_multiplicity; // Total number of PMTs above threshold
+    vector<vector<double>> flash_pe_per_opdet; // PE per optical detector
+    
+    for (auto const& flash : flashes) {
+      flash_time.push_back(flash->Time());
+      flash_ycenter.push_back(flash->YCenter());
+      flash_zcenter.push_back(flash->ZCenter());
+      flash_pe_total.push_back(flash->TotalPE());
+      
+      int mult = 0;
+      vector<double> pe_per_opdet;
+      for (int i = 0; i < nOpDet; ++i) {
+        if (flash->PE(i) >= opMultPEThresh) { 
+          mult++; 
+        }
+        pe_per_opdet.push_back(flash->PE(i));
+      }
+      flash_multiplicity.push_back(mult);
+      flash_pe_per_opdet.push_back(pe_per_opdet);
+    }
+    
+    // Output JSON format
+    out << fixed << setprecision(1);
+    out << "{" << endl;
+    
+    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+    
+    // Output flash timing information
+    print_vector(out, flash_time, "time");
+    print_vector(out, flash_ycenter, "y_center");
+    print_vector(out, flash_zcenter, "z_center");
+    
+    out << fixed << setprecision(0);
+    print_vector(out, flash_pe_total, "pe_total");
+    print_vector(out, flash_multiplicity, "multiplicity");
+    
+    // Output PE per optical detector as nested array
+    out << '"' << "pe_per_opdet" << '"' << ":[";
+    for (size_t i = 0; i < flash_pe_per_opdet.size(); i++) {
+      out << "[";
+      for (size_t j = 0; j < flash_pe_per_opdet[i].size(); j++) {
+        out << flash_pe_per_opdet[i][j];
+        if (j != flash_pe_per_opdet[i].size() - 1) {
+          out << ",";
+        }
+      }
+      out << "]";
+      if (i != flash_pe_per_opdet.size() - 1) {
+        out << ",";
+      }
+    }
+    out << "]," << endl;
+    
+    // Output the number of flashes
+    out << '"' << "n_flashes" << '"' << ":" << nFlashes << "," << endl;
+    
+    out << "}" << endl;
   }
 
   void CellTree::processSpacePointTruthDepo_Particle(const art::Event& event,
