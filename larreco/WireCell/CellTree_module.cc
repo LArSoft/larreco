@@ -128,10 +128,10 @@ namespace wc {
     bool fSaveOpHit;
     bool fSaveOpFlash;
     bool fSaveMC;
-    bool fprocessSpacePointTruthDepo_Particle{true};
-    bool fprocessOpFlash_json{true};
     bool fSaveTrigger;
     bool fSaveJSON;
+    bool fprocessSpacePointTruthDepo_Particle{true};
+    bool fprocessOpFlash_json{true};
     bool fT0_corrected;
     art::ServiceHandle<geo::Geometry const> fGeometry; // pointer to Geometry service
     int readout_start; // us. Ewerton Feb, 2025.
@@ -270,6 +270,7 @@ namespace wc {
     fSaveTrigger = p.get<bool>("saveTrigger");
     fSaveJSON = p.get<bool>("saveJSON");
     fprocessSpacePointTruthDepo_Particle = p.get<bool>("processSpacePointTruthDepo_Particle");
+    fprocessOpFlash_json = p.get<bool>("processOpFlash_json");
     fT0_corrected = p.get<bool>("t0_corrected");
     opMultPEThresh = p.get<float>("opMultPEThresh");
     drift_speed = p.get<float>("drift_speed"); // mm/us
@@ -277,7 +278,7 @@ namespace wc {
     nRawSamples = p.get<int>("nRawSamples");
     readout_start = p.get<int>("readout_start"); // unit: us. Ewerton Feb, 2025.
     readout_end = p.get<int>("readout_end"); // unit: us. Ewerton Feb, 2025.
-    save_apa = p.get<std::string>("save_apa"); // Ewerton Feb, 2025.
+    save_apa = p.get<std::string>("save_apa"); // "apa0", "apa1", "both". FIXME: tmp. hack
     first_cluster_id = p.get<int>("first_cluster_id"); // unit: integer. Ewerton Feb, 2025.
     clustering_delta_t = p.get<float>("clustering_delta_t"); // unit: ns. Ewerton Feb, 2025.
     z_offset = p.get<float>("z_offset"); // unit: cm. Ewerton Mar, 2025.
@@ -527,7 +528,7 @@ namespace wc {
     if (fprocessOpFlash_json) {
         TString jsonfile_sptp;
         // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-        jsonfile_sptp.Form("tru-op-%s-%i.json", save_apa.c_str(), entryNo);
+        jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
         std::ofstream out_sptp(jsonfile_sptp.Data());
         processOpFlash_json(event, out_sptp);
         out_sptp.close();
@@ -1165,16 +1166,24 @@ namespace wc {
     int nOpDet = fGeometry->NOpDets();
     
     vector<double> flash_time;        // Time in us w.r.t. trigger
+    vector<double> flash_xcenter;        // dummy X for BEE
     vector<double> flash_ycenter;        // barycenter Y of the flash
     vector<double> flash_zcenter;        // barycenter Z of the flash
+    vector<double> flash_xwidth;       // Width in X (not used in BEE)
+    vector<double> flash_ywidth;       // Width in Y (not used in BEE
+    vector<double> flash_zwidth;       // Width in Z (not used in BEE)
     vector<double> flash_pe_total;    // Total PE (sum of all PMTs)
     vector<double> flash_multiplicity; // Total number of PMTs above threshold
     vector<vector<double>> flash_pe_per_opdet; // PE per optical detector
     
     for (auto const& flash : flashes) {
       flash_time.push_back(flash->Time());
+      flash_xcenter.push_back(flash->XCenter()); // X just for BEE, set to 0
       flash_ycenter.push_back(flash->YCenter());
       flash_zcenter.push_back(flash->ZCenter());
+      flash_xwidth.push_back(flash->XWidth()); // Widths not used in BEE
+      flash_ywidth.push_back(flash->YWidth()); // Widths not used in BEE
+      flash_zwidth.push_back(flash->ZWidth()); // Widths not used in BEE
       flash_pe_total.push_back(flash->TotalPE());
       
       int mult = 0;
@@ -1200,11 +1209,15 @@ namespace wc {
     
     // Output flash timing information
     print_vector(out, flash_time, "time");
-    print_vector(out, flash_ycenter, "y_center");
-    print_vector(out, flash_zcenter, "z_center");
+    print_vector(out, flash_xcenter, "x");
+    print_vector(out, flash_ycenter, "y");
+    print_vector(out, flash_zcenter, "z");
+    print_vector(out, flash_xwidth, "x_width");
+    print_vector(out, flash_ywidth, "y_width");
+    print_vector(out, flash_zwidth, "z_width");
     
     out << fixed << setprecision(0);
-    print_vector(out, flash_pe_total, "pe_total");
+    print_vector(out, flash_pe_total, "q"); // Name "q" just for BEE
     print_vector(out, flash_multiplicity, "multiplicity");
     
     // Output PE per optical detector as nested array
@@ -1225,7 +1238,7 @@ namespace wc {
     out << "]," << endl;
     
     // Output the number of flashes
-    out << '"' << "n_flashes" << '"' << ":" << nFlashes << "," << endl;
+    out << '"' << "n_flashes" << '"' << ":" << nFlashes << endl;
     
     out << "}" << endl;
   }
