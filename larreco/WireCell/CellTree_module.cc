@@ -409,7 +409,7 @@ namespace wc {
 
     gDirectory = tmpDir;
     if (fSaveJSON) {
-      system("rm -rf bee");
+      // system("rm -rf bee");
       gSystem->MakeDirectory("bee");
       // gSystem->ChangeDirectory("bee");
       gSystem->MakeDirectory("bee/data");
@@ -431,7 +431,7 @@ namespace wc {
 
     if (fSaveJSON) {
       gSystem->ChangeDirectory("bee");
-      system("zip -r bee_upload data");
+      // system("zip -r bee_upload data");
       gSystem->ChangeDirectory("..");
     }
   }
@@ -488,7 +488,7 @@ namespace wc {
       int nSp = fSpacePointLabels.size();
       for (int i = 0; i < nSp; i++) {
         TString jsonfile;
-        jsonfile.Form("bee/data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+        jsonfile.Form("bee/data/%i/%i-%s-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str(), save_apa.c_str());
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == "truthDepo") {
           std::cout << "run processSpacePointTruthDepo" << std::endl;
@@ -1317,7 +1317,8 @@ namespace wc {
           else {
             isnu = 0.;
           }
-          particleid = mctruth->GetParticle(0).TrackId();
+          const auto& mcparticle = pi_serv->TrackIdToParticle(sed[i]->TrackID());
+          particleid = mcparticle.TrackId();
         }
     
         double x_real = sed[i]->MidPointX(); // unit: cm
