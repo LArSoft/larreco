@@ -1,0 +1,75 @@
+#include "services_sbnd.fcl"
+#include "geometry_sbnd.fcl"
+#include "detectorproperties_sbnd.fcl"
+#include "simulationservices_sbnd.fcl"
+
+#include "CellTree.fcl"
+
+process_name: celltree
+
+services:
+{
+  # TFileService: { fileName: "test.root" }
+  #TimeTracker:   {}
+  RandomNumberGenerator: {}
+  #message:      @local::standard_info
+  @table::sbnd_basic_services
+  @table::services
+  @table::sbnd_random_services
+  @table::sbnd_g4_services
+  WireReadout:               @local::sbnd_wire_readout
+  GeometryConfigurationWriter: {}
+  Geometry:                  @local::sbnd_geo
+  AuxDetGeometry:            @local::sbnd_auxdetgeo
+  LArPropertiesService:      @local::standard_properties
+  DetectorClocksService:     @local::sbnd_services.DetectorClocksService
+  DetectorPropertiesService: @local::sbnd_detproperties
+  BackTrackerService: @local::sbnd_backtrackerservice
+  ParticleInventoryService: @local::sbnd_particleinventoryservice
+}
+
+
+source:
+{
+  module_type: RootInput
+  fileNames:  [ "gen.root" ]
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+  analyzers:
+  {
+    wirecell: @local::standard_celltree
+  }
+  analysis: [ wirecell ]
+  end_paths: [ analysis ]
+}
+
+
+physics.analyzers.wirecell.nRawSamples : 3427
+physics.analyzers.wirecell.saveRaw: true
+physics.analyzers.wirecell.RawDigitLabel: "simtpc2d:daq"
+#physics.analyzers.wirecell.RawDigitLabel: "daq"
+physics.analyzers.wirecell.saveSimChannel: true
+physics.analyzers.wirecell.SimChannelLabel: "simtpc2d:simpleSC"
+#physics.analyzers.wirecell.SimChannelLabel: "simdrift"
+
+physics.analyzers.wirecell.saveCalib: true
+physics.analyzers.wirecell.CalibLabel: "sptpc2d:gauss"
+physics.analyzers.wirecell.saveDNNCalib: true
+physics.analyzers.wirecell.DNNCalibLabel: "sptpc2d:dnnsp"
+
+physics.analyzers.wirecell.saveJSON : false
+physics.analyzers.wirecell.SpacePointLabels : ["cluster3d","pandoraICARUS", "truthDepo"]
+#physics.analyzers.wirecell.SimEnergyDepositLabel : "ionization"
+physics.analyzers.wirecell.saveMC : true
+
+physics.analyzers.wirecell.outFile : "celltree.root"
+
+
