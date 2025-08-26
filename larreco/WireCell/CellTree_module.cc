@@ -445,6 +445,7 @@ namespace wc {
   //-----------------------------------------------------------------------
   void CellTree::analyze(const art::Event& event)
   {
+    std::cout << "DEBUG: CellTree::analyze using the mctruth branch" << std::endl;
     reset();
     fEvent = event.id().event();
     fRun = event.run();
