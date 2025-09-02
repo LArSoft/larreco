@@ -4,6 +4,10 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardataalg/DetectorInfo/DetectorPropertiesStandard.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RawData/TriggerData.h"
 #include "lardataobj/RawData/raw.h"
@@ -14,10 +18,6 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/Simulation/SimEnergyDeposit.h"
-#include "lardata/DetectorInfoServices/DetectorClocksService.h"
-#include "lardataalg/DetectorInfo/DetectorPropertiesStandard.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larcore/Geometry/WireReadout.h"
 
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
@@ -84,11 +84,10 @@ namespace wc {
                                     ostream& out = cout,
                                     bool t0_corrected = true);
     void processSpacePointTruthDepo_Particle(const art::Event& event,
-                                    TString option,
-                                    ostream& out = cout,
-                                    bool t0_corrected = true);
-    void processOpFlash_json(const art::Event& event,
-                                    ostream& out);
+                                             TString option,
+                                             ostream& out = cout,
+                                             bool t0_corrected = true);
+    void processOpFlash_json(const art::Event& event, ostream& out);
     void processSimChannel(const art::Event& evt);
     void processMC(const art::Event& evt);
     void processMCTracks();
@@ -118,7 +117,7 @@ namespace wc {
     std::string mcOption;
     int nRawSamples;
     float opMultPEThresh;
-    int tdcOffset {-3400}; // offset for TDC, in ticks
+    int tdcOffset{-3400}; // offset for TDC, in ticks
     float drift_speed;
     bool fSaveMCTrackPoints;
     bool fSaveSimChannel;
@@ -134,9 +133,9 @@ namespace wc {
     bool fprocessOpFlash_json{true};
     bool fT0_corrected;
     art::ServiceHandle<geo::Geometry const> fGeometry; // pointer to Geometry service
-    int readout_start; // us. Ewerton Feb, 2025.
-    int readout_end; // us. Ewerton Feb, 2025.
-    std::string save_apa; // us. Ewerton Feb, 2025.
+    int readout_start;                                 // us. Ewerton Feb, 2025.
+    int readout_end;                                   // us. Ewerton Feb, 2025.
+    std::string save_apa;                              // us. Ewerton Feb, 2025.
     int first_cluster_id; // unit: integer. ID assigned to first cluster. Ewerton Feb, 2025.
     float clustering_delta_t;
     float z_offset; // cm. Ewerton Mar, 2025.
@@ -276,12 +275,12 @@ namespace wc {
     drift_speed = p.get<float>("drift_speed"); // mm/us
     tdcOffset = p.get<int>("tdcOffset");
     nRawSamples = p.get<int>("nRawSamples");
-    readout_start = p.get<int>("readout_start"); // unit: us. Ewerton Feb, 2025.
-    readout_end = p.get<int>("readout_end"); // unit: us. Ewerton Feb, 2025.
-    save_apa = p.get<std::string>("save_apa"); // "apa0", "apa1", "both". FIXME: tmp. hack
+    readout_start = p.get<int>("readout_start");       // unit: us. Ewerton Feb, 2025.
+    readout_end = p.get<int>("readout_end");           // unit: us. Ewerton Feb, 2025.
+    save_apa = p.get<std::string>("save_apa");         // "apa0", "apa1", "both". FIXME: tmp. hack
     first_cluster_id = p.get<int>("first_cluster_id"); // unit: integer. Ewerton Feb, 2025.
     clustering_delta_t = p.get<float>("clustering_delta_t"); // unit: ns. Ewerton Feb, 2025.
-    z_offset = p.get<float>("z_offset"); // unit: cm. Ewerton Mar, 2025.
+    z_offset = p.get<float>("z_offset");                     // unit: cm. Ewerton Mar, 2025.
 
     InitProcessMap();
     initOutput();
@@ -322,11 +321,13 @@ namespace wc {
     fEventTree->Branch("dnncalib_nChannel",
                        &fDNNCalib_nChannel); // number of hit channels above threshold
     fEventTree->Branch("calib_channelId", &fCalib_channelId); // hit channel id; size == calib_Nhit
-    fEventTree->Branch("dnncalib_channelId", &fDNNCalib_channelId); // hit channel id; size == calib_Nhit
+    fEventTree->Branch("dnncalib_channelId",
+                       &fDNNCalib_channelId); // hit channel id; size == calib_Nhit
     fCalib_wf = new TClonesArray("TH1F");
     fEventTree->Branch("calib_wf", &fCalib_wf, 256000, 0); // calib waveform adc of each channel
     fDNNCalib_wf = new TClonesArray("TH1F");
-    fEventTree->Branch("dnncalib_wf", &fDNNCalib_wf, 256000, 0); // calib waveform adc of each channel
+    fEventTree->Branch(
+      "dnncalib_wf", &fDNNCalib_wf, 256000, 0); // calib waveform adc of each channel
     // fCalib_wf->BypassStreamer();
     // fEventTree->Branch("calib_wfTDC", &fCalib_wfTDC);  // calib waveform tdc of each channel
 
@@ -489,7 +490,11 @@ namespace wc {
       int nSp = fSpacePointLabels.size();
       for (int i = 0; i < nSp; i++) {
         TString jsonfile;
-        jsonfile.Form("bee/data/%i/%i-%s-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str(), save_apa.c_str());
+        jsonfile.Form("bee/data/%i/%i-%s-%s.json",
+                      entryNo,
+                      entryNo,
+                      fSpacePointLabels[i].c_str(),
+                      save_apa.c_str());
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == "truthDepo") {
           std::cout << "run processSpacePointTruthDepo" << std::endl;
@@ -527,12 +532,12 @@ namespace wc {
     }
 
     if (fprocessOpFlash_json) {
-        TString jsonfile_sptp;
-        // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-        jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
-        std::ofstream out_sptp(jsonfile_sptp.Data());
-        processOpFlash_json(event, out_sptp);
-        out_sptp.close();
+      TString jsonfile_sptp;
+      // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
+      jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
+      std::ofstream out_sptp(jsonfile_sptp.Data());
+      processOpFlash_json(event, out_sptp);
+      out_sptp.close();
     }
 
     // printEvent();
@@ -787,19 +792,19 @@ namespace wc {
           fSIMIDE_trackId.push_back(energyDeposit.trackID);
           fSIMIDE_x.push_back(energyDeposit.x);
           float x = energyDeposit.x;
-          float t = (tdcOffset+timeSlice.first-400)*0.5; // tdc -> time (us)
+          float t = (tdcOffset + timeSlice.first - 400) * 0.5; // tdc -> time (us)
           float x_tdc = -1e8;
           if (geomName == "sbnd") {
             if (x > 0) {
-              x_tdc = 202.05 - t*drift_speed*0.1; // cm
+              x_tdc = 202.05 - t * drift_speed * 0.1; // cm
             }
             else if (x < 0) {
-              x_tdc = -202.05 + t*drift_speed*0.1; // cm
+              x_tdc = -202.05 + t * drift_speed * 0.1; // cm
               // std::cout << "before x: " << x << " x_tdc: " << x_tdc << std::endl;
             }
           }
           else if (geomName == "uboone") {
-            x_tdc = t*drift_speed*0.1; // cm
+            x_tdc = t * drift_speed * 0.1; // cm
           }
           else {
             cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
@@ -812,27 +817,26 @@ namespace wc {
           //      << energyDeposit.x << ", " << energyDeposit.y << ", " << energyDeposit.z << ", "
           //      << energyDeposit.numElectrons << endl;
           art::ServiceHandle<cheat::ParticleInventoryService> pi_serv; // for getting mctruth
-          art::ServiceHandle<cheat::BackTrackerService> bt_serv; // if we want to use hits
+          art::ServiceHandle<cheat::BackTrackerService> bt_serv;       // if we want to use hits
           bool matchFound = false;
           art::Ptr<simb::MCTruth> mctruth;
           try {
             mctruth = pi_serv->TrackIdToMCTruth_P(energyDeposit.trackID);
             matchFound = true;
             // std::cout << "TrackID " << energyDeposit.trackID << " matched to MCTruth " << mctruth->Origin() << std::endl;
-          } 
-          catch(...) {
+          }
+          catch (...) {
             // std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
             matchFound = false;
           }
           if (matchFound) {
-            if(mctruth->Origin() == simb::kBeamNeutrino) {
-              fSIMIDE_isnu.push_back(1.);
-            } 
+            if (mctruth->Origin() == simb::kBeamNeutrino) { fSIMIDE_isnu.push_back(1.); }
             else {
               fSIMIDE_isnu.push_back(0.);
             }
             fSIMIDE_pdg.push_back(mctruth->GetParticle(0).PdgCode());
-          } else {
+          }
+          else {
             fSIMIDE_isnu.push_back(-1);
             fSIMIDE_pdg.push_back(-1e8);
           }
@@ -1044,113 +1048,115 @@ namespace wc {
     vector<double> ve, sedidx; //Ewerton 01/24
 
     for (int i = 0; i < size; i++) {
-        // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
-        x = sed[i]->MidPointX(); // unit: cm
-        t = sed[i]->Time();      // t0 wrt trigger time unit: ns
-        y = sed[i]->MidPointY();
-        z = sed[i]->MidPointZ();
-        q = sed[i]->NumElectrons();
-        e = sed[i]->Energy(); //MeV
-        if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
-        // cout << q << ", " << sed[i]->Energy()*25000 << endl;
-        if (q < 1000) continue; // skip small dots to reduce size
-        if (!t0_corrected) {    // t0 ''enters'' in position along drift
-          if (geomName == "sbnd") {
-            if (x < 0) {
-              x = x + t * 1e-3 * drift_speed * 0.1;
-              cluster_id = 1;
-            }
-            else if (x > 0) {
-              x = x - t * 1e-3 * drift_speed * 0.1;
-              cluster_id = 2;
-            }
-            else {
-              cluster_id = 3;
-            }
-            if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
-          }
-          else if (geomName == "uboone") {
+      // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+      x = sed[i]->MidPointX(); // unit: cm
+      t = sed[i]->Time();      // t0 wrt trigger time unit: ns
+      y = sed[i]->MidPointY();
+      z = sed[i]->MidPointZ();
+      q = sed[i]->NumElectrons();
+      e = sed[i]->Energy();                    //MeV
+      if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
+      // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+      if (q < 1000) continue; // skip small dots to reduce size
+      if (!t0_corrected) {    // t0 ''enters'' in position along drift
+        if (geomName == "sbnd") {
+          if (x < 0) {
             x = x + t * 1e-3 * drift_speed * 0.1;
+            cluster_id = 1;
+          }
+          else if (x > 0) {
+            x = x - t * 1e-3 * drift_speed * 0.1;
+            cluster_id = 2;
           }
           else {
-            cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
+            cluster_id = 3;
           }
+          if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
         }
-    
-        double x_real = sed[i]->MidPointX(); // unit: cm
-        double x_c = (x_real<0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
-        double x_drift = (x_real - x_c)*10; // unit: mm. negative for APA 1, should use absolute value next
-        double t_drift = abs(x_drift) / drift_speed ; // unit: us
-        double t_readout = t*1e-3 + t_drift; // unit: us
-  
-        // select edepos within readout time 
-        if(!(readout_start<t_readout && t_readout<readout_end)) continue;
-  
-        // select edepos by APA: APA0(x_real<0), APA1(x_real>0) 
-        if( save_apa == "apa0" && x_real>0 ) continue;
-        if( save_apa == "apa1" && x_real<0 ) continue; 
-  
-        // add offset to z
-        z += z_offset;
-  
-        sedidx.push_back(i); //Ewerton 01/24
-        vx.push_back(x);
-        vy.push_back(y);
-        vz.push_back(z);
-        vt.push_back(t);
-        vq.push_back(q);
-        vnq.push_back(nq);
-        ve.push_back(e);
-        vcluster.push_back(cluster_id);
+        else if (geomName == "uboone") {
+          x = x + t * 1e-3 * drift_speed * 0.1;
+        }
+        else {
+          cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
+        }
       }
-  
-      //---------Ewerton 01/24-------------
-      vector<double> vid(sedidx.size(), -1); //cluster ID vector. sedidx is sed index vector. 
-      int id = first_cluster_id;
-      int delta_t = clustering_delta_t; // unit: ns
-  
-      // assign new cluster id
-      for (unsigned int i=0; i < sedidx.size(); i++) {
-        double ti = sed[sedidx[i]]->Time() ;
-        double tmin = ti - delta_t;
-        double tmax = ti + delta_t;
-        if (i == 0){ //first assignment
-          vid[i]= id;
-        }
-        if (i != 0 && vid[i] != -1) {continue;} //skip seds with ID already assigned
-        for (unsigned int k=0; k < sedidx.size(); k++) {
-          double tk = sed[sedidx[k]]->Time();
-          if(tmin < tk && tk < tmax) {vid[k] = id;}
-        }
-        id++;
-      } 
-      //---------Ewerton 01/24-------------
-  
-      out << fixed << setprecision(1);
-      out << "{" << endl;
-  
-      out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
-      out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
-      out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
-  
-      out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
-  
-      print_vector(out, vx, "x");
-      print_vector(out, vy, "y");
-      print_vector(out, vz, "z");
-      print_vector(out, vt, "t");
-  
-      out << fixed << setprecision(0);  // added Ewerton
-      print_vector(out, vq, "q");
-      print_vector(out, vnq, "nq");
-      //print_vector(out, vcluster, "cluster_id"); //original
-      print_vector(out, vid, "cluster_id"); // added Ewerton
-  
-      out << fixed << setprecision(10);  // added Ewerton
-      print_vector(out, ve, "e");// added Ewerton 
-      out << fixed << setprecision(0);
-      out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
-      out << "}" << endl;
+
+      double x_real = sed[i]->MidPointX(); // unit: cm
+      double x_c =
+        (x_real < 0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
+      double x_drift =
+        (x_real - x_c) * 10; // unit: mm. negative for APA 1, should use absolute value next
+      double t_drift = abs(x_drift) / drift_speed; // unit: us
+      double t_readout = t * 1e-3 + t_drift;       // unit: us
+
+      // select edepos within readout time
+      if (!(readout_start < t_readout && t_readout < readout_end)) continue;
+
+      // select edepos by APA: APA0(x_real<0), APA1(x_real>0)
+      if (save_apa == "apa0" && x_real > 0) continue;
+      if (save_apa == "apa1" && x_real < 0) continue;
+
+      // add offset to z
+      z += z_offset;
+
+      sedidx.push_back(i); //Ewerton 01/24
+      vx.push_back(x);
+      vy.push_back(y);
+      vz.push_back(z);
+      vt.push_back(t);
+      vq.push_back(q);
+      vnq.push_back(nq);
+      ve.push_back(e);
+      vcluster.push_back(cluster_id);
+    }
+
+    //---------Ewerton 01/24-------------
+    vector<double> vid(sedidx.size(), -1); //cluster ID vector. sedidx is sed index vector.
+    int id = first_cluster_id;
+    int delta_t = clustering_delta_t; // unit: ns
+
+    // assign new cluster id
+    for (unsigned int i = 0; i < sedidx.size(); i++) {
+      double ti = sed[sedidx[i]]->Time();
+      double tmin = ti - delta_t;
+      double tmax = ti + delta_t;
+      if (i == 0) { //first assignment
+        vid[i] = id;
+      }
+      if (i != 0 && vid[i] != -1) { continue; } //skip seds with ID already assigned
+      for (unsigned int k = 0; k < sedidx.size(); k++) {
+        double tk = sed[sedidx[k]]->Time();
+        if (tmin < tk && tk < tmax) { vid[k] = id; }
+      }
+      id++;
+    }
+    //---------Ewerton 01/24-------------
+
+    out << fixed << setprecision(1);
+    out << "{" << endl;
+
+    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+
+    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+
+    print_vector(out, vx, "x");
+    print_vector(out, vy, "y");
+    print_vector(out, vz, "z");
+    print_vector(out, vt, "t");
+
+    out << fixed << setprecision(0); // added Ewerton
+    print_vector(out, vq, "q");
+    print_vector(out, vnq, "nq");
+    //print_vector(out, vcluster, "cluster_id"); //original
+    print_vector(out, vid, "cluster_id"); // added Ewerton
+
+    out << fixed << setprecision(10); // added Ewerton
+    print_vector(out, ve, "e");       // added Ewerton
+    out << fixed << setprecision(0);
+    out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+    out << "}" << endl;
   }
 
   void CellTree::processOpFlash_json(const art::Event& event, ostream& out)
@@ -1163,20 +1169,20 @@ namespace wc {
     std::vector<art::Ptr<recob::OpFlash>> flashes;
     art::fill_ptr_vector(flashes, flash_handle);
     int nFlashes = flashes.size();
-    
+
     int nOpDet = fGeometry->NOpDets();
-    
-    vector<double> flash_time;        // Time in us w.r.t. trigger
-    vector<double> flash_xcenter;        // dummy X for BEE
-    vector<double> flash_ycenter;        // barycenter Y of the flash
-    vector<double> flash_zcenter;        // barycenter Z of the flash
-    vector<double> flash_xwidth;       // Width in X (not used in BEE)
-    vector<double> flash_ywidth;       // Width in Y (not used in BEE
-    vector<double> flash_zwidth;       // Width in Z (not used in BEE)
-    vector<double> flash_pe_total;    // Total PE (sum of all PMTs)
-    vector<double> flash_multiplicity; // Total number of PMTs above threshold
+
+    vector<double> flash_time;                 // Time in us w.r.t. trigger
+    vector<double> flash_xcenter;              // dummy X for BEE
+    vector<double> flash_ycenter;              // barycenter Y of the flash
+    vector<double> flash_zcenter;              // barycenter Z of the flash
+    vector<double> flash_xwidth;               // Width in X (not used in BEE)
+    vector<double> flash_ywidth;               // Width in Y (not used in BEE
+    vector<double> flash_zwidth;               // Width in Z (not used in BEE)
+    vector<double> flash_pe_total;             // Total PE (sum of all PMTs)
+    vector<double> flash_multiplicity;         // Total number of PMTs above threshold
     vector<vector<double>> flash_pe_per_opdet; // PE per optical detector
-    
+
     for (auto const& flash : flashes) {
       flash_time.push_back(flash->Time());
       flash_xcenter.push_back(flash->XCenter()); // X just for BEE, set to 0
@@ -1186,28 +1192,26 @@ namespace wc {
       flash_ywidth.push_back(flash->YWidth()); // Widths not used in BEE
       flash_zwidth.push_back(flash->ZWidth()); // Widths not used in BEE
       flash_pe_total.push_back(flash->TotalPE());
-      
+
       int mult = 0;
       vector<double> pe_per_opdet;
       for (int i = 0; i < nOpDet; ++i) {
-        if (flash->PE(i) >= opMultPEThresh) { 
-          mult++; 
-        }
+        if (flash->PE(i) >= opMultPEThresh) { mult++; }
         pe_per_opdet.push_back(flash->PE(i));
       }
       flash_multiplicity.push_back(mult);
       flash_pe_per_opdet.push_back(pe_per_opdet);
     }
-    
+
     // Output JSON format
     out << fixed << setprecision(1);
     out << "{" << endl;
-    
+
     out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
     out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
     out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
     out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
-    
+
     // Output flash timing information
     print_vector(out, flash_time, "time");
     print_vector(out, flash_xcenter, "x");
@@ -1216,38 +1220,34 @@ namespace wc {
     print_vector(out, flash_xwidth, "x_width");
     print_vector(out, flash_ywidth, "y_width");
     print_vector(out, flash_zwidth, "z_width");
-    
+
     out << fixed << setprecision(0);
     print_vector(out, flash_pe_total, "q"); // Name "q" just for BEE
     print_vector(out, flash_multiplicity, "multiplicity");
-    
+
     // Output PE per optical detector as nested array
     out << '"' << "pe_per_opdet" << '"' << ":[";
     for (size_t i = 0; i < flash_pe_per_opdet.size(); i++) {
       out << "[";
       for (size_t j = 0; j < flash_pe_per_opdet[i].size(); j++) {
         out << flash_pe_per_opdet[i][j];
-        if (j != flash_pe_per_opdet[i].size() - 1) {
-          out << ",";
-        }
+        if (j != flash_pe_per_opdet[i].size() - 1) { out << ","; }
       }
       out << "]";
-      if (i != flash_pe_per_opdet.size() - 1) {
-        out << ",";
-      }
+      if (i != flash_pe_per_opdet.size() - 1) { out << ","; }
     }
     out << "]," << endl;
-    
+
     // Output the number of flashes
     out << '"' << "n_flashes" << '"' << ":" << nFlashes << endl;
-    
+
     out << "}" << endl;
   }
 
   void CellTree::processSpacePointTruthDepo_Particle(const art::Event& event,
-                                            TString option,
-                                            ostream& out,
-                                            bool t0_corrected)
+                                                     TString option,
+                                                     ostream& out,
+                                                     bool t0_corrected)
   {
 
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv; // for getting mctruth
@@ -1266,116 +1266,116 @@ namespace wc {
     vector<double> vparticlid, visnu;
 
     for (int i = 0; i < size; i++) {
-        // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
-        x = sed[i]->MidPointX(); // unit: cm
-        t = sed[i]->Time();      // t0 wrt trigger time unit: ns
-        y = sed[i]->MidPointY();
-        z = sed[i]->MidPointZ();
-        q = sed[i]->NumElectrons();
-        e = sed[i]->Energy(); //MeV
-        if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
-        // cout << q << ", " << sed[i]->Energy()*25000 << endl;
-        if (q < 1000) continue; // skip small dots to reduce size
-        if (!t0_corrected) {    // t0 ''enters'' in position along drift
-          if (geomName == "sbnd") {
-            if (x < 0) {
-              x = x + t * 1e-3 * drift_speed * 0.1;
-              cluster_id = 1;
-            }
-            else if (x > 0) {
-              x = x - t * 1e-3 * drift_speed * 0.1;
-              cluster_id = 2;
-            }
-            else {
-              cluster_id = 3;
-            }
-            if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
-          }
-          else if (geomName == "uboone") {
+      // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
+      x = sed[i]->MidPointX(); // unit: cm
+      t = sed[i]->Time();      // t0 wrt trigger time unit: ns
+      y = sed[i]->MidPointY();
+      z = sed[i]->MidPointZ();
+      q = sed[i]->NumElectrons();
+      e = sed[i]->Energy();                    //MeV
+      if (q < 0) q = sed[i]->Energy() * 25000; // approx. #electrons
+      // cout << q << ", " << sed[i]->Energy()*25000 << endl;
+      if (q < 1000) continue; // skip small dots to reduce size
+      if (!t0_corrected) {    // t0 ''enters'' in position along drift
+        if (geomName == "sbnd") {
+          if (x < 0) {
             x = x + t * 1e-3 * drift_speed * 0.1;
+            cluster_id = 1;
+          }
+          else if (x > 0) {
+            x = x - t * 1e-3 * drift_speed * 0.1;
+            cluster_id = 2;
           }
           else {
-            cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
+            cluster_id = 3;
           }
+          if (t * 1e-3 > 0 && t * 1e-3 < 5) cluster_id = 0;
         }
-        double particleid = -1;
-        double isnu = -1;
-        bool matchFound = false;
-        art::Ptr<simb::MCTruth> mctruth;
-        try {
-          mctruth = pi_serv->TrackIdToMCTruth_P(sed[i]->TrackID());
-          matchFound = true;
-          // std::cout << "TrackID " << energyDeposit.trackID << " matched to MCTruth " << mctruth->Origin() << std::endl;
-        } 
-        catch(...) {
-          // std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
-          matchFound = false;
+        else if (geomName == "uboone") {
+          x = x + t * 1e-3 * drift_speed * 0.1;
         }
-        if (matchFound) {
-          if(mctruth->Origin() == simb::kBeamNeutrino) {
-            isnu = 1.;
-          }
-          else {
-            isnu = 0.;
-          }
-          const auto& mcparticle = pi_serv->TrackIdToParticle(sed[i]->TrackID());
-          particleid = mcparticle.TrackId();
+        else {
+          cout << "t0 uncorrection for drift volume(s) yet to be added for " << geomName << endl;
         }
-    
-        double x_real = sed[i]->MidPointX(); // unit: cm
-        double x_c = (x_real<0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
-        double x_drift = (x_real - x_c)*10; // unit: mm. negative for APA 1, should use absolute value next
-        double t_drift = abs(x_drift) / drift_speed ; // unit: us
-        double t_readout = t*1e-3 + t_drift; // unit: us
-  
-        // select edepos within readout time 
-        if(!(readout_start<t_readout && t_readout<readout_end)) continue;
-  
-        // select edepos by APA: APA0(x_real<0), APA1(x_real>0) 
-        if( save_apa == "apa0" && x_real>0 ) continue;
-        if( save_apa == "apa1" && x_real<0 ) continue; 
-  
-        // add offset to z
-        z += z_offset;
-  
-        sedidx.push_back(i); //Ewerton 01/24
-        vx.push_back(x);
-        vy.push_back(y);
-        vz.push_back(z);
-        vt.push_back(t);
-        vq.push_back(q);
-        vnq.push_back(nq);
-        ve.push_back(e);
-        vcluster.push_back(cluster_id);
-        vparticlid.push_back(particleid);
-        visnu.push_back(isnu);
       }
-  
-      out << fixed << setprecision(1);
-      out << "{" << endl;
-  
-      out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
-      out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
-      out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
-  
-      out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
-  
-      print_vector(out, vx, "x");
-      print_vector(out, vy, "y");
-      print_vector(out, vz, "z");
-      print_vector(out, vt, "t");
-  
-      out << fixed << setprecision(0);  // added Ewerton
-      // print_vector(out, vq, "q");
-      print_vector(out, vnq, "nq");
-      print_vector(out, vparticlid, "cluster_id");
-      print_vector(out, visnu, "q");
-  
-      out << fixed << setprecision(10);  // added Ewerton
-      print_vector(out, ve, "e");// added Ewerton 
-      out << fixed << setprecision(0);
-      out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
-      out << "}" << endl;
+      double particleid = -1;
+      double isnu = -1;
+      bool matchFound = false;
+      art::Ptr<simb::MCTruth> mctruth;
+      try {
+        mctruth = pi_serv->TrackIdToMCTruth_P(sed[i]->TrackID());
+        matchFound = true;
+        // std::cout << "TrackID " << energyDeposit.trackID << " matched to MCTruth " << mctruth->Origin() << std::endl;
+      }
+      catch (...) {
+        // std::cout<<"Exception thrown matching TrackID "<<energyDeposit.trackID<<" to MCTruth\n";
+        matchFound = false;
+      }
+      if (matchFound) {
+        if (mctruth->Origin() == simb::kBeamNeutrino) { isnu = 1.; }
+        else {
+          isnu = 0.;
+        }
+        const auto& mcparticle = pi_serv->TrackIdToParticle(sed[i]->TrackID());
+        particleid = mcparticle.TrackId();
+      }
+
+      double x_real = sed[i]->MidPointX(); // unit: cm
+      double x_c =
+        (x_real < 0) ? -202.05 : 202.05; // unit: cm. Collection plane position in real coordinates
+      double x_drift =
+        (x_real - x_c) * 10; // unit: mm. negative for APA 1, should use absolute value next
+      double t_drift = abs(x_drift) / drift_speed; // unit: us
+      double t_readout = t * 1e-3 + t_drift;       // unit: us
+
+      // select edepos within readout time
+      if (!(readout_start < t_readout && t_readout < readout_end)) continue;
+
+      // select edepos by APA: APA0(x_real<0), APA1(x_real>0)
+      if (save_apa == "apa0" && x_real > 0) continue;
+      if (save_apa == "apa1" && x_real < 0) continue;
+
+      // add offset to z
+      z += z_offset;
+
+      sedidx.push_back(i); //Ewerton 01/24
+      vx.push_back(x);
+      vy.push_back(y);
+      vz.push_back(z);
+      vt.push_back(t);
+      vq.push_back(q);
+      vnq.push_back(nq);
+      ve.push_back(e);
+      vcluster.push_back(cluster_id);
+      vparticlid.push_back(particleid);
+      visnu.push_back(isnu);
+    }
+
+    out << fixed << setprecision(1);
+    out << "{" << endl;
+
+    out << '"' << "runNo" << '"' << ":" << '"' << fRun << '"' << "," << endl;
+    out << '"' << "subRunNo" << '"' << ":" << '"' << fSubRun << '"' << "," << endl;
+    out << '"' << "eventNo" << '"' << ":" << '"' << fEvent << '"' << "," << endl;
+
+    out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
+
+    print_vector(out, vx, "x");
+    print_vector(out, vy, "y");
+    print_vector(out, vz, "z");
+    print_vector(out, vt, "t");
+
+    out << fixed << setprecision(0); // added Ewerton
+    // print_vector(out, vq, "q");
+    print_vector(out, vnq, "nq");
+    print_vector(out, vparticlid, "cluster_id");
+    print_vector(out, visnu, "q");
+
+    out << fixed << setprecision(10); // added Ewerton
+    print_vector(out, ve, "e");       // added Ewerton
+    out << fixed << setprecision(0);
+    out << '"' << "type" << '"' << ":" << '"' << option << '"' << endl;
+    out << "}" << endl;
   }
 
   //-----------------------------------------------------------------------
