@@ -79,11 +79,11 @@ namespace wc {
     void processOpHit(const art::Event& evt);
     void processOpFlash(const art::Event& evt);
     void processSpacePoint(const art::Event& event, TString option, ostream& out = cout);
-    void processSpacePointTruthDepo(const art::Event& event,
+    void processSpacePointTruthDepo_Time(const art::Event& event,
                                     TString option,
                                     ostream& out = cout,
                                     bool t0_corrected = true);
-    void processSpacePointTruthDepo_Particle(const art::Event& event,
+    void processSpacePointTruthDepo_Truth(const art::Event& event,
                                              TString option,
                                              ostream& out = cout,
                                              bool t0_corrected = true);
@@ -112,6 +112,7 @@ namespace wc {
     std::string fTriggerLabel;
     std::string fSimEnergyDepositLabel;
     std::vector<std::string> fSpacePointLabels;
+    std::string fSpacePointTruthDepoLablel{"truthDepo"};
     std::string fSimChannelLabel;
     std::string fOutFileName;
     std::string mcOption;
@@ -129,7 +130,8 @@ namespace wc {
     bool fSaveMC;
     bool fSaveTrigger;
     bool fSaveJSON;
-    bool fprocessSpacePointTruthDepo_Particle{true};
+    bool fSaveJSONinBEEFormat{true};
+    bool fprocessSpacePointTruthDepo_Truth{true};
     bool fprocessOpFlash_json{true};
     bool fT0_corrected;
     art::ServiceHandle<geo::Geometry const> fGeometry; // pointer to Geometry service
@@ -255,6 +257,7 @@ namespace wc {
     fTriggerLabel = p.get<std::string>("TriggerLabel");
     fSimEnergyDepositLabel = p.get<std::string>("SimEnergyDepositLabel");
     fSpacePointLabels = p.get<std::vector<std::string>>("SpacePointLabels");
+    fSpacePointTruthDepoLablel = p.get<std::string>("SpacePointTruthDepoLabel", "truthDepo");
     fSimChannelLabel = p.get<std::string>("SimChannelLabel");
     fOutFileName = p.get<std::string>("outFile");
     mcOption = p.get<std::string>("mcOption");
@@ -268,7 +271,8 @@ namespace wc {
     fSaveSimChannel = p.get<bool>("saveSimChannel");
     fSaveTrigger = p.get<bool>("saveTrigger");
     fSaveJSON = p.get<bool>("saveJSON");
-    fprocessSpacePointTruthDepo_Particle = p.get<bool>("processSpacePointTruthDepo_Particle");
+    fSaveJSONinBEEFormat = p.get<bool>("saveJSONinBEEFormat", true);
+    fprocessSpacePointTruthDepo_Truth = p.get<bool>("processSpacePointTruthDepo_Truth");
     fprocessOpFlash_json = p.get<bool>("processOpFlash_json");
     fT0_corrected = p.get<bool>("t0_corrected");
     opMultPEThresh = p.get<float>("opMultPEThresh");
@@ -410,10 +414,12 @@ namespace wc {
 
     gDirectory = tmpDir;
     if (fSaveJSON) {
-      // system("rm -rf bee");
-      gSystem->MakeDirectory("bee");
-      // gSystem->ChangeDirectory("bee");
-      gSystem->MakeDirectory("bee/data");
+      if (fSaveJSONinBEEFormat) {
+        // system("rm -rf bee");
+        gSystem->MakeDirectory("bee");
+        // gSystem->ChangeDirectory("bee");
+        gSystem->MakeDirectory("bee/data");
+      }
     }
   }
 
@@ -430,9 +436,9 @@ namespace wc {
 
     fOutFile->Close();
 
-    if (fSaveJSON) {
+    if (fSaveJSON && fSaveJSONinBEEFormat) {
       gSystem->ChangeDirectory("bee");
-      // system("zip -r bee_upload data");
+      system("zip -r bee_upload data");
       gSystem->ChangeDirectory("..");
     }
   }
@@ -486,19 +492,29 @@ namespace wc {
     if (fSaveTrigger) processTrigger(event);
 
     if (fSaveJSON) {
-      gSystem->MakeDirectory(TString::Format("bee/data/%i", entryNo).Data());
+      if (fSaveJSONinBEEFormat) {
+        gSystem->MakeDirectory(TString::Format("bee/data/%i", entryNo).Data());
+      }
       int nSp = fSpacePointLabels.size();
       for (int i = 0; i < nSp; i++) {
         TString jsonfile;
-        jsonfile.Form("bee/data/%i/%i-%s-%s.json",
-                      entryNo,
-                      entryNo,
-                      fSpacePointLabels[i].c_str(),
-                      save_apa.c_str());
+        if (fSaveJSONinBEEFormat) {
+          jsonfile.Form("bee/data/%i/%i-%s-%s.json",
+                        entryNo,
+                        entryNo,
+                        fSpacePointLabels[i].c_str(),
+                        save_apa.c_str());
+        } else {
+          jsonfile.Form("%s-%s-%i.json",
+                        fSpacePointLabels[i].c_str(),
+                        save_apa.c_str(),
+                        entryNo
+                        );
+        }
         std::ofstream out(jsonfile.Data());
-        if (fSpacePointLabels[i] == "truthDepo") {
-          std::cout << "run processSpacePointTruthDepo" << std::endl;
-          processSpacePointTruthDepo(event, fSpacePointLabels[i], out, fT0_corrected);
+        if (fSpacePointLabels[i] == fSpacePointTruthDepoLablel) {
+          std::cout << "run processSpacePointTruthDepo_Time" << std::endl;
+          processSpacePointTruthDepo_Time(event, fSpacePointLabels[i], out, fT0_corrected);
         }
         else {
           std::cout << "run processSpacePoint" << std::endl;
@@ -510,31 +526,36 @@ namespace wc {
       if (fSaveMC) {
         processMCTracks();
         TString jsonfile;
-        jsonfile.Form("bee/data/%i/%i-mc.json", entryNo, entryNo);
+        if (fSaveJSONinBEEFormat) {
+          jsonfile.Form("bee/data/%i/%i-mc.json", entryNo, entryNo);
+        } else {
+          jsonfile.Form("mc-%i.json", entryNo);
+        }
         std::ofstream out(jsonfile.Data());
         DumpMCJSON(out);
         out.close();
       }
     }
 
-    if (fprocessSpacePointTruthDepo_Particle) {
-      int nSp = fSpacePointLabels.size();
-      for (int i = 0; i < nSp; i++) {
-        if (fSpacePointLabels[i] == "truthDepo") {
-          TString jsonfile_sptp;
-          // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-          jsonfile_sptp.Form("tru-%s-%i.json", save_apa.c_str(), entryNo);
-          std::ofstream out_sptp(jsonfile_sptp.Data());
-          processSpacePointTruthDepo_Particle(event, fSpacePointLabels[i], out_sptp, fT0_corrected);
-          out_sptp.close();
-        }
+    if (fprocessSpacePointTruthDepo_Truth) {
+      TString jsonfile_sptp;
+      if (fSaveJSONinBEEFormat) {
+        jsonfile_sptp.Form("bee/data/%i/%i-tru-%s.json", entryNo, entryNo, save_apa.c_str());
+      } else {
+        jsonfile_sptp.Form("tru-%s-%i.json", save_apa.c_str(), entryNo);
       }
+      std::ofstream out_sptp(jsonfile_sptp.Data());
+      processSpacePointTruthDepo_Truth(event, fSpacePointTruthDepoLablel, out_sptp, fT0_corrected);
+      out_sptp.close();
     }
 
     if (fprocessOpFlash_json) {
       TString jsonfile_sptp;
-      // jsonfile_sptp.Form("bee/data/%i/%i-%s-Particle.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-      jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
+      if (fSaveJSONinBEEFormat) {
+        jsonfile_sptp.Form("bee/data/%i/%i-rec-op-%s.json", entryNo, entryNo, save_apa.c_str());
+      } else {
+        jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
+      }
       std::ofstream out_sptp(jsonfile_sptp.Data());
       processOpFlash_json(event, out_sptp);
       out_sptp.close();
@@ -1028,7 +1049,7 @@ namespace wc {
   }
 
   //---- The X-axis position along drift changes to wire plane readout view without t0 correction ----
-  void CellTree::processSpacePointTruthDepo(const art::Event& event,
+  void CellTree::processSpacePointTruthDepo_Time(const art::Event& event,
                                             TString option,
                                             ostream& out,
                                             bool t0_corrected)
@@ -1244,7 +1265,7 @@ namespace wc {
     out << "}" << endl;
   }
 
-  void CellTree::processSpacePointTruthDepo_Particle(const art::Event& event,
+  void CellTree::processSpacePointTruthDepo_Truth(const art::Event& event,
                                                      TString option,
                                                      ostream& out,
                                                      bool t0_corrected)
