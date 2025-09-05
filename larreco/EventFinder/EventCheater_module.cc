@@ -22,7 +22,6 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/View.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "fhiclcpp/ParameterSet.h"
@@ -58,17 +57,15 @@ namespace event {
   //--------------------------------------------------------------------
   void EventCheater::produce(art::Event& evt)
   {
-
-    art::View<simb::MCParticle> pcol;
-    evt.getView(fG4ModuleLabel, pcol);
+    auto const pcol = evt.getHandle<std::vector<simb::MCParticle>>(fG4ModuleLabel);
 
     art::FindOneP<simb::MCTruth> fo(pcol, evt, fG4ModuleLabel);
 
     // make a map of the track id for each sim::Particle to its entry in the
     // collection of sim::Particles
     std::map<int, int> trackIDToPColEntry;
-    for (size_t p = 0; p < pcol.vals().size(); ++p)
-      trackIDToPColEntry[pcol.vals().at(p)->TrackId()] = p;
+    for (size_t p = 0; p < pcol->size(); ++p)
+      trackIDToPColEntry[(*pcol)[p].TrackId()] = p;
 
     // grab the vertices that have been reconstructed
     art::Handle<std::vector<recob::Vertex>> vertexcol;

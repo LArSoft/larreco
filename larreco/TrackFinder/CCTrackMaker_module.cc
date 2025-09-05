@@ -1911,7 +1911,7 @@ namespace trkf {
     // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     newtrk.EndInTPC = {{false, false}};
     newtrk.GoodEnd = {{false, false}};
-    newtrk.DtrID = {0};
+    newtrk.DtrID = std::vector<short>{0};
     newtrk.PDGCode = -1;
 
     unsigned short icl, iht;
