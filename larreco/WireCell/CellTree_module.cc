@@ -80,13 +80,13 @@ namespace wc {
     void processOpFlash(const art::Event& evt);
     void processSpacePoint(const art::Event& event, TString option, ostream& out = cout);
     void processSpacePointTruthDepo_Time(const art::Event& event,
-                                    TString option,
-                                    ostream& out = cout,
-                                    bool t0_corrected = true);
+                                         TString option,
+                                         ostream& out = cout,
+                                         bool t0_corrected = true);
     void processSpacePointTruthDepo_Truth(const art::Event& event,
-                                             TString option,
-                                             ostream& out = cout,
-                                             bool t0_corrected = true);
+                                          TString option,
+                                          ostream& out = cout,
+                                          bool t0_corrected = true);
     void processOpFlash_json(const art::Event& event, ostream& out);
     void processSimChannel(const art::Event& evt);
     void processMC(const art::Event& evt);
@@ -116,6 +116,7 @@ namespace wc {
     std::string fSimChannelLabel;
     std::string fOutFileName;
     std::string mcOption;
+    float fmcKECut{0.020}; // in GeV
     int nRawSamples;
     float opMultPEThresh;
     int tdcOffset{-3400}; // offset for TDC, in ticks
@@ -261,6 +262,7 @@ namespace wc {
     fSimChannelLabel = p.get<std::string>("SimChannelLabel");
     fOutFileName = p.get<std::string>("outFile");
     mcOption = p.get<std::string>("mcOption");
+    fmcKECut = p.get<float>("mcKECut", fmcKECut);
     fSaveMCTrackPoints = p.get<bool>("saveMCTrackPoints");
     fSaveRaw = p.get<bool>("saveRaw");
     fSaveCalib = p.get<bool>("saveCalib");
@@ -490,6 +492,7 @@ namespace wc {
     if (fSaveSimChannel) processSimChannel(event);
     if (fSaveMC) processMC(event);
     if (fSaveTrigger) processTrigger(event);
+    // printEvent();
 
     if (fSaveJSON) {
       if (fSaveJSONinBEEFormat) {
@@ -504,12 +507,9 @@ namespace wc {
                         entryNo,
                         fSpacePointLabels[i].c_str(),
                         save_apa.c_str());
-        } else {
-          jsonfile.Form("%s-%s-%i.json",
-                        fSpacePointLabels[i].c_str(),
-                        save_apa.c_str(),
-                        entryNo
-                        );
+        }
+        else {
+          jsonfile.Form("%s-%s-%i.json", fSpacePointLabels[i].c_str(), save_apa.c_str(), entryNo);
         }
         std::ofstream out(jsonfile.Data());
         if (fSpacePointLabels[i] == fSpacePointTruthDepoLablel) {
@@ -526,9 +526,8 @@ namespace wc {
       if (fSaveMC) {
         processMCTracks();
         TString jsonfile;
-        if (fSaveJSONinBEEFormat) {
-          jsonfile.Form("bee/data/%i/%i-mc.json", entryNo, entryNo);
-        } else {
+        if (fSaveJSONinBEEFormat) { jsonfile.Form("bee/data/%i/%i-mc.json", entryNo, entryNo); }
+        else {
           jsonfile.Form("mc-%i.json", entryNo);
         }
         std::ofstream out(jsonfile.Data());
@@ -541,7 +540,8 @@ namespace wc {
       TString jsonfile_sptp;
       if (fSaveJSONinBEEFormat) {
         jsonfile_sptp.Form("bee/data/%i/%i-tru-%s.json", entryNo, entryNo, save_apa.c_str());
-      } else {
+      }
+      else {
         jsonfile_sptp.Form("tru-%s-%i.json", save_apa.c_str(), entryNo);
       }
       std::ofstream out_sptp(jsonfile_sptp.Data());
@@ -553,7 +553,8 @@ namespace wc {
       TString jsonfile_sptp;
       if (fSaveJSONinBEEFormat) {
         jsonfile_sptp.Form("bee/data/%i/%i-rec-op-%s.json", entryNo, entryNo, save_apa.c_str());
-      } else {
+      }
+      else {
         jsonfile_sptp.Form("rec-op-%s-%i.json", save_apa.c_str(), entryNo);
       }
       std::ofstream out_sptp(jsonfile_sptp.Data());
@@ -890,6 +891,11 @@ namespace wc {
       if (mcOption == "nuOnly") {
         if (!(mctruth->Origin() == 1 && particle->Mother() == 0)) { continue; }
       }
+      else if (mcOption == "nuOnlyKE") {
+        if (!(mctruth->Origin() == 1)) { continue; }
+        double KE = particle->Momentum(0).E() - particle->Momentum(0).M();
+        if (KE < fmcKECut) { continue; } // KE cut in GeV
+      }
 
       // if (mctruth->Origin() == 1 || mc_mother[i] == 0) {
       //     cout << "process: " << particle->Process()
@@ -910,11 +916,15 @@ namespace wc {
       savedMCTrackIdMap[mc_id[i]] = mc_pdg[i];
 
       int Ndaughters = particle->NumberDaughters();
+      // std::cout << "track: " << mc_id[i] << ", pdg: " << mc_pdg[i] << ", KE: " << particle->Momentum(0).E() - particle->Momentum(0).M() << ", mother: " << mc_mother[i]
+      //          << ", nDaughter: " << Ndaughters << std::endl;
       vector<int> daughters;
       for (int i = 0; i < Ndaughters; i++) {
+        // std::cout << "   daughter: " << particle->Daughter(i) << std::endl;
         daughters.push_back(particle->Daughter(i));
       }
       mc_daughters.push_back(daughters);
+      // std::cout << "mc_daughters size: " << mc_daughters.size() << std::endl;
       size_t numberTrajectoryPoints = particle->NumberTrajectoryPoints();
       int last = numberTrajectoryPoints - 1;
       const TLorentzVector& positionStart = particle->Position(0);
@@ -1050,9 +1060,9 @@ namespace wc {
 
   //---- The X-axis position along drift changes to wire plane readout view without t0 correction ----
   void CellTree::processSpacePointTruthDepo_Time(const art::Event& event,
-                                            TString option,
-                                            ostream& out,
-                                            bool t0_corrected)
+                                                 TString option,
+                                                 ostream& out,
+                                                 bool t0_corrected)
   {
 
     art::Handle<std::vector<sim::SimEnergyDeposit>> sed_handle;
@@ -1266,9 +1276,9 @@ namespace wc {
   }
 
   void CellTree::processSpacePointTruthDepo_Truth(const art::Event& event,
-                                                     TString option,
-                                                     ostream& out,
-                                                     bool t0_corrected)
+                                                  TString option,
+                                                  ostream& out,
+                                                  bool t0_corrected)
   {
 
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv; // for getting mctruth
@@ -1420,6 +1430,7 @@ namespace wc {
     // map track id to track index in the array
     for (int i = 0; i < mc_Ntrack; i++) {
       trackIndex[mc_id[i]] = i;
+      // std::cout << "trackIndex: id " << mc_id[i] << ", index " << i << std::endl;
     }
 
     // in trackParents, trackChildren, trackSiblings vectors, store track index (not track id)
@@ -1427,13 +1438,22 @@ namespace wc {
       // currently, parent size == 1;
       // for primary particle, parent id = 0;
       vector<int> parents;
-      if (!IsPrimary(i)) { parents.push_back(trackIndex[mc_mother[i]]); }
+      if (!IsPrimary(i)) {
+        if (trackIndex.find(mc_mother[i]) != trackIndex.end()) {
+          parents.push_back(trackIndex.at(mc_mother[i]));
+        }
+      }
       trackParents.push_back(parents); // primary track will have 0 parents
 
       vector<int> children;
       int nChildren = mc_daughters.at(i).size();
       for (int j = 0; j < nChildren; j++) {
-        children.push_back(trackIndex[mc_daughters.at(i).at(j)]);
+        if (trackIndex.find(mc_daughters.at(i).at(j)) == trackIndex.end()) {
+          // cout << "WARNING: daughter id " << mc_daughters.at(i).at(j)
+          //      << " not found for track id " << mc_id[i] << endl;
+          continue;
+        }
+        children.push_back(trackIndex.at(mc_daughters.at(i).at(j)));
       }
       trackChildren.push_back(children);
     }
@@ -1448,7 +1468,12 @@ namespace wc {
       }
       else {
         // siblings are simply children of the mother
-        int mother = trackIndex[mc_mother[i]];
+        if (trackIndex.find(mc_mother[i]) == trackIndex.end()) {
+          cout << "WARNING: mother id " << mc_mother[i] << " not found for track id " << mc_id[i]
+               << endl;
+          continue;
+        }
+        int mother = trackIndex.at(mc_mother[i]);
         int nSiblings = trackChildren.at(mother).size();
         for (int j = 0; j < nSiblings; j++) {
           siblings.push_back(trackChildren.at(mother).at(j));
@@ -1486,7 +1511,11 @@ namespace wc {
   //-----------------------------------------------------------------------
   bool CellTree::DumpMCJSON(int id, ostream& out)
   {
-    int i = trackIndex[id];
+    if (trackIndex.find(id) == trackIndex.end()) {
+      cout << "WARNING: track id " << id << " not found" << endl;
+      return false;
+    }
+    int i = trackIndex.at(id);
     if (!KeepMC(i)) return false;
 
     int e = KE(mc_startMomentum[i]) * 1000;
@@ -1495,9 +1524,12 @@ namespace wc {
     vector<int> saved_daughters;
     for (int j = 0; j < nDaughter; j++) {
       int daughter_id = mc_daughters.at(i).at(j);
-      // int e_daughter = KE(mc_startMomentum[ trackIndex[daughter_id] ])*1000;
+      const auto& it = trackIndex.find(daughter_id);
+      if (it == trackIndex.end()) continue; // daughter not found, should not happen
+      int daughter_index = it->second;
+      // int e_daughter = KE(mc_startMomentum[daughter_index])*1000;
       // if (e_daughter >= thresh_KE) {
-      if (KeepMC(trackIndex[daughter_id])) { saved_daughters.push_back(daughter_id); }
+      if (KeepMC(daughter_index)) { saved_daughters.push_back(daughter_id); }
     }
 
     vector<double> vx, vy, vz;
