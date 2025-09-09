@@ -46,7 +46,7 @@ public:
 private:
   void produce(art::Event& e) override;
 
-  void FindHitsOnChannel(const sim::SimChannel* sc, std::vector<recob::Hit>& hits, int spill);
+  void FindHitsOnChannel(const sim::SimChannel& sc, std::vector<recob::Hit>& hits, int spill);
 
   std::string fG4ModuleLabel;              ///< label name for module making sim::SimChannels
   std::string fWireModuleLabel;            ///< label name for module making recob::Wires
@@ -124,16 +124,15 @@ void hit::HitCheater::produce(art::Event& e)
   }
 
   // get the sim::SimChannels out of the event
-  std::vector<const sim::SimChannel*> sccol;
-  e.getView(fG4ModuleLabel, sccol);
+  auto const& sccol = e.getProduct<std::vector<sim::SimChannel>>(fG4ModuleLabel);
 
   // find the hits on each channel
-  for (sim::SimChannel const* sc : sccol) {
+  for (sim::SimChannel const& sc : sccol) {
     std::vector<recob::Hit> hits_on_channel;
 
     FindHitsOnChannel(sc, hits_on_channel, whatSpill);
 
-    art::Ptr<recob::Wire> const& wire = wireMap[sc->Channel()];
+    art::Ptr<recob::Wire> const& wire = wireMap[sc.Channel()];
     art::Ptr<raw::RawDigit> rawdigits; // null by default
     if (wire.isNonnull()) rawdigits = WireToRawDigits.at(wire.key());
 
@@ -152,13 +151,13 @@ void hit::HitCheater::produce(art::Event& e)
 }
 
 //-------------------------------------------------------------------
-void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
+void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel& sc,
                                         std::vector<recob::Hit>& hits,
                                         int spill)
 {
   art::ServiceHandle<geo::Geometry const> geo;
   auto const& wireReadoutGeom = art::ServiceHandle<geo::WireReadout const>()->Get();
-  raw::ChannelID_t channel = sc->Channel();
+  raw::ChannelID_t channel = sc.Channel();
   geo::SigType_t signal_type = wireReadoutGeom.SignalType(channel);
   geo::View_t view = wireReadoutGeom.View(channel);
 
@@ -169,7 +168,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel* sc,
 
   std::map<geo::WireID, std::map<unsigned int, double>> wireIDSignals;
 
-  auto const& idemap = sc->TDCIDEMap();
+  auto const& idemap = sc.TDCIDEMap();
 
   for (auto const& mapitr : idemap) {
     unsigned short tdc = mapitr.first;

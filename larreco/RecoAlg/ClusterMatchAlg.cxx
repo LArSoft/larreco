@@ -200,33 +200,27 @@ namespace cluster {
   {
     if (!_ModName_MCTruth.size()) return;
 
-    std::vector<const simb::MCTruth*> mciArray;
+    auto mcis = evt.getHandle<std::vector<simb::MCTruth>>(_ModName_MCTruth);
+    if (!mcis) { return; }
 
-    try {
-
-      evt.getView(_ModName_MCTruth, mciArray);
-    }
-    catch (art::Exception const& e) {
-
-      if (e.categoryCode() != art::errors::ProductNotFound) throw;
-    }
-
-    for (size_t i = 0; i < mciArray.size(); ++i) {
+    // FIXME: The below algorithm is very complicated for only wanting to access the first
+    // element of a collection.
+    for (size_t i = 0; i < mcis->size(); ++i) {
 
       if (i == 1) {
         mf::LogWarning("ClusterMatchAlg") << " Ignoring > 2nd MCTruth in MC generator...";
         break;
       }
-      const simb::MCTruth* mci_ptr(mciArray.at(i));
+      const simb::MCTruth& mci = (*mcis)[i];
 
-      for (size_t j = 0; j < (size_t)(mci_ptr->NParticles()); ++j) {
+      for (size_t j = 0; j < (size_t)(mci.NParticles()); ++j) {
 
         if (j == 1) {
           mf::LogWarning("ClusterMatchAlg") << " Ignoring > 2nd MCParticle in MC generator...";
           break;
         }
 
-        const simb::MCParticle part(mci_ptr->GetParticle(j));
+        const simb::MCParticle part(mci.GetParticle(j));
 
         _pdgid = part.PdgCode();
         _mc_E = part.E();
