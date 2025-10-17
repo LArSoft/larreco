@@ -99,8 +99,8 @@ cet_build_plugin(PeakFitterMrqdt lar::PeakFitterTool
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
-    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "13.2")
-  # GCC 13.2 (and above) aggressively/spuriously warns about array-bounds issues.
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "12.5")
+  # GCC 12.5 (and above) aggressively/spuriously warns about array-bounds issues.
   target_compile_options(larreco_HitFinder_HitFinderTools_PeakFitterMrqdt_tool
                          PRIVATE "-Wno-array-bounds;-Wno-stringop-overflow")
 endif()
