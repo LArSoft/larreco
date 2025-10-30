@@ -9,7 +9,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 find_package(cetmodules 3.12.00 REQUIRED)
-project(larreco VERSION 10.02.08 LANGUAGES CXX)
+project(larreco VERSION 10.02.09 LANGUAGES CXX)
 
 include(CetCMakeEnv)
 cet_cmake_env()
