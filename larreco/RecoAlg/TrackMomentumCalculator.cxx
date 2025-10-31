@@ -42,6 +42,8 @@ namespace {
   constexpr double LAr_density{1.396};
   constexpr double rad_length{14.0};
   constexpr double m_muon{0.1057}; // muon mass
+
+  // splines for range-based momentum measurement: muon and charged pion
   constexpr auto range_gramper_cm()
   {
     std::array<double, 73> Range_grampercm{
@@ -84,6 +86,36 @@ namespace {
      2.77e+05}};
   TGraph const KEvsRPi{73, Range_grampercm.data(), KE_MeV_Pi.data()};
   TSpline3 const KEvsRPi_spline3{"KEvsRS_pion", &KEvsRPi};
+
+  // spline for range-based momentum measurement: proton
+  constexpr auto range_gramper_cm_proton()
+  {
+    std::array<double, 60> Range_grampercm_proton{
+      // from PSTAR: https://physics.nist.gov/PhysRefData/Star/Text/PSTAR.html, using "Projected" column to consider the "Detour Factor"
+      {
+        0.05724, 0.06726,  0.07798,  0.08937,  0.1014,   0.1142,   0.1276,  0.1416,  0.1563,
+        0.1716,  0.1875,   0.2764,   0.3801,   0.4981,   0.6301,   0.9342,  1.106,   1.290,
+        1.695,   2.149,    2.649,    3.193,    3.782,    4.413,    5.086,   5.799,   6.552,
+        7.344,   8.173,    9.040,    9.942,    10.880,   16.080,   22.070,  28.770,  36.140,
+        44.110,  52.640,   61.680,   71.200,   91.540,   113.400,  136.600, 161.000, 186.300,
+        212.600, 239.600,  267.400,  295.700,  324.600,  353.900,  383.700, 413.800, 444.300,
+        761.100, 1088.000, 1416.000, 1743.000, 2388.000, 3018.000,
+      }};
+    for (double& value : Range_grampercm_proton) {
+      value /= LAr_density; // convert to cm
+    }
+    return Range_grampercm_proton;
+  }
+
+  constexpr auto Range_grampercm_proton = range_gramper_cm_proton();
+  constexpr std::array<double, 60> KE_MeV_proton{
+    {5.0,   5.5,   6.0,   6.5,   7.0,   7.5,    8.0,    8.5,    9.0,    9.5,    10.0,   12.5,
+     15.0,  17.5,  20.0,  25.0,  27.5,  30.0,   35.0,   40.0,   45.0,   50.0,   55.0,   60.0,
+     65.0,  70.0,  75.0,  80.0,  85.0,  90.0,   95.0,   100.0,  125.0,  150.0,  175.0,  200.0,
+     225.0, 250.0, 275.0, 300.0, 350.0, 400.0,  450.0,  500.0,  550.0,  600.0,  650.0,  700.0,
+     750.0, 800.0, 850.0, 900.0, 950.0, 1000.0, 1500.0, 2000.0, 2500.0, 3000.0, 4000.0, 5000.0}};
+  TGraph const KEvsR_proton_gr{73, Range_grampercm_proton.data(), KE_MeV_proton.data()};
+  TSpline3 const KEvsR_proton_spline3{"KEvsR_proton", &KEvsR_proton_gr};
 
   // Stopping power data from pdg, to be used with MCS
   std::vector<double> dedx_GeV_per_cm()
@@ -405,16 +437,7 @@ namespace trkf {
     }
     else if (abs(pdg) == 2212) {
       M = Proton_M;
-      if (trkrange > 0 && trkrange <= 80)
-        KE = 29.9317 * std::pow(trkrange, 0.586304);
-      else if (trkrange > 80 && trkrange <= 3.022E3)
-        KE = 149.904 + (3.34146 * trkrange) + (-0.00318856 * trkrange * trkrange) +
-             (4.34587E-6 * trkrange * trkrange * trkrange) +
-             (-3.18146E-9 * trkrange * trkrange * trkrange * trkrange) +
-             (1.17854E-12 * trkrange * trkrange * trkrange * trkrange * trkrange) +
-             (-1.71763E-16 * trkrange * trkrange * trkrange * trkrange * trkrange * trkrange);
-      else
-        KE = -999;
+      KE = KEvsR_proton_spline3.Eval(trkrange);
     }
     else if (abs(pdg) == 211) {
       M = Pion_M;
