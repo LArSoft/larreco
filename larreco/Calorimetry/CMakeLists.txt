@@ -50,6 +50,7 @@ cet_build_plugin(Calorimetry art::EDProducer
   lardata::DetectorClocksService
   lardata::DetectorPropertiesService
   lardata::AssociationUtil
+  lardataalg::UtilitiesHeaders
   larcorealg::Geometry
   larcoreobj::headers
   lardataobj::AnalysisBase
@@ -109,6 +110,7 @@ cet_build_plugin(ShowerCalorimetry art::EDProducer
   lardata::DetectorClocksService
   lardata::DetectorPropertiesService
   lardata::LArPropertiesService
+  lardataalg::UtilitiesHeaders
   lardataobj::AnalysisBase
   lardataobj::RecoBase
   art::Framework_Principal
@@ -127,6 +129,7 @@ cet_build_plugin(TrackCalorimetry art::EDProducer
   lardata::DetectorPropertiesService
   lardata::LArPropertiesService
   lardata::ServicePack
+  lardataalg::UtilitiesHeaders
   lardataobj::AnalysisBase
   lardataobj::RecoBase
   art::Framework_Principal
