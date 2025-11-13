@@ -574,7 +574,7 @@ namespace lar_cluster3d {
     produces<art::Assns<recob::Hit, recob::SpacePoint>>();
 
     // Do we output anything else?
-    if (!m_onlyMakSpacePoints)
+//    if (!m_onlyMakSpacePoints)
     {
       produces<std::vector<recob::PCAxis>>();
       produces<std::vector<recob::PFParticle>>();
@@ -657,8 +657,7 @@ namespace lar_cluster3d {
       // Run the path finding
       m_clusterPathAlg->ModifyClusters(clusterParametersList);
     }
-
-    if (m_enableMonitoring) theClockFinish.start();
+    // Otherwise we only have two data objects to output
 
     // Get the art ouput object
     ArtOutputHandler output(evt, m_pathInstance, m_vertexInstance, m_extremeInstance);
@@ -668,14 +667,16 @@ namespace lar_cluster3d {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp   = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
     util::GeometryUtilities const gser{*lar::providerFrom<geo::Geometry>(),
-                                       art::ServiceHandle<geo::WireReadout>()->Get(),
-                                       clockData,
-                                       detProp};
+                                        art::ServiceHandle<geo::WireReadout>()->Get(),
+                                        clockData,
+                                        detProp};
 
     ProduceArtClusters(gser, output, *hitPairList, clusterParametersList, clusterHitToArtPtrMap);
 
     // Output to art
     output.outputObjects(m_onlyMakSpacePoints);
+
+    if (m_enableMonitoring) theClockFinish.start();
 
     // If monitoring then deal with the fallout
     if (m_enableMonitoring) {
