@@ -574,7 +574,7 @@ namespace lar_cluster3d {
     produces<art::Assns<recob::Hit, recob::SpacePoint>>();
 
     // Do we output anything else?
-//    if (!m_onlyMakSpacePoints)
+    if (!m_onlyMakSpacePoints)
     {
       produces<std::vector<recob::PCAxis>>();
       produces<std::vector<recob::PFParticle>>();
