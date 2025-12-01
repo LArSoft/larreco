@@ -91,7 +91,7 @@ namespace lar_cluster3d {
      *  @brief Each algorithm may have different objects it wants "produced" so use this to
      *         let the top level producer module "know" what it is outputting
      */
-    virtual void produces(art::ProducesCollector&) override;
+    void produces(art::ProducesCollector&) override;
 
     void configure(const fhicl::ParameterSet&);
 
@@ -101,12 +101,12 @@ namespace lar_cluster3d {
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
+    void Hit3DBuilder(art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
 
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    virtual float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
+    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override
     {
       return m_timeVector[index];
     }
