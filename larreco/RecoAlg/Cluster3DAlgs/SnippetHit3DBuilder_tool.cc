@@ -78,7 +78,7 @@ namespace lar_cluster3d {
   /**
  *  @brief  SnippetHit3DBuilder class definiton
  */
-  class SnippetHit3DBuilder : virtual public IHit3DBuilder {
+  class SnippetHit3DBuilder : public IHit3DBuilder {
   public:
     /**
      *  @brief  Constructor
