@@ -14,6 +14,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
+#include "lardataalg/Utilities/TrackingTypeUtils.h" // tracking::convertCollToXxx()
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"

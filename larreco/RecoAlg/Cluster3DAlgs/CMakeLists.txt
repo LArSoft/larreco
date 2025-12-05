@@ -21,6 +21,7 @@ cet_make_library(SOURCE
   LIBRARIES
   PUBLIC
   larreco::Voronoi_DCEL
+  larcorealg::Geometry
   lardataobj::RecoBase
   larcoreobj::SimpleTypesAndConstants
   ROOT::Gpad
@@ -29,7 +30,6 @@ cet_make_library(SOURCE
   larcore::Geometry_Geometry_service
   larcore::ServiceUtil
   lardataalg::DetectorInfo
-  larcorealg::Geometry
   art::Framework_Services_Registry
   messagefacility::MF_MessageLogger
   fhiclcpp::fhiclcpp

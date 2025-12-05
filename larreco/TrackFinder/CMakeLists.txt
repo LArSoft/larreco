@@ -21,6 +21,7 @@ cet_build_plugin(CosmicTracker art::EDProducer
   lardata::AssociationUtil
   lardata::DetectorClocksService
   lardata::DetectorPropertiesService
+  lardataalg::UtilitiesHeaders
   larcore::Geometry_Geometry_service
   lardataobj::RecoBase
   art::Framework_Services_Registry
@@ -299,6 +300,7 @@ cet_build_plugin(SpacePts art::EDProducer
   lardata::AssociationUtil
   lardata::DetectorPropertiesService
   larcore::Geometry_Geometry_service
+  lardataalg::UtilitiesHeaders
   lardataobj::RecoBase
   larcorealg::Geometry
   art::Framework_Services_Registry
@@ -331,6 +333,7 @@ cet_build_plugin(Track3DKalman art::EDProducer
   lardata::DetectorPropertiesService
   larcore::Geometry_Geometry_service
   lardataobj::RecoBase
+  lardataalg::UtilitiesHeaders
   nurandom::RandomUtils_NuRandomService_service
   nusimdata::SimulationBase
   art_root_io::TFileService_service
@@ -367,6 +370,7 @@ cet_build_plugin(Track3DKalmanSPS art::EDProducer
   larreco::Genfit
   lardata::AssociationUtil
   larcore::Geometry_Geometry_service
+  lardataalg::UtilitiesHeaders
   lardataobj::RecoBase
   larcorealg::Geometry
   nusimdata::SimulationBase
@@ -390,6 +394,7 @@ cet_build_plugin(Track3Dreco art::EDProducer
   lardata::AssociationUtil
   lardata::DetectorPropertiesService
   larcore::Geometry_Geometry_service
+  lardataalg::UtilitiesHeaders
   lardataobj::RecoBase
   larcorealg::Geometry
   art::Framework_Services_Registry
@@ -430,6 +435,7 @@ cet_build_plugin(TrackCheater art::EDProducer
   lardata::AssociationUtil
   lardata::DetectorPropertiesService
   larcore::Geometry_Geometry_service
+  lardataalg::UtilitiesHeaders
   lardataobj::RecoBase
   nusimdata::SimulationBase
   art::Framework_Services_Registry

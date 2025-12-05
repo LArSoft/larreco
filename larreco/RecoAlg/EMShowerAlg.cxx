@@ -15,6 +15,7 @@
 #include "larcorealg/Geometry/Exceptions.h"
 #include "lardata/ArtDataHelper/ToElement.h"
 #include "lardata/ArtDataHelper/TrackUtils.h"
+#include "lardataalg/Utilities/TrackingTypeUtils.h" // tracking::convertCollToXxx()
 #include "larreco/RecoAlg/EMShowerAlg.h"
 
 #include "TAxis.h"

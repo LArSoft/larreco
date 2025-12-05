@@ -28,6 +28,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardataalg/Utilities/TrackingTypeUtils.h" // tracking::convertCollToXxx()
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Shower.h"
