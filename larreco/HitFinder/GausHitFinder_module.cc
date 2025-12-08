@@ -523,12 +523,14 @@ namespace hit {
 
                 //protection to avoid negative ranges
                 if (newright - newleft < 0) continue;
-                if (HitsumStartItr > HitsumEndItr) continue;
+		//if (HitsumStartItr > HitsumEndItr) continue;
 
                 //avoid ranges out of ROI if it happens
                 if (HitsumStartItr < sumStartItr) HitsumStartItr = sumStartItr;
 
                 if (HitsumEndItr > sumEndItr) HitsumEndItr = sumEndItr;
+
+		if (HitsumStartItr > HitsumEndItr) continue;
 
                 // ### Sum of ADC counts
                 double ROIsumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
