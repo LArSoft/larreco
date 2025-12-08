@@ -529,7 +529,7 @@ namespace hit {
 
                 if (HitsumEndItr > sumEndItr) HitsumEndItr = sumEndItr;
 
-		if (HitsumStartItr > HitsumEndItr) continue;
+				if (HitsumStartItr > HitsumEndItr) continue;
 
                 // ### Sum of ADC counts
                 double ROIsumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
