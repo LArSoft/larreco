@@ -53,6 +53,7 @@
 #include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "lardataalg/Utilities/TrackingTypeUtils.h" // tracking::convertCollToXxx()
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
@@ -548,8 +549,8 @@ namespace trkf {
     art::PtrVector<simb::MCTruth> mclist;
 
     /// \todo Should never test whether the event is real data in reconstruction algorithms
-    /// \todo as that introduces potential data/MC differences that are very hard to track down
-    /// \todo Remove this test as soon as possible please
+    ///       as that introduces potential data/MC differences that are very hard to track down
+    ///       Remove this test as soon as possible please
     if (!evt.isRealData()) {
 
       art::Handle<std::vector<simb::MCTruth>> mctruthListHandle;
@@ -579,8 +580,8 @@ namespace trkf {
 
     // This is strictly for MC
     /// \todo Should never test whether the event is real data in reconstruction algorithms
-    /// \todo as that introduces potential data/MC differences that are very hard to track down
-    /// \todo Remove this test as soon as possible please
+    ///       as that introduces potential data/MC differences that are very hard to track down
+    ///       Remove this test as soon as possible please
     if (!evt.isRealData()) {
       // Below breaks are stupid, I realize. But rather than keep all the MC
       // particles I just take the first primary, e.g., muon and only keep its
