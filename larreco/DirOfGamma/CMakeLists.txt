@@ -24,6 +24,7 @@ cet_build_plugin(EMShower3D art::EDProducer
   lardata::DetectorPropertiesService
   lardata::AssociationUtil
   larcore::ServiceUtil
+  lardataalg::UtilitiesHeaders
   lardataobj::RecoBase
   art::Framework_Services_Registry
   art::Framework_Principal
