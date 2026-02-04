@@ -63,12 +63,6 @@ namespace reco_tool {
     std::vector<geo::WireID> wids = fWireReadoutGeom->ChannelToWire(channel);
     const size_t plane = wids[0].Plane;
 
-    std::cout << "Finding hit candidates on channel " << channel << " plane " << plane
-              << " roiStartTick " << roiStartTick << " waveform size " << waveform.size() << " element size " << sizeof(waveform[0])
-              << " RoiThreshold " << fRoiThreshold
-              << " begin " << (float)waveform.front() << " end " << (float)waveform.back()
-              << std::endl;
-
     // Use the recursive version to find the candidate hits
     findHitCandidates(waveform.begin(), waveform.end(), roiStartTick, plane, hitCandidateVec);
   }
@@ -87,10 +81,6 @@ namespace reco_tool {
       float maxValue = *maxItr;
       int maxTime = std::distance(startItr, maxItr);
 
-      std::cout << "  Checking range startTick " << roiStartTick + std::distance(startItr, startItr)
-                << " stopTick " << roiStartTick + std::distance(startItr, stopItr)
-                << " maxTick " << roiStartTick + maxTime << " maxValue " << (float)maxValue << std::endl;
-
       if (maxValue > fRoiThreshold) {
       //if (std::round(maxValue) > fRoiThreshold) {
 
@@ -103,21 +93,7 @@ namespace reco_tool {
           if (*firstItr < -fRoiThreshold) break;
 
           // Check both sides of firstItr and look for min/inflection point
-          if (*firstItr < *(firstItr + 1) && *(firstItr - 1) - *firstItr >= fNextADCThreshold) {
-            std::cout << "min inflection found: " << (float)(*firstItr) << " at time " << (roiStartTick + std::distance(startItr, firstItr)) << std::endl;
-            std::cout << "  neighbors: " << (float)(*(firstItr - 1)) << " (prev), " << (float)(*(firstItr + 1)) << " (next)" << std::endl;
-            std::cout << "  thresholds: " << (float)(*(firstItr + 1) - fNextADCThreshold) << " (next + threshold), "
-                 << (float)(*(firstItr - 1) - fNextADCThreshold) << " (prev - threshold)" << std::endl;
-            break;
-          }
-          // Check both sides of firstItr and look for min/inflection point
-          /*if (std::round(*firstItr) < std::round(*(firstItr + 1)) && std::round(*firstItr) <= std::round(*(firstItr - 1))) {
-            std::cout << "min inflection found: " << (float)std::round((*firstItr)) << " at time " << (roiStartTick + std::distance(startItr, firstItr)) << std::endl;
-            std::cout << "  neighbors: " << (float)std::round(*(firstItr - 1)) << " (prev), " << (float)std::round(*(firstItr + 1)) << " (next)" << std::endl;
-            std::cout << "  thresholds: " << (float)std::round(*(firstItr + 1) - fNextADCThreshold) << " (next + threshold), "
-                 << (float)std::round(*(firstItr - 1) - fNextADCThreshold) << " (prev - threshold)" << std::endl;
-            break;
-          }*/
+          if (*firstItr < *(firstItr + 1) && *(firstItr - 1) - *firstItr >= fNextADCThreshold) break;
           firstItr--;
         }
 
@@ -155,22 +131,7 @@ namespace reco_tool {
         hitCandidate.hitSigma = std::max(2., float(lastTime - firstTime) / 6.);
         hitCandidate.hitHeight = maxValue;
 
-        std::cout << "  Found hit candidate on plane " << planeIdx << " startTick " << hitCandidate.startTick
-                  << " stopTick " << hitCandidate.stopTick << " maxTick " << hitCandidate.maxTick
-                  << " minTick " << hitCandidate.minTick << " maxDerivative " << hitCandidate.maxDerivative
-                  << " minDerivative " << hitCandidate.minDerivative << " hitCenter " << hitCandidate.hitCenter
-                  << " hitSigma " << (float)hitCandidate.hitSigma << " hitHeight " << (float)hitCandidate.hitHeight
-                  << std::endl;
-
-        // Force output with full precision
-        std::cout << std:: fixed << std::setprecision(6);
-        std::cout << "maxValue type check: sizeof=" << sizeof(maxValue) 
-                  << " value=" << maxValue << std::endl;
-        std::cout << "hitCandidate.hitHeight type check: sizeof=" << sizeof(hitCandidate.hitHeight) 
-                  << " value=" << hitCandidate.hitHeight << std::endl;
-        std::cout << "*maxItr directly: " << *maxItr << std::endl;
-        std::cout << "Is maxValue == hitHeight? " << (maxValue == hitCandidate.hitHeight ?  "YES" : "NO") << std::endl;
-                hitCandidateVec.push_back(hitCandidate);
+        hitCandidateVec.push_back(hitCandidate);
 
         // Recursive call to find all candidate hits later than this peak
         findHitCandidates(lastItr + 1,
