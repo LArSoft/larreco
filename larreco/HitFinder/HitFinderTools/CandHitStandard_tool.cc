@@ -36,6 +36,7 @@ namespace reco_tool {
 
     // Member variables from the fhicl file
     const float fRoiThreshold; ///< minimum maximum to minimum peak distance
+    const float fNextADCThreshold; ///< minimum difference between adjacent ADCs to define peak edges
 
     const geo::WireReadoutGeom* fWireReadoutGeom =
       &art::ServiceHandle<geo::WireReadout const>()->Get();
@@ -44,7 +45,8 @@ namespace reco_tool {
   //----------------------------------------------------------------------
   // Constructor.
   CandHitStandard::CandHitStandard(const fhicl::ParameterSet& pset)
-    : fRoiThreshold(pset.get<float>("RoiThreshold", 5.))
+    : fRoiThreshold(pset.get<float>("RoiThreshold", 5.)),
+    fNextADCThreshold(pset.get<float>("NextADCThreshold", 0.5))
   {}
 
   void CandHitStandard::findHitCandidates(
@@ -88,8 +90,7 @@ namespace reco_tool {
           if (*firstItr < -fRoiThreshold) break;
 
           // Check both sides of firstItr and look for min/inflection point
-          if (*firstItr < *(firstItr + 1) && *firstItr <= *(firstItr - 1)) break;
-
+          if (*firstItr < *(firstItr + 1) && *(firstItr - 1) - *firstItr >= fNextADCThreshold) break;
           firstItr--;
         }
 
@@ -106,7 +107,7 @@ namespace reco_tool {
           if (*lastItr < -fRoiThreshold) break;
 
           // Check both sides of firstItr and look for min/inflection point
-          if (*lastItr <= *(lastItr + 1) && *lastItr < *(lastItr - 1)) break;
+          if (*(lastItr + 1) - *lastItr >= fNextADCThreshold && *lastItr < *(lastItr - 1)) break;
 
           lastItr++;
         }
