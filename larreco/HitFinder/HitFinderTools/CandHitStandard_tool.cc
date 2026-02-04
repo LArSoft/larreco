@@ -82,14 +82,11 @@ namespace reco_tool {
       int maxTime = std::distance(startItr, maxItr);
 
       if (maxValue > fRoiThreshold) {
-      //if (std::round(maxValue) > fRoiThreshold) {
-
         // backwards to find first bin for this candidate hit
         auto firstItr = std::distance(startItr, maxItr) > 2 ? maxItr - 1 : startItr;
 
         while (firstItr != startItr) {
           // Check for pathology where waveform goes too negative
-          //if (std::round(*firstItr) < -fRoiThreshold) break;
           if (*firstItr < -fRoiThreshold) break;
 
           // Check both sides of firstItr and look for min/inflection point
@@ -107,12 +104,10 @@ namespace reco_tool {
 
         while (lastItr != stopItr - 1) {
           // Check for pathology where waveform goes too negative
-          //if (std::round(*lastItr) < -fRoiThreshold) break;
           if (*lastItr < -fRoiThreshold) break;
 
           // Check both sides of firstItr and look for min/inflection point
           if (*(lastItr + 1) - *lastItr >= fNextADCThreshold && *lastItr < *(lastItr - 1)) break;
-          //if (std::round(*lastItr) <= std::round(*(lastItr + 1)) && std::round(*lastItr) < std::round(*(lastItr - 1))) break;
 
           lastItr++;
         }
