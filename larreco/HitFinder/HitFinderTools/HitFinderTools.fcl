@@ -44,6 +44,7 @@ candhitfinder_standard:
     tool_type:                   CandHitStandard
     Plane:                       0                # The plane this tool is operating on
     RoiThreshold:                5.               # The threshold to apply to find hits
+    fNextADCThreshold:           0.0              # Threshold slope between points to create new hit
 }
 
 peakfitter_gaussian:
