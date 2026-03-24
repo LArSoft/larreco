@@ -1158,10 +1158,7 @@ namespace lar_cluster3d {
       RecobHitVector recobHits;
 
       for (const auto hit : hitPair.getHits()) {
-        if (!hit) {
-          chisq = -1000.;
-          continue;
-        }
+        if (!hit) continue;
 
         art::Ptr<recob::Hit> hitPtr = hitToPtrMap[hit->getHit()];
         recobHits.push_back(hitPtr);
