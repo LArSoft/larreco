@@ -311,6 +311,8 @@ c14:debug	c14:debug	-nq-	-nq-
 c14:prof	c14:prof	-nq-	-nq-
 e26:debug	e26:debug	-nq-	-nq-
 e26:prof	e26:prof	-nq-	-nq-
+e28:debug	e28:debug	-nq-	-nq-
+e28:prof	e28:prof	-nq-	-nq-
 end_qualifier_list
 ####################################
 
