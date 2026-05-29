@@ -20,6 +20,12 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 
+#ifdef __clang__
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 namespace TMVA {
   class Reader;
 }
@@ -686,5 +692,10 @@ namespace tca {
   extern std::vector<TrajPoint> seeds;
 
 } // namespace tca
+
+#ifdef __clang__
+#else
+#pragma GCC diagnostic pop
+#endif
 
 #endif // ifndef TRAJCLUSTERALGDATASTRUCT_H
