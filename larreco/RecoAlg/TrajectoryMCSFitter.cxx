@@ -36,18 +36,15 @@ namespace {
 
 recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj, int pid) const
 {
-  //
-  // Break the trajectory in segments of length approximately equal to segLen_
-  //
+  // Step 1: split the reconstructed trajectory into fixed-length segments.
+  // Each segment contributes a material thickness in radiation lengths.
   vector<size_t> breakpoints;
   vector<float> segradlengths;
   vector<float> cumseglens;
   breakTrajInSegments(traj, breakpoints, segradlengths, cumseglens);
 
-  //
-  // Fit segment directions and evaluate the likelihood using projected signed
-  // angles in the local xz and yz planes, with separate resolutions for each.
-  //
+  // Step 2: fit one straight direction per segment and measure the signed
+  // projected angle between each neighboring pair of segments.
   if (segradlengths.size() < 2) return recob::MCSFitResult();
 
   vector<float> dtheta;
@@ -74,10 +71,14 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
         const double dt = 1000. * std::acos(std::clamp(cosval, -1.0, 1.0));
         dtheta.push_back(dt);
 
-        // Wire-Cell-style local frame:
+        // Local frame for this segment pair:
         //   zhat = previous segment direction (pcdir0)
-        //   yhat = zhat x driftAxis  (drift-insensitive direction)
-        //   xhat = zhat x yhat       (maximally drift-sensitive direction)
+        //   yhat = zhat x detector-drift axis
+        //   xhat = zhat x yhat
+        // The next segment direction is projected onto xhat/yhat to form
+        // theta_x'z' and theta_y'z'.  angleDriftFrac stores |v_x|, the absolute
+        // drift-axis component of the average pair direction, for optional
+        // direction-dependent y'-z' calibration.
         Vector_t yhat = crossProduct(pcdir0, driftAxis);
         const double ymag = magnitude(yhat);
 
@@ -124,11 +125,9 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
     pcdir0 = pcdir1;
   }
 
-  //
-  // Perform likelihood scan in forward and backward directions.
-  // Compute separate detector angular resolutions for the X (drift-sensitive)
-  // and Y (drift-insensitive) projected angle planes, exactly as in Wire-Cell.
-  //
+  // Step 3: run the likelihood scan twice.  The forward scan assumes the track
+  // starts at the trajectory start; the backward scan assumes it starts at the
+  // trajectory end.  Energy loss is propagated from the assumed start point.
   vector<float> cumLenFwd;
   vector<float> cumLenBwd;
   for (unsigned int i = 0; i < cumseglens.size() - 2; ++i) {
@@ -136,16 +135,10 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
     cumLenBwd.push_back(cumseglens.back() - cumseglens[i + 2]);
   }
 
-  const double uz = std::abs(traj.StartDirection().Z());
-  const double detAngResolX = DetectorAngularResolution(uz);  // X-plane (drift-sensitive)
-  const double detAngResolY = DetectorAngularResolutionY(uz); // Y-plane (drift-insensitive)
-
   const ScanResult fwdResult =
-    doLikelihoodScan(dthetaX, dthetaY, angleDriftFrac, segradlengths, cumLenFwd, true, pid,
-                     detAngResolX, detAngResolY);
+    doLikelihoodScan(dthetaX, dthetaY, angleDriftFrac, segradlengths, cumLenFwd, true, pid);
   const ScanResult bwdResult =
-    doLikelihoodScan(dthetaX, dthetaY, angleDriftFrac, segradlengths, cumLenBwd, false, pid,
-                     detAngResolX, detAngResolY);
+    doLikelihoodScan(dthetaX, dthetaY, angleDriftFrac, segradlengths, cumLenBwd, false, pid);
 
   return recob::MCSFitResult(pid,
                              fwdResult.p,
@@ -163,14 +156,19 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
                                               vector<float>& segradlengths,
                                               vector<float>& cumseglens) const
 {
-  //
+  // Split the input trajectory into approximately equal path-length segments.
+  // breakpoints holds the trajectory-point index at each segment boundary.
+  // segradlengths holds each segment length divided by the LAr radiation length.
+  // cumseglens holds the cumulative path length from the start of the track.
   art::ServiceHandle<geo::Geometry const> geom;
   auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
-  //
+
   const double trajlen = traj.Length();
   const double thisSegLen =
     (trajlen > (segLen_ * minNSegs_) ? segLen_ : trajlen / double(minNSegs_));
-  //
+
+  // Liquid argon radiation length is approximated as 14 cm here, matching the
+  // historical fitter convention used by this algorithm.
   constexpr double lar_radl_inv = 1. / 14.0;
   cumseglens.push_back(0.);
   double thislen = 0.;
@@ -217,7 +215,7 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
     }
     nextValid = traj.NextValidPoint(nextValid + 1);
   }
-  // then add last segment
+  // Add the final partial segment if any path length remains.
   if (thislen > 0.) {
     breakpoints.push_back(traj.LastValidPoint() + 1);
     segradlengths.push_back(thislen * lar_radl_inv);
@@ -236,9 +234,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(
   int pid,
   float pmin,
   float pmax,
-  float pstep,
-  float detAngResolX,
-  float detAngResolY) const
+  float pstep) const
 {
   int best_idx = -1;
   float best_logL = std::numeric_limits<float>::max();
@@ -246,8 +242,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(
   std::vector<float> vlogL;
   for (float p_test = pmin; p_test <= pmax; p_test += pstep) {
     const float logL =
-      mcsLikelihood(p_test, detAngResolX, detAngResolY,
-                    dthetaX, dthetaY, angleDriftFrac, seg_nradlengths, cumLen, fwdFit, pid);
+      mcsLikelihood(p_test, dthetaX, dthetaY, angleDriftFrac, seg_nradlengths, cumLen, fwdFit, pid);
     if (logL < best_logL) {
       best_p = p_test;
       best_logL = logL;
@@ -288,14 +283,12 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(
   std::vector<float>& seg_nradlengths,
   std::vector<float>& cumLen,
   bool fwdFit,
-  int pid,
-  float detAngResolX,
-  float detAngResolY) const
+  int pid) const
 {
-  // do a first, coarse scan
+  // First pass: coarse momentum scan over the configured full range.
   const ScanResult coarseRes = doLikelihoodScan(
     dthetaX, dthetaY, angleDriftFrac, seg_nradlengths, cumLen, fwdFit, pid,
-    pMin_, pMax_, pStepCoarse_, detAngResolX, detAngResolY);
+    pMin_, pMax_, pStepCoarse_);
 
   float pmax = std::min(coarseRes.p + fineScanWindow_, pMax_);
   float pmin = std::max(coarseRes.p - fineScanWindow_, pMin_);
@@ -304,10 +297,10 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(
     pmin = std::max(coarseRes.p - 2 * coarseRes.pUnc, pMin_);
   }
 
-  // do the fine grained scan in a smaller region
+  // Second pass: fine scan around the coarse minimum.
   const ScanResult refineRes =
     doLikelihoodScan(dthetaX, dthetaY, angleDriftFrac, seg_nradlengths, cumLen, fwdFit, pid,
-                     pmin, pmax, pStep_, detAngResolX, detAngResolY);
+                     pmin, pmax, pStep_);
 
   return refineRes;
 }
@@ -317,10 +310,12 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj,
                                            const size_t lastPoint,
                                            Vector_t& pcdir) const
 {
-  //
+  // Fit a straight direction to one segment by principal-component analysis.
+  // The largest eigenvector of the point covariance matrix is taken as the
+  // segment direction, then flipped to follow the reconstructed track order.
   art::ServiceHandle<geo::Geometry const> geom;
   auto const* _SCE = (applySCEcorr_ ? lar::providerFrom<spacecharge::SpaceChargeService>() : NULL);
-  //
+
   int npoints = 0;
   geo::vect::MiddlePointAccumulator middlePointCalc;
   size_t nextValid = firstPoint;
@@ -387,8 +382,6 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj,
 }
 
 double TrajectoryMCSFitter::mcsLikelihood(double p,
-                                          double theta0x,
-                                          double theta0y,
                                           std::vector<float>& dthetaX,
                                           std::vector<float>& dthetaY,
                                           std::vector<float>& angleDriftFrac,
@@ -428,26 +421,21 @@ double TrajectoryMCSFitter::mcsLikelihood(double p,
                        (1.0 + HighlandSecondTerm * std::log(seg_nradl[i])) *
                        std::sqrt(seg_nradl[i]);
 
-    // Widths and fractions are set below. The default path preserves the old
-    // fixed-ratio model; the smooth path uses the high-p calibrated model.
+    // Build the calibrated two-Gaussian widths for this candidate momentum.
+    // The Highland term supplies the expected MCS scattering scale, while the
+    // smooth calibration functions adjust that scale and add detector/reco
+    // resolution floors.
     double sigma1X = 0.0;
     double sigma2X = 0.0;
     double sigma1Y = 0.0;
     double sigma2Y = 0.0;
-    double fracX = twoGaussFrac_;
-    double fracY = twoGaussFrac_;
+    double fracX = 0.0;
+    double fracY = 0.0;
 
-    // Double-Gaussian PDF:
+    // Calibrated double-Gaussian PDF:
     //   PDF(theta) = r * G(theta; sigma1) + (1-r) * G(theta; sigma2)
-    // where:
-    //   old mode: sigma1 = sqrt(Highland^2 + detectorResolution^2),
-    //             sigma2 = twoGaussScale * sigma1.
-    //   smooth mode: sigma1 = sqrt((scale1(p)*Highland)^2 + res1^2),
-    //                sigma2 = sqrt((scale2(p)*Highland)^2 + res2^2).
-    // The tail Gaussian captures non-Gaussian tails from large-angle scatters,
-    // nuclear interactions, and reconstruction effects.
-    // fracX/fracY are the primary Gaussian fractions.
-    // X and Y use independent calibrated parameters.
+    // sigma1 is the primary/core width, sigma2 is the broad tail width, and
+    // r is the primary Gaussian area fraction.
     const double norm1D = 1.0 / std::sqrt(2.0 * M_PI);
     const bool useDirY =
       useDirectionDependentYZ_ &&
@@ -481,57 +469,44 @@ double TrajectoryMCSFitter::mcsLikelihood(double p,
       return std::max(frac * g1 + (1.0 - frac) * g2, std::numeric_limits<double>::min());
     };
 
-    if (useSmoothDoubleGaussian_) {
-      const double scale1X = SmoothScale(pij, smoothScale1X_, smoothPivotX_);
-      const double scale2X = SmoothScale(pij, smoothScale2X_, smoothPivotX_);
-      const double pivotY = (useDirY ? DirectionValue(smoothPivotYByDir_, yDirBin, smoothPivotY_) :
-                                      smoothPivotY_);
-      const double scale1Y =
-        (useDirY ? DirectionSmoothScale(pij, smoothScale1YByDir_, smoothScale1Y_, pivotY, yDirBin) :
-                   SmoothScale(pij, smoothScale1Y_, smoothPivotY_));
-      const double scale2Y =
-        (useDirY ? DirectionSmoothScale(pij, smoothScale2YByDir_, smoothScale2Y_, pivotY, yDirBin) :
-                   SmoothScale(pij, smoothScale2Y_, smoothPivotY_));
-      const double res1Y =
-        (useDirY ? DirectionValue(smoothRes1YByDir_, yDirBin, smoothRes1Y_) : smoothRes1Y_);
-      const double res2Y =
-        (useDirY ? DirectionValue(smoothRes2YByDir_, yDirBin, smoothRes2Y_) : smoothRes2Y_);
+    const double scale1X = SmoothScale(pij, smoothScale1X_, smoothPivotX_);
+    const double scale2X = SmoothScale(pij, smoothScale2X_, smoothPivotX_);
+    const double pivotY =
+      (useDirY ? DirectionValue(smoothPivotYByDir_, yDirBin, smoothPivotY_) : smoothPivotY_);
+    const double scale1Y =
+      (useDirY ? DirectionSmoothScale(pij, smoothScale1YByDir_, smoothScale1Y_, pivotY, yDirBin) :
+                 SmoothScale(pij, smoothScale1Y_, smoothPivotY_));
+    const double scale2Y =
+      (useDirY ? DirectionSmoothScale(pij, smoothScale2YByDir_, smoothScale2Y_, pivotY, yDirBin) :
+                 SmoothScale(pij, smoothScale2Y_, smoothPivotY_));
+    const double res1Y =
+      (useDirY ? DirectionValue(smoothRes1YByDir_, yDirBin, smoothRes1Y_) : smoothRes1Y_);
+    const double res2Y =
+      (useDirY ? DirectionValue(smoothRes2YByDir_, yDirBin, smoothRes2Y_) : smoothRes2Y_);
 
-      sigma1X = std::sqrt(std::pow(scale1X * tH0, 2) + std::pow(smoothRes1X_, 2));
-      sigma2X = std::sqrt(std::pow(scale2X * tH0, 2) + std::pow(smoothRes2X_, 2));
-      sigma1Y = std::sqrt(std::pow(scale1Y * tH0, 2) + std::pow(res1Y, 2));
-      sigma2Y = std::sqrt(std::pow(scale2Y * tH0, 2) + std::pow(res2Y, 2));
+    sigma1X = std::sqrt(std::pow(scale1X * tH0, 2) + std::pow(smoothRes1X_, 2));
+    sigma2X = std::sqrt(std::pow(scale2X * tH0, 2) + std::pow(smoothRes2X_, 2));
+    sigma1Y = std::sqrt(std::pow(scale1Y * tH0, 2) + std::pow(res1Y, 2));
+    sigma2Y = std::sqrt(std::pow(scale2Y * tH0, 2) + std::pow(res2Y, 2));
 
-      fracX = SmoothFrac(pij,
-                         smoothFracLowX_,
-                         smoothFracHighX_,
-                         smoothFracSlopeX_,
-                         smoothFracMidX_);
-      const double fracLowY =
-        (useDirY ? DirectionValue(smoothFracLowYByDir_, yDirBin, smoothFracLowY_) : smoothFracLowY_);
-      const double fracHighY =
-        (useDirY ? DirectionValue(smoothFracHighYByDir_, yDirBin, smoothFracHighY_) : smoothFracHighY_);
-      const double fracSlopeY =
-        (useDirY ? DirectionValue(smoothFracSlopeYByDir_, yDirBin, smoothFracSlopeY_) : smoothFracSlopeY_);
-      const double fracMidY =
-        (useDirY ? DirectionValue(smoothFracMidYByDir_, yDirBin, smoothFracMidY_) : smoothFracMidY_);
-      fracY = SmoothFrac(pij,
-                         fracLowY,
-                         fracHighY,
-                         fracSlopeY,
-                         fracMidY);
-    }
-    else {
-      const double rms2dX = std::sqrt(tH0 * tH0 + theta0x * theta0x);
-      const double rms2dY = std::sqrt(tH0 * tH0 + theta0y * theta0y);
-
-      sigma1X = rms2dX;
-      sigma2X = twoGaussScaleX_ * rms2dX;
-      sigma1Y = rms2dY;
-      sigma2Y = twoGaussScaleY_ * rms2dY;
-      fracX = std::clamp(twoGaussFrac_, 1e-6, 1.0 - 1e-6);
-      fracY = fracX;
-    }
+    fracX = SmoothFrac(pij,
+                       smoothFracLowX_,
+                       smoothFracHighX_,
+                       smoothFracSlopeX_,
+                       smoothFracMidX_);
+    const double fracLowY =
+      (useDirY ? DirectionValue(smoothFracLowYByDir_, yDirBin, smoothFracLowY_) : smoothFracLowY_);
+    const double fracHighY =
+      (useDirY ? DirectionValue(smoothFracHighYByDir_, yDirBin, smoothFracHighY_) : smoothFracHighY_);
+    const double fracSlopeY =
+      (useDirY ? DirectionValue(smoothFracSlopeYByDir_, yDirBin, smoothFracSlopeY_) : smoothFracSlopeY_);
+    const double fracMidY =
+      (useDirY ? DirectionValue(smoothFracMidYByDir_, yDirBin, smoothFracMidY_) : smoothFracMidY_);
+    fracY = SmoothFrac(pij,
+                       fracLowY,
+                       fracHighY,
+                       fracSlopeY,
+                       fracMidY);
 
     if (sigma1X <= 0.0 || sigma2X <= 0.0 || sigma1Y <= 0.0 || sigma2Y <= 0.0) {
       std::cout << "Error: RMS cannot be zero!" << std::endl;
@@ -550,20 +525,18 @@ double TrajectoryMCSFitter::mcsLikelihood(double p,
     double pdfY =
       std::max(fracY * g1Y + (1.0 - fracY) * g2Y, std::numeric_limits<double>::min());
 
-    if (useSmoothDoubleGaussian_ && useDirectionDependentYZ_ &&
-        useWireCellYZHighVxFallback_ && useDirY) {
+    if (useDirectionDependentYZ_ && useYZHighVxFallback_ && useDirY) {
       if (yDirBin == 3) {
-        const double wHigh = WireCellYZBlendWeight(kineticEnergyMeV, wireCellYZBlendKEEdgesMeV_[2]);
+        const double wHigh = YZBlendWeight(kineticEnergyMeV, yzBlendKEEdgesMeV_[2]);
         pdfY = (1.0 - wHigh) * smoothYPdfForDirBin(3) + wHigh * smoothYPdfForDirBin(2);
       }
       else if (yDirBin == 4) {
-        if (kineticEnergyMeV < wireCellYZBlendKEEdgesMeV_[1]) {
-          const double wLow = WireCellYZBlendWeight(kineticEnergyMeV, wireCellYZBlendKEEdgesMeV_[0]);
+        if (kineticEnergyMeV < yzBlendKEEdgesMeV_[1]) {
+          const double wLow = YZBlendWeight(kineticEnergyMeV, yzBlendKEEdgesMeV_[0]);
           pdfY = (1.0 - wLow) * smoothYPdfForDirBin(4) + wLow * smoothYPdfForDirBin(3);
         }
         else {
-          const double wHigh =
-            WireCellYZBlendWeight(kineticEnergyMeV, wireCellYZBlendKEEdgesMeV_[2]);
+          const double wHigh = YZBlendWeight(kineticEnergyMeV, yzBlendKEEdgesMeV_[2]);
           pdfY = (1.0 - wHigh) * smoothYPdfForDirBin(3) + wHigh * smoothYPdfForDirBin(2);
         }
       }
@@ -584,6 +557,8 @@ double TrajectoryMCSFitter::energyLossLandau(const double mass2,
                                              const double e2,
                                              const double x) const
 {
+  // Most-probable energy loss over a step x.  This is the default propagation
+  // mode used by the historical MicroBooNE MCS fitter.
   if (x <= 0.) return 0.;
   constexpr double Iinv2 = 1. / (188.E-6 * 188.E-6);
   constexpr double matConst = 1.4 * 18. / 40.;
@@ -600,6 +575,7 @@ double TrajectoryMCSFitter::energyLossLandau(const double mass2,
 
 double TrajectoryMCSFitter::energyLossBetheBloch(const double mass, const double e2) const
 {
+  // Mean Bethe-Bloch energy loss.  This remains available through eLossMode=2.
   constexpr double Iinv = 1. / 188.E-6;
   constexpr double matConst = 1.4 * 18. / 40.;
   constexpr double me = 0.511;
@@ -628,7 +604,9 @@ double TrajectoryMCSFitter::GetE(const double initial_E,
                                  const double length_travelled,
                                  const double m) const
 {
-  //
+  // Propagate the candidate total energy from the assumed track start to the
+  // segment being evaluated.  The likelihood uses this segment-local momentum
+  // in the Highland scattering term.
   if (eLossMode_ == 1) {
     constexpr double kcal = 0.002105;
     return (initial_E - kcal * length_travelled);
