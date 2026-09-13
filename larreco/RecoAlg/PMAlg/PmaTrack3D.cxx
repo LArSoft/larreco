@@ -23,6 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <array>
+#include <cmath>
 
 #include "range/v3/algorithm.hpp"
 #include "range/v3/view.hpp"
@@ -136,11 +137,8 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   pma::Hit3D* hit0_a = fHits.front();
   pma::Hit3D* hit1_a = fHits.front();
 
-  geo::PlaneID const hit0_a_planeid{tpcid, hit0_a->View2D()};
-  geo::PlaneID const hit1_a_planeid{tpcid, hit1_a->View2D()};
-
-  float minX = detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid);
-  float maxX = detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid);
+  float minX = detProp.ConvertTicksToX(hit0_a->PeakTime(), geo::PlaneID{tpcid, hit0_a->View2D()});
+  float maxX = minX;
   for (auto hit : fHits) {
     double const x = detProp.ConvertTicksToX(hit->PeakTime(), geo::PlaneID{tpcid, hit->View2D()});
     if (x < minX) {
@@ -172,23 +170,28 @@ bool pma::Track3D::InitFromHits(detinfo::DetectorPropertiesData const& detProp,
   }
 
   if (hit0_a && hit0_b && hit1_a && hit1_b) {
+    geo::PlaneID const hit0_a_planeid{tpcid, hit0_a->View2D()};
+    geo::PlaneID const hit1_a_planeid{tpcid, hit1_a->View2D()};
     geo::PlaneID const hit0_b_planeid{tpcid, hit0_b->View2D()};
     geo::PlaneID const hit1_b_planeid{tpcid, hit1_b->View2D()};
+
+    auto const intersection0 = wireReadoutGeom.WireIDsIntersect(
+      geo::WireID{hit0_a_planeid, hit0_a->Wire()}, geo::WireID{hit0_b_planeid, hit0_b->Wire()});
+    auto const intersection1 = wireReadoutGeom.WireIDsIntersect(
+      geo::WireID{hit1_a_planeid, hit1_a->Wire()}, geo::WireID{hit1_b_planeid, hit1_b->Wire()});
+    if (!intersection0 || !intersection1) {
+      mf::LogVerbatim("pma::Track3D") << "Wires of the end hits do not cross.";
+      fEndSegWeight = wtmp;
+      return false;
+    }
+
     double const x0 = 0.5 * (detProp.ConvertTicksToX(hit0_a->PeakTime(), hit0_a_planeid) +
                              detProp.ConvertTicksToX(hit0_b->PeakTime(), hit0_b_planeid));
-    auto const intersection0 = wireReadoutGeom
-                                 .WireIDsIntersect(geo::WireID{hit0_a_planeid, hit0_a->Wire()},
-                                                   geo::WireID{hit0_b_planeid, hit0_b->Wire()})
-                                 .value_or(geo::WireIDIntersection::invalid());
-    v3d_1.SetXYZ(x0, intersection0.y, intersection0.z);
+    v3d_1.SetXYZ(x0, intersection0->y, intersection0->z);
 
     double const x1 = 0.5 * (detProp.ConvertTicksToX(hit1_a->PeakTime(), hit1_a_planeid) +
                              detProp.ConvertTicksToX(hit1_b->PeakTime(), hit1_b_planeid));
-    auto const intersection1 = wireReadoutGeom
-                                 .WireIDsIntersect(geo::WireID{hit1_a_planeid, hit1_a->Wire()},
-                                                   geo::WireID{hit1_b_planeid, hit1_b->Wire()})
-                                 .value_or(geo::WireIDIntersection::invalid());
-    v3d_2.SetXYZ(x1, intersection1.y, intersection1.z);
+    v3d_2.SetXYZ(x1, intersection1->y, intersection1->z);
 
     ClearNodes();
     AddNode(detProp, v3d_1, tpc, cryo);
@@ -1242,6 +1245,31 @@ void pma::Track3D::AddNode(pma::Node3D* node)
 {
   fNodes.push_back(node);
   if (fNodes.size() > 1) RebuildSegments();
+}
+
+bool pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp,
+                           TVector3 const& p3d,
+                           unsigned int tpc,
+                           unsigned int cryo)
+{
+  if (!std::isfinite(p3d.X()) || !std::isfinite(p3d.Y()) || !std::isfinite(p3d.Z())) {
+    mf::LogError("pma::Track3D") << "Refusing to add a node at non-finite position (" << p3d.X()
+                                 << ", " << p3d.Y() << ", " << p3d.Z() << ").";
+    return false;
+  }
+  double ds = fNodes.empty() ? 0 : fNodes.back()->GetDriftShift();
+  AddNode(new pma::Node3D(detProp, p3d, tpc, cryo, false, ds));
+  return true;
+}
+
+void pma::Track3D::AddRefPoint(const TVector3& p)
+{
+  if (!std::isfinite(p.X()) || !std::isfinite(p.Y()) || !std::isfinite(p.Z())) {
+    mf::LogWarning("pma::Track3D") << "Ignoring non-finite reference point (" << p.X() << ", "
+                                   << p.Y() << ", " << p.Z() << ").";
+    return;
+  }
+  fAssignedPoints.push_back(new TVector3(p));
 }
 
 bool pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp)
