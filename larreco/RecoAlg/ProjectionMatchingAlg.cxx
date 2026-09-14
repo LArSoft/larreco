@@ -1060,10 +1060,14 @@ bool pma::ProjectionMatchingAlg::addEndpointRef_(
     x /= wire_view.size();
     auto const [wire0, plane0] = wire_view[0];
     auto const [wire1, plane1] = wire_view[1];
-    auto const [y, z, _] = fWireReadoutGeom
-                             ->WireIDsIntersect(geo::WireID(cryo, tpc, plane0, wire0),
-                                                geo::WireID(cryo, tpc, plane1, wire1))
-                             .value_or(geo::WireIDIntersection::invalid());
+    auto const intersection = fWireReadoutGeom->WireIDsIntersect(
+      geo::WireID(cryo, tpc, plane0, wire0), geo::WireID(cryo, tpc, plane1, wire1));
+    if (!intersection) {
+      mf::LogVerbatim("ProjectionMatchingAlg")
+        << "trk tpc:" << tpc << " size:" << trk.size() << " endpoint wires do not cross";
+      return false;
+    }
+    auto const [y, z, _] = *intersection;
 
     trk.AddRefPoint(x, y, z);
     mf::LogVerbatim("ProjectionMatchingAlg")
