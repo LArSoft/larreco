@@ -44,6 +44,7 @@
 #include "larcore/Geometry/WireReadout.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/ArtDataHelper/HitCreator.h"
+#include "lardata/ArtDataHelper/GetManyByRegexTag.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "larreco/HitFinder/HitFilterAlg.h"
@@ -247,8 +248,17 @@ namespace hit {
     // ##########################################
     // ### Reading in the Wire List object(s) ###
     // ##########################################
-    art::Handle<std::vector<recob::Wire>> wireVecHandle;
-    evt.getByLabel(fCalDataModuleLabel, wireVecHandle);
+    // art::Handle<std::vector<recob::Wire>> wireVecHandle;
+    // evt.getByLabel(fCalDataModuleLabel, wireVecHandle);
+
+
+    std::vector<art::Ptr<recob::Wire>> wirePtrVec;
+
+    auto wireVecHandle_many = lar::util::getManyByRegexTag<std::vector<recob::Wire>>(evt, art::InputTag(fCalDataModuleLabel));
+    for ( const auto& wireVecHandle_one : wireVecHandle_many ) {
+      art::fill_ptr_vector(wirePtrVec, wireVecHandle_one);
+    }
+
 
     //#################################################
     //###    Set the charge determination method    ###
@@ -283,12 +293,13 @@ namespace hit {
     //##############################
     tbb::parallel_for(
       static_cast<std::size_t>(0),
-      wireVecHandle->size(),
+      // wireVecHandle->size(),
+      wirePtrVec.size(),
       [&](size_t& wireIter) {
         // ####################################
         // ### Getting this particular wire ###
         // ####################################
-        art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+        art::Ptr<recob::Wire> wire = wirePtrVec[wireIter];
 
         // --- Setting Channel Number and Signal type ---
 
