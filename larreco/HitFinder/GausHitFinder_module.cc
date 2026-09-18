@@ -248,10 +248,6 @@ namespace hit {
     // ##########################################
     // ### Reading in the Wire List object(s) ###
     // ##########################################
-    // art::Handle<std::vector<recob::Wire>> wireVecHandle;
-    // evt.getByLabel(fCalDataModuleLabel, wireVecHandle);
-
-
     std::vector<art::Ptr<recob::Wire>> wirePtrVec;
 
     auto wireVecHandle_many = lar::util::getManyByRegexTag<std::vector<recob::Wire>>(evt, art::InputTag(fCalDataModuleLabel));
@@ -293,7 +289,6 @@ namespace hit {
     //##############################
     tbb::parallel_for(
       static_cast<std::size_t>(0),
-      // wireVecHandle->size(),
       wirePtrVec.size(),
       [&](size_t& wireIter) {
         // ####################################
