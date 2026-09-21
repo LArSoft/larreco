@@ -215,11 +215,9 @@ public:
                                               unsigned int view) const;
   size_t CompleteMissingWires(detinfo::DetectorPropertiesData const& detProp, unsigned int view);
 
-  void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
-  void AddRefPoint(double x, double y, double z)
-  {
-    fAssignedPoints.push_back(new TVector3(x, y, z));
-  }
+  /// Non-finite points are ignored: they would turn the whole track into NaN.
+  void AddRefPoint(const TVector3& p);
+  void AddRefPoint(double x, double y, double z) { AddRefPoint(TVector3(x, y, z)); }
   bool HasRefPoint(TVector3* p) const;
 
   /// MSE of hits weighted with hit amplidudes and wire plane coefficients.
@@ -276,14 +274,11 @@ public:
   pma::Node3D* LastElement() const { return fNodes.back(); }
 
   void AddNode(pma::Node3D* node);
-  void AddNode(detinfo::DetectorPropertiesData const& detProp,
+  /// Returns false, and adds nothing, if p3d is not finite.
+  bool AddNode(detinfo::DetectorPropertiesData const& detProp,
                TVector3 const& p3d,
                unsigned int tpc,
-               unsigned int cryo)
-  {
-    double ds = fNodes.empty() ? 0 : fNodes.back()->GetDriftShift();
-    AddNode(new pma::Node3D(detProp, p3d, tpc, cryo, false, ds));
-  }
+               unsigned int cryo);
   bool AddNode(detinfo::DetectorPropertiesData const& detProp);
 
   void InsertNode(detinfo::DetectorPropertiesData const& detProp,
