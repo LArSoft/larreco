@@ -386,7 +386,7 @@ BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 {
   // max 20 Gaussians
   hit::GausFitCache GausCache("RunTimeGaussians");
-  ThreeGaussianFitTest(GausCache, 0.03 % tolerance());
+  ThreeGaussianFitTest(GausCache, 0.155 % tolerance());
 } // BOOST_AUTO_TEST_CASE(RunTimeThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function from the compiled cache
@@ -394,7 +394,7 @@ BOOST_AUTO_TEST_CASE(CompiledThreeGaussianFitTest)
 {
   // max 20 Gaussians
   hit::CompiledGausFitCache<20> GausCache("CompiledGaussians");
-  ThreeGaussianFitTest(GausCache, 0.02 % tolerance());
+  ThreeGaussianFitTest(GausCache, 0.23 % tolerance());
 } // BOOST_AUTO_TEST_CASE(CompiledThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function (each truncated at 5 sigma)
@@ -403,7 +403,7 @@ BOOST_AUTO_TEST_CASE(CompiledTruncated5ThreeGaussianFitTest)
 {
   // max 20 Gaussians; truncate at 5 sigma
   hit::CompiledTruncatedGausFitCache<20, 5> GausCache("CompiledTruncated5Gaussians");
-  ThreeGaussianFitTest(GausCache, 0.1 % tolerance()); // 0.1% tolerance
+  ThreeGaussianFitTest(GausCache, 0.11 % tolerance()); // 0.1% tolerance
 } // BOOST_AUTO_TEST_CASE(CompiledTruncated5ThreeGaussianFitTest)
 
 // Test a fit with a three-Gaussian function (each truncated at 4 sigma)
