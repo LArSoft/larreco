@@ -1265,8 +1265,8 @@ bool pma::Track3D::AddNode(detinfo::DetectorPropertiesData const& detProp,
 void pma::Track3D::AddRefPoint(const TVector3& p)
 {
   if (!std::isfinite(p.X()) || !std::isfinite(p.Y()) || !std::isfinite(p.Z())) {
-    mf::LogWarning("pma::Track3D") << "Ignoring non-finite reference point (" << p.X() << ", "
-                                   << p.Y() << ", " << p.Z() << ").";
+    mf::LogWarning("pma::Track3D")
+      << "Ignoring non-finite reference point (" << p.X() << ", " << p.Y() << ", " << p.Z() << ").";
     return;
   }
   fAssignedPoints.push_back(new TVector3(p));
