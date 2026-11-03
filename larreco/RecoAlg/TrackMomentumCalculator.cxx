@@ -114,7 +114,7 @@ namespace {
      65.0,  70.0,  75.0,  80.0,  85.0,  90.0,   95.0,   100.0,  125.0,  150.0,  175.0,  200.0,
      225.0, 250.0, 275.0, 300.0, 350.0, 400.0,  450.0,  500.0,  550.0,  600.0,  650.0,  700.0,
      750.0, 800.0, 850.0, 900.0, 950.0, 1000.0, 1500.0, 2000.0, 2500.0, 3000.0, 4000.0, 5000.0}};
-  TGraph const KEvsR_proton_gr{73, Range_grampercm_proton.data(), KE_MeV_proton.data()};
+  TGraph const KEvsR_proton_gr{60, Range_grampercm_proton.data(), KE_MeV_proton.data()};
   TSpline3 const KEvsR_proton_spline3{"KEvsR_proton", &KEvsR_proton_gr};
 
   // Stopping power data from pdg, to be used with MCS
