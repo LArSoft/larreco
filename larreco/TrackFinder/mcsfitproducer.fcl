@@ -1,6 +1,10 @@
 BEGIN_PROLOG
 mcsfitproducer: {
   module_type:  MCSFitProducer
+
+  #Default for the TrajectoryMCSFitter
+  algorithm: "standard"
+
   inputs: {
         inputLabel: @nil
   }

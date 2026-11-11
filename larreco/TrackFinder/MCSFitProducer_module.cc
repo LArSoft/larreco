@@ -12,6 +12,11 @@
 
 #include "larreco/RecoAlg/TrajectoryMCSFitter.h"
 
+#include "larreco/RecoAlg/TauMCSFitter.h"
+#include "fhiclcpp/types/Comment.h"
+#include "fhiclcpp/types/OptionalTable.h"
+#include <string>
+
 #include <memory>
 
 namespace trkf {
@@ -29,24 +34,46 @@ namespace trkf {
    * @author  G. Cerati (FNAL, MicroBooNE), based on code from L. Kalousis and D. Kaleko
    * @date    2017
    * @version 1.0
+   *
+   * Supports selection between the standard TrajectoryMCSFitter
+   * and TauMCSFitter through FHiCL configuration.
    */
   class MCSFitProducer : public art::EDProducer {
   public:
     struct Inputs {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
+
       fhicl::Atom<art::InputTag> inputLabel{
         Name("inputLabel"),
         Comment("Label of recob::TrackTrajectory Collection to be fit")};
     };
 
-    struct Config {
-      using Name = fhicl::Name;
-      fhicl::Table<MCSFitProducer::Inputs> inputs{
-        Name("inputs"),
-      };
-      fhicl::Table<TrajectoryMCSFitter::Config> fitter{Name("fitter")};
+   // Configuration for selecting the MCS fitting algorithm.
+   struct Config {
+     using Name = fhicl::Name;
+     using Comment = fhicl::Comment;
+
+    fhicl::Atom<std::string> algorithm{
+      Name("algorithm"),
+      Comment("MCS fitting algorithm: 'standard' or 'tau'"),
+      "standard"
     };
+
+    fhicl::Table<MCSFitProducer::Inputs> inputs{
+      Name("inputs")
+    };
+
+    fhicl::Table<TrajectoryMCSFitter::Config> fitter{
+      Name("fitter")
+    };
+
+    fhicl::OptionalTable<TauMCSFitter::Config> tauFitter{
+      Name("tauFitter"),
+      Comment("Configuration for double gaussian MCS fitter")
+    };
+  };
+
     using Parameters = art::EDProducer::Table<Config>;
 
     explicit MCSFitProducer(Parameters const& p);
@@ -63,14 +90,39 @@ namespace trkf {
 
     Parameters p_;
     art::InputTag inputTag;
+    std::string algorithm;
     TrajectoryMCSFitter mcsfitter;
+    std::unique_ptr<TauMCSFitter> taumcsfitter;
   };
 }
 
-trkf::MCSFitProducer::MCSFitProducer(trkf::MCSFitProducer::Parameters const& p)
-  : EDProducer{p}, p_(p), mcsfitter(p_().fitter)
+trkf::MCSFitProducer::MCSFitProducer(
+  trkf::MCSFitProducer::Parameters const& p)
+  : EDProducer{p}
+  , p_(p)
+  , inputTag(p_().inputs().inputLabel())
+  , algorithm(p_().algorithm())
+  , mcsfitter(p_().fitter)
 {
-  inputTag = art::InputTag(p_().inputs().inputLabel());
+  if (algorithm == "tau") {
+
+    auto tauConfig = p_().tauFitter();
+
+    if (!tauConfig) {
+      throw cet::exception("MCSFitProducer")
+        << "algorithm is set to 'tau', but no tauFitter "
+        << "configuration was provided.";
+    }
+
+    taumcsfitter =
+      std::make_unique<TauMCSFitter>(*tauConfig);
+  }
+  else if (algorithm != "standard") {
+    throw cet::exception("MCSFitProducer")
+      << "Unknown MCS fitting algorithm '" << algorithm
+      << "'. Valid options are 'standard' and 'tau'.";
+  }
+
   produces<std::vector<recob::MCSFitResult>>();
 }
 
@@ -89,8 +141,13 @@ void trkf::MCSFitProducer::produce(art::Event& e)
   const auto& inputVec = *(inputH.product());
   for (const auto& element : inputVec) {
     //fit
-    recob::MCSFitResult result = mcsfitter.fitMcs(element);
-    output->emplace_back(std::move(result));
+     auto result =
+       (algorithm == "standard")
+       ? mcsfitter.fitMcs(element)
+       : taumcsfitter->fitMcs(element);
+
+     output->emplace_back(std::move(result));
+
   }
   e.put(std::move(output));
 }

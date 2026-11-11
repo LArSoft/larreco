@@ -97,6 +97,7 @@ cet_make_library(SOURCE
   TrackTrajectoryAlg.cxx
   TrajClusterAlg.cxx
   TrajectoryMCSFitter.cxx
+  TauMCSFitter.cxx
   VertexFitAlg.cxx
   LIBRARIES
   PUBLIC

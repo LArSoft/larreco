@@ -1,0 +1,193 @@
+#include "mcsfitproducer.fcl"
+
+BEGIN_PROLOG
+
+taumcsfitproducer: {
+  @table::mcsfitproducer
+
+  # Alternative Double Gaussian MCS fitter
+  algorithm: "tau"
+
+  tauFitter: {
+
+    # Track segmentation, energy-loss propagation, and momentum scan.
+    segmentLength:      14.0
+    pIdHypothesis:      13
+    minNumSegments:     3
+    minHitsPerSegment:  2
+    nElossSteps:        10
+    eLossMode:          0
+
+    pMin:               0.01
+    pMax:               15.0
+    pStepCoarse:        0.1
+    pStep:              0.001
+    fineScanWindow:     1.0
+
+    # Highland normalization
+    hlParams:           [0.0, 0.0, 11.5, 0.0, 0.0]
+    segLenTolerance:    0.1
+    applySCEcorr:       true
+
+
+    # Direction-dependent YZ angle-PDF calibration
+    useDirectionDependentYZ: true
+
+    smoothYDirBinEdges: [
+      0.0,
+      0.1,
+      0.2,
+      0.35,
+      0.75,
+      1.0
+    ]
+
+
+    # High-|v_x| YZ fallback/blending.
+    useYZHighVxFallback: true
+
+    yzBlendKEEdgesMeV: [
+      600.0,
+      950.0,
+      1300.0
+    ]
+
+    yzBlendWidthMeV: 50.0
+
+
+    # Direction-dependent YZ pivots.
+    smoothPivotYByDir: [
+      2.0574096582104806,
+      2.0574096582104806,
+      1.7523133299315405,
+      1.2403748587812629,
+      0.6139126031276804
+    ]
+
+
+    # Direction-dependent YZ core scale coefficients.
+    smoothScale1YByDir: [
+       0.42645342884333287,  -0.1908769854114963,  -0.15725037323822638,
+      -0.05296589035866524,  -0.2537319805607545,  -0.13463598469941843,
+      -0.033891229976219635, -0.04713854774883128, -0.055281497405120276,
+       0.14824535401592742,   0.3276386132691046,   0.09466800099711738,
+      -0.14815463052745453,   0.06614533076967193, -0.06083771442688487
+    ]
+
+
+    # Direction-dependent YZ tail scale coefficients.
+    smoothScale2YByDir: [
+      2.296216129007596,   -0.38620985843933964, -0.38714441512362535,
+      1.2443591002047192,  -0.5867175371368589,  -0.24102812282862585,
+      0.07615349504781005, -0.8507712403246651,  -0.13345849183682063,
+      1.4501618170145862,   0.5721529011212757,   0.12043709759093664,
+      1.0614759319363833,   1.318754150234689,    1.2706639658626582
+    ]
+
+
+    # Direction-dependent detector/reconstruction resolution floors [mrad].
+    smoothRes1YByDir: [
+      12.965438599798851,
+       6.897641985310058,
+       5.8976480620518545,
+       5.8976480620518545,
+       5.8976480620518545
+    ]
+
+    smoothRes2YByDir: [
+      106.91502823241363,
+       59.8904446437991,
+       52.266444384283496,
+       52.266444384283496,
+       52.266444384283496
+    ]
+
+
+    # Direction-dependent primary-Gaussian fractions.
+    smoothFracLowYByDir: [
+      0.2916436641746634,
+      0.898245242495589,
+      0.9219107424942616,
+      0.7554261152166839,
+      0.7240398463724436
+    ]
+
+    smoothFracHighYByDir: [
+      0.775384082952884,
+      0.8210314091380213,
+      0.814633510847099,
+      0.9211180491446503,
+      0.9510342552364317
+    ]
+
+    smoothFracSlopeYByDir: [
+       1.8064069629012318,
+      14.098656113863944,
+       4.619435158716874,
+      22.808652765348675,
+      40.91093617144261
+    ]
+
+    smoothFracMidYByDir: [
+      0.2394372561337977,
+      3.1702556370565502,
+      3.332025736142649,
+      0.2838849236522994,
+      0.5605793403532061
+    ]
+
+
+    # XZ momentum-dependent calibration
+    smoothPivotX: 2.0574096582104806
+
+    smoothScale1X: [
+      -0.00605193502840104,
+      -0.04708402792321442,
+      -0.057489484096672906
+    ]
+
+    smoothScale2X: [
+       0.4814888436631339,
+      -0.5019430277618143,
+      -0.1694457409875804
+    ]
+
+    smoothRes1X: 3.0432711812097883
+    smoothRes2X: 23.29040950903235
+
+    smoothFracLowX:   0.4399944437073698
+    smoothFracHighX:  0.9385449943686903
+    smoothFracSlopeX: 21.47834237776103
+    smoothFracMidX:   0.272172943608582
+
+
+
+    # Global YZ fallback calibration
+    #
+    # These values are required by TauMCSFitter::Config, but are not the
+    # primary YZ model while useDirectionDependentYZ is true.
+    smoothPivotY: 1.75231
+
+    smoothScale1Y: [
+      -1.701443481233165,
+      -2.8354591664952666,
+      -1.1096648802852689
+    ]
+
+    smoothScale2Y: [
+       2.3046181068318963,
+      -0.014085500410843253,
+      -0.38723571558075676
+    ]
+
+    smoothRes1Y: 12.8517
+    smoothRes2Y: 104.754
+
+    smoothFracLowY:   0.87595
+    smoothFracHighY:  0.800436
+    smoothFracSlopeY: 50.0
+    smoothFracMidY:   2.06062
+  }
+}
+
+END_PROLOG
