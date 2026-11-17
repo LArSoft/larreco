@@ -290,7 +290,7 @@ namespace hit {
     tbb::parallel_for(
       static_cast<std::size_t>(0),
       wirePtrVec.size(),
-      [&](size_t& wireIter) {
+      [&](size_t wireIter) {
         // ####################################
         // ### Getting this particular wire ###
         // ####################################
@@ -320,7 +320,7 @@ namespace hit {
         tbb::parallel_for(
           static_cast<std::size_t>(0),
           signalROI.n_ranges(),
-          [&](size_t& rangeIter) {
+          [&](size_t rangeIter) {
             const auto& range = signalROI.range(rangeIter);
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
